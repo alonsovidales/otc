@@ -21,7 +21,8 @@ pb:
 otc:
 	@echo "$(OK_COLOR)==> Compiling...$(NO_COLOR)"
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build bin/otc.go && scp otc otc@otc:/tmp/
-	@echo "$(OK_COLOR)==> Done...$(NO_COLOR)"
+	@echo "$(OK_COLOR)==> Copying static content...$(NO_COLOR)"
+	scp static/* otc@otc:/var/www/
 
 .PHONY: otc
 
