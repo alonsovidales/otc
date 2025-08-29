@@ -1,0 +1,37 @@
+syntax = "proto3";
+package msg;
+
+option go_package = "github.com/alonsovidales/otc/proto/generated;msg";
+
+enum ErrorCode {
+  Unknown = 0;
+}
+
+message GetStatus {
+}
+
+message Status {
+  bool online = 1;
+  int32  local_ip = 2;
+  int32  nas_status = 3;
+  int32  disks = 4;
+  repeated ErrorCode  error_codes = 5;
+}
+
+message Ack {
+  bool ok = 1;
+}
+
+message Auth {
+  int64 uuid = 1;
+  string  key = 2;
+}
+
+message Envelope {
+  int32 id = 1;
+  oneof payload {
+    Status req_status = 10;
+    GetStatus req_get_status = 11;
+    Auth auth = 12;
+  }
+}
