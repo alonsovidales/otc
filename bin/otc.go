@@ -5,6 +5,7 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/websocket"
 	"os"
 	"os/signal"
 	"runtime"
@@ -26,9 +27,11 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"))
+	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"))
 
 	api.Init(
 		filesManager,
+		webSocket,
 		cfg.GetStr("otc-api", "static"),
 		int(cfg.GetInt("otc-api", "port")),
 		int(cfg.GetInt("otc-api", "ssl-port")),

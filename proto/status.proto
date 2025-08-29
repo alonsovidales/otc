@@ -1,0 +1,19 @@
+syntax = "proto3";
+package status;
+
+option go_package = "github.com/alonsovidales/otc/proto/generated;generatedpb";
+
+enum ErrorCode {
+  Unknown = 0;
+}
+
+message GetStatus {
+}
+
+message Status {
+  bool online = 1;
+  int32  local_ip = 2;
+  int32  nas_status = 3;
+  int32  disks = 4;
+  repeated ErrorCode  error_codes = 5;
+}

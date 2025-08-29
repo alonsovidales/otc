@@ -1,0 +1,20 @@
+syntax = "proto3";
+package envelop;
+
+option go_package = "github.com/alonsovidales/otc/proto/generated;generatedpb";
+
+import "status.proto";
+import "auth.proto";
+
+message Ack {
+  bool ok = 1;
+}
+
+message Envelope {
+  int32 id = 1;
+  oneof payload {
+    status.Status req_status = 10;
+    status.GetStatus req_get_status = 11;
+    status.Auth auth = 12;
+  }
+}

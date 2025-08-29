@@ -1,0 +1,9 @@
+syntax = "proto3";
+package status;
+
+option go_package = "github.com/alonsovidales/otc/proto/generated;generatedpb";
+
+message Auth {
+  int64 uuid = 1;
+  string  key = 2;
+}
