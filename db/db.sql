@@ -3,11 +3,13 @@ CREATE USER 'otc'@'localhost' IDENTIFIED BY 'owivFHIJoNhijc@pe$wo';
 drop database otc;
 create database otc;
 
+GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
+
 use otc;
 
 create table files
 (
-  `hash` varchar(32) not null,
+  `hash` varchar(64) not null,
   `mime` varchar(150) not null,
   `created` datetime not null,
   `modified` datetime not null,
@@ -15,6 +17,7 @@ create table files
   `size` int not null,
 
   key (`hash`),
+  unique (`path`),
   fulltext key (`path`),
   INDEX USING BTREE (`created`),
   INDEX USING BTREE (`modified`),
@@ -25,9 +28,14 @@ create table files_tags
 (
   `tag` varchar(150) not null,
   `tag_type` enum('featured', 'person'),
-  `file_hash` varchar(32) not null,
+  `file_hash` varchar(64) not null,
 
   primary key (`tag`),
   key (`file_hash`),
   foreign key (`file_hash`) REFERENCES files(`hash`)
+);
+
+create table auth_check
+(
+  `check` blob not null
 );

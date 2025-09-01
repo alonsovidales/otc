@@ -1,4 +1,7 @@
 syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
 package msg;
 
 option go_package = "github.com/alonsovidales/otc/proto/generated;msg";
@@ -18,13 +21,53 @@ message Status {
   repeated ErrorCode  error_codes = 5;
 }
 
-message Ack {
-  bool ok = 1;
+message Auth {
+  string uuid = 1;
+  string key = 2;
+  bool create = 3;
 }
 
-message Auth {
-  int64 uuid = 1;
-  string  key = 2;
+message UploadFile {
+  string path = 1;
+  bytes content = 2;
+  bool forceOverride = 3;
+}
+
+message DelFile {
+  string path = 1;
+}
+
+message GetFile {
+  string path = 1;
+}
+
+message ListFiles {
+  bool globbing = 1;
+  string path = 2;
+}
+
+message ListOfFiles {
+  repeated File files = 1;
+}
+
+message FileTag {
+  string tag = 1;
+  string type = 2;
+}
+
+message File {
+  string hash = 1;
+  string mime = 2;
+  google.protobuf.Timestamp created = 3;
+  google.protobuf.Timestamp modified = 4;
+  string path = 5;
+  int32 size = 6;
+  repeated FileTag tags = 7;
+  optional bytes content = 8;
+}
+
+message Ack {
+  bool ok = 1;
 }
 
 message Envelope {
@@ -32,6 +75,10 @@ message Envelope {
   oneof payload {
     Status req_status = 10;
     GetStatus req_get_status = 11;
-    Auth auth = 12;
+    Auth req_auth = 12;
+    UploadFile req_upload_file = 13;
+    GetFile req_get_file = 14;
+    DelFile req_del_file = 15;
+    ListFiles req_list_files = 16;
   }
 }

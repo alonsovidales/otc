@@ -81,6 +81,7 @@ func Fatal(v ...interface{}) {
 		fileParts := strings.Split(file, "/")
 		newLog(fmt.Sprintf("FATAL: <%s:%d> ", fileParts[len(fileParts)-1], line), v...)
 	}
+	os.Exit(1)
 }
 
 // setLogFile Sets the specified path as new log file, in case of have defined

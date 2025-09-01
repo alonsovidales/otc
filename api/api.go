@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/websocket"
@@ -17,13 +18,14 @@ type API struct {
 	filesManager *filesmanager.Manager
 	websocket    *websocket.Manager
 	staticPath   string
+	dao          *dao.Dao
 
 	muxHTTPServer *http.ServeMux
 }
 
 // Init Initializes the API and starts listening on the specified ports serving
 // both the HTTP API and the static content
-func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
+func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao *dao.Dao, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
 		websocket:     webSocket,
 		filesManager:  filesManager,
