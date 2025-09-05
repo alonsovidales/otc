@@ -1,6 +1,7 @@
 package filesmanager
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -10,7 +11,11 @@ import (
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
+	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"image"
+	"image/jpeg"
+	_ "image/jpeg"
 	"net/http"
 	"os"
 )
@@ -76,13 +81,17 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	if err != nil {
 		return
 	}
-	err = os.Remove(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), file.Hash))
+	fullPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), file.Hash)
+	if err = os.Remove(fullPath); err != nil {
+		return err
+	}
+	os.Remove(fmt.Sprintf("%s_thumbnail", fullPath))
 	return
 }
 
 func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool) (file *pb.File, err error) {
 	mimeType := http.DetectContentType(content)
-	log.Debug("Mime type: ", mimeType)
+	log.Debug("Mime type:", mimeType)
 
 	// Calculate the SHA256 of the file to be used as unique hash
 	sum := sha256.Sum256(content)
@@ -116,7 +125,32 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	}
 
 	// Write to disk the content
-	err = os.WriteFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash), session.Encrypt(content), 0644) // perms: rw-r--r--
+	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
+	err = os.WriteFile(targetPath, session.Encrypt(content), 0644) // perms: rw-r--r--
+
+	// We will try to create a thumbnail of images only
+	if mimeType[:5] == "image" {
+		img, _, err := image.Decode(bytes.NewReader(content))
+		if err != nil {
+			log.Error("error decoding the image:", err)
+			return nil, err
+		}
+		imgCfg, _, err := image.DecodeConfig(bytes.NewReader(content))
+		if err != nil {
+			log.Error("error decoding image config:", err)
+			return nil, err
+		}
+		maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+		if imgCfg.Width > maxWidth {
+			newH := int(float64(imgCfg.Height) * float64(maxWidth) / float64(imgCfg.Width))
+			dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
+			draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
+			var buf bytes.Buffer
+			jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
+			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
+			err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
+		}
+	}
 
 	return
 }

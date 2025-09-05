@@ -40,7 +40,6 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 	return
 }
 
-// RegenerateGroupKey Creates a new random key for a group
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -54,7 +53,6 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	// The first message should always be an auth, it not we will just close here
 	_, frame, err := conn.ReadMessage()
 	if err != nil {
-		log.Error("error in Auth:", err)
 		return
 	}
 	var auth pb.Auth
@@ -64,6 +62,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now we have a session, we can just process all the messages using this from now on
+	log.Debug("Auth with:", auth.Key, auth.Create)
 	session, err := session.New(auth.Uuid, auth.Key, auth.Create, mg.dao)
 	if err != nil {
 		time.Sleep(1)
@@ -86,35 +85,41 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var env pb.Envelope
+		var env pb.ReqEnvelope
 		if err := proto.Unmarshal(frame, &env); err != nil {
 			log.Error("bad proto:", err)
 			continue
 		}
 
-		var resp []byte
+		resp := &pb.RespEnvelope{
+			Id: env.Id,
+		}
 		switch p := env.Payload.(type) {
-		case *pb.Envelope_ReqUploadFile:
+		case *pb.ReqEnvelope_ReqUploadFile:
 			log.Info("Uploading file with path:", p.ReqUploadFile.Path)
-			out, err := mg.filesManager.UploadFile(session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride)
+			pbFile, err := mg.filesManager.UploadFile(session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride)
 			if err != nil {
 				log.Error("error trying to upload file:", err)
 				// TODO: Return an error message
 				continue
 			}
-			resp, _ = proto.Marshal(out)
+			resp.Payload = &pb.RespEnvelope_RespFile{
+				RespFile: pbFile,
+			}
 
-		case *pb.Envelope_ReqGetFile:
+		case *pb.ReqEnvelope_ReqGetFile:
 			log.Info("Get file with path:", p.ReqGetFile.Path)
-			file, err := mg.filesManager.GetFile(session, p.ReqGetFile.Path)
+			pbFile, err := mg.filesManager.GetFile(session, p.ReqGetFile.Path)
 			if err != nil {
 				log.Error("error trying to retrieve file:", err)
 				// TODO: Return an error message
 				continue
 			}
-			resp, _ = proto.Marshal(file)
+			resp.Payload = &pb.RespEnvelope_RespFile{
+				RespFile: pbFile,
+			}
 
-		case *pb.Envelope_ReqDelFile:
+		case *pb.ReqEnvelope_ReqDelFile:
 			log.Info("Del file by path:", p.ReqDelFile.Path)
 			err := mg.filesManager.DelFile(session, p.ReqDelFile.Path)
 			if err != nil {
@@ -125,9 +130,13 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 
 			log.Info("Deleted file by path:", p.ReqDelFile.Path)
 			// Acknoledge the Deletion
-			resp, _ = proto.Marshal(&pb.Ack{Ok: true})
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
 
-		case *pb.Envelope_ReqListFiles:
+		case *pb.ReqEnvelope_ReqListFiles:
 			log.Info("List of file by path:", p.ReqListFiles.Path)
 			files, err := mg.filesManager.ListFiles(session, p.ReqListFiles.Globbing, p.ReqListFiles.Path)
 			if err != nil {
@@ -137,19 +146,26 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 			}
 			log.Debug("Files to return:", len(files))
 
-			resp, _ = proto.Marshal(&pb.ListOfFiles{Files: files})
+			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+				RespListOfFiles: &pb.ListOfFiles{
+					Files: files,
+				},
+			}
 
-		case *pb.Envelope_ReqGetStatus:
+		case *pb.ReqEnvelope_ReqGetStatus:
 			log.Info(fmt.Sprintf("Requested status!!!! %d", p))
 
-			out := &pb.Status{Online: true, LocalIp: 123, NasStatus: 0, Disks: 2}
-			resp, _ = proto.Marshal(out)
+			status := &pb.Status{Online: true, LocalIp: 123, NasStatus: 0, Disks: 2}
+			resp.Payload = &pb.RespEnvelope_RespStatus{
+				RespStatus: status,
+			}
 
 		default:
 			log.Info("unknown payload")
 		}
 
-		if err := conn.WriteMessage(gorilla.BinaryMessage, resp); err != nil {
+		respBin, _ := proto.Marshal(resp)
+		if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
 			log.Error("error responding, closing the connection:", err)
 			return
 		}

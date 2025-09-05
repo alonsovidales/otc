@@ -69,6 +69,7 @@ func (api *API) registerAPIs() {
 			path += ".html"
 		}
 
+		log.Debug("Serving static:", path)
 		http.ServeFile(w, r, path)
 	})
 }

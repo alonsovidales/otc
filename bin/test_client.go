@@ -12,9 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-//const cFilesDir = "/Users/avidales/Desktop/potochop"
+const cFilesDir = "/Users/avidales/Desktop/potochop"
 
-const cFilesDir = "bin/files_to_test/"
+//const cFilesDir = "bin/files_to_test/"
 
 func main() {
 	u := url.URL{Scheme: "ws", Host: "otc:8080", Path: "/ws"}
@@ -44,9 +44,9 @@ func main() {
 		log.Fatal("read:", err)
 	}
 
-	var ack pb.Ack
-	_ = proto.Unmarshal(data, &ack)
-	if !ack.Ok {
+	var respAck pb.Ack
+	_ = proto.Unmarshal(data, &respAck)
+	if !respAck.Ok {
 		log.Fatal("Auth error")
 	}
 	log.Printf("Authenticated!!!")
@@ -69,9 +69,9 @@ func main() {
 			log.Fatal("reading test file:", err)
 		}
 
-		msg := &pb.Envelope{
+		msg := &pb.ReqEnvelope{
 			Id: 1,
-			Payload: &pb.Envelope_ReqUploadFile{
+			Payload: &pb.ReqEnvelope_ReqUploadFile{
 				ReqUploadFile: &pb.UploadFile{
 					Path:          filePath,
 					Content:       fileContent,
@@ -90,17 +90,18 @@ func main() {
 			log.Fatal("read:", err)
 		}
 
-		var file pb.File
-		err = proto.Unmarshal(data, &file)
+		var resp pb.RespEnvelope
+		err = proto.Unmarshal(data, &resp)
 		if err != nil {
 			log.Fatal("Error parsing file response: ", err)
 		}
+		file := resp.Payload.(*pb.RespEnvelope_RespFile).RespFile
 		log.Printf("File info: ", file)
 
 		// Now we are trying to retreive the file and check if it is ok
-		msg = &pb.Envelope{
+		msg = &pb.ReqEnvelope{
 			Id: 1,
-			Payload: &pb.Envelope_ReqGetFile{
+			Payload: &pb.ReqEnvelope_ReqGetFile{
 				ReqGetFile: &pb.GetFile{
 					Path: filePath,
 				},
@@ -117,10 +118,11 @@ func main() {
 			log.Fatal("read:", err)
 		}
 
-		err = proto.Unmarshal(data, &file)
+		err = proto.Unmarshal(data, &resp)
 		if err != nil {
 			log.Fatal("Error parsing file response: ", err)
 		}
+		file = resp.Payload.(*pb.RespEnvelope_RespFile).RespFile
 		log.Printf("File hash: ", file.Hash)
 
 		//log.Printf("Content: %s", string(file.Content))
@@ -132,37 +134,39 @@ func main() {
 		}
 
 		// Now delete the file
-		/*
-			msg = &pb.Envelope{
-				Id: 1,
-				Payload: &pb.Envelope_ReqDelFile{
-					ReqDelFile: &pb.DelFile{
-						Path: filePath,
-					},
+		/*log.Printf("Deleting:", filePath)
+		msg = &pb.ReqEnvelope{
+			Id: 1,
+			Payload: &pb.ReqEnvelope_ReqDelFile{
+				ReqDelFile: &pb.DelFile{
+					Path: filePath,
 				},
-			}
-			b, _ = proto.Marshal(msg)
-			if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
-				log.Fatal("write:", err)
-			}
-			// We should get back the Ack after deleting
-			_, data, err = c.ReadMessage()
-			if err != nil {
-				log.Fatal("read:", err)
-			}
+			},
+		}
+		b, _ = proto.Marshal(msg)
+		if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
+			log.Fatal("write:", err)
+		}
+		// We should get back the Ack after deleting
+		_, data, err = c.ReadMessage()
+		if err != nil {
+			log.Fatal("read:", err)
+		}
 
-			var ack pb.Ack
-			err = proto.Unmarshal(data, &ack)
-			if !ack.Ok || err != nil {
-				log.Fatal("Error deleting file", err)
-			}
-		*/
+		err = proto.Unmarshal(data, &resp)
+		if err != nil {
+			log.Fatal("Error parsing file response: ", err)
+		}
+		ack := resp.Payload.(*pb.RespEnvelope_RespAck).RespAck
+		if !ack.Ok || err != nil {
+			log.Fatal("Error deleting file", err)
+		}*/
 	}
 
 	log.Println("Listing files:", cFilesDir)
-	msgList := &pb.Envelope{
+	msgList := &pb.ReqEnvelope{
 		Id: 1,
-		Payload: &pb.Envelope_ReqListFiles{
+		Payload: &pb.ReqEnvelope_ReqListFiles{
 			ReqListFiles: &pb.ListFiles{
 				Path:     cFilesDir,
 				Globbing: false,
@@ -180,21 +184,22 @@ func main() {
 		log.Fatal("read:", err)
 	}
 
-	var filesResp pb.ListOfFiles
-	err = proto.Unmarshal(data, &filesResp)
+	var resp pb.RespEnvelope
+	err = proto.Unmarshal(data, &resp)
 	if err != nil {
-		log.Fatal("Error deleting file", err)
+		log.Fatal("Error parsing file response: ", err)
 	}
+	listOfFiles := resp.Payload.(*pb.RespEnvelope_RespListOfFiles).RespListOfFiles.Files
 
-	for _, file := range filesResp.Files {
+	for _, file := range listOfFiles {
 		log.Println("File from the list:", file)
 	}
 
 	// Now list only the images
 	log.Println("Listing files:", cFilesDir+"*.jpg")
-	msgList = &pb.Envelope{
+	msgList = &pb.ReqEnvelope{
 		Id: 1,
-		Payload: &pb.Envelope_ReqListFiles{
+		Payload: &pb.ReqEnvelope_ReqListFiles{
 			ReqListFiles: &pb.ListFiles{
 				Path:     cFilesDir + "*.jpg",
 				Globbing: true,
@@ -212,12 +217,13 @@ func main() {
 		log.Fatal("read:", err)
 	}
 
-	err = proto.Unmarshal(data, &filesResp)
+	err = proto.Unmarshal(data, &resp)
 	if err != nil {
-		log.Fatal("Error deleting file", err)
+		log.Fatal("Error parsing file response: ", err)
 	}
+	listOfFiles = resp.Payload.(*pb.RespEnvelope_RespListOfFiles).RespListOfFiles.Files
 
-	for _, file := range filesResp.Files {
+	for _, file := range listOfFiles {
 		log.Println("File from the list:", file)
 	}
 }

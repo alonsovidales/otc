@@ -1,0 +1,6 @@
+.sign_in_menu {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  place-items: center;
+}

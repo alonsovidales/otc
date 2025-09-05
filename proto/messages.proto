@@ -70,15 +70,26 @@ message Ack {
   bool ok = 1;
 }
 
-message Envelope {
+message ReqEnvelope {
   int32 id = 1;
   oneof payload {
-    Status req_status = 10;
+    ListFiles req_list_files = 10;
     GetStatus req_get_status = 11;
     Auth req_auth = 12;
     UploadFile req_upload_file = 13;
     GetFile req_get_file = 14;
     DelFile req_del_file = 15;
-    ListFiles req_list_files = 16;
+  }
+}
+
+message RespEnvelope {
+  int32 id = 1;
+  bool error = 2;
+  optional string error_message = 3;
+  oneof payload {
+    Status resp_status = 10;
+    Ack resp_ack = 11;
+    File resp_file = 12;
+    ListOfFiles resp_list_of_files = 13;
   }
 }
