@@ -114,12 +114,34 @@ func (dao *Dao) GetFilesByPath(globbing bool, path string) (files []*pb.File, er
 		path = strings.ReplaceAll(path, "*", "%")
 		path = strings.ReplaceAll(path, "?", "_")
 	} else {
-		path += "%"
+		pathFiles := "^" + path + "[^/]+$"
+		slashesInPath := strings.Count(path, "/")
+		// We add first the sub-directories that are actually subpaths of the existing files
+		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files WHERE path LIKE ? and path not regexp ?;", slashesInPath, path+"%", pathFiles)
+		if err != nil {
+			return nil, err
+		}
+		defer rowsDirs.Close()
+		for rowsDirs.Next() {
+			file := &pb.File{
+				Mime: "inode/directory",
+			}
+			if err := rowsDirs.Scan(&file.Path); err != nil {
+				return nil, err
+			}
+			log.Debug("Slashes:", file.Path, strings.Count(file.Path, "/"), slashesInPath)
+			if strings.Count(file.Path, "/") != slashesInPath {
+				continue
+			}
+			log.Debug("appending file", file.Hash)
+			files = append(files, file)
+		}
+		path = pathFiles
 	}
 
 	log.Debug("Get Files by path:", globbing, path)
 	rows, err := dao.db.Query(
-		"select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` like ?", path)
+		"select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ?", path)
 
 	if err != nil {
 		return nil, err
@@ -134,7 +156,7 @@ func (dao *Dao) GetFilesByPath(globbing bool, path string) (files []*pb.File, er
 		}
 		file.Created = timestamppb.New(created)
 		file.Modified = timestamppb.New(modified)
-		log.Debug("Appending file", file.Hash)
+		log.Debug("appending file", file.Hash)
 		files = append(files, file)
 	}
 	if err := rows.Err(); err != nil {

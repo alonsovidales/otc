@@ -5,21 +5,28 @@ import Home from "./views/Home";
 import { useWS } from "./net/useWS";
 import { RespEnvelope } from "./proto/messages";
 import SignIn from "./views/SignIn";
+import AdminPannel from "./views/AdminPannel";
 
-type Page = "Home" | "SignIn";
+type Page = "Home" | "SignIn" | "AdminPannel";
 
 function App() {
   const [page, setPage] = useState<Page>("Home");
   const [authenticated, setAuthenticated] = useState(false);
+  console.log('Use WS App');
   const { connected, request } = useWS('ws');
+  console.log('Use WS App-', connected);
 
   const sendAuth = async (key: string) => {
     console.log('SedAuth...', key);
     const resp: RespEnvelope = await request(e => {
       console.log('GotAuth...');
-      (e as any).reqAuth = { uuid: "asdsadas", key: key, create: false };
+      (e as any).payload = { $case: "reqAuth", reqAuth: { key, create: true } };
     });
     console.log("auth resp", resp);
+    if (resp.payload.respAck.ok) {
+      setAuthenticated(true);
+      setPage("AdminPannel");
+    }
   };
 
   return (
@@ -37,6 +44,7 @@ function App() {
       <main>
         {page === "Home" && <Home />}
         {page === "SignIn" && <SignIn onAuth={sendAuth} />}
+        {page === "AdminPannel" && <AdminPannel />}
       </main>
     </>
   )

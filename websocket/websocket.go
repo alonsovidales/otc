@@ -40,6 +40,26 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 	return
 }
 
+func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
+	log.Error("closing socket with error:", err)
+	// Acknoledge the authentication
+	respAuth := &pb.RespEnvelope{
+		Id: id,
+		Payload: &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{
+				Ok:       false,
+				ErrorMsg: fmt.Sprintf("Error: %s", err),
+			},
+		},
+	}
+	resp, _ := proto.Marshal(respAuth)
+	if err := conn.WriteMessage(gorilla.BinaryMessage, resp); err != nil {
+		log.Error("error responding, closing the connection:", err)
+	}
+	conn.Close()
+
+}
+
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -53,26 +73,36 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	// The first message should always be an auth, it not we will just close here
 	_, frame, err := conn.ReadMessage()
 	if err != nil {
+		mg.closeWithError(conn, 0, err)
 		return
 	}
-	var auth pb.Auth
-	if err := proto.Unmarshal(frame, &auth); err != nil {
-		log.Error("error reading auth package:", err)
+	var authEnv pb.ReqEnvelope
+	log.Debug("Auth frame:", frame)
+	if err := proto.Unmarshal(frame, &authEnv); err != nil {
+		mg.closeWithError(conn, 0, err)
 		return
 	}
 
 	// Now we have a session, we can just process all the messages using this from now on
-	log.Debug("Auth with:", auth.Key, auth.Create)
-	session, err := session.New(auth.Uuid, auth.Key, auth.Create, mg.dao)
+	auth := authEnv.Payload.(*pb.ReqEnvelope_ReqAuth)
+	session, err := session.New(auth.ReqAuth.Uuid, auth.ReqAuth.Key, auth.ReqAuth.Create, mg.dao)
 	if err != nil {
 		time.Sleep(1)
-		log.Info("Authentication error:", err)
+		mg.closeWithError(conn, authEnv.Id, err)
 		return
 	}
 	log.Info(fmt.Sprintf("Authenticated session: %s", auth))
 
 	// Acknoledge the authentication
-	resp, _ := proto.Marshal(&pb.Ack{Ok: true})
+	respAuth := &pb.RespEnvelope{
+		Id: authEnv.Id,
+		Payload: &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{
+				Ok: true,
+			},
+		},
+	}
+	resp, _ := proto.Marshal(respAuth)
 	if err := conn.WriteMessage(gorilla.BinaryMessage, resp); err != nil {
 		log.Error("error responding, closing the connection:", err)
 		return
@@ -81,8 +111,8 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, frame, err := conn.ReadMessage()
 		if err != nil {
-			log.Info("error processing message:", err)
-			return
+			log.Error("error processing message:", err)
+			continue
 		}
 
 		var env pb.ReqEnvelope
@@ -99,41 +129,40 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 			log.Info("Uploading file with path:", p.ReqUploadFile.Path)
 			pbFile, err := mg.filesManager.UploadFile(session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride)
 			if err != nil {
-				log.Error("error trying to upload file:", err)
-				// TODO: Return an error message
-				continue
-			}
-			resp.Payload = &pb.RespEnvelope_RespFile{
-				RespFile: pbFile,
+				resp.Error = true
+				resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
+			} else {
+				resp.Payload = &pb.RespEnvelope_RespFile{
+					RespFile: pbFile,
+				}
 			}
 
 		case *pb.ReqEnvelope_ReqGetFile:
 			log.Info("Get file with path:", p.ReqGetFile.Path)
 			pbFile, err := mg.filesManager.GetFile(session, p.ReqGetFile.Path)
 			if err != nil {
-				log.Error("error trying to retrieve file:", err)
-				// TODO: Return an error message
-				continue
-			}
-			resp.Payload = &pb.RespEnvelope_RespFile{
-				RespFile: pbFile,
+				resp.Error = true
+				resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file: %s", err)
+			} else {
+				resp.Payload = &pb.RespEnvelope_RespFile{
+					RespFile: pbFile,
+				}
 			}
 
 		case *pb.ReqEnvelope_ReqDelFile:
 			log.Info("Del file by path:", p.ReqDelFile.Path)
 			err := mg.filesManager.DelFile(session, p.ReqDelFile.Path)
 			if err != nil {
-				log.Error("error trying to delete file:", err)
-				// TODO: Return an error message
-				continue
-			}
-
-			log.Info("Deleted file by path:", p.ReqDelFile.Path)
-			// Acknoledge the Deletion
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok: true,
-				},
+				resp.Error = true
+				resp.ErrorMessage = fmt.Sprintf("error trying to delete file: %s", err)
+			} else {
+				log.Info("Deleted file by path:", p.ReqDelFile.Path)
+				// Acknoledge the Deletion
+				resp.Payload = &pb.RespEnvelope_RespAck{
+					RespAck: &pb.Ack{
+						Ok: true,
+					},
+				}
 			}
 
 		case *pb.ReqEnvelope_ReqListFiles:
@@ -141,15 +170,16 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 			files, err := mg.filesManager.ListFiles(session, p.ReqListFiles.Globbing, p.ReqListFiles.Path)
 			if err != nil {
 				log.Error("error trying to list files:", err)
-				// TODO: Return an error message
-				continue
-			}
-			log.Debug("Files to return:", len(files))
+				resp.Error = true
+				resp.ErrorMessage = err.Error()
+			} else {
+				log.Debug("Files to return:", len(files))
 
-			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
-				RespListOfFiles: &pb.ListOfFiles{
-					Files: files,
-				},
+				resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+					RespListOfFiles: &pb.ListOfFiles{
+						Files: files,
+					},
+				}
 			}
 
 		case *pb.ReqEnvelope_ReqGetStatus:
@@ -161,7 +191,9 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 			}
 
 		default:
-			log.Info("unknown payload")
+			log.Error("unknown payload")
+			resp.Error = true
+			resp.ErrorMessage = "unknown payload"
 		}
 
 		respBin, _ := proto.Marshal(resp)

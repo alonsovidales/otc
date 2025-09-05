@@ -99,6 +99,7 @@ export interface File {
 
 export interface Ack {
   ok: boolean;
+  errorMsg: string;
 }
 
 export interface ReqEnvelope {
@@ -116,7 +117,7 @@ export interface ReqEnvelope {
 export interface RespEnvelope {
   id: number;
   error: boolean;
-  errorMessage?: string | undefined;
+  errorMessage: string;
   payload?:
     | { $case: "respStatus"; respStatus: Status }
     | { $case: "respAck"; respAck: Ack }
@@ -998,13 +999,16 @@ export const File: MessageFns<File> = {
 };
 
 function createBaseAck(): Ack {
-  return { ok: false };
+  return { ok: false, errorMsg: "" };
 }
 
 export const Ack: MessageFns<Ack> = {
   encode(message: Ack, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.ok !== false) {
       writer.uint32(8).bool(message.ok);
+    }
+    if (message.errorMsg !== "") {
+      writer.uint32(18).string(message.errorMsg);
     }
     return writer;
   },
@@ -1024,6 +1028,14 @@ export const Ack: MessageFns<Ack> = {
           message.ok = reader.bool();
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.errorMsg = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1034,13 +1046,19 @@ export const Ack: MessageFns<Ack> = {
   },
 
   fromJSON(object: any): Ack {
-    return { ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false };
+    return {
+      ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false,
+      errorMsg: isSet(object.errorMsg) ? globalThis.String(object.errorMsg) : "",
+    };
   },
 
   toJSON(message: Ack): unknown {
     const obj: any = {};
     if (message.ok !== false) {
       obj.ok = message.ok;
+    }
+    if (message.errorMsg !== "") {
+      obj.errorMsg = message.errorMsg;
     }
     return obj;
   },
@@ -1051,6 +1069,7 @@ export const Ack: MessageFns<Ack> = {
   fromPartial<I extends Exact<DeepPartial<Ack>, I>>(object: I): Ack {
     const message = createBaseAck();
     message.ok = object.ok ?? false;
+    message.errorMsg = object.errorMsg ?? "";
     return message;
   },
 };
@@ -1251,7 +1270,7 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
 };
 
 function createBaseRespEnvelope(): RespEnvelope {
-  return { id: 0, error: false, errorMessage: undefined, payload: undefined };
+  return { id: 0, error: false, errorMessage: "", payload: undefined };
 }
 
 export const RespEnvelope: MessageFns<RespEnvelope> = {
@@ -1262,7 +1281,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     if (message.error !== false) {
       writer.uint32(16).bool(message.error);
     }
-    if (message.errorMessage !== undefined) {
+    if (message.errorMessage !== "") {
       writer.uint32(26).string(message.errorMessage);
     }
     switch (message.payload?.$case) {
@@ -1358,7 +1377,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     return {
       id: isSet(object.id) ? globalThis.Number(object.id) : 0,
       error: isSet(object.error) ? globalThis.Boolean(object.error) : false,
-      errorMessage: isSet(object.errorMessage) ? globalThis.String(object.errorMessage) : undefined,
+      errorMessage: isSet(object.errorMessage) ? globalThis.String(object.errorMessage) : "",
       payload: isSet(object.respStatus)
         ? { $case: "respStatus", respStatus: Status.fromJSON(object.respStatus) }
         : isSet(object.respAck)
@@ -1379,7 +1398,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     if (message.error !== false) {
       obj.error = message.error;
     }
-    if (message.errorMessage !== undefined) {
+    if (message.errorMessage !== "") {
       obj.errorMessage = message.errorMessage;
     }
     if (message.payload?.$case === "respStatus") {
@@ -1401,7 +1420,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     const message = createBaseRespEnvelope();
     message.id = object.id ?? 0;
     message.error = object.error ?? false;
-    message.errorMessage = object.errorMessage ?? undefined;
+    message.errorMessage = object.errorMessage ?? "";
     switch (object.payload?.$case) {
       case "respStatus": {
         if (object.payload?.respStatus !== undefined && object.payload?.respStatus !== null) {

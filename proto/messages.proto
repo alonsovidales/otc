@@ -68,6 +68,7 @@ message File {
 
 message Ack {
   bool ok = 1;
+  string error_msg = 2;
 }
 
 message ReqEnvelope {
@@ -85,7 +86,7 @@ message ReqEnvelope {
 message RespEnvelope {
   int32 id = 1;
   bool error = 2;
-  optional string error_message = 3;
+  string error_message = 3;
   oneof payload {
     Status resp_status = 10;
     Ack resp_ack = 11;

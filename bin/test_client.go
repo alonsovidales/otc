@@ -28,10 +28,15 @@ func main() {
 	defer c.Close()
 
 	// AUTH the connection
-	msg := &pb.Auth{
-		Uuid:   "asdsadas",
-		Key:    "SecretKey",
-		Create: true,
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqAuth{
+			ReqAuth: &pb.Auth{
+				Uuid:   "asdsadas",
+				Key:    "SecretKey",
+				Create: true,
+			},
+		},
 	}
 	b, _ := proto.Marshal(msg)
 	if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
@@ -89,6 +94,8 @@ func main() {
 		if err != nil {
 			log.Fatal("read:", err)
 		}
+
+		continue
 
 		var resp pb.RespEnvelope
 		err = proto.Unmarshal(data, &resp)
@@ -163,67 +170,69 @@ func main() {
 		}*/
 	}
 
-	log.Println("Listing files:", cFilesDir)
-	msgList := &pb.ReqEnvelope{
-		Id: 1,
-		Payload: &pb.ReqEnvelope_ReqListFiles{
-			ReqListFiles: &pb.ListFiles{
-				Path:     cFilesDir,
-				Globbing: false,
+	/*
+		log.Println("Listing files:", cFilesDir)
+		msgList := &pb.ReqEnvelope{
+			Id: 1,
+			Payload: &pb.ReqEnvelope_ReqListFiles{
+				ReqListFiles: &pb.ListFiles{
+					Path:     cFilesDir,
+					Globbing: false,
+				},
 			},
-		},
-	}
-	b, _ = proto.Marshal(msgList)
-	if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
-		log.Fatal("write:", err)
-	}
+		}
+		b, _ = proto.Marshal(msgList)
+		if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
+			log.Fatal("write:", err)
+		}
 
-	// We should get back the Ack after deleting
-	_, data, err = c.ReadMessage()
-	if err != nil {
-		log.Fatal("read:", err)
-	}
+		// We should get back the Ack after deleting
+		_, data, err = c.ReadMessage()
+		if err != nil {
+			log.Fatal("read:", err)
+		}
 
-	var resp pb.RespEnvelope
-	err = proto.Unmarshal(data, &resp)
-	if err != nil {
-		log.Fatal("Error parsing file response: ", err)
-	}
-	listOfFiles := resp.Payload.(*pb.RespEnvelope_RespListOfFiles).RespListOfFiles.Files
+		var resp pb.RespEnvelope
+		err = proto.Unmarshal(data, &resp)
+		if err != nil {
+			log.Fatal("Error parsing file response: ", err)
+		}
+		listOfFiles := resp.Payload.(*pb.RespEnvelope_RespListOfFiles).RespListOfFiles.Files
 
-	for _, file := range listOfFiles {
-		log.Println("File from the list:", file)
-	}
+		for _, file := range listOfFiles {
+			log.Println("File from the list:", file)
+		}
 
-	// Now list only the images
-	log.Println("Listing files:", cFilesDir+"*.jpg")
-	msgList = &pb.ReqEnvelope{
-		Id: 1,
-		Payload: &pb.ReqEnvelope_ReqListFiles{
-			ReqListFiles: &pb.ListFiles{
-				Path:     cFilesDir + "*.jpg",
-				Globbing: true,
+		// Now list only the images
+		log.Println("Listing files:", cFilesDir+"*.jpg")
+		msgList = &pb.ReqEnvelope{
+			Id: 1,
+			Payload: &pb.ReqEnvelope_ReqListFiles{
+				ReqListFiles: &pb.ListFiles{
+					Path:     cFilesDir + "*.jpg",
+					Globbing: true,
+				},
 			},
-		},
-	}
-	b, _ = proto.Marshal(msgList)
-	if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
-		log.Fatal("write:", err)
-	}
+		}
+		b, _ = proto.Marshal(msgList)
+		if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
+			log.Fatal("write:", err)
+		}
 
-	// We should get back the Ack after deleting
-	_, data, err = c.ReadMessage()
-	if err != nil {
-		log.Fatal("read:", err)
-	}
+		// We should get back the Ack after deleting
+		_, data, err = c.ReadMessage()
+		if err != nil {
+			log.Fatal("read:", err)
+		}
 
-	err = proto.Unmarshal(data, &resp)
-	if err != nil {
-		log.Fatal("Error parsing file response: ", err)
-	}
-	listOfFiles = resp.Payload.(*pb.RespEnvelope_RespListOfFiles).RespListOfFiles.Files
+		err = proto.Unmarshal(data, &resp)
+		if err != nil {
+			log.Fatal("Error parsing file response: ", err)
+		}
+		listOfFiles = resp.Payload.(*pb.RespEnvelope_RespListOfFiles).RespListOfFiles.Files
 
-	for _, file := range listOfFiles {
-		log.Println("File from the list:", file)
-	}
+		for _, file := range listOfFiles {
+			log.Println("File from the list:", file)
+		}
+	*/
 }

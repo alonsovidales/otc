@@ -1,4 +1,10 @@
 #root {
-  max-width: 1280px;
+  width: 100%;
   margin: 0 0;
+}
+
+main {
+  margin-top: 90px;
+  height: 100%;
+  overflow-y: auto;
 }
