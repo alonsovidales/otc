@@ -6,8 +6,16 @@ package msg;
 
 option go_package = "github.com/alonsovidales/otc/proto/generated;msg";
 
-enum ErrorCode {
-  Unknown = 0;
+enum StatusErrorCode {
+  DiskError = 0;
+  Syncing = 1;
+  MissingDisk = 2;
+  ErrorInDisk = 3;
+}
+
+message StatusErrors {
+  StatusErrorCode StatusErrorCode = 1;
+  string Message = 2;
 }
 
 message GetStatus {
@@ -15,10 +23,16 @@ message GetStatus {
 
 message Status {
   bool online = 1;
-  int32  local_ip = 2;
-  int32  nas_status = 3;
-  int32  disks = 4;
-  repeated ErrorCode  error_codes = 5;
+  string  local_ip = 2;
+  int32  disks = 3;
+  repeated StatusErrors  errors = 4;
+  int32  raid_size = 5;
+  int32  raid_usage = 6;
+  int32  disk_size = 7;
+  int32  disk_usage = 8;
+  float  cpu_usage_prc = 9;
+  int32  mem_size = 10;
+  int32  mem_usage = 11;
 }
 
 message Auth {

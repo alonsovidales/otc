@@ -6,6 +6,8 @@ import { useWS } from "./net/useWS";
 import { RespEnvelope } from "./proto/messages";
 import SignIn from "./views/SignIn";
 import AdminPannel from "./views/AdminPannel";
+import StatusWidget from "./components/StatusWidget";
+import "./components/StatusWidget.css";
 
 type Page = "Home" | "SignIn" | "AdminPannel";
 
@@ -39,6 +41,9 @@ function App() {
           <button className="top_sign_in" onClick={() => setPage("SignIn")}>
             Sign In
           </button>
+        }
+        {authenticated && 
+          <StatusWidget className="top_sign_in" wsUrl={import.meta.env.VITE_WS_URL} />
         }
       </div>
       <main>

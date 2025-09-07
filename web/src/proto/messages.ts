@@ -10,35 +10,58 @@ import { Timestamp } from "./google/protobuf/timestamp";
 
 export const protobufPackage = "msg";
 
-export const ErrorCode = { Unknown: 0, UNRECOGNIZED: -1 } as const;
+export const StatusErrorCode = { DiskError: 0, Syncing: 1, MissingDisk: 2, ErrorInDisk: 3, UNRECOGNIZED: -1 } as const;
 
-export type ErrorCode = typeof ErrorCode[keyof typeof ErrorCode];
+export type StatusErrorCode = typeof StatusErrorCode[keyof typeof StatusErrorCode];
 
-export namespace ErrorCode {
-  export type Unknown = typeof ErrorCode.Unknown;
-  export type UNRECOGNIZED = typeof ErrorCode.UNRECOGNIZED;
+export namespace StatusErrorCode {
+  export type DiskError = typeof StatusErrorCode.DiskError;
+  export type Syncing = typeof StatusErrorCode.Syncing;
+  export type MissingDisk = typeof StatusErrorCode.MissingDisk;
+  export type ErrorInDisk = typeof StatusErrorCode.ErrorInDisk;
+  export type UNRECOGNIZED = typeof StatusErrorCode.UNRECOGNIZED;
 }
 
-export function errorCodeFromJSON(object: any): ErrorCode {
+export function statusErrorCodeFromJSON(object: any): StatusErrorCode {
   switch (object) {
     case 0:
-    case "Unknown":
-      return ErrorCode.Unknown;
+    case "DiskError":
+      return StatusErrorCode.DiskError;
+    case 1:
+    case "Syncing":
+      return StatusErrorCode.Syncing;
+    case 2:
+    case "MissingDisk":
+      return StatusErrorCode.MissingDisk;
+    case 3:
+    case "ErrorInDisk":
+      return StatusErrorCode.ErrorInDisk;
     case -1:
     case "UNRECOGNIZED":
     default:
-      return ErrorCode.UNRECOGNIZED;
+      return StatusErrorCode.UNRECOGNIZED;
   }
 }
 
-export function errorCodeToJSON(object: ErrorCode): string {
+export function statusErrorCodeToJSON(object: StatusErrorCode): string {
   switch (object) {
-    case ErrorCode.Unknown:
-      return "Unknown";
-    case ErrorCode.UNRECOGNIZED:
+    case StatusErrorCode.DiskError:
+      return "DiskError";
+    case StatusErrorCode.Syncing:
+      return "Syncing";
+    case StatusErrorCode.MissingDisk:
+      return "MissingDisk";
+    case StatusErrorCode.ErrorInDisk:
+      return "ErrorInDisk";
+    case StatusErrorCode.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
   }
+}
+
+export interface StatusErrors {
+  StatusErrorCode: StatusErrorCode;
+  Message: string;
 }
 
 export interface GetStatus {
@@ -46,10 +69,16 @@ export interface GetStatus {
 
 export interface Status {
   online: boolean;
-  localIp: number;
-  nasStatus: number;
+  localIp: string;
   disks: number;
-  errorCodes: ErrorCode[];
+  errors: StatusErrors[];
+  raidSize: number;
+  raidUsage: number;
+  diskSize: number;
+  diskUsage: number;
+  cpuUsagePrc: number;
+  memSize: number;
+  memUsage: number;
 }
 
 export interface Auth {
@@ -126,6 +155,82 @@ export interface RespEnvelope {
     | undefined;
 }
 
+function createBaseStatusErrors(): StatusErrors {
+  return { StatusErrorCode: 0, Message: "" };
+}
+
+export const StatusErrors: MessageFns<StatusErrors> = {
+  encode(message: StatusErrors, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.StatusErrorCode !== 0) {
+      writer.uint32(8).int32(message.StatusErrorCode);
+    }
+    if (message.Message !== "") {
+      writer.uint32(18).string(message.Message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StatusErrors {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseStatusErrors();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.StatusErrorCode = reader.int32() as any;
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.Message = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): StatusErrors {
+    return {
+      StatusErrorCode: isSet(object.StatusErrorCode) ? statusErrorCodeFromJSON(object.StatusErrorCode) : 0,
+      Message: isSet(object.Message) ? globalThis.String(object.Message) : "",
+    };
+  },
+
+  toJSON(message: StatusErrors): unknown {
+    const obj: any = {};
+    if (message.StatusErrorCode !== 0) {
+      obj.StatusErrorCode = statusErrorCodeToJSON(message.StatusErrorCode);
+    }
+    if (message.Message !== "") {
+      obj.Message = message.Message;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StatusErrors>, I>>(base?: I): StatusErrors {
+    return StatusErrors.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StatusErrors>, I>>(object: I): StatusErrors {
+    const message = createBaseStatusErrors();
+    message.StatusErrorCode = object.StatusErrorCode ?? 0;
+    message.Message = object.Message ?? "";
+    return message;
+  },
+};
+
 function createBaseGetStatus(): GetStatus {
   return {};
 }
@@ -170,7 +275,19 @@ export const GetStatus: MessageFns<GetStatus> = {
 };
 
 function createBaseStatus(): Status {
-  return { online: false, localIp: 0, nasStatus: 0, disks: 0, errorCodes: [] };
+  return {
+    online: false,
+    localIp: "",
+    disks: 0,
+    errors: [],
+    raidSize: 0,
+    raidUsage: 0,
+    diskSize: 0,
+    diskUsage: 0,
+    cpuUsagePrc: 0,
+    memSize: 0,
+    memUsage: 0,
+  };
 }
 
 export const Status: MessageFns<Status> = {
@@ -178,20 +295,36 @@ export const Status: MessageFns<Status> = {
     if (message.online !== false) {
       writer.uint32(8).bool(message.online);
     }
-    if (message.localIp !== 0) {
-      writer.uint32(16).int32(message.localIp);
-    }
-    if (message.nasStatus !== 0) {
-      writer.uint32(24).int32(message.nasStatus);
+    if (message.localIp !== "") {
+      writer.uint32(18).string(message.localIp);
     }
     if (message.disks !== 0) {
-      writer.uint32(32).int32(message.disks);
+      writer.uint32(24).int32(message.disks);
     }
-    writer.uint32(42).fork();
-    for (const v of message.errorCodes) {
-      writer.int32(v);
+    for (const v of message.errors) {
+      StatusErrors.encode(v!, writer.uint32(34).fork()).join();
     }
-    writer.join();
+    if (message.raidSize !== 0) {
+      writer.uint32(40).int32(message.raidSize);
+    }
+    if (message.raidUsage !== 0) {
+      writer.uint32(48).int32(message.raidUsage);
+    }
+    if (message.diskSize !== 0) {
+      writer.uint32(56).int32(message.diskSize);
+    }
+    if (message.diskUsage !== 0) {
+      writer.uint32(64).int32(message.diskUsage);
+    }
+    if (message.cpuUsagePrc !== 0) {
+      writer.uint32(77).float(message.cpuUsagePrc);
+    }
+    if (message.memSize !== 0) {
+      writer.uint32(80).int32(message.memSize);
+    }
+    if (message.memUsage !== 0) {
+      writer.uint32(88).int32(message.memUsage);
+    }
     return writer;
   },
 
@@ -211,11 +344,11 @@ export const Status: MessageFns<Status> = {
           continue;
         }
         case 2: {
-          if (tag !== 16) {
+          if (tag !== 18) {
             break;
           }
 
-          message.localIp = reader.int32();
+          message.localIp = reader.string();
           continue;
         }
         case 3: {
@@ -223,34 +356,72 @@ export const Status: MessageFns<Status> = {
             break;
           }
 
-          message.nasStatus = reader.int32();
-          continue;
-        }
-        case 4: {
-          if (tag !== 32) {
-            break;
-          }
-
           message.disks = reader.int32();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.errors.push(StatusErrors.decode(reader, reader.uint32()));
+          continue;
+        }
         case 5: {
-          if (tag === 40) {
-            message.errorCodes.push(reader.int32() as any);
-
-            continue;
+          if (tag !== 40) {
+            break;
           }
 
-          if (tag === 42) {
-            const end2 = reader.uint32() + reader.pos;
-            while (reader.pos < end2) {
-              message.errorCodes.push(reader.int32() as any);
-            }
-
-            continue;
+          message.raidSize = reader.int32();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
           }
 
-          break;
+          message.raidUsage = reader.int32();
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.diskSize = reader.int32();
+          continue;
+        }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.diskUsage = reader.int32();
+          continue;
+        }
+        case 9: {
+          if (tag !== 77) {
+            break;
+          }
+
+          message.cpuUsagePrc = reader.float();
+          continue;
+        }
+        case 10: {
+          if (tag !== 80) {
+            break;
+          }
+
+          message.memSize = reader.int32();
+          continue;
+        }
+        case 11: {
+          if (tag !== 88) {
+            break;
+          }
+
+          message.memUsage = reader.int32();
+          continue;
         }
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -264,12 +435,16 @@ export const Status: MessageFns<Status> = {
   fromJSON(object: any): Status {
     return {
       online: isSet(object.online) ? globalThis.Boolean(object.online) : false,
-      localIp: isSet(object.localIp) ? globalThis.Number(object.localIp) : 0,
-      nasStatus: isSet(object.nasStatus) ? globalThis.Number(object.nasStatus) : 0,
+      localIp: isSet(object.localIp) ? globalThis.String(object.localIp) : "",
       disks: isSet(object.disks) ? globalThis.Number(object.disks) : 0,
-      errorCodes: globalThis.Array.isArray(object?.errorCodes)
-        ? object.errorCodes.map((e: any) => errorCodeFromJSON(e))
-        : [],
+      errors: globalThis.Array.isArray(object?.errors) ? object.errors.map((e: any) => StatusErrors.fromJSON(e)) : [],
+      raidSize: isSet(object.raidSize) ? globalThis.Number(object.raidSize) : 0,
+      raidUsage: isSet(object.raidUsage) ? globalThis.Number(object.raidUsage) : 0,
+      diskSize: isSet(object.diskSize) ? globalThis.Number(object.diskSize) : 0,
+      diskUsage: isSet(object.diskUsage) ? globalThis.Number(object.diskUsage) : 0,
+      cpuUsagePrc: isSet(object.cpuUsagePrc) ? globalThis.Number(object.cpuUsagePrc) : 0,
+      memSize: isSet(object.memSize) ? globalThis.Number(object.memSize) : 0,
+      memUsage: isSet(object.memUsage) ? globalThis.Number(object.memUsage) : 0,
     };
   },
 
@@ -278,17 +453,35 @@ export const Status: MessageFns<Status> = {
     if (message.online !== false) {
       obj.online = message.online;
     }
-    if (message.localIp !== 0) {
-      obj.localIp = Math.round(message.localIp);
-    }
-    if (message.nasStatus !== 0) {
-      obj.nasStatus = Math.round(message.nasStatus);
+    if (message.localIp !== "") {
+      obj.localIp = message.localIp;
     }
     if (message.disks !== 0) {
       obj.disks = Math.round(message.disks);
     }
-    if (message.errorCodes?.length) {
-      obj.errorCodes = message.errorCodes.map((e) => errorCodeToJSON(e));
+    if (message.errors?.length) {
+      obj.errors = message.errors.map((e) => StatusErrors.toJSON(e));
+    }
+    if (message.raidSize !== 0) {
+      obj.raidSize = Math.round(message.raidSize);
+    }
+    if (message.raidUsage !== 0) {
+      obj.raidUsage = Math.round(message.raidUsage);
+    }
+    if (message.diskSize !== 0) {
+      obj.diskSize = Math.round(message.diskSize);
+    }
+    if (message.diskUsage !== 0) {
+      obj.diskUsage = Math.round(message.diskUsage);
+    }
+    if (message.cpuUsagePrc !== 0) {
+      obj.cpuUsagePrc = message.cpuUsagePrc;
+    }
+    if (message.memSize !== 0) {
+      obj.memSize = Math.round(message.memSize);
+    }
+    if (message.memUsage !== 0) {
+      obj.memUsage = Math.round(message.memUsage);
     }
     return obj;
   },
@@ -299,10 +492,16 @@ export const Status: MessageFns<Status> = {
   fromPartial<I extends Exact<DeepPartial<Status>, I>>(object: I): Status {
     const message = createBaseStatus();
     message.online = object.online ?? false;
-    message.localIp = object.localIp ?? 0;
-    message.nasStatus = object.nasStatus ?? 0;
+    message.localIp = object.localIp ?? "";
     message.disks = object.disks ?? 0;
-    message.errorCodes = object.errorCodes?.map((e) => e) || [];
+    message.errors = object.errors?.map((e) => StatusErrors.fromPartial(e)) || [];
+    message.raidSize = object.raidSize ?? 0;
+    message.raidUsage = object.raidUsage ?? 0;
+    message.diskSize = object.diskSize ?? 0;
+    message.diskUsage = object.diskUsage ?? 0;
+    message.cpuUsagePrc = object.cpuUsagePrc ?? 0;
+    message.memSize = object.memSize ?? 0;
+    message.memUsage = object.memUsage ?? 0;
     return message;
   },
 };

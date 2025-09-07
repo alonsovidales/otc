@@ -7,6 +7,7 @@ import (
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
+	"github.com/alonsovidales/otc/status"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 	"net/http"
@@ -184,10 +185,18 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 
 		case *pb.ReqEnvelope_ReqGetStatus:
 			log.Info(fmt.Sprintf("Requested status!!!! %d", p))
+			st, err := status.GetStatus(r)
 
-			status := &pb.Status{Online: true, LocalIp: 123, NasStatus: 0, Disks: 2}
-			resp.Payload = &pb.RespEnvelope_RespStatus{
-				RespStatus: status,
+			if err != nil {
+				log.Error("error trying to retrive status:", err)
+				resp.Error = true
+				resp.ErrorMessage = err.Error()
+			} else {
+				log.Debug("Current status:", st)
+
+				resp.Payload = &pb.RespEnvelope_RespStatus{
+					RespStatus: st,
+				}
 			}
 
 		default:

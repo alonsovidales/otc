@@ -73,7 +73,7 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-button.top_sign_in {
+.top_sign_in {
   margin-left: auto;
   height: 40px;
   margin-right: 20px;
