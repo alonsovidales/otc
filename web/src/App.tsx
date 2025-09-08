@@ -11,11 +11,18 @@ import "./components/StatusWidget.css";
 
 type Page = "Home" | "SignIn" | "AdminPannel";
 
+declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
+
 function App() {
+  const cfg = window.__OTC_CONFIG!;
   const [page, setPage] = useState<Page>("Home");
   const [authenticated, setAuthenticated] = useState(false);
   console.log('Use WS App');
-  const { connected, request } = useWS('ws');
+  let endpoint = 'ws://otc:8080/ws';
+  if (cfg) {
+    endpoint = cfg.endpoint;
+  }
+  const { connected, request } = useWS(endpoint);
   console.log('Use WS App-', connected);
 
   const sendAuth = async (key: string) => {
@@ -25,11 +32,16 @@ function App() {
       (e as any).payload = { $case: "reqAuth", reqAuth: { key, create: true } };
     });
     console.log("auth resp", resp);
-    if (resp.payload.respAck.ok) {
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
       setAuthenticated(true);
       setPage("AdminPannel");
     }
   };
+
+  // This is the mobile app, using the config from there
+  if (cfg) {
+    sendAuth(cfg.password);
+  }
 
   return (
     <>

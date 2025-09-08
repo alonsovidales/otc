@@ -18,6 +18,7 @@ import (
 	_ "image/jpeg"
 	"net/http"
 	"os"
+	"runtime"
 )
 
 const (
@@ -29,14 +30,16 @@ const (
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
 type Manager struct {
-	baseUrl string
-	dao     *dao.Dao
+	baseUrl    string
+	dao        *dao.Dao
+	maxUploads chan bool
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
-		baseUrl: baseUrl,
-		dao:     dao,
+		baseUrl:    baseUrl,
+		dao:        dao,
+		maxUploads: make(chan bool, runtime.NumCPU()-2), // Leave two CPUs free for other stuff
 	}
 
 	return mg
@@ -124,33 +127,40 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 	}
 
-	// Write to disk the content
-	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
-	err = os.WriteFile(targetPath, session.Encrypt(content), 0644) // perms: rw-r--r--
+	// Limit the amounth of concurrent writes
+	mg.maxUploads <- true
 
-	// We will try to create a thumbnail of images only
-	if mimeType[:5] == "image" {
-		img, _, err := image.Decode(bytes.NewReader(content))
-		if err != nil {
-			log.Error("error decoding the image:", err)
-			return nil, err
+	go func() {
+		defer func() { <-mg.maxUploads }()
+
+		// Write to disk the content
+		targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
+		err = os.WriteFile(targetPath, session.Encrypt(content), 0644) // perms: rw-r--r--
+
+		// We will try to create a thumbnail of images only
+		if mimeType[:5] == "image" {
+			img, _, err := image.Decode(bytes.NewReader(content))
+			if err != nil {
+				log.Error("error decoding the image:", err)
+				return
+			}
+			imgCfg, _, err := image.DecodeConfig(bytes.NewReader(content))
+			if err != nil {
+				log.Error("error decoding image config:", err)
+				return
+			}
+			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+			if imgCfg.Width > maxWidth {
+				newH := int(float64(imgCfg.Height) * float64(maxWidth) / float64(imgCfg.Width))
+				dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
+				draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
+				var buf bytes.Buffer
+				jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
+				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
+				err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
+			}
 		}
-		imgCfg, _, err := image.DecodeConfig(bytes.NewReader(content))
-		if err != nil {
-			log.Error("error decoding image config:", err)
-			return nil, err
-		}
-		maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-		if imgCfg.Width > maxWidth {
-			newH := int(float64(imgCfg.Height) * float64(maxWidth) / float64(imgCfg.Width))
-			dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
-			draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
-			var buf bytes.Buffer
-			jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
-			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-			err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
-		}
-	}
+	}()
 
 	return
 }

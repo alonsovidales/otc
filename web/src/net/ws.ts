@@ -18,8 +18,8 @@ export class WSClient {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
 
     await new Promise<void>((resolve, reject) => {
-      //const ws = new WebSocket(url);
-      const ws = new WebSocket('ws://otc:8080/ws');
+      console.log('WS to endpoint:', url);
+      const ws = new WebSocket(url);
       ws.binaryType = "arraybuffer";
 
       ws.onopen = () => { this.connected = true; resolve(); };

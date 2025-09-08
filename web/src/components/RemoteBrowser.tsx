@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import type { ReqEnvelope, RespEnvelope, File as MsgFile, ListOfFiles } from "../proto/messages";
 import { File as PbFile } from "../proto/messages";
 import useWS from "../net/useWS"; // your hook returning { connected, request }
@@ -47,11 +47,6 @@ function asDate(ts: any): Date | undefined {
   }
 
   return undefined;
-}
-function tsToDate(ts?: { seconds?: number | string | bigint; nanos?: number }): Date | undefined {
-  if (!ts || ts.seconds == null) return undefined;
-  const s = typeof ts.seconds === "bigint" ? Number(ts.seconds) : typeof ts.seconds === "string" ? Number(ts.seconds) : ts.seconds;
-  return new Date(s * 1000);
 }
 
 export default function RemoteBrowser() {

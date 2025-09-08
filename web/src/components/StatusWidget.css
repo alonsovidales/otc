@@ -1,0 +1,113 @@
+/* Container: fixed 270x70 face, details float on hover */
+.status-widget2 {
+  position: relative;
+  width: 270px;
+  height: 70px;
+  border: 1px solid #1f2937;      /* gray-800 */
+  border-radius: 10px;
+  background: #0f172a;            /* slate-900 */
+  color: #e5e7eb;                 /* gray-200 */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+.status-widget2.has-errors { border-color: #7f1d1d; }
+
+/* Collapsed face (what you always see) */
+.sw2-face {
+  box-sizing: border-box;
+  padding: 8px 10px 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.sw2-row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.sw2-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
+.sw2-dot.ok { background: #22c55e; }
+.sw2-title { font-weight: 700; font-size: 14px; }
+
+/* Tri-color usage bar
+   BG is a full-width gradient with stops at 60% and 90%.
+   The "used" overlay clips to the actual used% to reveal only the left part. */
+.sw2-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #111827; /* base */
+}
+.sw2-bar-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to right,
+    #16a34a 0%,   #16a34a 60%,   /* green up to 60% */
+    #f59e0b 60%,  #f59e0b 90%,   /* yellow 60–90% */
+    #ef4444 90%,  #ef4444 100%   /* red 90–100% */
+  );
+  opacity: 0.35; /* muted palette when not filled */
+}
+.sw2-bar-used {
+  position: relative; height: 100%;
+  background: linear-gradient(
+    to right,
+    #16a34a 0%,   #16a34a 60%,
+    #f59e0b 60%,  #f59e0b 90%,
+    #ef4444 90%,  #ef4444 100%
+  );
+}
+.sw2-bar-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: #9ca3af; margin-top: 4px;
+}
+
+/* one-line status summary */
+.sw2-summary {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0.9;
+}
+.sw2-summary.ok  { color: #a7f3d0; } /* emerald-200 */
+.sw2-summary.bad { color: #fca5a5; } /* red-300 */
+
+/* Floating popover: appears on hover, doesn't change layout */
+.sw2-pop {
+  position: absolute;
+  top: calc(100% + 8px);   /* below widget with small gap */
+  right: 0;
+  width: 320px;
+  max-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0b1220;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+  transition: max-height 220ms ease, opacity 120ms ease;
+  opacity: 0;
+  z-index: 1000;
+  pointer-events: none; /* don’t capture mouse when hidden */
+}
+.status-widget2:hover .sw2-pop {
+  max-height: 420px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sw2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 16px;
+}
+.sw2-errors {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  color: #fecaca;
+}
+

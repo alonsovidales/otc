@@ -16,6 +16,8 @@ pb:
 	  --go-grpc_out=$(PROTO_OUT) --go-grpc_opt=paths=source_relative \
 	  --ts_proto_out=$(PROTO_TS_OUT) \
 	  --ts_proto_opt=enumsAsLiterals=true,oneof=unions,useEnumNamesAsValues=true,esModuleInterop=true,useOptionals=messages,outputServices=none,forceLong=bigint \
+  	  --swift_out=./app/ios/OffTheCloud/OffTheCloud/ \
+	  --swift_opt=Visibility=Public \
 	  $(PROTOS)
 	@echo "$(OK_COLOR)==> Generated$(NO_COLOR)"
 
@@ -23,10 +25,11 @@ pb:
 
 otc:
 	@echo "$(OK_COLOR)==> Compiling...$(NO_COLOR)"
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build bin/otc.go && scp otc otc@otc:/tmp/
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build bin/otc.go && scp otc otc@otc:/usr/bin/
 	@echo "$(OK_COLOR)==> Building web content...$(NO_COLOR)"
 	npm run build --prefix web
 	@echo "$(OK_COLOR)==> Copying static content...$(NO_COLOR)"
+	cp -a web/dist/* app/ios/OffTheCloud/web-dist/
 	scp -r web/dist/* otc@otc:/var/www/
 
 .PHONY: otc
