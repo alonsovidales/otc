@@ -8,6 +8,20 @@ PROTO_OUT := $(PROTO_SRC)/generated
 PROTO_TS_OUT := web/src/proto
 PROTOS    := $(notdir $(wildcard $(PROTO_SRC)/*.proto))
 
+sync:
+	# ssh otc@otc wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz
+	# ssh otc@otc sudo mkdir -p /opt/onnxruntime/lib
+	# ssh otc@otc sudo cp onnxruntime-linux-aarch64-1.20.1/lib/*.so* /opt/onnxruntime/lib/
+	rsync -avz --delete ./ otc@otc:/home/otc/otc/
+
+.PHONY: sync
+
+pi:
+	@echo "$(OK_COLOR)==> Building for pi...$(NO_COLOR)"
+	CGO_ENABLED=1 go build -o otc ./bin/otc.go
+
+.PHONY: pi
+
 pb:
 	@echo "$(OK_COLOR)==> Generating Go files...$(NO_COLOR)"
 	mkdir -p $(PROTO_OUT)
@@ -25,21 +39,31 @@ pb:
 
 otc:
 	@echo "$(OK_COLOR)==> Compiling...$(NO_COLOR)"
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build bin/otc.go && scp otc otc@otc:/usr/bin/
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=1 \
+	CC=aarch64-unknown-linux-gnu-gcc \
+	CGO_CFLAGS="-I$(HOME)/ort-aarch64/onnxruntime-linux-aarch64-1.20.1/include" \
+	CGO_LDFLAGS="-L$(HOME)/ort-aarch64/onnxruntime-linux-aarch64-1.20.1/lib -lonnxruntime" \
+	go build -o otc ./bin/otc.go && scp otc otc@otc:/usr/bin/
+
+.PHONY: otc
+
+web:
 	@echo "$(OK_COLOR)==> Building web content...$(NO_COLOR)"
 	npm run build --prefix web
 	@echo "$(OK_COLOR)==> Copying static content...$(NO_COLOR)"
 	cp -a web/dist/* app/ios/OffTheCloud/web-dist/
 	scp -r web/dist/* otc@otc:/var/www/
 
-.PHONY: otc
+.PHONY: web
 
 clean:
 	@echo "$(OK_COLOR)==> Deletig Protobuf files...$(NO_COLOR)"
 	-rm -rf proto/generated/
 	@echo "$(OK_COLOR)==> Deletig binary files...$(NO_COLOR)"
 	-rm otc
+	@echo "$(OK_COLOR)==> Deletig web files...$(NO_COLOR)"
+	- rm -rf app/ios/OffTheCloud/web-dist/*
 
 .PHONY: clean
 
-all: clean pb otc
+all: clean pb sync web

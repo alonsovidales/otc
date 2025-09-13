@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import useWS from "../net/useWS";
+import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, Status as MsgStatus } from "../proto/messages";
 
 type Props = {
-  wsUrl: string;
   refreshMs?: number;       // default 2000
   className?: string;
 };
@@ -22,8 +21,7 @@ function pct(used?: number | null, total?: number | null) {
   return round((used/total) * 100);
 }
 
-const StatusWidget: React.FC<Props> = ({ wsUrl, refreshMs = 2000, className }) => {
-  const { connected, request } = useWS(wsUrl);
+const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
   const [status, setStatus] = useState<MsgStatus | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -37,9 +35,9 @@ const StatusWidget: React.FC<Props> = ({ wsUrl, refreshMs = 2000, className }) =
   );
 
   async function fetchStatus() {
-    if (!connected) return;
+    if (!useWS.connected()) return;
     try {
-      const resp: RespEnvelope = await request((e: Partial<ReqEnvelope>) => {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqGetStatus", reqGetStatus: {} };
       });
       if (resp.error) {
@@ -68,7 +66,7 @@ const StatusWidget: React.FC<Props> = ({ wsUrl, refreshMs = 2000, className }) =
       return () => clearInterval(t);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, wsUrl, refreshMs]);
+  }, [useWS.connected(), refreshMs]);
 
   // tooltip text when collapsed
   const summary =
@@ -79,11 +77,11 @@ const StatusWidget: React.FC<Props> = ({ wsUrl, refreshMs = 2000, className }) =
   return (
     <div className={`status-widget2 ${className ?? ""} ${hasErrors ? "has-errors" : ""}`}>
       {/* Collapsed face (270x70) */}
-      <div className="sw2-face" title={connected ? "Server status" : "Disconnected"}>
+      <div className="sw2-face" title={useWS.connected() ? "Server status" : "Disconnected"}>
         <div className="sw2-row1">
-          <span className={`sw2-dot ${connected && status?.online ? "ok" : "bad"}`} />
+          <span className={`sw2-dot ${useWS.connected() && status?.online ? "ok" : "bad"}`} />
           <span className="sw2-title">
-            {connected ? (status?.online ? "Online" : "Offline") : "Disconnected"}
+            {useWS.connected() ? (status?.online ? "Online" : "Offline") : "Disconnected"}
           </span>
         </div>
 

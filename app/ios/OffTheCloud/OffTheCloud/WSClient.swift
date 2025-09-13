@@ -70,7 +70,7 @@ final class WSClient {
         env.id = nextId; nextId += 1
         build(&env)
 
-        print("Sending request: \(env)")
+        //print("Sending request: \(env)")
         
         let data = try env.serializedData()
         return try await withCheckedThrowingContinuation { cont in

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import type { ReqEnvelope, RespEnvelope, File as MsgFile, ListOfFiles } from "../proto/messages";
 import { File as PbFile } from "../proto/messages";
-import useWS from "../net/useWS"; // your hook returning { connected, request }
+import { useWS } from "../net/useWS";
 
 type CtxMenuState = { open: boolean; x: number; y: number };
 
@@ -50,9 +50,7 @@ function asDate(ts: any): Date | undefined {
 }
 
 export default function RemoteBrowser() {
-  console.log('Use WS RemoteBrowser');
-  const { connected, request } = useWS(import.meta.env.VITE_WS_URL);
-  console.log('Use WS RemoteBrowser-', connected);
+  console.log('Use WS RemoteBrowser-', useWS.connected());
 
   const [cwd, setCwd] = useState<string>("/");               // current directory
   const [rows, setRows] = useState<MsgFile[]>([]);           // current listing
@@ -68,8 +66,8 @@ export default function RemoteBrowser() {
     setLoading(true); setError(null);
     try {
       console.log('Requesting files...');
-      const resp: RespEnvelope = await request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqListFiles", reqListFiles: { globbing: false, path } };
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as Partial<ReqEnvelope>).payload = { $case: "reqListFiles", reqListFiles: { path } };
       });
       console.log('Response:', resp);
       const p = (resp as any).payload;
@@ -97,38 +95,38 @@ export default function RemoteBrowser() {
       setLoading(false);
       setSelected(new Set());
     }
-  }, [request]);
+  }, [useWS.request]);
 
   const getFile = useCallback(async (path: string): Promise<MsgFile | null> => {
-    const resp: RespEnvelope = await request((e) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqGetFile", reqGetFile: { path } };
     });
     const p = (resp as any).payload;
     if (p?.$case === "respFile") return p.respFile as MsgFile;
     return null;
-  }, [request]);
+  }, [useWS.request]);
 
   const delFile = useCallback(async (path: string) => {
-    const resp: RespEnvelope = await request((e) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqDelFile", reqDelFile: { path } };
     });
     if ((resp as any).payload?.$case === "respAck" && (resp as any).payload.respAck?.ok) return true;
     return !resp.error;
-  }, [request]);
+  }, [useWS.request]);
 
   const uploadFile = useCallback(async (targetDir: string, file: File, forceOverride = false) => {
     const targetPath = joinPath(targetDir, file.name);
     const content = new Uint8Array(await file.arrayBuffer());
-    const resp: RespEnvelope = await request((e) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqUploadFile", reqUploadFile: { path: targetPath, content, forceOverride } };
     });
     if ((resp as any).payload?.$case === "respAck" && (resp as any).payload.respAck?.ok) return true;
     if (resp.error) throw new Error(resp.errorMessage || "Upload failed");
     return true;
-  }, [request]);
+  }, [useWS.request]);
 
   // ------- initial + on cwd change -------
-  useEffect(() => { if (connected) listDir(cwd); }, [connected, cwd, listDir]);
+  useEffect(() => { if (useWS.connected()) listDir(cwd); }, [useWS.connected(), cwd, listDir]);
 
   // ------- UI handlers -------
   const onRowClick = async (f: MsgFile, ev: React.MouseEvent) => {
@@ -232,7 +230,7 @@ export default function RemoteBrowser() {
     if (!bytes || bytes.length === 0) { alert("Server did not return file content for rename."); return; }
 
     const newPath = joinPath(cwd, newName);
-    const resp: RespEnvelope = await request((e) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqUploadFile", reqUploadFile: { path: newPath, content: bytes, forceOverride: false } };
     });
     if ((resp as any).payload?.$case === "respAck" && (resp as any).payload.respAck?.ok) {
@@ -265,7 +263,7 @@ export default function RemoteBrowser() {
       <div className="toolbar" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
         <strong>Path:</strong>
         <code>{cwd}</code>
-        <button onClick={() => listDir(cwd)} disabled={!connected || loading}>Refresh</button>
+        <button onClick={() => listDir(cwd)} disabled={!useWS.connected() || loading}>Refresh</button>
         <span style={{ marginLeft: "auto" }}>
           <strong>Total files: </strong>
           <code>{totalFiles}</code>

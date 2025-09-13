@@ -180,9 +180,19 @@ public struct Msg_ListFiles: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var globbing: Bool = false
-
   public var path: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_SearchPhotos: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var text: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -195,20 +205,6 @@ public struct Msg_ListOfFiles: Sendable {
   // methods supported on all messages.
 
   public var files: [Msg_File] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Msg_FileTag: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var tag: String = String()
-
-  public var type: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -246,8 +242,6 @@ public struct Msg_File: Sendable {
 
   public var size: Int32 = 0
 
-  public var tags: [Msg_FileTag] = []
-
   public var content: Data {
     get {return _content ?? Data()}
     set {_content = newValue}
@@ -256,6 +250,8 @@ public struct Msg_File: Sendable {
   public var hasContent: Bool {return self._content != nil}
   /// Clears the value of `content`. Subsequent reads from it will return its default value.
   public mutating func clearContent() {self._content = nil}
+
+  public var embedding: [Float] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -337,6 +333,14 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqDelFile(newValue)}
   }
 
+  public var reqSearchPhotos: Msg_SearchPhotos {
+    get {
+      if case .reqSearchPhotos(let v)? = payload {return v}
+      return Msg_SearchPhotos()
+    }
+    set {payload = .reqSearchPhotos(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -346,6 +350,7 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqUploadFile(Msg_UploadFile)
     case reqGetFile(Msg_GetFile)
     case reqDelFile(Msg_DelFile)
+    case reqSearchPhotos(Msg_SearchPhotos)
 
   }
 
@@ -694,7 +699,7 @@ extension Msg_GetFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
 
 extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListFiles"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}globbing\0\u{1}path\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -702,26 +707,51 @@ extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBoolField(value: &self.globbing) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.globbing != false {
-      try visitor.visitSingularBoolField(value: self.globbing, fieldNumber: 1)
-    }
     if !self.path.isEmpty {
-      try visitor.visitSingularStringField(value: self.path, fieldNumber: 2)
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ListFiles, rhs: Msg_ListFiles) -> Bool {
-    if lhs.globbing != rhs.globbing {return false}
     if lhs.path != rhs.path {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.text) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.text.isEmpty {
+      try visitor.visitSingularStringField(value: self.text, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SearchPhotos, rhs: Msg_SearchPhotos) -> Bool {
+    if lhs.text != rhs.text {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -757,44 +787,9 @@ extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_FileTag: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".FileTag"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tag\0\u{1}type\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.tag) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.type) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.tag.isEmpty {
-      try visitor.visitSingularStringField(value: self.tag, fieldNumber: 1)
-    }
-    if !self.type.isEmpty {
-      try visitor.visitSingularStringField(value: self.type, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Msg_FileTag, rhs: Msg_FileTag) -> Bool {
-    if lhs.tag != rhs.tag {return false}
-    if lhs.type != rhs.type {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
 extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{1}tags\0\u{1}content\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{1}embedding\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -808,8 +803,8 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
       case 4: try { try decoder.decodeSingularMessageField(value: &self._modified) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.path) }()
       case 6: try { try decoder.decodeSingularInt32Field(value: &self.size) }()
-      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.tags) }()
       case 8: try { try decoder.decodeSingularBytesField(value: &self._content) }()
+      case 9: try { try decoder.decodeRepeatedFloatField(value: &self.embedding) }()
       default: break
       }
     }
@@ -838,12 +833,12 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
     if self.size != 0 {
       try visitor.visitSingularInt32Field(value: self.size, fieldNumber: 6)
     }
-    if !self.tags.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.tags, fieldNumber: 7)
-    }
     try { if let v = self._content {
       try visitor.visitSingularBytesField(value: v, fieldNumber: 8)
     } }()
+    if !self.embedding.isEmpty {
+      try visitor.visitPackedFloatField(value: self.embedding, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -854,8 +849,8 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
     if lhs._modified != rhs._modified {return false}
     if lhs.path != rhs.path {return false}
     if lhs.size != rhs.size {return false}
-    if lhs.tags != rhs.tags {return false}
     if lhs._content != rhs._content {return false}
+    if lhs.embedding != rhs.embedding {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -898,7 +893,7 @@ extension Msg_Ack: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBa
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -985,6 +980,19 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqDelFile(v)
         }
       }()
+      case 16: try {
+        var v: Msg_SearchPhotos?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSearchPhotos(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSearchPhotos(v)
+        }
+      }()
       default: break
       }
     }
@@ -1022,6 +1030,10 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
     case .reqDelFile?: try {
       guard case .reqDelFile(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
+    }()
+    case .reqSearchPhotos?: try {
+      guard case .reqSearchPhotos(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
     }()
     case nil: break
     }

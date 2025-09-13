@@ -26,7 +26,7 @@ final class UploadModel: ObservableObject {
     }
 
     func step(file: String, index: Int, total: Int) {
-        print("UPLOADING: \(file)")
+        print("UPLOADING: \(file) index: \(index) total: \(total)")
         DispatchQueue.main.async {
             self.currentName = file
             self.totalPending = max(0, total - index)

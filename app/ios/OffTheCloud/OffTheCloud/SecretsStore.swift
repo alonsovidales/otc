@@ -17,15 +17,17 @@ final class SecretsStore: ObservableObject {
     // Settings
     @Published var wifiOnly: Bool
     @Published var includeVideos: Bool
-
+    @Published var downloadFromiCloud: Bool
+    
     var isConfigured: Bool { !endpoint.isEmpty && !password.isEmpty }
 
-    private init(endpoint: String, password: String, deviceId: String, wifiOnly: Bool, includeVideos: Bool) {
+    private init(endpoint: String, password: String, deviceId: String, wifiOnly: Bool, includeVideos: Bool, downloadFromiCloud: Bool) {
         self.endpoint = endpoint
         self.password = password
         self.deviceId = deviceId
         self.wifiOnly = wifiOnly
         self.includeVideos = includeVideos
+        self.downloadFromiCloud = downloadFromiCloud
     }
 
     static func loadOrCreate() -> SecretsStore {
@@ -39,8 +41,9 @@ final class SecretsStore: ObservableObject {
 
         let wifiOnly = UserDefaults.standard.bool(forKey: "wifiOnly")
         let includeVideos = UserDefaults.standard.object(forKey: "includeVideos") as? Bool ?? true
+        let downloadFromiCloud = UserDefaults.standard.object(forKey: "downloadFromiCloud") as? Bool ?? true
 
-        return SecretsStore(endpoint: endpoint, password: password, deviceId: deviceId, wifiOnly: wifiOnly, includeVideos: includeVideos)
+        return SecretsStore(endpoint: endpoint, password: password, deviceId: deviceId, wifiOnly: wifiOnly, includeVideos: includeVideos, downloadFromiCloud: downloadFromiCloud)
     }
 
     func persist() {
@@ -49,6 +52,7 @@ final class SecretsStore: ObservableObject {
         Keychain.saveString(key: "device_id", value: deviceId)
         UserDefaults.standard.set(wifiOnly, forKey: "wifiOnly")
         UserDefaults.standard.set(includeVideos, forKey: "includeVideos")
+        UserDefaults.standard.set(downloadFromiCloud, forKey: "downloadFromiCloud")
     }
 }
 

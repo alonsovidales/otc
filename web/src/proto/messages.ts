@@ -102,17 +102,15 @@ export interface GetFile {
 }
 
 export interface ListFiles {
-  globbing: boolean;
   path: string;
+}
+
+export interface SearchPhotos {
+  text: string;
 }
 
 export interface ListOfFiles {
   files: File[];
-}
-
-export interface FileTag {
-  tag: string;
-  type: string;
 }
 
 export interface File {
@@ -122,8 +120,8 @@ export interface File {
   modified?: Date | undefined;
   path: string;
   size: number;
-  tags: FileTag[];
   content?: Uint8Array | undefined;
+  embedding: number[];
 }
 
 export interface Ack {
@@ -140,6 +138,7 @@ export interface ReqEnvelope {
     | { $case: "reqUploadFile"; reqUploadFile: UploadFile }
     | { $case: "reqGetFile"; reqGetFile: GetFile }
     | { $case: "reqDelFile"; reqDelFile: DelFile }
+    | { $case: "reqSearchPhotos"; reqSearchPhotos: SearchPhotos }
     | undefined;
 }
 
@@ -807,16 +806,13 @@ export const GetFile: MessageFns<GetFile> = {
 };
 
 function createBaseListFiles(): ListFiles {
-  return { globbing: false, path: "" };
+  return { path: "" };
 }
 
 export const ListFiles: MessageFns<ListFiles> = {
   encode(message: ListFiles, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.globbing !== false) {
-      writer.uint32(8).bool(message.globbing);
-    }
     if (message.path !== "") {
-      writer.uint32(18).string(message.path);
+      writer.uint32(10).string(message.path);
     }
     return writer;
   },
@@ -829,15 +825,7 @@ export const ListFiles: MessageFns<ListFiles> = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 8) {
-            break;
-          }
-
-          message.globbing = reader.bool();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
+          if (tag !== 10) {
             break;
           }
 
@@ -854,17 +842,11 @@ export const ListFiles: MessageFns<ListFiles> = {
   },
 
   fromJSON(object: any): ListFiles {
-    return {
-      globbing: isSet(object.globbing) ? globalThis.Boolean(object.globbing) : false,
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-    };
+    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
   },
 
   toJSON(message: ListFiles): unknown {
     const obj: any = {};
-    if (message.globbing !== false) {
-      obj.globbing = message.globbing;
-    }
     if (message.path !== "") {
       obj.path = message.path;
     }
@@ -876,8 +858,65 @@ export const ListFiles: MessageFns<ListFiles> = {
   },
   fromPartial<I extends Exact<DeepPartial<ListFiles>, I>>(object: I): ListFiles {
     const message = createBaseListFiles();
-    message.globbing = object.globbing ?? false;
     message.path = object.path ?? "";
+    return message;
+  },
+};
+
+function createBaseSearchPhotos(): SearchPhotos {
+  return { text: "" };
+}
+
+export const SearchPhotos: MessageFns<SearchPhotos> = {
+  encode(message: SearchPhotos, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.text !== "") {
+      writer.uint32(10).string(message.text);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SearchPhotos {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSearchPhotos();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SearchPhotos {
+    return { text: isSet(object.text) ? globalThis.String(object.text) : "" };
+  },
+
+  toJSON(message: SearchPhotos): unknown {
+    const obj: any = {};
+    if (message.text !== "") {
+      obj.text = message.text;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SearchPhotos>, I>>(base?: I): SearchPhotos {
+    return SearchPhotos.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SearchPhotos>, I>>(object: I): SearchPhotos {
+    const message = createBaseSearchPhotos();
+    message.text = object.text ?? "";
     return message;
   },
 };
@@ -940,82 +979,6 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
   },
 };
 
-function createBaseFileTag(): FileTag {
-  return { tag: "", type: "" };
-}
-
-export const FileTag: MessageFns<FileTag> = {
-  encode(message: FileTag, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.tag !== "") {
-      writer.uint32(10).string(message.tag);
-    }
-    if (message.type !== "") {
-      writer.uint32(18).string(message.type);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): FileTag {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFileTag();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.tag = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.type = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): FileTag {
-    return {
-      tag: isSet(object.tag) ? globalThis.String(object.tag) : "",
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
-    };
-  },
-
-  toJSON(message: FileTag): unknown {
-    const obj: any = {};
-    if (message.tag !== "") {
-      obj.tag = message.tag;
-    }
-    if (message.type !== "") {
-      obj.type = message.type;
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<FileTag>, I>>(base?: I): FileTag {
-    return FileTag.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<FileTag>, I>>(object: I): FileTag {
-    const message = createBaseFileTag();
-    message.tag = object.tag ?? "";
-    message.type = object.type ?? "";
-    return message;
-  },
-};
-
 function createBaseFile(): File {
   return {
     hash: "",
@@ -1024,8 +987,8 @@ function createBaseFile(): File {
     modified: undefined,
     path: "",
     size: 0,
-    tags: [],
     content: undefined,
+    embedding: [],
   };
 }
 
@@ -1049,12 +1012,14 @@ export const File: MessageFns<File> = {
     if (message.size !== 0) {
       writer.uint32(48).int32(message.size);
     }
-    for (const v of message.tags) {
-      FileTag.encode(v!, writer.uint32(58).fork()).join();
-    }
     if (message.content !== undefined) {
       writer.uint32(66).bytes(message.content);
     }
+    writer.uint32(74).fork();
+    for (const v of message.embedding) {
+      writer.float(v);
+    }
+    writer.join();
     return writer;
   },
 
@@ -1113,14 +1078,6 @@ export const File: MessageFns<File> = {
           message.size = reader.int32();
           continue;
         }
-        case 7: {
-          if (tag !== 58) {
-            break;
-          }
-
-          message.tags.push(FileTag.decode(reader, reader.uint32()));
-          continue;
-        }
         case 8: {
           if (tag !== 66) {
             break;
@@ -1128,6 +1085,24 @@ export const File: MessageFns<File> = {
 
           message.content = reader.bytes();
           continue;
+        }
+        case 9: {
+          if (tag === 77) {
+            message.embedding.push(reader.float());
+
+            continue;
+          }
+
+          if (tag === 74) {
+            const end2 = reader.uint32() + reader.pos;
+            while (reader.pos < end2) {
+              message.embedding.push(reader.float());
+            }
+
+            continue;
+          }
+
+          break;
         }
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -1146,8 +1121,10 @@ export const File: MessageFns<File> = {
       modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
       path: isSet(object.path) ? globalThis.String(object.path) : "",
       size: isSet(object.size) ? globalThis.Number(object.size) : 0,
-      tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => FileTag.fromJSON(e)) : [],
       content: isSet(object.content) ? bytesFromBase64(object.content) : undefined,
+      embedding: globalThis.Array.isArray(object?.embedding)
+        ? object.embedding.map((e: any) => globalThis.Number(e))
+        : [],
     };
   },
 
@@ -1171,11 +1148,11 @@ export const File: MessageFns<File> = {
     if (message.size !== 0) {
       obj.size = Math.round(message.size);
     }
-    if (message.tags?.length) {
-      obj.tags = message.tags.map((e) => FileTag.toJSON(e));
-    }
     if (message.content !== undefined) {
       obj.content = base64FromBytes(message.content);
+    }
+    if (message.embedding?.length) {
+      obj.embedding = message.embedding;
     }
     return obj;
   },
@@ -1191,8 +1168,8 @@ export const File: MessageFns<File> = {
     message.modified = object.modified ?? undefined;
     message.path = object.path ?? "";
     message.size = object.size ?? 0;
-    message.tags = object.tags?.map((e) => FileTag.fromPartial(e)) || [];
     message.content = object.content ?? undefined;
+    message.embedding = object.embedding?.map((e) => e) || [];
     return message;
   },
 };
@@ -1301,6 +1278,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqDelFile":
         DelFile.encode(message.payload.reqDelFile, writer.uint32(122).fork()).join();
         break;
+      case "reqSearchPhotos":
+        SearchPhotos.encode(message.payload.reqSearchPhotos, writer.uint32(130).fork()).join();
+        break;
     }
     return writer;
   },
@@ -1368,6 +1348,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqDelFile", reqDelFile: DelFile.decode(reader, reader.uint32()) };
           continue;
         }
+        case 16: {
+          if (tag !== 130) {
+            break;
+          }
+
+          message.payload = { $case: "reqSearchPhotos", reqSearchPhotos: SearchPhotos.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1392,6 +1380,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqGetFile", reqGetFile: GetFile.fromJSON(object.reqGetFile) }
         : isSet(object.reqDelFile)
         ? { $case: "reqDelFile", reqDelFile: DelFile.fromJSON(object.reqDelFile) }
+        : isSet(object.reqSearchPhotos)
+        ? { $case: "reqSearchPhotos", reqSearchPhotos: SearchPhotos.fromJSON(object.reqSearchPhotos) }
         : undefined,
     };
   },
@@ -1413,6 +1403,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetFile = GetFile.toJSON(message.payload.reqGetFile);
     } else if (message.payload?.$case === "reqDelFile") {
       obj.reqDelFile = DelFile.toJSON(message.payload.reqDelFile);
+    } else if (message.payload?.$case === "reqSearchPhotos") {
+      obj.reqSearchPhotos = SearchPhotos.toJSON(message.payload.reqSearchPhotos);
     }
     return obj;
   },
@@ -1460,6 +1452,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqDelFile": {
         if (object.payload?.reqDelFile !== undefined && object.payload?.reqDelFile !== null) {
           message.payload = { $case: "reqDelFile", reqDelFile: DelFile.fromPartial(object.payload.reqDelFile) };
+        }
+        break;
+      }
+      case "reqSearchPhotos": {
+        if (object.payload?.reqSearchPhotos !== undefined && object.payload?.reqSearchPhotos !== null) {
+          message.payload = {
+            $case: "reqSearchPhotos",
+            reqSearchPhotos: SearchPhotos.fromPartial(object.payload.reqSearchPhotos),
+          };
         }
         break;
       }

@@ -1,46 +1,80 @@
-import { useCallback, useEffect, useState } from "react";
-import { wsClient } from "./ws"; // <-- make sure ws.ts exports: export const wsClient = new WSClient();
-import type { RespEnvelope } from "../proto/messages";
+import { wsClient } from "./ws";
+import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 
-/**
- * React hook to manage a single WS connection.
- * - Connects on mount (or when url changes)
- * - Exposes connection state and request() function
- */
-export function useWS(url: string) {
-  const [connected, setConnected] = useState<boolean>(wsClient.connected);
+export function UseWS() {
+  let isConnected = false;
+  let lastAuthRef: string = '';
+  let urlRef: string = '';
+  let setAuth: ((e: boolean) => void) | null = null;
 
-  useEffect(() => {
+  const connect = async () => {
     let cancelled = false;
 
-    wsClient
-      .connect(url)
+    await wsClient
+      .connect(urlRef)
       .then(() => {
-        if (!cancelled) setConnected(true);
+        if (!cancelled) isConnected = true;
       })
       .catch((err) => {
         console.error("WS connect error:", err);
-        if (!cancelled) setConnected(false);
+        if (!cancelled) isConnected = false;
       });
 
-    // optional: listen for push messages (server-initiated)
-    const off = wsClient.onMessage((env: RespEnvelope) => {
+    // TODO: listen for push messages (server-initiated)
+    wsClient.onMessage((env: RespEnvelope) => {
       // handle push notifications if you need
       console.log("push", env);
     });
 
-    return () => {
-      cancelled = true;
-      off();            // remove listener
-      wsClient.close(); // close socket on unmount / url change
-      setConnected(false);
-    };
-  }, [url]);
+    return cancelled;
+  };
 
-  // stable reference to request() so components can call it
-  const request = useCallback(wsClient.request.bind(wsClient), []);
+  const request = (async (req: (e: Partial<ReqEnvelope>) => void) => {
+    console.log('Request!!!', wsClient.connected);
+    if (!wsClient || !wsClient.connected) {
+      await connect();
+      console.log('Connect!!!', wsClient.connected, lastAuthRef);
+      if (wsClient.connected && lastAuthRef !== '') {
+        console.log('Auth!!!');
+        sendAuth(lastAuthRef);
+      }
+    }
 
-  return { connected, request, ws: wsClient };
+    return wsClient.request.bind(wsClient)(req);
+  });
+
+  const sendAuth = async (key: string) => {
+    lastAuthRef = key;
+    if (!isConnected || !wsClient.connected) {
+      await connect();
+    }
+
+    const resp: RespEnvelope = await request(e => {
+      console.log('GotAuth...');
+      (e as any).payload = { $case: "reqAuth", reqAuth: { key, create: true } };
+    });
+    console.log("auth resp", resp);
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      if (setAuth) {
+        await setAuth(true);
+      }
+
+      return true;
+    }
+
+    return false;
+  };
+
+  const init = (url: string, setAuthenticated: ((e: boolean) => void)) => {
+    urlRef = url;
+    setAuth = setAuthenticated;
+  };
+
+  const connected = () => {
+    return wsClient.connected;
+  };
+
+  return { connected, request, sendAuth, init, ws: wsClient };
 }
 
-export default useWS;
+export const useWS = UseWS();

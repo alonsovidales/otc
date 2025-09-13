@@ -1,67 +1,79 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
-import Home from "./views/Home";
+import Social from "./views/Social";
 import { useWS } from "./net/useWS";
-import { RespEnvelope } from "./proto/messages";
 import SignIn from "./views/SignIn";
 import AdminPannel from "./views/AdminPannel";
 import StatusWidget from "./components/StatusWidget";
+import PhotoGallery from "./components/PhotoGallery";
+import TopTabs from "./components/TopTabs";
+import type { TabKey } from "./components/TopTabs";
 import "./components/StatusWidget.css";
-
-type Page = "Home" | "SignIn" | "AdminPannel";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
 function App() {
   const cfg = window.__OTC_CONFIG!;
-  const [page, setPage] = useState<Page>("Home");
+  const [tab, setTab] = useState<TabKey>("Social");
   const [authenticated, setAuthenticated] = useState(false);
   console.log('Use WS App');
   let endpoint = 'ws://otc:8080/ws';
+
   if (cfg) {
     endpoint = cfg.endpoint;
   }
-  const { connected, request } = useWS(endpoint);
-  console.log('Use WS App-', connected);
+  useWS.init(endpoint, setAuthenticated);
 
-  const sendAuth = async (key: string) => {
-    console.log('SedAuth...', key);
-    const resp: RespEnvelope = await request(e => {
-      console.log('GotAuth...');
-      (e as any).payload = { $case: "reqAuth", reqAuth: { key, create: true } };
-    });
-    console.log("auth resp", resp);
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setAuthenticated(true);
-      setPage("AdminPannel");
-    }
-  };
-
-  // This is the mobile app, using the config from there
   if (cfg) {
-    sendAuth(cfg.password);
+    useEffect(() => {
+      (async () => {
+        try {
+          const ok = await useWS.sendAuth(cfg.password);
+          if (ok) setTab("AdminPannel");
+        } catch (e) {
+          console.error("Auto-auth from container failed:", e);
+        }
+      })();
+    }, [useWS]);
   }
 
   return (
     <>
       <div className="header">
-        <a onClick={() => setPage("Home")}>
+        <a onClick={() => setTab("Social")}>
           <img src={logo} className="logo" alt="Off The Cloud logo" />
         </a>
-        {!authenticated && 
-          <button className="top_sign_in" onClick={() => setPage("SignIn")}>
-            Sign In
-          </button>
-        }
-        {authenticated && 
-          <StatusWidget className="top_sign_in" wsUrl={import.meta.env.VITE_WS_URL} />
-        }
+        <div className="header">
+          <a>
+            <img src={logo} className="logo" alt="Off The Cloud logo" />
+          </a>
+
+          {/* Tabs centered; tweak layout to fit your header */}
+          {authenticated &&
+            <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+              <TopTabs value={tab} onChange={setTab} />
+            </div>
+          }
+          {!authenticated && 
+            <button className="top_sign_in" onClick={() => setTab("SignIn")}>
+              Sign In
+            </button>
+          }
+          {authenticated && 
+            <StatusWidget className="top_sign_in" />
+          }
+        </div>
       </div>
       <main>
-        {page === "Home" && <Home />}
-        {page === "SignIn" && <SignIn onAuth={sendAuth} />}
-        {page === "AdminPannel" && <AdminPannel />}
+        {tab === "Social" && <Social />}
+        {tab === "SignIn" && <SignIn onAuth={async (key) => {
+          if (await useWS.sendAuth(key)) {
+            setTab("Social");
+          }
+        }} />}
+        {tab === "AdminPannel" && <AdminPannel />}
+        {tab === "PhotoGallery" && <PhotoGallery />}
       </main>
     </>
   )

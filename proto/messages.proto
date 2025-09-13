@@ -56,17 +56,15 @@ message GetFile {
 }
 
 message ListFiles {
-  bool globbing = 1;
-  string path = 2;
+  string path = 1;
+}
+
+message SearchPhotos {
+  string text = 1;
 }
 
 message ListOfFiles {
   repeated File files = 1;
-}
-
-message FileTag {
-  string tag = 1;
-  string type = 2;
 }
 
 message File {
@@ -76,8 +74,8 @@ message File {
   google.protobuf.Timestamp modified = 4;
   string path = 5;
   int32 size = 6;
-  repeated FileTag tags = 7;
   optional bytes content = 8;
+  repeated float embedding = 9;
 }
 
 message Ack {
@@ -94,6 +92,7 @@ message ReqEnvelope {
     UploadFile req_upload_file = 13;
     GetFile req_get_file = 14;
     DelFile req_del_file = 15;
+    SearchPhotos req_search_photos = 16;
   }
 }
 

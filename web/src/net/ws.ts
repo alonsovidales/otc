@@ -57,5 +57,4 @@ export class WSClient {
   }
 }
 
-// ✅ export a singleton instance to use in the hook
 export const wsClient = new WSClient();

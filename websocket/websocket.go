@@ -168,7 +168,24 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 
 		case *pb.ReqEnvelope_ReqListFiles:
 			log.Info("List of file by path:", p.ReqListFiles.Path)
-			files, err := mg.filesManager.ListFiles(session, p.ReqListFiles.Globbing, p.ReqListFiles.Path)
+			files, err := mg.filesManager.ListFiles(session, p.ReqListFiles.Path)
+			if err != nil {
+				log.Error("error trying to list files:", err)
+				resp.Error = true
+				resp.ErrorMessage = err.Error()
+			} else {
+				log.Debug("Files to return:", len(files))
+
+				resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+					RespListOfFiles: &pb.ListOfFiles{
+						Files: files,
+					},
+				}
+			}
+
+		case *pb.ReqEnvelope_ReqSearchPhotos:
+			log.Info("Search by text:", p.ReqSearchPhotos.Text)
+			files, err := mg.filesManager.ImageSearch(session, "/", p.ReqSearchPhotos.Text)
 			if err != nil {
 				log.Error("error trying to list files:", err)
 				resp.Error = true

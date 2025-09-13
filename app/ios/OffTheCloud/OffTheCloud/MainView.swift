@@ -22,7 +22,6 @@ struct MainView: View {
                         .padding(.bottom, 12)
                 }
             }
-            .navigationTitle("Off The Cloud")   // optional, shows a title
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {

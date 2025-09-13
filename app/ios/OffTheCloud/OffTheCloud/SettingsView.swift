@@ -29,6 +29,7 @@ struct SettingsView: View {
                 Section(header: Text("Sync Options")) {
                     Toggle("Wi-Fi only", isOn: $secrets.wifiOnly)
                     Toggle("Include videos", isOn: $secrets.includeVideos)
+                    Toggle("Sync from iCloud", isOn: $secrets.downloadFromiCloud)
                     Button("Authorize Photos Access") {
                         Task { _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite) }
                     }

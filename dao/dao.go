@@ -1,8 +1,10 @@
 package dao
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"fmt"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
@@ -72,6 +74,33 @@ func (dao *Dao) CreateSession(encCheck string) (err error) {
 	return
 }
 
+func FloatsToBytes(floats []float32) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.LittleEndian, floats); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func BytesToFloats(data []byte) ([]float32, error) {
+	floats := make([]float32, len(data)/4)
+	if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &floats); err != nil {
+		return nil, err
+	}
+	return floats, nil
+}
+
+func (dao *Dao) UpdateImageEmbedding(file *pb.File) (err error) {
+	encoded, err := FloatsToBytes(file.Embedding)
+	if err != nil {
+		return err
+	}
+	_, err = dao.db.Exec(
+		"update `files` set `tensor` = ? where `hash` = ?", encoded, file.Hash)
+
+	return
+}
+
 func (dao *Dao) StoreNewFile(file *pb.File) (duplicated bool, err error) {
 	_, err = dao.db.Exec(
 		"insert into `files` (`hash`, `mime`, `created`, `modified`, `path`, `size`) values (?, ?, ?, ?, ?, ?)",
@@ -82,6 +111,20 @@ func (dao *Dao) StoreNewFile(file *pb.File) (duplicated bool, err error) {
 			return true, nil
 		}
 	}
+
+	return
+}
+
+func (dao *Dao) GetFileByHash(hash string) (file *pb.File, err error) {
+	var created, modified time.Time
+	log.Debug("Get file SQL:", hash)
+	file = new(pb.File)
+	err = dao.db.QueryRow(
+		"select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = ?", hash).
+		Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size)
+
+	file.Created = timestamppb.New(created)
+	file.Modified = timestamppb.New(modified)
 
 	return
 }
@@ -107,16 +150,12 @@ func (dao *Dao) DelFileByPath(path string) (err error) {
 	return
 }
 
-func (dao *Dao) GetFilesByPath(globbing bool, path string) (files []*pb.File, err error) {
-	if globbing {
-		path = strings.ReplaceAll(path, "%", "\\%")
-		path = strings.ReplaceAll(path, "_", "\\_")
-		path = strings.ReplaceAll(path, "*", "%")
-		path = strings.ReplaceAll(path, "?", "_")
-	} else {
+func (dao *Dao) GetFilesByPath(path string, includeEmbedding, addSubDirs bool) (files []*pb.File, err error) {
+	if addSubDirs {
 		pathFiles := "^" + path + "[^/]+$"
-		slashesInPath := strings.Count(path, "/")
+
 		// We add first the sub-directories that are actually subpaths of the existing files
+		slashesInPath := strings.Count(path, "/")
 		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files WHERE path LIKE ? and path not regexp ?;", slashesInPath, path+"%", pathFiles)
 		if err != nil {
 			return nil, err
@@ -137,11 +176,18 @@ func (dao *Dao) GetFilesByPath(globbing bool, path string) (files []*pb.File, er
 			files = append(files, file)
 		}
 		path = pathFiles
+	} else {
+		path = "^" + path
 	}
 
-	log.Debug("Get Files by path:", globbing, path)
-	rows, err := dao.db.Query(
-		"select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ?", path)
+	var searchStr string
+	if includeEmbedding {
+		searchStr = "select `hash`, `mime`, `created`, `modified`, `path`, `size`, `tensor` from `files`  where `path` regexp ? and `tensor` is not null"
+	} else {
+		searchStr = "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ?"
+	}
+	log.Debug("Get Files by path:", path, searchStr)
+	rows, err := dao.db.Query(searchStr, path)
 
 	if err != nil {
 		return nil, err
@@ -151,8 +197,19 @@ func (dao *Dao) GetFilesByPath(globbing bool, path string) (files []*pb.File, er
 	for rows.Next() {
 		file := new(pb.File)
 		var created, modified time.Time
-		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size); err != nil {
-			return nil, err
+		if includeEmbedding {
+			var embedding []byte
+			if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size, &embedding); err != nil {
+				return nil, err
+			}
+			file.Embedding, err = BytesToFloats(embedding)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size); err != nil {
+				return nil, err
+			}
 		}
 		file.Created = timestamppb.New(created)
 		file.Modified = timestamppb.New(modified)

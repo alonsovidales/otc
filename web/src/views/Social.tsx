@@ -1,4 +1,4 @@
-function Home() {
+function Social() {
   return (
     <>
       <h1>Off The Cloud</h1>
@@ -7,4 +7,4 @@ function Home() {
   )
 }
 
-export default Home
+export default Social

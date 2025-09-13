@@ -50,8 +50,12 @@ final class PhotoSync {
         var data = Data()
         var loadError: Error?
         let sem = DispatchSemaphore(value: 0)   // start at 0
-
-        PHAssetResourceManager.default().requestData(for: preferred, options: nil,
+        
+        let opts = PHAssetResourceRequestOptions()
+        let secrets = SecretsStore.loadOrCreate()
+        opts.isNetworkAccessAllowed = secrets.downloadFromiCloud
+        
+        PHAssetResourceManager.default().requestData(for: preferred, options: opts,
             dataReceivedHandler: { data.append($0) },
             completionHandler: { error in
                 loadError = error
@@ -95,8 +99,25 @@ final class PhotoSync {
         }
 
         let last = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
+        print("Sync photos from: \(last)")
         let assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
         UploadModel.shared.begin(total: assets.count)
+        
+        let targetPath = "/ios/\(secrets.deviceId)/"
+        // Get a list of all the files for the target path
+        let resp = try await ws.request { env in
+            var list = Msg_ListFiles()
+            list.path = targetPath
+            env.payload = .reqListFiles(list)
+        }
+        var knownPaths = Set<String>()
+        if case .respListOfFiles(let files) = resp.payload {
+            resp.respListOfFiles.files.forEach {
+                knownPaths.insert($0.path)
+            }
+        } else if resp.error {
+            print("Upload listing the files:", resp.errorMessage)
+        }
 
         var idx = 0
         for asset in assets {
@@ -104,7 +125,13 @@ final class PhotoSync {
             do {
                 let (data, name, _) = try readData(for: asset)
                 let cleanName = name.replacingOccurrences(of: "/", with: "_")
-                let path = "/ios/\(secrets.deviceId)/\(cleanName)"
+                let path = "\(targetPath)\(cleanName)"
+                
+                if knownPaths.contains(path) {
+                    print("File already in server: \(path)")
+                    // TODO: Check also the hash
+                    continue
+                }
 
                 UploadModel.shared.step(file: cleanName, index: idx-1, total: assets.count)
 
@@ -113,6 +140,7 @@ final class PhotoSync {
                     up.path = path
                     up.content = data
                     up.forceOverride = false
+                    //TODO: Set the creation date here and not in the server
                     env.payload = .reqUploadFile(up)
                 }
 
@@ -121,6 +149,8 @@ final class PhotoSync {
                 } else if resp.error {
                     print("Upload failed:", resp.errorMessage)
                 }
+                UserDefaults.standard.set(asset.creationDate, forKey: "lastSyncDate")
+                print("Latest date:", asset.creationDate)
             } catch {
                 print("Upload error:", error)
             }
