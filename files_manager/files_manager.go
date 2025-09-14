@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"time"
 )
 
 const (
@@ -41,7 +42,7 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
 		baseUrl:    baseUrl,
 		dao:        dao,
-		maxUploads: make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff
+		maxUploads: make(chan bool, (runtime.NumCPU()-1)*2), // Leave one CPU free for other stuff
 	}
 
 	var err error
@@ -177,7 +178,7 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	return
 }
 
-func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool) (file *pb.File, err error) {
+func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created *timestamppb.Timestamp) (file *pb.File, err error) {
 	mimeType := http.DetectContentType(content)
 	log.Debug("Mime type:", mimeType)
 
@@ -186,8 +187,12 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	hash := hex.EncodeToString(sum[:])
 	log.Debug("Calculated Hash:", hash)
 
+	if created == nil {
+		created = timestamppb.Now()
+	}
+
 	file = &pb.File{
-		Created:  timestamppb.Now(),
+		Created:  created,
 		Modified: timestamppb.Now(),
 		Path:     path,
 		Mime:     mimeType,
@@ -228,12 +233,16 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	go func(targetPath string) {
 		defer func() { <-mg.maxUploads }()
 
+		start := time.Now()
 		// Write to disk the content
 		err = os.WriteFile(targetPath, session.Encrypt(content), 0644) // perms: rw-r--r--
+		log.Debug("Time writting file:", time.Since(start), targetPath)
 
 		// We will try to create a thumbnail of images only
 		if mimeType[:5] == "image" {
+			startClass := time.Now()
 			file.Embedding, err = mg.encoders.RunImage(content) // ML model to classify the image
+			log.Debug("Time classifying image:", time.Since(startClass), targetPath)
 			if err != nil {
 				log.Error("error analyzing the image:", err)
 				return
@@ -244,6 +253,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 				return
 			}
 
+			startThumb := time.Now()
 			img, _, err := image.Decode(bytes.NewReader(content))
 			if err != nil {
 				log.Error("error decoding the image:", err)
@@ -267,7 +277,10 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 					log.Error("Error generating thumbnail:", err)
 				}
 			}
+			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
 		}
+
+		log.Debug("Time processing image:", time.Since(start), targetPath)
 	}(targetPath)
 
 	return

@@ -91,6 +91,7 @@ export interface UploadFile {
   path: string;
   content: Uint8Array;
   forceOverride: boolean;
+  created?: Date | undefined;
 }
 
 export interface DelFile {
@@ -598,7 +599,7 @@ export const Auth: MessageFns<Auth> = {
 };
 
 function createBaseUploadFile(): UploadFile {
-  return { path: "", content: new Uint8Array(0), forceOverride: false };
+  return { path: "", content: new Uint8Array(0), forceOverride: false, created: undefined };
 }
 
 export const UploadFile: MessageFns<UploadFile> = {
@@ -611,6 +612,9 @@ export const UploadFile: MessageFns<UploadFile> = {
     }
     if (message.forceOverride !== false) {
       writer.uint32(24).bool(message.forceOverride);
+    }
+    if (message.created !== undefined) {
+      Timestamp.encode(toTimestamp(message.created), writer.uint32(34).fork()).join();
     }
     return writer;
   },
@@ -646,6 +650,14 @@ export const UploadFile: MessageFns<UploadFile> = {
           message.forceOverride = reader.bool();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -660,6 +672,7 @@ export const UploadFile: MessageFns<UploadFile> = {
       path: isSet(object.path) ? globalThis.String(object.path) : "",
       content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
       forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
+      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
     };
   },
 
@@ -674,6 +687,9 @@ export const UploadFile: MessageFns<UploadFile> = {
     if (message.forceOverride !== false) {
       obj.forceOverride = message.forceOverride;
     }
+    if (message.created !== undefined) {
+      obj.created = message.created.toISOString();
+    }
     return obj;
   },
 
@@ -685,6 +701,7 @@ export const UploadFile: MessageFns<UploadFile> = {
     message.path = object.path ?? "";
     message.content = object.content ?? new Uint8Array(0);
     message.forceOverride = object.forceOverride ?? false;
+    message.created = object.created ?? undefined;
     return message;
   },
 };

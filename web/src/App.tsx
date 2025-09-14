@@ -17,15 +17,15 @@ function App() {
   const cfg = window.__OTC_CONFIG!;
   const [tab, setTab] = useState<TabKey>("Social");
   const [authenticated, setAuthenticated] = useState(false);
-  console.log('Use WS App');
   let endpoint = 'ws://otc:8080/ws';
+  const mobile = !!cfg;
 
-  if (cfg) {
+  if (mobile) {
     endpoint = cfg.endpoint;
   }
   useWS.init(endpoint, setAuthenticated);
 
-  if (cfg) {
+  if (mobile) {
     useEffect(() => {
       (async () => {
         try {
@@ -38,32 +38,34 @@ function App() {
     }, [useWS]);
   }
 
+  if (tab === "Settings") {
+    (window as any).webkit?.messageHandlers?.native?.postMessage({
+      action: "openSettings"
+    });
+  }
+
   return (
     <>
       <div className="header">
-        <a onClick={() => setTab("Social")}>
-          <img src={logo} className="logo" alt="Off The Cloud logo" />
-        </a>
-        <div className="header">
+        {!mobile &&
           <a>
-            <img src={logo} className="logo" alt="Off The Cloud logo" />
+             <img src={logo} className="logo" alt="Off The Cloud logo" />
           </a>
+        }
 
-          {/* Tabs centered; tweak layout to fit your header */}
-          {authenticated &&
+        {authenticated &&
+          <div style={{ flex: 1, display: "block", justifyContent: "center" }}>
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
               <TopTabs value={tab} onChange={setTab} />
             </div>
-          }
-          {!authenticated && 
-            <button className="top_sign_in" onClick={() => setTab("SignIn")}>
-              Sign In
-            </button>
-          }
-          {authenticated && 
-            <StatusWidget className="top_sign_in" />
-          }
-        </div>
+            <StatusWidget />
+          </div>
+        }
+        {!authenticated && 
+          <button className="top_sign_in" onClick={() => setTab("SignIn")}>
+            Sign In
+          </button>
+        }
       </div>
       <main>
         {tab === "Social" && <Social />}

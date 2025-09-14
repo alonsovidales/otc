@@ -45,6 +45,7 @@ message UploadFile {
   string path = 1;
   bytes content = 2;
   bool forceOverride = 3;
+  google.protobuf.Timestamp created = 4;
 }
 
 message DelFile {

@@ -128,7 +128,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 		switch p := env.Payload.(type) {
 		case *pb.ReqEnvelope_ReqUploadFile:
 			log.Info("Uploading file with path:", p.ReqUploadFile.Path)
-			pbFile, err := mg.filesManager.UploadFile(session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride)
+			pbFile, err := mg.filesManager.UploadFile(session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created)
 			if err != nil {
 				resp.Error = true
 				resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)

@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import "./TopTabs.css";
 
-export type TabKey = "Social" | "SignIn" | "AdminPannel" | "PhotoGallery";
+export type TabKey = "Social" | "SignIn" | "AdminPannel" | "PhotoGallery" | "Settings";
 
 export type TopTabsProps = {
   value: TabKey;                    // currently selected tab
@@ -13,7 +13,7 @@ const ALL_TABS: { key: TabKey; label: string }[] = [
   { key: "Social",   label: "Social" },
   { key: "AdminPannel",    label: "Files Manager" },
   { key: "PhotoGallery",   label: "Images Search" },
-  //{ key: "Settings", label: "Settings" },
+  { key: "Settings", label: "Settings" },
 ];
 
 export default function TopTabs({ value, onChange, className }: TopTabsProps) {

@@ -6,14 +6,15 @@ struct MainView: View {
     @State private var showSettings = false
     
     var body: some View {
-        NavigationView {   // 👈 wrap your content
+        NavigationView {
             ZStack(alignment: .bottom) {
                 WebContainerView(
                     config: WebConfig(
                         endpoint: secrets.endpoint,
                         password: secrets.password,
-                        deviceId: secrets.deviceId
-                    )
+                        deviceId: secrets.deviceId,
+                    ),
+                    showSettings: $showSettings
                 )
 
                 if upload.totalPending > 0 || upload.isUploading {
@@ -22,7 +23,7 @@ struct MainView: View {
                         .padding(.bottom, 12)
                 }
             }
-            .toolbar {
+            /*.toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showSettings = true
@@ -30,7 +31,7 @@ struct MainView: View {
                         Image(systemName: "gearshape.fill")
                     }
                 }
-            }
+            }*/
             .sheet(isPresented: $showSettings) {
                 SettingsView()
                     .environmentObject(secrets)

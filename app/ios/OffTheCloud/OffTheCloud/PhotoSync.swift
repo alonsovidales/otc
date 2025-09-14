@@ -8,6 +8,7 @@
 
 import Foundation
 import Photos
+import SwiftProtobuf
 
 final class PhotoSync {
     static let shared = PhotoSync()
@@ -140,6 +141,7 @@ final class PhotoSync {
                     up.path = path
                     up.content = data
                     up.forceOverride = false
+                    up.created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
                     //TODO: Set the creation date here and not in the server
                     env.payload = .reqUploadFile(up)
                 }

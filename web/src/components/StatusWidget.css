@@ -1,8 +1,11 @@
 /* Container: fixed 270x70 face, details float on hover */
 .status-widget2 {
   position: relative;
-  width: 270px;
-  height: 70px;
+  width: 100%;
+  max-width: 400px;
+  margin: auto;
+  margin-top: 3px;
+  height: 40px;
   border: 1px solid #1f2937;      /* gray-800 */
   border-radius: 10px;
   background: #0f172a;            /* slate-900 */

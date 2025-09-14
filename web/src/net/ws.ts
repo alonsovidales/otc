@@ -51,7 +51,6 @@ export class WSClient {
     build(draft);
     const req = ReqEnvelope.fromPartial(draft);
     const bytes = ReqEnvelope.encode(req).finish();
-    console.log("Bytes:", bytes);
     this.ws.send(bytes);
     return new Promise<RespEnvelope>((resolve) => this.waiters.set(id, resolve));
   }

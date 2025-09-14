@@ -146,9 +146,20 @@ public struct Msg_UploadFile: Sendable {
 
   public var forceOverride: Bool = false
 
+  public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_created = newValue}
+  }
+  /// Returns true if `created` has been explicitly set.
+  public var hasCreated: Bool {return self._created != nil}
+  /// Clears the value of `created`. Subsequent reads from it will return its default value.
+  public mutating func clearCreated() {self._created = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public struct Msg_DelFile: Sendable {
@@ -599,7 +610,7 @@ extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
 
 extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UploadFile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}content\0\u{1}forceOverride\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}content\0\u{1}forceOverride\0\u{1}created\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -610,12 +621,17 @@ extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
       case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
       case 2: try { try decoder.decodeSingularBytesField(value: &self.content) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.forceOverride) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._created) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.path.isEmpty {
       try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
     }
@@ -625,6 +641,9 @@ extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
     if self.forceOverride != false {
       try visitor.visitSingularBoolField(value: self.forceOverride, fieldNumber: 3)
     }
+    try { if let v = self._created {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -632,6 +651,7 @@ extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
     if lhs.path != rhs.path {return false}
     if lhs.content != rhs.content {return false}
     if lhs.forceOverride != rhs.forceOverride {return false}
+    if lhs._created != rhs._created {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -78,13 +78,6 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
     <div className={`status-widget2 ${className ?? ""} ${hasErrors ? "has-errors" : ""}`}>
       {/* Collapsed face (270x70) */}
       <div className="sw2-face" title={useWS.connected() ? "Server status" : "Disconnected"}>
-        <div className="sw2-row1">
-          <span className={`sw2-dot ${useWS.connected() && status?.online ? "ok" : "bad"}`} />
-          <span className="sw2-title">
-            {useWS.connected() ? (status?.online ? "Online" : "Offline") : "Disconnected"}
-          </span>
-        </div>
-
         {/* RAID usage bar with tri-color palette */}
         <div className="sw2-bar">
           {/* background shows 0–60 green, 60–90 yellow, 90–100 red */}
@@ -94,7 +87,6 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
         </div>
         <div className="sw2-bar-labels">
           <span>Used: {formatMB(status?.raidUsage)} ({usedPct}%)</span>
-          <span>Free: {formatMB(freeMB)}</span>
         </div>
       </div>
 
@@ -106,6 +98,7 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
         </div>
         {status ? (
           <div className="sw2-grid">
+            <div><strong>Free:</strong> {formatMB(freeMB)}</div>
             <div><strong>Disks:</strong> {status.disks ?? "-"}</div>
             <div><strong>Local IP:</strong> {status.localIp ?? "-"}</div>
             <div><strong>RAID:</strong> {formatMB(status.raidUsage)} / {formatMB(status.raidSize)}</div>

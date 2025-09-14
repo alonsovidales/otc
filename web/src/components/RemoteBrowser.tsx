@@ -261,9 +261,9 @@ export default function RemoteBrowser() {
       style={{ position: "relative" }}
     >
       <div className="toolbar" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+        <a onClick={() => listDir(cwd)}>⟳</a>
         <strong>Path:</strong>
         <code>{cwd}</code>
-        <button onClick={() => listDir(cwd)} disabled={!useWS.connected() || loading}>Refresh</button>
         <span style={{ marginLeft: "auto" }}>
           <strong>Total files: </strong>
           <code>{totalFiles}</code>

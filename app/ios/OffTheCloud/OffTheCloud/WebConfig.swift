@@ -9,8 +9,9 @@ struct WebConfig {
 
 struct WebContainerView: UIViewRepresentable {
   let config: WebConfig
-
-  func makeCoordinator() -> Coordinator { Coordinator() }
+  @Binding var showSettings: Bool
+  
+  func makeCoordinator() -> Coordinator { Coordinator(self) }
 
   func makeUIView(context: Context) -> WKWebView {
     // 1) Point to your bundled "web-dist" folder (blue folder reference)
@@ -36,9 +37,10 @@ struct WebContainerView: UIViewRepresentable {
       forMainFrameOnly: true
     )
     wk.userContentController.addUserScript(injectCfg)
+    wk.userContentController.add(context.coordinator, name: "native")
 
     // 4) (Optional) Console/Errors bridge to Xcode
-    wk.userContentController.add(context.coordinator, name: "log")
+      wk.userContentController.add(context.coordinator, name: "log")
     let logShim = """
       (function(){
         const send=t=>window.webkit?.messageHandlers?.log?.postMessage(t);
@@ -57,6 +59,13 @@ struct WebContainerView: UIViewRepresentable {
     web.navigationDelegate = context.coordinator
     web.uiDelegate = context.coordinator
     if #available(iOS 16.4, *) { web.isInspectable = true }
+      
+    web.scrollView.pinchGestureRecognizer?.isEnabled = false
+    web.scrollView.gestureRecognizers?.forEach {
+      if let tap = $0 as? UITapGestureRecognizer, tap.numberOfTapsRequired == 2 {
+        $0.isEnabled = false
+      }
+    }
 
     // 6) Load your app
     let start = URL(string: "app://index.html")!
@@ -67,6 +76,9 @@ struct WebContainerView: UIViewRepresentable {
   func updateUIView(_ uiView: WKWebView, context: Context) {}
 
   final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+    let parent: WebContainerView
+    init(_ parent: WebContainerView) { self.parent = parent }
+      
     // alerts/prompts from JS
     func webView(_ webView: WKWebView,
                  runJavaScriptAlertPanelWithMessage message: String,
@@ -99,7 +111,19 @@ struct WebContainerView: UIViewRepresentable {
 
     // receive console logs
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-      print("JS:", message.body)
+        print("JS:", message.body)
+        guard message.name == "native" else { return }
+
+        if let dict = message.body as? [String: Any],
+           let action = dict["action"] as? String {
+            switch action {
+            case "openSettings":
+                print("OPEN SETTINGS")
+                self.parent.showSettings = true
+            default:
+                break
+            }
+        }
     }
 
     private func topController() -> UIViewController? {
