@@ -8,11 +8,12 @@ import (
 	"errors"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
+	"github.com/google/uuid"
 	"io"
 )
 
 const (
-	cValidatorText = "ValidateSessionString"
+	cValidatorText = "ValidateSessionString::"
 )
 
 // Manager Structure that provides HTTP access to manage all the different
@@ -23,7 +24,14 @@ type Session struct {
 	cipher cipher.AEAD
 }
 
-func New(uuid, key string, create bool, dao *dao.Dao) (ses *Session, err error) {
+func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err error) {
+	ses = &Session{
+		Uuid: userUuid,
+		dao:  dao,
+	}
+
+	// Only used to store the secret, everything will be encrypted using
+	// the secret in the vault
 	keyHash := sha256.Sum256([]byte(key))
 	block, err := aes.NewCipher(keyHash[:])
 	if err != nil {
@@ -31,49 +39,114 @@ func New(uuid, key string, create bool, dao *dao.Dao) (ses *Session, err error) 
 		return
 	}
 
-	cipher, err := cipher.NewGCM(block)
+	ses.cipher, err = cipher.NewGCM(block)
 	if err != nil {
 		log.Error("error creating cipher", err)
 		return
 	}
 
-	ses = &Session{
-		Uuid:   uuid,
-		dao:    dao,
-		cipher: cipher,
-	}
-
-	encValidator := string(ses.Encrypt([]byte(cValidatorText)))
-
-	defined, err := dao.IsSessionDefined()
+	defined, err := dao.IsSecretDefined()
 	if err != nil {
 		return nil, err
 	}
 	if !defined {
 		// This is the firsrt time that the user it authenticating,
 		// from now on this will be the auth key
-		err = dao.CreateSession(encValidator)
+		secret := uuid.New()
+		secretVal := cValidatorText + secret.String()
+
+		err = dao.PersistSecret(ses.Encrypt([]byte(secretVal)))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	encText, err := dao.GetSessionCheck()
+	encText, err := dao.GetSecret()
 	if err != nil {
 		return nil, err
 	}
 
-	validator, err := ses.Decrypt(encText)
-	if err != nil || string(validator) != cValidatorText {
+	secretValidator, err := ses.Decrypt(encText)
+	log.Debug("SecValidator:", string(secretValidator), string(secretValidator[:len(cValidatorText)]))
+	if err != nil || string(secretValidator[:len(cValidatorText)]) != cValidatorText {
 		return nil, errors.New("Invalid session")
+	}
+
+	secret := secretValidator[len(cValidatorText):]
+	log.Debug("Secret:", string(secret))
+
+	keyHash = sha256.Sum256([]byte(secret))
+	block, err = aes.NewCipher(keyHash[:])
+	if err != nil {
+		log.Error("error getting block", err)
+		return
+	}
+
+	// We replace the secret by the one in the DB
+	ses.cipher, err = cipher.NewGCM(block)
+	if err != nil {
+		log.Error("error creating cipher", err)
+		return
 	}
 
 	return
 }
 
-func (ses *Session) Encrypt(content []byte) []byte {
-	log.Debug("Encrypt")
+func (ses *Session) ChangeKey(oldKey, newKey string) (err error) {
+	keyHash := sha256.Sum256([]byte(oldKey))
+	block, err := aes.NewCipher(keyHash[:])
+	if err != nil {
+		log.Error("error getting block", err)
+		return err
+	}
 
+	oldCipher, err := cipher.NewGCM(block)
+	if err != nil {
+		log.Error("error creating cipher", err)
+		return err
+	}
+
+	encText, err := ses.dao.GetSecret()
+	if err != nil {
+		return err
+	}
+
+	nonceSize := oldCipher.NonceSize()
+	if len(encText) < nonceSize {
+		return errors.New("ciphertext too short")
+	}
+
+	nonce, ciphertext := encText[:nonceSize], encText[nonceSize:]
+	plainSecret, err := oldCipher.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return err
+	}
+
+	keyHash = sha256.Sum256([]byte(newKey))
+	block, err = aes.NewCipher(keyHash[:])
+	if err != nil {
+		log.Error("error getting block", err)
+		return err
+	}
+
+	newCipher, err := cipher.NewGCM(block)
+	if err != nil {
+		log.Error("error creating cipher", err)
+		return err
+	}
+
+	nonce = make([]byte, newCipher.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		panic(err)
+	}
+
+	// Seal appends the ciphertext and authentication tag
+	err = ses.dao.UpdateSecret(newCipher.Seal(nonce, nonce, plainSecret, nil))
+
+	return
+}
+
+func (ses *Session) Encrypt(content []byte) []byte {
 	// GCM requires a unique nonce per encryption
 	nonce := make([]byte, ses.cipher.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -87,8 +160,6 @@ func (ses *Session) Encrypt(content []byte) []byte {
 }
 
 func (ses *Session) Decrypt(content []byte) (plaintext []byte, err error) {
-	log.Debug("Decrypt")
-
 	nonceSize := ses.cipher.NonceSize()
 	if len(content) < nonceSize {
 		return nil, errors.New("ciphertext too short")

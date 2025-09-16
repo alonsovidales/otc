@@ -1,4 +1,2 @@
-clip_image.onnx
-clip_text.onnx
-merges.txt
-vocab.json
+ram_plus_swin_large_14m.onnx
+tag_list_4585.txt

@@ -15,7 +15,6 @@ create table files
   `modified` datetime not null,
   `path` text not null,
   `size` int not null,
-  `tensor` blob,
 
   key (`hash`),
   unique (`path`),
@@ -25,7 +24,83 @@ create table files
   INDEX USING BTREE (`size`)
 ) engine=InnoDB;
 
-create table auth_check
+create table file_tags
 (
-  `check` blob not null
+  `hash` varchar(64) not null,
+  `tag` varchar(150) not null,
+  `score` float not null,
+
+  key (`hash`),
+  key (`tag`),
+
+  foreign key (hash) references files(hash)
+) engine=InnoDB;
+
+create table social_publications
+(
+  `uuid` varchar(64) not null,
+  `dt` datetime not null,
+  `text` text not null,
+  `likes` int default 0,
+
+  INDEX USING BTREE (`dt`),
+  key(`uuid`)
+) engine=InnoDB;
+
+create table social_publications_files
+(
+  `hash` varchar(64) not null,
+  `uuid` varchar(64) not null,
+  `pos` int not null,
+
+  key (`hash`),
+  key (`uuid`),
+
+  foreign key (hash) references files(hash),
+  foreign key (uuid) references social_publications(uuid)
+) engine=InnoDB;
+
+create table social_publications_comments
+(
+  `uuid` varchar(64) not null,
+  `dt` datetime not null,
+  `comment` text not null,
+  `publisher` varchar(128) not null,
+  `likes` int default 0,
+
+  INDEX USING BTREE (`dt`),
+  key (`publisher`),
+  key (`uuid`),
+
+  foreign key (uuid) references social_publications(uuid)
+) engine=InnoDB;
+
+create table social_frienship_request
+(
+  `uuid` varchar(64) not null,
+  `from` varchar(128) not null,
+  `pending` boolean default true,
+
+  key (`from`),
+  key (`uuid`)
+) engine=InnoDB;
+
+create table sent_actions
+(
+  `uuid` varchar(64) not null,
+  `dt` datetime not null,
+  `type` varchar(150),
+  `target` varchar(150),
+
+  key (`uuid`)
+) engine=InnoDB;
+
+create table settings
+(
+  `subdomain` varchar(128) not null
+) engine=InnoDB;
+
+create table vault
+(
+  `secret` blob not null
 );

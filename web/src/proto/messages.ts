@@ -59,6 +59,55 @@ export function statusErrorCodeToJSON(object: StatusErrorCode): string {
   }
 }
 
+export const ActionType = { FriendshipReq: 0, LikePub: 1, LikeComm: 2, NewSocialComm: 3, UNRECOGNIZED: -1 } as const;
+
+export type ActionType = typeof ActionType[keyof typeof ActionType];
+
+export namespace ActionType {
+  export type FriendshipReq = typeof ActionType.FriendshipReq;
+  export type LikePub = typeof ActionType.LikePub;
+  export type LikeComm = typeof ActionType.LikeComm;
+  export type NewSocialComm = typeof ActionType.NewSocialComm;
+  export type UNRECOGNIZED = typeof ActionType.UNRECOGNIZED;
+}
+
+export function actionTypeFromJSON(object: any): ActionType {
+  switch (object) {
+    case 0:
+    case "FriendshipReq":
+      return ActionType.FriendshipReq;
+    case 1:
+    case "LikePub":
+      return ActionType.LikePub;
+    case 2:
+    case "LikeComm":
+      return ActionType.LikeComm;
+    case 3:
+    case "NewSocialComm":
+      return ActionType.NewSocialComm;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return ActionType.UNRECOGNIZED;
+  }
+}
+
+export function actionTypeToJSON(object: ActionType): string {
+  switch (object) {
+    case ActionType.FriendshipReq:
+      return "FriendshipReq";
+    case ActionType.LikePub:
+      return "LikePub";
+    case ActionType.LikeComm:
+      return "LikeComm";
+    case ActionType.NewSocialComm:
+      return "NewSocialComm";
+    case ActionType.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface StatusErrors {
   StatusErrorCode: StatusErrorCode;
   Message: string;
@@ -107,7 +156,7 @@ export interface ListFiles {
 }
 
 export interface SearchPhotos {
-  text: string;
+  tags: string[];
 }
 
 export interface ListOfFiles {
@@ -130,6 +179,71 @@ export interface Ack {
   errorMsg: string;
 }
 
+export interface GetTags {
+}
+
+export interface TagsList {
+  tags: string[];
+}
+
+export interface ChangeKey {
+  oldKey: string;
+  newKey: string;
+}
+
+export interface NewSocialPublication {
+  text: string;
+  imagesHash: string[];
+}
+
+export interface GetSocialPublications {
+  since?: Date | undefined;
+  total: number;
+}
+
+export interface NewSocialComment {
+  pubUuid: string;
+  comment: string;
+  publisher: string;
+}
+
+export interface DelSocialComment {
+  commentUuid: string;
+}
+
+export interface FriendshipRequest {
+}
+
+export interface FriendshipAck {
+  reqUuid: string;
+  accept: boolean;
+}
+
+export interface LikePublication {
+  pubUuid: string;
+}
+
+export interface LikeComment {
+  commentUuid: string;
+}
+
+export interface DidSendAction {
+  actionUuid: string;
+  target: string;
+  actionType: ActionType;
+}
+
+export interface GetSettings {
+}
+
+export interface SetSettings {
+  domain: string;
+}
+
+export interface Settings {
+  domain: string;
+}
+
 export interface ReqEnvelope {
   id: number;
   payload?:
@@ -140,6 +254,18 @@ export interface ReqEnvelope {
     | { $case: "reqGetFile"; reqGetFile: GetFile }
     | { $case: "reqDelFile"; reqDelFile: DelFile }
     | { $case: "reqSearchPhotos"; reqSearchPhotos: SearchPhotos }
+    | { $case: "reqGetTags"; reqGetTags: GetTags }
+    | { $case: "reqChangeKey"; reqChangeKey: ChangeKey }
+    | { $case: "reqNewSocialPublication"; reqNewSocialPublication: NewSocialPublication }
+    | { $case: "reqGetSocialPublications"; reqGetSocialPublications: GetSocialPublications }
+    | { $case: "reqNewSocialComment"; reqNewSocialComment: NewSocialComment }
+    | { $case: "reqDelSocialComment"; reqDelSocialComment: DelSocialComment }
+    | { $case: "reqFriendshipRequest"; reqFriendshipRequest: FriendshipRequest }
+    | { $case: "reqFriendshipAck"; reqFriendshipAck: FriendshipAck }
+    | { $case: "reqLikePublication"; reqLikePublication: LikePublication }
+    | { $case: "reqLikeComment"; reqLikeComment: LikeComment }
+    | { $case: "reqDidSendAction"; reqDidSendAction: DidSendAction }
+    | { $case: "reqGetSettings"; reqGetSettings: GetSettings }
     | undefined;
 }
 
@@ -152,6 +278,8 @@ export interface RespEnvelope {
     | { $case: "respAck"; respAck: Ack }
     | { $case: "respFile"; respFile: File }
     | { $case: "respListOfFiles"; respListOfFiles: ListOfFiles }
+    | { $case: "respTagsList"; respTagsList: TagsList }
+    | { $case: "respSettings"; respSettings: Settings }
     | undefined;
 }
 
@@ -881,13 +1009,13 @@ export const ListFiles: MessageFns<ListFiles> = {
 };
 
 function createBaseSearchPhotos(): SearchPhotos {
-  return { text: "" };
+  return { tags: [] };
 }
 
 export const SearchPhotos: MessageFns<SearchPhotos> = {
   encode(message: SearchPhotos, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.text !== "") {
-      writer.uint32(10).string(message.text);
+    for (const v of message.tags) {
+      writer.uint32(10).string(v!);
     }
     return writer;
   },
@@ -904,7 +1032,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
             break;
           }
 
-          message.text = reader.string();
+          message.tags.push(reader.string());
           continue;
         }
       }
@@ -917,13 +1045,13 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
   },
 
   fromJSON(object: any): SearchPhotos {
-    return { text: isSet(object.text) ? globalThis.String(object.text) : "" };
+    return { tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [] };
   },
 
   toJSON(message: SearchPhotos): unknown {
     const obj: any = {};
-    if (message.text !== "") {
-      obj.text = message.text;
+    if (message.tags?.length) {
+      obj.tags = message.tags;
     }
     return obj;
   },
@@ -933,7 +1061,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
   },
   fromPartial<I extends Exact<DeepPartial<SearchPhotos>, I>>(object: I): SearchPhotos {
     const message = createBaseSearchPhotos();
-    message.text = object.text ?? "";
+    message.tags = object.tags?.map((e) => e) || [];
     return message;
   },
 };
@@ -1267,6 +1395,973 @@ export const Ack: MessageFns<Ack> = {
   },
 };
 
+function createBaseGetTags(): GetTags {
+  return {};
+}
+
+export const GetTags: MessageFns<GetTags> = {
+  encode(_: GetTags, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetTags {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetTags();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetTags {
+    return {};
+  },
+
+  toJSON(_: GetTags): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetTags>, I>>(base?: I): GetTags {
+    return GetTags.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetTags>, I>>(_: I): GetTags {
+    const message = createBaseGetTags();
+    return message;
+  },
+};
+
+function createBaseTagsList(): TagsList {
+  return { tags: [] };
+}
+
+export const TagsList: MessageFns<TagsList> = {
+  encode(message: TagsList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.tags) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): TagsList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseTagsList();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.tags.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): TagsList {
+    return { tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [] };
+  },
+
+  toJSON(message: TagsList): unknown {
+    const obj: any = {};
+    if (message.tags?.length) {
+      obj.tags = message.tags;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<TagsList>, I>>(base?: I): TagsList {
+    return TagsList.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<TagsList>, I>>(object: I): TagsList {
+    const message = createBaseTagsList();
+    message.tags = object.tags?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseChangeKey(): ChangeKey {
+  return { oldKey: "", newKey: "" };
+}
+
+export const ChangeKey: MessageFns<ChangeKey> = {
+  encode(message: ChangeKey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.oldKey !== "") {
+      writer.uint32(10).string(message.oldKey);
+    }
+    if (message.newKey !== "") {
+      writer.uint32(18).string(message.newKey);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ChangeKey {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseChangeKey();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.oldKey = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.newKey = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ChangeKey {
+    return {
+      oldKey: isSet(object.oldKey) ? globalThis.String(object.oldKey) : "",
+      newKey: isSet(object.newKey) ? globalThis.String(object.newKey) : "",
+    };
+  },
+
+  toJSON(message: ChangeKey): unknown {
+    const obj: any = {};
+    if (message.oldKey !== "") {
+      obj.oldKey = message.oldKey;
+    }
+    if (message.newKey !== "") {
+      obj.newKey = message.newKey;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ChangeKey>, I>>(base?: I): ChangeKey {
+    return ChangeKey.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ChangeKey>, I>>(object: I): ChangeKey {
+    const message = createBaseChangeKey();
+    message.oldKey = object.oldKey ?? "";
+    message.newKey = object.newKey ?? "";
+    return message;
+  },
+};
+
+function createBaseNewSocialPublication(): NewSocialPublication {
+  return { text: "", imagesHash: [] };
+}
+
+export const NewSocialPublication: MessageFns<NewSocialPublication> = {
+  encode(message: NewSocialPublication, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.text !== "") {
+      writer.uint32(10).string(message.text);
+    }
+    for (const v of message.imagesHash) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NewSocialPublication {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseNewSocialPublication();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.imagesHash.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): NewSocialPublication {
+    return {
+      text: isSet(object.text) ? globalThis.String(object.text) : "",
+      imagesHash: globalThis.Array.isArray(object?.imagesHash)
+        ? object.imagesHash.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: NewSocialPublication): unknown {
+    const obj: any = {};
+    if (message.text !== "") {
+      obj.text = message.text;
+    }
+    if (message.imagesHash?.length) {
+      obj.imagesHash = message.imagesHash;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<NewSocialPublication>, I>>(base?: I): NewSocialPublication {
+    return NewSocialPublication.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<NewSocialPublication>, I>>(object: I): NewSocialPublication {
+    const message = createBaseNewSocialPublication();
+    message.text = object.text ?? "";
+    message.imagesHash = object.imagesHash?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseGetSocialPublications(): GetSocialPublications {
+  return { since: undefined, total: 0 };
+}
+
+export const GetSocialPublications: MessageFns<GetSocialPublications> = {
+  encode(message: GetSocialPublications, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(10).fork()).join();
+    }
+    if (message.total !== 0) {
+      writer.uint32(16).int32(message.total);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetSocialPublications {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetSocialPublications();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.total = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetSocialPublications {
+    return {
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+    };
+  },
+
+  toJSON(message: GetSocialPublications): unknown {
+    const obj: any = {};
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetSocialPublications>, I>>(base?: I): GetSocialPublications {
+    return GetSocialPublications.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetSocialPublications>, I>>(object: I): GetSocialPublications {
+    const message = createBaseGetSocialPublications();
+    message.since = object.since ?? undefined;
+    message.total = object.total ?? 0;
+    return message;
+  },
+};
+
+function createBaseNewSocialComment(): NewSocialComment {
+  return { pubUuid: "", comment: "", publisher: "" };
+}
+
+export const NewSocialComment: MessageFns<NewSocialComment> = {
+  encode(message: NewSocialComment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.pubUuid !== "") {
+      writer.uint32(10).string(message.pubUuid);
+    }
+    if (message.comment !== "") {
+      writer.uint32(18).string(message.comment);
+    }
+    if (message.publisher !== "") {
+      writer.uint32(26).string(message.publisher);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NewSocialComment {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseNewSocialComment();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.pubUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.comment = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.publisher = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): NewSocialComment {
+    return {
+      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
+      comment: isSet(object.comment) ? globalThis.String(object.comment) : "",
+      publisher: isSet(object.publisher) ? globalThis.String(object.publisher) : "",
+    };
+  },
+
+  toJSON(message: NewSocialComment): unknown {
+    const obj: any = {};
+    if (message.pubUuid !== "") {
+      obj.pubUuid = message.pubUuid;
+    }
+    if (message.comment !== "") {
+      obj.comment = message.comment;
+    }
+    if (message.publisher !== "") {
+      obj.publisher = message.publisher;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<NewSocialComment>, I>>(base?: I): NewSocialComment {
+    return NewSocialComment.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<NewSocialComment>, I>>(object: I): NewSocialComment {
+    const message = createBaseNewSocialComment();
+    message.pubUuid = object.pubUuid ?? "";
+    message.comment = object.comment ?? "";
+    message.publisher = object.publisher ?? "";
+    return message;
+  },
+};
+
+function createBaseDelSocialComment(): DelSocialComment {
+  return { commentUuid: "" };
+}
+
+export const DelSocialComment: MessageFns<DelSocialComment> = {
+  encode(message: DelSocialComment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.commentUuid !== "") {
+      writer.uint32(10).string(message.commentUuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DelSocialComment {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDelSocialComment();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.commentUuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DelSocialComment {
+    return { commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "" };
+  },
+
+  toJSON(message: DelSocialComment): unknown {
+    const obj: any = {};
+    if (message.commentUuid !== "") {
+      obj.commentUuid = message.commentUuid;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DelSocialComment>, I>>(base?: I): DelSocialComment {
+    return DelSocialComment.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DelSocialComment>, I>>(object: I): DelSocialComment {
+    const message = createBaseDelSocialComment();
+    message.commentUuid = object.commentUuid ?? "";
+    return message;
+  },
+};
+
+function createBaseFriendshipRequest(): FriendshipRequest {
+  return {};
+}
+
+export const FriendshipRequest: MessageFns<FriendshipRequest> = {
+  encode(_: FriendshipRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendshipRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): FriendshipRequest {
+    return {};
+  },
+
+  toJSON(_: FriendshipRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FriendshipRequest>, I>>(base?: I): FriendshipRequest {
+    return FriendshipRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FriendshipRequest>, I>>(_: I): FriendshipRequest {
+    const message = createBaseFriendshipRequest();
+    return message;
+  },
+};
+
+function createBaseFriendshipAck(): FriendshipAck {
+  return { reqUuid: "", accept: false };
+}
+
+export const FriendshipAck: MessageFns<FriendshipAck> = {
+  encode(message: FriendshipAck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.reqUuid !== "") {
+      writer.uint32(10).string(message.reqUuid);
+    }
+    if (message.accept !== false) {
+      writer.uint32(16).bool(message.accept);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipAck {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendshipAck();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.reqUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.accept = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FriendshipAck {
+    return {
+      reqUuid: isSet(object.reqUuid) ? globalThis.String(object.reqUuid) : "",
+      accept: isSet(object.accept) ? globalThis.Boolean(object.accept) : false,
+    };
+  },
+
+  toJSON(message: FriendshipAck): unknown {
+    const obj: any = {};
+    if (message.reqUuid !== "") {
+      obj.reqUuid = message.reqUuid;
+    }
+    if (message.accept !== false) {
+      obj.accept = message.accept;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FriendshipAck>, I>>(base?: I): FriendshipAck {
+    return FriendshipAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FriendshipAck>, I>>(object: I): FriendshipAck {
+    const message = createBaseFriendshipAck();
+    message.reqUuid = object.reqUuid ?? "";
+    message.accept = object.accept ?? false;
+    return message;
+  },
+};
+
+function createBaseLikePublication(): LikePublication {
+  return { pubUuid: "" };
+}
+
+export const LikePublication: MessageFns<LikePublication> = {
+  encode(message: LikePublication, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.pubUuid !== "") {
+      writer.uint32(10).string(message.pubUuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LikePublication {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseLikePublication();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.pubUuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): LikePublication {
+    return { pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "" };
+  },
+
+  toJSON(message: LikePublication): unknown {
+    const obj: any = {};
+    if (message.pubUuid !== "") {
+      obj.pubUuid = message.pubUuid;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<LikePublication>, I>>(base?: I): LikePublication {
+    return LikePublication.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<LikePublication>, I>>(object: I): LikePublication {
+    const message = createBaseLikePublication();
+    message.pubUuid = object.pubUuid ?? "";
+    return message;
+  },
+};
+
+function createBaseLikeComment(): LikeComment {
+  return { commentUuid: "" };
+}
+
+export const LikeComment: MessageFns<LikeComment> = {
+  encode(message: LikeComment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.commentUuid !== "") {
+      writer.uint32(10).string(message.commentUuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LikeComment {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseLikeComment();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.commentUuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): LikeComment {
+    return { commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "" };
+  },
+
+  toJSON(message: LikeComment): unknown {
+    const obj: any = {};
+    if (message.commentUuid !== "") {
+      obj.commentUuid = message.commentUuid;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<LikeComment>, I>>(base?: I): LikeComment {
+    return LikeComment.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<LikeComment>, I>>(object: I): LikeComment {
+    const message = createBaseLikeComment();
+    message.commentUuid = object.commentUuid ?? "";
+    return message;
+  },
+};
+
+function createBaseDidSendAction(): DidSendAction {
+  return { actionUuid: "", target: "", actionType: 0 };
+}
+
+export const DidSendAction: MessageFns<DidSendAction> = {
+  encode(message: DidSendAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.actionUuid !== "") {
+      writer.uint32(10).string(message.actionUuid);
+    }
+    if (message.target !== "") {
+      writer.uint32(18).string(message.target);
+    }
+    if (message.actionType !== 0) {
+      writer.uint32(24).int32(message.actionType);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DidSendAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDidSendAction();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.actionUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.target = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.actionType = reader.int32() as any;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DidSendAction {
+    return {
+      actionUuid: isSet(object.actionUuid) ? globalThis.String(object.actionUuid) : "",
+      target: isSet(object.target) ? globalThis.String(object.target) : "",
+      actionType: isSet(object.actionType) ? actionTypeFromJSON(object.actionType) : 0,
+    };
+  },
+
+  toJSON(message: DidSendAction): unknown {
+    const obj: any = {};
+    if (message.actionUuid !== "") {
+      obj.actionUuid = message.actionUuid;
+    }
+    if (message.target !== "") {
+      obj.target = message.target;
+    }
+    if (message.actionType !== 0) {
+      obj.actionType = actionTypeToJSON(message.actionType);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DidSendAction>, I>>(base?: I): DidSendAction {
+    return DidSendAction.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DidSendAction>, I>>(object: I): DidSendAction {
+    const message = createBaseDidSendAction();
+    message.actionUuid = object.actionUuid ?? "";
+    message.target = object.target ?? "";
+    message.actionType = object.actionType ?? 0;
+    return message;
+  },
+};
+
+function createBaseGetSettings(): GetSettings {
+  return {};
+}
+
+export const GetSettings: MessageFns<GetSettings> = {
+  encode(_: GetSettings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetSettings {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetSettings();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetSettings {
+    return {};
+  },
+
+  toJSON(_: GetSettings): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetSettings>, I>>(base?: I): GetSettings {
+    return GetSettings.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetSettings>, I>>(_: I): GetSettings {
+    const message = createBaseGetSettings();
+    return message;
+  },
+};
+
+function createBaseSetSettings(): SetSettings {
+  return { domain: "" };
+}
+
+export const SetSettings: MessageFns<SetSettings> = {
+  encode(message: SetSettings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetSettings {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetSettings();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetSettings {
+    return { domain: isSet(object.domain) ? globalThis.String(object.domain) : "" };
+  },
+
+  toJSON(message: SetSettings): unknown {
+    const obj: any = {};
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetSettings>, I>>(base?: I): SetSettings {
+    return SetSettings.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetSettings>, I>>(object: I): SetSettings {
+    const message = createBaseSetSettings();
+    message.domain = object.domain ?? "";
+    return message;
+  },
+};
+
+function createBaseSettings(): Settings {
+  return { domain: "" };
+}
+
+export const Settings: MessageFns<Settings> = {
+  encode(message: Settings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Settings {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSettings();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Settings {
+    return { domain: isSet(object.domain) ? globalThis.String(object.domain) : "" };
+  },
+
+  toJSON(message: Settings): unknown {
+    const obj: any = {};
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Settings>, I>>(base?: I): Settings {
+    return Settings.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Settings>, I>>(object: I): Settings {
+    const message = createBaseSettings();
+    message.domain = object.domain ?? "";
+    return message;
+  },
+};
+
 function createBaseReqEnvelope(): ReqEnvelope {
   return { id: 0, payload: undefined };
 }
@@ -1297,6 +2392,42 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         break;
       case "reqSearchPhotos":
         SearchPhotos.encode(message.payload.reqSearchPhotos, writer.uint32(130).fork()).join();
+        break;
+      case "reqGetTags":
+        GetTags.encode(message.payload.reqGetTags, writer.uint32(138).fork()).join();
+        break;
+      case "reqChangeKey":
+        ChangeKey.encode(message.payload.reqChangeKey, writer.uint32(146).fork()).join();
+        break;
+      case "reqNewSocialPublication":
+        NewSocialPublication.encode(message.payload.reqNewSocialPublication, writer.uint32(154).fork()).join();
+        break;
+      case "reqGetSocialPublications":
+        GetSocialPublications.encode(message.payload.reqGetSocialPublications, writer.uint32(162).fork()).join();
+        break;
+      case "reqNewSocialComment":
+        NewSocialComment.encode(message.payload.reqNewSocialComment, writer.uint32(170).fork()).join();
+        break;
+      case "reqDelSocialComment":
+        DelSocialComment.encode(message.payload.reqDelSocialComment, writer.uint32(178).fork()).join();
+        break;
+      case "reqFriendshipRequest":
+        FriendshipRequest.encode(message.payload.reqFriendshipRequest, writer.uint32(186).fork()).join();
+        break;
+      case "reqFriendshipAck":
+        FriendshipAck.encode(message.payload.reqFriendshipAck, writer.uint32(194).fork()).join();
+        break;
+      case "reqLikePublication":
+        LikePublication.encode(message.payload.reqLikePublication, writer.uint32(202).fork()).join();
+        break;
+      case "reqLikeComment":
+        LikeComment.encode(message.payload.reqLikeComment, writer.uint32(210).fork()).join();
+        break;
+      case "reqDidSendAction":
+        DidSendAction.encode(message.payload.reqDidSendAction, writer.uint32(218).fork()).join();
+        break;
+      case "reqGetSettings":
+        GetSettings.encode(message.payload.reqGetSettings, writer.uint32(234).fork()).join();
         break;
     }
     return writer;
@@ -1373,6 +2504,126 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqSearchPhotos", reqSearchPhotos: SearchPhotos.decode(reader, reader.uint32()) };
           continue;
         }
+        case 17: {
+          if (tag !== 138) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetTags", reqGetTags: GetTags.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 18: {
+          if (tag !== 146) {
+            break;
+          }
+
+          message.payload = { $case: "reqChangeKey", reqChangeKey: ChangeKey.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 19: {
+          if (tag !== 154) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqNewSocialPublication",
+            reqNewSocialPublication: NewSocialPublication.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 20: {
+          if (tag !== 162) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetSocialPublications",
+            reqGetSocialPublications: GetSocialPublications.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 21: {
+          if (tag !== 170) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqNewSocialComment",
+            reqNewSocialComment: NewSocialComment.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 22: {
+          if (tag !== 178) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqDelSocialComment",
+            reqDelSocialComment: DelSocialComment.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 23: {
+          if (tag !== 186) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqFriendshipRequest",
+            reqFriendshipRequest: FriendshipRequest.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 24: {
+          if (tag !== 194) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqFriendshipAck",
+            reqFriendshipAck: FriendshipAck.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 25: {
+          if (tag !== 202) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqLikePublication",
+            reqLikePublication: LikePublication.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 26: {
+          if (tag !== 210) {
+            break;
+          }
+
+          message.payload = { $case: "reqLikeComment", reqLikeComment: LikeComment.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 27: {
+          if (tag !== 218) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqDidSendAction",
+            reqDidSendAction: DidSendAction.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 29: {
+          if (tag !== 234) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetSettings", reqGetSettings: GetSettings.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1399,6 +2650,39 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqDelFile", reqDelFile: DelFile.fromJSON(object.reqDelFile) }
         : isSet(object.reqSearchPhotos)
         ? { $case: "reqSearchPhotos", reqSearchPhotos: SearchPhotos.fromJSON(object.reqSearchPhotos) }
+        : isSet(object.reqGetTags)
+        ? { $case: "reqGetTags", reqGetTags: GetTags.fromJSON(object.reqGetTags) }
+        : isSet(object.reqChangeKey)
+        ? { $case: "reqChangeKey", reqChangeKey: ChangeKey.fromJSON(object.reqChangeKey) }
+        : isSet(object.reqNewSocialPublication)
+        ? {
+          $case: "reqNewSocialPublication",
+          reqNewSocialPublication: NewSocialPublication.fromJSON(object.reqNewSocialPublication),
+        }
+        : isSet(object.reqGetSocialPublications)
+        ? {
+          $case: "reqGetSocialPublications",
+          reqGetSocialPublications: GetSocialPublications.fromJSON(object.reqGetSocialPublications),
+        }
+        : isSet(object.reqNewSocialComment)
+        ? { $case: "reqNewSocialComment", reqNewSocialComment: NewSocialComment.fromJSON(object.reqNewSocialComment) }
+        : isSet(object.reqDelSocialComment)
+        ? { $case: "reqDelSocialComment", reqDelSocialComment: DelSocialComment.fromJSON(object.reqDelSocialComment) }
+        : isSet(object.reqFriendshipRequest)
+        ? {
+          $case: "reqFriendshipRequest",
+          reqFriendshipRequest: FriendshipRequest.fromJSON(object.reqFriendshipRequest),
+        }
+        : isSet(object.reqFriendshipAck)
+        ? { $case: "reqFriendshipAck", reqFriendshipAck: FriendshipAck.fromJSON(object.reqFriendshipAck) }
+        : isSet(object.reqLikePublication)
+        ? { $case: "reqLikePublication", reqLikePublication: LikePublication.fromJSON(object.reqLikePublication) }
+        : isSet(object.reqLikeComment)
+        ? { $case: "reqLikeComment", reqLikeComment: LikeComment.fromJSON(object.reqLikeComment) }
+        : isSet(object.reqDidSendAction)
+        ? { $case: "reqDidSendAction", reqDidSendAction: DidSendAction.fromJSON(object.reqDidSendAction) }
+        : isSet(object.reqGetSettings)
+        ? { $case: "reqGetSettings", reqGetSettings: GetSettings.fromJSON(object.reqGetSettings) }
         : undefined,
     };
   },
@@ -1422,6 +2706,30 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqDelFile = DelFile.toJSON(message.payload.reqDelFile);
     } else if (message.payload?.$case === "reqSearchPhotos") {
       obj.reqSearchPhotos = SearchPhotos.toJSON(message.payload.reqSearchPhotos);
+    } else if (message.payload?.$case === "reqGetTags") {
+      obj.reqGetTags = GetTags.toJSON(message.payload.reqGetTags);
+    } else if (message.payload?.$case === "reqChangeKey") {
+      obj.reqChangeKey = ChangeKey.toJSON(message.payload.reqChangeKey);
+    } else if (message.payload?.$case === "reqNewSocialPublication") {
+      obj.reqNewSocialPublication = NewSocialPublication.toJSON(message.payload.reqNewSocialPublication);
+    } else if (message.payload?.$case === "reqGetSocialPublications") {
+      obj.reqGetSocialPublications = GetSocialPublications.toJSON(message.payload.reqGetSocialPublications);
+    } else if (message.payload?.$case === "reqNewSocialComment") {
+      obj.reqNewSocialComment = NewSocialComment.toJSON(message.payload.reqNewSocialComment);
+    } else if (message.payload?.$case === "reqDelSocialComment") {
+      obj.reqDelSocialComment = DelSocialComment.toJSON(message.payload.reqDelSocialComment);
+    } else if (message.payload?.$case === "reqFriendshipRequest") {
+      obj.reqFriendshipRequest = FriendshipRequest.toJSON(message.payload.reqFriendshipRequest);
+    } else if (message.payload?.$case === "reqFriendshipAck") {
+      obj.reqFriendshipAck = FriendshipAck.toJSON(message.payload.reqFriendshipAck);
+    } else if (message.payload?.$case === "reqLikePublication") {
+      obj.reqLikePublication = LikePublication.toJSON(message.payload.reqLikePublication);
+    } else if (message.payload?.$case === "reqLikeComment") {
+      obj.reqLikeComment = LikeComment.toJSON(message.payload.reqLikeComment);
+    } else if (message.payload?.$case === "reqDidSendAction") {
+      obj.reqDidSendAction = DidSendAction.toJSON(message.payload.reqDidSendAction);
+    } else if (message.payload?.$case === "reqGetSettings") {
+      obj.reqGetSettings = GetSettings.toJSON(message.payload.reqGetSettings);
     }
     return obj;
   },
@@ -1481,6 +2789,110 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetTags": {
+        if (object.payload?.reqGetTags !== undefined && object.payload?.reqGetTags !== null) {
+          message.payload = { $case: "reqGetTags", reqGetTags: GetTags.fromPartial(object.payload.reqGetTags) };
+        }
+        break;
+      }
+      case "reqChangeKey": {
+        if (object.payload?.reqChangeKey !== undefined && object.payload?.reqChangeKey !== null) {
+          message.payload = { $case: "reqChangeKey", reqChangeKey: ChangeKey.fromPartial(object.payload.reqChangeKey) };
+        }
+        break;
+      }
+      case "reqNewSocialPublication": {
+        if (object.payload?.reqNewSocialPublication !== undefined && object.payload?.reqNewSocialPublication !== null) {
+          message.payload = {
+            $case: "reqNewSocialPublication",
+            reqNewSocialPublication: NewSocialPublication.fromPartial(object.payload.reqNewSocialPublication),
+          };
+        }
+        break;
+      }
+      case "reqGetSocialPublications": {
+        if (
+          object.payload?.reqGetSocialPublications !== undefined && object.payload?.reqGetSocialPublications !== null
+        ) {
+          message.payload = {
+            $case: "reqGetSocialPublications",
+            reqGetSocialPublications: GetSocialPublications.fromPartial(object.payload.reqGetSocialPublications),
+          };
+        }
+        break;
+      }
+      case "reqNewSocialComment": {
+        if (object.payload?.reqNewSocialComment !== undefined && object.payload?.reqNewSocialComment !== null) {
+          message.payload = {
+            $case: "reqNewSocialComment",
+            reqNewSocialComment: NewSocialComment.fromPartial(object.payload.reqNewSocialComment),
+          };
+        }
+        break;
+      }
+      case "reqDelSocialComment": {
+        if (object.payload?.reqDelSocialComment !== undefined && object.payload?.reqDelSocialComment !== null) {
+          message.payload = {
+            $case: "reqDelSocialComment",
+            reqDelSocialComment: DelSocialComment.fromPartial(object.payload.reqDelSocialComment),
+          };
+        }
+        break;
+      }
+      case "reqFriendshipRequest": {
+        if (object.payload?.reqFriendshipRequest !== undefined && object.payload?.reqFriendshipRequest !== null) {
+          message.payload = {
+            $case: "reqFriendshipRequest",
+            reqFriendshipRequest: FriendshipRequest.fromPartial(object.payload.reqFriendshipRequest),
+          };
+        }
+        break;
+      }
+      case "reqFriendshipAck": {
+        if (object.payload?.reqFriendshipAck !== undefined && object.payload?.reqFriendshipAck !== null) {
+          message.payload = {
+            $case: "reqFriendshipAck",
+            reqFriendshipAck: FriendshipAck.fromPartial(object.payload.reqFriendshipAck),
+          };
+        }
+        break;
+      }
+      case "reqLikePublication": {
+        if (object.payload?.reqLikePublication !== undefined && object.payload?.reqLikePublication !== null) {
+          message.payload = {
+            $case: "reqLikePublication",
+            reqLikePublication: LikePublication.fromPartial(object.payload.reqLikePublication),
+          };
+        }
+        break;
+      }
+      case "reqLikeComment": {
+        if (object.payload?.reqLikeComment !== undefined && object.payload?.reqLikeComment !== null) {
+          message.payload = {
+            $case: "reqLikeComment",
+            reqLikeComment: LikeComment.fromPartial(object.payload.reqLikeComment),
+          };
+        }
+        break;
+      }
+      case "reqDidSendAction": {
+        if (object.payload?.reqDidSendAction !== undefined && object.payload?.reqDidSendAction !== null) {
+          message.payload = {
+            $case: "reqDidSendAction",
+            reqDidSendAction: DidSendAction.fromPartial(object.payload.reqDidSendAction),
+          };
+        }
+        break;
+      }
+      case "reqGetSettings": {
+        if (object.payload?.reqGetSettings !== undefined && object.payload?.reqGetSettings !== null) {
+          message.payload = {
+            $case: "reqGetSettings",
+            reqGetSettings: GetSettings.fromPartial(object.payload.reqGetSettings),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -1513,6 +2925,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respListOfFiles":
         ListOfFiles.encode(message.payload.respListOfFiles, writer.uint32(106).fork()).join();
+        break;
+      case "respTagsList":
+        TagsList.encode(message.payload.respTagsList, writer.uint32(114).fork()).join();
+        break;
+      case "respSettings":
+        Settings.encode(message.payload.respSettings, writer.uint32(122).fork()).join();
         break;
     }
     return writer;
@@ -1581,6 +2999,22 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respListOfFiles", respListOfFiles: ListOfFiles.decode(reader, reader.uint32()) };
           continue;
         }
+        case 14: {
+          if (tag !== 114) {
+            break;
+          }
+
+          message.payload = { $case: "respTagsList", respTagsList: TagsList.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 15: {
+          if (tag !== 122) {
+            break;
+          }
+
+          message.payload = { $case: "respSettings", respSettings: Settings.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1603,6 +3037,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respFile", respFile: File.fromJSON(object.respFile) }
         : isSet(object.respListOfFiles)
         ? { $case: "respListOfFiles", respListOfFiles: ListOfFiles.fromJSON(object.respListOfFiles) }
+        : isSet(object.respTagsList)
+        ? { $case: "respTagsList", respTagsList: TagsList.fromJSON(object.respTagsList) }
+        : isSet(object.respSettings)
+        ? { $case: "respSettings", respSettings: Settings.fromJSON(object.respSettings) }
         : undefined,
     };
   },
@@ -1626,6 +3064,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respFile = File.toJSON(message.payload.respFile);
     } else if (message.payload?.$case === "respListOfFiles") {
       obj.respListOfFiles = ListOfFiles.toJSON(message.payload.respListOfFiles);
+    } else if (message.payload?.$case === "respTagsList") {
+      obj.respTagsList = TagsList.toJSON(message.payload.respTagsList);
+    } else if (message.payload?.$case === "respSettings") {
+      obj.respSettings = Settings.toJSON(message.payload.respSettings);
     }
     return obj;
   },
@@ -1663,6 +3105,18 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
             $case: "respListOfFiles",
             respListOfFiles: ListOfFiles.fromPartial(object.payload.respListOfFiles),
           };
+        }
+        break;
+      }
+      case "respTagsList": {
+        if (object.payload?.respTagsList !== undefined && object.payload?.respTagsList !== null) {
+          message.payload = { $case: "respTagsList", respTagsList: TagsList.fromPartial(object.payload.respTagsList) };
+        }
+        break;
+      }
+      case "respSettings": {
+        if (object.payload?.respSettings !== undefined && object.payload?.respSettings !== null) {
+          message.payload = { $case: "respSettings", respSettings: Settings.fromPartial(object.payload.respSettings) };
         }
         break;
       }

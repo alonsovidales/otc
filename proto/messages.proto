@@ -61,7 +61,7 @@ message ListFiles {
 }
 
 message SearchPhotos {
-  string text = 1;
+  repeated string tags = 1;
 }
 
 message ListOfFiles {
@@ -84,6 +84,78 @@ message Ack {
   string error_msg = 2;
 }
 
+message GetTags {
+}
+
+message TagsList {
+  repeated string tags = 1;
+}
+
+message ChangeKey {
+  string old_key = 1;
+  string new_key = 2;
+}
+
+message NewSocialPublication {
+  string text = 1;
+  repeated string images_hash = 2;
+}
+
+message GetSocialPublications {
+  google.protobuf.Timestamp since = 1;
+  int32 total = 2;
+}
+
+message NewSocialComment {
+  string pub_uuid = 1;
+  string comment = 2;
+  string publisher = 3;
+}
+
+message DelSocialComment {
+  string comment_uuid = 1;
+}
+
+message FriendshipRequest {
+}
+
+message FriendshipAck {
+  string req_uuid = 1;
+  bool accept = 2;
+}
+
+message LikePublication {
+  string pub_uuid = 1;
+}
+
+message LikeComment {
+  string comment_uuid = 1;
+}
+
+enum ActionType {
+  FriendshipReq = 0;
+  LikePub = 1;
+  LikeComm = 2;
+  NewSocialComm = 3;
+}
+
+message DidSendAction {
+  string action_uuid = 1;
+  string target = 2;
+  ActionType action_type = 3;
+}
+
+message GetSettings {
+}
+
+message SetSettings {
+  string domain = 1;
+}
+
+message Settings {
+  string domain = 1;
+}
+
 message ReqEnvelope {
   int32 id = 1;
   oneof payload {
@@ -94,6 +166,20 @@ message ReqEnvelope {
     GetFile req_get_file = 14;
     DelFile req_del_file = 15;
     SearchPhotos req_search_photos = 16;
+    GetTags req_get_tags = 17;
+    ChangeKey req_change_key = 18;
+
+    NewSocialPublication req_new_social_publication = 19;
+    GetSocialPublications req_get_social_publications = 20;
+    NewSocialComment req_new_social_comment = 21;
+    DelSocialComment req_del_social_comment = 22;
+    FriendshipRequest req_friendship_request = 23;
+    FriendshipAck req_friendship_ack = 24;
+    LikePublication req_like_publication = 25;
+    LikeComment req_like_comment = 26;
+    DidSendAction req_did_send_action = 27;
+    GetSettings req_get_settings = 28;
+    SetSettings req_get_settings = 29;
   }
 }
 
@@ -106,5 +192,7 @@ message RespEnvelope {
     Ack resp_ack = 11;
     File resp_file = 12;
     ListOfFiles resp_list_of_files = 13;
+    TagsList resp_tags_list = 14;
+    Settings resp_settings = 15;
   }
 }

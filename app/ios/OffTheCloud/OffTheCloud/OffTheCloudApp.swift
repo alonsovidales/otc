@@ -9,6 +9,7 @@ struct OTCApp: App {
             guard let task = task as? BGProcessingTask else { return }
             SyncScheduler.handle(task: task)
         }
+        try? await PhotoSync.shared.runForeground()
     }
 
     var body: some Scene {

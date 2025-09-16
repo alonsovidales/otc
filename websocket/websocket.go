@@ -183,9 +183,26 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+		case *pb.ReqEnvelope_ReqGetTags:
+			log.Info("Get Tags")
+			tags, err := mg.dao.GetTags()
+			if err != nil {
+				log.Error("error trying to get tags:", err)
+				resp.Error = true
+				resp.ErrorMessage = err.Error()
+			} else {
+				log.Debug("Available tags:", len(tags))
+
+				resp.Payload = &pb.RespEnvelope_RespTagsList{
+					RespTagsList: &pb.TagsList{
+						Tags: tags,
+					},
+				}
+			}
+
 		case *pb.ReqEnvelope_ReqSearchPhotos:
-			log.Info("Search by text:", p.ReqSearchPhotos.Text)
-			files, err := mg.filesManager.ImageSearch(session, "/", p.ReqSearchPhotos.Text)
+			log.Info("Search by text:", p.ReqSearchPhotos.Tags)
+			files, err := mg.filesManager.ImageSearch(session, "", p.ReqSearchPhotos.Tags)
 			if err != nil {
 				log.Error("error trying to list files:", err)
 				resp.Error = true
@@ -201,7 +218,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case *pb.ReqEnvelope_ReqGetStatus:
-			log.Info(fmt.Sprintf("Requested status!!!! %d", p))
+			log.Info(fmt.Sprintf("Requested status %d", p))
 			st, err := status.GetStatus(r)
 
 			if err != nil {
@@ -213,6 +230,22 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 
 				resp.Payload = &pb.RespEnvelope_RespStatus{
 					RespStatus: st,
+				}
+			}
+
+		case *pb.ReqEnvelope_ReqChangeKey:
+			log.Info(fmt.Sprintf("Change key %d", p))
+			err := session.ChangeKey(p.ReqChangeKey.OldKey, p.ReqChangeKey.NewKey)
+
+			if err != nil {
+				log.Error("error trying to change secret key:", err)
+				resp.Error = true
+				resp.ErrorMessage = err.Error()
+			} else {
+				resp.Payload = &pb.RespEnvelope_RespAck{
+					RespAck: &pb.Ack{
+						Ok: true,
+					},
 				}
 			}
 

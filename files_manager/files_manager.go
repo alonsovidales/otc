@@ -2,12 +2,14 @@ package filesmanager
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -35,26 +37,18 @@ type Manager struct {
 	baseUrl    string
 	dao        *dao.Dao
 	maxUploads chan bool
-	encoders   *Encoders
+	tagger     *imagestagger.RAMTagger
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
 		baseUrl:    baseUrl,
 		dao:        dao,
-		maxUploads: make(chan bool, (runtime.NumCPU()-1)*2), // Leave one CPU free for other stuff
+		maxUploads: make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff
 	}
 
 	var err error
-	mg.encoders, err = NewEncoders(
-		"models/clip_image.onnx",
-		"models/clip_text.onnx",
-		"models/vocab.json",
-		"models/merges.txt",
-		224, // input size
-		77,  // max seq len
-		512, // embedding dim
-	)
+	mg.tagger, err = imagestagger.NewRAMTagger(cfg.GetStr("tagger", "model-path"), cfg.GetStr("tagger", "tags-path"), imagestagger.DefaultRAMOptions())
 
 	if err != nil {
 		log.Fatal("Error loading image encoders:", err)
@@ -74,7 +68,7 @@ func (mg *Manager) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mg *Manager) ListFiles(session *session.Session, path string) (files []*pb.File, err error) {
-	return mg.dao.GetFilesByPath(path, false, true)
+	return mg.dao.GetFilesByPath(path, true)
 }
 
 func (mg *Manager) cosineSimilarity(a, b []float32) float32 {
@@ -87,54 +81,20 @@ func (mg *Manager) cosineSimilarity(a, b []float32) float32 {
 	return dot / (float32(math.Sqrt(float64(na))) * float32(math.Sqrt(float64(nb))))
 }
 
-func (mg *Manager) ImageSearch(session *session.Session, path, text string) (files []*pb.File, err error) {
-	files, err = mg.dao.GetFilesByPath(path, true, false)
-	if err != nil {
-		return nil, err
-	}
-	tensor, err := mg.encoders.RunText(text)
-	if err != nil {
-		return nil, err
-	}
-
-	simlarities := make([]float32, len(files))
-	for i, file := range files {
-		simlarities[i] = mg.cosineSimilarity(tensor, file.Embedding)
-		log.Debug("Similarity:", simlarities[i])
-
-		// Populate the thumbnails
-		encContent, err := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), files[i].Hash))
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string) (files []*pb.File, err error) {
+	files, err = mg.dao.SearchByTags(path, tags)
+	for _, file := range files {
+		encContent, err := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash))
 		if err != nil {
-			encContent, err = os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), files[i].Hash))
-			if err != nil {
-				return nil, err
-			}
+			log.Error("error reading thumbnail from:", file.Path, err)
 		}
-		files[i].Content, err = session.Decrypt(encContent)
+		file.Content, err = session.Decrypt(encContent)
 		if err != nil {
-			return nil, err
+			log.Error("error decryptinig the data", err)
 		}
 	}
 
-	maxSim := float32(math.Inf(-1))
-	maxSimPos := 0
-	filesToReturn := make([]*pb.File, len(files))
-	// Short the documents by similarity in descending order
-	for i := range len(files) {
-		for simPos, sim := range simlarities {
-			if sim > maxSim {
-				maxSimPos = simPos
-				maxSim = sim
-			}
-		}
-
-		log.Debug("Max Sim:", maxSim, maxSimPos)
-		filesToReturn[i] = files[maxSimPos]
-		simlarities[maxSimPos] = float32(math.Inf(-1))
-		maxSim = float32(math.Inf(-1))
-	}
-
-	return filesToReturn, nil
+	return
 }
 
 func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File, err error) {
@@ -146,7 +106,7 @@ func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File
 		}
 		file.Content, err = session.Decrypt(encContent)
 		if err != nil {
-			log.Error("error decryptinig the datra", err)
+			log.Error("error decryptinig the data", err)
 		}
 	}
 
@@ -202,7 +162,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 
 	duplicated, err := mg.dao.StoreNewFile(file)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if duplicated {
@@ -230,7 +190,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	// Limit the amounth of concurrent writes
 	mg.maxUploads <- true
 
-	go func(targetPath string) {
+	go func(targetPath string, file *pb.File, content []byte) {
 		defer func() { <-mg.maxUploads }()
 
 		start := time.Now()
@@ -241,17 +201,17 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		// We will try to create a thumbnail of images only
 		if mimeType[:5] == "image" {
 			startClass := time.Now()
-			file.Embedding, err = mg.encoders.RunImage(content) // ML model to classify the image
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			tags, err := mg.tagger.Tags(ctx, content, imagestagger.DefaultRAMOptions())
+			if err != nil {
+				log.Error("Error processing tags:", err)
+			}
+			log.Debug("Tags:", tags)
+
+			mg.dao.AddTags(file, tags)
+
 			log.Debug("Time classifying image:", time.Since(startClass), targetPath)
-			if err != nil {
-				log.Error("error analyzing the image:", err)
-				return
-			}
-			err = mg.dao.UpdateImageEmbedding(file)
-			if err != nil {
-				log.Error("error updating image embeddings:", err)
-				return
-			}
 
 			startThumb := time.Now()
 			img, _, err := image.Decode(bytes.NewReader(content))
@@ -281,7 +241,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 
 		log.Debug("Time processing image:", time.Since(start), targetPath)
-	}(targetPath)
+	}(targetPath, file, content)
 
 	return
 }
