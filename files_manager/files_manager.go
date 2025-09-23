@@ -13,6 +13,7 @@ import (
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
+	"github.com/jdeng/goheif"
 	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"image"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -44,7 +46,7 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
 		baseUrl:    baseUrl,
 		dao:        dao,
-		maxUploads: make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff
+		maxUploads: make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff and also power issues
 	}
 
 	var err error
@@ -199,11 +201,27 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		log.Debug("Time writting file:", time.Since(start), targetPath)
 
 		// We will try to create a thumbnail of images only
-		if mimeType[:5] == "image" {
+		isHeic := strings.HasSuffix(file.Path, ".HEIC")
+		if mimeType[:5] == "image" || isHeic {
+			if isHeic {
+				content, err = mg.heicToJpeg(content, 6)
+				if err != nil {
+					log.Error("error converting from HEIC to JPEG:", err)
+					return
+				}
+			}
+
 			startClass := time.Now()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			tags, err := mg.tagger.Tags(ctx, content, imagestagger.DefaultRAMOptions())
+
+			img, _, err := image.Decode(bytes.NewReader(content))
+			if err != nil {
+				log.Error("error decoding the image:", err)
+				return
+			}
+
+			tags, err := mg.tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
 			if err != nil {
 				log.Error("Error processing tags:", err)
 			}
@@ -214,11 +232,6 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 			log.Debug("Time classifying image:", time.Since(startClass), targetPath)
 
 			startThumb := time.Now()
-			img, _, err := image.Decode(bytes.NewReader(content))
-			if err != nil {
-				log.Error("error decoding the image:", err)
-				return
-			}
 			imgCfg, _, err := image.DecodeConfig(bytes.NewReader(content))
 			if err != nil {
 				log.Error("error decoding image config:", err)
@@ -244,4 +257,24 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	}(targetPath, file, content)
 
 	return
+}
+
+func (mg *Manager) heicToJpeg(heicData []byte, quality int) ([]byte, error) {
+	if quality <= 0 || quality > 100 {
+		quality = 90
+	}
+
+	// Decode HEIC from memory
+	img, err := goheif.Decode(bytes.NewReader(heicData))
+	if err != nil {
+		return nil, err
+	}
+
+	// Encode as JPEG to []byte
+	var out bytes.Buffer
+	if err := jpeg.Encode(&out, img, &jpeg.Options{Quality: quality}); err != nil {
+		return nil, err
+	}
+
+	return out.Bytes(), nil
 }

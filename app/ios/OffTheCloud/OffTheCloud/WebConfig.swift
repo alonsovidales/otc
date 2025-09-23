@@ -118,7 +118,6 @@ struct WebContainerView: UIViewRepresentable {
            let action = dict["action"] as? String {
             switch action {
             case "openSettings":
-                print("OPEN SETTINGS")
                 self.parent.showSettings = true
             default:
                 break

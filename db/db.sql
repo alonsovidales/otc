@@ -97,7 +97,9 @@ create table sent_actions
 
 create table settings
 (
-  `subdomain` varchar(128) not null
+  `device_uuid` varchar(128) not null,
+  `subdomain` varchar(128) not null,
+  `bridge_secret` varchar(128) not null
 ) engine=InnoDB;
 
 create table vault

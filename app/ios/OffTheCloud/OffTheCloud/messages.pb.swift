@@ -105,6 +105,52 @@ public enum Msg_ActionType: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
+public enum Msg_BridgeOnboardErrorType: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case genericError // = 0
+  case takenDomain // = 1
+  case secretMissmatch // = 2
+  case unknownOwner // = 3
+  case pendingApproval // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .genericError
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .genericError
+    case 1: self = .takenDomain
+    case 2: self = .secretMissmatch
+    case 3: self = .unknownOwner
+    case 4: self = .pendingApproval
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .genericError: return 0
+    case .takenDomain: return 1
+    case .secretMissmatch: return 2
+    case .unknownOwner: return 3
+    case .pendingApproval: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Msg_BridgeOnboardErrorType] = [
+    .genericError,
+    .takenDomain,
+    .secretMissmatch,
+    .unknownOwner,
+    .pendingApproval,
+  ]
+
+}
+
 public struct Msg_StatusErrors: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -528,6 +574,34 @@ public struct Msg_Settings: Sendable {
   public init() {}
 }
 
+public struct Msg_BridgeRegister: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ownerUuid: String = String()
+
+  public var domain: String = String()
+
+  public var secret: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_BridgeAckOnboard: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ok: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Msg_ReqEnvelope: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -689,6 +763,22 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetSettings(newValue)}
   }
 
+  public var reqSetSettings: Msg_SetSettings {
+    get {
+      if case .reqSetSettings(let v)? = payload {return v}
+      return Msg_SetSettings()
+    }
+    set {payload = .reqSetSettings(newValue)}
+  }
+
+  public var reqBridgeRegister: Msg_BridgeRegister {
+    get {
+      if case .reqBridgeRegister(let v)? = payload {return v}
+      return Msg_BridgeRegister()
+    }
+    set {payload = .reqBridgeRegister(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -711,6 +801,8 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqLikeComment(Msg_LikeComment)
     case reqDidSendAction(Msg_DidSendAction)
     case reqGetSettings(Msg_GetSettings)
+    case reqSetSettings(Msg_SetSettings)
+    case reqBridgeRegister(Msg_BridgeRegister)
 
   }
 
@@ -778,6 +870,14 @@ public struct Msg_RespEnvelope: Sendable {
     set {payload = .respSettings(newValue)}
   }
 
+  public var respBridgeAckOnboard: Msg_BridgeAckOnboard {
+    get {
+      if case .respBridgeAckOnboard(let v)? = payload {return v}
+      return Msg_BridgeAckOnboard()
+    }
+    set {payload = .respBridgeAckOnboard(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -787,6 +887,7 @@ public struct Msg_RespEnvelope: Sendable {
     case respListOfFiles(Msg_ListOfFiles)
     case respTagsList(Msg_TagsList)
     case respSettings(Msg_Settings)
+    case respBridgeAckOnboard(Msg_BridgeAckOnboard)
 
   }
 
@@ -803,6 +904,10 @@ extension Msg_StatusErrorCode: SwiftProtobuf._ProtoNameProviding {
 
 extension Msg_ActionType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FriendshipReq\0\u{1}LikePub\0\u{1}LikeComm\0\u{1}NewSocialComm\0")
+}
+
+extension Msg_BridgeOnboardErrorType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0generic_error\0\u{1}taken_domain\0\u{1}secret_missmatch\0\u{1}unknown_owner\0\u{1}pending_approval\0")
 }
 
 extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -1743,9 +1848,79 @@ extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
   }
 }
 
+extension Msg_BridgeRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BridgeRegister"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ownerUuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.domain) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.secret) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ownerUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ownerUuid, fieldNumber: 1)
+    }
+    if !self.domain.isEmpty {
+      try visitor.visitSingularStringField(value: self.domain, fieldNumber: 2)
+    }
+    if !self.secret.isEmpty {
+      try visitor.visitSingularStringField(value: self.secret, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_BridgeRegister, rhs: Msg_BridgeRegister) -> Bool {
+    if lhs.ownerUuid != rhs.ownerUuid {return false}
+    if lhs.domain != rhs.domain {return false}
+    if lhs.secret != rhs.secret {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_BridgeAckOnboard: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BridgeAckOnboard"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.ok != false {
+      try visitor.visitSingularBoolField(value: self.ok, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_BridgeAckOnboard, rhs: Msg_BridgeAckOnboard) -> Bool {
+    if lhs.ok != rhs.ok {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{3}req_friendship_ack\0\u{3}req_like_publication\0\u{3}req_like_comment\0\u{3}req_did_send_action\0\u{4}\u{2}req_get_settings\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{3}req_friendship_ack\0\u{3}req_like_publication\0\u{3}req_like_comment\0\u{3}req_did_send_action\0\u{3}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1988,7 +2163,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqDidSendAction(v)
         }
       }()
-      case 29: try {
+      case 28: try {
         var v: Msg_GetSettings?
         var hadOneofValue = false
         if let current = self.payload {
@@ -1999,6 +2174,32 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.payload = .reqGetSettings(v)
+        }
+      }()
+      case 29: try {
+        var v: Msg_SetSettings?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetSettings(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetSettings(v)
+        }
+      }()
+      case 30: try {
+        var v: Msg_BridgeRegister?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqBridgeRegister(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqBridgeRegister(v)
         }
       }()
       default: break
@@ -2089,7 +2290,15 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
     }()
     case .reqGetSettings?: try {
       guard case .reqGetSettings(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 28)
+    }()
+    case .reqSetSettings?: try {
+      guard case .reqSetSettings(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 29)
+    }()
+    case .reqBridgeRegister?: try {
+      guard case .reqBridgeRegister(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 30)
     }()
     case nil: break
     }
@@ -2106,7 +2315,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2195,6 +2404,19 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
           self.payload = .respSettings(v)
         }
       }()
+      case 16: try {
+        var v: Msg_BridgeAckOnboard?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .respBridgeAckOnboard(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .respBridgeAckOnboard(v)
+        }
+      }()
       default: break
       }
     }
@@ -2238,6 +2460,10 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     case .respSettings?: try {
       guard case .respSettings(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
+    }()
+    case .respBridgeAckOnboard?: try {
+      guard case .respBridgeAckOnboard(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
     }()
     case nil: break
     }

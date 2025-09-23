@@ -95,6 +95,7 @@ final class PhotoSync {
             var auth = Msg_Auth()
             auth.uuid = secrets.deviceId
             auth.key = secrets.password
+            print("Password:", secrets.password)
             auth.create = false
             env.payload = .reqAuth(auth)
         }

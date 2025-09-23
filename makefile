@@ -1,4 +1,5 @@
 NO_COLOR=\033[0m
+
 OK_COLOR=\033[32;01m
 ERROR_COLOR=\033[31;01m
 WARN_COLOR=\033[33;01m
@@ -18,7 +19,9 @@ sync:
 
 pi:
 	@echo "$(OK_COLOR)==> Building for pi...$(NO_COLOR)"
-	CGO_ENABLED=1 go build -o otc ./bin/otc.go
+	ssh otc@otc sudo systemctl stop otc
+	ssh -tt otc@otc 'bash -lc "cd otc; CGO_ENABLED=1 go build -o otc ./bin/otc.go && sudo mv otc /usr/bin/"'
+	ssh otc@otc sudo systemctl start otc
 
 .PHONY: pi
 
@@ -52,6 +55,7 @@ web:
 	npm run build --prefix web
 	@echo "$(OK_COLOR)==> Copying static content...$(NO_COLOR)"
 	cp -a web/dist/* app/ios/OffTheCloud/web-dist/
+	cp -a web/dist/* bridge/static/
 	scp -r web/dist/* otc@otc:/var/www/
 
 .PHONY: web
@@ -66,4 +70,4 @@ clean:
 
 .PHONY: clean
 
-all: clean pb sync web
+all: clean pb sync web pi

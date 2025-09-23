@@ -9,6 +9,7 @@ import (
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"strings"
 	"time"
@@ -70,6 +71,17 @@ func (dao *Dao) GetSecret() (encText []byte, err error) {
 func (dao *Dao) PersistSecret(encCheck []byte) (err error) {
 	log.Debug("Creating Auth session:")
 	_, err = dao.db.Exec("insert into `vault` (`secret`) values (?)", encCheck)
+	return
+}
+
+func (dao *Dao) GetSettings() (subDomain, deviceUuid, BridgeSecret string, err error) {
+	err = dao.db.QueryRow("select `subdomain`, `device_uuid`, `bridge_secret` from `settings`").Scan(&subDomain, &deviceUuid, &BridgeSecret)
+
+	return
+}
+
+func (dao *Dao) UpdateSettings(subdomain string) (err error) {
+	_, err = dao.db.Exec("update `settings` set `subdomain` = ?, `bridge_secret` = ?", subdomain, uuid.New())
 	return
 }
 

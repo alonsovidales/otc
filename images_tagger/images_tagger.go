@@ -1,7 +1,6 @@
 package imagestagger
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -101,7 +100,7 @@ func NewRAMTagger(modelPath, tagListPath string, opt RAMOptions) (*RAMTagger, er
 func (r *RAMTagger) Close() { _ = r.sess.Destroy() }
 
 // Tags runs inference and returns tag strings (sorted by score desc).
-func (r *RAMTagger) Tags(ctx context.Context, imgBytes []byte, opt RAMOptions) ([]RAMTag, error) {
+func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) ([]RAMTag, error) {
 	if opt.ImageSize == 0 {
 		opt.ImageSize = r.imgSize
 	}
@@ -109,11 +108,6 @@ func (r *RAMTagger) Tags(ctx context.Context, imgBytes []byte, opt RAMOptions) (
 		opt.Threshold = 0.40
 	}
 
-	// decode & preprocess
-	img, _, err := image.Decode(bytes.NewReader(imgBytes))
-	if err != nil {
-		return nil, err
-	}
 	input := r.preprocess(img, opt.ImageSize)
 
 	// tensor [1,3,H,W]

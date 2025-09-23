@@ -50,5 +50,4 @@ func main() {
 
 	log.Info("Stopping all the services")
 	dao.Stop()
-	//shardsManager.Stop()
 }

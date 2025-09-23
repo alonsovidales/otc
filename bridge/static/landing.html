@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Off The Cloud — Own your memories</title>
+  <meta name="description" content="A private, family-friendly personal cloud and social network you own. Plug in the box, pair the app, and your life is safely backed up and shareable with those who matter." />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0e13;
+      --panel:#121720;
+      --muted:#95a3b8;
+      --text:#e7edf6;
+      --brand:#6ee7ff;
+      --brand-2:#8b5cf6;
+      --accent:#22d3ee;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --ring:0 0 0 8px rgba(110,231,255,.12), 0 0 0 2px rgba(139,92,246,.25);
+      --radius-xl:22px;
+      --radius:14px;
+      --shadow-lg:0 30px 80px rgba(2,8,23,.45);
+      --shadow-md:0 10px 30px rgba(2,8,23,.35);
+      --max:1100px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:16px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 80% -10%, rgba(139,92,246,.25), transparent 60%),
+        radial-gradient(1000px 500px at -10% 20%, rgba(34,211,238,.18), transparent 60%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+    a{color:var(--brand);text-decoration:none}
+    a:hover{opacity:.9}
+    .container{max-width:var(--max); margin:0 auto; padding:0 24px}
+    header{
+      position:sticky; top:0; z-index:20;
+      backdrop-filter:saturate(140%) blur(10px);
+      background:linear-gradient(to bottom, rgba(11,14,19,.75), rgba(11,14,19,.35) 60%, transparent);
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .nav{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 0;
+    }
+    .brand{display:flex; align-items:center; gap:12px}
+    .brand svg{width:38px; height:38px; flex:0 0 auto; filter:drop-shadow(0 6px 20px rgba(110,231,255,.25))}
+    .brand .name{font-weight:700; letter-spacing:.2px}
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      background:linear-gradient(135deg, rgba(110,231,255,.12), rgba(139,92,246,.10));
+      border:1px solid rgba(255,255,255,.08);
+      padding:6px 12px; border-radius:999px; color:var(--muted); font-size:.9rem;
+    }
+    .cta{display:flex; gap:10px; align-items:center}
+    .btn{
+      appearance:none; border:0; cursor:pointer;
+      padding:12px 18px; border-radius:12px; font-weight:600;
+      color:#0b0e13; background:linear-gradient(135deg, var(--brand), var(--brand-2));
+      box-shadow:var(--shadow-md);
+      transition:transform .06s ease, filter .2s ease;
+    }
+    .btn:hover{filter:saturate(110%) brightness(1.05)}
+    .btn:active{transform:translateY(1px)}
+    .btn.secondary{
+      background:transparent; color:var(--text);
+      border:1px solid rgba(255,255,255,.18);
+    }
+
+    /* Hero */
+    .hero{
+      padding:64px 0 32px;
+      display:grid; gap:28px;
+    }
+    .hero h1{
+      font-size:clamp(28px, 4vw, 46px);
+      line-height:1.1; margin:10px 0 16px;
+      letter-spacing:.2px;
+      background:linear-gradient(180deg, #fff, #c6d3e6 70%);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+    }
+    .hero p.lead{
+      color:#c5d2e6; font-size:clamp(16px, 2.1vw, 20px); margin:0 0 18px;
+    }
+    .hero .card{
+      display:grid; gap:18px; padding:22px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius-xl);
+      box-shadow:var(--shadow-lg);
+    }
+    .hero .bullets{display:grid; gap:10px; color:var(--muted)}
+    .hero .bullets li{list-style:none; display:flex; gap:10px; align-items:flex-start}
+    .hero .bullets .dot{width:8px; height:8px; margin-top:8px; border-radius:999px; background:linear-gradient(135deg,var(--brand),var(--brand-2))}
+    .glow{
+      position:absolute; inset:auto 0 0 0; height:220px; z-index:-1;
+      background:radial-gradient(60% 60% at 50% 50%, rgba(110,231,255,.12), transparent 60%);
+      filter:blur(40px);
+    }
+
+    section{padding:52px 0}
+    .section-title{font-size:24px; margin:0 0 16px}
+    .muted{color:var(--muted)}
+
+    /* Features grid */
+    .grid{
+      display:grid; gap:18px;
+      grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
+    }
+    .feature{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);
+      padding:18px; display:grid; gap:8px;
+    }
+    .feature h3{margin:0; font-size:18px}
+    .tag{
+      display:inline-flex; align-items:center; gap:8px;
+      font-size:.8rem; color:#cfe7ff;
+      border:1px solid rgba(255,255,255,.14);
+      padding:4px 8px; border-radius:999px;
+      background:linear-gradient(135deg, rgba(110,231,255,.10), rgba(139,92,246,.10));
+    }
+
+    /* How it works */
+    .steps{display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr))}
+    .step{padding:16px; border-radius:14px; border:1px dashed rgba(255,255,255,.18)}
+    .step .num{
+      width:26px; height:26px; border-radius:999px;
+      display:inline-grid; place-items:center;
+      background:linear-gradient(135deg,var(--brand),var(--brand-2));
+      color:#02101f; font-weight:700; font-size:.9rem; margin-bottom:8px;
+    }
+
+    /* Pricing */
+    .pricing{display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+    .price-card{
+      padding:20px; border-radius:16px;
+      border:1px solid rgba(255,255,255,.12);
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .price{font-size:28px; font-weight:700; margin:6px 0}
+    .small{font-size:.9rem; color:var(--muted)}
+
+    /* Comparison note */
+    .note{
+      background:linear-gradient(180deg, rgba(34,211,238,.1), rgba(139,92,246,.08));
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:14px; padding:14px; color:#d9ecff;
+    }
+
+    /* Contact */
+    .contact{
+      display:grid; gap:18px;
+      grid-template-columns: 1.1fr .9fr;
+    }
+    @media (max-width:900px){ .contact{grid-template-columns:1fr} }
+    form{
+      display:grid; gap:12px;
+      padding:18px; border-radius:16px;
+      border:1px solid rgba(255,255,255,.12);
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    label{font-weight:600; font-size:.92rem}
+    input, textarea, select{
+      width:100%; padding:12px 14px; border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:#0c121b; color:var(--text);
+      outline:none; transition: box-shadow .2s ease, border-color .2s ease;
+    }
+    input:focus, textarea:focus, select:focus{
+      box-shadow:var(--ring); border-color:transparent;
+    }
+    textarea{min-height:120px; resize:vertical}
+    .footer{
+      color:var(--muted); border-top:1px solid rgba(255,255,255,.08);
+      padding:28px 0 60px; font-size:.9rem; text-align:center;
+    }
+    .inline{display:inline-flex; gap:8px; align-items:center}
+    .green{color:var(--ok)} .amber{color:var(--warn)} .red{color:var(--danger)}
+    .pill{display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-size:.85rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand" aria-label="Off The Cloud">
+        <!-- Simple brand mark (SVG) -->
+        <svg viewBox="0 0 64 64" role="img" aria-label="Off The Cloud logo">
+          <defs>
+            <linearGradient id="g" x1="0" x2="1">
+              <stop offset="0" stop-color="#6ee7ff"/><stop offset="1" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="10" width="56" height="40" rx="12" fill="url(#g)" />
+          <path d="M18 28h28v8H18z" fill="#0b0e13" opacity=".95"/>
+          <circle cx="18" cy="48" r="3" fill="#6ee7ff"/>
+          <circle cx="46" cy="48" r="3" fill="#8b5cf6"/>
+        </svg>
+        <div class="name">Off The Cloud</div>
+        <span class="chip" title="Open source & private">🔓 Open Source · 🔒 Private</span>
+      </div>
+      <div class="cta">
+        <a class="btn secondary" href="#features">Features</a>
+        <a class="btn" href="#contact">Get Early Access</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container hero">
+      <span class="pill">Now preparing Kickstarter launch</span>
+      <h1>Off The Cloud isn’t just another NAS or app — it’s a chance to reinvent the cloud and social networks as they should have been: <em>private, family-friendly, and owned by the user.</em></h1>
+      <p class="lead">
+        We provide a small box you plug at home. Open the mobile app, pair via Bluetooth, set Wi-Fi and a username — and in moments your phone, laptops, and other devices start backing up photos, videos, and files. Share safely with family and friends, no ads, no tracking, no compression.
+      </p>
+      <div class="card">
+        <ul class="bullets">
+          <li><span class="dot"></span>🔒 Per-file encryption at rest; keys live only on your devices (Proton-style zero-access).</li>
+          <li><span class="dot"></span>🛡️ RAID-1 safety with automatic rebuilds and phone alerts.</li>
+          <li><span class="dot"></span>🧠 AI search on encrypted data: find “dogs on the beach” or “blue cars.”</li>
+          <li><span class="dot"></span>💶 1TB €250 · 2TB €300 · 4TB €450 — device + storage included.</li>
+          <li><span class="dot"></span>🌍 Direct access or our optional Bridge (€20/yr; first 2 years free for device buyers).</li>
+          <li><span class="dot"></span>🔓 100% open source. Your data never trains anyone’s models.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="glow" aria-hidden="true"></div>
+
+    <section id="features" class="container">
+      <h2 class="section-title">Why it’s different</h2>
+      <p class="muted">Own your memories. Share in a safe, private social feed. Keep the quality (no forced compression) and the control.</p>
+      <div class="grid" style="margin-top:18px">
+        <div class="feature">
+          <span class="tag">Security</span>
+          <h3>Zero-access encryption</h3>
+          <p>Files are encrypted individually at rest. The box never stores your keys. If someone steals it, your data stays unreadable.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">Setup</span>
+          <h3>Plug, pair, done</h3>
+          <p>Connect the box, pair via Bluetooth, set Wi-Fi and a unique username (your private handle). Auto-backup begins instantly.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">Reliability</span>
+          <h3>RAID-1 with auto-repair</h3>
+          <p>Drive light turns <span class="green">green</span> to <span class="red">red</span> on failure; you get a phone alert; swap the disk and it rebuilds.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">AI</span>
+          <h3>Search your life</h3>
+          <p>Semantic search over encrypted tensors. “Kids at school”, “mountain biking,” “sunset at the beach”—just type it.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">Social</span>
+          <h3>Family-first sharing</h3>
+          <p>Instagram-like wall with likes & comments, minus toxicity, ads, and tracking. You choose what to show, and to whom.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">Economy</span>
+          <h3>Affordable by design</h3>
+          <p>Modern, inexpensive hardware now runs strong crypto & AI. Storage is cheap — making true privacy finally accessible.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="container">
+      <h2 class="section-title">How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <strong>Plug in the box</strong>
+          <p class="muted">Raspberry Pi 5–based, low power, quiet. Connect Ethernet or Wi-Fi.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <strong>Pair the app</strong>
+          <p class="muted">Open iOS/Android app → Bluetooth pairing → set Wi-Fi & username → done.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <strong>Auto-backup & share</strong>
+          <p class="muted">Your phone & computers back up automatically. Share privately with family/friends.</p>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <strong>Access anywhere</strong>
+          <p class="muted">Use direct port open (static IP) or our optional Bridge (€20/yr) for zero-config reachability.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="container">
+      <h2 class="section-title">Pricing (device + storage)</h2>
+      <div class="pricing">
+        <div class="price-card">
+          <div class="tag">Starter</div>
+          <div class="price">€250</div>
+          <div class="small">1 TB · encrypted · RAID-1</div>
+        </div>
+        <div class="price-card">
+          <div class="tag">Popular</div>
+          <div class="price">€300</div>
+          <div class="small">2 TB · encrypted · RAID-1</div>
+        </div>
+        <div class="price-card">
+          <div class="tag">Power</div>
+          <div class="price">€450</div>
+          <div class="small">4 TB · encrypted · RAID-1</div>
+        </div>
+        <div class="price-card">
+          <div class="tag">Bridge</div>
+          <div class="price">€20/yr</div>
+          <div class="small">Free for first 2 years with device purchase</div>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:12px">Unprocessed, uncompressed originals. Open-source device software. Your data never used to train external models.</p>
+      <div class="note" style="margin-top:16px">
+        <strong>Why not Big Tech?</strong> Traditional clouds compress your media, mine metadata, and push ads. Off The Cloud keeps full-quality originals, encrypts everything, and gives you a private social feed for family and friends.
+      </div>
+    </section>
+
+    <section id="contact" class="container">
+      <h2 class="section-title">Investors & Early Access</h2>
+      <div class="contact">
+        <form action="https://formspree.io/f/your-id" method="POST">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" placeholder="Your name" required>
+
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="you@example.com" required>
+
+          <label for="role">I’m interested as</label>
+          <select id="role" name="role" required>
+            <option value="" disabled selected>Select one</option>
+            <option>Investor</option>
+            <option>Early Access User</option>
+            <option>Partner / Reseller</option>
+            <option>Press / Media</option>
+          </select>
+
+          <label for="message">Message</label>
+          <textarea id="message" name="message" placeholder="Tell us a bit about you, and how you’d like to get involved"></textarea>
+
+          <button class="btn" type="submit">Request Access</button>
+          <p class="small muted">By submitting, you agree to be contacted about Off The Cloud. We never sell your data.</p>
+        </form>
+
+        <div>
+          <div class="feature">
+            <span class="tag">Status</span>
+            <h3>Prototype complete</h3>
+            <p class="muted">Device, bridge, macOS & iOS apps working. Android & Windows clients in development. Targeting a December production release.</p>
+          </div>
+          <div class="feature">
+            <span class="tag">Roadmap</span>
+            <h3>Kickstarter launch</h3>
+            <p class="muted">We’ll open pre-orders on Kickstarter, then scale D2C. Interested in leading the round for pre-production and tooling? Let’s talk.</p>
+          </div>
+          <div class="feature">
+            <span class="tag">Founding Team</span>
+            <h3>Experienced builders</h3>
+            <p class="muted">Founder is a senior Software Engineer (20+ years) in AI at Microsoft, with prior roles at Meta, AWS, and Spotify. Seasoned collaborators from AWS ready to join.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    © <span id="y"></span> Off The Cloud · <span class="inline">🔒</span> Privacy-first · <span class="inline">🔓</span> Open source
+  </footer>
+
+  <script>
+    // Set current year
+    document.getElementById('y').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

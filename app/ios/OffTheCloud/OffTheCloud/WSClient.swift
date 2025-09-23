@@ -44,6 +44,7 @@ final class WSClient {
             case .failure(let err):
                 self.connected = false
                 print("WS receive error:", err)
+                sleep(1000)
             case .success(let message):
                 switch message {
                 case .data(let data):

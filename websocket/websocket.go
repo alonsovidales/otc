@@ -2,15 +2,18 @@ package websocket
 
 import (
 	"fmt"
+	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
+	"github.com/alonsovidales/otc/settings"
 	"github.com/alonsovidales/otc/status"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -38,6 +41,15 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 		},
 	}
 
+	for i := 0; i < int(cfg.GetInt("otc", "bridge-connections")); i++ {
+		go func(mg *Manager) {
+			for {
+				mg.OpenBridge()
+				log.Debug("Bridge closed, open a new one")
+			}
+		}(mg)
+	}
+
 	return
 }
 
@@ -61,6 +73,59 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 
 }
 
+func (mg *Manager) OpenBridge() {
+	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
+	log.Debug("Connecting to bridge:", cfg.GetStr("otc", "bridge-addr"), u)
+	h := http.Header{}
+	h.Set("Sec-WebSocket-Protocol", "protobuf")
+	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	if err != nil {
+		log.Error("dialing websocket:", err)
+		return
+	}
+	log.Debug("Connected to bridge...")
+	defer c.Close()
+
+	// AUTH the connection
+	subDomain, deviceUuid, BridgeSecret, err := mg.dao.GetSettings()
+	if err != nil {
+		log.Error("error reading device settings from DB")
+		return
+	}
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqBridgeRegister{
+			ReqBridgeRegister: &pb.BridgeRegister{
+				OwnerUuid: deviceUuid,
+				Domain:    subDomain,
+				Secret:    BridgeSecret,
+			},
+		},
+	}
+	b, _ := proto.Marshal(msg)
+	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		log.Error("write:", err)
+		return
+	}
+
+	// We should get back the Ack
+	_, data, err := c.ReadMessage()
+	if err != nil {
+		log.Error("read:", err)
+		return
+	}
+
+	var respAck pb.RespEnvelope
+	_ = proto.Unmarshal(data, &respAck)
+	if respAck.Payload.(*pb.RespEnvelope_RespBridgeAckOnboard).RespBridgeAckOnboard.Ok {
+		log.Debug("Authenticated in the bridge, waiting for messages...")
+
+		mg.handleConnection(c, nil)
+	}
+
+	return
+}
+
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -69,8 +134,13 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 		log.Error("error trying to upgrade the websocket:", err)
 		return
 	}
+
 	defer conn.Close()
 
+	mg.handleConnection(conn, r)
+}
+
+func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	// The first message should always be an auth, it not we will just close here
 	_, frame, err := conn.ReadMessage()
 	if err != nil {
@@ -78,7 +148,6 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var authEnv pb.ReqEnvelope
-	log.Debug("Auth frame:", frame)
 	if err := proto.Unmarshal(frame, &authEnv); err != nil {
 		mg.closeWithError(conn, 0, err)
 		return
@@ -104,22 +173,24 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	resp, _ := proto.Marshal(respAuth)
+	log.Debug("Resp to ath:", respAuth)
 	if err := conn.WriteMessage(gorilla.BinaryMessage, resp); err != nil {
 		log.Error("error responding, closing the connection:", err)
 		return
 	}
 
 	for {
+		log.Debug("Waiting for messages")
 		_, frame, err := conn.ReadMessage()
 		if err != nil {
 			log.Error("error processing message:", err)
-			continue
+			return
 		}
 
 		var env pb.ReqEnvelope
 		if err := proto.Unmarshal(frame, &env); err != nil {
 			log.Error("bad proto:", err)
-			continue
+			return
 		}
 
 		resp := &pb.RespEnvelope{
@@ -249,8 +320,40 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+		case *pb.ReqEnvelope_ReqSetSettings:
+			log.Info("Set settings")
+			err := settings.SetSettings(mg.dao, p.ReqSetSettings.Domain)
+
+			if err != nil {
+				log.Error("error trying to change secret key:", err)
+				resp.Error = true
+				resp.ErrorMessage = err.Error()
+			} else {
+				resp.Payload = &pb.RespEnvelope_RespAck{
+					RespAck: &pb.Ack{
+						Ok: true,
+					},
+				}
+			}
+
+		case *pb.ReqEnvelope_ReqGetSettings:
+			log.Info("Get settings")
+			sets, err := settings.GetSettings(mg.dao)
+
+			if err != nil {
+				log.Error("error trying to get serrings:", err)
+				resp.Error = true
+				resp.ErrorMessage = err.Error()
+			} else {
+				resp.Payload = &pb.RespEnvelope_RespSettings{
+					RespSettings: &pb.Settings{
+						Domain: sets.Domain,
+					},
+				}
+			}
+
 		default:
-			log.Error("unknown payload")
+			log.Error("unknown payload:", p)
 			resp.Error = true
 			resp.ErrorMessage = "unknown payload"
 		}

@@ -7,7 +7,7 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 	"golang.org/x/sys/unix"
-	"net"
+	//"net"
 	"net/http"
 	"time"
 )
@@ -44,11 +44,14 @@ func GetStatus(r *http.Request) (st *pb.Status, err error) {
 		log.Error("error reading memory usage:", err)
 	}
 
-	localAddr := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
+	/*var localAddr net.Addr
+	if r != nil {
+		localAddr = r.Context().Value(http.LocalAddrContextKey).(net.Addr)
+	}*/
 
 	st = &pb.Status{
-		Online:  true,
-		LocalIp: localAddr.String(),
+		Online: true,
+		//LocalIp: localAddr.String(),
 		//Errors:        []*pb.StatusErrors,
 		RaidSize:    int32(sizeRaid / 1024 / 1000),
 		RaidUsage:   int32(usedRaid / 1024 / 1000),

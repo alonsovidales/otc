@@ -1,0 +1,15 @@
+.sf-wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.sf-section { padding: 12px; border: 1px solid #e5e7eb; border-radius: 10px; }
+.sf-row { display: grid; grid-template-columns: 180px 1fr; gap: 10px; align-items: center; margin-bottom: 10px; }
+.sf-row:last-child { margin-bottom: 0; }
+.sf-input { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+.sf-value { color: #6b7280; }
+.sf-btn { margin-top: 8px; padding: 10px 12px; border: 0; border-radius: 8px; background: #1f6feb; color: #fff; cursor: pointer; }
+.sf-btn:disabled { opacity: .6; cursor: default; }
+.sf-note.error { color: #b00020; font-size: 13px; }
+
+.sf-status { padding: 10px 12px; border-radius: 8px; }
+.sf-status.info { background: #f3f4f6; color: #374151; }
+.sf-status.success { background: #e7f7ee; color: #166534; }
+.sf-status.error { background: #fde2e2; color: #991b1b; }
+

@@ -7,6 +7,7 @@ import (
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/websocket"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -52,6 +53,11 @@ func (api *API) registerAPIs() {
 
 	api.muxHTTPServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		filePath := r.URL.Path[1:]
+
+		if strings.Contains(filePath, "..") {
+			return
+		}
+
 		path := api.staticPath + filePath
 		lastPosSlash := -1
 		lastPosDot := -1

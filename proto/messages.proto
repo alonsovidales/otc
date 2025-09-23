@@ -156,6 +156,24 @@ message Settings {
   string domain = 1;
 }
 
+message BridgeRegister {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+}
+
+enum BridgeOnboardErrorType {
+  generic_error = 0;
+  taken_domain = 1;
+  secret_missmatch = 2;
+  unknown_owner = 3;
+  pending_approval = 4;
+}
+
+message BridgeAckOnboard {
+  bool ok = 1;
+}
+
 message ReqEnvelope {
   int32 id = 1;
   oneof payload {
@@ -179,7 +197,9 @@ message ReqEnvelope {
     LikeComment req_like_comment = 26;
     DidSendAction req_did_send_action = 27;
     GetSettings req_get_settings = 28;
-    SetSettings req_get_settings = 29;
+    SetSettings req_set_settings = 29;
+
+    BridgeRegister req_bridge_register = 30;
   }
 }
 
@@ -194,5 +214,7 @@ message RespEnvelope {
     ListOfFiles resp_list_of_files = 13;
     TagsList resp_tags_list = 14;
     Settings resp_settings = 15;
+
+    BridgeAckOnboard resp_bridge_ack_onboard = 16;
   }
 }

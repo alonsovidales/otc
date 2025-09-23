@@ -108,6 +108,68 @@ export function actionTypeToJSON(object: ActionType): string {
   }
 }
 
+export const BridgeOnboardErrorType = {
+  generic_error: 0,
+  taken_domain: 1,
+  secret_missmatch: 2,
+  unknown_owner: 3,
+  pending_approval: 4,
+  UNRECOGNIZED: -1,
+} as const;
+
+export type BridgeOnboardErrorType = typeof BridgeOnboardErrorType[keyof typeof BridgeOnboardErrorType];
+
+export namespace BridgeOnboardErrorType {
+  export type generic_error = typeof BridgeOnboardErrorType.generic_error;
+  export type taken_domain = typeof BridgeOnboardErrorType.taken_domain;
+  export type secret_missmatch = typeof BridgeOnboardErrorType.secret_missmatch;
+  export type unknown_owner = typeof BridgeOnboardErrorType.unknown_owner;
+  export type pending_approval = typeof BridgeOnboardErrorType.pending_approval;
+  export type UNRECOGNIZED = typeof BridgeOnboardErrorType.UNRECOGNIZED;
+}
+
+export function bridgeOnboardErrorTypeFromJSON(object: any): BridgeOnboardErrorType {
+  switch (object) {
+    case 0:
+    case "generic_error":
+      return BridgeOnboardErrorType.generic_error;
+    case 1:
+    case "taken_domain":
+      return BridgeOnboardErrorType.taken_domain;
+    case 2:
+    case "secret_missmatch":
+      return BridgeOnboardErrorType.secret_missmatch;
+    case 3:
+    case "unknown_owner":
+      return BridgeOnboardErrorType.unknown_owner;
+    case 4:
+    case "pending_approval":
+      return BridgeOnboardErrorType.pending_approval;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return BridgeOnboardErrorType.UNRECOGNIZED;
+  }
+}
+
+export function bridgeOnboardErrorTypeToJSON(object: BridgeOnboardErrorType): string {
+  switch (object) {
+    case BridgeOnboardErrorType.generic_error:
+      return "generic_error";
+    case BridgeOnboardErrorType.taken_domain:
+      return "taken_domain";
+    case BridgeOnboardErrorType.secret_missmatch:
+      return "secret_missmatch";
+    case BridgeOnboardErrorType.unknown_owner:
+      return "unknown_owner";
+    case BridgeOnboardErrorType.pending_approval:
+      return "pending_approval";
+    case BridgeOnboardErrorType.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface StatusErrors {
   StatusErrorCode: StatusErrorCode;
   Message: string;
@@ -244,6 +306,16 @@ export interface Settings {
   domain: string;
 }
 
+export interface BridgeRegister {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+}
+
+export interface BridgeAckOnboard {
+  ok: boolean;
+}
+
 export interface ReqEnvelope {
   id: number;
   payload?:
@@ -266,6 +338,8 @@ export interface ReqEnvelope {
     | { $case: "reqLikeComment"; reqLikeComment: LikeComment }
     | { $case: "reqDidSendAction"; reqDidSendAction: DidSendAction }
     | { $case: "reqGetSettings"; reqGetSettings: GetSettings }
+    | { $case: "reqSetSettings"; reqSetSettings: SetSettings }
+    | { $case: "reqBridgeRegister"; reqBridgeRegister: BridgeRegister }
     | undefined;
 }
 
@@ -280,6 +354,7 @@ export interface RespEnvelope {
     | { $case: "respListOfFiles"; respListOfFiles: ListOfFiles }
     | { $case: "respTagsList"; respTagsList: TagsList }
     | { $case: "respSettings"; respSettings: Settings }
+    | { $case: "respBridgeAckOnboard"; respBridgeAckOnboard: BridgeAckOnboard }
     | undefined;
 }
 
@@ -2362,6 +2437,156 @@ export const Settings: MessageFns<Settings> = {
   },
 };
 
+function createBaseBridgeRegister(): BridgeRegister {
+  return { ownerUuid: "", domain: "", secret: "" };
+}
+
+export const BridgeRegister: MessageFns<BridgeRegister> = {
+  encode(message: BridgeRegister, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeRegister {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBridgeRegister();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BridgeRegister {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: BridgeRegister): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BridgeRegister>, I>>(base?: I): BridgeRegister {
+    return BridgeRegister.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BridgeRegister>, I>>(object: I): BridgeRegister {
+    const message = createBaseBridgeRegister();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    return message;
+  },
+};
+
+function createBaseBridgeAckOnboard(): BridgeAckOnboard {
+  return { ok: false };
+}
+
+export const BridgeAckOnboard: MessageFns<BridgeAckOnboard> = {
+  encode(message: BridgeAckOnboard, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ok !== false) {
+      writer.uint32(8).bool(message.ok);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeAckOnboard {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBridgeAckOnboard();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.ok = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BridgeAckOnboard {
+    return { ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false };
+  },
+
+  toJSON(message: BridgeAckOnboard): unknown {
+    const obj: any = {};
+    if (message.ok !== false) {
+      obj.ok = message.ok;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BridgeAckOnboard>, I>>(base?: I): BridgeAckOnboard {
+    return BridgeAckOnboard.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BridgeAckOnboard>, I>>(object: I): BridgeAckOnboard {
+    const message = createBaseBridgeAckOnboard();
+    message.ok = object.ok ?? false;
+    return message;
+  },
+};
+
 function createBaseReqEnvelope(): ReqEnvelope {
   return { id: 0, payload: undefined };
 }
@@ -2427,7 +2652,13 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         DidSendAction.encode(message.payload.reqDidSendAction, writer.uint32(218).fork()).join();
         break;
       case "reqGetSettings":
-        GetSettings.encode(message.payload.reqGetSettings, writer.uint32(234).fork()).join();
+        GetSettings.encode(message.payload.reqGetSettings, writer.uint32(226).fork()).join();
+        break;
+      case "reqSetSettings":
+        SetSettings.encode(message.payload.reqSetSettings, writer.uint32(234).fork()).join();
+        break;
+      case "reqBridgeRegister":
+        BridgeRegister.encode(message.payload.reqBridgeRegister, writer.uint32(242).fork()).join();
         break;
     }
     return writer;
@@ -2616,12 +2847,31 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 28: {
+          if (tag !== 226) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetSettings", reqGetSettings: GetSettings.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 29: {
           if (tag !== 234) {
             break;
           }
 
-          message.payload = { $case: "reqGetSettings", reqGetSettings: GetSettings.decode(reader, reader.uint32()) };
+          message.payload = { $case: "reqSetSettings", reqSetSettings: SetSettings.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 30: {
+          if (tag !== 242) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqBridgeRegister",
+            reqBridgeRegister: BridgeRegister.decode(reader, reader.uint32()),
+          };
           continue;
         }
       }
@@ -2683,6 +2933,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqDidSendAction", reqDidSendAction: DidSendAction.fromJSON(object.reqDidSendAction) }
         : isSet(object.reqGetSettings)
         ? { $case: "reqGetSettings", reqGetSettings: GetSettings.fromJSON(object.reqGetSettings) }
+        : isSet(object.reqSetSettings)
+        ? { $case: "reqSetSettings", reqSetSettings: SetSettings.fromJSON(object.reqSetSettings) }
+        : isSet(object.reqBridgeRegister)
+        ? { $case: "reqBridgeRegister", reqBridgeRegister: BridgeRegister.fromJSON(object.reqBridgeRegister) }
         : undefined,
     };
   },
@@ -2730,6 +2984,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqDidSendAction = DidSendAction.toJSON(message.payload.reqDidSendAction);
     } else if (message.payload?.$case === "reqGetSettings") {
       obj.reqGetSettings = GetSettings.toJSON(message.payload.reqGetSettings);
+    } else if (message.payload?.$case === "reqSetSettings") {
+      obj.reqSetSettings = SetSettings.toJSON(message.payload.reqSetSettings);
+    } else if (message.payload?.$case === "reqBridgeRegister") {
+      obj.reqBridgeRegister = BridgeRegister.toJSON(message.payload.reqBridgeRegister);
     }
     return obj;
   },
@@ -2893,6 +3151,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqSetSettings": {
+        if (object.payload?.reqSetSettings !== undefined && object.payload?.reqSetSettings !== null) {
+          message.payload = {
+            $case: "reqSetSettings",
+            reqSetSettings: SetSettings.fromPartial(object.payload.reqSetSettings),
+          };
+        }
+        break;
+      }
+      case "reqBridgeRegister": {
+        if (object.payload?.reqBridgeRegister !== undefined && object.payload?.reqBridgeRegister !== null) {
+          message.payload = {
+            $case: "reqBridgeRegister",
+            reqBridgeRegister: BridgeRegister.fromPartial(object.payload.reqBridgeRegister),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -2931,6 +3207,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respSettings":
         Settings.encode(message.payload.respSettings, writer.uint32(122).fork()).join();
+        break;
+      case "respBridgeAckOnboard":
+        BridgeAckOnboard.encode(message.payload.respBridgeAckOnboard, writer.uint32(130).fork()).join();
         break;
     }
     return writer;
@@ -3015,6 +3294,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respSettings", respSettings: Settings.decode(reader, reader.uint32()) };
           continue;
         }
+        case 16: {
+          if (tag !== 130) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respBridgeAckOnboard",
+            respBridgeAckOnboard: BridgeAckOnboard.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3041,6 +3331,11 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respTagsList", respTagsList: TagsList.fromJSON(object.respTagsList) }
         : isSet(object.respSettings)
         ? { $case: "respSettings", respSettings: Settings.fromJSON(object.respSettings) }
+        : isSet(object.respBridgeAckOnboard)
+        ? {
+          $case: "respBridgeAckOnboard",
+          respBridgeAckOnboard: BridgeAckOnboard.fromJSON(object.respBridgeAckOnboard),
+        }
         : undefined,
     };
   },
@@ -3068,6 +3363,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respTagsList = TagsList.toJSON(message.payload.respTagsList);
     } else if (message.payload?.$case === "respSettings") {
       obj.respSettings = Settings.toJSON(message.payload.respSettings);
+    } else if (message.payload?.$case === "respBridgeAckOnboard") {
+      obj.respBridgeAckOnboard = BridgeAckOnboard.toJSON(message.payload.respBridgeAckOnboard);
     }
     return obj;
   },
@@ -3117,6 +3414,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       case "respSettings": {
         if (object.payload?.respSettings !== undefined && object.payload?.respSettings !== null) {
           message.payload = { $case: "respSettings", respSettings: Settings.fromPartial(object.payload.respSettings) };
+        }
+        break;
+      }
+      case "respBridgeAckOnboard": {
+        if (object.payload?.respBridgeAckOnboard !== undefined && object.payload?.respBridgeAckOnboard !== null) {
+          message.payload = {
+            $case: "respBridgeAckOnboard",
+            respBridgeAckOnboard: BridgeAckOnboard.fromPartial(object.payload.respBridgeAckOnboard),
+          };
         }
         break;
       }
