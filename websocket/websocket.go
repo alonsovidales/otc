@@ -12,6 +12,7 @@ import (
 	"github.com/alonsovidales/otc/status"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"time"
@@ -42,13 +43,10 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 	}
 
 	for i := 0; i < int(cfg.GetInt("otc", "bridge-connections")); i++ {
-		go func(mg *Manager) {
-			for {
-				mg.OpenBridge()
-				log.Debug("Bridge closed, open a new one")
-			}
-		}(mg)
+		go mg.OpenBridge()
 	}
+
+	rand.Seed(time.Now().UnixNano())
 
 	return
 }
@@ -74,6 +72,14 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 }
 
 func (mg *Manager) OpenBridge() {
+	// If this is a bridge connection, we will retry to connect to the bridge
+	defer func() {
+		log.Debug("Connection finished, open a new one")
+		d := (3 * rand.Float64()) * float64(time.Second) // Sleep in between 0.0–3.0 s
+		time.Sleep(time.Duration(d))
+		go mg.OpenBridge()
+	}()
+
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	log.Debug("Connecting to bridge:", cfg.GetStr("otc", "bridge-addr"), u)
 	h := http.Header{}

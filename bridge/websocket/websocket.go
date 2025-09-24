@@ -89,7 +89,10 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		if deviceConn != nil {
 			// We are connecting a device with a client, so just forward everything
 			log.Debug("New message with connection")
-			mg.forwardMessage(conn, deviceConn, frame)
+			if err := mg.forwardMessage(conn, deviceConn, frame); err != nil {
+				log.Error("Error fordwading message:", err)
+				return
+			}
 		} else {
 			var env pb.ReqEnvelope
 			if err := proto.Unmarshal(frame, &env); err != nil {
@@ -155,16 +158,19 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						if len(pool.availableConns) > 0 {
 							deviceConn = pool.availableConns[0]
 							pool.availableConns = pool.availableConns[1:]
+							// Single use connection, close as soon
+							// as it is finished since they are authenticated
+							defer deviceConn.Close()
 						}
 						pool.lock.Unlock()
 					}
 				}
 				if deviceConn != nil {
-					// Single use connection, close as soon
-					// as it is finished since they are authenticated
-					defer deviceConn.Close()
 					log.Debug("Connecting")
-					mg.forwardMessage(conn, deviceConn, frame)
+					if err := mg.forwardMessage(conn, deviceConn, frame); err != nil {
+						log.Error("Error fordwading message:", err)
+						return
+					}
 					log.Debug("Connected")
 					continue
 				} else {
@@ -182,21 +188,23 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	}
 }
 
-func (mg *Manager) forwardMessage(conn, deviceConn *gorilla.Conn, frame []byte) {
+func (mg *Manager) forwardMessage(conn, deviceConn *gorilla.Conn, frame []byte) (err error) {
 	log.Debug("Forwading message to device")
 	if err := deviceConn.WriteMessage(gorilla.BinaryMessage, frame); err != nil {
 		log.Error("error forwarding, closing the connection:", err)
-		return
+		return err
 	}
 	log.Debug("Reading response from device")
 	_, respFrame, err := deviceConn.ReadMessage()
 	if err != nil {
 		log.Error("error reading from device, closing the connection:", err)
-		return
+		return err
 	}
 	log.Debug("Forwading response to client")
 	if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
 		log.Error("error forwading respose, closing the connection:", err)
-		return
+		return err
 	}
+
+	return
 }

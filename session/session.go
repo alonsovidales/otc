@@ -67,7 +67,6 @@ func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err err
 	}
 
 	secretValidator, err := ses.Decrypt(encText)
-	log.Debug("SecValidator:", string(secretValidator), string(secretValidator[:len(cValidatorText)]))
 	if err != nil || string(secretValidator[:len(cValidatorText)]) != cValidatorText {
 		return nil, errors.New("Invalid session")
 	}
