@@ -602,6 +602,41 @@ public struct Msg_BridgeAckOnboard: Sendable {
   public init() {}
 }
 
+public struct Msg_GetProfile: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_Profile: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var name: String = String()
+
+  public var image: Data {
+    get {return _image ?? Data()}
+    set {_image = newValue}
+  }
+  /// Returns true if `image` has been explicitly set.
+  public var hasImage: Bool {return self._image != nil}
+  /// Clears the value of `image`. Subsequent reads from it will return its default value.
+  public mutating func clearImage() {self._image = nil}
+
+  public var text: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _image: Data? = nil
+}
+
 public struct Msg_ReqEnvelope: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -683,6 +718,22 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqChangeKey(newValue)}
   }
 
+  public var reqGetSettings: Msg_GetSettings {
+    get {
+      if case .reqGetSettings(let v)? = payload {return v}
+      return Msg_GetSettings()
+    }
+    set {payload = .reqGetSettings(newValue)}
+  }
+
+  public var reqSetSettings: Msg_SetSettings {
+    get {
+      if case .reqSetSettings(let v)? = payload {return v}
+      return Msg_SetSettings()
+    }
+    set {payload = .reqSetSettings(newValue)}
+  }
+
   public var reqNewSocialPublication: Msg_NewSocialPublication {
     get {
       if case .reqNewSocialPublication(let v)? = payload {return v}
@@ -755,28 +806,28 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqDidSendAction(newValue)}
   }
 
-  public var reqGetSettings: Msg_GetSettings {
-    get {
-      if case .reqGetSettings(let v)? = payload {return v}
-      return Msg_GetSettings()
-    }
-    set {payload = .reqGetSettings(newValue)}
-  }
-
-  public var reqSetSettings: Msg_SetSettings {
-    get {
-      if case .reqSetSettings(let v)? = payload {return v}
-      return Msg_SetSettings()
-    }
-    set {payload = .reqSetSettings(newValue)}
-  }
-
   public var reqBridgeRegister: Msg_BridgeRegister {
     get {
       if case .reqBridgeRegister(let v)? = payload {return v}
       return Msg_BridgeRegister()
     }
     set {payload = .reqBridgeRegister(newValue)}
+  }
+
+  public var reqGetProfile: Msg_GetProfile {
+    get {
+      if case .reqGetProfile(let v)? = payload {return v}
+      return Msg_GetProfile()
+    }
+    set {payload = .reqGetProfile(newValue)}
+  }
+
+  public var reqSetProfile: Msg_Profile {
+    get {
+      if case .reqSetProfile(let v)? = payload {return v}
+      return Msg_Profile()
+    }
+    set {payload = .reqSetProfile(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -791,6 +842,8 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqSearchPhotos(Msg_SearchPhotos)
     case reqGetTags(Msg_GetTags)
     case reqChangeKey(Msg_ChangeKey)
+    case reqGetSettings(Msg_GetSettings)
+    case reqSetSettings(Msg_SetSettings)
     case reqNewSocialPublication(Msg_NewSocialPublication)
     case reqGetSocialPublications(Msg_GetSocialPublications)
     case reqNewSocialComment(Msg_NewSocialComment)
@@ -800,9 +853,9 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqLikePublication(Msg_LikePublication)
     case reqLikeComment(Msg_LikeComment)
     case reqDidSendAction(Msg_DidSendAction)
-    case reqGetSettings(Msg_GetSettings)
-    case reqSetSettings(Msg_SetSettings)
     case reqBridgeRegister(Msg_BridgeRegister)
+    case reqGetProfile(Msg_GetProfile)
+    case reqSetProfile(Msg_Profile)
 
   }
 
@@ -878,6 +931,14 @@ public struct Msg_RespEnvelope: Sendable {
     set {payload = .respBridgeAckOnboard(newValue)}
   }
 
+  public var respProfile: Msg_Profile {
+    get {
+      if case .respProfile(let v)? = payload {return v}
+      return Msg_Profile()
+    }
+    set {payload = .respProfile(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -888,6 +949,7 @@ public struct Msg_RespEnvelope: Sendable {
     case respTagsList(Msg_TagsList)
     case respSettings(Msg_Settings)
     case respBridgeAckOnboard(Msg_BridgeAckOnboard)
+    case respProfile(Msg_Profile)
 
   }
 
@@ -1918,9 +1980,72 @@ extension Msg_BridgeAckOnboard: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
+extension Msg_GetProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetProfile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetProfile, rhs: Msg_GetProfile) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Profile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}image\0\u{1}text\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self._image) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.text) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
+    }
+    try { if let v = self._image {
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 2)
+    } }()
+    if !self.text.isEmpty {
+      try visitor.visitSingularStringField(value: self.text, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_Profile, rhs: Msg_Profile) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs._image != rhs._image {return false}
+    if lhs.text != rhs.text {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{3}req_friendship_ack\0\u{3}req_like_publication\0\u{3}req_like_comment\0\u{3}req_did_send_action\0\u{3}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{3}req_friendship_ack\0\u{3}req_like_publication\0\u{3}req_like_comment\0\u{3}req_did_send_action\0\u{3}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2202,6 +2327,32 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqBridgeRegister(v)
         }
       }()
+      case 31: try {
+        var v: Msg_GetProfile?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetProfile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetProfile(v)
+        }
+      }()
+      case 32: try {
+        var v: Msg_Profile?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetProfile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetProfile(v)
+        }
+      }()
       default: break
       }
     }
@@ -2300,6 +2451,14 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqBridgeRegister(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 30)
     }()
+    case .reqGetProfile?: try {
+      guard case .reqGetProfile(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 31)
+    }()
+    case .reqSetProfile?: try {
+      guard case .reqSetProfile(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 32)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -2315,7 +2474,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2417,6 +2576,19 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
           self.payload = .respBridgeAckOnboard(v)
         }
       }()
+      case 17: try {
+        var v: Msg_Profile?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .respProfile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .respProfile(v)
+        }
+      }()
       default: break
       }
     }
@@ -2464,6 +2636,10 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     case .respBridgeAckOnboard?: try {
       guard case .respBridgeAckOnboard(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
+    }()
+    case .respProfile?: try {
+      guard case .respProfile(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
     }()
     case nil: break
     }

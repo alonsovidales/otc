@@ -8,7 +8,6 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"golang.org/x/sys/unix"
 	//"net"
-	"net/http"
 	"time"
 )
 
@@ -26,7 +25,7 @@ func diskUsage(path string) (all, used, free uint64, err error) {
 	return
 }
 
-func GetStatus(r *http.Request) (st *pb.Status, err error) {
+func GetStatus() (st *pb.Status, err error) {
 	sizeDisk, usedDisk, _, err := diskUsage("/")
 	if err != nil {
 		log.Error("error reading disk stats:", err)

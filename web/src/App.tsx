@@ -8,6 +8,7 @@ import AdminPannel from "./views/AdminPannel";
 import StatusWidget from "./components/StatusWidget";
 import PhotoGallery from "./components/PhotoGallery";
 import SettingsForm from "./components/SettingsForm";
+import ProfileCard from "./components/ProfileCard";
 import TopTabs from "./components/TopTabs";
 import type { TabKey } from "./components/TopTabs";
 import "./components/StatusWidget.css";
@@ -16,13 +17,14 @@ declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password:
 
 function App() {
   const cfg = window.__OTC_CONFIG!;
-  const [tab, setTab] = useState<TabKey>("Social");
+  const [tab, setTab] = useState<TabKey>("Profile");
   const [authenticated, setAuthenticated] = useState(false);
   let protoWs = 'ws://';
   if (window.location.protocol === 'https:') {
     protoWs = 'wss://';
   }
-  let endpoint = protoWs + window.location.host + '/ws';
+  //let endpoint = protoWs + window.location.host + '/ws';
+  let endpoint = protoWs + 'cala.off-the.cloud/ws';
   const mobile = !!cfg;
 
   if (mobile) {
@@ -73,10 +75,11 @@ function App() {
         }
       </div>
       <main>
+        {tab === "Profile" && <ProfileCard authenticated={authenticated} />}
         {tab === "Social" && <Social />}
         {tab === "SignIn" && <SignIn onAuth={async (key) => {
           if (await useWS.sendAuth(key)) {
-            setTab("Social");
+            setTab("Profile");
           }
         }} />}
         {tab === "AdminPannel" && <AdminPannel />}

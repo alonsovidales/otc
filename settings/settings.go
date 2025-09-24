@@ -3,20 +3,31 @@ package settings
 import "github.com/alonsovidales/otc/dao"
 
 type Settings struct {
-	Domain string
+	dao          *dao.Dao
+	Domain       string
+	DeviceUuid   string
+	BridgeSecret string
 }
 
-func SetSettings(dao *dao.Dao, domain string) (err error) {
-	return dao.UpdateSettings(domain)
-}
-
-func GetSettings(dao *dao.Dao) (set *Settings, err error) {
-	domain, _, _, err := dao.GetSettings()
+func Init(dao *dao.Dao) (*Settings, error) {
+	domain, deviceUuid, bridgeSecret, err := dao.GetSettings()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Settings{
-		Domain: domain,
+		dao:          dao,
+		Domain:       domain,
+		DeviceUuid:   deviceUuid,
+		BridgeSecret: bridgeSecret,
 	}, nil
+}
+
+func (st *Settings) SetSettings(domain string) (err error) {
+	err = st.dao.UpdateSettings(domain)
+	if err == nil {
+		st.Domain = domain
+	}
+
+	return err
 }

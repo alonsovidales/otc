@@ -286,3 +286,15 @@ func (dao *Dao) GetFilesByPath(path string, addSubDirs bool) (files []*pb.File, 
 
 	return
 }
+
+func (dao *Dao) GetProfile() (name, text string, image []byte, err error) {
+	err = dao.db.QueryRow("select `name`, `image`, `text` from `profile`").Scan(&name, &image, &text)
+
+	return
+}
+
+func (dao *Dao) UpdateProfile(name, text string, image []byte) (err error) {
+	_, err = dao.db.Exec("update `profile` set `name` = ?, `image` = ?, `text` = ?", name, image, text)
+
+	return
+}

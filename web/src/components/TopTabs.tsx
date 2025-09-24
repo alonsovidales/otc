@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import "./TopTabs.css";
 
-export type TabKey = "Social" | "SignIn" | "AdminPannel" | "PhotoGallery" | "Settings";
+export type TabKey = "Profile" | "Social" | "SignIn" | "AdminPannel" | "PhotoGallery" | "Settings";
 
 export type TopTabsProps = {
   value: TabKey;                    // currently selected tab

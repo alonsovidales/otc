@@ -102,6 +102,13 @@ create table settings
   `bridge_secret` varchar(128) not null
 ) engine=InnoDB;
 
+create table profile
+(
+  `name` varchar(250) default null,
+  `image` mediumblob default null,
+  `text` text
+) engine=InnoDB;
+
 create table vault
 (
   `secret` blob not null

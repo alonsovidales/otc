@@ -6,6 +6,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
@@ -29,9 +30,19 @@ type Manager struct {
 	dao          *dao.Dao
 	upgrader     gorilla.Upgrader
 	filesManager *filesmanager.Manager
+	settings     *settings.Settings
+	profile      *profile.Profile
 }
 
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg *Manager) {
+	st, err := settings.Init(dao)
+	if err != nil {
+		log.Fatal("Error loading the settings", err)
+	}
+	pr, err := profile.Init(dao)
+	if err != nil {
+		log.Fatal("Error loading the profile", err)
+	}
 	mg = &Manager{
 		baseUrl:      baseUrl,
 		dao:          dao,
@@ -40,6 +51,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 			// In production, set a proper origin check!
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
+		settings: st,
+		profile:  pr,
 	}
 
 	for i := 0; i < int(cfg.GetInt("otc", "bridge-connections")); i++ {
@@ -93,18 +106,13 @@ func (mg *Manager) OpenBridge() {
 	defer c.Close()
 
 	// AUTH the connection
-	subDomain, deviceUuid, BridgeSecret, err := mg.dao.GetSettings()
-	if err != nil {
-		log.Error("error reading device settings from DB")
-		return
-	}
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqBridgeRegister{
 			ReqBridgeRegister: &pb.BridgeRegister{
-				OwnerUuid: deviceUuid,
-				Domain:    subDomain,
-				Secret:    BridgeSecret,
+				OwnerUuid: mg.settings.DeviceUuid,
+				Domain:    mg.settings.Domain,
+				Secret:    mg.settings.BridgeSecret,
 			},
 		},
 	}
@@ -146,43 +154,239 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	mg.handleConnection(conn, r)
 }
 
-func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
-	// The first message should always be an auth, it not we will just close here
-	_, frame, err := conn.ReadMessage()
-	if err != nil {
-		mg.closeWithError(conn, 0, err)
-		return
-	}
-	var authEnv pb.ReqEnvelope
-	if err := proto.Unmarshal(frame, &authEnv); err != nil {
-		mg.closeWithError(conn, 0, err)
-		return
+type connHandler struct {
+	mg      *Manager
+	session *session.Session
+}
+
+func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+	resp = &pb.RespEnvelope{
+		Id: env.Id,
 	}
 
-	// Now we have a session, we can just process all the messages using this from now on
-	auth := authEnv.Payload.(*pb.ReqEnvelope_ReqAuth)
-	session, err := session.New(auth.ReqAuth.Uuid, auth.ReqAuth.Key, auth.ReqAuth.Create, mg.dao)
-	if err != nil {
-		time.Sleep(1)
-		mg.closeWithError(conn, authEnv.Id, err)
-		return
-	}
-	log.Info(fmt.Sprintf("Authenticated session: %s", auth))
+	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqAuth:
+		var err error
+		ch.session, err = session.New(p.ReqAuth.Uuid, p.ReqAuth.Key, p.ReqAuth.Create, ch.mg.dao)
 
-	// Acknoledge the authentication
-	respAuth := &pb.RespEnvelope{
-		Id: authEnv.Id,
-		Payload: &pb.RespEnvelope_RespAck{
+		if err != nil {
+			time.Sleep(1)
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok:       false,
+					ErrorMsg: fmt.Sprintf("Error: %s", err),
+				},
+			}
+			return resp, true
+		}
+		log.Info("Authenticated session")
+
+		resp.Payload = &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
 				Ok: true,
 			},
-		},
+		}
+
+	case *pb.ReqEnvelope_ReqGetProfile:
+		log.Info("Get profile")
+
+		resp.Payload = &pb.RespEnvelope_RespProfile{
+			RespProfile: &pb.Profile{
+				Name:  ch.mg.profile.Name,
+				Image: ch.mg.profile.Image,
+				Text:  ch.mg.profile.Text,
+			},
+		}
+
+	default:
+		return nil, false
 	}
-	resp, _ := proto.Marshal(respAuth)
-	log.Debug("Resp to ath:", respAuth)
-	if err := conn.WriteMessage(gorilla.BinaryMessage, resp); err != nil {
-		log.Error("error responding, closing the connection:", err)
-		return
+
+	return
+}
+
+func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+	resp = &pb.RespEnvelope{
+		Id: env.Id,
+	}
+
+	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqUploadFile:
+		log.Info("Uploading file with path:", p.ReqUploadFile.Path)
+		pbFile, err := ch.mg.filesManager.UploadFile(ch.session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFile{
+				RespFile: pbFile,
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetFile:
+		log.Info("Get file with path:", p.ReqGetFile.Path)
+		pbFile, err := ch.mg.filesManager.GetFile(ch.session, p.ReqGetFile.Path)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFile{
+				RespFile: pbFile,
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqDelFile:
+		log.Info("Del file by path:", p.ReqDelFile.Path)
+		err := ch.mg.filesManager.DelFile(ch.session, p.ReqDelFile.Path)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to delete file: %s", err)
+		} else {
+			log.Info("Deleted file by path:", p.ReqDelFile.Path)
+			// Acknoledge the Deletion
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqListFiles:
+		log.Info("List of file by path:", p.ReqListFiles.Path)
+		files, err := ch.mg.filesManager.ListFiles(ch.session, p.ReqListFiles.Path)
+		if err != nil {
+			log.Error("error trying to list files:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			log.Debug("Files to return:", len(files))
+
+			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+				RespListOfFiles: &pb.ListOfFiles{
+					Files: files,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetTags:
+		log.Info("Get Tags")
+		tags, err := ch.mg.dao.GetTags()
+		if err != nil {
+			log.Error("error trying to get tags:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			log.Debug("Available tags:", len(tags))
+
+			resp.Payload = &pb.RespEnvelope_RespTagsList{
+				RespTagsList: &pb.TagsList{
+					Tags: tags,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqSearchPhotos:
+		log.Info("Search by text:", p.ReqSearchPhotos.Tags)
+		files, err := ch.mg.filesManager.ImageSearch(ch.session, "", p.ReqSearchPhotos.Tags)
+		if err != nil {
+			log.Error("error trying to list files:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			log.Debug("Files to return:", len(files))
+
+			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+				RespListOfFiles: &pb.ListOfFiles{
+					Files: files,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetStatus:
+		log.Info(fmt.Sprintf("Requested status %d", p))
+		st, err := status.GetStatus()
+
+		if err != nil {
+			log.Error("error trying to retrive status:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			log.Debug("Current status:", st)
+
+			resp.Payload = &pb.RespEnvelope_RespStatus{
+				RespStatus: st,
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqChangeKey:
+		log.Info(fmt.Sprintf("Change key %d", p))
+		err := ch.session.ChangeKey(p.ReqChangeKey.OldKey, p.ReqChangeKey.NewKey)
+
+		if err != nil {
+			log.Error("error trying to change secret key:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqSetSettings:
+		log.Info("Set settings")
+		err := ch.mg.settings.SetSettings(p.ReqSetSettings.Domain)
+
+		if err != nil {
+			log.Error("error trying to change secret key:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqSetProfile:
+		log.Info("Set profile")
+		err := ch.mg.profile.SetProfile(p.ReqSetProfile.Name, p.ReqSetProfile.Image, p.ReqSetProfile.Text)
+
+		if err != nil {
+			log.Error("error trying to get serrings:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetSettings:
+		log.Info("Get settings")
+
+		resp.Payload = &pb.RespEnvelope_RespSettings{
+			RespSettings: &pb.Settings{
+				Domain: ch.mg.settings.Domain,
+			},
+		}
+
+	default:
+		log.Error("unknown payload:", p)
+		resp.Error = true
+		resp.ErrorMessage = "unknown payload"
+	}
+
+	return
+}
+
+func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
+	ch := &connHandler{
+		mg: mg,
 	}
 
 	for {
@@ -199,174 +403,17 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			return
 		}
 
-		resp := &pb.RespEnvelope{
-			Id: env.Id,
-		}
-		switch p := env.Payload.(type) {
-		case *pb.ReqEnvelope_ReqUploadFile:
-			log.Info("Uploading file with path:", p.ReqUploadFile.Path)
-			pbFile, err := mg.filesManager.UploadFile(session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created)
-			if err != nil {
-				resp.Error = true
-				resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
-			} else {
-				resp.Payload = &pb.RespEnvelope_RespFile{
-					RespFile: pbFile,
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqGetFile:
-			log.Info("Get file with path:", p.ReqGetFile.Path)
-			pbFile, err := mg.filesManager.GetFile(session, p.ReqGetFile.Path)
-			if err != nil {
-				resp.Error = true
-				resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file: %s", err)
-			} else {
-				resp.Payload = &pb.RespEnvelope_RespFile{
-					RespFile: pbFile,
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqDelFile:
-			log.Info("Del file by path:", p.ReqDelFile.Path)
-			err := mg.filesManager.DelFile(session, p.ReqDelFile.Path)
-			if err != nil {
-				resp.Error = true
-				resp.ErrorMessage = fmt.Sprintf("error trying to delete file: %s", err)
-			} else {
-				log.Info("Deleted file by path:", p.ReqDelFile.Path)
-				// Acknoledge the Deletion
-				resp.Payload = &pb.RespEnvelope_RespAck{
-					RespAck: &pb.Ack{
-						Ok: true,
-					},
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqListFiles:
-			log.Info("List of file by path:", p.ReqListFiles.Path)
-			files, err := mg.filesManager.ListFiles(session, p.ReqListFiles.Path)
-			if err != nil {
-				log.Error("error trying to list files:", err)
-				resp.Error = true
-				resp.ErrorMessage = err.Error()
-			} else {
-				log.Debug("Files to return:", len(files))
-
-				resp.Payload = &pb.RespEnvelope_RespListOfFiles{
-					RespListOfFiles: &pb.ListOfFiles{
-						Files: files,
-					},
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqGetTags:
-			log.Info("Get Tags")
-			tags, err := mg.dao.GetTags()
-			if err != nil {
-				log.Error("error trying to get tags:", err)
-				resp.Error = true
-				resp.ErrorMessage = err.Error()
-			} else {
-				log.Debug("Available tags:", len(tags))
-
-				resp.Payload = &pb.RespEnvelope_RespTagsList{
-					RespTagsList: &pb.TagsList{
-						Tags: tags,
-					},
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqSearchPhotos:
-			log.Info("Search by text:", p.ReqSearchPhotos.Tags)
-			files, err := mg.filesManager.ImageSearch(session, "", p.ReqSearchPhotos.Tags)
-			if err != nil {
-				log.Error("error trying to list files:", err)
-				resp.Error = true
-				resp.ErrorMessage = err.Error()
-			} else {
-				log.Debug("Files to return:", len(files))
-
-				resp.Payload = &pb.RespEnvelope_RespListOfFiles{
-					RespListOfFiles: &pb.ListOfFiles{
-						Files: files,
-					},
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqGetStatus:
-			log.Info(fmt.Sprintf("Requested status %d", p))
-			st, err := status.GetStatus(r)
-
-			if err != nil {
-				log.Error("error trying to retrive status:", err)
-				resp.Error = true
-				resp.ErrorMessage = err.Error()
-			} else {
-				log.Debug("Current status:", st)
-
-				resp.Payload = &pb.RespEnvelope_RespStatus{
-					RespStatus: st,
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqChangeKey:
-			log.Info(fmt.Sprintf("Change key %d", p))
-			err := session.ChangeKey(p.ReqChangeKey.OldKey, p.ReqChangeKey.NewKey)
-
-			if err != nil {
-				log.Error("error trying to change secret key:", err)
-				resp.Error = true
-				resp.ErrorMessage = err.Error()
-			} else {
-				resp.Payload = &pb.RespEnvelope_RespAck{
-					RespAck: &pb.Ack{
-						Ok: true,
-					},
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqSetSettings:
-			log.Info("Set settings")
-			err := settings.SetSettings(mg.dao, p.ReqSetSettings.Domain)
-
-			if err != nil {
-				log.Error("error trying to change secret key:", err)
-				resp.Error = true
-				resp.ErrorMessage = err.Error()
-			} else {
-				resp.Payload = &pb.RespEnvelope_RespAck{
-					RespAck: &pb.Ack{
-						Ok: true,
-					},
-				}
-			}
-
-		case *pb.ReqEnvelope_ReqGetSettings:
-			log.Info("Get settings")
-			sets, err := settings.GetSettings(mg.dao)
-
-			if err != nil {
-				log.Error("error trying to get serrings:", err)
-				resp.Error = true
-				resp.ErrorMessage = err.Error()
-			} else {
-				resp.Payload = &pb.RespEnvelope_RespSettings{
-					RespSettings: &pb.Settings{
-						Domain: sets.Domain,
-					},
-				}
-			}
-
-		default:
-			log.Error("unknown payload:", p)
-			resp.Error = true
-			resp.ErrorMessage = "unknown payload"
+		resp, closeConn := ch.processNonAuthRequest(env)
+		if resp == nil && ch.session != nil {
+			resp, closeConn = ch.processAuthRequest(env)
 		}
 
 		respBin, _ := proto.Marshal(resp)
 		if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
 			log.Error("error responding, closing the connection:", err)
+			return
+		}
+		if closeConn {
 			return
 		}
 	}

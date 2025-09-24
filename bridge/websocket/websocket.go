@@ -150,30 +150,26 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			default:
 				defer conn.Close()
 				// This may be a direct request to a device, just forward it if the domain exists
-				if deviceConn == nil {
-					// Take one of the available connections for this device if any
-					log.Debug("Using connection from pool for:", r.Host)
-					if pool, ok := mg.bridges[r.Host]; ok {
-						pool.lock.Lock()
-						if len(pool.availableConns) > 0 {
-							deviceConn = pool.availableConns[0]
-							pool.availableConns = pool.availableConns[1:]
-							// Single use connection, close as soon
-							// as it is finished since they are authenticated
-							defer deviceConn.Close()
+				if pool, ok := mg.bridges[r.Host]; ok {
+					pool.lock.Lock()
+					for deviceConn == nil && len(pool.availableConns) > 0 {
+						deviceConn = pool.availableConns[0]
+						pool.availableConns = pool.availableConns[1:]
+						// Single use connection, close as soon
+						// as it is finished since they are authenticated
+						defer deviceConn.Close()
+
+						log.Debug("Connecting")
+						if err := mg.forwardMessage(conn, deviceConn, frame); err != nil {
+							log.Error("Error fordwading message:", err)
+							deviceConn = nil
 						}
-						pool.lock.Unlock()
+						log.Debug("Connected")
 					}
+					pool.lock.Unlock()
 				}
-				if deviceConn != nil {
-					log.Debug("Connecting")
-					if err := mg.forwardMessage(conn, deviceConn, frame); err != nil {
-						log.Error("Error fordwading message:", err)
-						return
-					}
-					log.Debug("Connected")
-					continue
-				} else {
+
+				if deviceConn == nil {
 					log.Error("No available connections in the pool for this device")
 					resp.Error = true
 					resp.ErrorMessage = "No available connections in the pool for this device"

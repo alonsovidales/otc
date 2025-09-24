@@ -316,6 +316,15 @@ export interface BridgeAckOnboard {
   ok: boolean;
 }
 
+export interface GetProfile {
+}
+
+export interface Profile {
+  name: string;
+  image?: Uint8Array | undefined;
+  text: string;
+}
+
 export interface ReqEnvelope {
   id: number;
   payload?:
@@ -328,6 +337,8 @@ export interface ReqEnvelope {
     | { $case: "reqSearchPhotos"; reqSearchPhotos: SearchPhotos }
     | { $case: "reqGetTags"; reqGetTags: GetTags }
     | { $case: "reqChangeKey"; reqChangeKey: ChangeKey }
+    | { $case: "reqGetSettings"; reqGetSettings: GetSettings }
+    | { $case: "reqSetSettings"; reqSetSettings: SetSettings }
     | { $case: "reqNewSocialPublication"; reqNewSocialPublication: NewSocialPublication }
     | { $case: "reqGetSocialPublications"; reqGetSocialPublications: GetSocialPublications }
     | { $case: "reqNewSocialComment"; reqNewSocialComment: NewSocialComment }
@@ -337,9 +348,9 @@ export interface ReqEnvelope {
     | { $case: "reqLikePublication"; reqLikePublication: LikePublication }
     | { $case: "reqLikeComment"; reqLikeComment: LikeComment }
     | { $case: "reqDidSendAction"; reqDidSendAction: DidSendAction }
-    | { $case: "reqGetSettings"; reqGetSettings: GetSettings }
-    | { $case: "reqSetSettings"; reqSetSettings: SetSettings }
     | { $case: "reqBridgeRegister"; reqBridgeRegister: BridgeRegister }
+    | { $case: "reqGetProfile"; reqGetProfile: GetProfile }
+    | { $case: "reqSetProfile"; reqSetProfile: Profile }
     | undefined;
 }
 
@@ -355,6 +366,7 @@ export interface RespEnvelope {
     | { $case: "respTagsList"; respTagsList: TagsList }
     | { $case: "respSettings"; respSettings: Settings }
     | { $case: "respBridgeAckOnboard"; respBridgeAckOnboard: BridgeAckOnboard }
+    | { $case: "respProfile"; respProfile: Profile }
     | undefined;
 }
 
@@ -2587,6 +2599,141 @@ export const BridgeAckOnboard: MessageFns<BridgeAckOnboard> = {
   },
 };
 
+function createBaseGetProfile(): GetProfile {
+  return {};
+}
+
+export const GetProfile: MessageFns<GetProfile> = {
+  encode(_: GetProfile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetProfile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetProfile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetProfile {
+    return {};
+  },
+
+  toJSON(_: GetProfile): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetProfile>, I>>(base?: I): GetProfile {
+    return GetProfile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetProfile>, I>>(_: I): GetProfile {
+    const message = createBaseGetProfile();
+    return message;
+  },
+};
+
+function createBaseProfile(): Profile {
+  return { name: "", image: undefined, text: "" };
+}
+
+export const Profile: MessageFns<Profile> = {
+  encode(message: Profile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.image !== undefined) {
+      writer.uint32(18).bytes(message.image);
+    }
+    if (message.text !== "") {
+      writer.uint32(26).string(message.text);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Profile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseProfile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.image = reader.bytes();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Profile {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      image: isSet(object.image) ? bytesFromBase64(object.image) : undefined,
+      text: isSet(object.text) ? globalThis.String(object.text) : "",
+    };
+  },
+
+  toJSON(message: Profile): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.image !== undefined) {
+      obj.image = base64FromBytes(message.image);
+    }
+    if (message.text !== "") {
+      obj.text = message.text;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Profile>, I>>(base?: I): Profile {
+    return Profile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Profile>, I>>(object: I): Profile {
+    const message = createBaseProfile();
+    message.name = object.name ?? "";
+    message.image = object.image ?? undefined;
+    message.text = object.text ?? "";
+    return message;
+  },
+};
+
 function createBaseReqEnvelope(): ReqEnvelope {
   return { id: 0, payload: undefined };
 }
@@ -2624,6 +2771,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqChangeKey":
         ChangeKey.encode(message.payload.reqChangeKey, writer.uint32(146).fork()).join();
         break;
+      case "reqGetSettings":
+        GetSettings.encode(message.payload.reqGetSettings, writer.uint32(226).fork()).join();
+        break;
+      case "reqSetSettings":
+        SetSettings.encode(message.payload.reqSetSettings, writer.uint32(234).fork()).join();
+        break;
       case "reqNewSocialPublication":
         NewSocialPublication.encode(message.payload.reqNewSocialPublication, writer.uint32(154).fork()).join();
         break;
@@ -2651,14 +2804,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqDidSendAction":
         DidSendAction.encode(message.payload.reqDidSendAction, writer.uint32(218).fork()).join();
         break;
-      case "reqGetSettings":
-        GetSettings.encode(message.payload.reqGetSettings, writer.uint32(226).fork()).join();
-        break;
-      case "reqSetSettings":
-        SetSettings.encode(message.payload.reqSetSettings, writer.uint32(234).fork()).join();
-        break;
       case "reqBridgeRegister":
         BridgeRegister.encode(message.payload.reqBridgeRegister, writer.uint32(242).fork()).join();
+        break;
+      case "reqGetProfile":
+        GetProfile.encode(message.payload.reqGetProfile, writer.uint32(250).fork()).join();
+        break;
+      case "reqSetProfile":
+        Profile.encode(message.payload.reqSetProfile, writer.uint32(258).fork()).join();
         break;
     }
     return writer;
@@ -2749,6 +2902,22 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           }
 
           message.payload = { $case: "reqChangeKey", reqChangeKey: ChangeKey.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 28: {
+          if (tag !== 226) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetSettings", reqGetSettings: GetSettings.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 29: {
+          if (tag !== 234) {
+            break;
+          }
+
+          message.payload = { $case: "reqSetSettings", reqSetSettings: SetSettings.decode(reader, reader.uint32()) };
           continue;
         }
         case 19: {
@@ -2847,22 +3016,6 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
-        case 28: {
-          if (tag !== 226) {
-            break;
-          }
-
-          message.payload = { $case: "reqGetSettings", reqGetSettings: GetSettings.decode(reader, reader.uint32()) };
-          continue;
-        }
-        case 29: {
-          if (tag !== 234) {
-            break;
-          }
-
-          message.payload = { $case: "reqSetSettings", reqSetSettings: SetSettings.decode(reader, reader.uint32()) };
-          continue;
-        }
         case 30: {
           if (tag !== 242) {
             break;
@@ -2872,6 +3025,22 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
             $case: "reqBridgeRegister",
             reqBridgeRegister: BridgeRegister.decode(reader, reader.uint32()),
           };
+          continue;
+        }
+        case 31: {
+          if (tag !== 250) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetProfile", reqGetProfile: GetProfile.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 32: {
+          if (tag !== 258) {
+            break;
+          }
+
+          message.payload = { $case: "reqSetProfile", reqSetProfile: Profile.decode(reader, reader.uint32()) };
           continue;
         }
       }
@@ -2904,6 +3073,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqGetTags", reqGetTags: GetTags.fromJSON(object.reqGetTags) }
         : isSet(object.reqChangeKey)
         ? { $case: "reqChangeKey", reqChangeKey: ChangeKey.fromJSON(object.reqChangeKey) }
+        : isSet(object.reqGetSettings)
+        ? { $case: "reqGetSettings", reqGetSettings: GetSettings.fromJSON(object.reqGetSettings) }
+        : isSet(object.reqSetSettings)
+        ? { $case: "reqSetSettings", reqSetSettings: SetSettings.fromJSON(object.reqSetSettings) }
         : isSet(object.reqNewSocialPublication)
         ? {
           $case: "reqNewSocialPublication",
@@ -2931,12 +3104,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqLikeComment", reqLikeComment: LikeComment.fromJSON(object.reqLikeComment) }
         : isSet(object.reqDidSendAction)
         ? { $case: "reqDidSendAction", reqDidSendAction: DidSendAction.fromJSON(object.reqDidSendAction) }
-        : isSet(object.reqGetSettings)
-        ? { $case: "reqGetSettings", reqGetSettings: GetSettings.fromJSON(object.reqGetSettings) }
-        : isSet(object.reqSetSettings)
-        ? { $case: "reqSetSettings", reqSetSettings: SetSettings.fromJSON(object.reqSetSettings) }
         : isSet(object.reqBridgeRegister)
         ? { $case: "reqBridgeRegister", reqBridgeRegister: BridgeRegister.fromJSON(object.reqBridgeRegister) }
+        : isSet(object.reqGetProfile)
+        ? { $case: "reqGetProfile", reqGetProfile: GetProfile.fromJSON(object.reqGetProfile) }
+        : isSet(object.reqSetProfile)
+        ? { $case: "reqSetProfile", reqSetProfile: Profile.fromJSON(object.reqSetProfile) }
         : undefined,
     };
   },
@@ -2964,6 +3137,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetTags = GetTags.toJSON(message.payload.reqGetTags);
     } else if (message.payload?.$case === "reqChangeKey") {
       obj.reqChangeKey = ChangeKey.toJSON(message.payload.reqChangeKey);
+    } else if (message.payload?.$case === "reqGetSettings") {
+      obj.reqGetSettings = GetSettings.toJSON(message.payload.reqGetSettings);
+    } else if (message.payload?.$case === "reqSetSettings") {
+      obj.reqSetSettings = SetSettings.toJSON(message.payload.reqSetSettings);
     } else if (message.payload?.$case === "reqNewSocialPublication") {
       obj.reqNewSocialPublication = NewSocialPublication.toJSON(message.payload.reqNewSocialPublication);
     } else if (message.payload?.$case === "reqGetSocialPublications") {
@@ -2982,12 +3159,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqLikeComment = LikeComment.toJSON(message.payload.reqLikeComment);
     } else if (message.payload?.$case === "reqDidSendAction") {
       obj.reqDidSendAction = DidSendAction.toJSON(message.payload.reqDidSendAction);
-    } else if (message.payload?.$case === "reqGetSettings") {
-      obj.reqGetSettings = GetSettings.toJSON(message.payload.reqGetSettings);
-    } else if (message.payload?.$case === "reqSetSettings") {
-      obj.reqSetSettings = SetSettings.toJSON(message.payload.reqSetSettings);
     } else if (message.payload?.$case === "reqBridgeRegister") {
       obj.reqBridgeRegister = BridgeRegister.toJSON(message.payload.reqBridgeRegister);
+    } else if (message.payload?.$case === "reqGetProfile") {
+      obj.reqGetProfile = GetProfile.toJSON(message.payload.reqGetProfile);
+    } else if (message.payload?.$case === "reqSetProfile") {
+      obj.reqSetProfile = Profile.toJSON(message.payload.reqSetProfile);
     }
     return obj;
   },
@@ -3056,6 +3233,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqChangeKey": {
         if (object.payload?.reqChangeKey !== undefined && object.payload?.reqChangeKey !== null) {
           message.payload = { $case: "reqChangeKey", reqChangeKey: ChangeKey.fromPartial(object.payload.reqChangeKey) };
+        }
+        break;
+      }
+      case "reqGetSettings": {
+        if (object.payload?.reqGetSettings !== undefined && object.payload?.reqGetSettings !== null) {
+          message.payload = {
+            $case: "reqGetSettings",
+            reqGetSettings: GetSettings.fromPartial(object.payload.reqGetSettings),
+          };
+        }
+        break;
+      }
+      case "reqSetSettings": {
+        if (object.payload?.reqSetSettings !== undefined && object.payload?.reqSetSettings !== null) {
+          message.payload = {
+            $case: "reqSetSettings",
+            reqSetSettings: SetSettings.fromPartial(object.payload.reqSetSettings),
+          };
         }
         break;
       }
@@ -3142,29 +3337,29 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
-      case "reqGetSettings": {
-        if (object.payload?.reqGetSettings !== undefined && object.payload?.reqGetSettings !== null) {
-          message.payload = {
-            $case: "reqGetSettings",
-            reqGetSettings: GetSettings.fromPartial(object.payload.reqGetSettings),
-          };
-        }
-        break;
-      }
-      case "reqSetSettings": {
-        if (object.payload?.reqSetSettings !== undefined && object.payload?.reqSetSettings !== null) {
-          message.payload = {
-            $case: "reqSetSettings",
-            reqSetSettings: SetSettings.fromPartial(object.payload.reqSetSettings),
-          };
-        }
-        break;
-      }
       case "reqBridgeRegister": {
         if (object.payload?.reqBridgeRegister !== undefined && object.payload?.reqBridgeRegister !== null) {
           message.payload = {
             $case: "reqBridgeRegister",
             reqBridgeRegister: BridgeRegister.fromPartial(object.payload.reqBridgeRegister),
+          };
+        }
+        break;
+      }
+      case "reqGetProfile": {
+        if (object.payload?.reqGetProfile !== undefined && object.payload?.reqGetProfile !== null) {
+          message.payload = {
+            $case: "reqGetProfile",
+            reqGetProfile: GetProfile.fromPartial(object.payload.reqGetProfile),
+          };
+        }
+        break;
+      }
+      case "reqSetProfile": {
+        if (object.payload?.reqSetProfile !== undefined && object.payload?.reqSetProfile !== null) {
+          message.payload = {
+            $case: "reqSetProfile",
+            reqSetProfile: Profile.fromPartial(object.payload.reqSetProfile),
           };
         }
         break;
@@ -3210,6 +3405,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respBridgeAckOnboard":
         BridgeAckOnboard.encode(message.payload.respBridgeAckOnboard, writer.uint32(130).fork()).join();
+        break;
+      case "respProfile":
+        Profile.encode(message.payload.respProfile, writer.uint32(138).fork()).join();
         break;
     }
     return writer;
@@ -3305,6 +3503,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 17: {
+          if (tag !== 138) {
+            break;
+          }
+
+          message.payload = { $case: "respProfile", respProfile: Profile.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3336,6 +3542,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           $case: "respBridgeAckOnboard",
           respBridgeAckOnboard: BridgeAckOnboard.fromJSON(object.respBridgeAckOnboard),
         }
+        : isSet(object.respProfile)
+        ? { $case: "respProfile", respProfile: Profile.fromJSON(object.respProfile) }
         : undefined,
     };
   },
@@ -3365,6 +3573,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respSettings = Settings.toJSON(message.payload.respSettings);
     } else if (message.payload?.$case === "respBridgeAckOnboard") {
       obj.respBridgeAckOnboard = BridgeAckOnboard.toJSON(message.payload.respBridgeAckOnboard);
+    } else if (message.payload?.$case === "respProfile") {
+      obj.respProfile = Profile.toJSON(message.payload.respProfile);
     }
     return obj;
   },
@@ -3423,6 +3633,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
             $case: "respBridgeAckOnboard",
             respBridgeAckOnboard: BridgeAckOnboard.fromPartial(object.payload.respBridgeAckOnboard),
           };
+        }
+        break;
+      }
+      case "respProfile": {
+        if (object.payload?.respProfile !== undefined && object.payload?.respProfile !== null) {
+          message.payload = { $case: "respProfile", respProfile: Profile.fromPartial(object.payload.respProfile) };
         }
         break;
       }
