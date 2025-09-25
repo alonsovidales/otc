@@ -298,3 +298,25 @@ func (dao *Dao) UpdateProfile(name, text string, image []byte) (err error) {
 
 	return
 }
+
+func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
+	log.Debug("Creating SharedLink")
+	_, err = dao.db.Exec("insert into `shared_links` (`uuid`, `size`, `created`) values (?, ?, now())", pathUuid, size)
+
+	return
+}
+
+func (dao *Dao) NewSocialPublication(text string, hashes []string) (err error) {
+	log.Debug("Creating SocialPublication")
+	pubUuid := uuid.New()
+
+	for i, hash := range hashes {
+		_, err = dao.db.Exec("insert into `social_publications_files` (`hash`, `uuid`, `pos`) values (?, ?, ?)", hash, pubUuid, i)
+		if err != nil {
+			return
+		}
+	}
+
+	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`) values (?, now(), ?)", pubUuid, text)
+	return
+}

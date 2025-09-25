@@ -48,9 +48,10 @@ func (api *API) registerAPIs() {
 		w.Write([]byte("OK"))
 	})
 
+	// WebSocket
 	api.muxHTTPServer.HandleFunc(websocket.CEndpoint, api.websocket.Listen)
-	api.muxHTTPServer.HandleFunc(filesmanager.CGet, api.filesManager.Get)
 
+	// Static content server
 	api.muxHTTPServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		filePath := r.URL.Path[1:]
 

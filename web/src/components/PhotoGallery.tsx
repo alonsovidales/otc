@@ -92,6 +92,30 @@ export default function PhotoGallery() {
     setThumbURLs({});
   }, [thumbURLs]);
 
+  const shareSocial = async (selection: Set<string>) => {
+    let socialText = prompt('Text:');
+
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqNewSocialPublication", reqNewSocialPublication: { text: socialText, paths: [...selection] } };
+    });
+
+    if (resp.payload?.$case === "respNewSocial") {
+      alert("Shared!: " + resp.payload.respNewSocial.uuid);
+    }
+  };
+
+  const shareLink = async (selection: Set<string>) => {
+    console.log('Share', selection);
+
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths: [...selection] } };
+    });
+
+    if (resp.payload?.$case === "respShareLink" && resp.payload.respShareLink.link) {
+      alert(resp.payload.respShareLink.link);
+    }
+  };
+
   const doSearch = useCallback(async () => {
     setError(null);
     setLoading(true);
@@ -284,8 +308,8 @@ export default function PhotoGallery() {
           <div className="pg2-bottom-inner">
             <div className="pg2-count">{selected.size} selected</div>
             <div className="pg2-actions">
-              <button onClick={() => alert("Share to Instagram (not implemented)")}>Share Instagram</button>
-              <button onClick={() => alert("Share with friends (not implemented)")}>Share with friends</button>
+              <button onClick={() => shareSocial(selected)}>Share In Social</button>
+              <button onClick={() => shareLink(selected)}>Share with link</button>
               <button onClick={() => alert("Create group (not implemented)")}>Create group</button>
               <button onClick={() => alert("Add to group (not implemented)")}>Add to group</button>
             </div>

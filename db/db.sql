@@ -109,6 +109,13 @@ create table profile
   `text` text
 ) engine=InnoDB;
 
+create table shared_links
+(
+  `uuid` varchar(64) not null,
+  `size` int not null,
+  `created` datetime not null
+) engine=InnoDB;
+
 create table vault
 (
   `secret` blob not null

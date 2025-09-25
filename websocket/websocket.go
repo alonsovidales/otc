@@ -10,6 +10,7 @@ import (
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
+	"github.com/alonsovidales/otc/social"
 	"github.com/alonsovidales/otc/status"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -32,6 +33,7 @@ type Manager struct {
 	filesManager *filesmanager.Manager
 	settings     *settings.Settings
 	profile      *profile.Profile
+	social       *social.Social
 }
 
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg *Manager) {
@@ -53,6 +55,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 		},
 		settings: st,
 		profile:  pr,
+		social:   social.Init(dao, filesManager),
 	}
 
 	for i := 0; i < int(cfg.GetInt("otc", "bridge-connections")); i++ {
@@ -187,6 +190,38 @@ func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespE
 			},
 		}
 
+	case *pb.ReqEnvelope_ReqNewSocialPublication:
+		log.Info("Download link")
+
+		uuid, err := ch.mg.social.NewPublication(ch.session, p.ReqNewSocialPublication.Text, p.ReqNewSocialPublication.Paths)
+
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to download file: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespNewSocial{
+				RespNewSocial: &pb.NewSocial{
+					Uuid: uuid,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqDownloadSharedLink:
+		log.Info("Download link")
+
+		fileContent, err := ch.mg.filesManager.OpenSharedLink(p.ReqDownloadSharedLink.Uuid, p.ReqDownloadSharedLink.Secret)
+
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to download file: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespSharedFiles{
+				RespSharedFiles: &pb.SharedFiles{
+					Content: fileContent,
+				},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqGetProfile:
 		log.Info("Get profile")
 
@@ -211,6 +246,20 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 	}
 
 	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqShareFilesLink:
+		log.Info("Sharing files with path:", p.ReqShareFilesLink.Paths)
+		link, err := ch.mg.filesManager.GetSharedLink(ch.session, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error creating files share link: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespShareLink{
+				RespShareLink: &pb.ShareLink{
+					Link: link,
+				},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqUploadFile:
 		log.Info("Uploading file with path:", p.ReqUploadFile.Path)
 		pbFile, err := ch.mg.filesManager.UploadFile(ch.session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created)

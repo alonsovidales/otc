@@ -1,8 +1,12 @@
 package filesmanager
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -13,12 +17,14 @@ import (
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
+	"github.com/google/uuid"
 	"github.com/jdeng/goheif"
 	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"image"
 	"image/jpeg"
 	_ "image/jpeg"
+	"io"
 	"math"
 	"net/http"
 	"os"
@@ -28,9 +34,7 @@ import (
 )
 
 const (
-	// CRegenerateGroupKey Endpoint used to regenerate the security key for
-	// a shard
-	CGet = "/get"
+	CDownloadAttr = "?download="
 )
 
 // Manager Structure that provides HTTP access to manage all the different
@@ -59,16 +63,6 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	return mg
 }
 
-// RegenerateGroupKey Creates a new random key for a group
-func (mg *Manager) Get(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	file := r.FormValue("file")
-
-	w.WriteHeader(200)
-	w.Write([]byte(fmt.Sprintf("Good : %s", file)))
-}
-
 func (mg *Manager) ListFiles(session *session.Session, path string) (files []*pb.File, err error) {
 	return mg.dao.GetFilesByPath(path, true)
 }
@@ -81,6 +75,98 @@ func (mg *Manager) cosineSimilarity(a, b []float32) float32 {
 		nb += b[i] * b[i]
 	}
 	return dot / (float32(math.Sqrt(float64(na))) * float32(math.Sqrt(float64(nb))))
+}
+
+func getCipher(secret string) (cp cipher.AEAD) {
+	keyHash := sha256.Sum256([]byte(secret))
+	block, err := aes.NewCipher(keyHash[:])
+	if err != nil {
+		log.Fatal("error ciper:", err)
+		return
+	}
+
+	// We replace the secret by the one in the DB
+	cp, err = cipher.NewGCM(block)
+	if err != nil {
+		log.Fatal("error ciper:", err)
+		return
+	}
+
+	return
+}
+
+func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domain string) (link string, err error) {
+	files := make([]*pb.File, len(paths))
+	for i, path := range paths {
+		files[i], err = mg.GetFile(session, path)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	var buff bytes.Buffer
+	zw := zip.NewWriter(&buff)
+
+	for _, file := range files {
+		h := &zip.FileHeader{
+			Name:   "." + file.Path,
+			Method: zip.Deflate,
+		}
+		// set mod time (zip format stores DOS time; Go handles conversion)
+		h.SetModTime(file.Modified.AsTime())
+		h.SetMode(0644)
+
+		wr, err := zw.CreateHeader(h)
+		if err != nil {
+			return "", err
+		}
+		if _, err := wr.Write(file.Content); err != nil {
+			return "", err
+		}
+	}
+
+	zw.Close()
+
+	zipBytes := buff.Bytes()
+	secret := uuid.New().String()
+	cipher := getCipher(secret)
+
+	// GCM requires a unique nonce per encryption
+	nonce := make([]byte, cipher.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		panic(err)
+	}
+
+	encZipBytes := cipher.Seal(nonce, nonce, zipBytes, nil)
+
+	pathUuid := uuid.New().String()
+	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)
+	err = os.WriteFile(targetPath, encZipBytes, 0644) // perms: rw-r--r--
+	if err != nil {
+		return "", err
+	}
+
+	link = "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret
+	err = mg.dao.InsertSharedLink(pathUuid, len(encZipBytes))
+
+	return
+}
+
+func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err error) {
+	cipher := getCipher(secret)
+	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), uuid))
+	if err != nil {
+		return nil, err
+	}
+
+	nonceSize := cipher.NonceSize()
+	if len(encContent) < nonceSize {
+		return nil, errors.New("ciphertext too short")
+	}
+
+	nonce, ciphertext := encContent[:nonceSize], encContent[nonceSize:]
+
+	return cipher.Open(nil, nonce, ciphertext, nil)
 }
 
 func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string) (files []*pb.File, err error) {

@@ -98,7 +98,7 @@ message ChangeKey {
 
 message NewSocialPublication {
   string text = 1;
-  repeated string images_hash = 2;
+  repeated string paths = 2;
 }
 
 message GetSocialPublications {
@@ -117,11 +117,12 @@ message DelSocialComment {
 }
 
 message FriendshipRequest {
+  string domain = 1;
 }
 
-message FriendshipAck {
+message ChangeFriendStatus {
   string req_uuid = 1;
-  bool accept = 2;
+  FriendShipStatus status = 2;
 }
 
 message LikePublication {
@@ -183,6 +184,70 @@ message Profile {
   string text = 3;
 }
 
+message ShareFilesLink {
+  repeated string paths = 1;
+}
+
+enum FriendShipStatus {
+  Pending = 0;
+  Accepted = 1;
+  Blocked = 2;
+}
+
+message Friendship {
+  string uuid = 1;
+  Profile origin_profile = 2;
+  Profile profiles = 3;
+  FriendShipStatus status = 4;
+  string secret = 5;
+}
+
+message Friendships {
+  repeated Friendship friendships = 1;
+}
+
+message FriendshipsList {
+}
+
+message ShareLink {
+  string link = 1;
+}
+
+message DownloadSharedLink {
+  string uuid = 1;
+  string secret = 2;
+}
+
+message NewSocial {
+  string uuid = 1;
+}
+
+message SharedFiles {
+  bytes content = 1;
+}
+
+message Comment {
+  string pub_uuid = 1;
+  string comment_uuid = 2;
+  string comment = 3;
+  Profile publisher = 4;
+  int32 likes = 5;
+}
+
+message SocialPublication {
+  string uuid = 1;
+  string text = 2;
+  repeated File files = 3;
+  repeated Comment comments = 4;
+  int32 likes = 5;
+  Profile publisher = 6;
+}
+
+message SocialPublications {
+  repeated SocialPublication publications = 1;
+  google.protobuf.Timestamp since = 2;
+}
+
 message ReqEnvelope {
   int32 id = 1;
   oneof payload {
@@ -197,20 +262,23 @@ message ReqEnvelope {
     ChangeKey req_change_key = 18;
     GetSettings req_get_settings = 28;
     SetSettings req_set_settings = 29;
-
     NewSocialPublication req_new_social_publication = 19;
+
     GetSocialPublications req_get_social_publications = 20;
     NewSocialComment req_new_social_comment = 21;
     DelSocialComment req_del_social_comment = 22;
     FriendshipRequest req_friendship_request = 23;
-    FriendshipAck req_friendship_ack = 24;
     LikePublication req_like_publication = 25;
     LikeComment req_like_comment = 26;
     DidSendAction req_did_send_action = 27;
+    FriendshipsList req_friendships_list = 35;
+    ChangeFriendStatus req_change_friend_status = 36;
 
     BridgeRegister req_bridge_register = 30;
     GetProfile req_get_profile = 31;
     Profile req_set_profile = 32;
+    ShareFilesLink req_share_files_link = 33;
+    DownloadSharedLink req_download_shared_link = 34;
   }
 }
 
@@ -227,5 +295,12 @@ message RespEnvelope {
     Settings resp_settings = 15;
     BridgeAckOnboard resp_bridge_ack_onboard = 16;
     Profile resp_profile = 17;
+    ShareLink resp_share_link = 18;
+
+    Friendships resp_friendships = 19;
+    SharedFiles resp_shared_files = 20;
+    NewSocial resp_new_social = 21;
+
+    SocialPublications resp_social_publications = 22;
   }
 }
