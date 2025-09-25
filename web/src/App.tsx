@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
-import Social from "./views/Social";
 import { useWS } from "./net/useWS";
 import SignIn from "./views/SignIn";
 import AdminPannel from "./views/AdminPannel";
 import StatusWidget from "./components/StatusWidget";
+import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
 import SettingsForm from "./components/SettingsForm";
 import ProfileCard from "./components/ProfileCard";

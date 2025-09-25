@@ -6,8 +6,10 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"os"
+	"time"
 )
 
 type Social struct {
@@ -22,19 +24,53 @@ func Init(dao *dao.Dao, filesmanager *filesmanager.Manager) *Social {
 	}
 }
 
-func (sc *Social) NewPublication(ses *session.Session, text string, paths []string) (uuid string, err error) {
-	hashes := make([]string, len(paths))
+func (sc *Social) NewPublication(ses *session.Session, text string, paths []string) (pubUuID string, err error) {
+	files := make([]*pb.File, len(paths))
 	for i, path := range paths {
 		file, err := sc.filesmanager.GetFile(ses, path)
 		if err != nil {
 			log.Error("Error loading file:", err)
 		}
 
-		hashes[i] = file.Hash
+		files[i] = file
 		unencPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
 		err = os.WriteFile(unencPath, file.Content, 0644) // perms: rw-r--r--
-	}
-	sc.dao.NewSocialPublication(text, hashes)
+		if err != nil {
+			return "", err
+		}
 
-	return uuid, nil
+		unEncThumb, err := sc.filesmanager.GetThumbnail(ses, file)
+		if err != nil {
+			return "", err
+		}
+		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
+		err = os.WriteFile(unencPathThumb, unEncThumb, 0644) // perms: rw-r--r--
+		if err != nil {
+			return "", err
+		}
+
+		log.Debug("Publication in path:", path)
+	}
+
+	return sc.dao.NewSocialPublication(text, files)
+}
+
+func (sc *Social) GetPublications(since time.Time, total int32, own bool) (publications *pb.SocialPublications, err error) {
+	publications, err = sc.dao.GetSocialPublications(since, total, own)
+	if err != nil {
+		log.Debug("error retriving publications", err)
+		return
+	}
+
+	// Populate the files content
+	for _, pub := range publications.Publications {
+		for _, file := range pub.Files {
+			file.Content, err = os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return
 }

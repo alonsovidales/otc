@@ -276,7 +276,6 @@ export interface File {
   path: string;
   size: number;
   content?: Uint8Array | undefined;
-  embedding: number[];
 }
 
 export interface Ack {
@@ -304,6 +303,7 @@ export interface NewSocialPublication {
 export interface GetSocialPublications {
   since?: Date | undefined;
   total: number;
+  own: boolean;
 }
 
 export interface NewSocialComment {
@@ -1322,16 +1322,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
 };
 
 function createBaseFile(): File {
-  return {
-    hash: "",
-    mime: "",
-    created: undefined,
-    modified: undefined,
-    path: "",
-    size: 0,
-    content: undefined,
-    embedding: [],
-  };
+  return { hash: "", mime: "", created: undefined, modified: undefined, path: "", size: 0, content: undefined };
 }
 
 export const File: MessageFns<File> = {
@@ -1357,11 +1348,6 @@ export const File: MessageFns<File> = {
     if (message.content !== undefined) {
       writer.uint32(66).bytes(message.content);
     }
-    writer.uint32(74).fork();
-    for (const v of message.embedding) {
-      writer.float(v);
-    }
-    writer.join();
     return writer;
   },
 
@@ -1428,24 +1414,6 @@ export const File: MessageFns<File> = {
           message.content = reader.bytes();
           continue;
         }
-        case 9: {
-          if (tag === 77) {
-            message.embedding.push(reader.float());
-
-            continue;
-          }
-
-          if (tag === 74) {
-            const end2 = reader.uint32() + reader.pos;
-            while (reader.pos < end2) {
-              message.embedding.push(reader.float());
-            }
-
-            continue;
-          }
-
-          break;
-        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1464,9 +1432,6 @@ export const File: MessageFns<File> = {
       path: isSet(object.path) ? globalThis.String(object.path) : "",
       size: isSet(object.size) ? globalThis.Number(object.size) : 0,
       content: isSet(object.content) ? bytesFromBase64(object.content) : undefined,
-      embedding: globalThis.Array.isArray(object?.embedding)
-        ? object.embedding.map((e: any) => globalThis.Number(e))
-        : [],
     };
   },
 
@@ -1493,9 +1458,6 @@ export const File: MessageFns<File> = {
     if (message.content !== undefined) {
       obj.content = base64FromBytes(message.content);
     }
-    if (message.embedding?.length) {
-      obj.embedding = message.embedding;
-    }
     return obj;
   },
 
@@ -1511,7 +1473,6 @@ export const File: MessageFns<File> = {
     message.path = object.path ?? "";
     message.size = object.size ?? 0;
     message.content = object.content ?? undefined;
-    message.embedding = object.embedding?.map((e) => e) || [];
     return message;
   },
 };
@@ -1846,7 +1807,7 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
 };
 
 function createBaseGetSocialPublications(): GetSocialPublications {
-  return { since: undefined, total: 0 };
+  return { since: undefined, total: 0, own: false };
 }
 
 export const GetSocialPublications: MessageFns<GetSocialPublications> = {
@@ -1856,6 +1817,9 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     }
     if (message.total !== 0) {
       writer.uint32(16).int32(message.total);
+    }
+    if (message.own !== false) {
+      writer.uint32(24).bool(message.own);
     }
     return writer;
   },
@@ -1883,6 +1847,14 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
           message.total = reader.int32();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.own = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1896,6 +1868,7 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     return {
       since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
       total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      own: isSet(object.own) ? globalThis.Boolean(object.own) : false,
     };
   },
 
@@ -1907,6 +1880,9 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     if (message.total !== 0) {
       obj.total = Math.round(message.total);
     }
+    if (message.own !== false) {
+      obj.own = message.own;
+    }
     return obj;
   },
 
@@ -1917,6 +1893,7 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     const message = createBaseGetSocialPublications();
     message.since = object.since ?? undefined;
     message.total = object.total ?? 0;
+    message.own = object.own ?? false;
     return message;
   },
 };

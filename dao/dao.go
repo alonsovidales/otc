@@ -306,17 +306,60 @@ func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
 	return
 }
 
-func (dao *Dao) NewSocialPublication(text string, hashes []string) (err error) {
+func (dao *Dao) NewSocialPublication(text string, files []*pb.File) (pubUuid string, err error) {
 	log.Debug("Creating SocialPublication")
-	pubUuid := uuid.New()
+	pubUuid = uuid.New().String()
 
-	for i, hash := range hashes {
-		_, err = dao.db.Exec("insert into `social_publications_files` (`hash`, `uuid`, `pos`) values (?, ?, ?)", hash, pubUuid, i)
+	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`) values (?, now(), ?)", pubUuid, text)
+
+	for i, file := range files {
+		_, err = dao.db.Exec(
+			"insert into `social_publications_files` (`pos`, `uuid`, `hash`, `mime`, `created`, `modified`, `size`) values (?, ?, ?, ?, ?, ?, ?)",
+			i, pubUuid, file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Size)
 		if err != nil {
 			return
 		}
 	}
 
-	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`) values (?, now(), ?)", pubUuid, text)
+	return
+}
+
+func (dao *Dao) GetSocialPublications(since time.Time, total int32, own bool) (pubs *pb.SocialPublications, err error) {
+	log.Debug("Get SocialPublication")
+	rowPubs, err := dao.db.Query("select `uuid`, `dt`, `text` from `social_publications` order by `dt` desc limit ?", total)
+	if err != nil {
+		return nil, err
+	}
+	defer rowPubs.Close()
+	pubs = &pb.SocialPublications{
+		Publications: []*pb.SocialPublication{},
+	}
+	for rowPubs.Next() {
+		sp := new(pb.SocialPublication)
+		var dt time.Time
+		if err := rowPubs.Scan(&sp.Uuid, &dt, &sp.Text); err != nil {
+			return nil, err
+		}
+		// TODO: Populate owner and other stuff
+		rowFiles, err := dao.db.Query("select `hash`, `mime`, `created`, `modified`, `size` from `social_publications_files` where `uuid` = ? order by `pos`", sp.Uuid)
+		if err != nil {
+			return nil, err
+		}
+		defer rowFiles.Close()
+		for rowFiles.Next() {
+			spFile := new(pb.File)
+			var created, modified time.Time
+			if err := rowFiles.Scan(&spFile.Hash, &spFile.Mime, &created, &modified, &spFile.Size); err != nil {
+				return nil, err
+			}
+			spFile.Created = timestamppb.New(created)
+			spFile.Modified = timestamppb.New(modified)
+			sp.Files = append(sp.Files, spFile)
+		}
+
+		pubs.Since = timestamppb.New(dt)
+		pubs.Publications = append(pubs.Publications, sp)
+	}
+
 	return
 }

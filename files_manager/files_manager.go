@@ -169,14 +169,19 @@ func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err erro
 	return cipher.Open(nil, nonce, ciphertext, nil)
 }
 
+func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (content []byte, err error) {
+	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash))
+	if err != nil {
+		log.Error("error reading thumbnail from:", file.Path, err)
+		return nil, err
+	}
+
+	return session.Decrypt(encContent)
+}
 func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string) (files []*pb.File, err error) {
 	files, err = mg.dao.SearchByTags(path, tags)
 	for _, file := range files {
-		encContent, err := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash))
-		if err != nil {
-			log.Error("error reading thumbnail from:", file.Path, err)
-		}
-		file.Content, err = session.Decrypt(encContent)
+		file.Content, err = mg.GetThumbnail(session, file)
 		if err != nil {
 			log.Error("error decryptinig the data", err)
 		}

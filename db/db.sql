@@ -49,9 +49,13 @@ create table social_publications
 
 create table social_publications_files
 (
+  `pos` int not null,
   `hash` varchar(64) not null,
   `uuid` varchar(64) not null,
-  `pos` int not null,
+  `mime` varchar(150) not null,
+  `created` datetime not null,
+  `modified` datetime not null,
+  `size` int not null,
 
   key (`hash`),
   key (`uuid`),

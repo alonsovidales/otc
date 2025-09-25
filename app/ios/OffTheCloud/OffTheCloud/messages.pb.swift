@@ -388,8 +388,6 @@ public struct Msg_File: Sendable {
   /// Clears the value of `content`. Subsequent reads from it will return its default value.
   public mutating func clearContent() {self._content = nil}
 
-  public var embedding: [Float] = []
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -478,6 +476,8 @@ public struct Msg_GetSocialPublications: Sendable {
   public mutating func clearSince() {self._since = nil}
 
   public var total: Int32 = 0
+
+  public var own: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1667,7 +1667,7 @@ extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{1}embedding\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1682,7 +1682,6 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
       case 5: try { try decoder.decodeSingularStringField(value: &self.path) }()
       case 6: try { try decoder.decodeSingularInt32Field(value: &self.size) }()
       case 8: try { try decoder.decodeSingularBytesField(value: &self._content) }()
-      case 9: try { try decoder.decodeRepeatedFloatField(value: &self.embedding) }()
       default: break
       }
     }
@@ -1714,9 +1713,6 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
     try { if let v = self._content {
       try visitor.visitSingularBytesField(value: v, fieldNumber: 8)
     } }()
-    if !self.embedding.isEmpty {
-      try visitor.visitPackedFloatField(value: self.embedding, fieldNumber: 9)
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1728,7 +1724,6 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
     if lhs.path != rhs.path {return false}
     if lhs.size != rhs.size {return false}
     if lhs._content != rhs._content {return false}
-    if lhs.embedding != rhs.embedding {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1890,7 +1885,7 @@ extension Msg_NewSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._Messag
 
 extension Msg_GetSocialPublications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetSocialPublications"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}since\0\u{1}total\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}since\0\u{1}total\0\u{1}own\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1900,6 +1895,7 @@ extension Msg_GetSocialPublications: SwiftProtobuf.Message, SwiftProtobuf._Messa
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._since) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.total) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.own) }()
       default: break
       }
     }
@@ -1916,12 +1912,16 @@ extension Msg_GetSocialPublications: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if self.total != 0 {
       try visitor.visitSingularInt32Field(value: self.total, fieldNumber: 2)
     }
+    if self.own != false {
+      try visitor.visitSingularBoolField(value: self.own, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_GetSocialPublications, rhs: Msg_GetSocialPublications) -> Bool {
     if lhs._since != rhs._since {return false}
     if lhs.total != rhs.total {return false}
+    if lhs.own != rhs.own {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

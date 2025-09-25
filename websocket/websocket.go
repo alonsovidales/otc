@@ -197,7 +197,7 @@ func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespE
 
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to download file: %s", err)
+			resp.ErrorMessage = fmt.Sprintf("error trying to create publication: %s", err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespNewSocial{
 				RespNewSocial: &pb.NewSocial{
@@ -257,6 +257,18 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 				RespShareLink: &pb.ShareLink{
 					Link: link,
 				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetSocialPublications:
+		log.Info("Getting social publications")
+		publications, err := ch.mg.social.GetPublications(p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, p.ReqGetSocialPublications.Own)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespSocialPublications{
+				RespSocialPublications: publications,
 			}
 		}
 

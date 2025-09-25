@@ -76,7 +76,6 @@ message File {
   string path = 5;
   int32 size = 6;
   optional bytes content = 8;
-  repeated float embedding = 9;
 }
 
 message Ack {
@@ -104,6 +103,7 @@ message NewSocialPublication {
 message GetSocialPublications {
   google.protobuf.Timestamp since = 1;
   int32 total = 2;
+  bool own = 3;
 }
 
 message NewSocialComment {
@@ -263,8 +263,8 @@ message ReqEnvelope {
     GetSettings req_get_settings = 28;
     SetSettings req_set_settings = 29;
     NewSocialPublication req_new_social_publication = 19;
-
     GetSocialPublications req_get_social_publications = 20;
+
     NewSocialComment req_new_social_comment = 21;
     DelSocialComment req_del_social_comment = 22;
     FriendshipRequest req_friendship_request = 23;
