@@ -36,6 +36,7 @@ pb:
   	  --swift_out=./app/ios/OffTheCloud/OffTheCloud/ \
 	  --swift_opt=Visibility=Public \
 	  $(PROTOS)
+	cp ./app/ios/OffTheCloud/OffTheCloud/messages.pb.swift app/macos/OffTheCloud/OffTheCloud/
 	@echo "$(OK_COLOR)==> Generated$(NO_COLOR)"
 
 .PHONY: pb
