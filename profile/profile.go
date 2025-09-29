@@ -3,10 +3,12 @@ package profile
 import "github.com/alonsovidales/otc/dao"
 
 type Profile struct {
-	dao   *dao.Dao
-	Name  string
-	Image []byte
-	Text  string
+	dao       *dao.Dao
+	Name      string
+	SubDomain string
+	Image     []byte
+	Uuid      string
+	Text      string
 }
 
 func Init(dao *dao.Dao) (*Profile, error) {

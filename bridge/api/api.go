@@ -31,11 +31,22 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, staticPath string, httpPor
 		muxHTTPServer: http.NewServeMux(),
 		staticPath:    staticPath,
 	}
+
 	api.registerAPIs()
-	log.Info("Starting API server on port:", httpPort)
-	go http.ListenAndServe(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer)
-	log.Info("Starting https API server on port:", httpsPort, cert, key)
-	go http.ListenAndServeTLS(fmt.Sprintf(":%d", httpsPort), cert, key, api.muxHTTPServer)
+	go func() {
+		log.Info("Starting http API server on port:", httpPort, cert, key)
+		err := http.ListenAndServe(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer)
+		if err != nil {
+			log.Fatal("Error:", err)
+		}
+	}()
+	go func() {
+		log.Info("Starting https API server on port:", httpsPort, cert, key)
+		err := http.ListenAndServeTLS(fmt.Sprintf(":%d", httpsPort), cert, key, api.muxHTTPServer)
+		if err != nil {
+			log.Fatal("Error:", err)
+		}
+	}()
 
 	return
 }

@@ -324,6 +324,30 @@ func (dao *Dao) NewSocialPublication(text string, files []*pb.File) (pubUuid str
 	return
 }
 
+func (dao *Dao) GetSocialPublicationComments(pubUuid string) (comments []*pb.Comment, err error) {
+	log.Debug("Get SocialPublication Comments")
+	rowComms, err := dao.db.Query("select `uuid`, `dt`, `comment`, `publisher_name`, `likes` from `social_publications_comments` where `pub_uuid` = ? order by `dt` desc", pubUuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rowComms.Close()
+	comments = []*pb.Comment{}
+	for rowComms.Next() {
+		comment := &pb.Comment{
+			PubUuid: pubUuid,
+		}
+		var dt time.Time
+		if err := rowComms.Scan(&comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes); err != nil {
+			return nil, err
+		}
+
+		comment.DateTime = timestamppb.New(dt)
+		comments = append(comments, comment)
+	}
+
+	return
+}
+
 func (dao *Dao) GetSocialPublications(since time.Time, total int32, own bool) (pubs *pb.SocialPublications, err error) {
 	log.Debug("Get SocialPublication")
 	rowPubs, err := dao.db.Query("select `uuid`, `dt`, `text` from `social_publications` order by `dt` desc limit ?", total)
@@ -362,4 +386,11 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, own bool) (p
 	}
 
 	return
+}
+
+func (dao *Dao) NewComment(pubName, pubUuid, comment string) (err error) {
+	log.Debug("Creating new comment")
+	_, err = dao.db.Exec("insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`) values (?, ?, now(), ?, ?)", uuid.New(), pubUuid, comment, pubName)
+
+	return err
 }

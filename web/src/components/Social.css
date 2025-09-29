@@ -1,7 +1,7 @@
-.sv-wrap { padding: 20px; }
+.sv-wrap { padding: 0px; }
 .sv-aside { margin-left: 20px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; height: fit-content; }
-.sv-newfriend { display: flex; gap: 8px; margin-bottom: 8px; }
-.sv-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.sv-img-avatar { width: 50px; clip-path: circle(); } 
+.sv-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; font-size: 16px; }
 .sv-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
 .sv-btn.wide { width: 100%; }
 .sv-btn.small { padding: 6px 8px; font-size: 13px; }
@@ -16,7 +16,7 @@
 .sv-factions { display: flex; gap: 6px; }
 
 .sv-feed { margin: auto; display: flex; flex-direction: column; gap: 16px; }
-.sv-post { width: 100%; max-width: 700px; border: 1px solid #e5e7eb; border-radius: 10px; background: #222; margin: auto; }
+.sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: #222; margin: auto; }
 .sv-post-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
 .sv-avatar { width: 28px; height: 28px; display: grid; place-items: center; background: #f3f4f6; border-radius: 50%; }
 .sv-publisher { font-weight: 600; }
@@ -35,7 +35,7 @@
 .sv-comment { display: flex; align-items: center; gap: 8px; }
 .sv-cmeta { flex: 1; }
 .sv-cname { font-weight: 600; margin-right: 6px; }
-.sv-ctext { color: #374151; }
+.sv-ctext { color: #eee; }
 
 .sv-newcomment { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 

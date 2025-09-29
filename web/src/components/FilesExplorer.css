@@ -1,0 +1,44 @@
+.fb-wrap { position: relative; padding: 10px;}
+.fb-wrap.drag { outline: 2px dashed #60a5fa; outline-offset: 4px; }
+
+.fb-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.fb-path { display: flex; align-items: center; gap: 8px; }
+.fb-label { color: #9ca3af; }
+.fb-path-input { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; width: 480px; max-width: 70vw; }
+
+.fb-total { color: #6b7280; }
+.fb-error { margin: 8px 0; color: #b91c1c; }
+
+.fb-table { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background: #fff; }
+.fb-head, .fb-row { display: grid; grid-template-columns: 26px 1fr 140px 220px 220px; align-items: center; }
+.fb-head { background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151; }
+.c { padding: 10px 12px; }
+.fb-body .fb-row { border-top: 1px solid #f3f4f6; color: #000; }
+
+.ico { display: inline-block; width: 16px; height: 16px; margin-right: 8px; border-radius: 3px; background: #d1d5db; vertical-align: -2px; }
+.ico.dir { background: #93c5fd; }
+.link { border: 0; background: none; color: #2563eb; cursor: pointer; padding: 0; }
+.link:hover { text-decoration: underline; }
+.file { border: 0; background: none; color: #000; cursor: pointer; padding: 0; }
+.file:hover { text-decoration: underline; }
+
+.fb-tip { margin-top: 8px; color: #6b7280; font-size: 13px; }
+
+.fb-actions { position: sticky; bottom: 12px; display: flex; justify-content: center; width: 100%; }
+.fb-actions-inner { display: flex; align-items: center; gap: 8px; background: rgba(17,24,39,.92); color:#fff; padding: 2px 12px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.grow { flex: 1; }
+.btn { border: 1px solid #e5e7eb; background: #fff; color: #111827; border-radius: 8px; padding: 2px 10px; cursor: pointer; }
+.btn.danger { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+
+.fb-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 1000; }
+.fb-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: #0b0b0b; border-radius: 10px; padding: 10px; }
+.fb-close { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; }
+.fb-full { max-width: 90vw; max-height: 80vh; display: block; }
+.fb-cap { color: #fff; margin-top: 6px; text-align: center; }
+
+/* (6) responsive: under 800px show only checkbox, name, size */
+@media (max-width: 800px) {
+  .fb-head, .fb-row { grid-template-columns: 26px 1fr 140px; }
+  .c-created, .c-modified { display: none; }
+}
+

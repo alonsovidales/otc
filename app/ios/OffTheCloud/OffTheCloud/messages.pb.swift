@@ -670,6 +670,8 @@ public struct Msg_Profile: Sendable {
 
   public var text: String = String()
 
+  public var domain: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -809,22 +811,24 @@ public struct Msg_Comment: Sendable {
 
   public var comment: String = String()
 
-  public var publisher: Msg_Profile {
-    get {return _publisher ?? Msg_Profile()}
-    set {_publisher = newValue}
-  }
-  /// Returns true if `publisher` has been explicitly set.
-  public var hasPublisher: Bool {return self._publisher != nil}
-  /// Clears the value of `publisher`. Subsequent reads from it will return its default value.
-  public mutating func clearPublisher() {self._publisher = nil}
+  public var publisher: String = String()
 
   public var likes: Int32 = 0
+
+  public var dateTime: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _dateTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_dateTime = newValue}
+  }
+  /// Returns true if `dateTime` has been explicitly set.
+  public var hasDateTime: Bool {return self._dateTime != nil}
+  /// Clears the value of `dateTime`. Subsequent reads from it will return its default value.
+  public mutating func clearDateTime() {self._dateTime = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _publisher: Msg_Profile? = nil
+  fileprivate var _dateTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public struct Msg_SocialPublication: Sendable {
@@ -2332,7 +2336,7 @@ extension Msg_GetProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
 
 extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Profile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}image\0\u{1}text\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}image\0\u{1}text\0\u{1}domain\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2343,6 +2347,7 @@ extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
       case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
       case 2: try { try decoder.decodeSingularBytesField(value: &self._image) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.text) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.domain) }()
       default: break
       }
     }
@@ -2362,6 +2367,9 @@ extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
     if !self.text.isEmpty {
       try visitor.visitSingularStringField(value: self.text, fieldNumber: 3)
     }
+    if !self.domain.isEmpty {
+      try visitor.visitSingularStringField(value: self.domain, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2369,6 +2377,7 @@ extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
     if lhs.name != rhs.name {return false}
     if lhs._image != rhs._image {return false}
     if lhs.text != rhs.text {return false}
+    if lhs.domain != rhs.domain {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2634,7 +2643,7 @@ extension Msg_SharedFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Comment"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}comment\0\u{1}publisher\0\u{1}likes\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}comment\0\u{1}publisher\0\u{1}likes\0\u{3}date_time\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2645,8 +2654,9 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
       case 1: try { try decoder.decodeSingularStringField(value: &self.pubUuid) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.commentUuid) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.comment) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._publisher) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.publisher) }()
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.likes) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._dateTime) }()
       default: break
       }
     }
@@ -2666,12 +2676,15 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
     if !self.comment.isEmpty {
       try visitor.visitSingularStringField(value: self.comment, fieldNumber: 3)
     }
-    try { if let v = self._publisher {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
+    if !self.publisher.isEmpty {
+      try visitor.visitSingularStringField(value: self.publisher, fieldNumber: 4)
+    }
     if self.likes != 0 {
       try visitor.visitSingularInt32Field(value: self.likes, fieldNumber: 5)
     }
+    try { if let v = self._dateTime {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2679,8 +2692,9 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
     if lhs.pubUuid != rhs.pubUuid {return false}
     if lhs.commentUuid != rhs.commentUuid {return false}
     if lhs.comment != rhs.comment {return false}
-    if lhs._publisher != rhs._publisher {return false}
+    if lhs.publisher != rhs.publisher {return false}
     if lhs.likes != rhs.likes {return false}
+    if lhs._dateTime != rhs._dateTime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

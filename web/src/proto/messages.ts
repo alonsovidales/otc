@@ -367,6 +367,7 @@ export interface Profile {
   name: string;
   image?: Uint8Array | undefined;
   text: string;
+  domain: string;
 }
 
 export interface ShareFilesLink {
@@ -409,8 +410,9 @@ export interface Comment {
   pubUuid: string;
   commentUuid: string;
   comment: string;
-  publisher?: Profile | undefined;
+  publisher: string;
   likes: number;
+  dateTime?: Date | undefined;
 }
 
 export interface SocialPublication {
@@ -2743,7 +2745,7 @@ export const GetProfile: MessageFns<GetProfile> = {
 };
 
 function createBaseProfile(): Profile {
-  return { name: "", image: undefined, text: "" };
+  return { name: "", image: undefined, text: "", domain: "" };
 }
 
 export const Profile: MessageFns<Profile> = {
@@ -2756,6 +2758,9 @@ export const Profile: MessageFns<Profile> = {
     }
     if (message.text !== "") {
       writer.uint32(26).string(message.text);
+    }
+    if (message.domain !== "") {
+      writer.uint32(34).string(message.domain);
     }
     return writer;
   },
@@ -2791,6 +2796,14 @@ export const Profile: MessageFns<Profile> = {
           message.text = reader.string();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2805,6 +2818,7 @@ export const Profile: MessageFns<Profile> = {
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       image: isSet(object.image) ? bytesFromBase64(object.image) : undefined,
       text: isSet(object.text) ? globalThis.String(object.text) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
     };
   },
 
@@ -2819,6 +2833,9 @@ export const Profile: MessageFns<Profile> = {
     if (message.text !== "") {
       obj.text = message.text;
     }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
     return obj;
   },
 
@@ -2830,6 +2847,7 @@ export const Profile: MessageFns<Profile> = {
     message.name = object.name ?? "";
     message.image = object.image ?? undefined;
     message.text = object.text ?? "";
+    message.domain = object.domain ?? "";
     return message;
   },
 };
@@ -3376,7 +3394,7 @@ export const SharedFiles: MessageFns<SharedFiles> = {
 };
 
 function createBaseComment(): Comment {
-  return { pubUuid: "", commentUuid: "", comment: "", publisher: undefined, likes: 0 };
+  return { pubUuid: "", commentUuid: "", comment: "", publisher: "", likes: 0, dateTime: undefined };
 }
 
 export const Comment: MessageFns<Comment> = {
@@ -3390,11 +3408,14 @@ export const Comment: MessageFns<Comment> = {
     if (message.comment !== "") {
       writer.uint32(26).string(message.comment);
     }
-    if (message.publisher !== undefined) {
-      Profile.encode(message.publisher, writer.uint32(34).fork()).join();
+    if (message.publisher !== "") {
+      writer.uint32(34).string(message.publisher);
     }
     if (message.likes !== 0) {
       writer.uint32(40).int32(message.likes);
+    }
+    if (message.dateTime !== undefined) {
+      Timestamp.encode(toTimestamp(message.dateTime), writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -3435,7 +3456,7 @@ export const Comment: MessageFns<Comment> = {
             break;
           }
 
-          message.publisher = Profile.decode(reader, reader.uint32());
+          message.publisher = reader.string();
           continue;
         }
         case 5: {
@@ -3444,6 +3465,14 @@ export const Comment: MessageFns<Comment> = {
           }
 
           message.likes = reader.int32();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.dateTime = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
       }
@@ -3460,8 +3489,9 @@ export const Comment: MessageFns<Comment> = {
       pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
       commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "",
       comment: isSet(object.comment) ? globalThis.String(object.comment) : "",
-      publisher: isSet(object.publisher) ? Profile.fromJSON(object.publisher) : undefined,
+      publisher: isSet(object.publisher) ? globalThis.String(object.publisher) : "",
       likes: isSet(object.likes) ? globalThis.Number(object.likes) : 0,
+      dateTime: isSet(object.dateTime) ? fromJsonTimestamp(object.dateTime) : undefined,
     };
   },
 
@@ -3476,11 +3506,14 @@ export const Comment: MessageFns<Comment> = {
     if (message.comment !== "") {
       obj.comment = message.comment;
     }
-    if (message.publisher !== undefined) {
-      obj.publisher = Profile.toJSON(message.publisher);
+    if (message.publisher !== "") {
+      obj.publisher = message.publisher;
     }
     if (message.likes !== 0) {
       obj.likes = Math.round(message.likes);
+    }
+    if (message.dateTime !== undefined) {
+      obj.dateTime = message.dateTime.toISOString();
     }
     return obj;
   },
@@ -3493,10 +3526,9 @@ export const Comment: MessageFns<Comment> = {
     message.pubUuid = object.pubUuid ?? "";
     message.commentUuid = object.commentUuid ?? "";
     message.comment = object.comment ?? "";
-    message.publisher = (object.publisher !== undefined && object.publisher !== null)
-      ? Profile.fromPartial(object.publisher)
-      : undefined;
+    message.publisher = object.publisher ?? "";
     message.likes = object.likes ?? 0;
+    message.dateTime = object.dateTime ?? undefined;
     return message;
   },
 };

@@ -3,7 +3,7 @@ import logo from './assets/off_the_cloud.png'
 import './App.css'
 import { useWS } from "./net/useWS";
 import SignIn from "./views/SignIn";
-import AdminPannel from "./views/AdminPannel";
+import FilesExplorer from "./components/FilesExplorer";
 import StatusWidget from "./components/StatusWidget";
 import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
@@ -127,7 +127,7 @@ function App() {
             setTab("Profile");
           }
         }} />}
-        {tab === "AdminPannel" && <AdminPannel />}
+        {tab === "AdminPannel" && <FilesExplorer initialPath="/" />}
         {tab === "PhotoGallery" && <PhotoGallery />}
         {tab === "Settings" && <SettingsForm />}
       </main>

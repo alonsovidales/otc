@@ -10,9 +10,10 @@ export type TopTabsProps = {
 };
 
 const ALL_TABS: { key: TabKey; label: string }[] = [
+  { key: "Profile",   label: "Profile" },
   { key: "Social",   label: "Social" },
-  { key: "AdminPannel",    label: "Files Manager" },
-  { key: "PhotoGallery",   label: "Images Search" },
+  { key: "AdminPannel",    label: "Files" },
+  { key: "PhotoGallery",   label: "Images" },
   { key: "Settings", label: "Settings" },
 ];
 

@@ -168,13 +168,17 @@ export default function Social() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [p.uuid, idx]
     );
+    const profURL = useMemo(
+      () => bytesToURL(p.publisher?.image as unknown as Uint8Array, current.mime),
+      [p.uuid, idx]
+    );
 
     useEffect(() => () => { if (lowURL) URL.revokeObjectURL(lowURL); }, [lowURL]);
 
     return (
       <article className="sv-post">
         <header className="sv-post-hdr">
-          <div className="sv-avatar">👤</div>
+          {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">"👤"</div> }
           <div className="sv-publisher">{p.publisher?.name || "User"}</div>
         </header>
 
@@ -217,7 +221,7 @@ export default function Social() {
           {p.comments?.map(c => (
             <div className="sv-comment" key={c.commentUuid}>
               <div className="sv-cmeta">
-                <span className="sv-cname">{c.publisher?.name || "User"}:</span>
+                <span className="sv-cname">{c.publisher || "User"}:</span>
                 <span className="sv-ctext">{c.comment}</span>
               </div>
               <button

@@ -6,6 +6,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"os"
@@ -55,7 +56,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 	return sc.dao.NewSocialPublication(text, files)
 }
 
-func (sc *Social) GetPublications(since time.Time, total int32, own bool) (publications *pb.SocialPublications, err error) {
+func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total int32, own bool) (publications *pb.SocialPublications, err error) {
 	publications, err = sc.dao.GetSocialPublications(since, total, own)
 	if err != nil {
 		log.Debug("error retriving publications", err)
@@ -64,13 +65,28 @@ func (sc *Social) GetPublications(since time.Time, total int32, own bool) (publi
 
 	// Populate the files content
 	for _, pub := range publications.Publications {
+		pub.Publisher = &pb.Profile{
+			Name:  pr.Name,
+			Image: pr.Image,
+			Text:  pr.Text,
+		}
+
 		for _, file := range pub.Files {
 			file.Content, err = os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
 			if err != nil {
 				return nil, err
 			}
 		}
+
+		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return
+}
+
+func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string) (err error) {
+	return sc.dao.NewComment(pr.Name, pubUuid, comment)
 }

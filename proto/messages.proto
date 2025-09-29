@@ -182,6 +182,7 @@ message Profile {
   string name = 1;
   optional bytes image = 2;
   string text = 3;
+  string domain = 4;
 }
 
 message ShareFilesLink {
@@ -230,8 +231,9 @@ message Comment {
   string pub_uuid = 1;
   string comment_uuid = 2;
   string comment = 3;
-  Profile publisher = 4;
+  string publisher = 4;
   int32 likes = 5;
+  google.protobuf.Timestamp date_time = 6;
 }
 
 message SocialPublication {

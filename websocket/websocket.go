@@ -158,8 +158,9 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 }
 
 type connHandler struct {
-	mg      *Manager
-	session *session.Session
+	mg            *Manager
+	session       *session.Session
+	friendProfile *profile.Profile
 }
 
 func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
@@ -240,6 +241,50 @@ func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespE
 	return
 }
 
+func (ch *connHandler) processAuthAsFriendRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+	resp = &pb.RespEnvelope{
+		Id: env.Id,
+	}
+
+	switch p := env.Payload.(type) {
+
+	case *pb.ReqEnvelope_ReqNewSocialComment:
+		log.Info("Getting social publications")
+		profile := ch.mg.profile
+		if ch.friendProfile != nil {
+			profile = ch.friendProfile
+		}
+		err := ch.mg.social.NewSocialComment(profile, p.ReqNewSocialComment.PubUuid, p.ReqNewSocialComment.Comment)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error publishing comment: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetSocialPublications:
+		log.Info("Getting social publications")
+		publications, err := ch.mg.social.GetPublications(ch.mg.profile, p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, p.ReqGetSocialPublications.Own)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespSocialPublications{
+				RespSocialPublications: publications,
+			}
+		}
+
+	default:
+		return nil, false
+	}
+
+	return
+}
+
 func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
@@ -257,18 +302,6 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 				RespShareLink: &pb.ShareLink{
 					Link: link,
 				},
-			}
-		}
-
-	case *pb.ReqEnvelope_ReqGetSocialPublications:
-		log.Info("Getting social publications")
-		publications, err := ch.mg.social.GetPublications(p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, p.ReqGetSocialPublications.Own)
-		if err != nil {
-			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
-		} else {
-			resp.Payload = &pb.RespEnvelope_RespSocialPublications{
-				RespSocialPublications: publications,
 			}
 		}
 
@@ -465,6 +498,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		}
 
 		resp, closeConn := ch.processNonAuthRequest(env)
+
+		if resp == nil && (ch.session != nil || ch.friendProfile != nil) {
+			resp, closeConn = ch.processAuthAsFriendRequest(env)
+		}
+
 		if resp == nil && ch.session != nil {
 			resp, closeConn = ch.processAuthRequest(env)
 		}

@@ -64,29 +64,31 @@ create table social_publications_files
   foreign key (uuid) references social_publications(uuid)
 ) engine=InnoDB;
 
+create table social_friendship
+(
+  `subdomain` varchar(128) not null,
+  `pending` boolean default true,
+  `name` varchar(250) default null,
+  `image` mediumblob default null,
+
+  primary key (`subdomain`),
+  key (`subdomain`)
+) engine=InnoDB;
+
 create table social_publications_comments
 (
   `uuid` varchar(64) not null,
+  `pub_uuid` varchar(64) not null,
   `dt` datetime not null,
   `comment` text not null,
-  `publisher` varchar(128) not null,
+  `publisher_name` varchar(64) not null,
   `likes` int default 0,
 
   INDEX USING BTREE (`dt`),
-  key (`publisher`),
   key (`uuid`),
+  key (`pub_uuid`),
 
-  foreign key (uuid) references social_publications(uuid)
-) engine=InnoDB;
-
-create table social_frienship_request
-(
-  `uuid` varchar(64) not null,
-  `from` varchar(128) not null,
-  `pending` boolean default true,
-
-  key (`from`),
-  key (`uuid`)
+  foreign key (pub_uuid) references social_publications(uuid)
 ) engine=InnoDB;
 
 create table sent_actions
