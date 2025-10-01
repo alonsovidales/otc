@@ -346,8 +346,8 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 		}
 
 	case *pb.ReqEnvelope_ReqListFiles:
-		log.Info("List of file by path:", p.ReqListFiles.Path)
-		files, err := ch.mg.filesManager.ListFiles(ch.session, p.ReqListFiles.Path)
+		log.Info("List of file by path:", p.ReqListFiles.Path, p.ReqListFiles.Recursive)
+		files, err := ch.mg.filesManager.ListFiles(ch.session, p.ReqListFiles.Path, p.ReqListFiles.Recursive)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true

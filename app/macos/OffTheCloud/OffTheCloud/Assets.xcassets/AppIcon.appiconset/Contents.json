@@ -1,61 +1,61 @@
 {
   "images" : [
     {
-      "filename" : "otc_16.png",
+      "filename" : "otc 2.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "16x16"
     },
     {
-      "filename" : "otc_32 1.png",
+      "filename" : "otc 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "16x16"
     },
     {
-      "filename" : "otc_32.png",
+      "filename" : "otc.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "32x32"
     },
     {
-      "filename" : "otc_64.png",
+      "filename" : "otc_big 6.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "32x32"
     },
     {
-      "filename" : "otc_128.png",
+      "filename" : "otc_big 5.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "128x128"
     },
     {
-      "filename" : "otc_256.png",
+      "filename" : "otc_big 3.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
     },
     {
-      "filename" : "otc_256 1.png",
+      "filename" : "otc_big 2.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "256x256"
     },
     {
-      "filename" : "otc_512.png",
+      "filename" : "otc_big 4.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "256x256"
     },
     {
-      "filename" : "otc_512 1.png",
+      "filename" : "otc_big 1.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "512x512"
     },
     {
-      "filename" : "ChatGPT Image Sep 9, 2025, 11_03_44 AM.png",
+      "filename" : "otc_big.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"

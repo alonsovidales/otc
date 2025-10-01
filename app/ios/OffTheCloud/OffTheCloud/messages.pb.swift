@@ -319,6 +319,8 @@ public struct Msg_ListFiles: Sendable {
 
   public var path: String = String()
 
+  public var recursive: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1581,7 +1583,7 @@ extension Msg_GetFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
 
 extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListFiles"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}recursive\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1590,6 +1592,7 @@ extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.recursive) }()
       default: break
       }
     }
@@ -1599,11 +1602,15 @@ extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
     if !self.path.isEmpty {
       try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
     }
+    if self.recursive != false {
+      try visitor.visitSingularBoolField(value: self.recursive, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ListFiles, rhs: Msg_ListFiles) -> Bool {
     if lhs.path != rhs.path {return false}
+    if lhs.recursive != rhs.recursive {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

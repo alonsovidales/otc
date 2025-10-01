@@ -258,6 +258,7 @@ export interface GetFile {
 
 export interface ListFiles {
   path: string;
+  recursive: boolean;
 }
 
 export interface SearchPhotos {
@@ -1150,13 +1151,16 @@ export const GetFile: MessageFns<GetFile> = {
 };
 
 function createBaseListFiles(): ListFiles {
-  return { path: "" };
+  return { path: "", recursive: false };
 }
 
 export const ListFiles: MessageFns<ListFiles> = {
   encode(message: ListFiles, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.path !== "") {
       writer.uint32(10).string(message.path);
+    }
+    if (message.recursive !== false) {
+      writer.uint32(16).bool(message.recursive);
     }
     return writer;
   },
@@ -1176,6 +1180,14 @@ export const ListFiles: MessageFns<ListFiles> = {
           message.path = reader.string();
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.recursive = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1186,13 +1198,19 @@ export const ListFiles: MessageFns<ListFiles> = {
   },
 
   fromJSON(object: any): ListFiles {
-    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      recursive: isSet(object.recursive) ? globalThis.Boolean(object.recursive) : false,
+    };
   },
 
   toJSON(message: ListFiles): unknown {
     const obj: any = {};
     if (message.path !== "") {
       obj.path = message.path;
+    }
+    if (message.recursive !== false) {
+      obj.recursive = message.recursive;
     }
     return obj;
   },
@@ -1203,6 +1221,7 @@ export const ListFiles: MessageFns<ListFiles> = {
   fromPartial<I extends Exact<DeepPartial<ListFiles>, I>>(object: I): ListFiles {
     const message = createBaseListFiles();
     message.path = object.path ?? "";
+    message.recursive = object.recursive ?? false;
     return message;
   },
 };

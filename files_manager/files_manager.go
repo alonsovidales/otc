@@ -63,8 +63,8 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	return mg
 }
 
-func (mg *Manager) ListFiles(session *session.Session, path string) (files []*pb.File, err error) {
-	return mg.dao.GetFilesByPath(path, true)
+func (mg *Manager) ListFiles(session *session.Session, path string, recursive bool) (files []*pb.File, err error) {
+	return mg.dao.GetFilesByPath(path, recursive)
 }
 
 func (mg *Manager) cosineSimilarity(a, b []float32) float32 {

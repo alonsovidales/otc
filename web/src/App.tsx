@@ -27,8 +27,8 @@ function App() {
   if (window.location.protocol === 'https:') {
     protoWs = 'wss://';
   }
-  //let endpoint = protoWs + window.location.host + '/ws';
-  let endpoint = protoWs + 'cala.off-the.cloud/ws';
+  let endpoint = protoWs + window.location.host + '/ws';
+  //let endpoint = protoWs + 'cala.off-the.cloud/ws';
   const mobile = !!cfg;
 
   if (mobile) {

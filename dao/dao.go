@@ -185,7 +185,8 @@ func (dao *Dao) SearchByTags(path string, tags []string) (files []*pb.File, err 
 		"from `file_tags` as `tg` left join `files` as `f` on `tg`.`hash` = `f`.`hash` " +
 		"where " + pathSearch + " `tg`.`tag` in (" + ph + ") " +
 		"group by `f`.`hash` " +
-		"order by `score` desc"
+		"order by `score` desc " +
+		"limit " + fmt.Sprintf("%d", cfg.GetInt("tagger", "max-images-search"))
 
 	argsLen := len(tags)
 	if path != "" {
@@ -230,8 +231,9 @@ func (dao *Dao) SearchByTags(path string, tags []string) (files []*pb.File, err 
 	return
 }
 
-func (dao *Dao) GetFilesByPath(path string, addSubDirs bool) (files []*pb.File, err error) {
-	if addSubDirs {
+func (dao *Dao) GetFilesByPath(path string, recursive bool) (files []*pb.File, err error) {
+	log.Debug("Get Files by path initial:", path, recursive)
+	if !recursive {
 		pathFiles := "^" + path + "[^/]+$"
 
 		// We add first the sub-directories that are actually subpaths of the existing files

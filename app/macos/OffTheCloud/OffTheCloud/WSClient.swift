@@ -1,105 +1,160 @@
 import Foundation
+import Network
 import SwiftProtobuf
 
-// Replace these with your generated SwiftProtobuf types if names differ:
-typealias Req = Msg_ReqEnvelope
-typealias Resp = Msg_RespEnvelope
-typealias Ack  = Msg_Ack
-typealias FileMsg = Msg_File
-typealias ListFiles = Msg_ListFiles
-typealias UploadFile = Msg_UploadFile
-typealias Auth = Msg_Auth
+// ==== Generated types aliases (rename to your actual generated names) ====
+typealias Req         = Msg_ReqEnvelope
+typealias Resp        = Msg_RespEnvelope
+typealias Ack         = Msg_Ack
+typealias FileMsg     = Msg_File
+typealias ListFiles   = Msg_ListFiles
+typealias UploadFile  = Msg_UploadFile
+typealias Auth        = Msg_Auth
 typealias ListOfFiles = Msg_ListOfFiles
+// ========================================================================
 
-/// A small resilient WS client. Not main-actor isolated; it hops to main only when needed.
-final class WSClient: NSObject, URLSessionWebSocketDelegate {
+final class WSClient {
 
-    private var url: URL?
-    private var key: String?
-    private var session: URLSession!
-    private var task: URLSessionWebSocketTask?
-
-    private var nextId: Int32 = 1
-    private var waiters = [Int32: (Resp) -> Void]()
-    private let queue = DispatchQueue(label: "ws.client.queue")
-
-    // Callbacks you can observe from the model:
+    // MARK: Public callbacks
     var onConnect: (() -> Void)?
     var onDisconnect: ((Error?) -> Void)?
+    var onPush: ((Resp) -> Void)? // unsolicited server messages
 
-    override init() {
-        super.init()
-        let config = URLSessionConfiguration.default
-        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-    }
+    // MARK: Internal state
+    private var conn: NWConnection?
+    private var url: URL?
+    private var key: String?
+    private var nextId: Int32 = 1
 
-    func configure(domain: String, key: String) {
-        self.url = URL(string: "wss://\(domain)/ws")
+    private let queue = DispatchQueue(label: "wsclient.serial")
+    private var waiters: [Int32 : CheckedContinuation<Resp, Error>] = [:]
+    private var isOpen = false
+    private var backoffSeconds: TimeInterval = 1
+
+    // MARK: Configure
+    /// domain: "your.domain.tld" (no scheme, no path); if you pass a full URL, it will be used as-is.
+    func configure(domain: String, key: String, secure: Bool = true) {
+        if domain.contains("://") {
+            self.url = URL(string: domain) // full URL provided
+        } else {
+            let scheme = secure ? "wss" : "ws"
+            self.url = URL(string: "\(scheme)://\(domain)/ws")
+        }
         self.key = key
     }
 
+    // MARK: Connect / Disconnect
     func connect() {
-        guard let url else { return }
-        if task != nil { return }
-        let t = session.webSocketTask(with: url)
-        task = t
-        t.resume()
-        receiveLoop()
-        // Try auth immediately after connect
-        if let key {
-            Task.detached { [weak self] in _ = try? await self?.auth(key: key) }
+        queue.async { [weak self] in
+            guard let self = self, let url = self.url else { return }
+
+            // WebSocket options — set 10 MB max message size
+            let wsOpts = NWProtocolWebSocket.Options()
+            wsOpts.autoReplyPing = true
+            wsOpts.maximumMessageSize = 10 * 1024 * 1024 // 10 MB
+
+            let isSecure = (url.scheme?.lowercased() == "wss")
+            let tls = isSecure ? NWProtocolTLS.Options() : nil
+            let params = NWParameters(tls: tls, tcp: .init())
+            params.defaultProtocolStack.applicationProtocols.insert(wsOpts, at: 0)
+
+            // Endpoint: prefer URL initializer on newer SDKs
+            let endpoint: NWEndpoint
+            if #available(macOS 13.0, iOS 16.0, *) {
+                endpoint = NWEndpoint.url(url)
+            } else {
+                let host = NWEndpoint.Host(url.host ?? "localhost")
+                let port = NWEndpoint.Port(rawValue: UInt16(url.port ?? (isSecure ? 443 : 80)))!
+                endpoint = .hostPort(host: host, port: port)
+                // If your server requires path "/ws" at handshake and you're on older SDKs,
+                // ensure your server accepts the URL-based endpoint above or route by host.
+            }
+
+            let conn = NWConnection(to: endpoint, using: params)
+            self.conn = conn
+
+            conn.stateUpdateHandler = { [weak self] state in
+                guard let self else { return }
+                switch state {
+                case .ready:
+                    self.isOpen = true
+                    self.backoffSeconds = 1
+                    self.onConnect?()
+                    self.receiveLoop()
+                    self.sendAuthIfPossible()
+
+                case .waiting(let error):
+                    // Network temporarily unavailable; will likely transition to ready or failed
+                    self.onDisconnect?(error)
+
+                case .failed(let error):
+                    self.isOpen = false
+                    self.flushAndFail(error)
+                    self.onDisconnect?(error)
+                    self.scheduleReconnect()
+
+                case .cancelled:
+                    self.isOpen = false
+                    self.flushAndFail(NSError(domain: "ws", code: -999,
+                                              userInfo: [NSLocalizedDescriptionKey: "Cancelled"]))
+                    self.onDisconnect?(nil)
+
+                default:
+                    break
+                }
+            }
+
+            conn.start(queue: self.queue)
         }
     }
 
     func disconnect() {
-        task?.cancel()
-        task = nil
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.isOpen = false
+            let err = NSError(domain: "ws", code: -999,
+                              userInfo: [NSLocalizedDescriptionKey: "Closed"])
+            self.flushAndFail(err)
+            self.conn?.cancel()
+            self.conn = nil
+        }
     }
 
-    func isConnected() -> Bool {
-        return task?.state == .running
-    }
+    func isConnected() -> Bool { queue.sync { isOpen } }
 
-    // MARK: - Protobuf request/response
-
-    func request(build: (inout Req) -> Void) async throws -> Resp {
-        // 1) Build synchronously so `build` doesn't escape
-        var built = Req()
-        build(&built)                 // ✅ non-escaping, used immediately
-
-        // 2) Await the response via a continuation; the rest can escape
-        return try await withCheckedThrowingContinuation { cont in
+    // MARK: Request/response
+    /// Send a request built by `build` and await response (matched by `id`).
+    func request(_ build: @escaping (inout Req) -> Void) async throws -> Resp {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Resp, Error>) in
             queue.async { [weak self] in
-                guard let self = self, let task = self.task else {
-                    cont.resume(throwing: NSError(
-                        domain: "ws", code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "No socket"]
-                    ))
+                guard let self = self, let conn = self.conn, self.isOpen else {
+                    cont.resume(throwing: NSError(domain: "ws", code: -1,
+                                                  userInfo: [NSLocalizedDescriptionKey: "Not connected"]))
                     return
                 }
 
-                // assign a fresh id on the queue to keep it serialized
-                let id = self.nextId
-                self.nextId += 1
-
-                // Make a local copy we can mutate/send
-                var req = built
-                req.id = id
+                var req = Req()
+                req.id = self.nextId
+                self.nextId &+= 1
+                build(&req)
 
                 do {
-                    let data = try req.serializedData()
+                    let bytes = try req.serializedData()
 
-                    // Register waiter before sending
-                    self.waiters[id] = { resp in
-                        cont.resume(returning: resp)
-                    }
+                    // Store the waiter before sending
+                    self.waiters[req.id] = cont
 
-                    task.send(.data(data)) { err in
-                        if let err = err {
-                            self.waiters.removeValue(forKey: id)
-                            cont.resume(throwing: err)
+                    // Binary WS frame
+                    let meta = NWProtocolWebSocket.Metadata(opcode: .binary)
+                    let ctx = NWConnection.ContentContext(identifier: "req\(req.id)", metadata: [meta])
+
+                    conn.send(content: bytes, contentContext: ctx, isComplete: true, completion: .contentProcessed { sendErr in
+                        if let sendErr = sendErr {
+                            if let c = self.waiters.removeValue(forKey: req.id) {
+                                c.resume(throwing: sendErr)
+                            }
                         }
-                    }
+                    })
                 } catch {
                     cont.resume(throwing: error)
                 }
@@ -107,6 +162,7 @@ final class WSClient: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
+    /// Convenience auth helper; returns true if resp_ack.ok
     func auth(key: String) async throws -> Bool {
         let resp = try await request { req in
             var a = Auth()
@@ -114,51 +170,61 @@ final class WSClient: NSObject, URLSessionWebSocketDelegate {
             a.create = false
             req.payload = .reqAuth(a)
         }
-        if case .respAck(let ack) = resp.payload {
-            return ack.ok
-        }
+        if case .respAck(let ack) = resp.payload { return ack.ok }
         return false
     }
 
-    // MARK: - Receive loop
-
+    // MARK: Receive loop
     private func receiveLoop() {
-        task?.receive { [weak self] result in
+        conn?.receiveMessage { [weak self] (data, ctx, _, error) in
             guard let self else { return }
-            switch result {
-            case .success(let msg):
-                switch msg {
-                case .data(let d):
-                    if let resp = try? Resp(serializedData: d) {
-                        if let waiter = self.waiters.removeValue(forKey: resp.id) {
-                            waiter(resp)
-                        } // else could be push message
+
+            if let error = error {
+                self.isOpen = false
+                self.flushAndFail(error)
+                self.onDisconnect?(error)
+                self.scheduleReconnect()
+                return
+            }
+
+            if let data = data, !data.isEmpty {
+                if let resp = try? Resp(serializedData: data) {
+                    if let cont = self.waiters.removeValue(forKey: resp.id) {
+                        cont.resume(returning: resp)
+                    } else {
+                        self.onPush?(resp)
                     }
-                default: break
-                }
-                self.receiveLoop()
-            case .failure(let err):
-                self.onDisconnect?(err)
-                self.task = nil
-                // Backoff reconnect
-                DispatchQueue.global().asyncAfter(deadline: .now() + 2) { [weak self] in
-                    guard let self, let _ = self.url else { return }
-                    self.connect()
                 }
             }
+
+            // Keep listening
+            self.receiveLoop()
         }
     }
 
-    // MARK: - Delegate
-
-    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask,
-                    didOpenWithProtocol protocol: String?) {
-        onConnect?()
+    // MARK: Helpers
+    private func sendAuthIfPossible() {
+        guard let key = self.key else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            _ = try? await self.auth(key: key)
+        }
     }
 
-    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask,
-                    didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        onDisconnect?(nil)
-        task = nil
+    private func flushAndFail(_ error: Error) {
+        for (_, cont) in waiters {
+            cont.resume(throwing: error)
+        }
+        waiters.removeAll()
+    }
+
+    private func scheduleReconnect() {
+        // simple exponential backoff (cap at 30s)
+        let delay = backoffSeconds
+        backoffSeconds = min(backoffSeconds * 2, 30)
+        guard let _ = url else { return }
+        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.connect()
+        }
     }
 }

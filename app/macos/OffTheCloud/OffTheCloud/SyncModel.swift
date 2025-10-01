@@ -114,9 +114,7 @@ final class SyncModel: ObservableObject {
         stored.removeAll { $0.id == f.id }
         persistFolders(bookmarks: stored)
     }
-
-    // MARK: - Sync loop
-
+    
     @MainActor
     private func startSyncingLoop() {
         guard let settings, settings.ready else { return }
@@ -124,9 +122,17 @@ final class SyncModel: ObservableObject {
         Task.detached { [weak self] in
             while let self = self {
                 let shouldRun = await MainActor.run { self.settings?.ready ?? false }
+                print("Should run: \(shouldRun), WS connected: \(ws.isConnected())")
                 if !shouldRun { break }
+                
+                while !ws.isConnected() {
+                    print("Waiting for the WS")
+                    try? await Task.sleep(for: .seconds(1))
+                }
 
-                do { try await self.syncAll() }
+                do {
+                    try await self.syncAll()
+                }
                 try? await Task.sleep(for: .seconds(60))
             }
         }
@@ -148,30 +154,38 @@ final class SyncModel: ObservableObject {
         print("Sync folder: \(root.path)")
         guard ws.isConnected() else { return }
         let allLocal = enumerateFilesRecursively(at: root)
-
+        
         var completed = 0
         let total = max(allLocal.count, 1)
 
         do {
+            print("Listing files...")
             // list remote for this base path
             let resp = try await ws.request { req in
-                var lf = ListFiles(); lf.path = remotePathFor(root.path) + "/"
+                var lf = ListFiles(); lf.path = self.remotePathFor(root.path) + "/"; lf.recursive = true
                 req.payload = .reqListFiles(lf)
             }
+            print("Files listed")
             let remoteMap: [String: String]
             if case .respListOfFiles(let lof) = resp.payload {
                 remoteMap = Dictionary(uniqueKeysWithValues: lof.files.map { ($0.path, $0.hash) })
             } else {
                 remoteMap = [:]
             }
+            
+            //print("FILES: \(remoteMap)")
 
             for fileURL in allLocal {
                 do {
                     let remotePath = remotePathFor(fileURL.path)
-                    let remoteHash = remoteMap[remotePath]
+                    /*let remoteHash = remoteMap[remotePath]
                     let localHash = try sha256Hex(of: fileURL)
 
-                    if remoteHash != localHash {
+                    print("--->>> remotePath: \(remotePath) <<<---")
+                    print("RemoteHash: \(remoteHash)")
+                    print("LocalHash:  \(localHash)")*/
+                    //if remoteHash != localHash {
+                    if remoteMap[remotePath] == nil {
                         try await upload(fileURL, to: remotePath)
                     }
                 } catch {
@@ -193,6 +207,7 @@ final class SyncModel: ObservableObject {
         let created = SwiftProtobuf.Google_Protobuf_Timestamp(
             date: (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
         )
+        print("Created: \(created)")
         _ = try await ws.request { req in
             var up = UploadFile()
             up.path = remotePath
@@ -204,6 +219,7 @@ final class SyncModel: ObservableObject {
     }
 
     private func enumerateFilesRecursively(at root: URL) -> [URL] {
+        print("Enumerate files...")
         var urls: [URL] = []
         if let e = FileManager.default.enumerator(at: root,
                                                   includingPropertiesForKeys: [.isRegularFileKey],
@@ -214,6 +230,8 @@ final class SyncModel: ObservableObject {
                 }
             }
         }
+        print("List of files...")
+
         return urls
     }
 

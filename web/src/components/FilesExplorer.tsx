@@ -145,7 +145,7 @@ export default function FilesExplorer({
   const openEntry = async (f: PbFile) => {
     if (isDir(f)) {
       let newPath = '';
-      if (f.path === "..") newPath = dirname(path);
+      if (f.path === "..") newPath = dirname(path) + '/';
       else {
         // directory name from row (server may return full path; we want the leaf)
         const name = f.path === ".." ? ".." : leafName(f.path);

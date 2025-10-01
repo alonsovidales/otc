@@ -8,13 +8,11 @@ struct CloudSyncApp: App {
 
     var body: some Scene {
         // One popover-only UI in the menu bar
-        MenuBarExtra("Off The Cloud", systemImage: "icloud") {
+        MenuBarExtra("Off The Cloud", systemImage: "server.rack") {
             PopoverView()
                 .environmentObject(settings)
                 .environmentObject(syncModel)
         }
         .menuBarExtraStyle(.window) // resizable popover
-
-        // Optional: remove Settings/Windows scenes entirely to keep *only* the popover
     }
 }

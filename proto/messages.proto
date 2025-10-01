@@ -58,6 +58,7 @@ message GetFile {
 
 message ListFiles {
   string path = 1;
+  bool recursive = 2;
 }
 
 message SearchPhotos {
