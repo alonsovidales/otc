@@ -127,6 +127,7 @@ final class SyncModel: ObservableObject {
                 
                 while !ws.isConnected() {
                     print("Waiting for the WS")
+                    ws.connect()
                     try? await Task.sleep(for: .seconds(1))
                 }
 
@@ -135,6 +136,7 @@ final class SyncModel: ObservableObject {
                 }
                 try? await Task.sleep(for: .seconds(60))
             }
+            print("End sync loop")
         }
     }
 
@@ -207,7 +209,6 @@ final class SyncModel: ObservableObject {
         let created = SwiftProtobuf.Google_Protobuf_Timestamp(
             date: (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
         )
-        print("Created: \(created)")
         _ = try await ws.request { req in
             var up = UploadFile()
             up.path = remotePath

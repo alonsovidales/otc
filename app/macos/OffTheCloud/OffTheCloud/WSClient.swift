@@ -29,7 +29,11 @@ final class WSClient {
     private let queue = DispatchQueue(label: "wsclient.serial")
     private var waiters: [Int32 : CheckedContinuation<Resp, Error>] = [:]
     private var isOpen = false
+
+    // Reconnect control
+    private var autoReconnect = true
     private var backoffSeconds: TimeInterval = 1
+    private let maxBackoff: TimeInterval = 30
 
     // MARK: Configure
     /// domain: "your.domain.tld" (no scheme, no path); if you pass a full URL, it will be used as-is.
@@ -43,15 +47,20 @@ final class WSClient {
         self.key = key
     }
 
+    func enableAutoReconnect(_ enabled: Bool = true) {
+        queue.async { [weak self] in self?.autoReconnect = enabled }
+
+    }
+
     // MARK: Connect / Disconnect
     func connect() {
         queue.async { [weak self] in
             guard let self = self, let url = self.url else { return }
 
-            // WebSocket options — set 10 MB max message size
+            // WebSocket options — set LARGE max message size (your choice)
             let wsOpts = NWProtocolWebSocket.Options()
             wsOpts.autoReplyPing = true
-            wsOpts.maximumMessageSize = 10 * 1024 * 1024 // 10 MB
+            wsOpts.maximumMessageSize = 1000 * 1024 * 1024 // 1000 MB
 
             let isSecure = (url.scheme?.lowercased() == "wss")
             let tls = isSecure ? NWProtocolTLS.Options() : nil
@@ -66,8 +75,6 @@ final class WSClient {
                 let host = NWEndpoint.Host(url.host ?? "localhost")
                 let port = NWEndpoint.Port(rawValue: UInt16(url.port ?? (isSecure ? 443 : 80)))!
                 endpoint = .hostPort(host: host, port: port)
-                // If your server requires path "/ws" at handshake and you're on older SDKs,
-                // ensure your server accepts the URL-based endpoint above or route by host.
             }
 
             let conn = NWConnection(to: endpoint, using: params)
@@ -84,7 +91,7 @@ final class WSClient {
                     self.sendAuthIfPossible()
 
                 case .waiting(let error):
-                    // Network temporarily unavailable; will likely transition to ready or failed
+                    // Path not currently available — notify, then let state machine proceed.
                     self.onDisconnect?(error)
 
                 case .failed(let error):
@@ -98,6 +105,7 @@ final class WSClient {
                     self.flushAndFail(NSError(domain: "ws", code: -999,
                                               userInfo: [NSLocalizedDescriptionKey: "Cancelled"]))
                     self.onDisconnect?(nil)
+                    self.scheduleReconnect()
 
                 default:
                     break
@@ -108,9 +116,11 @@ final class WSClient {
         }
     }
 
+    /// Manual stop. Also disables auto-reconnect (call `enableAutoReconnect()` to re-enable).
     func disconnect() {
         queue.async { [weak self] in
             guard let self else { return }
+            self.autoReconnect = false
             self.isOpen = false
             let err = NSError(domain: "ws", code: -999,
                               userInfo: [NSLocalizedDescriptionKey: "Closed"])
@@ -118,6 +128,7 @@ final class WSClient {
             self.conn?.cancel()
             self.conn = nil
         }
+        print("Disconnected")
     }
 
     func isConnected() -> Bool { queue.sync { isOpen } }
@@ -153,6 +164,8 @@ final class WSClient {
                             if let c = self.waiters.removeValue(forKey: req.id) {
                                 c.resume(throwing: sendErr)
                             }
+                            // sending failed -> trigger reconnect
+                            self.scheduleReconnect()
                         }
                     })
                 } catch {
@@ -219,12 +232,15 @@ final class WSClient {
     }
 
     private func scheduleReconnect() {
-        // simple exponential backoff (cap at 30s)
-        let delay = backoffSeconds
-        backoffSeconds = min(backoffSeconds * 2, 30)
-        guard let _ = url else { return }
-        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.connect()
+        queue.async { [weak self] in
+            guard let self else { return }
+            guard self.autoReconnect, self.url != nil, self.conn == nil || self.isOpen == false else { return }
+            let delay = self.backoffSeconds
+            self.backoffSeconds = min(self.backoffSeconds * 2, self.maxBackoff)
+            self.queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self else { return }
+                if self.autoReconnect { self.connect() }
+            }
         }
     }
 }

@@ -1,0 +1,74 @@
+.friends-wrap {
+  display: grid;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+h2 { margin: 0 0 12px; font-size: 1.1rem; }
+
+.profile-row { display: grid; grid-template-columns: 140px 1fr; gap: 16px; }
+.profile-photo { display: grid; gap: 8px; align-content: start; }
+.profile-photo img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; }
+.profile-photo .ph { width: 120px; height: 120px; background: #222; border-radius: 10px; }
+.upload { font-size: .9rem; color: #09f; cursor: pointer; }
+.upload input { display: none; }
+.upload.disabled { opacity: .5; pointer-events: none; }
+
+.profile-form label { display: grid; gap: 6px; margin-bottom: 10px; }
+.profile-form input, .profile-form textarea {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; padding: 8px;
+  color: inherit; width: 97%;
+}
+.profile-actions { display: flex; gap: 8px; }
+
+.add-friend { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.add-friend input {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; padding: 8px; color: inherit;
+}
+.add-friend button, .profile-actions button, .refresh, .fr-btn {
+  background: #0a84ff;
+  border: none; color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+}
+.add-friend button:disabled, .profile-actions button:disabled, .refresh:disabled, .fr-btn:disabled {
+  opacity: .6; cursor: not-allowed;
+}
+
+.list-head { display: flex; align-items: center; justify-content: space-between; }
+
+.friends-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.friend-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+}
+.friend-left { display: flex; gap: 10px; align-items: center; }
+.avatar img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.avatar .ph { width: 40px; height: 40px; border-radius: 50%; background: #222; }
+.meta .name { font-weight: 600; }
+.meta .domain { font-size: .9rem; opacity: .8; }
+
+.friend-right { display: flex; gap: 10px; align-items: center; }
+.pill {
+  padding: 4px 8px; border-radius: 999px; font-size: .85rem; border: 1px solid rgba(255,255,255,0.12);
+}
+.s-0 { background: #444; }   /* Pending */
+.s-1 { background: #285d2a; } /* Accepted */
+.s-2 { background: #5a2626; } /* Blocked */
+
+.toast {
+  position: sticky; top: 10px; z-index: 10;
+  background: rgba(0,0,0,0.8); color: #fff; padding: 8px 12px;
+  border-radius: 8px; text-align: center;
+}
+

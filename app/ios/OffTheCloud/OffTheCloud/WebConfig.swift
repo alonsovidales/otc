@@ -117,6 +117,8 @@ struct WebContainerView: UIViewRepresentable {
         if let dict = message.body as? [String: Any],
            let action = dict["action"] as? String {
             switch action {
+            case "loginFailed":
+                self.parent.showSettings = true
             case "openSettings":
                 self.parent.showSettings = true
             default:

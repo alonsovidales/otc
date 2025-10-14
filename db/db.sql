@@ -42,37 +42,12 @@ create table social_publications
   `dt` datetime not null,
   `text` text not null,
   `likes` int default 0,
+  `friend_domain` varchar(128) not null,
+  `own_publication` boolean not null,
 
   INDEX USING BTREE (`dt`),
+  unique(`uuid`),
   key(`uuid`)
-) engine=InnoDB;
-
-create table social_publications_files
-(
-  `pos` int not null,
-  `hash` varchar(64) not null,
-  `uuid` varchar(64) not null,
-  `mime` varchar(150) not null,
-  `created` datetime not null,
-  `modified` datetime not null,
-  `size` int not null,
-
-  key (`hash`),
-  key (`uuid`),
-
-  foreign key (hash) references files(hash),
-  foreign key (uuid) references social_publications(uuid)
-) engine=InnoDB;
-
-create table social_friendship
-(
-  `subdomain` varchar(128) not null,
-  `pending` boolean default true,
-  `name` varchar(250) default null,
-  `image` mediumblob default null,
-
-  primary key (`subdomain`),
-  key (`subdomain`)
 ) engine=InnoDB;
 
 create table social_publications_comments
@@ -89,6 +64,36 @@ create table social_publications_comments
   key (`pub_uuid`),
 
   foreign key (pub_uuid) references social_publications(uuid)
+) engine=InnoDB;
+
+create table social_publications_files
+(
+  `pos` int not null,
+  `hash` varchar(64) not null,
+  `uuid` varchar(64) not null,
+  `mime` varchar(150) not null,
+  `created` datetime not null,
+  `modified` datetime not null,
+  `size` int not null,
+
+  key (`hash`),
+  key (`uuid`),
+
+  foreign key (uuid) references social_publications(uuid)
+) engine=InnoDB;
+
+create table social_friendship
+(
+  `domain` varchar(128) not null,
+  `status` enum('pending', 'accepted', 'blocked'),
+  `name` varchar(250) default null,
+  `image` mediumblob default null,
+  `text` text,
+  `secret` varchar(128),
+  `sent` boolean,
+
+  primary key (`domain`),
+  key (`domain`)
 ) engine=InnoDB;
 
 create table sent_actions

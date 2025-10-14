@@ -42,6 +42,13 @@ struct SettingsView: View {
                             try? await PhotoSync.shared.runForeground()
                         }
                     }
+                    Button("Sync All") {
+                        Task {
+                            secrets.persist()
+                            UserDefaults.standard.set(-1, forKey: "lastSyncDate")
+                            try? await PhotoSync.shared.runForeground()
+                        }
+                    }
                 }
             }
             .navigationTitle("Settings")

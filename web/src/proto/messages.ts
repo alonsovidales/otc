@@ -59,6 +59,49 @@ export function statusErrorCodeToJSON(object: StatusErrorCode): string {
   }
 }
 
+export const FriendShipStatus = { Pending: 0, Accepted: 1, Blocked: 2, UNRECOGNIZED: -1 } as const;
+
+export type FriendShipStatus = typeof FriendShipStatus[keyof typeof FriendShipStatus];
+
+export namespace FriendShipStatus {
+  export type Pending = typeof FriendShipStatus.Pending;
+  export type Accepted = typeof FriendShipStatus.Accepted;
+  export type Blocked = typeof FriendShipStatus.Blocked;
+  export type UNRECOGNIZED = typeof FriendShipStatus.UNRECOGNIZED;
+}
+
+export function friendShipStatusFromJSON(object: any): FriendShipStatus {
+  switch (object) {
+    case 0:
+    case "Pending":
+      return FriendShipStatus.Pending;
+    case 1:
+    case "Accepted":
+      return FriendShipStatus.Accepted;
+    case 2:
+    case "Blocked":
+      return FriendShipStatus.Blocked;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return FriendShipStatus.UNRECOGNIZED;
+  }
+}
+
+export function friendShipStatusToJSON(object: FriendShipStatus): string {
+  switch (object) {
+    case FriendShipStatus.Pending:
+      return "Pending";
+    case FriendShipStatus.Accepted:
+      return "Accepted";
+    case FriendShipStatus.Blocked:
+      return "Blocked";
+    case FriendShipStatus.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export const ActionType = { FriendshipReq: 0, LikePub: 1, LikeComm: 2, NewSocialComm: 3, UNRECOGNIZED: -1 } as const;
 
 export type ActionType = typeof ActionType[keyof typeof ActionType];
@@ -170,49 +213,6 @@ export function bridgeOnboardErrorTypeToJSON(object: BridgeOnboardErrorType): st
   }
 }
 
-export const FriendShipStatus = { Pending: 0, Accepted: 1, Blocked: 2, UNRECOGNIZED: -1 } as const;
-
-export type FriendShipStatus = typeof FriendShipStatus[keyof typeof FriendShipStatus];
-
-export namespace FriendShipStatus {
-  export type Pending = typeof FriendShipStatus.Pending;
-  export type Accepted = typeof FriendShipStatus.Accepted;
-  export type Blocked = typeof FriendShipStatus.Blocked;
-  export type UNRECOGNIZED = typeof FriendShipStatus.UNRECOGNIZED;
-}
-
-export function friendShipStatusFromJSON(object: any): FriendShipStatus {
-  switch (object) {
-    case 0:
-    case "Pending":
-      return FriendShipStatus.Pending;
-    case 1:
-    case "Accepted":
-      return FriendShipStatus.Accepted;
-    case 2:
-    case "Blocked":
-      return FriendShipStatus.Blocked;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return FriendShipStatus.UNRECOGNIZED;
-  }
-}
-
-export function friendShipStatusToJSON(object: FriendShipStatus): string {
-  switch (object) {
-    case FriendShipStatus.Pending:
-      return "Pending";
-    case FriendShipStatus.Accepted:
-      return "Accepted";
-    case FriendShipStatus.Blocked:
-      return "Blocked";
-    case FriendShipStatus.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
-}
-
 export interface StatusErrors {
   StatusErrorCode: StatusErrorCode;
   Message: string;
@@ -304,7 +304,7 @@ export interface NewSocialPublication {
 export interface GetSocialPublications {
   since?: Date | undefined;
   total: number;
-  own: boolean;
+  excludeUuids: string[];
 }
 
 export interface NewSocialComment {
@@ -317,12 +317,37 @@ export interface DelSocialComment {
   commentUuid: string;
 }
 
+export interface DidSendFriendshipReq {
+  secret: string;
+  domain: string;
+}
+
+export interface Friendship {
+  originProfile?: Profile | undefined;
+  status: FriendShipStatus;
+  sent: boolean;
+  secret: string;
+}
+
+export interface Friendships {
+  friendships: Friendship[];
+}
+
+export interface FriendshipsList {
+}
+
 export interface FriendshipRequest {
   domain: string;
 }
 
+export interface FriendshipInterRequest {
+  domain: string;
+  secret: string;
+  originProfile?: Profile | undefined;
+}
+
 export interface ChangeFriendStatus {
-  reqUuid: string;
+  domain: string;
   status: FriendShipStatus;
 }
 
@@ -332,12 +357,6 @@ export interface LikePublication {
 
 export interface LikeComment {
   commentUuid: string;
-}
-
-export interface DidSendAction {
-  actionUuid: string;
-  target: string;
-  actionType: ActionType;
 }
 
 export interface GetSettings {
@@ -373,21 +392,6 @@ export interface Profile {
 
 export interface ShareFilesLink {
   paths: string[];
-}
-
-export interface Friendship {
-  uuid: string;
-  originProfile?: Profile | undefined;
-  profiles?: Profile | undefined;
-  status: FriendShipStatus;
-  secret: string;
-}
-
-export interface Friendships {
-  friendships: Friendship[];
-}
-
-export interface FriendshipsList {
 }
 
 export interface ShareLink {
@@ -430,6 +434,20 @@ export interface SocialPublications {
   since?: Date | undefined;
 }
 
+export interface GetFriendshipStatus {
+  domain: string;
+  secret: string;
+}
+
+export interface FriendshipStatus {
+  status: FriendShipStatus;
+}
+
+export interface AuthAsFriend {
+  domain: string;
+  secret: string;
+}
+
 export interface ReqEnvelope {
   id: number;
   payload?:
@@ -446,14 +464,17 @@ export interface ReqEnvelope {
     | { $case: "reqSetSettings"; reqSetSettings: SetSettings }
     | { $case: "reqNewSocialPublication"; reqNewSocialPublication: NewSocialPublication }
     | { $case: "reqGetSocialPublications"; reqGetSocialPublications: GetSocialPublications }
-    | { $case: "reqNewSocialComment"; reqNewSocialComment: NewSocialComment }
-    | { $case: "reqDelSocialComment"; reqDelSocialComment: DelSocialComment }
     | { $case: "reqFriendshipRequest"; reqFriendshipRequest: FriendshipRequest }
-    | { $case: "reqLikePublication"; reqLikePublication: LikePublication }
-    | { $case: "reqLikeComment"; reqLikeComment: LikeComment }
-    | { $case: "reqDidSendAction"; reqDidSendAction: DidSendAction }
+    | { $case: "reqFriendshipInterRequest"; reqFriendshipInterRequest: FriendshipInterRequest }
+    | { $case: "reqDidSendFriendshipReq"; reqDidSendFriendshipReq: DidSendFriendshipReq }
     | { $case: "reqFriendshipsList"; reqFriendshipsList: FriendshipsList }
     | { $case: "reqChangeFriendStatus"; reqChangeFriendStatus: ChangeFriendStatus }
+    | { $case: "reqGetFriendshipStatus"; reqGetFriendshipStatus: GetFriendshipStatus }
+    | { $case: "reqAuthAsFriend"; reqAuthAsFriend: AuthAsFriend }
+    | { $case: "reqNewSocialComment"; reqNewSocialComment: NewSocialComment }
+    | { $case: "reqDelSocialComment"; reqDelSocialComment: DelSocialComment }
+    | { $case: "reqLikePublication"; reqLikePublication: LikePublication }
+    | { $case: "reqLikeComment"; reqLikeComment: LikeComment }
     | { $case: "reqBridgeRegister"; reqBridgeRegister: BridgeRegister }
     | { $case: "reqGetProfile"; reqGetProfile: GetProfile }
     | { $case: "reqSetProfile"; reqSetProfile: Profile }
@@ -479,6 +500,7 @@ export interface RespEnvelope {
     | { $case: "respFriendships"; respFriendships: Friendships }
     | { $case: "respSharedFiles"; respSharedFiles: SharedFiles }
     | { $case: "respNewSocial"; respNewSocial: NewSocial }
+    | { $case: "respFriendshipStatus"; respFriendshipStatus: FriendshipStatus }
     | { $case: "respSocialPublications"; respSocialPublications: SocialPublications }
     | undefined;
 }
@@ -1828,7 +1850,7 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
 };
 
 function createBaseGetSocialPublications(): GetSocialPublications {
-  return { since: undefined, total: 0, own: false };
+  return { since: undefined, total: 0, excludeUuids: [] };
 }
 
 export const GetSocialPublications: MessageFns<GetSocialPublications> = {
@@ -1839,8 +1861,8 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     if (message.total !== 0) {
       writer.uint32(16).int32(message.total);
     }
-    if (message.own !== false) {
-      writer.uint32(24).bool(message.own);
+    for (const v of message.excludeUuids) {
+      writer.uint32(26).string(v!);
     }
     return writer;
   },
@@ -1869,11 +1891,11 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
           continue;
         }
         case 3: {
-          if (tag !== 24) {
+          if (tag !== 26) {
             break;
           }
 
-          message.own = reader.bool();
+          message.excludeUuids.push(reader.string());
           continue;
         }
       }
@@ -1889,7 +1911,9 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     return {
       since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
       total: isSet(object.total) ? globalThis.Number(object.total) : 0,
-      own: isSet(object.own) ? globalThis.Boolean(object.own) : false,
+      excludeUuids: globalThis.Array.isArray(object?.excludeUuids)
+        ? object.excludeUuids.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
@@ -1901,8 +1925,8 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     if (message.total !== 0) {
       obj.total = Math.round(message.total);
     }
-    if (message.own !== false) {
-      obj.own = message.own;
+    if (message.excludeUuids?.length) {
+      obj.excludeUuids = message.excludeUuids;
     }
     return obj;
   },
@@ -1914,7 +1938,7 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     const message = createBaseGetSocialPublications();
     message.since = object.since ?? undefined;
     message.total = object.total ?? 0;
-    message.own = object.own ?? false;
+    message.excludeUuids = object.excludeUuids?.map((e) => e) || [];
     return message;
   },
 };
@@ -2069,6 +2093,297 @@ export const DelSocialComment: MessageFns<DelSocialComment> = {
   },
 };
 
+function createBaseDidSendFriendshipReq(): DidSendFriendshipReq {
+  return { secret: "", domain: "" };
+}
+
+export const DidSendFriendshipReq: MessageFns<DidSendFriendshipReq> = {
+  encode(message: DidSendFriendshipReq, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.secret !== "") {
+      writer.uint32(10).string(message.secret);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DidSendFriendshipReq {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDidSendFriendshipReq();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DidSendFriendshipReq {
+    return {
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+    };
+  },
+
+  toJSON(message: DidSendFriendshipReq): unknown {
+    const obj: any = {};
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DidSendFriendshipReq>, I>>(base?: I): DidSendFriendshipReq {
+    return DidSendFriendshipReq.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DidSendFriendshipReq>, I>>(object: I): DidSendFriendshipReq {
+    const message = createBaseDidSendFriendshipReq();
+    message.secret = object.secret ?? "";
+    message.domain = object.domain ?? "";
+    return message;
+  },
+};
+
+function createBaseFriendship(): Friendship {
+  return { originProfile: undefined, status: 0, sent: false, secret: "" };
+}
+
+export const Friendship: MessageFns<Friendship> = {
+  encode(message: Friendship, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.originProfile !== undefined) {
+      Profile.encode(message.originProfile, writer.uint32(18).fork()).join();
+    }
+    if (message.status !== 0) {
+      writer.uint32(24).int32(message.status);
+    }
+    if (message.sent !== false) {
+      writer.uint32(32).bool(message.sent);
+    }
+    if (message.secret !== "") {
+      writer.uint32(42).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Friendship {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendship();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.originProfile = Profile.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.status = reader.int32() as any;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.sent = reader.bool();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Friendship {
+    return {
+      originProfile: isSet(object.originProfile) ? Profile.fromJSON(object.originProfile) : undefined,
+      status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
+      sent: isSet(object.sent) ? globalThis.Boolean(object.sent) : false,
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: Friendship): unknown {
+    const obj: any = {};
+    if (message.originProfile !== undefined) {
+      obj.originProfile = Profile.toJSON(message.originProfile);
+    }
+    if (message.status !== 0) {
+      obj.status = friendShipStatusToJSON(message.status);
+    }
+    if (message.sent !== false) {
+      obj.sent = message.sent;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Friendship>, I>>(base?: I): Friendship {
+    return Friendship.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Friendship>, I>>(object: I): Friendship {
+    const message = createBaseFriendship();
+    message.originProfile = (object.originProfile !== undefined && object.originProfile !== null)
+      ? Profile.fromPartial(object.originProfile)
+      : undefined;
+    message.status = object.status ?? 0;
+    message.sent = object.sent ?? false;
+    message.secret = object.secret ?? "";
+    return message;
+  },
+};
+
+function createBaseFriendships(): Friendships {
+  return { friendships: [] };
+}
+
+export const Friendships: MessageFns<Friendships> = {
+  encode(message: Friendships, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.friendships) {
+      Friendship.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Friendships {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendships();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.friendships.push(Friendship.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Friendships {
+    return {
+      friendships: globalThis.Array.isArray(object?.friendships)
+        ? object.friendships.map((e: any) => Friendship.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Friendships): unknown {
+    const obj: any = {};
+    if (message.friendships?.length) {
+      obj.friendships = message.friendships.map((e) => Friendship.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Friendships>, I>>(base?: I): Friendships {
+    return Friendships.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Friendships>, I>>(object: I): Friendships {
+    const message = createBaseFriendships();
+    message.friendships = object.friendships?.map((e) => Friendship.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseFriendshipsList(): FriendshipsList {
+  return {};
+}
+
+export const FriendshipsList: MessageFns<FriendshipsList> = {
+  encode(_: FriendshipsList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipsList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendshipsList();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): FriendshipsList {
+    return {};
+  },
+
+  toJSON(_: FriendshipsList): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FriendshipsList>, I>>(base?: I): FriendshipsList {
+    return FriendshipsList.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FriendshipsList>, I>>(_: I): FriendshipsList {
+    const message = createBaseFriendshipsList();
+    return message;
+  },
+};
+
 function createBaseFriendshipRequest(): FriendshipRequest {
   return { domain: "" };
 }
@@ -2127,14 +2442,108 @@ export const FriendshipRequest: MessageFns<FriendshipRequest> = {
   },
 };
 
+function createBaseFriendshipInterRequest(): FriendshipInterRequest {
+  return { domain: "", secret: "", originProfile: undefined };
+}
+
+export const FriendshipInterRequest: MessageFns<FriendshipInterRequest> = {
+  encode(message: FriendshipInterRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    if (message.originProfile !== undefined) {
+      Profile.encode(message.originProfile, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipInterRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendshipInterRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.originProfile = Profile.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FriendshipInterRequest {
+    return {
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      originProfile: isSet(object.originProfile) ? Profile.fromJSON(object.originProfile) : undefined,
+    };
+  },
+
+  toJSON(message: FriendshipInterRequest): unknown {
+    const obj: any = {};
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.originProfile !== undefined) {
+      obj.originProfile = Profile.toJSON(message.originProfile);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FriendshipInterRequest>, I>>(base?: I): FriendshipInterRequest {
+    return FriendshipInterRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FriendshipInterRequest>, I>>(object: I): FriendshipInterRequest {
+    const message = createBaseFriendshipInterRequest();
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    message.originProfile = (object.originProfile !== undefined && object.originProfile !== null)
+      ? Profile.fromPartial(object.originProfile)
+      : undefined;
+    return message;
+  },
+};
+
 function createBaseChangeFriendStatus(): ChangeFriendStatus {
-  return { reqUuid: "", status: 0 };
+  return { domain: "", status: 0 };
 }
 
 export const ChangeFriendStatus: MessageFns<ChangeFriendStatus> = {
   encode(message: ChangeFriendStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.reqUuid !== "") {
-      writer.uint32(10).string(message.reqUuid);
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
     }
     if (message.status !== 0) {
       writer.uint32(16).int32(message.status);
@@ -2154,7 +2563,7 @@ export const ChangeFriendStatus: MessageFns<ChangeFriendStatus> = {
             break;
           }
 
-          message.reqUuid = reader.string();
+          message.domain = reader.string();
           continue;
         }
         case 2: {
@@ -2176,15 +2585,15 @@ export const ChangeFriendStatus: MessageFns<ChangeFriendStatus> = {
 
   fromJSON(object: any): ChangeFriendStatus {
     return {
-      reqUuid: isSet(object.reqUuid) ? globalThis.String(object.reqUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
       status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
     };
   },
 
   toJSON(message: ChangeFriendStatus): unknown {
     const obj: any = {};
-    if (message.reqUuid !== "") {
-      obj.reqUuid = message.reqUuid;
+    if (message.domain !== "") {
+      obj.domain = message.domain;
     }
     if (message.status !== 0) {
       obj.status = friendShipStatusToJSON(message.status);
@@ -2197,7 +2606,7 @@ export const ChangeFriendStatus: MessageFns<ChangeFriendStatus> = {
   },
   fromPartial<I extends Exact<DeepPartial<ChangeFriendStatus>, I>>(object: I): ChangeFriendStatus {
     const message = createBaseChangeFriendStatus();
-    message.reqUuid = object.reqUuid ?? "";
+    message.domain = object.domain ?? "";
     message.status = object.status ?? 0;
     return message;
   },
@@ -2315,98 +2724,6 @@ export const LikeComment: MessageFns<LikeComment> = {
   fromPartial<I extends Exact<DeepPartial<LikeComment>, I>>(object: I): LikeComment {
     const message = createBaseLikeComment();
     message.commentUuid = object.commentUuid ?? "";
-    return message;
-  },
-};
-
-function createBaseDidSendAction(): DidSendAction {
-  return { actionUuid: "", target: "", actionType: 0 };
-}
-
-export const DidSendAction: MessageFns<DidSendAction> = {
-  encode(message: DidSendAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.actionUuid !== "") {
-      writer.uint32(10).string(message.actionUuid);
-    }
-    if (message.target !== "") {
-      writer.uint32(18).string(message.target);
-    }
-    if (message.actionType !== 0) {
-      writer.uint32(24).int32(message.actionType);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): DidSendAction {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseDidSendAction();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.actionUuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.target = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 24) {
-            break;
-          }
-
-          message.actionType = reader.int32() as any;
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): DidSendAction {
-    return {
-      actionUuid: isSet(object.actionUuid) ? globalThis.String(object.actionUuid) : "",
-      target: isSet(object.target) ? globalThis.String(object.target) : "",
-      actionType: isSet(object.actionType) ? actionTypeFromJSON(object.actionType) : 0,
-    };
-  },
-
-  toJSON(message: DidSendAction): unknown {
-    const obj: any = {};
-    if (message.actionUuid !== "") {
-      obj.actionUuid = message.actionUuid;
-    }
-    if (message.target !== "") {
-      obj.target = message.target;
-    }
-    if (message.actionType !== 0) {
-      obj.actionType = actionTypeToJSON(message.actionType);
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<DidSendAction>, I>>(base?: I): DidSendAction {
-    return DidSendAction.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<DidSendAction>, I>>(object: I): DidSendAction {
-    const message = createBaseDidSendAction();
-    message.actionUuid = object.actionUuid ?? "";
-    message.target = object.target ?? "";
-    message.actionType = object.actionType ?? 0;
     return message;
   },
 };
@@ -2929,239 +3246,6 @@ export const ShareFilesLink: MessageFns<ShareFilesLink> = {
   },
 };
 
-function createBaseFriendship(): Friendship {
-  return { uuid: "", originProfile: undefined, profiles: undefined, status: 0, secret: "" };
-}
-
-export const Friendship: MessageFns<Friendship> = {
-  encode(message: Friendship, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.uuid !== "") {
-      writer.uint32(10).string(message.uuid);
-    }
-    if (message.originProfile !== undefined) {
-      Profile.encode(message.originProfile, writer.uint32(18).fork()).join();
-    }
-    if (message.profiles !== undefined) {
-      Profile.encode(message.profiles, writer.uint32(26).fork()).join();
-    }
-    if (message.status !== 0) {
-      writer.uint32(32).int32(message.status);
-    }
-    if (message.secret !== "") {
-      writer.uint32(42).string(message.secret);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): Friendship {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFriendship();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.uuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.originProfile = Profile.decode(reader, reader.uint32());
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.profiles = Profile.decode(reader, reader.uint32());
-          continue;
-        }
-        case 4: {
-          if (tag !== 32) {
-            break;
-          }
-
-          message.status = reader.int32() as any;
-          continue;
-        }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.secret = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): Friendship {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      originProfile: isSet(object.originProfile) ? Profile.fromJSON(object.originProfile) : undefined,
-      profiles: isSet(object.profiles) ? Profile.fromJSON(object.profiles) : undefined,
-      status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-    };
-  },
-
-  toJSON(message: Friendship): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.originProfile !== undefined) {
-      obj.originProfile = Profile.toJSON(message.originProfile);
-    }
-    if (message.profiles !== undefined) {
-      obj.profiles = Profile.toJSON(message.profiles);
-    }
-    if (message.status !== 0) {
-      obj.status = friendShipStatusToJSON(message.status);
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<Friendship>, I>>(base?: I): Friendship {
-    return Friendship.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<Friendship>, I>>(object: I): Friendship {
-    const message = createBaseFriendship();
-    message.uuid = object.uuid ?? "";
-    message.originProfile = (object.originProfile !== undefined && object.originProfile !== null)
-      ? Profile.fromPartial(object.originProfile)
-      : undefined;
-    message.profiles = (object.profiles !== undefined && object.profiles !== null)
-      ? Profile.fromPartial(object.profiles)
-      : undefined;
-    message.status = object.status ?? 0;
-    message.secret = object.secret ?? "";
-    return message;
-  },
-};
-
-function createBaseFriendships(): Friendships {
-  return { friendships: [] };
-}
-
-export const Friendships: MessageFns<Friendships> = {
-  encode(message: Friendships, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.friendships) {
-      Friendship.encode(v!, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): Friendships {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFriendships();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.friendships.push(Friendship.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): Friendships {
-    return {
-      friendships: globalThis.Array.isArray(object?.friendships)
-        ? object.friendships.map((e: any) => Friendship.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: Friendships): unknown {
-    const obj: any = {};
-    if (message.friendships?.length) {
-      obj.friendships = message.friendships.map((e) => Friendship.toJSON(e));
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<Friendships>, I>>(base?: I): Friendships {
-    return Friendships.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<Friendships>, I>>(object: I): Friendships {
-    const message = createBaseFriendships();
-    message.friendships = object.friendships?.map((e) => Friendship.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseFriendshipsList(): FriendshipsList {
-  return {};
-}
-
-export const FriendshipsList: MessageFns<FriendshipsList> = {
-  encode(_: FriendshipsList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipsList {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFriendshipsList();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): FriendshipsList {
-    return {};
-  },
-
-  toJSON(_: FriendshipsList): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<FriendshipsList>, I>>(base?: I): FriendshipsList {
-    return FriendshipsList.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<FriendshipsList>, I>>(_: I): FriendshipsList {
-    const message = createBaseFriendshipsList();
-    return message;
-  },
-};
-
 function createBaseShareLink(): ShareLink {
   return { link: "" };
 }
@@ -3574,7 +3658,7 @@ export const SocialPublication: MessageFns<SocialPublication> = {
       writer.uint32(40).int32(message.likes);
     }
     if (message.publisher !== undefined) {
-      Profile.encode(message.publisher, writer.uint32(50).fork()).join();
+      Profile.encode(message.publisher, writer.uint32(58).fork()).join();
     }
     return writer;
   },
@@ -3626,8 +3710,8 @@ export const SocialPublication: MessageFns<SocialPublication> = {
           message.likes = reader.int32();
           continue;
         }
-        case 6: {
-          if (tag !== 50) {
+        case 7: {
+          if (tag !== 58) {
             break;
           }
 
@@ -3772,6 +3856,216 @@ export const SocialPublications: MessageFns<SocialPublications> = {
   },
 };
 
+function createBaseGetFriendshipStatus(): GetFriendshipStatus {
+  return { domain: "", secret: "" };
+}
+
+export const GetFriendshipStatus: MessageFns<GetFriendshipStatus> = {
+  encode(message: GetFriendshipStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetFriendshipStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetFriendshipStatus();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetFriendshipStatus {
+    return {
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: GetFriendshipStatus): unknown {
+    const obj: any = {};
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetFriendshipStatus>, I>>(base?: I): GetFriendshipStatus {
+    return GetFriendshipStatus.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetFriendshipStatus>, I>>(object: I): GetFriendshipStatus {
+    const message = createBaseGetFriendshipStatus();
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    return message;
+  },
+};
+
+function createBaseFriendshipStatus(): FriendshipStatus {
+  return { status: 0 };
+}
+
+export const FriendshipStatus: MessageFns<FriendshipStatus> = {
+  encode(message: FriendshipStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.status !== 0) {
+      writer.uint32(8).int32(message.status);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendshipStatus();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.status = reader.int32() as any;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FriendshipStatus {
+    return { status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0 };
+  },
+
+  toJSON(message: FriendshipStatus): unknown {
+    const obj: any = {};
+    if (message.status !== 0) {
+      obj.status = friendShipStatusToJSON(message.status);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FriendshipStatus>, I>>(base?: I): FriendshipStatus {
+    return FriendshipStatus.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FriendshipStatus>, I>>(object: I): FriendshipStatus {
+    const message = createBaseFriendshipStatus();
+    message.status = object.status ?? 0;
+    return message;
+  },
+};
+
+function createBaseAuthAsFriend(): AuthAsFriend {
+  return { domain: "", secret: "" };
+}
+
+export const AuthAsFriend: MessageFns<AuthAsFriend> = {
+  encode(message: AuthAsFriend, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AuthAsFriend {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAuthAsFriend();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AuthAsFriend {
+    return {
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: AuthAsFriend): unknown {
+    const obj: any = {};
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AuthAsFriend>, I>>(base?: I): AuthAsFriend {
+    return AuthAsFriend.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AuthAsFriend>, I>>(object: I): AuthAsFriend {
+    const message = createBaseAuthAsFriend();
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    return message;
+  },
+};
+
 function createBaseReqEnvelope(): ReqEnvelope {
   return { id: 0, payload: undefined };
 }
@@ -3821,29 +4115,38 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetSocialPublications":
         GetSocialPublications.encode(message.payload.reqGetSocialPublications, writer.uint32(162).fork()).join();
         break;
-      case "reqNewSocialComment":
-        NewSocialComment.encode(message.payload.reqNewSocialComment, writer.uint32(170).fork()).join();
-        break;
-      case "reqDelSocialComment":
-        DelSocialComment.encode(message.payload.reqDelSocialComment, writer.uint32(178).fork()).join();
-        break;
       case "reqFriendshipRequest":
         FriendshipRequest.encode(message.payload.reqFriendshipRequest, writer.uint32(186).fork()).join();
         break;
-      case "reqLikePublication":
-        LikePublication.encode(message.payload.reqLikePublication, writer.uint32(202).fork()).join();
+      case "reqFriendshipInterRequest":
+        FriendshipInterRequest.encode(message.payload.reqFriendshipInterRequest, writer.uint32(298).fork()).join();
         break;
-      case "reqLikeComment":
-        LikeComment.encode(message.payload.reqLikeComment, writer.uint32(210).fork()).join();
-        break;
-      case "reqDidSendAction":
-        DidSendAction.encode(message.payload.reqDidSendAction, writer.uint32(218).fork()).join();
+      case "reqDidSendFriendshipReq":
+        DidSendFriendshipReq.encode(message.payload.reqDidSendFriendshipReq, writer.uint32(306).fork()).join();
         break;
       case "reqFriendshipsList":
         FriendshipsList.encode(message.payload.reqFriendshipsList, writer.uint32(282).fork()).join();
         break;
       case "reqChangeFriendStatus":
         ChangeFriendStatus.encode(message.payload.reqChangeFriendStatus, writer.uint32(290).fork()).join();
+        break;
+      case "reqGetFriendshipStatus":
+        GetFriendshipStatus.encode(message.payload.reqGetFriendshipStatus, writer.uint32(314).fork()).join();
+        break;
+      case "reqAuthAsFriend":
+        AuthAsFriend.encode(message.payload.reqAuthAsFriend, writer.uint32(322).fork()).join();
+        break;
+      case "reqNewSocialComment":
+        NewSocialComment.encode(message.payload.reqNewSocialComment, writer.uint32(170).fork()).join();
+        break;
+      case "reqDelSocialComment":
+        DelSocialComment.encode(message.payload.reqDelSocialComment, writer.uint32(178).fork()).join();
+        break;
+      case "reqLikePublication":
+        LikePublication.encode(message.payload.reqLikePublication, writer.uint32(202).fork()).join();
+        break;
+      case "reqLikeComment":
+        LikeComment.encode(message.payload.reqLikeComment, writer.uint32(210).fork()).join();
         break;
       case "reqBridgeRegister":
         BridgeRegister.encode(message.payload.reqBridgeRegister, writer.uint32(242).fork()).join();
@@ -3989,28 +4292,6 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
-        case 21: {
-          if (tag !== 170) {
-            break;
-          }
-
-          message.payload = {
-            $case: "reqNewSocialComment",
-            reqNewSocialComment: NewSocialComment.decode(reader, reader.uint32()),
-          };
-          continue;
-        }
-        case 22: {
-          if (tag !== 178) {
-            break;
-          }
-
-          message.payload = {
-            $case: "reqDelSocialComment",
-            reqDelSocialComment: DelSocialComment.decode(reader, reader.uint32()),
-          };
-          continue;
-        }
         case 23: {
           if (tag !== 186) {
             break;
@@ -4022,33 +4303,25 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
-        case 25: {
-          if (tag !== 202) {
+        case 37: {
+          if (tag !== 298) {
             break;
           }
 
           message.payload = {
-            $case: "reqLikePublication",
-            reqLikePublication: LikePublication.decode(reader, reader.uint32()),
+            $case: "reqFriendshipInterRequest",
+            reqFriendshipInterRequest: FriendshipInterRequest.decode(reader, reader.uint32()),
           };
           continue;
         }
-        case 26: {
-          if (tag !== 210) {
-            break;
-          }
-
-          message.payload = { $case: "reqLikeComment", reqLikeComment: LikeComment.decode(reader, reader.uint32()) };
-          continue;
-        }
-        case 27: {
-          if (tag !== 218) {
+        case 38: {
+          if (tag !== 306) {
             break;
           }
 
           message.payload = {
-            $case: "reqDidSendAction",
-            reqDidSendAction: DidSendAction.decode(reader, reader.uint32()),
+            $case: "reqDidSendFriendshipReq",
+            reqDidSendFriendshipReq: DidSendFriendshipReq.decode(reader, reader.uint32()),
           };
           continue;
         }
@@ -4072,6 +4345,66 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
             $case: "reqChangeFriendStatus",
             reqChangeFriendStatus: ChangeFriendStatus.decode(reader, reader.uint32()),
           };
+          continue;
+        }
+        case 39: {
+          if (tag !== 314) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetFriendshipStatus",
+            reqGetFriendshipStatus: GetFriendshipStatus.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 40: {
+          if (tag !== 322) {
+            break;
+          }
+
+          message.payload = { $case: "reqAuthAsFriend", reqAuthAsFriend: AuthAsFriend.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 21: {
+          if (tag !== 170) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqNewSocialComment",
+            reqNewSocialComment: NewSocialComment.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 22: {
+          if (tag !== 178) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqDelSocialComment",
+            reqDelSocialComment: DelSocialComment.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 25: {
+          if (tag !== 202) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqLikePublication",
+            reqLikePublication: LikePublication.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 26: {
+          if (tag !== 210) {
+            break;
+          }
+
+          message.payload = { $case: "reqLikeComment", reqLikeComment: LikeComment.decode(reader, reader.uint32()) };
           continue;
         }
         case 30: {
@@ -4167,21 +4500,21 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqGetSocialPublications",
           reqGetSocialPublications: GetSocialPublications.fromJSON(object.reqGetSocialPublications),
         }
-        : isSet(object.reqNewSocialComment)
-        ? { $case: "reqNewSocialComment", reqNewSocialComment: NewSocialComment.fromJSON(object.reqNewSocialComment) }
-        : isSet(object.reqDelSocialComment)
-        ? { $case: "reqDelSocialComment", reqDelSocialComment: DelSocialComment.fromJSON(object.reqDelSocialComment) }
         : isSet(object.reqFriendshipRequest)
         ? {
           $case: "reqFriendshipRequest",
           reqFriendshipRequest: FriendshipRequest.fromJSON(object.reqFriendshipRequest),
         }
-        : isSet(object.reqLikePublication)
-        ? { $case: "reqLikePublication", reqLikePublication: LikePublication.fromJSON(object.reqLikePublication) }
-        : isSet(object.reqLikeComment)
-        ? { $case: "reqLikeComment", reqLikeComment: LikeComment.fromJSON(object.reqLikeComment) }
-        : isSet(object.reqDidSendAction)
-        ? { $case: "reqDidSendAction", reqDidSendAction: DidSendAction.fromJSON(object.reqDidSendAction) }
+        : isSet(object.reqFriendshipInterRequest)
+        ? {
+          $case: "reqFriendshipInterRequest",
+          reqFriendshipInterRequest: FriendshipInterRequest.fromJSON(object.reqFriendshipInterRequest),
+        }
+        : isSet(object.reqDidSendFriendshipReq)
+        ? {
+          $case: "reqDidSendFriendshipReq",
+          reqDidSendFriendshipReq: DidSendFriendshipReq.fromJSON(object.reqDidSendFriendshipReq),
+        }
         : isSet(object.reqFriendshipsList)
         ? { $case: "reqFriendshipsList", reqFriendshipsList: FriendshipsList.fromJSON(object.reqFriendshipsList) }
         : isSet(object.reqChangeFriendStatus)
@@ -4189,6 +4522,21 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqChangeFriendStatus",
           reqChangeFriendStatus: ChangeFriendStatus.fromJSON(object.reqChangeFriendStatus),
         }
+        : isSet(object.reqGetFriendshipStatus)
+        ? {
+          $case: "reqGetFriendshipStatus",
+          reqGetFriendshipStatus: GetFriendshipStatus.fromJSON(object.reqGetFriendshipStatus),
+        }
+        : isSet(object.reqAuthAsFriend)
+        ? { $case: "reqAuthAsFriend", reqAuthAsFriend: AuthAsFriend.fromJSON(object.reqAuthAsFriend) }
+        : isSet(object.reqNewSocialComment)
+        ? { $case: "reqNewSocialComment", reqNewSocialComment: NewSocialComment.fromJSON(object.reqNewSocialComment) }
+        : isSet(object.reqDelSocialComment)
+        ? { $case: "reqDelSocialComment", reqDelSocialComment: DelSocialComment.fromJSON(object.reqDelSocialComment) }
+        : isSet(object.reqLikePublication)
+        ? { $case: "reqLikePublication", reqLikePublication: LikePublication.fromJSON(object.reqLikePublication) }
+        : isSet(object.reqLikeComment)
+        ? { $case: "reqLikeComment", reqLikeComment: LikeComment.fromJSON(object.reqLikeComment) }
         : isSet(object.reqBridgeRegister)
         ? { $case: "reqBridgeRegister", reqBridgeRegister: BridgeRegister.fromJSON(object.reqBridgeRegister) }
         : isSet(object.reqGetProfile)
@@ -4237,22 +4585,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqNewSocialPublication = NewSocialPublication.toJSON(message.payload.reqNewSocialPublication);
     } else if (message.payload?.$case === "reqGetSocialPublications") {
       obj.reqGetSocialPublications = GetSocialPublications.toJSON(message.payload.reqGetSocialPublications);
-    } else if (message.payload?.$case === "reqNewSocialComment") {
-      obj.reqNewSocialComment = NewSocialComment.toJSON(message.payload.reqNewSocialComment);
-    } else if (message.payload?.$case === "reqDelSocialComment") {
-      obj.reqDelSocialComment = DelSocialComment.toJSON(message.payload.reqDelSocialComment);
     } else if (message.payload?.$case === "reqFriendshipRequest") {
       obj.reqFriendshipRequest = FriendshipRequest.toJSON(message.payload.reqFriendshipRequest);
-    } else if (message.payload?.$case === "reqLikePublication") {
-      obj.reqLikePublication = LikePublication.toJSON(message.payload.reqLikePublication);
-    } else if (message.payload?.$case === "reqLikeComment") {
-      obj.reqLikeComment = LikeComment.toJSON(message.payload.reqLikeComment);
-    } else if (message.payload?.$case === "reqDidSendAction") {
-      obj.reqDidSendAction = DidSendAction.toJSON(message.payload.reqDidSendAction);
+    } else if (message.payload?.$case === "reqFriendshipInterRequest") {
+      obj.reqFriendshipInterRequest = FriendshipInterRequest.toJSON(message.payload.reqFriendshipInterRequest);
+    } else if (message.payload?.$case === "reqDidSendFriendshipReq") {
+      obj.reqDidSendFriendshipReq = DidSendFriendshipReq.toJSON(message.payload.reqDidSendFriendshipReq);
     } else if (message.payload?.$case === "reqFriendshipsList") {
       obj.reqFriendshipsList = FriendshipsList.toJSON(message.payload.reqFriendshipsList);
     } else if (message.payload?.$case === "reqChangeFriendStatus") {
       obj.reqChangeFriendStatus = ChangeFriendStatus.toJSON(message.payload.reqChangeFriendStatus);
+    } else if (message.payload?.$case === "reqGetFriendshipStatus") {
+      obj.reqGetFriendshipStatus = GetFriendshipStatus.toJSON(message.payload.reqGetFriendshipStatus);
+    } else if (message.payload?.$case === "reqAuthAsFriend") {
+      obj.reqAuthAsFriend = AuthAsFriend.toJSON(message.payload.reqAuthAsFriend);
+    } else if (message.payload?.$case === "reqNewSocialComment") {
+      obj.reqNewSocialComment = NewSocialComment.toJSON(message.payload.reqNewSocialComment);
+    } else if (message.payload?.$case === "reqDelSocialComment") {
+      obj.reqDelSocialComment = DelSocialComment.toJSON(message.payload.reqDelSocialComment);
+    } else if (message.payload?.$case === "reqLikePublication") {
+      obj.reqLikePublication = LikePublication.toJSON(message.payload.reqLikePublication);
+    } else if (message.payload?.$case === "reqLikeComment") {
+      obj.reqLikeComment = LikeComment.toJSON(message.payload.reqLikeComment);
     } else if (message.payload?.$case === "reqBridgeRegister") {
       obj.reqBridgeRegister = BridgeRegister.toJSON(message.payload.reqBridgeRegister);
     } else if (message.payload?.$case === "reqGetProfile") {
@@ -4372,24 +4726,6 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
-      case "reqNewSocialComment": {
-        if (object.payload?.reqNewSocialComment !== undefined && object.payload?.reqNewSocialComment !== null) {
-          message.payload = {
-            $case: "reqNewSocialComment",
-            reqNewSocialComment: NewSocialComment.fromPartial(object.payload.reqNewSocialComment),
-          };
-        }
-        break;
-      }
-      case "reqDelSocialComment": {
-        if (object.payload?.reqDelSocialComment !== undefined && object.payload?.reqDelSocialComment !== null) {
-          message.payload = {
-            $case: "reqDelSocialComment",
-            reqDelSocialComment: DelSocialComment.fromPartial(object.payload.reqDelSocialComment),
-          };
-        }
-        break;
-      }
       case "reqFriendshipRequest": {
         if (object.payload?.reqFriendshipRequest !== undefined && object.payload?.reqFriendshipRequest !== null) {
           message.payload = {
@@ -4399,29 +4735,22 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
-      case "reqLikePublication": {
-        if (object.payload?.reqLikePublication !== undefined && object.payload?.reqLikePublication !== null) {
+      case "reqFriendshipInterRequest": {
+        if (
+          object.payload?.reqFriendshipInterRequest !== undefined && object.payload?.reqFriendshipInterRequest !== null
+        ) {
           message.payload = {
-            $case: "reqLikePublication",
-            reqLikePublication: LikePublication.fromPartial(object.payload.reqLikePublication),
+            $case: "reqFriendshipInterRequest",
+            reqFriendshipInterRequest: FriendshipInterRequest.fromPartial(object.payload.reqFriendshipInterRequest),
           };
         }
         break;
       }
-      case "reqLikeComment": {
-        if (object.payload?.reqLikeComment !== undefined && object.payload?.reqLikeComment !== null) {
+      case "reqDidSendFriendshipReq": {
+        if (object.payload?.reqDidSendFriendshipReq !== undefined && object.payload?.reqDidSendFriendshipReq !== null) {
           message.payload = {
-            $case: "reqLikeComment",
-            reqLikeComment: LikeComment.fromPartial(object.payload.reqLikeComment),
-          };
-        }
-        break;
-      }
-      case "reqDidSendAction": {
-        if (object.payload?.reqDidSendAction !== undefined && object.payload?.reqDidSendAction !== null) {
-          message.payload = {
-            $case: "reqDidSendAction",
-            reqDidSendAction: DidSendAction.fromPartial(object.payload.reqDidSendAction),
+            $case: "reqDidSendFriendshipReq",
+            reqDidSendFriendshipReq: DidSendFriendshipReq.fromPartial(object.payload.reqDidSendFriendshipReq),
           };
         }
         break;
@@ -4440,6 +4769,60 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqChangeFriendStatus",
             reqChangeFriendStatus: ChangeFriendStatus.fromPartial(object.payload.reqChangeFriendStatus),
+          };
+        }
+        break;
+      }
+      case "reqGetFriendshipStatus": {
+        if (object.payload?.reqGetFriendshipStatus !== undefined && object.payload?.reqGetFriendshipStatus !== null) {
+          message.payload = {
+            $case: "reqGetFriendshipStatus",
+            reqGetFriendshipStatus: GetFriendshipStatus.fromPartial(object.payload.reqGetFriendshipStatus),
+          };
+        }
+        break;
+      }
+      case "reqAuthAsFriend": {
+        if (object.payload?.reqAuthAsFriend !== undefined && object.payload?.reqAuthAsFriend !== null) {
+          message.payload = {
+            $case: "reqAuthAsFriend",
+            reqAuthAsFriend: AuthAsFriend.fromPartial(object.payload.reqAuthAsFriend),
+          };
+        }
+        break;
+      }
+      case "reqNewSocialComment": {
+        if (object.payload?.reqNewSocialComment !== undefined && object.payload?.reqNewSocialComment !== null) {
+          message.payload = {
+            $case: "reqNewSocialComment",
+            reqNewSocialComment: NewSocialComment.fromPartial(object.payload.reqNewSocialComment),
+          };
+        }
+        break;
+      }
+      case "reqDelSocialComment": {
+        if (object.payload?.reqDelSocialComment !== undefined && object.payload?.reqDelSocialComment !== null) {
+          message.payload = {
+            $case: "reqDelSocialComment",
+            reqDelSocialComment: DelSocialComment.fromPartial(object.payload.reqDelSocialComment),
+          };
+        }
+        break;
+      }
+      case "reqLikePublication": {
+        if (object.payload?.reqLikePublication !== undefined && object.payload?.reqLikePublication !== null) {
+          message.payload = {
+            $case: "reqLikePublication",
+            reqLikePublication: LikePublication.fromPartial(object.payload.reqLikePublication),
+          };
+        }
+        break;
+      }
+      case "reqLikeComment": {
+        if (object.payload?.reqLikeComment !== undefined && object.payload?.reqLikeComment !== null) {
+          message.payload = {
+            $case: "reqLikeComment",
+            reqLikeComment: LikeComment.fromPartial(object.payload.reqLikeComment),
           };
         }
         break;
@@ -4545,6 +4928,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respNewSocial":
         NewSocial.encode(message.payload.respNewSocial, writer.uint32(170).fork()).join();
+        break;
+      case "respFriendshipStatus":
+        FriendshipStatus.encode(message.payload.respFriendshipStatus, writer.uint32(186).fork()).join();
         break;
       case "respSocialPublications":
         SocialPublications.encode(message.payload.respSocialPublications, writer.uint32(178).fork()).join();
@@ -4683,6 +5069,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respNewSocial", respNewSocial: NewSocial.decode(reader, reader.uint32()) };
           continue;
         }
+        case 23: {
+          if (tag !== 186) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respFriendshipStatus",
+            respFriendshipStatus: FriendshipStatus.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 22: {
           if (tag !== 178) {
             break;
@@ -4735,6 +5132,11 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respSharedFiles", respSharedFiles: SharedFiles.fromJSON(object.respSharedFiles) }
         : isSet(object.respNewSocial)
         ? { $case: "respNewSocial", respNewSocial: NewSocial.fromJSON(object.respNewSocial) }
+        : isSet(object.respFriendshipStatus)
+        ? {
+          $case: "respFriendshipStatus",
+          respFriendshipStatus: FriendshipStatus.fromJSON(object.respFriendshipStatus),
+        }
         : isSet(object.respSocialPublications)
         ? {
           $case: "respSocialPublications",
@@ -4779,6 +5181,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respSharedFiles = SharedFiles.toJSON(message.payload.respSharedFiles);
     } else if (message.payload?.$case === "respNewSocial") {
       obj.respNewSocial = NewSocial.toJSON(message.payload.respNewSocial);
+    } else if (message.payload?.$case === "respFriendshipStatus") {
+      obj.respFriendshipStatus = FriendshipStatus.toJSON(message.payload.respFriendshipStatus);
     } else if (message.payload?.$case === "respSocialPublications") {
       obj.respSocialPublications = SocialPublications.toJSON(message.payload.respSocialPublications);
     }
@@ -4880,6 +5284,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respNewSocial",
             respNewSocial: NewSocial.fromPartial(object.payload.respNewSocial),
+          };
+        }
+        break;
+      }
+      case "respFriendshipStatus": {
+        if (object.payload?.respFriendshipStatus !== undefined && object.payload?.respFriendshipStatus !== null) {
+          message.payload = {
+            $case: "respFriendshipStatus",
+            respFriendshipStatus: FriendshipStatus.fromPartial(object.payload.respFriendshipStatus),
           };
         }
         break;

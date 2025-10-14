@@ -104,7 +104,7 @@ message NewSocialPublication {
 message GetSocialPublications {
   google.protobuf.Timestamp since = 1;
   int32 total = 2;
-  bool own = 3;
+  repeated string exclude_uuids = 3;
 }
 
 message NewSocialComment {
@@ -117,12 +117,43 @@ message DelSocialComment {
   string comment_uuid = 1;
 }
 
+message DidSendFriendshipReq {
+  string secret = 1;
+  string domain = 2;
+}
+
+message Friendship {
+  Profile origin_profile = 2;
+  FriendShipStatus status = 3;
+  bool sent = 4;
+  string secret = 5;
+}
+
+message Friendships {
+  repeated Friendship friendships = 1;
+}
+
+message FriendshipsList {
+}
+
 message FriendshipRequest {
   string domain = 1;
 }
 
+message FriendshipInterRequest {
+  string domain = 1;
+  string secret = 2;
+  Profile origin_profile = 3;
+}
+
+enum FriendShipStatus {
+  Pending = 0;
+  Accepted = 1;
+  Blocked = 2;
+}
+
 message ChangeFriendStatus {
-  string req_uuid = 1;
+  string domain = 1;
   FriendShipStatus status = 2;
 }
 
@@ -139,12 +170,6 @@ enum ActionType {
   LikePub = 1;
   LikeComm = 2;
   NewSocialComm = 3;
-}
-
-message DidSendAction {
-  string action_uuid = 1;
-  string target = 2;
-  ActionType action_type = 3;
 }
 
 message GetSettings {
@@ -190,27 +215,6 @@ message ShareFilesLink {
   repeated string paths = 1;
 }
 
-enum FriendShipStatus {
-  Pending = 0;
-  Accepted = 1;
-  Blocked = 2;
-}
-
-message Friendship {
-  string uuid = 1;
-  Profile origin_profile = 2;
-  Profile profiles = 3;
-  FriendShipStatus status = 4;
-  string secret = 5;
-}
-
-message Friendships {
-  repeated Friendship friendships = 1;
-}
-
-message FriendshipsList {
-}
-
 message ShareLink {
   string link = 1;
 }
@@ -243,12 +247,26 @@ message SocialPublication {
   repeated File files = 3;
   repeated Comment comments = 4;
   int32 likes = 5;
-  Profile publisher = 6;
+  Profile publisher = 7;
 }
 
 message SocialPublications {
   repeated SocialPublication publications = 1;
   google.protobuf.Timestamp since = 2;
+}
+
+message GetFriendshipStatus {
+  string domain = 1;
+  string secret = 2;
+}
+
+message FriendshipStatus {
+  FriendShipStatus status = 1;
+}
+
+message AuthAsFriend {
+  string domain = 1;
+  string secret = 2;
 }
 
 message ReqEnvelope {
@@ -267,15 +285,18 @@ message ReqEnvelope {
     SetSettings req_set_settings = 29;
     NewSocialPublication req_new_social_publication = 19;
     GetSocialPublications req_get_social_publications = 20;
-
-    NewSocialComment req_new_social_comment = 21;
-    DelSocialComment req_del_social_comment = 22;
     FriendshipRequest req_friendship_request = 23;
-    LikePublication req_like_publication = 25;
-    LikeComment req_like_comment = 26;
-    DidSendAction req_did_send_action = 27;
+    FriendshipInterRequest req_friendship_inter_request = 37;
+    DidSendFriendshipReq req_did_send_friendship_req = 38;
     FriendshipsList req_friendships_list = 35;
     ChangeFriendStatus req_change_friend_status = 36;
+    GetFriendshipStatus req_get_friendship_status = 39;
+    AuthAsFriend req_auth_as_friend = 40;
+    NewSocialComment req_new_social_comment = 21;
+
+    DelSocialComment req_del_social_comment = 22;
+    LikePublication req_like_publication = 25;
+    LikeComment req_like_comment = 26;
 
     BridgeRegister req_bridge_register = 30;
     GetProfile req_get_profile = 31;
@@ -299,11 +320,10 @@ message RespEnvelope {
     BridgeAckOnboard resp_bridge_ack_onboard = 16;
     Profile resp_profile = 17;
     ShareLink resp_share_link = 18;
-
     Friendships resp_friendships = 19;
     SharedFiles resp_shared_files = 20;
     NewSocial resp_new_social = 21;
-
+    FriendshipStatus resp_friendship_status = 23;
     SocialPublications resp_social_publications = 22;
   }
 }

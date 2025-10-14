@@ -178,7 +178,7 @@ export default function Social() {
     return (
       <article className="sv-post">
         <header className="sv-post-hdr">
-          {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">"👤"</div> }
+          {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
           <div className="sv-publisher">{p.publisher?.name || "User"}</div>
         </header>
 

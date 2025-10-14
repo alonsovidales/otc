@@ -238,7 +238,7 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool) (files []*pb.File, e
 
 		// We add first the sub-directories that are actually subpaths of the existing files
 		slashesInPath := strings.Count(path, "/")
-		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files WHERE path LIKE ? and path not regexp ?;", slashesInPath, path+"%", pathFiles)
+		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files WHERE path LIKE ? and path not regexp ? order by `created` desc", slashesInPath, path+"%", pathFiles)
 		if err != nil {
 			return nil, err
 		}
@@ -254,7 +254,6 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool) (files []*pb.File, e
 			if strings.Count(file.Path, "/") != slashesInPath {
 				continue
 			}
-			log.Debug("appending file", file.Hash)
 			files = append(files, file)
 		}
 		path = pathFiles
@@ -262,7 +261,7 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool) (files []*pb.File, e
 		path = "^" + path
 	}
 
-	searchStr := "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ?"
+	searchStr := "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ? order by `created` desc"
 	log.Debug("Get Files by path:", path, searchStr)
 	rows, err := dao.db.Query(searchStr, path)
 
@@ -279,7 +278,6 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool) (files []*pb.File, e
 		}
 		file.Created = timestamppb.New(created)
 		file.Modified = timestamppb.New(modified)
-		log.Debug("appending file", file.Hash)
 		files = append(files, file)
 	}
 	if err := rows.Err(); err != nil {
@@ -308,13 +306,22 @@ func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
 	return
 }
 
-func (dao *Dao) NewSocialPublication(text string, files []*pb.File) (pubUuid string, err error) {
+func (dao *Dao) NewSocialPublication(extUuid, text, originDomain string, ownPublication bool, files []*pb.File) (pubUuid string, err error) {
 	log.Debug("Creating SocialPublication")
-	pubUuid = uuid.New().String()
+	if extUuid == "" {
+		pubUuid = uuid.New().String()
+	} else {
+		pubUuid = extUuid
+	}
 
-	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`) values (?, now(), ?)", pubUuid, text)
+	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, now(), ?, ?, ?)", pubUuid, text, ownPublication, originDomain)
+	if err != nil {
+		log.Debug("Error trying to create a new social publicaton", err)
+		return
+	}
 
 	for i, file := range files {
+		log.Debug("Inserting file in publication", file.Hash)
 		_, err = dao.db.Exec(
 			"insert into `social_publications_files` (`pos`, `uuid`, `hash`, `mime`, `created`, `modified`, `size`) values (?, ?, ?, ?, ?, ?, ?)",
 			i, pubUuid, file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Size)
@@ -350,9 +357,23 @@ func (dao *Dao) GetSocialPublicationComments(pubUuid string) (comments []*pb.Com
 	return
 }
 
-func (dao *Dao) GetSocialPublications(since time.Time, total int32, own bool) (pubs *pb.SocialPublications, err error) {
-	log.Debug("Get SocialPublication")
-	rowPubs, err := dao.db.Query("select `uuid`, `dt`, `text` from `social_publications` order by `dt` desc limit ?", total)
+func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool, exclude []string, prName, prText string, prImage []byte) (pubs *pb.SocialPublications, err error) {
+	log.Debug("Get SocialPublications")
+	if len(exclude) == 0 {
+		exclude = []string{""}
+	}
+	exPh := strings.Repeat("?,", len(exclude))
+	args := make([]any, len(exclude)+1)
+	for i := 0; i < len(exclude); i++ {
+		args[i] = exclude[i]
+	}
+	args[len(exclude)] = total
+	ownClaus := ""
+	if ownOnly {
+		ownClaus = " and `own_publication` = true "
+	}
+	log.Debug("select `friend_domain`, `uuid`, `dt`, `text`, `own_publication` from `social_publications` where uuid not in ("+exPh[:len(exPh)-1]+") "+ownClaus+" order by `dt` desc limit ?", args)
+	rowPubs, err := dao.db.Query("select `friend_domain`, `uuid`, `dt`, `text`, `own_publication` from `social_publications` where uuid not in ("+exPh[:len(exPh)-1]+") "+ownClaus+" order by `dt` desc limit ?", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -363,9 +384,34 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, own bool) (p
 	for rowPubs.Next() {
 		sp := new(pb.SocialPublication)
 		var dt time.Time
-		if err := rowPubs.Scan(&sp.Uuid, &dt, &sp.Text); err != nil {
+		var friendDomain string
+		var ownPub bool
+		if err := rowPubs.Scan(&friendDomain, &sp.Uuid, &dt, &sp.Text, &ownPub); err != nil {
 			return nil, err
 		}
+
+		if ownPub {
+			log.Debug("Own publication populating own data")
+			sp.Publisher = &pb.Profile{
+				Name:  prName,
+				Image: prImage,
+				Text:  prText,
+			}
+		} else {
+			_, name, text, image, _, err := dao.getFriendshipByDomain(friendDomain)
+			if err != nil {
+				log.Error("Error trying to retreive friend profile")
+				continue
+			}
+			// Get friend profile
+			sp.Publisher = &pb.Profile{
+				Domain: friendDomain,
+				Name:   name,
+				Image:  image,
+				Text:   text,
+			}
+		}
+
 		// TODO: Populate owner and other stuff
 		rowFiles, err := dao.db.Query("select `hash`, `mime`, `created`, `modified`, `size` from `social_publications_files` where `uuid` = ? order by `pos`", sp.Uuid)
 		if err != nil {
@@ -387,6 +433,75 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, own bool) (p
 		pubs.Publications = append(pubs.Publications, sp)
 	}
 
+	log.Debug("Publications to return:", len(pubs.Publications))
+
+	return
+}
+
+func (dao *Dao) NewFriendship(domain, secret, name, text string, image []byte, sent bool) (err error) {
+	log.Debug("Creating new friendship")
+	_, err = dao.db.Exec("insert into `social_friendship` (`domain`, `status`, `name`, `image`, `text`, `secret`, `sent`) values (?, 'pending', ?, ?, ?, ?, ?)", domain, name, image, text, secret, sent)
+
+	return err
+}
+
+func (dao *Dao) GetFriendship(domain, secret string) (status, name, text string, image []byte, sent bool, err error) {
+	err = dao.db.QueryRow("select `status`, `name`, `image`, `text`, `sent` from `social_friendship` where `domain` = ? and `secret` = ?", domain, secret).Scan(&status, &name, &image, &text, &sent)
+
+	return
+}
+
+func (dao *Dao) getFriendshipByDomain(domain string) (status, name, text string, image []byte, sent bool, err error) {
+	err = dao.db.QueryRow("select `status`, `name`, `image`, `text`, `sent` from `social_friendship` where `domain` = ?", domain).Scan(&status, &name, &image, &text, &sent)
+
+	return
+}
+
+func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
+	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret` from `social_friendship`")
+	if err != nil {
+		return nil, err
+	}
+	defer rowFriendships.Close()
+	for rowFriendships.Next() {
+		friendship := &pb.Friendship{
+			OriginProfile: new(pb.Profile),
+		}
+		var status string
+		if err := rowFriendships.Scan(&status, &friendship.OriginProfile.Name, &friendship.OriginProfile.Image, &friendship.OriginProfile.Text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret); err != nil {
+			return nil, err
+		}
+		friendship.Status = dao.statusToPb(status)
+
+		friendships = append(friendships, friendship)
+	}
+
+	return
+}
+
+func (dao *Dao) statusToPb(status string) (pbStatus pb.FriendShipStatus) {
+	switch status {
+	case "pending":
+		return pb.FriendShipStatus_Pending
+	case "accepted":
+		return pb.FriendShipStatus_Accepted
+	case "blocked":
+		return pb.FriendShipStatus_Blocked
+	}
+
+	return
+}
+
+func (dao *Dao) pbToStatus(pbStatus pb.FriendShipStatus) (status string) {
+	switch pbStatus {
+	case pb.FriendShipStatus_Pending:
+		return "pending"
+	case pb.FriendShipStatus_Accepted:
+		return "accepted"
+	case pb.FriendShipStatus_Blocked:
+		return "blocked"
+	}
+
 	return
 }
 
@@ -395,4 +510,9 @@ func (dao *Dao) NewComment(pubName, pubUuid, comment string) (err error) {
 	_, err = dao.db.Exec("insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`) values (?, ?, now(), ?, ?)", uuid.New(), pubUuid, comment, pubName)
 
 	return err
+}
+
+func (dao *Dao) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (err error) {
+	_, err = dao.db.Exec("update `social_friendship` set `status` = ? where `domain` = ?", dao.pbToStatus(status), domain)
+	return
 }

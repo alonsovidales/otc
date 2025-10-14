@@ -9,6 +9,7 @@ import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
 import SettingsForm from "./components/SettingsForm";
 import ProfileCard from "./components/ProfileCard";
+import FriendshipsManager from "./components/FriendshipsManager";
 import TopTabs from "./components/TopTabs";
 import type { TabKey } from "./components/TopTabs";
 import "./components/StatusWidget.css";
@@ -28,6 +29,9 @@ function App() {
     protoWs = 'wss://';
   }
   let endpoint = protoWs + window.location.host + '/ws';
+  if (window.location.host.startsWith('localhost')) {
+    endpoint = protoWs + 'pit.off-the.cloud/ws';
+  }
   //let endpoint = protoWs + 'cala.off-the.cloud/ws';
   const mobile = !!cfg;
 
@@ -120,7 +124,8 @@ function App() {
         }
       </div>
       <main>
-        {tab === "Profile" && <ProfileCard authenticated={authenticated} />}
+        {tab === "Profile" && authenticated && <FriendshipsManager />}
+        {tab === "Profile" && !authenticated && <ProfileCard authenticated={authenticated} />}
         {tab === "Social" && <Social />}
         {tab === "SignIn" && <SignIn onAuth={async (key) => {
           if (await useWS.sendAuth(key)) {

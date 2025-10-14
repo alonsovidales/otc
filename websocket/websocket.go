@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	CEndpoint = "/ws"
+	CEndpoint        = "/ws"
+	cWorkerSleepSecs = 120
 )
 
 // Manager Structure that provides HTTP access to manage all the different
@@ -55,7 +56,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 		},
 		settings: st,
 		profile:  pr,
-		social:   social.Init(dao, filesManager),
+		social:   social.Init(dao, filesManager, st, pr),
 	}
 
 	for i := 0; i < int(cfg.GetInt("otc", "bridge-connections")); i++ {
@@ -64,7 +65,19 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 
 	rand.Seed(time.Now().UnixNano())
 
+	go mg.backgroundWorker()
+
 	return
+}
+
+// backgroundWorker Used to process all the tasks in background to sync with
+// friend devices and so on
+func (mg *Manager) backgroundWorker() {
+	for true {
+		// Update friendship status
+		mg.social.SyncWithFriends()
+		time.Sleep(time.Duration(cWorkerSleepSecs) * time.Second)
+	}
 }
 
 func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
@@ -169,6 +182,94 @@ func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespE
 	}
 
 	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqGetFriendshipStatus:
+		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
+		fr, err := ch.mg.social.GetFriendship(p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
+		log.Info("Getting friendship status err:", err)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error retreiving friendship: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFriendshipStatus{
+				RespFriendshipStatus: &pb.FriendshipStatus{
+					Status: fr.Status,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqAuthAsFriend:
+		var err error
+		friendship, err := ch.mg.social.GetFriendship(
+			p.ReqAuthAsFriend.Domain,
+			p.ReqAuthAsFriend.Secret)
+
+		if err != nil || friendship == nil || friendship.Status != pb.FriendShipStatus_Accepted {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok:       false,
+					ErrorMsg: fmt.Sprintf("Friendship not accepted"),
+				},
+			}
+			return resp, true
+		}
+		log.Info("Authenticated as friend")
+		ch.friendProfile = profile.InitFromPb(ch.mg.dao, friendship.OriginProfile)
+
+		resp.Payload = &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{
+				Ok: true,
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqDidSendFriendshipReq:
+		var err error
+		friendship, err := ch.mg.social.GetFriendship(
+			p.ReqDidSendFriendshipReq.Domain,
+			p.ReqDidSendFriendshipReq.Secret)
+
+		if err != nil && friendship == nil {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok:       false,
+					ErrorMsg: fmt.Sprintf("Error: %s", err),
+				},
+			}
+			return resp, true
+		}
+		log.Info("Authenticated session")
+
+		resp.Payload = &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{
+				Ok: true,
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqFriendshipInterRequest:
+		var err error
+		err = ch.mg.social.ExternalFriendshipRequest(
+			p.ReqFriendshipInterRequest.Domain,
+			p.ReqFriendshipInterRequest.Secret,
+			p.ReqFriendshipInterRequest.OriginProfile.Name,
+			p.ReqFriendshipInterRequest.OriginProfile.Text,
+			p.ReqFriendshipInterRequest.OriginProfile.Image)
+
+		if err != nil {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok:       false,
+					ErrorMsg: fmt.Sprintf("Error: %s", err),
+				},
+			}
+			return resp, true
+		}
+		log.Info("Authenticated session")
+
+		resp.Payload = &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{
+				Ok: true,
+			},
+		}
+
 	case *pb.ReqEnvelope_ReqAuth:
 		var err error
 		ch.session, err = session.New(p.ReqAuth.Uuid, p.ReqAuth.Key, p.ReqAuth.Create, ch.mg.dao)
@@ -268,7 +369,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env pb.ReqEnvelope) (resp *pb.
 
 	case *pb.ReqEnvelope_ReqGetSocialPublications:
 		log.Info("Getting social publications")
-		publications, err := ch.mg.social.GetPublications(ch.mg.profile, p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, p.ReqGetSocialPublications.Own)
+		publications, err := ch.mg.social.GetPublications(ch.mg.profile, p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, ch.friendProfile != nil, p.ReqGetSocialPublications.ExcludeUuids)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
@@ -291,6 +392,49 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 	}
 
 	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqChangeFriendStatus:
+		log.Info("Change friend status:", p.ReqChangeFriendStatus.Domain, p.ReqChangeFriendStatus.Status)
+		err := ch.mg.social.ChangeFriendStatus(p.ReqChangeFriendStatus.Domain, p.ReqChangeFriendStatus.Status)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("Error trying to change friend status: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqFriendshipsList:
+		log.Info("Friendship list request")
+		friendships, err := ch.mg.social.GetFriendships()
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("Error reading friendships: %s", err)
+		} else {
+			log.Debug("Sending back list of frnedships", len(friendships))
+			resp.Payload = &pb.RespEnvelope_RespFriendships{
+				RespFriendships: &pb.Friendships{
+					Friendships: friendships,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqFriendshipRequest:
+		log.Info("Friendship request:", p.ReqFriendshipRequest.Domain)
+		err := ch.mg.social.SendFriendshipReq(p.ReqFriendshipRequest.Domain)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("Error requesting friendship: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqShareFilesLink:
 		log.Info("Sharing files with path:", p.ReqShareFilesLink.Paths)
 		link, err := ch.mg.filesManager.GetSharedLink(ch.session, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain)

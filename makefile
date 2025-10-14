@@ -8,6 +8,7 @@ PROTO_SRC := proto
 PROTO_OUT := $(PROTO_SRC)/generated
 PROTO_TS_OUT := web/src/proto
 PROTOS    := $(notdir $(wildcard $(PROTO_SRC)/*.proto))
+#TARGET    := pit.otc
 TARGET    := otc
 
 sync:

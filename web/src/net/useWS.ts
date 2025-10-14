@@ -62,6 +62,13 @@ export function UseWS() {
       return true;
     }
 
+    if (window.__OTC_CONFIG!) {
+      // Open the settings on error when we are in the mobile app
+      (window as any).webkit?.messageHandlers?.native?.postMessage({
+        action: "openSettings"
+      });
+    }
+
     return false;
   };
 

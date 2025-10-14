@@ -25,13 +25,13 @@ const fmtBytes = (n?: number) =>
       : `${n} B`)
     : "—";
 
-function tsToDate(ts: any): Date | undefined {
+/*function tsToDate(ts: any): Date | undefined {
   if (!ts) return;
   const sec = Number((ts.seconds as any) ?? 0);
   const ns  = Number((ts.nanos as any) ?? 0);
   if (Number.isNaN(sec)) return;
   return new Date(sec * 1000 + Math.floor(ns / 1e6));
-}
+}*/
 
 function bytesToURL(bytes: Uint8Array, mime = "application/octet-stream") {
   return URL.createObjectURL(new Blob([bytes], { type: mime }));
@@ -243,8 +243,8 @@ export default function FilesExplorer({
     name: f.path === ".." ? ".." : leafName(f.path),
     isDir: isDir(f),
     size: f.size,
-    created: tsToDate(f.created),
-    modified: tsToDate(f.modified),
+    created: f.created,
+    modified: f.modified,
     file: f,
   })), [listing]);
 
