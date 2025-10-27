@@ -30,27 +30,33 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
 	CDownloadAttr = "?download="
+	cToeknsTTL    = 5 * time.Minute
 )
 
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
 type Manager struct {
-	baseUrl    string
-	dao        *dao.Dao
-	maxUploads chan bool
-	tagger     *imagestagger.RAMTagger
+	baseUrl        string
+	dao            *dao.Dao
+	maxUploads     chan bool
+	tagger         *imagestagger.RAMTagger
+	searchTokens   *sync.Map
+	tokensToExpire *sync.Map
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
-		baseUrl:    baseUrl,
-		dao:        dao,
-		maxUploads: make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff and also power issues
+		searchTokens:   new(sync.Map),
+		tokensToExpire: new(sync.Map),
+		baseUrl:        baseUrl,
+		dao:            dao,
+		maxUploads:     make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff and also power issues
 	}
 
 	var err error
@@ -60,11 +66,26 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		log.Fatal("Error loading image encoders:", err)
 	}
 
+	go mg.collector()
+
 	return mg
 }
 
+func (mg *Manager) collector() {
+	t := time.Now()
+	mg.tokensToExpire.Range(func(token, expire any) bool {
+		if t.Sub(expire.(time.Time)) > cToeknsTTL {
+			mg.tokensToExpire.Delete(token.(string))
+			mg.searchTokens.Delete(token.(string))
+			log.Debug("Expired token:", token)
+		}
+
+		return true
+	})
+}
+
 func (mg *Manager) ListFiles(session *session.Session, path string, recursive bool) (files []*pb.File, err error) {
-	return mg.dao.GetFilesByPath(path, recursive)
+	return mg.dao.GetFilesByPath(path, recursive, false)
 }
 
 func (mg *Manager) cosineSimilarity(a, b []float32) float32 {
@@ -178,8 +199,39 @@ func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (conten
 
 	return session.Decrypt(encContent)
 }
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string) (files []*pb.File, err error) {
-	files, err = mg.dao.SearchByTags(path, tags)
+
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string) (files []*pb.File, token string, err error) {
+	log.Debug("Image search, token:", oldToken)
+	tokenFound := false
+	if oldToken != "" {
+		var filesMap any
+		filesMap, tokenFound = mg.searchTokens.Load(oldToken)
+		files = filesMap.([]*pb.File)
+		token = oldToken
+	}
+	if !tokenFound {
+		if len(tags) > 0 {
+			files, err = mg.dao.SearchByTags(path, tags)
+		} else {
+			files, err = mg.dao.GetFilesByPath(path, true, true)
+		}
+		if err != nil {
+			return
+		}
+		token = uuid.New().String()
+		log.Debug("New Token:", token)
+	}
+
+	toReturn := int(cfg.GetInt("tagger", "max-images-search"))
+	if len(files) > toReturn {
+		mg.searchTokens.Store(token, files[toReturn:])
+		mg.tokensToExpire.Store(token, time.Now())
+		files = files[:toReturn]
+	} else {
+		log.Debug("End for token:", token)
+		token = "" // We reached the end
+	}
+
 	for _, file := range files {
 		file.Content, err = mg.GetThumbnail(session, file)
 		if err != nil {

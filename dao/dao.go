@@ -185,8 +185,8 @@ func (dao *Dao) SearchByTags(path string, tags []string) (files []*pb.File, err 
 		"from `file_tags` as `tg` left join `files` as `f` on `tg`.`hash` = `f`.`hash` " +
 		"where " + pathSearch + " `tg`.`tag` in (" + ph + ") " +
 		"group by `f`.`hash` " +
-		"order by `score` desc " +
-		"limit " + fmt.Sprintf("%d", cfg.GetInt("tagger", "max-images-search"))
+		"order by `score` desc"
+		//"limit " + fmt.Sprintf("%d", cfg.GetInt("tagger", "max-images-search"))
 
 	argsLen := len(tags)
 	if path != "" {
@@ -231,7 +231,7 @@ func (dao *Dao) SearchByTags(path string, tags []string) (files []*pb.File, err 
 	return
 }
 
-func (dao *Dao) GetFilesByPath(path string, recursive bool) (files []*pb.File, err error) {
+func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (files []*pb.File, err error) {
 	log.Debug("Get Files by path initial:", path, recursive)
 	if !recursive {
 		pathFiles := "^" + path + "[^/]+$"
@@ -261,7 +261,12 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool) (files []*pb.File, e
 		path = "^" + path
 	}
 
-	searchStr := "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ? order by `created` desc"
+	extrImgs := ""
+	if imagesOnly {
+		extrImgs = " and `mime` like 'image%' "
+	}
+
+	searchStr := "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ? " + extrImgs + " order by `created` desc"
 	log.Debug("Get Files by path:", path, searchStr)
 	rows, err := dao.db.Query(searchStr, path)
 

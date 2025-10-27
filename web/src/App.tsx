@@ -30,7 +30,7 @@ function App() {
   }
   let endpoint = protoWs + window.location.host + '/ws';
   if (window.location.host.startsWith('localhost')) {
-    endpoint = protoWs + 'pit.off-the.cloud/ws';
+    endpoint = protoWs + 'cala.off-the.cloud/ws';
   }
   //let endpoint = protoWs + 'cala.off-the.cloud/ws';
   const mobile = !!cfg;

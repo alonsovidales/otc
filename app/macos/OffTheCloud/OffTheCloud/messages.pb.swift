@@ -333,6 +333,8 @@ public struct Msg_SearchPhotos: Sendable {
 
   public var tags: [String] = []
 
+  public var token: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -344,6 +346,8 @@ public struct Msg_ListOfFiles: Sendable {
   // methods supported on all messages.
 
   public var files: [Msg_File] = []
+
+  public var token: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1707,7 +1711,7 @@ extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
 extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1716,6 +1720,7 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedStringField(value: &self.tags) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.token) }()
       default: break
       }
     }
@@ -1725,11 +1730,15 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     if !self.tags.isEmpty {
       try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 1)
     }
+    if !self.token.isEmpty {
+      try visitor.visitSingularStringField(value: self.token, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_SearchPhotos, rhs: Msg_SearchPhotos) -> Bool {
     if lhs.tags != rhs.tags {return false}
+    if lhs.token != rhs.token {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1737,7 +1746,7 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListOfFiles"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1746,6 +1755,7 @@ extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.files) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.token) }()
       default: break
       }
     }
@@ -1755,11 +1765,15 @@ extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
     if !self.files.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.files, fieldNumber: 1)
     }
+    if !self.token.isEmpty {
+      try visitor.visitSingularStringField(value: self.token, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ListOfFiles, rhs: Msg_ListOfFiles) -> Bool {
     if lhs.files != rhs.files {return false}
+    if lhs.token != rhs.token {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

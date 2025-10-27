@@ -45,7 +45,7 @@ struct SettingsView: View {
                     Button("Sync All") {
                         Task {
                             secrets.persist()
-                            UserDefaults.standard.set(-1, forKey: "lastSyncDate")
+                            UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
                             try? await PhotoSync.shared.runForeground()
                         }
                     }

@@ -20,7 +20,20 @@ struct MainView: View {
                 if upload.totalPending > 0 || upload.isUploading {
                     UploadBar()
                         .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 12)   
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        PhotoGalleryView(
+                            deviceID: secrets.deviceId,
+                            localPhotosFolder: FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
+                        )
+                        PhotoGalleryView(deviceID: secrets.deviceId, localPhotosFolder: FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first)
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                    }
                 }
             }
             /*.toolbar {

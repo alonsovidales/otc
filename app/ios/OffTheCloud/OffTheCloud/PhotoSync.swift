@@ -24,6 +24,98 @@ final class PhotoSync {
         }
     }
 
+    func exportAssetToTempFile(_ asset: PHAsset,
+                               allowNetwork: Bool) throws -> (url: URL, filename: String, mime: String) {
+        // Pick a sensible resource (photo/video full size if available)
+        let resources = PHAssetResource.assetResources(for: asset)
+        guard let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
+        else {
+            throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"])
+        }
+
+        // Temp file to stream into
+        let tmpDir = FileManager.default.temporaryDirectory
+        let ext = (res.originalFilename as NSString).pathExtension
+        let tmpURL = tmpDir.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext.isEmpty ? "bin" : ext)
+        try? FileManager.default.removeItem(at: tmpURL)
+
+        // Open an output stream (constant memory usage)
+        guard let out = OutputStream(url: tmpURL, append: false) else {
+            throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"])
+        }
+        out.open()
+        defer { out.close() }
+
+        var streamError: Error?
+        let opts = PHAssetResourceRequestOptions()
+        opts.isNetworkAccessAllowed = allowNetwork
+
+        let sema = DispatchSemaphore(value: 0)
+
+        // Stream chunks to file
+        PHAssetResourceManager.default().requestData(
+            for: res,
+            options: opts,
+            dataReceivedHandler: { chunk in
+                // Write the chunk fully (handle partial writes)
+                chunk.withUnsafeBytes { rawPtr in
+                    guard let base = rawPtr.bindMemory(to: UInt8.self).baseAddress else { return }
+                    var bytesLeft = chunk.count
+                    var offset = 0
+                    while bytesLeft > 0 {
+                        let w = out.write(base.advanced(by: offset), maxLength: bytesLeft)
+                        if w <= 0 {
+                            streamError = out.streamError ?? NSError(
+                                domain: "PhotoExport",
+                                code: -12,
+                                userInfo: [NSLocalizedDescriptionKey: "Failed writing to stream"]
+                            )
+                            return
+                        }
+                        bytesLeft -= w
+                        offset += w
+                    }
+                }
+            },
+            completionHandler: { err in
+                streamError = streamError ?? err
+                sema.signal()
+            }
+        )
+
+        sema.wait()
+
+        if let err = streamError {
+            try? FileManager.default.removeItem(at: tmpURL)
+            throw err
+        }
+
+        // Guess MIME
+        let filename = res.originalFilename
+        let mime: String = {
+            if #available(iOS 14.0, *) {
+                if let ut = UTType(filenameExtension: ext) {
+                    switch ut {
+                    case .png: return "image/png"
+                    case .jpeg: return "image/jpeg"
+                    case .heic: return "image/heic"
+                    case .quickTimeMovie: return "video/quicktime"
+                    default:
+                        return ut.preferredMIMEType ?? "application/octet-stream"
+                    }
+                }
+            }
+            let lower = filename.lowercased()
+            if lower.hasSuffix(".png")           { return "image/png" }
+            if lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") { return "image/jpeg" }
+            if lower.hasSuffix(".heic")          { return "image/heic" }
+            if lower.hasSuffix(".mov")           { return "video/quicktime" }
+            return "application/octet-stream"
+        }()
+
+        return (tmpURL, filename, mime)
+    }
+    
     private func fetchNewAssets(includeVideos: Bool, since: Date?) -> [PHAsset] {
         print("Fetch new assets")
 
@@ -44,43 +136,32 @@ final class PhotoSync {
         return out
     }
 
-    private func readData(for asset: PHAsset) throws -> (data: Data, filename: String, mime: String) {
-        let res = PHAssetResource.assetResources(for: asset)
-        let preferred = res.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? res.first!
+    func readData(for asset: PHAsset,
+                  allowNetwork: Bool = true,
+                  maxBytes: Int64 = 25 * 1024 * 1024) throws -> (data: Data, filename: String, mime: String) {
 
-        var data = Data()
-        var loadError: Error?
-        let sem = DispatchSemaphore(value: 0)   // start at 0
-        
-        let opts = PHAssetResourceRequestOptions()
-        let secrets = SecretsStore.loadOrCreate()
-        opts.isNetworkAccessAllowed = secrets.downloadFromiCloud
-        
-        PHAssetResourceManager.default().requestData(for: preferred, options: opts,
-            dataReceivedHandler: { data.append($0) },
-            completionHandler: { error in
-                loadError = error
-                sem.signal()                    // exactly one signal
-            }
-        )
+        let (url, filename, mime) = try exportAssetToTempFile(asset, allowNetwork: allowNetwork)
 
-        sem.wait()                              // exactly one wait
+        // Check size before loading
+        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
 
-        if let err = loadError { throw err }
+        guard size <= maxBytes else {
+            // You can also return the URL instead of throwing if you refactor callers.
+            throw NSError(domain: "PhotoExport",
+                          code: -20,
+                          userInfo: [NSLocalizedDescriptionKey: "AssetTooLargeForMemory: \(size) bytes"])
+        }
 
-        let name = preferred.originalFilename
-        let mime: String = {
-            let lower = name.lowercased()
-            if lower.hasSuffix(".png")  { return "image/png" }
-            if lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") { return "image/jpeg" }
-            if lower.hasSuffix(".heic") { return "image/heic" }
-            if lower.hasSuffix(".mov")  { return "video/quicktime" }
-            return "application/octet-stream"
-        }()
+        // Map into memory (still allocates a buffer ~size)
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
 
-        return (data, name, mime)
+        // Clean up temp file if you don’t need it anymore
+        try? FileManager.default.removeItem(at: url)
+
+        return (data, filename, mime)
     }
-
+    
     func runForeground() async throws {
         try await ensureAuth()
         let secrets = SecretsStore.loadOrCreate()

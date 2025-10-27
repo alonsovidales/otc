@@ -263,10 +263,12 @@ export interface ListFiles {
 
 export interface SearchPhotos {
   tags: string[];
+  token: string;
 }
 
 export interface ListOfFiles {
   files: File[];
+  token: string;
 }
 
 export interface File {
@@ -1249,13 +1251,16 @@ export const ListFiles: MessageFns<ListFiles> = {
 };
 
 function createBaseSearchPhotos(): SearchPhotos {
-  return { tags: [] };
+  return { tags: [], token: "" };
 }
 
 export const SearchPhotos: MessageFns<SearchPhotos> = {
   encode(message: SearchPhotos, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     for (const v of message.tags) {
       writer.uint32(10).string(v!);
+    }
+    if (message.token !== "") {
+      writer.uint32(18).string(message.token);
     }
     return writer;
   },
@@ -1275,6 +1280,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.tags.push(reader.string());
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1285,13 +1298,19 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
   },
 
   fromJSON(object: any): SearchPhotos {
-    return { tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [] };
+    return {
+      tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
+      token: isSet(object.token) ? globalThis.String(object.token) : "",
+    };
   },
 
   toJSON(message: SearchPhotos): unknown {
     const obj: any = {};
     if (message.tags?.length) {
       obj.tags = message.tags;
+    }
+    if (message.token !== "") {
+      obj.token = message.token;
     }
     return obj;
   },
@@ -1302,18 +1321,22 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
   fromPartial<I extends Exact<DeepPartial<SearchPhotos>, I>>(object: I): SearchPhotos {
     const message = createBaseSearchPhotos();
     message.tags = object.tags?.map((e) => e) || [];
+    message.token = object.token ?? "";
     return message;
   },
 };
 
 function createBaseListOfFiles(): ListOfFiles {
-  return { files: [] };
+  return { files: [], token: "" };
 }
 
 export const ListOfFiles: MessageFns<ListOfFiles> = {
   encode(message: ListOfFiles, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     for (const v of message.files) {
       File.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.token !== "") {
+      writer.uint32(18).string(message.token);
     }
     return writer;
   },
@@ -1333,6 +1356,14 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
           message.files.push(File.decode(reader, reader.uint32()));
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1343,13 +1374,19 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
   },
 
   fromJSON(object: any): ListOfFiles {
-    return { files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => File.fromJSON(e)) : [] };
+    return {
+      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => File.fromJSON(e)) : [],
+      token: isSet(object.token) ? globalThis.String(object.token) : "",
+    };
   },
 
   toJSON(message: ListOfFiles): unknown {
     const obj: any = {};
     if (message.files?.length) {
       obj.files = message.files.map((e) => File.toJSON(e));
+    }
+    if (message.token !== "") {
+      obj.token = message.token;
     }
     return obj;
   },
@@ -1360,6 +1397,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
   fromPartial<I extends Exact<DeepPartial<ListOfFiles>, I>>(object: I): ListOfFiles {
     const message = createBaseListOfFiles();
     message.files = object.files?.map((e) => File.fromPartial(e)) || [];
+    message.token = object.token ?? "";
     return message;
   },
 };

@@ -525,7 +525,7 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 
 	case *pb.ReqEnvelope_ReqSearchPhotos:
 		log.Info("Search by text:", p.ReqSearchPhotos.Tags)
-		files, err := ch.mg.filesManager.ImageSearch(ch.session, "", p.ReqSearchPhotos.Tags)
+		files, token, err := ch.mg.filesManager.ImageSearch(ch.session, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -536,6 +536,7 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
 				RespListOfFiles: &pb.ListOfFiles{
 					Files: files,
+					Token: token,
 				},
 			}
 		}

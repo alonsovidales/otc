@@ -63,10 +63,12 @@ message ListFiles {
 
 message SearchPhotos {
   repeated string tags = 1;
+  string token = 2;
 }
 
 message ListOfFiles {
   repeated File files = 1;
+  string token = 2;
 }
 
 message File {
