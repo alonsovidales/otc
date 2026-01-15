@@ -26,25 +26,12 @@ struct MainView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        PhotoGalleryView(
-                            deviceID: secrets.deviceId,
-                            localPhotosFolder: FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
-                        )
-                        PhotoGalleryView(deviceID: secrets.deviceId, localPhotosFolder: FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first)
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                    }
-                }
-            }
-            /*.toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
                         showSettings = true
                     } label: {
                         Image(systemName: "gearshape.fill")
                     }
                 }
-            }*/
+            }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
                     .environmentObject(secrets)
@@ -53,3 +40,4 @@ struct MainView: View {
         }
     }
 }
+    

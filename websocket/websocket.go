@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"fmt"
+	"github.com/alonsovidales/otc/bg_processor"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
@@ -35,9 +36,10 @@ type Manager struct {
 	settings     *settings.Settings
 	profile      *profile.Profile
 	social       *social.Social
+	bg           *bgprocessor.BgProcessor
 }
 
-func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg *Manager) {
+func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *bgprocessor.BgProcessor) (mg *Manager) {
 	st, err := settings.Init(dao)
 	if err != nil {
 		log.Fatal("Error loading the settings", err)
@@ -49,6 +51,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 	mg = &Manager{
 		baseUrl:      baseUrl,
 		dao:          dao,
+		bg:           bg,
 		filesManager: filesManager,
 		upgrader: gorilla.Upgrader{
 			// In production, set a proper origin check!
@@ -284,6 +287,7 @@ func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespE
 			}
 			return resp, true
 		}
+		ch.mg.bg.SetSession(ch.session)
 		log.Info("Authenticated session")
 
 		resp.Payload = &pb.RespEnvelope_RespAck{

@@ -62,8 +62,8 @@ func (dao *Dao) IsSecretDefined() (defined bool, err error) {
 }
 
 func (dao *Dao) GetSecret() (encText []byte, err error) {
-	log.Debug("Checking Auth")
 	err = dao.db.QueryRow("select `secret` from `vault`").Scan(&encText)
+	log.Debug("Checking Auth", err)
 
 	return
 }

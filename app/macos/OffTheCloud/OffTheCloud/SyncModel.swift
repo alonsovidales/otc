@@ -154,7 +154,11 @@ final class SyncModel: ObservableObject {
 
     private func syncFolder(_ root: URL) async {
         print("Sync folder: \(root.path)")
+        if (!ws.isConnected()) {
+            sleep(5)
+        }
         guard ws.isConnected() else { return }
+
         let allLocal = enumerateFilesRecursively(at: root)
         
         var completed = 0

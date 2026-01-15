@@ -26,7 +26,8 @@ import (
 	_ "image/jpeg"
 	"io"
 	"math"
-	"net/http"
+	//"net/http"
+	"github.com/gabriel-vasile/mimetype"
 	"os"
 	"runtime"
 	"strings"
@@ -284,8 +285,9 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 }
 
 func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created *timestamppb.Timestamp) (file *pb.File, err error) {
-	mimeType := http.DetectContentType(content)
-	log.Debug("Mime type:", mimeType)
+	mimeType := mimetype.Detect(content)
+	//mimeType := http.DetectContentType(content)
+	log.Debug("Mime type:", mimeType.String())
 
 	// Calculate the SHA256 of the file to be used as unique hash
 	sum := sha256.Sum256(content)
@@ -300,7 +302,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		Created:  created,
 		Modified: timestamppb.Now(),
 		Path:     path,
-		Mime:     mimeType,
+		Mime:     mimeType.String(),
 		Hash:     hash,
 		Size:     int32(len(content)),
 	}
@@ -345,7 +347,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 
 		// We will try to create a thumbnail of images only
 		isHeic := strings.HasSuffix(file.Path, ".HEIC")
-		if mimeType[:5] == "image" || isHeic {
+		if file.Mime[:5] == "image" || isHeic {
 			if isHeic {
 				content, err = mg.heicToJpeg(content, 6)
 				if err != nil {
