@@ -63,7 +63,8 @@ $ sudo chmod +x /usr/local/bin/raid_watch.py
 $ sudo systemctl daemon-reload
 $ sudo systemctl enable --now raid-watch.service
 ```
-For the status leds to work, you have to connect them to the GPIO ports as in: https://github.com/alonsovidales/otc/blob/5cb586fc3ffa6830f442aba12fa19302e029a2de/scripts/raid_watch.py#L49
+For the status leds to work, you have to connect them to the GPIO ports as in: https://github.com/alonsovidales/otc/blob/1dec544957b5e41a49b99933cb6b5ba55ebf5ce5/scripts/raid_watch.py#L47-L52
+
 You can use 3mm Red & Green LED Diode Light like: https://www.amazon.nl/-/en/dp/B01CFZMSNO
 
 4. Install MariaDB and set the datadir to use the RAID:
