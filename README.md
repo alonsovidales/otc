@@ -18,11 +18,13 @@ OTC is hosted in your home using your network connection and inexpensive hardwar
 
 **Installation of the device**
 1. Install [Raspberry Pi OS (64-bit)](https://www.raspberrypi.com/software/operating-systems/) in the Raspberry Pi using [this tutorial](https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager). In `Customisation` Select Enable SSH and use `otc` as user name.
+
 2. SSH into the device and update the OS:
 ```
 $ sudo apt-get update
 $ sudo apt-get upgrade
 ```
+
 3. Execute the next in order to create the RAID1:
 ```
 $ sudo wipefs -a /dev/sda
@@ -37,6 +39,7 @@ $ sudo update-initramfs -u
 # Add to /etc/fstab if you want it mounted automatically:
 /dev/md0   /mnt/storage   ext4   defaults   0   0
 ```
+
 4. Add the RAID monitorig service
 Create `/etc/systemd/system/raid-watch.service` with:
 ```
@@ -94,12 +97,14 @@ insert into settings (`device_uuid`, `subdomain`, `bridge_secret`) values ('<dev
 You can put random values there if you don't plan to use the bridge, but if you want your device to be remotely accesible, send us an email to: `avidales@off-the.cloud` and we will add your device. By the moment we only grant access to contributors, we will open the bridge to the pubic when the project is considered stable.
 
 5. Edit the [MakeFile](https://github.com/alonsovidales/otc/blob/main/makefile#L11) and specify in `TARGET` the IP Address or hostname used by the Raspberry Pi
+
 6. Create the `www` directory and install Go (use the latest version for Linux ARM64):
 ```
 $ wget https://go.dev/dl/go1.26.1.linux-arm64.tar.gz
 $ sudo tar -C /usr/local -xzf go1.26.1.linux-arm64.tar.gz
 $ echo "export PATH=\$PATH:/usr/local/go/bin" >> .bash_profile
 ```
+
 7. In your local machine, clone the repository and make the project:
 ```
 $ git clone git@github.com:alonsovidales/otc.git
@@ -107,6 +112,7 @@ $ cd otc
 # Edit makefile and replace TARGET by the address or hostname of the device
 $ make all
 ```
+
 8. Build the database:
 ```
 $ sudo mysql -u root
@@ -114,8 +120,8 @@ $ sudo mysql -u root
 > CREATE USER 'otc'@'localhost' IDENTIFIED BY '<your_pass_here>';
 > GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
 > exit
-
 ```
+
 9. Create the OTC config file in `/etc/otc_dev.ini` like:
 ```
 [otc]
@@ -150,6 +156,7 @@ tags-path=/usr/local/models/tag_list_4585.txt
 tags-per-image=10
 max-images-search=5
 ```
+
 10. Download the models, from the repository directory:
 ```
 $ cd models
@@ -158,14 +165,17 @@ $ scp models/ram_plus/onnx/ram_plus_swin_large_14m.onnx otc@<otc_addr>:/usr/loca
 $ python download_tags.py
 $ scp ./models/ram_plus/tags/tag_list_4585.txt otc@<otc_addr>:/usr/local/models/
 ```
+
 11. Install ONNX runtime:
 ```
 $ wget https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-linux-aarch64-1.24.3.tgz
 $ tar -xzf onnxruntime-linux-aarch64-1.24.3.tgz
 $ sudo mv onnxruntime-linux-aarch64-1.24.3 /opt/onnxruntime
 ```
-11. In your computer, in the repository directory execute: `make all`, this will compile nd copy all the content to the device, note that you need [Go installed](https://go.dev/doc/install). Everytime that you want to change something and re-compile, this is the step to run
-12. Connect by SSH to the device and execute the next in order to register the service:
+
+12. In your computer, in the repository directory execute: `make all`, this will compile nd copy all the content to the device, note that you need [Go installed](https://go.dev/doc/install). Everytime that you want to change something and re-compile, this is the step to run
+
+13. Connect by SSH to the device and execute the next in order to register the service:
 ```
 $ sudo mkdir -p /var/log/otc
 $ sudo chown otc:otc /var/log/otc
@@ -226,7 +236,8 @@ UNIT
 $ sudo systemctl daemon-reload
 $ sudo systemctl enable --now otc.service
 ```
-13. If everything went well, you should be able to see the process running with:
+
+14. If everything went well, you should be able to see the process running with:
 ```
 $ journalctl -u otc -f
 ```
