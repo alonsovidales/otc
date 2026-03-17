@@ -57,6 +57,12 @@ start MariaDB and check that the directory is properly set:
 $ sudo systemctl start mariadb
 $ sudo mysql -uroot -p -e "SHOW VARIABLES LIKE 'datadir';"
 ```
+Populate the DB with the content from `db/db.sql`
+Add the settings row that will be used to identify the device and connect to the bridge:
+```
+insert into settings (`device_uuid`, `subdomain`, `bridge_secret`) values ('<device_uuid>', '<device_domain>.off-the.cloud', '<device_secret>')
+```
+You can put random values there if you don't plan to use the bridge, but if you want your device to be remotely accesible, send us an email to: `avidales@off-the.cloud` and we will add your device. By the moment we only grant access to contributors, we will open the bridge to the pubic when the project is considered stable.
 
 5. Edit the [MakeFile](https://github.com/alonsovidales/otc/blob/main/makefile#L11) and specify in `TARGET` the IP Address or hostname used by the Raspberry Pi
 6. Create the `www` directory and install Go (use the latest version for Linux ARM64):
@@ -91,7 +97,7 @@ unenc-storage-path=/mnt/storage/unencrypted/
 max-thumbnail-width-px=1000
 
 [logger]
-log_file=/var/log/otc.log
+log_file=/var/log/otc/otc.log
 max_log_size_mb=10
 level=debug
 
@@ -123,11 +129,21 @@ $ scp models/ram_plus/onnx/ram_plus_swin_large_14m.onnx otc@<otc_addr>:/usr/loca
 $ python download_tags.py
 $ scp ./models/ram_plus/tags/tag_list_4585.txt otc@<otc_addr>:/usr/local/models/
 ```
+11. Install ONNX runtime:
+```
+$ wget https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxruntime-linux-aarch64-1.24.3.tgz
+$ tar -xzf onnxruntime-linux-aarch64-1.24.3.tgz
+$ sudo mv onnxruntime-linux-aarch64-1.24.3 /opt/onnxruntime
+```
 11. In your computer, in the repository directory execute: `make all`, this will compile nd copy all the content to the device, note that you need [Go installed](https://go.dev/doc/install). Everytime that you want to change something and re-compile, this is the step to run
 12. Connect by SSH to the device and execute the next in order to register the service:
 ```
-sudo mkdir -p /etc/otc
-sudo bash -c 'cat >/etc/otc/otc.env <<EOF
+$ sudo mkdir -p /var/log/otc
+$ sudo chown otc:otc /var/log/otc
+$ sudo chmod 755 /var/log/otc
+
+$ sudo mkdir -p /etc/otc
+$ sudo bash -c 'cat >/etc/otc/otc.env <<EOF
 OTC_LOG=info
 OTC_ADDR=:8080
 EOF'
@@ -147,8 +163,8 @@ WorkingDirectory=/var/lib/otc
 # Load environment variables (optional)
 EnvironmentFile=-/etc/otc/otc.env
 
-# Start command (adapt flags as needed)
-ExecStart=/usr/bin/otc --config /etc/otc/config.yaml
+# Start command as dev, the cofig is in: /etc/otc_dev.ini
+ExecStart=/usr/bin/otc dev
 
 # Restart policy
 Restart=on-failure
@@ -174,13 +190,23 @@ CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 SystemCallArchitectures=native
 
-# If you write to /var/lib/otc, allow it explicitly
-ReadWritePaths=/var/lib/otc
-
 [Install]
 WantedBy=multi-user.target
 UNIT
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now otc.service
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable --now otc.service
 ```
+13. If everything went well, you should be able to see the process running with:
+```
+$ journalctl -u otc -f
+```
+and the logs in:
+```
+$ tail -f /var/log/otc/otc.log
+```
+To connect locally use the `8080` port: http://<local_ip>:8080
+
+If you have configured the bridge you should be able to connect in: https://<domain>.off-the.cloud/
+
+**When clicking in "Sign In" it will ask you for a password, be careful because the first time, sice the password is not set, whatever you set will be your password.**
