@@ -37,6 +37,34 @@ $ sudo update-initramfs -u
 # Add to /etc/fstab if you want it mounted automatically:
 /dev/md0   /mnt/storage   ext4   defaults   0   0
 ```
+4. Add the RAID monitorig service
+Create `/etc/systemd/system/raid-watch.service` with:
+```
+[Unit]
+Description=RAID1 watcher + LED driver
+After=multi-user.target mdadm.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/raid_watch.py
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
+```
+then:
+```
+# From the local repo directory:
+$ scp scripts/raid_watch.py otc@<device_addr>:/tmp/
+# Connect by SSH to the device
+$ sudo mv /tmp/raid_watch.py /usr/local/bin/raid_watch.py
+$ sudo chmod +x /usr/local/bin/raid_watch.py
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable --now raid-watch.service
+```
+For the status leds to work, you have to connect them to the GPIO ports as in: https://github.com/alonsovidales/otc/blob/5cb586fc3ffa6830f442aba12fa19302e029a2de/scripts/raid_watch.py#L49
+You can use 3mm Red & Green LED Diode Light like: https://www.amazon.nl/-/en/dp/B01CFZMSNO
 
 4. Install MariaDB and set the datadir to use the RAID:
 ```
