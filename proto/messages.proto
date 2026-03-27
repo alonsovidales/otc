@@ -103,6 +103,11 @@ message NewSocialPublication {
   repeated string paths = 2;
 }
 
+message GetEvents {
+  google.protobuf.Timestamp since = 1;
+  int32 total = 2;
+}
+
 message GetSocialPublications {
   google.protobuf.Timestamp since = 1;
   int32 total = 2;
@@ -257,6 +262,18 @@ message SocialPublications {
   google.protobuf.Timestamp since = 2;
 }
 
+message Event {
+  string uuid = 1;
+  google.protobuf.Timestamp dt = 2;
+  string type = 3;
+  string content = 4;
+}
+
+message Events {
+  repeated Event events = 1;
+  google.protobuf.Timestamp since = 2;
+}
+
 message GetFriendshipStatus {
   string domain = 1;
   string secret = 2;
@@ -295,6 +312,7 @@ message ReqEnvelope {
     GetFriendshipStatus req_get_friendship_status = 39;
     AuthAsFriend req_auth_as_friend = 40;
     NewSocialComment req_new_social_comment = 21;
+    GetEvents req_get_events = 41;
 
     DelSocialComment req_del_social_comment = 22;
     LikePublication req_like_publication = 25;
@@ -325,7 +343,8 @@ message RespEnvelope {
     Friendships resp_friendships = 19;
     SharedFiles resp_shared_files = 20;
     NewSocial resp_new_social = 21;
-    FriendshipStatus resp_friendship_status = 23;
     SocialPublications resp_social_publications = 22;
+    FriendshipStatus resp_friendship_status = 23;
+    Events resp_events = 24;
   }
 }

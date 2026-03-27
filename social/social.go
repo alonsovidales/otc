@@ -1,13 +1,17 @@
 package social
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"time"
+
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
-	"github.com/alonsovidales/otc/files_manager"
+	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -16,10 +20,17 @@ import (
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
-	"net/http"
-	"net/url"
-	"os"
-	"time"
+)
+
+const (
+	EventTypeComment = "comment"
+	ActionCreate     = "create"
+	ActionModify     = "modify"
+	ActionDelete     = "delete"
+	PublicationEvent = "publication"
+	LikeEvent        = "like_event"
+	LikeCommentEvent = "like_comment_event"
+	CommentEvent     = "comment"
 )
 
 type Social struct {
@@ -27,6 +38,38 @@ type Social struct {
 	filesmanager *filesmanager.Manager
 	settings     *settings.Settings
 	profile      *profile.Profile
+}
+
+type LikePublicationComment struct {
+	Uuid         string `json:"uuid"`
+	Action       string `json:"action"`
+	CommentUUID  string `json:"comment_uuid"`
+	Dt           int64  `json:"dt"`
+	FriendDomain string `json:"friend_domain"`
+}
+
+type LikePublication struct {
+	Uuid         string `json:"uuid"`
+	Action       string `json:"action"`
+	PubUUID      string `json:"pub_uuid"`
+	Dt           int64  `json:"dt"`
+	FriendDomain string `json:"friend_domain"`
+}
+
+type Publication struct {
+	Uuid   string `json:"uuid"`
+	Action string `json:"action"`
+	Dt     int64  `json:"dt"`
+	Text   string `json:"comment"`
+}
+
+type Comment struct {
+	Uuid          string `json:"uuid"`
+	Action        string `json:"action"`
+	PubUUID       string `json:"pub_uuid"`
+	Dt            int64  `json:"dt"`
+	Comment       string `json:"comment"`
+	PublisherName string `json:"publisher_name"`
 }
 
 func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.Settings, profile *profile.Profile) *Social {
@@ -66,7 +109,27 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		log.Debug("Publication in path:", path)
 	}
 
-	return sc.dao.NewSocialPublication("", text, sc.profile.Domain, true, files)
+	pubUuid := uuid.New().String()
+	json, _ := json.Marshal(Publication{
+		Uuid:   pubUuid,
+		Action: ActionCreate,
+		Dt:     time.Now().Unix(),
+		Text:   text,
+	})
+	err = sc.dao.NewEvent(PublicationEvent, json)
+	if err != nil {
+		return "", err
+	}
+
+	return pubUuid, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain, true, files)
+}
+
+func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32) (events []*pb.Event, err error) {
+	events, err = sc.dao.GetEvents(since, total)
+	if err != nil {
+		log.Debug("error retriving events", err)
+	}
+	return
 }
 
 func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total int32, ownOnly bool, exclude []string) (publications *pb.SocialPublications, err error) {
@@ -152,11 +215,11 @@ func (sc *Social) SyncWithFriends() (err error) {
 				continue
 			}
 
-			err = friend.updateFriendPublications()
+			/*err = friend.updateFriendPublications()
 			if err != nil {
 				log.Error("Error trying to update friendship:", err)
 				continue
-			}
+			}*/
 		}
 
 		// Update friend timeline is the request is accepted
@@ -249,7 +312,7 @@ func (fr *friendship) autAsFriend() (err error) {
 	return
 }
 
-func (fr *friendship) updateFriendPublications() (err error) {
+/*func (fr *friendship) updateFriendPublications() (err error) {
 	log.Debug("Updating publications")
 	msg := &pb.ReqEnvelope{
 		Id: 1,
@@ -307,6 +370,7 @@ pub:
 
 	return
 }
+*/
 
 func (sc *Social) GetRemoteProfile(domain string, conn *gorilla.Conn) (name, text string, image []byte, err error) {
 	// Get the profile data from the other device
@@ -486,8 +550,53 @@ func (sc *Social) statusToPb(status string) (pbStatus pb.FriendShipStatus) {
 	return
 }
 
+func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid string) (err error) {
+	likeUuid := uuid.New().String()
+	json, err := json.Marshal(LikePublicationComment{
+		Uuid:         likeUuid,
+		Action:       ActionCreate,
+		CommentUUID:  commentUuid,
+		Dt:           time.Now().Unix(),
+		FriendDomain: pr.Domain,
+	})
+	err = sc.dao.NewEvent(LikeEvent, json)
+	if err != nil {
+		return err
+	}
+	return sc.dao.NewLikePublicationComment(commentUuid, pr.Domain)
+}
+
+func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (err error) {
+	likeUuid := uuid.New().String()
+	json, err := json.Marshal(LikePublication{
+		Uuid:         likeUuid,
+		Action:       ActionCreate,
+		PubUUID:      pubUuid,
+		Dt:           time.Now().Unix(),
+		FriendDomain: pr.Domain,
+	})
+	err = sc.dao.NewEvent(LikeEvent, json)
+	if err != nil {
+		return err
+	}
+	return sc.dao.NewLikePublication(pubUuid, pr.Domain)
+}
+
 func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string) (err error) {
-	return sc.dao.NewComment(pr.Name, pubUuid, comment)
+	commentUuid := uuid.New().String()
+	json, err := json.Marshal(Comment{
+		Uuid:          commentUuid,
+		Action:        ActionCreate,
+		PubUUID:       pubUuid,
+		Comment:       comment,
+		Dt:            time.Now().Unix(),
+		PublisherName: pr.Name,
+	})
+	err = sc.dao.NewEvent(CommentEvent, json)
+	if err != nil {
+		return err
+	}
+	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment)
 }
 
 func (sc *Social) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (err error) {

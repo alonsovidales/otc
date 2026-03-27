@@ -2,10 +2,15 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/alonsovidales/otc/bg_processor"
+	"math/rand"
+	"net/http"
+	"net/url"
+	"time"
+
+	bgprocessor "github.com/alonsovidales/otc/bg_processor"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
-	"github.com/alonsovidales/otc/files_manager"
+	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -15,10 +20,6 @@ import (
 	"github.com/alonsovidales/otc/status"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
-	"math/rand"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 const (
@@ -44,7 +45,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *
 	if err != nil {
 		log.Fatal("Error loading the settings", err)
 	}
-	pr, err := profile.Init(dao)
+	pr, err := profile.Init(dao, st.Domain)
 	if err != nil {
 		log.Fatal("Error loading the profile", err)
 	}
@@ -353,20 +354,16 @@ func (ch *connHandler) processAuthAsFriendRequest(env pb.ReqEnvelope) (resp *pb.
 
 	switch p := env.Payload.(type) {
 
-	case *pb.ReqEnvelope_ReqNewSocialComment:
-		log.Info("Getting social publications")
-		profile := ch.mg.profile
-		if ch.friendProfile != nil {
-			profile = ch.friendProfile
-		}
-		err := ch.mg.social.NewSocialComment(profile, p.ReqNewSocialComment.PubUuid, p.ReqNewSocialComment.Comment)
+	case *pb.ReqEnvelope_ReqGetEvents:
+		log.Info("Getting events")
+		events, err := ch.mg.social.GetEvents(ch.mg.profile, p.ReqGetEvents.Since.AsTime(), p.ReqGetEvents.Total)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error publishing comment: %s", err)
+			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve events: %s", err)
 		} else {
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok: true,
+			resp.Payload = &pb.RespEnvelope_RespEvents{
+				RespEvents: &pb.Events{
+					Events: events,
 				},
 			}
 		}
@@ -396,12 +393,54 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 	}
 
 	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqNewSocialComment:
+		log.Info("Getting social publications")
+		err := ch.mg.social.NewSocialComment(ch.mg.profile, p.ReqNewSocialComment.PubUuid, p.ReqNewSocialComment.Comment)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error publishing comment: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqChangeFriendStatus:
 		log.Info("Change friend status:", p.ReqChangeFriendStatus.Domain, p.ReqChangeFriendStatus.Status)
 		err := ch.mg.social.ChangeFriendStatus(p.ReqChangeFriendStatus.Domain, p.ReqChangeFriendStatus.Status)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("Error trying to change friend status: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqLikePublication:
+		log.Info("Liking publication", ch.mg.profile.Domain, "-", p.ReqLikePublication.PubUuid)
+		err := ch.mg.social.NewLikePublication(ch.mg.profile, p.ReqLikePublication.PubUuid)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error liking publication: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqLikeComment:
+		log.Info("Liking comment", ch.mg.profile.Domain, "-", p.ReqLikeComment.CommentUuid)
+		err := ch.mg.social.NewLikePublicationComment(ch.mg.profile, p.ReqLikeComment.CommentUuid)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error liking publication comment: %s", err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{

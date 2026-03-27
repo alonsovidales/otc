@@ -303,6 +303,11 @@ export interface NewSocialPublication {
   paths: string[];
 }
 
+export interface GetEvents {
+  since?: Date | undefined;
+  total: number;
+}
+
 export interface GetSocialPublications {
   since?: Date | undefined;
   total: number;
@@ -436,6 +441,18 @@ export interface SocialPublications {
   since?: Date | undefined;
 }
 
+export interface Event {
+  uuid: string;
+  dt?: Date | undefined;
+  type: string;
+  content: string;
+}
+
+export interface Events {
+  events: Event[];
+  since?: Date | undefined;
+}
+
 export interface GetFriendshipStatus {
   domain: string;
   secret: string;
@@ -474,6 +491,7 @@ export interface ReqEnvelope {
     | { $case: "reqGetFriendshipStatus"; reqGetFriendshipStatus: GetFriendshipStatus }
     | { $case: "reqAuthAsFriend"; reqAuthAsFriend: AuthAsFriend }
     | { $case: "reqNewSocialComment"; reqNewSocialComment: NewSocialComment }
+    | { $case: "reqGetEvents"; reqGetEvents: GetEvents }
     | { $case: "reqDelSocialComment"; reqDelSocialComment: DelSocialComment }
     | { $case: "reqLikePublication"; reqLikePublication: LikePublication }
     | { $case: "reqLikeComment"; reqLikeComment: LikeComment }
@@ -502,8 +520,9 @@ export interface RespEnvelope {
     | { $case: "respFriendships"; respFriendships: Friendships }
     | { $case: "respSharedFiles"; respSharedFiles: SharedFiles }
     | { $case: "respNewSocial"; respNewSocial: NewSocial }
-    | { $case: "respFriendshipStatus"; respFriendshipStatus: FriendshipStatus }
     | { $case: "respSocialPublications"; respSocialPublications: SocialPublications }
+    | { $case: "respFriendshipStatus"; respFriendshipStatus: FriendshipStatus }
+    | { $case: "respEvents"; respEvents: Events }
     | undefined;
 }
 
@@ -1883,6 +1902,82 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
     const message = createBaseNewSocialPublication();
     message.text = object.text ?? "";
     message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseGetEvents(): GetEvents {
+  return { since: undefined, total: 0 };
+}
+
+export const GetEvents: MessageFns<GetEvents> = {
+  encode(message: GetEvents, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(10).fork()).join();
+    }
+    if (message.total !== 0) {
+      writer.uint32(16).int32(message.total);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetEvents {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetEvents();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.total = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetEvents {
+    return {
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+    };
+  },
+
+  toJSON(message: GetEvents): unknown {
+    const obj: any = {};
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetEvents>, I>>(base?: I): GetEvents {
+    return GetEvents.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetEvents>, I>>(object: I): GetEvents {
+    const message = createBaseGetEvents();
+    message.since = object.since ?? undefined;
+    message.total = object.total ?? 0;
     return message;
   },
 };
@@ -3894,6 +3989,190 @@ export const SocialPublications: MessageFns<SocialPublications> = {
   },
 };
 
+function createBaseEvent(): Event {
+  return { uuid: "", dt: undefined, type: "", content: "" };
+}
+
+export const Event: MessageFns<Event> = {
+  encode(message: Event, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.dt !== undefined) {
+      Timestamp.encode(toTimestamp(message.dt), writer.uint32(18).fork()).join();
+    }
+    if (message.type !== "") {
+      writer.uint32(26).string(message.type);
+    }
+    if (message.content !== "") {
+      writer.uint32(34).string(message.content);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Event {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEvent();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.dt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.type = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.content = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Event {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      dt: isSet(object.dt) ? fromJsonTimestamp(object.dt) : undefined,
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      content: isSet(object.content) ? globalThis.String(object.content) : "",
+    };
+  },
+
+  toJSON(message: Event): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.dt !== undefined) {
+      obj.dt = message.dt.toISOString();
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.content !== "") {
+      obj.content = message.content;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Event>, I>>(base?: I): Event {
+    return Event.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Event>, I>>(object: I): Event {
+    const message = createBaseEvent();
+    message.uuid = object.uuid ?? "";
+    message.dt = object.dt ?? undefined;
+    message.type = object.type ?? "";
+    message.content = object.content ?? "";
+    return message;
+  },
+};
+
+function createBaseEvents(): Events {
+  return { events: [], since: undefined };
+}
+
+export const Events: MessageFns<Events> = {
+  encode(message: Events, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.events) {
+      Event.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Events {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEvents();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.events.push(Event.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Events {
+    return {
+      events: globalThis.Array.isArray(object?.events) ? object.events.map((e: any) => Event.fromJSON(e)) : [],
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+    };
+  },
+
+  toJSON(message: Events): unknown {
+    const obj: any = {};
+    if (message.events?.length) {
+      obj.events = message.events.map((e) => Event.toJSON(e));
+    }
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Events>, I>>(base?: I): Events {
+    return Events.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Events>, I>>(object: I): Events {
+    const message = createBaseEvents();
+    message.events = object.events?.map((e) => Event.fromPartial(e)) || [];
+    message.since = object.since ?? undefined;
+    return message;
+  },
+};
+
 function createBaseGetFriendshipStatus(): GetFriendshipStatus {
   return { domain: "", secret: "" };
 }
@@ -4177,6 +4456,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqNewSocialComment":
         NewSocialComment.encode(message.payload.reqNewSocialComment, writer.uint32(170).fork()).join();
         break;
+      case "reqGetEvents":
+        GetEvents.encode(message.payload.reqGetEvents, writer.uint32(330).fork()).join();
+        break;
       case "reqDelSocialComment":
         DelSocialComment.encode(message.payload.reqDelSocialComment, writer.uint32(178).fork()).join();
         break;
@@ -4415,6 +4697,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 41: {
+          if (tag !== 330) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetEvents", reqGetEvents: GetEvents.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 22: {
           if (tag !== 178) {
             break;
@@ -4569,6 +4859,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqAuthAsFriend", reqAuthAsFriend: AuthAsFriend.fromJSON(object.reqAuthAsFriend) }
         : isSet(object.reqNewSocialComment)
         ? { $case: "reqNewSocialComment", reqNewSocialComment: NewSocialComment.fromJSON(object.reqNewSocialComment) }
+        : isSet(object.reqGetEvents)
+        ? { $case: "reqGetEvents", reqGetEvents: GetEvents.fromJSON(object.reqGetEvents) }
         : isSet(object.reqDelSocialComment)
         ? { $case: "reqDelSocialComment", reqDelSocialComment: DelSocialComment.fromJSON(object.reqDelSocialComment) }
         : isSet(object.reqLikePublication)
@@ -4639,6 +4931,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqAuthAsFriend = AuthAsFriend.toJSON(message.payload.reqAuthAsFriend);
     } else if (message.payload?.$case === "reqNewSocialComment") {
       obj.reqNewSocialComment = NewSocialComment.toJSON(message.payload.reqNewSocialComment);
+    } else if (message.payload?.$case === "reqGetEvents") {
+      obj.reqGetEvents = GetEvents.toJSON(message.payload.reqGetEvents);
     } else if (message.payload?.$case === "reqDelSocialComment") {
       obj.reqDelSocialComment = DelSocialComment.toJSON(message.payload.reqDelSocialComment);
     } else if (message.payload?.$case === "reqLikePublication") {
@@ -4838,6 +5132,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetEvents": {
+        if (object.payload?.reqGetEvents !== undefined && object.payload?.reqGetEvents !== null) {
+          message.payload = { $case: "reqGetEvents", reqGetEvents: GetEvents.fromPartial(object.payload.reqGetEvents) };
+        }
+        break;
+      }
       case "reqDelSocialComment": {
         if (object.payload?.reqDelSocialComment !== undefined && object.payload?.reqDelSocialComment !== null) {
           message.payload = {
@@ -4967,11 +5267,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       case "respNewSocial":
         NewSocial.encode(message.payload.respNewSocial, writer.uint32(170).fork()).join();
         break;
+      case "respSocialPublications":
+        SocialPublications.encode(message.payload.respSocialPublications, writer.uint32(178).fork()).join();
+        break;
       case "respFriendshipStatus":
         FriendshipStatus.encode(message.payload.respFriendshipStatus, writer.uint32(186).fork()).join();
         break;
-      case "respSocialPublications":
-        SocialPublications.encode(message.payload.respSocialPublications, writer.uint32(178).fork()).join();
+      case "respEvents":
+        Events.encode(message.payload.respEvents, writer.uint32(194).fork()).join();
         break;
     }
     return writer;
@@ -5107,6 +5410,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respNewSocial", respNewSocial: NewSocial.decode(reader, reader.uint32()) };
           continue;
         }
+        case 22: {
+          if (tag !== 178) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respSocialPublications",
+            respSocialPublications: SocialPublications.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 23: {
           if (tag !== 186) {
             break;
@@ -5118,15 +5432,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
-        case 22: {
-          if (tag !== 178) {
+        case 24: {
+          if (tag !== 194) {
             break;
           }
 
-          message.payload = {
-            $case: "respSocialPublications",
-            respSocialPublications: SocialPublications.decode(reader, reader.uint32()),
-          };
+          message.payload = { $case: "respEvents", respEvents: Events.decode(reader, reader.uint32()) };
           continue;
         }
       }
@@ -5170,16 +5481,18 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respSharedFiles", respSharedFiles: SharedFiles.fromJSON(object.respSharedFiles) }
         : isSet(object.respNewSocial)
         ? { $case: "respNewSocial", respNewSocial: NewSocial.fromJSON(object.respNewSocial) }
-        : isSet(object.respFriendshipStatus)
-        ? {
-          $case: "respFriendshipStatus",
-          respFriendshipStatus: FriendshipStatus.fromJSON(object.respFriendshipStatus),
-        }
         : isSet(object.respSocialPublications)
         ? {
           $case: "respSocialPublications",
           respSocialPublications: SocialPublications.fromJSON(object.respSocialPublications),
         }
+        : isSet(object.respFriendshipStatus)
+        ? {
+          $case: "respFriendshipStatus",
+          respFriendshipStatus: FriendshipStatus.fromJSON(object.respFriendshipStatus),
+        }
+        : isSet(object.respEvents)
+        ? { $case: "respEvents", respEvents: Events.fromJSON(object.respEvents) }
         : undefined,
     };
   },
@@ -5219,10 +5532,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respSharedFiles = SharedFiles.toJSON(message.payload.respSharedFiles);
     } else if (message.payload?.$case === "respNewSocial") {
       obj.respNewSocial = NewSocial.toJSON(message.payload.respNewSocial);
-    } else if (message.payload?.$case === "respFriendshipStatus") {
-      obj.respFriendshipStatus = FriendshipStatus.toJSON(message.payload.respFriendshipStatus);
     } else if (message.payload?.$case === "respSocialPublications") {
       obj.respSocialPublications = SocialPublications.toJSON(message.payload.respSocialPublications);
+    } else if (message.payload?.$case === "respFriendshipStatus") {
+      obj.respFriendshipStatus = FriendshipStatus.toJSON(message.payload.respFriendshipStatus);
+    } else if (message.payload?.$case === "respEvents") {
+      obj.respEvents = Events.toJSON(message.payload.respEvents);
     }
     return obj;
   },
@@ -5326,6 +5641,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         }
         break;
       }
+      case "respSocialPublications": {
+        if (object.payload?.respSocialPublications !== undefined && object.payload?.respSocialPublications !== null) {
+          message.payload = {
+            $case: "respSocialPublications",
+            respSocialPublications: SocialPublications.fromPartial(object.payload.respSocialPublications),
+          };
+        }
+        break;
+      }
       case "respFriendshipStatus": {
         if (object.payload?.respFriendshipStatus !== undefined && object.payload?.respFriendshipStatus !== null) {
           message.payload = {
@@ -5335,12 +5659,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         }
         break;
       }
-      case "respSocialPublications": {
-        if (object.payload?.respSocialPublications !== undefined && object.payload?.respSocialPublications !== null) {
-          message.payload = {
-            $case: "respSocialPublications",
-            respSocialPublications: SocialPublications.fromPartial(object.payload.respSocialPublications),
-          };
+      case "respEvents": {
+        if (object.payload?.respEvents !== undefined && object.payload?.respEvents !== null) {
+          message.payload = { $case: "respEvents", respEvents: Events.fromPartial(object.payload.respEvents) };
         }
         break;
       }

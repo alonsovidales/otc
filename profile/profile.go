@@ -24,17 +24,18 @@ func InitFromPb(dao *dao.Dao, pro *pb.Profile) *Profile {
 	}
 }
 
-func Init(dao *dao.Dao) (*Profile, error) {
+func Init(dao *dao.Dao, domain string) (*Profile, error) {
 	name, text, image, err := dao.GetProfile()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Profile{
-		dao:   dao,
-		Name:  name,
-		Image: image,
-		Text:  text,
+		dao:    dao,
+		Name:   name,
+		Image:  image,
+		Text:   text,
+		Domain: domain,
 	}, nil
 }
 

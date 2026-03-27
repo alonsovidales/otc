@@ -4,15 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/alonsovidales/otc/cfg"
-	"github.com/alonsovidales/otc/images_tagger"
+	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"strings"
-	"time"
 )
 
 type Dao struct {
@@ -311,14 +312,8 @@ func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
 	return
 }
 
-func (dao *Dao) NewSocialPublication(extUuid, text, originDomain string, ownPublication bool, files []*pb.File) (pubUuid string, err error) {
+func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPublication bool, files []*pb.File) (err error) {
 	log.Debug("Creating SocialPublication")
-	if extUuid == "" {
-		pubUuid = uuid.New().String()
-	} else {
-		pubUuid = extUuid
-	}
-
 	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, now(), ?, ?, ?)", pubUuid, text, ownPublication, originDomain)
 	if err != nil {
 		log.Debug("Error trying to create a new social publicaton", err)
@@ -335,6 +330,50 @@ func (dao *Dao) NewSocialPublication(extUuid, text, originDomain string, ownPubl
 		}
 	}
 
+	return
+}
+
+func (dao *Dao) NewLikePublication(pubUuid string, friendDomain string) (err error) {
+	log.Debug("Creating New LikePublication")
+	_, err = dao.db.Exec("insert into `social_publication_likes` (`uuid`, `pub_uuid`, `dt`, `friend_domain`) values (?, ?, now(), ?)", uuid.New().String(), pubUuid, friendDomain)
+	if err != nil {
+		log.Error("Error trying to create a new like publication", err)
+		return
+	}
+	_, err = dao.db.Exec("update `social_publications` set `likes` = `likes` + 1 where `uuid` = ?", pubUuid)
+	return
+}
+
+func (dao *Dao) GetEvents(since time.Time, total int32) (events []*pb.Event, err error) {
+	log.Debug("Get Events")
+	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? order by `dt` desc limit ?", since, total)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events = []*pb.Event{}
+	for rows.Next() {
+		event := &pb.Event{}
+		var dt time.Time
+		if err := rows.Scan(&event.Uuid, &dt, &event.Type, &event.Content); err != nil {
+			return nil, err
+		}
+		event.Dt = timestamppb.New(dt)
+		events = append(events, event)
+	}
+
+	return
+}
+
+func (dao *Dao) NewLikePublicationComment(commentUuid string, friendDomain string) (err error) {
+	log.Debug("Creating New PublicationComment Like")
+	_, err = dao.db.Exec("insert into `social_publication_comment_likes` (`uuid`, `comment_uuid`, `dt`, `friend_domain`) values (?, ?, now(), ?)", uuid.New().String(), commentUuid, friendDomain)
+	if err != nil {
+		log.Error("Error trying to create a new like publication", err)
+		return
+	}
+	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = `likes` + 1 where `uuid` = ?", commentUuid)
 	return
 }
 
@@ -377,8 +416,8 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 	if ownOnly {
 		ownClaus = " and `own_publication` = true "
 	}
-	log.Debug("select `friend_domain`, `uuid`, `dt`, `text`, `own_publication` from `social_publications` where uuid not in ("+exPh[:len(exPh)-1]+") "+ownClaus+" order by `dt` desc limit ?", args)
-	rowPubs, err := dao.db.Query("select `friend_domain`, `uuid`, `dt`, `text`, `own_publication` from `social_publications` where uuid not in ("+exPh[:len(exPh)-1]+") "+ownClaus+" order by `dt` desc limit ?", args...)
+	log.Debug("select `friend_domain`, `uuid`, `dt`, `text`, `own_publication`, `likes` from `social_publications` where uuid not in ("+exPh[:len(exPh)-1]+") "+ownClaus+" order by `dt` desc limit ?", args)
+	rowPubs, err := dao.db.Query("select `friend_domain`, `uuid`, `dt`, `text`, `own_publication`, `likes` from `social_publications` where uuid not in ("+exPh[:len(exPh)-1]+") "+ownClaus+" order by `dt` desc limit ?", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +430,7 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 		var dt time.Time
 		var friendDomain string
 		var ownPub bool
-		if err := rowPubs.Scan(&friendDomain, &sp.Uuid, &dt, &sp.Text, &ownPub); err != nil {
+		if err := rowPubs.Scan(&friendDomain, &sp.Uuid, &dt, &sp.Text, &ownPub, &sp.Likes); err != nil {
 			return nil, err
 		}
 
@@ -510,9 +549,9 @@ func (dao *Dao) pbToStatus(pbStatus pb.FriendShipStatus) (status string) {
 	return
 }
 
-func (dao *Dao) NewComment(pubName, pubUuid, comment string) (err error) {
+func (dao *Dao) NewComment(commentUuid, pubName, pubUuid, comment string) (err error) {
 	log.Debug("Creating new comment")
-	_, err = dao.db.Exec("insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`) values (?, ?, now(), ?, ?)", uuid.New(), pubUuid, comment, pubName)
+	_, err = dao.db.Exec("insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`) values (?, ?, now(), ?, ?)", commentUuid, pubUuid, comment, pubName)
 
 	return err
 }
@@ -520,4 +559,11 @@ func (dao *Dao) NewComment(pubName, pubUuid, comment string) (err error) {
 func (dao *Dao) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (err error) {
 	_, err = dao.db.Exec("update `social_friendship` set `status` = ? where `domain` = ?", dao.pbToStatus(status), domain)
 	return
+}
+
+func (dao *Dao) NewEvent(eventType string, data []byte) (err error) {
+	log.Debug("Creating new event", eventType, data)
+	_, err = dao.db.Exec("insert into `events` (`uuid`, `dt`, `type`, `content`) values (?, now(), ?, ?)", uuid.New(), eventType, data)
+
+	return err
 }

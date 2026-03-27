@@ -50,6 +50,33 @@ create table social_publications
   key(`uuid`)
 ) engine=InnoDB;
 
+create table social_publication_comment_likes
+(
+  `uuid` varchar(64) not null,
+  `comment_uuid` varchar(64) not null,
+  `dt` datetime not null,
+  `friend_domain` varchar(128) not null,
+
+  key (`uuid`),
+  key (`comment_uuid`),
+
+  foreign key (comment_uuid) references social_publications_comments(uuid)
+) engine=InnoDB;
+
+create table social_publication_likes
+(
+  `uuid` varchar(64) not null,
+  `pub_uuid` varchar(64) not null,
+  `dt` datetime not null,
+  `friend_domain` varchar(128) not null,
+
+  INDEX USING BTREE (`dt`),
+  key (`uuid`),
+  key (`pub_uuid`),
+
+  foreign key (pub_uuid) references social_publications(uuid)
+) engine=InnoDB;
+
 create table social_publications_comments
 (
   `uuid` varchar(64) not null,
@@ -91,6 +118,7 @@ create table social_friendship
   `text` text,
   `secret` varchar(128),
   `sent` boolean,
+  `latest_sync` datetime null,
 
   primary key (`domain`),
   key (`domain`)
@@ -119,6 +147,7 @@ create table profile
   `image` mediumblob default null,
   `text` text
 ) engine=InnoDB;
+insert into `profile` values('Your Name', '', 'Description');
 
 create table shared_links
 (
@@ -131,3 +160,14 @@ create table vault
 (
   `secret` blob not null
 );
+
+create table events
+(
+  `uuid` varchar(64) not null,
+  `dt` datetime not null,
+  `type` varchar(64) not null,
+  `content` text,
+
+  key(`uuid`),
+  INDEX USING BTREE (`dt`),
+) engine=InnoDB;

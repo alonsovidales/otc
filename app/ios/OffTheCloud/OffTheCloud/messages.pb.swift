@@ -467,6 +467,29 @@ public struct Msg_NewSocialPublication: Sendable {
   public init() {}
 }
 
+public struct Msg_GetEvents: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var since: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_since = newValue}
+  }
+  /// Returns true if `since` has been explicitly set.
+  public var hasSince: Bool {return self._since != nil}
+  /// Clears the value of `since`. Subsequent reads from it will return its default value.
+  public mutating func clearSince() {self._since = nil}
+
+  public var total: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
 public struct Msg_GetSocialPublications: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -904,6 +927,56 @@ public struct Msg_SocialPublications: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
+public struct Msg_Event: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uuid: String = String()
+
+  public var dt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _dt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_dt = newValue}
+  }
+  /// Returns true if `dt` has been explicitly set.
+  public var hasDt: Bool {return self._dt != nil}
+  /// Clears the value of `dt`. Subsequent reads from it will return its default value.
+  public mutating func clearDt() {self._dt = nil}
+
+  public var type: String = String()
+
+  public var content: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _dt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public struct Msg_Events: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var events: [Msg_Event] = []
+
+  public var since: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_since = newValue}
+  }
+  /// Returns true if `since` has been explicitly set.
+  public var hasSince: Bool {return self._since != nil}
+  /// Clears the value of `since`. Subsequent reads from it will return its default value.
+  public mutating func clearSince() {self._since = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
 public struct Msg_GetFriendshipStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1121,6 +1194,14 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqNewSocialComment(newValue)}
   }
 
+  public var reqGetEvents: Msg_GetEvents {
+    get {
+      if case .reqGetEvents(let v)? = payload {return v}
+      return Msg_GetEvents()
+    }
+    set {payload = .reqGetEvents(newValue)}
+  }
+
   public var reqDelSocialComment: Msg_DelSocialComment {
     get {
       if case .reqDelSocialComment(let v)? = payload {return v}
@@ -1209,6 +1290,7 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqGetFriendshipStatus(Msg_GetFriendshipStatus)
     case reqAuthAsFriend(Msg_AuthAsFriend)
     case reqNewSocialComment(Msg_NewSocialComment)
+    case reqGetEvents(Msg_GetEvents)
     case reqDelSocialComment(Msg_DelSocialComment)
     case reqLikePublication(Msg_LikePublication)
     case reqLikeComment(Msg_LikeComment)
@@ -1332,6 +1414,14 @@ public struct Msg_RespEnvelope: Sendable {
     set {payload = .respNewSocial(newValue)}
   }
 
+  public var respSocialPublications: Msg_SocialPublications {
+    get {
+      if case .respSocialPublications(let v)? = payload {return v}
+      return Msg_SocialPublications()
+    }
+    set {payload = .respSocialPublications(newValue)}
+  }
+
   public var respFriendshipStatus: Msg_FriendshipStatus {
     get {
       if case .respFriendshipStatus(let v)? = payload {return v}
@@ -1340,12 +1430,12 @@ public struct Msg_RespEnvelope: Sendable {
     set {payload = .respFriendshipStatus(newValue)}
   }
 
-  public var respSocialPublications: Msg_SocialPublications {
+  public var respEvents: Msg_Events {
     get {
-      if case .respSocialPublications(let v)? = payload {return v}
-      return Msg_SocialPublications()
+      if case .respEvents(let v)? = payload {return v}
+      return Msg_Events()
     }
-    set {payload = .respSocialPublications(newValue)}
+    set {payload = .respEvents(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1363,8 +1453,9 @@ public struct Msg_RespEnvelope: Sendable {
     case respFriendships(Msg_Friendships)
     case respSharedFiles(Msg_SharedFiles)
     case respNewSocial(Msg_NewSocial)
-    case respFriendshipStatus(Msg_FriendshipStatus)
     case respSocialPublications(Msg_SocialPublications)
+    case respFriendshipStatus(Msg_FriendshipStatus)
+    case respEvents(Msg_Events)
 
   }
 
@@ -1992,6 +2083,45 @@ extension Msg_NewSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._Messag
   public static func ==(lhs: Msg_NewSocialPublication, rhs: Msg_NewSocialPublication) -> Bool {
     if lhs.text != rhs.text {return false}
     if lhs.paths != rhs.paths {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_GetEvents: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetEvents"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}since\0\u{1}total\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._since) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.total) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._since {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.total != 0 {
+      try visitor.visitSingularInt32Field(value: self.total, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetEvents, rhs: Msg_GetEvents) -> Bool {
+    if lhs._since != rhs._since {return false}
+    if lhs.total != rhs.total {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2942,6 +3072,94 @@ extension Msg_SocialPublications: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
+extension Msg_Event: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Event"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{1}content\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._dt) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.type) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.content) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.uuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.uuid, fieldNumber: 1)
+    }
+    try { if let v = self._dt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if !self.type.isEmpty {
+      try visitor.visitSingularStringField(value: self.type, fieldNumber: 3)
+    }
+    if !self.content.isEmpty {
+      try visitor.visitSingularStringField(value: self.content, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_Event, rhs: Msg_Event) -> Bool {
+    if lhs.uuid != rhs.uuid {return false}
+    if lhs._dt != rhs._dt {return false}
+    if lhs.type != rhs.type {return false}
+    if lhs.content != rhs.content {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Events"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}events\0\u{1}since\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.events) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._since) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.events.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.events, fieldNumber: 1)
+    }
+    try { if let v = self._since {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_Events, rhs: Msg_Events) -> Bool {
+    if lhs.events != rhs.events {return false}
+    if lhs._since != rhs._since {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_GetFriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFriendshipStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0")
@@ -3044,7 +3262,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3430,6 +3648,19 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqAuthAsFriend(v)
         }
       }()
+      case 41: try {
+        var v: Msg_GetEvents?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetEvents(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetEvents(v)
+        }
+      }()
       default: break
       }
     }
@@ -3560,6 +3791,10 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqAuthAsFriend(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 40)
     }()
+    case .reqGetEvents?: try {
+      guard case .reqGetEvents(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 41)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -3575,7 +3810,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3768,6 +4003,19 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
           self.payload = .respFriendshipStatus(v)
         }
       }()
+      case 24: try {
+        var v: Msg_Events?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .respEvents(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .respEvents(v)
+        }
+      }()
       default: break
       }
     }
@@ -3843,6 +4091,10 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     case .respFriendshipStatus?: try {
       guard case .respFriendshipStatus(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+    }()
+    case .respEvents?: try {
+      guard case .respEvents(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
     }()
     case nil: break
     }
