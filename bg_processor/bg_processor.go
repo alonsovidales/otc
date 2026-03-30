@@ -1,10 +1,11 @@
 package bgprocessor
 
 import (
-	"github.com/alonsovidales/otc/dao"
-	"github.com/alonsovidales/otc/files_manager"
-	"github.com/alonsovidales/otc/session"
 	"time"
+
+	"github.com/alonsovidales/otc/dao"
+	filesmanager "github.com/alonsovidales/otc/files_manager"
+	"github.com/alonsovidales/otc/session"
 )
 
 const (

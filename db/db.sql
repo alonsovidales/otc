@@ -50,19 +50,6 @@ create table social_publications
   key(`uuid`)
 ) engine=InnoDB;
 
-create table social_publication_comment_likes
-(
-  `uuid` varchar(64) not null,
-  `comment_uuid` varchar(64) not null,
-  `dt` datetime not null,
-  `friend_domain` varchar(128) not null,
-
-  key (`uuid`),
-  key (`comment_uuid`),
-
-  foreign key (comment_uuid) references social_publications_comments(uuid)
-) engine=InnoDB;
-
 create table social_publication_likes
 (
   `uuid` varchar(64) not null,
@@ -72,6 +59,7 @@ create table social_publication_likes
 
   INDEX USING BTREE (`dt`),
   key (`uuid`),
+  unique (`uuid`),
   key (`pub_uuid`),
 
   foreign key (pub_uuid) references social_publications(uuid)
@@ -87,10 +75,25 @@ create table social_publications_comments
   `likes` int default 0,
 
   INDEX USING BTREE (`dt`),
+  unique (`uuid`),
   key (`uuid`),
   key (`pub_uuid`),
 
   foreign key (pub_uuid) references social_publications(uuid)
+) engine=InnoDB;
+
+create table social_publication_comment_likes
+(
+  `uuid` varchar(64) not null,
+  `comment_uuid` varchar(64) not null,
+  `dt` datetime not null,
+  `friend_domain` varchar(128) not null,
+
+  key (`uuid`),
+  unique (`uuid`),
+  key (`comment_uuid`),
+
+  foreign key (comment_uuid) references social_publications_comments(uuid)
 ) engine=InnoDB;
 
 create table social_publications_files
@@ -122,16 +125,6 @@ create table social_friendship
 
   primary key (`domain`),
   key (`domain`)
-) engine=InnoDB;
-
-create table sent_actions
-(
-  `uuid` varchar(64) not null,
-  `dt` datetime not null,
-  `type` varchar(150),
-  `target` varchar(150),
-
-  key (`uuid`)
 ) engine=InnoDB;
 
 create table settings
@@ -169,5 +162,5 @@ create table events
   `content` text,
 
   key(`uuid`),
-  INDEX USING BTREE (`dt`),
+  INDEX USING BTREE (`dt`)
 ) engine=InnoDB;

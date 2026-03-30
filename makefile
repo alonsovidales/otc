@@ -8,8 +8,8 @@ PROTO_SRC := proto
 PROTO_OUT := $(PROTO_SRC)/generated
 PROTO_TS_OUT := web/src/proto
 PROTOS    := $(notdir $(wildcard $(PROTO_SRC)/*.proto))
-#TARGET    := pit.otc
-TARGET    := otc
+TARGET    := pit.otc
+#TARGET    := otc
 
 sync:
 	#ssh otc@$(TARGET) wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz

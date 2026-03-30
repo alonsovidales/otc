@@ -1,6 +1,8 @@
 package social
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,7 +25,6 @@ import (
 )
 
 const (
-	EventTypeComment = "comment"
 	ActionCreate     = "create"
 	ActionModify     = "modify"
 	ActionDelete     = "delete"
@@ -109,9 +110,9 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		log.Debug("Publication in path:", path)
 	}
 
-	pubUuid := uuid.New().String()
+	pubUuID = uuid.New().String()
 	json, _ := json.Marshal(Publication{
-		Uuid:   pubUuid,
+		Uuid:   pubUuID,
 		Action: ActionCreate,
 		Dt:     time.Now().Unix(),
 		Text:   text,
@@ -121,7 +122,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		return "", err
 	}
 
-	return pubUuid, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain, true, files)
+	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain, true, files)
 }
 
 func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32) (events []*pb.Event, err error) {
@@ -129,6 +130,18 @@ func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32) (
 	if err != nil {
 		log.Debug("error retriving events", err)
 	}
+	return
+}
+
+func (sc *Social) GetPublicationFiles(uuid string) (files []*pb.File, err error) {
+	files, err = sc.dao.GetSocialPublicationFiles(uuid)
+	for _, file := range files {
+		file.Content, err = os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return
 }
 
@@ -181,12 +194,13 @@ type friendship struct {
 }
 
 func (sc *Social) SyncWithFriends() (err error) {
-	firendships, err := sc.GetFriendships()
+	log.Debug("Sync with frens")
+	friendships, err := sc.GetFriendships()
 	if err != nil {
 		log.Error("Error trying to get friendships from the DB:", err)
 		return err
 	}
-	for _, data := range firendships {
+	for _, data := range friendships {
 		friend := &friendship{
 			sc:   sc,
 			data: data,
@@ -215,11 +229,11 @@ func (sc *Social) SyncWithFriends() (err error) {
 				continue
 			}
 
-			/*err = friend.updateFriendPublications()
+			err = friend.updateFriendEvents()
 			if err != nil {
 				log.Error("Error trying to update friendship:", err)
 				continue
-			}*/
+			}
 		}
 
 		// Update friend timeline is the request is accepted
@@ -312,20 +326,53 @@ func (fr *friendship) autAsFriend() (err error) {
 	return
 }
 
-/*func (fr *friendship) updateFriendPublications() (err error) {
-	log.Debug("Updating publications")
+func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err error) {
 	msg := &pb.ReqEnvelope{
 		Id: 1,
-		Payload: &pb.ReqEnvelope_ReqGetSocialPublications{
-			ReqGetSocialPublications: &pb.GetSocialPublications{
-				ExcludeUuids: []string{}, // TODO add the known publications
-				Total:        20,         // Update only 20 to don't flood the other device
+		Payload: &pb.ReqEnvelope_ReqGetSocialPublicationFiles{
+			ReqGetSocialPublicationFiles: &pb.GetSocialPublicationFiles{
+				Uuid: uuid,
 			},
 		},
 	}
 	b, _ := proto.Marshal(msg)
 	if err = fr.conn.WriteMessage(gorilla.BinaryMessage, b); err != nil {
-		log.Error("write error trying to get publications from firned:", fr.data.OriginProfile.Domain, err)
+		log.Error("write error trying to get publication files from friend:", fr.data.OriginProfile.Domain, err)
+		return
+	}
+
+	_, data, err := fr.conn.ReadMessage()
+	if err != nil {
+		log.Error("read error trying to get publication files from friend:", fr.data.OriginProfile.Domain, err)
+		return
+	}
+
+	log.Debug("Getting response for publication files:", fr.data.OriginProfile.Domain)
+	var respProf pb.RespEnvelope
+	if err = proto.Unmarshal(data, &respProf); err != nil {
+		return
+	}
+	if respProf.Error {
+		log.Debug("Error trying to get publications from friend:", respProf.ErrorMessage)
+		return nil, errors.New(respProf.ErrorMessage)
+	}
+	return respProf.Payload.(*pb.RespEnvelope_RespSocialPublicationFiles).RespSocialPublicationFiles.Files, nil
+}
+
+func (fr *friendship) updateFriendEvents() (err error) {
+	log.Debug("Updating events")
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqGetEvents{
+			ReqGetEvents: &pb.GetEvents{
+				Since: fr.data.LatestSync,
+				Total: 20, // Update only 20 to don't flood the other device
+			},
+		},
+	}
+	b, _ := proto.Marshal(msg)
+	if err = fr.conn.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		log.Error("write error trying to get events from friend:", fr.data.OriginProfile.Domain, err)
 		return
 	}
 
@@ -335,7 +382,7 @@ func (fr *friendship) autAsFriend() (err error) {
 		return
 	}
 
-	log.Debug("Getting response for update publications:", fr.data.OriginProfile.Domain)
+	log.Debug("Getting response for update events:", fr.data.OriginProfile.Domain)
 	var respProf pb.RespEnvelope
 	if err = proto.Unmarshal(data, &respProf); err != nil {
 		return
@@ -344,33 +391,62 @@ func (fr *friendship) autAsFriend() (err error) {
 		log.Debug("Error trying to publications from friend:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	resp := respProf.Payload.(*pb.RespEnvelope_RespSocialPublications)
-	log.Debug("Publications to update", len(resp.RespSocialPublications.Publications))
-pub:
-	for _, pub := range resp.RespSocialPublications.Publications {
-		// Store the files in the local drive first
-		for _, file := range pub.Files {
-			sum := sha256.Sum256(file.Content)
-			file.Hash = hex.EncodeToString(sum[:])
+	resp := respProf.Payload.(*pb.RespEnvelope_RespEvents)
+	log.Debug("Events to update", len(resp.RespEvents.Events))
+event_loop:
+	for _, event := range resp.RespEvents.Events {
+		switch event.Type {
+		case PublicationEvent:
+			var pubData Publication
+			json.Unmarshal([]byte(event.Content), &pubData)
 
-			unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-			err = os.WriteFile(unencPathThumb, file.Content, 0644) // perms: rw-r--r--
+			files, err := fr.getPublicationFiles(pubData.Uuid)
 			if err != nil {
-				log.Error("Error trying to write file from an external publication")
-				continue pub
+				log.Error("Error getting publication:", err)
+				continue event_loop
 			}
+
+			// Store the files in the local drive first
+			for _, file := range files {
+				sum := sha256.Sum256(file.Content)
+				file.Hash = hex.EncodeToString(sum[:])
+
+				unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
+				log.Debug("Storing file thumbnail in path:", unencPathThumb)
+				err = os.WriteFile(unencPathThumb, file.Content, 0644) // perms: rw-r--r--
+				if err != nil {
+					log.Error("Error trying to write file from an external event")
+					continue event_loop
+				}
+			}
+
+			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, files)
+			if err != nil {
+				log.Error("Error creating social publication for friend:", err)
+				continue
+			}
+
+		case LikeEvent:
+			var like LikePublication
+			json.Unmarshal([]byte(event.Content), &like)
+			fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain)
+
+		case LikeCommentEvent:
+			var like LikePublicationComment
+			json.Unmarshal([]byte(event.Content), &like)
+			fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain)
+
+		case CommentEvent:
+			var comment Comment
+			json.Unmarshal([]byte(event.Content), &comment)
+			fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment)
 		}
 
-		_, err = fr.dao.NewSocialPublication(pub.Uuid, pub.Text, fr.data.OriginProfile.Domain, false, pub.Files)
-		if err != nil {
-			log.Error("Error creating social publication for friend:", err)
-			continue
-		}
+		err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt)
 	}
 
 	return
 }
-*/
 
 func (sc *Social) GetRemoteProfile(domain string, conn *gorilla.Conn) (name, text string, image []byte, err error) {
 	// Get the profile data from the other device
@@ -559,11 +635,11 @@ func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid str
 		Dt:           time.Now().Unix(),
 		FriendDomain: pr.Domain,
 	})
-	err = sc.dao.NewEvent(LikeEvent, json)
+	err = sc.dao.NewEvent(LikeCommentEvent, json)
 	if err != nil {
 		return err
 	}
-	return sc.dao.NewLikePublicationComment(commentUuid, pr.Domain)
+	return sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain)
 }
 
 func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (err error) {
@@ -579,7 +655,7 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (err e
 	if err != nil {
 		return err
 	}
-	return sc.dao.NewLikePublication(pubUuid, pr.Domain)
+	return sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain)
 }
 
 func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string) (err error) {

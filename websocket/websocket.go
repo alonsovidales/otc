@@ -41,6 +41,7 @@ type Manager struct {
 }
 
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *bgprocessor.BgProcessor) (mg *Manager) {
+	log.Debug("Init Websocket")
 	st, err := settings.Init(dao)
 	if err != nil {
 		log.Fatal("Error loading the settings", err)
@@ -77,6 +78,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *
 // backgroundWorker Used to process all the tasks in background to sync with
 // friend devices and so on
 func (mg *Manager) backgroundWorker() {
+	log.Debug("Background Worker")
 	for true {
 		// Update friendship status
 		mg.social.SyncWithFriends()
@@ -364,6 +366,20 @@ func (ch *connHandler) processAuthAsFriendRequest(env pb.ReqEnvelope) (resp *pb.
 			resp.Payload = &pb.RespEnvelope_RespEvents{
 				RespEvents: &pb.Events{
 					Events: events,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetSocialPublicationFiles:
+		log.Info("Getting social publication")
+		files, err := ch.mg.social.GetPublicationFiles(p.ReqGetSocialPublicationFiles.Uuid)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespSocialPublicationFiles{
+				RespSocialPublicationFiles: &pb.SocialPublicationFiles{
+					Files: files,
 				},
 			}
 		}

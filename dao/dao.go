@@ -312,6 +312,11 @@ func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
 	return
 }
 
+func (dao *Dao) UpdateLatestSync(domain string, latestSync *timestamppb.Timestamp) (err error) {
+	_, err = dao.db.Exec("update `social_friendship` set `latest_sync` = ? where `domain` = ?", latestSync.AsTime(), domain)
+	return
+}
+
 func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPublication bool, files []*pb.File) (err error) {
 	log.Debug("Creating SocialPublication")
 	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, now(), ?, ?, ?)", pubUuid, text, ownPublication, originDomain)
@@ -333,9 +338,9 @@ func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPubl
 	return
 }
 
-func (dao *Dao) NewLikePublication(pubUuid string, friendDomain string) (err error) {
-	log.Debug("Creating New LikePublication")
-	_, err = dao.db.Exec("insert into `social_publication_likes` (`uuid`, `pub_uuid`, `dt`, `friend_domain`) values (?, ?, now(), ?)", uuid.New().String(), pubUuid, friendDomain)
+func (dao *Dao) NewLikePublication(uuid, pubUuid string, friendDomain string) (err error) {
+	log.Debug("Creating New LikePublication:", uuid, "PubUUID:", pubUuid, friendDomain)
+	_, err = dao.db.Exec("insert into `social_publication_likes` (`uuid`, `pub_uuid`, `dt`, `friend_domain`) values (?, ?, now(), ?)", uuid, pubUuid, friendDomain)
 	if err != nil {
 		log.Error("Error trying to create a new like publication", err)
 		return
@@ -346,7 +351,7 @@ func (dao *Dao) NewLikePublication(pubUuid string, friendDomain string) (err err
 
 func (dao *Dao) GetEvents(since time.Time, total int32) (events []*pb.Event, err error) {
 	log.Debug("Get Events")
-	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? order by `dt` desc limit ?", since, total)
+	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? order by `dt` asc limit ?", since, total)
 	if err != nil {
 		return nil, err
 	}
@@ -366,9 +371,9 @@ func (dao *Dao) GetEvents(since time.Time, total int32) (events []*pb.Event, err
 	return
 }
 
-func (dao *Dao) NewLikePublicationComment(commentUuid string, friendDomain string) (err error) {
-	log.Debug("Creating New PublicationComment Like")
-	_, err = dao.db.Exec("insert into `social_publication_comment_likes` (`uuid`, `comment_uuid`, `dt`, `friend_domain`) values (?, ?, now(), ?)", uuid.New().String(), commentUuid, friendDomain)
+func (dao *Dao) NewLikePublicationComment(uuid, commentUuid string, friendDomain string) (err error) {
+	log.Debug("Creating New PublicationComment Like", uuid, commentUuid, friendDomain)
+	_, err = dao.db.Exec("insert into `social_publication_comment_likes` (`uuid`, `comment_uuid`, `dt`, `friend_domain`) values (?, ?, now(), ?)", uuid, commentUuid, friendDomain)
 	if err != nil {
 		log.Error("Error trying to create a new like publication", err)
 		return
@@ -396,6 +401,27 @@ func (dao *Dao) GetSocialPublicationComments(pubUuid string) (comments []*pb.Com
 
 		comment.DateTime = timestamppb.New(dt)
 		comments = append(comments, comment)
+	}
+
+	return
+}
+
+func (dao *Dao) GetSocialPublicationFiles(uuid string) (files []*pb.File, err error) {
+	// TODO: Populate owner and other stuff
+	rowFiles, err := dao.db.Query("select `hash`, `mime`, `created`, `modified`, `size` from `social_publications_files` where `uuid` = ? order by `pos`", uuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rowFiles.Close()
+	for rowFiles.Next() {
+		spFile := new(pb.File)
+		var created, modified time.Time
+		if err := rowFiles.Scan(&spFile.Hash, &spFile.Mime, &created, &modified, &spFile.Size); err != nil {
+			return nil, err
+		}
+		spFile.Created = timestamppb.New(created)
+		spFile.Modified = timestamppb.New(modified)
+		files = append(files, spFile)
 	}
 
 	return
@@ -457,21 +483,12 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 		}
 
 		// TODO: Populate owner and other stuff
-		rowFiles, err := dao.db.Query("select `hash`, `mime`, `created`, `modified`, `size` from `social_publications_files` where `uuid` = ? order by `pos`", sp.Uuid)
+		files, err := dao.GetSocialPublicationFiles(sp.Uuid)
 		if err != nil {
-			return nil, err
+			log.Error("Error trying to retrieve publication files")
+			continue
 		}
-		defer rowFiles.Close()
-		for rowFiles.Next() {
-			spFile := new(pb.File)
-			var created, modified time.Time
-			if err := rowFiles.Scan(&spFile.Hash, &spFile.Mime, &created, &modified, &spFile.Size); err != nil {
-				return nil, err
-			}
-			spFile.Created = timestamppb.New(created)
-			spFile.Modified = timestamppb.New(modified)
-			sp.Files = append(sp.Files, spFile)
-		}
+		sp.Files = files
 
 		pubs.Since = timestamppb.New(dt)
 		pubs.Publications = append(pubs.Publications, sp)
@@ -502,7 +519,7 @@ func (dao *Dao) getFriendshipByDomain(domain string) (status, name, text string,
 }
 
 func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
-	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret` from `social_friendship`")
+	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret`, `latest_sync` from `social_friendship`")
 	if err != nil {
 		return nil, err
 	}
@@ -512,8 +529,12 @@ func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 			OriginProfile: new(pb.Profile),
 		}
 		var status string
-		if err := rowFriendships.Scan(&status, &friendship.OriginProfile.Name, &friendship.OriginProfile.Image, &friendship.OriginProfile.Text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret); err != nil {
+		var latestSync sql.NullTime
+		if err := rowFriendships.Scan(&status, &friendship.OriginProfile.Name, &friendship.OriginProfile.Image, &friendship.OriginProfile.Text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret, &latestSync); err != nil {
 			return nil, err
+		}
+		if latestSync.Valid {
+			friendship.LatestSync = timestamppb.New(latestSync.Time)
 		}
 		friendship.Status = dao.statusToPb(status)
 

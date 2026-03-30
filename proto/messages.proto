@@ -108,6 +108,10 @@ message GetEvents {
   int32 total = 2;
 }
 
+message GetSocialPublicationFiles {
+  string uuid = 1;
+}
+
 message GetSocialPublications {
   google.protobuf.Timestamp since = 1;
   int32 total = 2;
@@ -134,6 +138,7 @@ message Friendship {
   FriendShipStatus status = 3;
   bool sent = 4;
   string secret = 5;
+  google.protobuf.Timestamp latest_sync = 6;
 }
 
 message Friendships {
@@ -257,6 +262,10 @@ message SocialPublication {
   Profile publisher = 7;
 }
 
+message SocialPublicationFiles {
+  repeated File files = 1;
+}
+
 message SocialPublications {
   repeated SocialPublication publications = 1;
   google.protobuf.Timestamp since = 2;
@@ -304,6 +313,7 @@ message ReqEnvelope {
     SetSettings req_set_settings = 29;
     NewSocialPublication req_new_social_publication = 19;
     GetSocialPublications req_get_social_publications = 20;
+    GetSocialPublicationFiles req_get_social_publication_files = 42;
     FriendshipRequest req_friendship_request = 23;
     FriendshipInterRequest req_friendship_inter_request = 37;
     DidSendFriendshipReq req_did_send_friendship_req = 38;
@@ -344,6 +354,7 @@ message RespEnvelope {
     SharedFiles resp_shared_files = 20;
     NewSocial resp_new_social = 21;
     SocialPublications resp_social_publications = 22;
+    SocialPublicationFiles resp_social_publication_files = 25;
     FriendshipStatus resp_friendship_status = 23;
     Events resp_events = 24;
   }
