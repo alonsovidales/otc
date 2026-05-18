@@ -30,12 +30,13 @@ This is used to access all the data, sync photos and documents from your mobile 
 
 <img height="300" alt="F3DEA941-1E34-4645-851A-42388CF29A49_1_102_o" src="https://github.com/user-attachments/assets/8c86bb84-255b-43dd-a726-ae4faaff69eb" />
 
-
 **The Web app**
 
 With this you can access all your data and social network from any browser just with your password
 
 <img height="300" alt="Screenshot 2026-05-18 at 16 35 47" src="https://github.com/user-attachments/assets/f20f2e79-0385-4cdc-b955-48e9d3c44619" />
+<img height="300" alt="Screenshot 2026-05-18 at 16 44 21" src="https://github.com/user-attachments/assets/08a7d890-33ec-4f67-8772-a8ed574baacf" />
+<img height="300" alt="Screenshot 2026-05-18 at 16 45 16" src="https://github.com/user-attachments/assets/5758ff5d-5a89-4494-a633-a8da14cc4c5b" />
 
 **Recommended Hardware**
 ========================
