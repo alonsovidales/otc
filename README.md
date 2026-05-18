@@ -26,9 +26,13 @@ This is used to sync some folders in your local computer
 
 **The iOS/Android app**
 
-This is used to access all the data, sync photos and documents from your mobile device, Social Network app and so on
+This is used to access all the data, sync photos and documents from your mobile device, Social Network app and much more
 
+<img height="300" alt="3014CBED-F750-4949-A15E-6D01140833BF_1_102_o" src="https://github.com/user-attachments/assets/f147bfd7-7115-4e41-921c-4c59c3fa75a2" />
 <img height="300" alt="F3DEA941-1E34-4645-851A-42388CF29A49_1_102_o" src="https://github.com/user-attachments/assets/8c86bb84-255b-43dd-a726-ae4faaff69eb" />
+<img height="300" alt="58FC9CDB-06BC-4FA3-AEC0-AB0D6BBA8912_1_102_o" src="https://github.com/user-attachments/assets/957194a4-cdb0-4f0f-8018-3f971086d36e" />
+<img height="300" alt="1A8E46EC-2AE1-40F2-B9BF-3C720A62DB68_1_102_o" src="https://github.com/user-attachments/assets/30549feb-bd38-47ad-b886-6d7af8db6e2b" />
+
 
 **The Web app**
 
