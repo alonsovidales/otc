@@ -7,8 +7,38 @@ OTC runs in your mobile devices as a iOS or Android application that can be down
 
 OTC is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM and two MicroSD cards in a RAID 1 configuration to store the data. The estimated cost of all the necessary hardware for a 1TB device is under 250 euros.
 
-**Recommended Hardware**
+**OTC is composed by four systems:**
+====================================
 
+**The "device"**
+
+This is the Raspberry Pi with two micro-SDs and two custom status leds that is used to store all your data and two custom LEDs to show the status of the RAID
+
+<img height="300" alt="Untitled" src="https://github.com/user-attachments/assets/25f5ccfb-b1fe-4440-830c-f4d34e9c3881" />
+
+
+**The MacOS/Windows application**
+
+This is used to sync some folders in your local computer
+
+<img height="300" alt="Screenshot 2026-05-18 at 16 07 21" src="https://github.com/user-attachments/assets/c5fcc06f-3df4-484d-a6f9-6cbfa0a6f363" />
+
+
+**The iOS/Android app**
+
+This is used to access all the data, sync photos and documents from your mobile device, Social Network app and so on
+
+<img height="300" alt="F3DEA941-1E34-4645-851A-42388CF29A49_1_102_o" src="https://github.com/user-attachments/assets/8c86bb84-255b-43dd-a726-ae4faaff69eb" />
+
+
+**The Web app**
+
+With this you can access all your data and social network from any browser just with your password
+
+<img height="300" alt="Screenshot 2026-05-18 at 16 35 47" src="https://github.com/user-attachments/assets/f20f2e79-0385-4cdc-b955-48e9d3c44619" />
+
+**Recommended Hardware**
+========================
 - 1x [Raspberry Pi 5 with 8GB or RAM](https://www.raspberrypi.com/products/raspberry-pi-5/)
 - 2x USB MicroSD card readers
 - 2x MicroSD Cards of the same size for storage
@@ -17,6 +47,7 @@ OTC is hosted in your home using your network connection and inexpensive hardwar
 - 1x [Active Cooler](https://www.raspberrypi.com/products/active-cooler/)
 
 **Installation of the device**
+==============================
 1. Install [Raspberry Pi OS (64-bit)](https://www.raspberrypi.com/software/operating-systems/) in the Raspberry Pi using [this tutorial](https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager). In `Customisation` Select Enable SSH and use `otc` as user name.
 
 2. SSH into the device and update the OS:
