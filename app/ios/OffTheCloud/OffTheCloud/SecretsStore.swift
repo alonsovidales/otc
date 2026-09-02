@@ -59,7 +59,6 @@ final class SecretsStore: ObservableObject {
 // Tiny Keychain helper
 enum Keychain {
     static func saveString(key: String, value: String) {
-        print("Saving string \(value) for key \(key)")
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -67,12 +66,13 @@ enum Keychain {
             kSecAttrService as String: "OffTheCloud",
             kSecValueData as String: data
         ]
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        let delStatus = SecItemDelete(query as CFDictionary)
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        // Never log `value` here — this is also used for the account password.
+        print("Keychain save key=\(key) deleteStatus=\(delStatus) addStatus=\(addStatus)")
     }
 
     static func loadString(key: String) -> String? {
-        print("Loading string for key \(key)")
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
@@ -82,6 +82,7 @@ enum Keychain {
         ]
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
+        print("Keychain load key=\(key) status=\(status)")
         if status == errSecSuccess, let data = item as? Data {
             return String(data: data, encoding: .utf8)
         }

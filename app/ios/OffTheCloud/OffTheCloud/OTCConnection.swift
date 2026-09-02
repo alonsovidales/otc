@@ -67,7 +67,7 @@ final class OTCConnection: ObservableObject {
     private func connectAndAuth() async throws {
         let secrets = SecretsStore.loadOrCreate()
         guard let url = URL(string: secrets.endpoint) else {
-            throw NSError(domain: "OTCConnection", code: 1, userInfo: [NSLocalizedDescriptionKey: "Bad endpoint"])
+            throw NSError(domain: "OTCConnection", code: 1, userInfo: [NSLocalizedDescriptionKey: "Bad endpoint: \"\(secrets.endpoint)\" (\(secrets.endpoint.unicodeScalars.count) chars)"])
         }
 
         try await ws.connect(url: url)
