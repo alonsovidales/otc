@@ -317,3 +317,18 @@ To connect locally use the `8080` port: http://<local_ip>:8080
 If you have configured the bridge you should be able to connect in: https://<domain>.off-the.cloud/
 
 **When clicking in "Sign In" it will ask you for a password, be careful because the first time, sice the password is not set, whatever you set will be your password.**
+
+## Bridge admin panel
+
+The bridge (`bridge/`, deployed separately - see `bridge/makefile`) has a small admin panel at
+`https://off-the.cloud/admin` for whoever operates the bridge: log in, see/add/remove registered
+devices, and check per-device metrics (requests/bandwidth, hourly) and a security log of rejected
+bridge-registration attempts (wrong owner/secret for a claimed domain).
+
+There's no sign-up - bootstrap (or change) an admin account from the bridge's shell:
+```
+$ sudo /usr/bin/otc_bridge <env> set-admin-password <username> <password>
+```
+`[admin] session-secret` must also be set in the bridge's config file (`/etc/otc_<env>.ini`) - a
+random value that stays stable across restarts, e.g. `openssl rand -hex 32` - otherwise every
+restart logs every admin out.
