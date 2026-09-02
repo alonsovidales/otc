@@ -5,6 +5,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 	"net/http"
@@ -89,7 +90,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		if deviceConn != nil {
 			// We are connecting a device with a client, so just forward everything
 			log.Debug("New message with connection")
-			if err := mg.forwardMessage(conn, deviceConn, frame); err != nil {
+			if err := mg.forwardMessage(r.Host, conn, deviceConn, frame); err != nil {
 				log.Error("Error fordwading message:", err)
 				return
 			}
@@ -115,6 +116,13 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					log.Error("error registering bridge:", err)
 					resp.Error = true
 					resp.ErrorMessage = "Invalid Secret"
+					// Someone tried to register an already-claimed domain with
+					// the wrong owner_uuid/secret - could be a misconfigured
+					// device, or someone probing for a weak/leaked secret.
+					// Surfaced in the admin panel's security log (issue #8).
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), p.ReqBridgeRegister.Domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+						log.Error("error logging auth event:", logErr)
+					}
 				} else if err != nil {
 					log.Error("error trying to register:", err)
 					resp.Error = true
@@ -160,7 +168,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						defer deviceConn.Close()
 
 						log.Debug("Connecting")
-						if err := mg.forwardMessage(conn, deviceConn, frame); err != nil {
+						if err := mg.forwardMessage(r.Host, conn, deviceConn, frame); err != nil {
 							log.Error("Error fordwading message:", err)
 							deviceConn = nil
 						}
@@ -184,7 +192,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	}
 }
 
-func (mg *Manager) forwardMessage(conn, deviceConn *gorilla.Conn, frame []byte) (err error) {
+// forwardMessage relays one request/response round trip between a client
+// connection and a device connection, and records it against domain for
+// the admin panel's per-device metrics (issue #8). domain is the host the
+// client connected through, i.e. the device's own bridge subdomain.
+func (mg *Manager) forwardMessage(domain string, conn, deviceConn *gorilla.Conn, frame []byte) (err error) {
 	log.Debug("Forwading message to device")
 	if err := deviceConn.WriteMessage(gorilla.BinaryMessage, frame); err != nil {
 		log.Error("error forwarding, closing the connection:", err)
@@ -200,6 +212,12 @@ func (mg *Manager) forwardMessage(conn, deviceConn *gorilla.Conn, frame []byte) 
 	if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
 		log.Error("error forwading respose, closing the connection:", err)
 		return err
+	}
+
+	if err := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); err != nil {
+		// Metrics are best-effort: never fail the actual relay over a
+		// metrics-write error.
+		log.Error("error recording device activity:", err)
 	}
 
 	return

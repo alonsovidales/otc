@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -17,8 +16,7 @@ import (
 )
 
 type Dao struct {
-	db     *sql.DB
-	cancel context.CancelFunc
+	db *sql.DB
 }
 
 func Init() (dao *Dao) {
@@ -51,8 +49,7 @@ func Init() (dao *Dao) {
 }
 
 func (dao *Dao) Stop() {
-	defer dao.db.Close()
-	defer dao.cancel()
+	dao.db.Close()
 }
 
 func (dao *Dao) IsSecretDefined() (defined bool, err error) {

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Off The Cloud — Bridge Admin</title>
+  <style>
+    :root{
+      --bg:#0b0e13;
+      --panel:#121720;
+      --panel-2:#171d29;
+      --muted:#95a3b8;
+      --text:#e7edf6;
+      --brand:#6ee7ff;
+      --brand-2:#8b5cf6;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --border:rgba(255,255,255,.08);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:var(--bg);
+    }
+    a{color:var(--brand)}
+    .wrap{max-width:1000px;margin:0 auto;padding:24px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+    header h1{font-size:18px;margin:0;font-weight:700}
+    header h1 span{color:var(--muted);font-weight:400}
+    .btn{
+      appearance:none;border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+      padding:8px 14px;border-radius:10px;font-size:14px;cursor:pointer;
+    }
+    .btn:hover{border-color:rgba(255,255,255,.2)}
+    .btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));border:none;color:#0b0e13;font-weight:600}
+    .btn.danger{border-color:rgba(239,68,68,.4);color:#fca5a5}
+    .btn:disabled{opacity:.5;cursor:default}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+    .muted{color:var(--muted)}
+    input,select{
+      background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+      padding:8px 10px;border-radius:8px;font-size:14px;
+    }
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+    .field{margin-bottom:14px}
+    .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+    th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+    tr:last-child td{border-bottom:none}
+    code{background:var(--panel-2);padding:2px 6px;border-radius:6px;font-size:13px}
+    .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border)}
+    .tab{padding:10px 16px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;font-size:14px}
+    .tab.active{color:var(--text);border-color:var(--brand)}
+    .msg{padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:14px}
+    .msg.error{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+    .msg.ok{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.3)}
+    .bars{display:flex;align-items:flex-end;gap:2px;height:120px;margin-top:12px}
+    .bars .bar{flex:1;background:linear-gradient(180deg,var(--brand),var(--brand-2));border-radius:2px 2px 0 0;min-height:1px}
+    .bars .bar[data-empty]{background:var(--panel-2)}
+    .hidden{display:none !important}
+    #login-screen{max-width:360px;margin:15vh auto 0}
+    .reason{color:var(--warn)}
+    [hidden]{display:none !important}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="login-screen">
+      <div class="card">
+        <h1 style="margin-bottom:16px">Off The Cloud <span>bridge admin</span></h1>
+        <div id="login-msg"></div>
+        <form id="login-form">
+          <div class="field">
+            <label for="login-user">Username</label>
+            <input id="login-user" name="username" autocomplete="username" required style="width:100%" />
+          </div>
+          <div class="field">
+            <label for="login-pass">Password</label>
+            <input id="login-pass" name="password" type="password" autocomplete="current-password" required style="width:100%" />
+          </div>
+          <button class="btn primary" type="submit" style="width:100%">Log in</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="panel" hidden>
+      <header>
+        <h1>Off The Cloud <span>bridge admin</span> — <span id="whoami"></span></h1>
+        <button class="btn" id="logout-btn">Log out</button>
+      </header>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="devices">Devices</div>
+        <div class="tab" data-tab="metrics">Metrics</div>
+        <div class="tab" data-tab="security">Security</div>
+      </div>
+
+      <section id="tab-devices">
+        <div class="card">
+          <div id="devices-msg"></div>
+          <table>
+            <thead><tr><th>Domain</th><th>Owner UUID</th><th></th></tr></thead>
+            <tbody id="devices-body"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Add a device</h3>
+          <p class="muted" style="margin-top:-8px">Leave owner UUID / secret blank to generate them. The generated secret is shown once — copy it into the device's config before it connects.</p>
+          <form id="add-device-form">
+            <div class="row">
+              <div class="field" style="flex:1;min-width:220px">
+                <label for="add-domain">Domain</label>
+                <input id="add-domain" name="domain" placeholder="pit.off-the.cloud" required style="width:100%" />
+              </div>
+              <div class="field" style="flex:1;min-width:220px">
+                <label for="add-owner">Owner UUID (optional)</label>
+                <input id="add-owner" name="ownerUuid" style="width:100%" />
+              </div>
+              <div class="field" style="flex:1;min-width:220px">
+                <label for="add-secret">Secret (optional)</label>
+                <input id="add-secret" name="secret" style="width:100%" />
+              </div>
+              <div class="field">
+                <button class="btn primary" type="submit">Add device</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tab-metrics" hidden>
+        <div class="card">
+          <div class="row" style="margin-bottom:6px">
+            <div class="field">
+              <label for="metrics-domain">Device</label>
+              <select id="metrics-domain"><option value="">All devices (totals)</option></select>
+            </div>
+            <div class="field">
+              <label for="metrics-window">Window</label>
+              <select id="metrics-window">
+                <option value="24">Last 24 hours</option>
+                <option value="168" selected>Last 7 days</option>
+                <option value="720">Last 30 days</option>
+              </select>
+            </div>
+          </div>
+          <div id="metrics-summary" class="muted"></div>
+          <div class="muted" style="margin-top:16px;font-size:12px">Requests per hour</div>
+          <div class="bars" id="metrics-bars"></div>
+        </div>
+      </section>
+
+      <section id="tab-security" hidden>
+        <div class="card">
+          <div class="row" style="margin-bottom:14px">
+            <div class="field">
+              <label for="security-domain">Device</label>
+              <select id="security-domain"><option value="">All devices</option></select>
+            </div>
+          </div>
+          <p class="muted" style="margin-top:-8px">Failed bridge-registration attempts - a device (or someone impersonating one) that sent the wrong owner UUID or secret for a claimed domain.</p>
+          <table>
+            <thead><tr><th>Time</th><th>Domain</th><th>Owner UUID attempted</th><th>Remote address</th><th>Reason</th></tr></thead>
+            <tbody id="security-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const api = {
+      async call(method, path, body) {
+        const res = await fetch(path, {
+          method,
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        let data = null;
+        try { data = await res.json(); } catch (e) { /* no body */ }
+        if (!res.ok) {
+          const err = new Error((data && data.error) || res.statusText);
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      },
+    };
+
+    const loginScreen = document.getElementById('login-screen');
+    const panel = document.getElementById('panel');
+    const loginForm = document.getElementById('login-form');
+    const loginMsg = document.getElementById('login-msg');
+    const whoami = document.getElementById('whoami');
+
+    function showMsg(el, text, kind) {
+      el.innerHTML = text ? `<div class="msg ${kind}">${escapeHtml(text)}</div>` : '';
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function fmtBytes(n) {
+      n = Number(n) || 0;
+      const units = ['B','KB','MB','GB','TB'];
+      let i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    async function tryEnterPanel() {
+      try {
+        await refreshDevices();
+        loginScreen.hidden = true;
+        panel.hidden = false;
+        const u = localStorage.getItem('otc_admin_user');
+        whoami.textContent = u || '';
+      } catch (e) {
+        loginScreen.hidden = false;
+        panel.hidden = true;
+      }
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showMsg(loginMsg, '', '');
+      const fd = new FormData(loginForm);
+      try {
+        const resp = await api.call('POST', '/admin/api/login', {
+          username: fd.get('username'),
+          password: fd.get('password'),
+        });
+        localStorage.setItem('otc_admin_user', resp.username || fd.get('username'));
+        await tryEnterPanel();
+      } catch (err) {
+        showMsg(loginMsg, err.message || 'Login failed', 'error');
+      }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      try { await api.call('POST', '/admin/api/logout'); } catch (e) {}
+      localStorage.removeItem('otc_admin_user');
+      loginScreen.hidden = false;
+      panel.hidden = true;
+    });
+
+    // ---- Tabs ----
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['devices', 'metrics', 'security'].forEach(name => {
+          document.getElementById(`tab-${name}`).hidden = name !== tab.dataset.tab;
+        });
+        if (tab.dataset.tab === 'metrics') refreshMetrics();
+        if (tab.dataset.tab === 'security') refreshSecurity();
+      });
+    });
+
+    // ---- Devices ----
+    let knownDomains = [];
+
+    async function refreshDevices() {
+      const devices = await api.call('GET', '/admin/api/devices');
+      knownDomains = devices.map(d => d.Domain);
+      const body = document.getElementById('devices-body');
+      if (devices.length === 0) {
+        body.innerHTML = '<tr><td colspan="3" class="muted">No devices registered yet.</td></tr>';
+      } else {
+        body.innerHTML = devices.map(d => `
+          <tr>
+            <td>${escapeHtml(d.Domain)}</td>
+            <td><code>${escapeHtml(d.OwnerUuid)}</code></td>
+            <td><button class="btn danger" data-domain="${escapeHtml(d.Domain)}">Remove</button></td>
+          </tr>
+        `).join('');
+        body.querySelectorAll('button[data-domain]').forEach(btn => {
+          btn.addEventListener('click', () => removeDevice(btn.dataset.domain));
+        });
+      }
+      populateDomainSelect('metrics-domain', devices);
+      populateDomainSelect('security-domain', devices);
+    }
+
+    function populateDomainSelect(id, devices) {
+      const sel = document.getElementById(id);
+      const current = sel.value;
+      sel.innerHTML = sel.options[0].outerHTML + devices.map(d =>
+        `<option value="${escapeHtml(d.Domain)}">${escapeHtml(d.Domain)}</option>`).join('');
+      if (devices.some(d => d.Domain === current)) sel.value = current;
+    }
+
+    async function removeDevice(domain) {
+      if (!confirm(`Remove ${domain}? This immediately revokes its bridge access.`)) return;
+      try {
+        await api.call('DELETE', `/admin/api/devices/${encodeURIComponent(domain)}`);
+        await refreshDevices();
+      } catch (err) {
+        showMsg(document.getElementById('devices-msg'), err.message, 'error');
+      }
+    }
+
+    document.getElementById('add-device-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const msgEl = document.getElementById('devices-msg');
+      try {
+        const created = await api.call('POST', '/admin/api/devices', {
+          domain: fd.get('domain'),
+          ownerUuid: fd.get('ownerUuid') || undefined,
+          secret: fd.get('secret') || undefined,
+        });
+        showMsg(msgEl, `Added ${created.domain}. Owner UUID: ${created.ownerUuid} — Secret: ${created.secret} (copy this now, it won't be shown again)`, 'ok');
+        e.target.reset();
+        await refreshDevices();
+      } catch (err) {
+        showMsg(msgEl, err.message, 'error');
+      }
+    });
+
+    // ---- Metrics ----
+    document.getElementById('metrics-domain').addEventListener('change', refreshMetrics);
+    document.getElementById('metrics-window').addEventListener('change', refreshMetrics);
+
+    async function refreshMetrics() {
+      const domain = document.getElementById('metrics-domain').value;
+      const hours = document.getElementById('metrics-window').value;
+      const qs = new URLSearchParams({ hours });
+      if (domain) qs.set('domain', domain);
+      const buckets = await api.call('GET', `/admin/api/metrics?${qs}`);
+
+      const totalReq = buckets.reduce((s, b) => s + b.Requests, 0);
+      const totalIn = buckets.reduce((s, b) => s + b.BytesIn, 0);
+      const totalOut = buckets.reduce((s, b) => s + b.BytesOut, 0);
+      document.getElementById('metrics-summary').textContent =
+        buckets.length === 0
+          ? 'No activity recorded in this window yet.'
+          : `${totalReq} requests · ${fmtBytes(totalIn)} in · ${fmtBytes(totalOut)} out`;
+
+      const barsEl = document.getElementById('metrics-bars');
+      const max = Math.max(1, ...buckets.map(b => b.Requests));
+      barsEl.innerHTML = buckets.map(b => {
+        const h = Math.max(1, Math.round((b.Requests / max) * 100));
+        const t = new Date(b.HourBucket).toLocaleString();
+        return `<div class="bar" style="height:${h}%" title="${escapeHtml(t)}: ${b.Requests} req"></div>`;
+      }).join('') || '<div class="muted">Nothing to show yet.</div>';
+    }
+
+    // ---- Security ----
+    document.getElementById('security-domain').addEventListener('change', refreshSecurity);
+
+    async function refreshSecurity() {
+      const domain = document.getElementById('security-domain').value;
+      const qs = domain ? `?${new URLSearchParams({ domain })}` : '';
+      const events = await api.call('GET', `/admin/api/auth-events${qs}`);
+      const body = document.getElementById('security-body');
+      body.innerHTML = events.length === 0
+        ? '<tr><td colspan="5" class="muted">No auth failures logged.</td></tr>'
+        : events.map(e => `
+          <tr>
+            <td>${escapeHtml(new Date(e.Dt).toLocaleString())}</td>
+            <td>${escapeHtml(e.Domain)}</td>
+            <td><code>${escapeHtml(e.OwnerUuidAttempted)}</code></td>
+            <td>${escapeHtml(e.RemoteAddr)}</td>
+            <td class="reason">${escapeHtml(e.Reason)}</td>
+          </tr>
+        `).join('');
+    }
+
+    tryEnterPanel();
+  </script>
+</body>
+</html>

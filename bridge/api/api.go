@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
@@ -19,15 +20,18 @@ type API struct {
 	websocket  *websocket.Manager
 	staticPath string
 	dao        *dao.Dao
+	admin      *admin.Admin
 
 	muxHTTPServer *http.ServeMux
 }
 
 // Init Initializes the API and starts listening on the specified ports serving
 // both the HTTP API and the static content
-func Init(webSocket *websocket.Manager, dao *dao.Dao, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
+func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
 		websocket:     webSocket,
+		dao:           dao,
+		admin:         adm,
 		muxHTTPServer: http.NewServeMux(),
 		staticPath:    staticPath,
 	}
@@ -60,7 +64,29 @@ func (api *API) registerAPIs() {
 
 	api.muxHTTPServer.HandleFunc(websocket.CEndpoint, api.websocket.Listen)
 
+	api.registerAdminAPIs()
+
 	api.muxHTTPServer.HandleFunc("/", api.serveStatic)
+}
+
+// registerAdminAPIs wires the bridge admin panel's JSON API (issues #7/#8):
+// login is open, everything else requires a valid session cookie. The
+// panel's own UI (admin.html) is just a static file served by serveStatic,
+// same as any other page.
+func (api *API) registerAdminAPIs() {
+	if api.admin == nil {
+		// Nil in tests that construct API directly without an admin
+		// manager; nothing under /admin/api is reachable there.
+		return
+	}
+
+	api.muxHTTPServer.HandleFunc("POST /admin/api/login", api.admin.Login)
+	api.muxHTTPServer.HandleFunc("POST /admin/api/logout", api.admin.Logout)
+	api.muxHTTPServer.HandleFunc("GET /admin/api/devices", api.admin.RequireAuth(api.admin.ListDevices))
+	api.muxHTTPServer.HandleFunc("POST /admin/api/devices", api.admin.RequireAuth(api.admin.AddDevice))
+	api.muxHTTPServer.HandleFunc("DELETE /admin/api/devices/{domain}", api.admin.RequireAuth(api.admin.DeleteDevice))
+	api.muxHTTPServer.HandleFunc("GET /admin/api/metrics", api.admin.RequireAuth(api.admin.Metrics))
+	api.muxHTTPServer.HandleFunc("GET /admin/api/auth-events", api.admin.RequireAuth(api.admin.AuthEvents))
 }
 
 // serveStatic serves files from staticPath: the bare domain (matching the
