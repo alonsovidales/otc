@@ -23,8 +23,11 @@ final class OTCConnection: ObservableObject {
     private let maxBackoffSeconds: TimeInterval = 30
 
     private init() {
-        ws.onDisconnect = { [weak self] in
-            Task { @MainActor [weak self] in self?.handleDisconnect() }
+        let ws = ws
+        Task {
+            await ws.setOnDisconnect { [weak self] in
+                Task { @MainActor [weak self] in self?.handleDisconnect() }
+            }
         }
     }
 
@@ -59,7 +62,7 @@ final class OTCConnection: ObservableObject {
     /// next request re-authenticates against the new credentials instead of
     /// assuming the old session is still good.
     func invalidate() {
-        ws.close()
+        Task { await ws.close() }
         authenticated = false
         backoffSeconds = 1
     }

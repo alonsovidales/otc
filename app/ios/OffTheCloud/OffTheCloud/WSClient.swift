@@ -5,10 +5,16 @@
 //  Created by Alonso Vidales on 8/9/25.
 //
 
-
 import Foundation
 
-final class WSClient {
+/// An `actor` (not a plain class) because URLSession delivers `receive`/`send`
+/// completions on its own background queue, not on whatever thread called
+/// into this client. With a plain class those callbacks mutated `waiters`/
+/// `nextId` concurrently with calls made from OTCConnection, a real data
+/// race that showed up in practice as a heap-corruption crash on a real
+/// device once traffic got busy (large file listings). The actor serializes
+/// every access to this state, callbacks included.
+actor WSClient {
     private var task: URLSessionWebSocketTask?
     private let session: URLSession
     private(set) var connected = false
@@ -27,10 +33,19 @@ final class WSClient {
         session = URLSession(configuration: cfg)
     }
 
+    func setOnDisconnect(_ cb: @escaping () -> Void) {
+        onDisconnect = cb
+    }
+
     func connect(url: URL) async throws {
         print("Trynig to connect to: \(url)")
         if let task, task.state == .running { return }
         let t = session.webSocketTask(with: url)
+        // The default is 1 MiB, which a file listing for a few thousand
+        // photos blows straight past — every receive then fails with
+        // "Message too long" and the connection never gets anywhere. Match
+        // the macOS client's generous cap.
+        t.maximumMessageSize = 1000 * 1024 * 1024
         task = t
         t.resume()
         connected = true
@@ -46,28 +61,32 @@ final class WSClient {
     private func listen() {
         task?.receive { [weak self] result in
             guard let self else { return }
-            switch result {
-            case .failure(let err):
-                print("WS receive error:", err)
-                self.failAndClose(err)
-            case .success(let message):
-                switch message {
-                case .data(let data):
-                    do {
-                        let env = try Msg_RespEnvelope(serializedData: data)
-                        if let cb = self.waiters[env.id] {
-                            self.waiters.removeValue(forKey: env.id)
-                            cb(.success(env))
-                        }
-                        // If you expect server push, also post a Notification here.
-                    } catch {
-                        print("Decode error:", error)
+            Task { await self.handleReceive(result) }
+        }
+    }
+
+    private func handleReceive(_ result: Result<URLSessionWebSocketTask.Message, Error>) {
+        switch result {
+        case .failure(let err):
+            print("WS receive error:", err)
+            failAndClose(err)
+        case .success(let message):
+            switch message {
+            case .data(let data):
+                do {
+                    let env = try Msg_RespEnvelope(serializedData: data)
+                    if let cb = waiters[env.id] {
+                        waiters.removeValue(forKey: env.id)
+                        cb(.success(env))
                     }
-                default: break
+                    // If you expect server push, also post a Notification here.
+                } catch {
+                    print("Decode error:", error)
                 }
-                // keep listening only while the socket is still healthy
-                self.listen()
+            default: break
             }
+            // keep listening only while the socket is still healthy
+            listen()
         }
     }
 
@@ -94,14 +113,19 @@ final class WSClient {
         //print("Sending request: \(env)")
 
         let data = try env.serializedData()
+        let id = env.id
         return try await withCheckedThrowingContinuation { cont in
-            self.waiters[env.id] = { result in cont.resume(with: result) }
+            self.waiters[id] = { result in cont.resume(with: result) }
             self.task?.send(.data(data)) { error in
-                if let error {
-                    self.waiters.removeValue(forKey: env.id)
-                    cont.resume(throwing: error)
-                }
+                guard let error else { return }
+                Task { await self.failWaiter(id: id, error: error) }
             }
+        }
+    }
+
+    private func failWaiter(id: Int32, error: Error) {
+        if let cb = waiters.removeValue(forKey: id) {
+            cb(.failure(error))
         }
     }
 }
