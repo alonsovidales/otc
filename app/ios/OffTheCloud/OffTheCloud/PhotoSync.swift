@@ -14,6 +14,20 @@ final class PhotoSync {
     static let shared = PhotoSync()
     private init() {}
 
+    // How many assets to read from disk + upload at the same time (issue
+    // #10). A fixed pool rather than a single sequential stream: each
+    // upload's network round-trip is mostly dead time on the client side,
+    // so overlapping several keeps both the disk reads and the socket busy
+    // instead of idling between every request/ack pair.
+    //
+    // Capped at cores-1 on the server (Pi 5, 4 cores) rather than something
+    // higher: the device also has to hash/dedup/thumbnail/tag each upload on
+    // the way in, so pushing more concurrent uploads than the Pi has spare
+    // cores for just makes every request (including unrelated ones sharing
+    // this same connection, like the Social feed) crawl instead of actually
+    // finishing the sync faster.
+    private static let cMaxConcurrentUploads = 3
+
     private func ensureAuth() async throws {
         print("Ensure Auth photos")
         let s = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -190,44 +204,69 @@ final class PhotoSync {
         }
 
         var idx = 0
-        for asset in assets {
-            idx += 1
-            do {
-                let (data, name, _) = try readData(for: asset)
-                let cleanName = name.replacingOccurrences(of: "/", with: "_")
-                let path = "\(targetPath)\(cleanName)"
-                
-                if knownPaths.contains(path) {
-                    print("File already in server: \(path)")
-                    // TODO: Check also the hash
-                    continue
-                }
+        for chunk in assets.chunked(into: Self.cMaxConcurrentUploads) {
+            await withTaskGroup(of: Void.self) { group in
+                for asset in chunk {
+                    idx += 1
+                    let position = idx
+                    group.addTask {
+                        do {
+                            let (data, name, _) = try self.readData(for: asset)
+                            let cleanName = name.replacingOccurrences(of: "/", with: "_")
+                            let path = "\(targetPath)\(cleanName)"
 
-                UploadModel.shared.step(file: cleanName, index: idx-1, total: assets.count)
+                            if knownPaths.contains(path) {
+                                print("File already in server: \(path)")
+                                // TODO: Check also the hash
+                                return
+                            }
 
-                let resp = try await ws.request { env in
-                    var up = Msg_UploadFile()
-                    up.path = path
-                    up.content = data
-                    up.forceOverride = false
-                    up.created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
-                    //TODO: Set the creation date here and not in the server
-                    env.payload = .reqUploadFile(up)
-                }
+                            UploadModel.shared.step(file: cleanName, index: position - 1, total: assets.count)
 
-                if case .respAck(let ack) = resp.payload, ack.ok {
-                    // ok
-                } else if resp.error {
-                    print("Upload failed:", resp.errorMessage)
+                            let resp = try await ws.request { env in
+                                var up = Msg_UploadFile()
+                                up.path = path
+                                up.content = data
+                                up.forceOverride = false
+                                up.created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
+                                //TODO: Set the creation date here and not in the server
+                                env.payload = .reqUploadFile(up)
+                            }
+
+                            if case .respAck(let ack) = resp.payload, ack.ok {
+                                // ok
+                            } else if resp.error {
+                                print("Upload failed:", resp.errorMessage)
+                            }
+                        } catch {
+                            print("Upload error:", error)
+                        }
+                    }
                 }
-                UserDefaults.standard.set(asset.creationDate, forKey: "lastSyncDate")
-                print("Latest date:", asset.creationDate)
-            } catch {
-                print("Upload error:", error)
+            }
+            // The whole chunk has been attempted (success or failure per
+            // asset) by the time the group above returns, so it's safe to
+            // advance the watermark past every date in it.
+            if let latest = chunk.compactMap(\.creationDate).max() {
+                UserDefaults.standard.set(latest, forKey: "lastSyncDate")
+                print("Latest date:", latest)
             }
         }
 
         UploadModel.shared.complete()
         UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+    }
+}
+
+private extension Array {
+    /// Splits into consecutive slices of at most `size` elements each (the
+    /// last slice may be smaller). Used to bound upload concurrency (#10)
+    /// while still giving a natural point, between chunks, to checkpoint
+    /// sync progress.
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [self] }
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
     }
 }

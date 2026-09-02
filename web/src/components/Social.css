@@ -17,6 +17,7 @@
 .sv-factions { display: flex; gap: 6px; }
 
 .sv-feed { margin: auto; display: flex; flex-direction: column; gap: 16px; }
+.sv-loading-more { text-align: center; color: #6b7280; padding: 12px 0; }
 .sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: #222; margin: auto; }
 .sv-post-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
 .sv-avatar { width: 28px; height: 28px; display: grid; place-items: center; background: #f3f4f6; border-radius: 50%; }

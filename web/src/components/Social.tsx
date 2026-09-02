@@ -15,25 +15,70 @@ function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
   return URL.createObjectURL(blob);
 }
 
+// How many posts to fetch per page (issue #15): loading the whole feed
+// up front is what made the page take ages to appear once there were many
+// posts, so pull a small page and fetch more as the user scrolls near the
+// end, mirroring the native iOS app's pagination.
+const PAGE_SIZE = 4;
+
 export default function Social() {
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
   const [busyLikePub, setBusyLikePub] = useState<string | null>(null);
   const [busyLikeComm, setBusyLikeComm] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const endReachedRef = useRef(false);
+  const loadingMoreRef = useRef(false);
+  const feedRef = useRef<PbSocialPublication[]>([]);
+  useEffect(() => { feedRef.current = feed; }, [feed]);
+
+  const fetchPage = useCallback(async (total: number, excludeUuids: string[], replacing: boolean) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: { total, excludeUuids } };
+    });
+    if (resp.payload?.$case !== "respSocialPublications") return;
+    const sp: PbSocialPublications = resp.payload.respSocialPublications;
+    if (replacing) {
+      setFeed(sp.publications);
+    } else {
+      setFeed(prev => {
+        const seen = new Set(prev.map(p => p.uuid));
+        return [...prev, ...sp.publications.filter(p => !seen.has(p.uuid))];
+      });
+    }
+    if (sp.publications.length < total) endReachedRef.current = true;
+  }, []);
 
   const loadFeed = useCallback(async () => {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: { total: 50 } };
-    });
-    if (resp.payload?.$case === "respSocialPublications") {
-      const sp: PbSocialPublications = resp.payload.respSocialPublications;
-      setFeed(sp.publications);
+    endReachedRef.current = false;
+    await fetchPage(PAGE_SIZE, [], true);
+  }, [fetchPage]);
+
+  // Re-fetches everything currently on screen (not just page 1), so a
+  // like/comment action doesn't collapse the feed back down to one page.
+  const refreshCurrentlyLoaded = useCallback(async () => {
+    const count = Math.max(feedRef.current.length, PAGE_SIZE);
+    await fetchPage(count, [], true);
+  }, [fetchPage]);
+
+  const loadMoreIfNeeded = useCallback(async (pubUuid: string) => {
+    if (loadingMoreRef.current || endReachedRef.current) return;
+    const cur = feedRef.current;
+    const idx = cur.findIndex(p => p.uuid === pubUuid);
+    if (idx === -1 || idx < cur.length - 2) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      await fetchPage(PAGE_SIZE, cur.map(p => p.uuid), false);
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
     }
-  }, []);
+  }, [fetchPage]);
 
   useEffect(() => {
     (async () => {
-      await Promise.all([ loadFeed()]);
+      await loadFeed();
     })();
   }, [loadFeed]);
 
@@ -43,11 +88,11 @@ export default function Social() {
       await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqLikePublication", reqLikePublication: { pubUuid: pub_uuid } };
       });
-      await loadFeed();
+      await refreshCurrentlyLoaded();
     } finally {
       setBusyLikePub(null);
     }
-  }, [loadFeed]);
+  }, [refreshCurrentlyLoaded]);
 
   const likeComment = useCallback(async (comment_uuid: string) => {
     setBusyLikeComm(comment_uuid);
@@ -55,11 +100,11 @@ export default function Social() {
       await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqLikeComment", reqLikeComment: { commentUuid: comment_uuid } };
       });
-      await loadFeed();
+      await refreshCurrentlyLoaded();
     } finally {
       setBusyLikeComm(null);
     }
-  }, [loadFeed]);
+  }, [refreshCurrentlyLoaded]);
 
   const addComment = useCallback(async (pub_uuid: string, text: string, publisherName: string) => {
     if (!text.trim()) return;
@@ -70,8 +115,8 @@ export default function Social() {
         publisher: publisherName, // whatever identity you use
       }};
     });
-    await loadFeed();
-  }, [loadFeed]);
+    await refreshCurrentlyLoaded();
+  }, [refreshCurrentlyLoaded]);
 
   // ---------------- Image viewer (modal) ----------------
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -158,6 +203,20 @@ export default function Social() {
   const Post: React.FC<{ p: PbSocialPublication }> = ({ p }) => {
     const [idx, setIdx] = useState(0);
     const swipe = useSwipe();
+    const rootRef = useRef<HTMLElement | null>(null);
+
+    // Trigger the next page fetch once this post (one of the last two
+    // currently loaded) actually scrolls into view, mirroring the iOS
+    // app's "trigger near the end of the list" pagination (issue #15).
+    useEffect(() => {
+      const el = rootRef.current;
+      if (!el) return;
+      const obs = new IntersectionObserver((entries) => {
+        if (entries[0]?.isIntersecting) void loadMoreIfNeeded(p.uuid);
+      }, { rootMargin: "600px" });
+      obs.observe(el);
+      return () => obs.disconnect();
+    }, [p.uuid]);
 
     const goLeft = () => setIdx(i => (i - 1 + p.files.length) % p.files.length);
     const goRight = () => setIdx(i => (i + 1) % p.files.length);
@@ -176,7 +235,7 @@ export default function Social() {
     useEffect(() => () => { if (lowURL) URL.revokeObjectURL(lowURL); }, [lowURL]);
 
     return (
-      <article className="sv-post">
+      <article className="sv-post" ref={rootRef as React.RefObject<HTMLElement>}>
         <header className="sv-post-hdr">
           {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
           <div className="sv-publisher">{p.publisher?.name || "User"}</div>
@@ -247,6 +306,7 @@ export default function Social() {
       {/* Right: feed */}
       <div className="sv-feed">
         {feed.map(p => <Post key={p.uuid} p={p} />)}
+        {loadingMore && <div className="sv-loading-more">Loading more…</div>}
       </div>
 
       {/* Image modal */}

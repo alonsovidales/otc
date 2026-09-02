@@ -12,22 +12,99 @@ import SwiftUI
 final class SocialFeedViewModel: ObservableObject {
     private let ws = OTCConnection.shared
 
+    /// How many publications to fetch per page (issue #15) — loading 50 at
+    /// once, each with its own files/comments, was a big chunk of why the
+    /// feed felt slow to appear, especially while competing with a large
+    /// photo sync on the same shared connection.
+    private static let pageSize: Int32 = 4
+
     @Published var posts: [Msg_SocialPublication] = []
     @Published var busyLikePub: String?
     @Published var busyLikeComment: String?
     @Published var loading = false
+    @Published var loadingMore = false
+    private var endReached = false
 
-    func loadFeed() async {
+    private var pollTask: Task<Void, Never>?
+
+    /// Keeps retrying every few seconds until a request actually completes
+    /// (issue #11). A short handful of quick retries wasn't enough: the
+    /// shared connection can be legitimately busy for a long time — e.g. a
+    /// large photo sync uploading thousands of files — so "give up after a
+    /// couple of seconds" just reproduced the bug. This only stops once the
+    /// server actually answers (even with zero publications); it doesn't
+    /// stop just because a request throws.
+    func startAutoLoad() {
+        guard pollTask == nil else { return }
+        pollTask = Task { [weak self] in
+            while let self, !Task.isCancelled {
+                if await self.loadFeed() { break }
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+            }
+            self?.pollTask = nil
+        }
+    }
+
+    func stopAutoLoad() {
+        pollTask?.cancel()
+        pollTask = nil
+    }
+
+    /// Resets to the first page. Returns whether the server actually
+    /// answered (regardless of how many publications came back) so callers
+    /// can tell "legitimately empty" apart from "the request never
+    /// completed".
+    @discardableResult
+    func loadFeed() async -> Bool {
         loading = true
         defer { loading = false }
+        endReached = false
+        return await fetchPage(total: Self.pageSize, excludeUuids: [], replacing: true)
+    }
+
+    /// Loads the next page once the feed has been scrolled near the end of
+    /// what's currently loaded (issue #15: 4 at a time, fetched again before
+    /// the user actually runs out of already-loaded posts).
+    func loadMoreIfNeeded(current post: Msg_SocialPublication?) async {
+        guard let post, !loading, !loadingMore, !endReached else { return }
+        guard let idx = posts.firstIndex(where: { $0.uuid == post.uuid }) else { return }
+        guard idx >= posts.count - 2 else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        await fetchPage(total: Self.pageSize, excludeUuids: posts.map(\.uuid), replacing: false)
+    }
+
+    /// Re-fetches exactly what's already on screen (not just page one) so a
+    /// like/comment updates counts without discarding posts the user has
+    /// already scrolled down to load via pagination.
+    private func refreshCurrentlyLoaded() async {
+        let count = Int32(max(posts.count, Int(Self.pageSize)))
+        await fetchPage(total: count, excludeUuids: [], replacing: true)
+    }
+
+    @discardableResult
+    private func fetchPage(total: Int32, excludeUuids: [String], replacing: Bool) async -> Bool {
         var req = Msg_GetSocialPublications()
-        req.total = 50
+        req.total = total
+        req.excludeUuids = excludeUuids
         do {
             let resp = try await ws.request { $0.payload = .reqGetSocialPublications(req) }
             if case .respSocialPublications(let sp) = resp.payload {
-                posts = sp.publications
+                if replacing {
+                    posts = sp.publications
+                } else {
+                    let existing = Set(posts.map(\.uuid))
+                    posts.append(contentsOf: sp.publications.filter { !existing.contains($0.uuid) })
+                }
+                if sp.publications.count < Int(total) {
+                    endReached = true
+                }
             }
-        } catch { /* keep whatever was already shown */ }
+            return true
+        } catch {
+            print("Social feed load failed, will retry:", error)
+            return false
+        }
     }
 
     func likePublication(_ uuid: String) async {
@@ -36,7 +113,7 @@ final class SocialFeedViewModel: ObservableObject {
         var req = Msg_LikePublication()
         req.pubUuid = uuid
         _ = try? await ws.request { $0.payload = .reqLikePublication(req) }
-        await loadFeed()
+        await refreshCurrentlyLoaded()
     }
 
     func likeComment(_ uuid: String) async {
@@ -45,7 +122,7 @@ final class SocialFeedViewModel: ObservableObject {
         var req = Msg_LikeComment()
         req.commentUuid = uuid
         _ = try? await ws.request { $0.payload = .reqLikeComment(req) }
-        await loadFeed()
+        await refreshCurrentlyLoaded()
     }
 
     func addComment(pubUuid: String, text: String) async {
@@ -56,21 +133,13 @@ final class SocialFeedViewModel: ObservableObject {
         req.comment = trimmed
         req.publisher = "me"
         _ = try? await ws.request { $0.payload = .reqNewSocialComment(req) }
-        await loadFeed()
+        await refreshCurrentlyLoaded()
     }
 
-    func fetchHiRes(path: String) async -> UIImage? {
-        var req = Msg_GetFile()
-        req.path = path
-        guard let resp = try? await ws.request({ $0.payload = .reqGetFile(req) }) else { return nil }
-        if case .respFile(let f) = resp.payload { return UIImage(data: f.content) }
-        return nil
-    }
 }
 
 struct SocialFeedView: View {
     @StateObject private var vm = SocialFeedViewModel()
-    @State private var viewerState: ViewerState?
 
     var body: some View {
         NavigationView {
@@ -79,7 +148,11 @@ struct SocialFeedView: View {
                     ContentUnavailableView("No posts yet", systemImage: "photo.on.rectangle.angled")
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 20) {
+                        // No outer padding and no per-post spacing (issue
+                        // #12/Instagram-style ask): a horizontal inset here
+                        // would margin the images too, and this app already
+                        // separates posts with a Divider instead of gaps.
+                        LazyVStack(spacing: 0) {
                             ForEach(vm.posts, id: \.uuid) { post in
                                 PostCard(
                                     post: post,
@@ -87,31 +160,29 @@ struct SocialFeedView: View {
                                     likingCommentUuid: vm.busyLikeComment,
                                     onLikePub: { Task { await vm.likePublication(post.uuid) } },
                                     onLikeComment: { c in Task { await vm.likeComment(c) } },
-                                    onComment: { text in Task { await vm.addComment(pubUuid: post.uuid, text: text) } },
-                                    onOpenImage: { idx in viewerState = ViewerState(post: post, index: idx) }
+                                    onComment: { text in Task { await vm.addComment(pubUuid: post.uuid, text: text) } }
                                 )
+                                .task { await vm.loadMoreIfNeeded(current: post) }
+                                Divider()
+                            }
+                            if vm.loadingMore {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
                             }
                         }
-                        .padding()
                     }
                     .refreshable { await vm.loadFeed() }
                 }
             }
-            .navigationTitle("Social")
+            // No nav title here (issue #12): the tab bar already labels this
+            // screen "Social", repeating it as a large title above the feed
+            // was redundant chrome.
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .task { await vm.loadFeed() }
-        .sheet(item: $viewerState) { state in
-            ImageViewerSheet(state: state, fetchHiRes: vm.fetchHiRes, onNavigate: { newIndex in
-                viewerState = ViewerState(post: state.post, index: newIndex)
-            })
-        }
+        .task { vm.startAutoLoad() }
+        .onDisappear { vm.stopAutoLoad() }
     }
-}
-
-private struct ViewerState: Identifiable {
-    let post: Msg_SocialPublication
-    let index: Int
-    var id: String { "\(post.uuid)-\(index)" }
 }
 
 private struct PostCard: View {
@@ -121,31 +192,36 @@ private struct PostCard: View {
     let onLikePub: () -> Void
     let onLikeComment: (String) -> Void
     let onComment: (String) -> Void
-    let onOpenImage: (Int) -> Void
 
     @State private var currentImage = 0
     @State private var commentText = ""
 
+    // Instagram-style, edge-to-edge feed (issue #12): no card background or
+    // rounded frame around the whole post, and the image spans the full
+    // screen width at its own real aspect ratio instead of being cropped
+    // into a fixed box — everything else (header, caption, actions,
+    // comments) gets its own modest horizontal inset instead.
+    private let sidePadding: CGFloat = 12
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 avatarView(data: post.publisher.hasImage ? post.publisher.image : nil, size: 28)
                 Text(post.publisher.name.isEmpty ? "User" : post.publisher.name)
                     .font(.subheadline).bold()
             }
+            .padding(.horizontal, sidePadding)
+            .padding(.top, 10)
 
             if !post.files.isEmpty {
-                ZStack(alignment: post.files.count > 1 ? .bottom : .center) {
-                    let file = post.files[min(currentImage, post.files.count - 1)]
-                    Button { onOpenImage(currentImage) } label: {
-                        thumb(for: file)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 280)
-                            .clipped()
-                            .background(Color.secondary.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    .buttonStyle(.plain)
+                let file = post.files[min(currentImage, post.files.count - 1)]
+                ZStack(alignment: .bottom) {
+                    // Just the image — no tap action. Timeline images are
+                    // browse-only on iOS; the full-screen popup only makes
+                    // sense on the web (where there's no native photo app to
+                    // fall back on).
+                    mediaContent(for: file)
+                        .contentShape(Rectangle())
 
                     if post.files.count > 1 {
                         HStack {
@@ -160,20 +236,20 @@ private struct PostCard: View {
                         .padding(.bottom, 8)
                     }
                 }
-                .overlay(alignment: .leading) {
-                    if post.files.count > 1 && currentImage > 0 {
-                        navButton("chevron.left") { currentImage -= 1 }
-                    }
-                }
-                .overlay(alignment: .trailing) {
-                    if post.files.count > 1 && currentImage < post.files.count - 1 {
-                        navButton("chevron.right") { currentImage += 1 }
-                    }
-                }
-            }
-
-            if !post.text.isEmpty {
-                Text(post.text).font(.body)
+                // Swipe between a post's images (issue #13) — pure
+                // finger-drag, no arrow buttons; the dots above are the only
+                // other position affordance.
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onEnded { value in
+                            guard post.files.count > 1 else { return }
+                            if value.translation.width < -30, currentImage < post.files.count - 1 {
+                                currentImage += 1
+                            } else if value.translation.width > 30, currentImage > 0 {
+                                currentImage -= 1
+                            }
+                        }
+                )
             }
 
             HStack(spacing: 16) {
@@ -185,7 +261,14 @@ private struct PostCard: View {
                 }
                 .disabled(isLikingPub)
             }
-            .font(.subheadline)
+            .font(.title3)
+            .padding(.horizontal, sidePadding)
+            .padding(.top, 4)
+
+            if !post.text.isEmpty {
+                Text(post.text).font(.body)
+                    .padding(.horizontal, sidePadding)
+            }
 
             if !post.comments.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
@@ -204,6 +287,7 @@ private struct PostCard: View {
                         .font(.caption)
                     }
                 }
+                .padding(.horizontal, sidePadding)
             }
 
             HStack {
@@ -217,79 +301,31 @@ private struct PostCard: View {
                 .font(.caption)
                 .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+            .padding(.horizontal, sidePadding)
+            .padding(.bottom, 10)
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
+    /// The actual post image, full width, at its own real aspect ratio — no
+    /// cropping, no fixed box. `.aspectRatio(contentMode: .fit)` computes
+    /// height from the proposed width itself, so unlike the `scaledToFill()`
+    /// this replaced, it can't report an oversized ideal size that pushes
+    /// the view wider than the screen.
     @ViewBuilder
-    private func thumb(for file: Msg_File) -> some View {
+    private func mediaContent(for file: Msg_File) -> some View {
         if file.hasContent, let ui = UIImage(data: file.content) {
-            Image(uiImage: ui).resizable().scaledToFill()
+            Image(uiImage: ui)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity)
         } else {
-            Image(systemName: "photo").resizable().scaledToFit().foregroundColor(.secondary).padding(60)
+            Rectangle()
+                .fill(Color.secondary.opacity(0.08))
+                .frame(maxWidth: .infinity, minHeight: 200, maxHeight: 320)
+                .overlay {
+                    Image(systemName: "photo").font(.largeTitle).foregroundColor(.secondary)
+                }
         }
     }
 
-    private func navButton(_ systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .padding(8)
-                .background(.black.opacity(0.35), in: Circle())
-                .foregroundColor(.white)
-        }
-        .padding(.horizontal, 6)
-    }
-}
-
-private struct ImageViewerSheet: View {
-    fileprivate let state: ViewerState
-    let fetchHiRes: (String) async -> UIImage?
-    let onNavigate: (Int) -> Void
-
-    @State private var hiRes: UIImage?
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            VStack {
-                HStack {
-                    Spacer()
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill").font(.title).foregroundStyle(.white)
-                    }
-                }
-                .padding()
-
-                Spacer()
-                if let hiRes {
-                    Image(uiImage: hiRes).resizable().scaledToFit()
-                } else if state.post.files.indices.contains(state.index),
-                          state.post.files[state.index].hasContent,
-                          let low = UIImage(data: state.post.files[state.index].content) {
-                    Image(uiImage: low).resizable().scaledToFit()
-                } else {
-                    ProgressView().tint(.white)
-                }
-                Spacer()
-
-                HStack {
-                    Button("‹ Prev") { onNavigate(state.index - 1) }
-                        .disabled(state.index <= 0)
-                    Spacer()
-                    Button("Next ›") { onNavigate(state.index + 1) }
-                        .disabled(state.index >= state.post.files.count - 1)
-                }
-                .foregroundColor(.white)
-                .padding()
-            }
-        }
-        .task(id: state.id) {
-            hiRes = nil
-            guard state.post.files.indices.contains(state.index) else { return }
-            hiRes = await fetchHiRes(state.post.files[state.index].path)
-        }
-    }
 }
