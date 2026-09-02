@@ -1,5 +1,6 @@
 import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
+import { encryptForConnection } from "./pwCrypto";
 
 export function UseWS() {
   let isConnected = false;
@@ -49,9 +50,10 @@ export function UseWS() {
       await connect();
     }
 
+    const encryptedKey = await encryptForConnection(request, key);
     const resp: RespEnvelope = await request(e => {
       console.log('GotAuth...');
-      (e as any).payload = { $case: "reqAuth", reqAuth: { key, create: true } };
+      (e as any).payload = { $case: "reqAuth", reqAuth: { key: encryptedKey, create: true } };
     });
     console.log("auth resp", resp);
     if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {

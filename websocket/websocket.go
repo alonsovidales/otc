@@ -1,6 +1,11 @@
 package websocket
 
 import (
+	crand "crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -180,6 +185,25 @@ type connHandler struct {
 	mg            *Manager
 	session       *session.Session
 	friendProfile *profile.Profile
+	// privKey is an ephemeral RSA keypair generated per WebSocket connection.
+	// Its public half is handed out via GetPubKey/PubKey so the client can
+	// RSA-OAEP encrypt the password before it crosses the bridge, which only
+	// ever sees the already-encrypted ciphertext.
+	privKey *rsa.PrivateKey
+}
+
+// decryptSecret decrypts an RSA-OAEP(SHA-256) ciphertext produced by a
+// client using the public key returned from GetPubKey on this same
+// connection. It's used for Auth.key and ChangeKey.old_key/new_key.
+func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
+	if ch.privKey == nil {
+		return "", errors.New("no public key was requested for this connection")
+	}
+	plain, err := rsa.DecryptOAEP(sha256.New(), crand.Reader, ch.privKey, ciphertext, nil)
+	if err != nil {
+		return "", errors.New("unable to decrypt key material")
+	}
+	return string(plain), nil
 }
 
 func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
@@ -188,6 +212,32 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	}
 
 	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqGetPubKey:
+		if ch.privKey == nil {
+			key, err := rsa.GenerateKey(crand.Reader, 2048)
+			if err != nil {
+				log.Error("error generating connection keypair:", err)
+				resp.Error = true
+				resp.ErrorMessage = "error generating keypair"
+				break
+			}
+			ch.privKey = key
+		}
+
+		pubDER, err := x509.MarshalPKIXPublicKey(&ch.privKey.PublicKey)
+		if err != nil {
+			log.Error("error marshaling public key:", err)
+			resp.Error = true
+			resp.ErrorMessage = "error marshaling public key"
+			break
+		}
+
+		resp.Payload = &pb.RespEnvelope_RespPubKey{
+			RespPubKey: &pb.PubKey{
+				PublicKey: pubDER,
+			},
+		}
+
 	case *pb.ReqEnvelope_ReqGetFriendshipStatus:
 		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
 		fr, err := ch.mg.social.GetFriendship(p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
@@ -277,8 +327,10 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqAuth:
-		var err error
-		ch.session, err = session.New(p.ReqAuth.Uuid, p.ReqAuth.Key, p.ReqAuth.Create, ch.mg.dao)
+		key, err := ch.decryptSecret(p.ReqAuth.Key)
+		if err == nil {
+			ch.session, err = session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
+		}
 
 		if err != nil {
 			time.Sleep(1)
@@ -618,7 +670,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqChangeKey:
 		log.Info(fmt.Sprintf("Change key %v", p))
-		err := ch.session.ChangeKey(p.ReqChangeKey.OldKey, p.ReqChangeKey.NewKey)
+		oldKey, err := ch.decryptSecret(p.ReqChangeKey.OldKey)
+		if err == nil {
+			var newKey string
+			newKey, err = ch.decryptSecret(p.ReqChangeKey.NewKey)
+			if err == nil {
+				err = ch.session.ChangeKey(oldKey, newKey)
+			}
+		}
 
 		if err != nil {
 			log.Error("error trying to change secret key:", err)

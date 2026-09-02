@@ -37,8 +37,23 @@ message Status {
 
 message Auth {
   string uuid = 1;
-  string key = 2;
+  // RSA-OAEP(SHA-256) ciphertext of the password, encrypted by the client
+  // using the public key returned by GetPubKey/PubKey for this connection.
+  bytes key = 2;
   bool create = 3;
+}
+
+// GetPubKey requests the ephemeral RSA public key generated for this
+// WebSocket connection. Clients must call this before sending Auth or
+// ChangeKey, and use it to encrypt the key material client-side so that
+// the plaintext password never crosses the bridge, which only relays
+// already-encrypted application payloads between device and client.
+message GetPubKey {
+}
+
+message PubKey {
+  // PKIX/SPKI DER-encoded RSA public key, valid only for this connection.
+  bytes public_key = 1;
 }
 
 message UploadFile {
@@ -94,8 +109,9 @@ message TagsList {
 }
 
 message ChangeKey {
-  string old_key = 1;
-  string new_key = 2;
+  // RSA-OAEP(SHA-256) ciphertext, see Auth.key.
+  bytes old_key = 1;
+  bytes new_key = 2;
 }
 
 message NewSocialPublication {
@@ -339,6 +355,7 @@ message ReqEnvelope {
     Profile req_set_profile = 32;
     ShareFilesLink req_share_files_link = 33;
     DownloadSharedLink req_download_shared_link = 34;
+    GetPubKey req_get_pub_key = 43;
   }
 }
 
@@ -363,5 +380,6 @@ message RespEnvelope {
     SocialPublicationFiles resp_social_publication_files = 25;
     FriendshipStatus resp_friendship_status = 23;
     Events resp_events = 24;
+    PubKey resp_pub_key = 26;
   }
 }

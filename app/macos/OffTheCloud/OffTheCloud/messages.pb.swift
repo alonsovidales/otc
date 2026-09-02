@@ -252,9 +252,39 @@ public struct Msg_Auth: Sendable {
 
   public var uuid: String = String()
 
-  public var key: String = String()
+  /// RSA-OAEP(SHA-256) ciphertext of the password, encrypted by the client
+  /// using the public key returned by GetPubKey/PubKey for this connection.
+  public var key: Data = Data()
 
   public var create: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// GetPubKey requests the ephemeral RSA public key generated for this
+/// WebSocket connection. Clients must call this before sending Auth or
+/// ChangeKey, and use it to encrypt the key material client-side so that
+/// the plaintext password never crosses the bridge, which only relays
+/// already-encrypted application payloads between device and client.
+public struct Msg_GetPubKey: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_PubKey: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// PKIX/SPKI DER-encoded RSA public key, valid only for this connection.
+  public var publicKey: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -444,9 +474,10 @@ public struct Msg_ChangeKey: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var oldKey: String = String()
+  /// RSA-OAEP(SHA-256) ciphertext, see Auth.key.
+  public var oldKey: Data = Data()
 
-  public var newKey: String = String()
+  public var newKey: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -888,6 +919,10 @@ public struct Msg_Comment: Sendable {
   /// Clears the value of `dateTime`. Subsequent reads from it will return its default value.
   public mutating func clearDateTime() {self._dateTime = nil}
 
+  /// liked reports whether the requesting viewer already liked this
+  /// comment, so clients can render a filled vs. outline heart.
+  public var liked: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -918,6 +953,10 @@ public struct Msg_SocialPublication: Sendable {
   public var hasPublisher: Bool {return self._publisher != nil}
   /// Clears the value of `publisher`. Subsequent reads from it will return its default value.
   public mutating func clearPublisher() {self._publisher = nil}
+
+  /// liked reports whether the requesting viewer already liked this
+  /// publication, so clients can render a filled vs. outline heart.
+  public var liked: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1308,6 +1347,14 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqDownloadSharedLink(newValue)}
   }
 
+  public var reqGetPubKey: Msg_GetPubKey {
+    get {
+      if case .reqGetPubKey(let v)? = payload {return v}
+      return Msg_GetPubKey()
+    }
+    set {payload = .reqGetPubKey(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -1342,6 +1389,7 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqSetProfile(Msg_Profile)
     case reqShareFilesLink(Msg_ShareFilesLink)
     case reqDownloadSharedLink(Msg_DownloadSharedLink)
+    case reqGetPubKey(Msg_GetPubKey)
 
   }
 
@@ -1489,6 +1537,14 @@ public struct Msg_RespEnvelope: Sendable {
     set {payload = .respEvents(newValue)}
   }
 
+  public var respPubKey: Msg_PubKey {
+    get {
+      if case .respPubKey(let v)? = payload {return v}
+      return Msg_PubKey()
+    }
+    set {payload = .respPubKey(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -1508,6 +1564,7 @@ public struct Msg_RespEnvelope: Sendable {
     case respSocialPublicationFiles(Msg_SocialPublicationFiles)
     case respFriendshipStatus(Msg_FriendshipStatus)
     case respEvents(Msg_Events)
+    case respPubKey(Msg_PubKey)
 
   }
 
@@ -1679,7 +1736,7 @@ extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.key) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.key) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.create) }()
       default: break
       }
@@ -1691,7 +1748,7 @@ extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
       try visitor.visitSingularStringField(value: self.uuid, fieldNumber: 1)
     }
     if !self.key.isEmpty {
-      try visitor.visitSingularStringField(value: self.key, fieldNumber: 2)
+      try visitor.visitSingularBytesField(value: self.key, fieldNumber: 2)
     }
     if self.create != false {
       try visitor.visitSingularBoolField(value: self.create, fieldNumber: 3)
@@ -1703,6 +1760,55 @@ extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
     if lhs.uuid != rhs.uuid {return false}
     if lhs.key != rhs.key {return false}
     if lhs.create != rhs.create {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetPubKey"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetPubKey, rhs: Msg_GetPubKey) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PubKey"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.publicKey) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.publicKey.isEmpty {
+      try visitor.visitSingularBytesField(value: self.publicKey, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_PubKey, rhs: Msg_PubKey) -> Bool {
+    if lhs.publicKey != rhs.publicKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2080,8 +2186,8 @@ extension Msg_ChangeKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.oldKey) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.newKey) }()
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.oldKey) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.newKey) }()
       default: break
       }
     }
@@ -2089,10 +2195,10 @@ extension Msg_ChangeKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.oldKey.isEmpty {
-      try visitor.visitSingularStringField(value: self.oldKey, fieldNumber: 1)
+      try visitor.visitSingularBytesField(value: self.oldKey, fieldNumber: 1)
     }
     if !self.newKey.isEmpty {
-      try visitor.visitSingularStringField(value: self.newKey, fieldNumber: 2)
+      try visitor.visitSingularBytesField(value: self.newKey, fieldNumber: 2)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -3004,7 +3110,7 @@ extension Msg_SharedFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Comment"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}comment\0\u{1}publisher\0\u{1}likes\0\u{3}date_time\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}comment\0\u{1}publisher\0\u{1}likes\0\u{3}date_time\0\u{1}liked\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3018,6 +3124,7 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
       case 4: try { try decoder.decodeSingularStringField(value: &self.publisher) }()
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.likes) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._dateTime) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.liked) }()
       default: break
       }
     }
@@ -3046,6 +3153,9 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
     try { if let v = self._dateTime {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     } }()
+    if self.liked != false {
+      try visitor.visitSingularBoolField(value: self.liked, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3056,6 +3166,7 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
     if lhs.publisher != rhs.publisher {return false}
     if lhs.likes != rhs.likes {return false}
     if lhs._dateTime != rhs._dateTime {return false}
+    if lhs.liked != rhs.liked {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3063,7 +3174,7 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
 
 extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SocialPublication"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}text\0\u{1}files\0\u{1}comments\0\u{1}likes\0\u{2}\u{2}publisher\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}text\0\u{1}files\0\u{1}comments\0\u{1}likes\0\u{2}\u{2}publisher\0\u{1}liked\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3077,6 +3188,7 @@ extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       case 4: try { try decoder.decodeRepeatedMessageField(value: &self.comments) }()
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.likes) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._publisher) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.liked) }()
       default: break
       }
     }
@@ -3105,6 +3217,9 @@ extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try { if let v = self._publisher {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     } }()
+    if self.liked != false {
+      try visitor.visitSingularBoolField(value: self.liked, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3115,6 +3230,7 @@ extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if lhs.comments != rhs.comments {return false}
     if lhs.likes != rhs.likes {return false}
     if lhs._publisher != rhs._publisher {return false}
+    if lhs.liked != rhs.liked {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3379,7 +3495,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3791,6 +3907,19 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqGetSocialPublicationFiles(v)
         }
       }()
+      case 43: try {
+        var v: Msg_GetPubKey?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetPubKey(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetPubKey(v)
+        }
+      }()
       default: break
       }
     }
@@ -3929,6 +4058,10 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqGetSocialPublicationFiles(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 42)
     }()
+    case .reqGetPubKey?: try {
+      guard case .reqGetPubKey(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 43)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -3944,7 +4077,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4163,6 +4296,19 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
           self.payload = .respSocialPublicationFiles(v)
         }
       }()
+      case 26: try {
+        var v: Msg_PubKey?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .respPubKey(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .respPubKey(v)
+        }
+      }()
       default: break
       }
     }
@@ -4246,6 +4392,10 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     case .respSocialPublicationFiles?: try {
       guard case .respSocialPublicationFiles(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 25)
+    }()
+    case .respPubKey?: try {
+      guard case .respPubKey(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 26)
     }()
     case nil: break
     }
