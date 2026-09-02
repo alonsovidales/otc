@@ -103,7 +103,7 @@ func main() {
 			log.Fatal("Error parsing file response: ", err)
 		}
 		file := resp.Payload.(*pb.RespEnvelope_RespFile).RespFile
-		log.Printf("File info: ", file)
+		log.Printf("File info: %v", file)
 
 		// Now we are trying to retreive the file and check if it is ok
 		msg = &pb.ReqEnvelope{
@@ -130,7 +130,7 @@ func main() {
 			log.Fatal("Error parsing file response: ", err)
 		}
 		file = resp.Payload.(*pb.RespEnvelope_RespFile).RespFile
-		log.Printf("File hash: ", file.Hash)
+		log.Printf("File hash: %v", file.Hash)
 
 		//log.Printf("Content: %s", string(file.Content))
 		//log.Printf("Data   : %s", string(fileContent))

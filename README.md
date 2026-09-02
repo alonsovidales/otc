@@ -53,8 +53,38 @@ With this you can access all your data and social network from any browser just 
 
 **Installation of the device**
 ==============================
-1. Install [Raspberry Pi OS (64-bit)](https://www.raspberrypi.com/software/operating-systems/) in the Raspberry Pi using [this tutorial](https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager). In `Customisation` Select Enable SSH and use `otc` as user name.
+1. Install [Raspberry Pi OS (64-bit)](https://www.raspberrypi.com/software/operating-systems/) in the Raspberry Pi using [this tutorial](https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager). In `Customisation` select Enable SSH, use `otc` as the user name, and enable passwordless sudo for it (the default for the account created there).
 
+From here you have two options: let `Makefile.pi` do the rest automatically (recommended), or follow the numbered manual steps below yourself.
+
+**Automated installation (`Makefile.pi`)**
+-------------------------------------------
+`Makefile.pi`, in the root of this repository, does everything from step 2 onwards on its own: builds the RAID1 array, installs and configures MariaDB, installs Go and ONNX Runtime, exports the RAM++ tagging model directly on the device, loads the database schema, writes the app config and systemd service, and finally builds and deploys the app itself. Run it from your computer (not the Pi), with the repository checked out:
+
+```
+$ make -f Makefile.pi bootstrap TARGET=<device_addr_or_hostname> DISK1=/dev/sda DISK2=/dev/sdb
+```
+
+A few things worth knowing before you run it:
+- It only wipes `DISK1`/`DISK2` after showing you `lsblk` output and asking you to type `yes` to confirm - double check those are the right two disks before confirming. If a RAID1 array already exists on the device it skips the wipe automatically (pass `FORCE=1` to rebuild it from scratch).
+- The RAM++ model export step runs the full torch/transformers pipeline on the Pi itself, so budget real time and bandwidth for it (a multi-GB download).
+- The device's generated secrets (DB password, device UUID, bridge secret) are written to a local `.env.pi` file the first time you run it - keep that file, don't commit it, and don't lose it, since it's the only place the DB password is recorded.
+- Re-running `bootstrap` (or any individual target) is safe; most steps detect what's already been done and skip it.
+
+Once bootstrapped, day-to-day use is just:
+
+```
+$ make -f Makefile.pi deploy   # build the current code and (re)start the service on the device
+$ make -f Makefile.pi status   # service / DB / RAID / healthcheck status
+$ make -f Makefile.pi logs     # tail the service logs
+```
+
+Run `make -f Makefile.pi help` for the full list of targets (e.g. to re-run just `raid`, `mariadb`, `models`, or `onnxruntime` if one step needs retrying). Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 below for the pinout.
+
+The rest of this section documents what `Makefile.pi` does under the hood, step by step - useful if you want to customize the install, understand what changed on the device, or finish the job by hand if a step fails.
+
+**Manual installation (step by step)**
+---------------------------------------
 2. SSH into the device and update the OS:
 ```
 $ sudo apt-get update

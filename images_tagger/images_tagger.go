@@ -62,7 +62,7 @@ func NewRAMTagger(modelPath, tagListPath string, opt RAMOptions) (*RAMTagger, er
 
 	ort.SetSharedLibraryPath("/opt/onnxruntime/lib/libonnxruntime.so")
 	if err := ort.InitializeEnvironment(); err != nil {
-		return nil, errors.New(fmt.Sprintf("InitializeEnvironment: %w", err))
+		return nil, fmt.Errorf("InitializeEnvironment: %w", err)
 	}
 
 	// read tag names
@@ -132,7 +132,15 @@ func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) (
 
 	// read scores
 	prob := y.GetData()
-	// Some RAM exports output logits; if values are outside [0,1], apply sigmoid.
+
+	return scoresToTags(prob, r.tagNames, opt.Threshold, opt.TopK), nil
+}
+
+// scoresToTags converts raw per-tag model output into a sorted list of tags
+// that clear threshold, capped at topK entries. Some RAM exports produce
+// logits rather than probabilities, so scores outside [0,1] are passed
+// through a sigmoid first. prob is mutated in place when that happens.
+func scoresToTags(prob []float32, tagNames []string, threshold float32, topK int) []RAMTag {
 	isLogits := false
 	for i := 0; i < len(prob) && i < 10; i++ {
 		if prob[i] < 0 || prob[i] > 1 {
@@ -149,19 +157,19 @@ func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) (
 	// threshold → collect
 	pairs := make([]RAMTag, 0, len(prob))
 	for i, p := range prob {
-		if i >= len(r.tagNames) {
+		if i >= len(tagNames) {
 			break
 		}
-		if p >= opt.Threshold {
-			pairs = append(pairs, RAMTag{Name: r.tagNames[i], Score: p})
+		if p >= threshold {
+			pairs = append(pairs, RAMTag{Name: tagNames[i], Score: p})
 		}
 	}
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].Score > pairs[j].Score })
-	if opt.TopK > 0 && len(pairs) > opt.TopK {
-		pairs = pairs[:opt.TopK]
+	if topK > 0 && len(pairs) > topK {
+		pairs = pairs[:topK]
 	}
 
-	return pairs, nil
+	return pairs
 }
 
 // ---------- helpers ----------

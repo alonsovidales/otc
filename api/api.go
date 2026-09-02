@@ -52,31 +52,36 @@ func (api *API) registerAPIs() {
 	api.muxHTTPServer.HandleFunc(websocket.CEndpoint, api.websocket.Listen)
 
 	// Static content server
-	api.muxHTTPServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		filePath := r.URL.Path[1:]
+	api.muxHTTPServer.HandleFunc("/", api.serveStatic)
+}
 
-		if strings.Contains(filePath, "..") {
-			return
+// serveStatic serves files from staticPath, appending ".html" to
+// extension-less paths so client-side routes (e.g. "/social") resolve to
+// their matching page. Requests containing ".." are refused outright.
+func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
+	filePath := r.URL.Path[1:]
+
+	if strings.Contains(filePath, "..") {
+		return
+	}
+
+	path := api.staticPath + filePath
+	lastPosSlash := -1
+	lastPosDot := -1
+
+	for i := 0; i < len(path); i++ {
+		switch path[i] {
+		case '/':
+			lastPosSlash = i
+		case '.':
+			lastPosDot = i
 		}
+	}
 
-		path := api.staticPath + filePath
-		lastPosSlash := -1
-		lastPosDot := -1
+	if filePath != "" && lastPosDot < lastPosSlash {
+		path += ".html"
+	}
 
-		for i := 0; i < len(path); i++ {
-			switch path[i] {
-			case '/':
-				lastPosSlash = i
-			case '.':
-				lastPosDot = i
-			}
-		}
-
-		if filePath != "" && lastPosDot < lastPosSlash {
-			path += ".html"
-		}
-
-		log.Debug("Serving static:", path)
-		http.ServeFile(w, r, path)
-	})
+	log.Debug("Serving static:", path)
+	http.ServeFile(w, r, path)
 }

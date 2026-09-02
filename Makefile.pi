@@ -1,0 +1,471 @@
+# ============================================================================
+# Makefile.pi — bring up a *clean* Raspberry Pi OS (64-bit) install into a
+# fully running OTC device: RAID1 storage, MariaDB, the Go toolchain, ONNX
+# Runtime, the RAM++ tagging model, the database schema, app config,
+# systemd services, and the app itself (binary + web assets).
+#
+# Usage:
+#   make -f Makefile.pi bootstrap TARGET=pit.otc DISK1=/dev/sda DISK2=/dev/sdb
+#   make -f Makefile.pi status TARGET=pit.otc
+#   make -f Makefile.pi help
+#
+# Every target is meant to be safe to re-run on its own to retry a failed
+# step, EXCEPT `raid`, which wipes disks and asks for interactive
+# confirmation before doing anything destructive. `bootstrap` runs
+# everything in the right order, including `raid`.
+#
+# Assumptions (matching README.md's manual instructions):
+#   - The Pi was imaged with Raspberry Pi OS (64-bit), SSH enabled, and a
+#     user named "otc" with passwordless sudo (the default when you set
+#     this up via the Raspberry Pi Imager's "Customisation" screen).
+#   - This machine can reach the Pi over SSH as that user, and has
+#     ssh/scp/rsync, openssl, and npm (for building the web app) installed.
+#   - Code deploys (once bootstrapped) reuse the existing `makefile`'s
+#     `sync`/`web`/`pi` targets, which build the Go binary natively on the
+#     device (no cross-compiler needed on this machine).
+# ============================================================================
+
+SHELL          := /bin/bash
+.SHELLFLAGS    := -e -o pipefail -c
+.ONESHELL:
+.DEFAULT_GOAL  := help
+
+# ---- Target device ---------------------------------------------------------
+PI_USER        ?= otc
+TARGET         ?= pit.otc
+SSH_OPTS       ?= -o StrictHostKeyChecking=accept-new
+SSH            := ssh $(SSH_OPTS) $(PI_USER)@$(TARGET)
+SCP            := scp $(SSH_OPTS)
+
+# ---- Generated secrets (see the `secrets` target) --------------------------
+# NOTE: DEVICE_UUID/BRIDGE_SECRET/OTC_DB_PASS/SUBDOMAIN are deliberately NOT
+# pulled in here via -include: on a first bootstrap run, `secrets` creates
+# this file mid-build, and a parse-time -include would keep serving the
+# stale (empty) values for the rest of that same `make` invocation. Instead,
+# the few recipes that need them (`config`, `db-schema`) `source` this file
+# themselves at recipe-execution time - see those targets below.
+ENV_FILE       := .env.pi
+
+# ---- App / environment ------------------------------------------------------
+ENVIRONMENT        ?= dev
+HTTP_PORT          ?= 8080
+HTTPS_PORT         ?= 443
+TLS_CERT           ?=
+TLS_KEY            ?=
+BRIDGE_ADDR        ?= off-the.cloud
+BRIDGE_CONNECTIONS ?= 5
+
+STORAGE_PATH   ?= /mnt/storage/
+UNENC_PATH     ?= /mnt/storage/unencrypted/
+MAX_THUMB_PX   ?= 1000
+
+# ---- Storage (RAID1) --------------------------------------------------------
+DISK1          ?= /dev/sda
+DISK2          ?= /dev/sdb
+RAID_DEV       ?= /dev/md0
+MOUNT_POINT    ?= /mnt/storage
+SWAP_MB        ?= 4096
+
+# ---- Toolchain / runtime versions ------------------------------------------
+GO_VERSION           ?= 1.26.1
+ONNXRUNTIME_VERSION  ?= 1.24.3
+
+# ---- Image-tagging model -----------------------------------------------------
+MODEL_DIR          ?= /usr/local/models
+MODEL_ONNX         ?= $(MODEL_DIR)/ram_plus_swin_large_14m.onnx
+MODEL_TAGS         ?= $(MODEL_DIR)/tag_list_4585.txt
+TAGS_PER_IMAGE     ?= 10
+MAX_IMAGES_SEARCH  ?= 5
+MODEL_ENV          ?= otc-model-env
+
+# Pass FORCE=1 to re-run a normally-idempotent (or destructive) step anyway.
+FORCE ?=
+
+.PHONY: help
+help: ## Show this help
+	@echo "Targets:"
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo
+	@echo "Common variables: TARGET, DISK1, DISK2, ENVIRONMENT, FORCE"
+
+# =============================================================================
+# One-time device bring-up
+# =============================================================================
+
+.PHONY: bootstrap
+bootstrap: secrets ping update packages swap raid raid-watch mariadb go-toolchain onnxruntime models dirs db-schema config service deploy status ## Full bring-up of a clean Pi: everything, in order
+	@echo ""
+	@echo "=========================================================="
+	@echo " OTC bootstrap complete on $(TARGET)"
+	@echo " Web UI: http://$(TARGET):$(HTTP_PORT)/"
+	@echo " First 'Sign In' sets your password permanently - see README.md."
+	@echo " Secrets/config for this device live in $(ENV_FILE)."
+	@echo " NEVER commit $(ENV_FILE) to git."
+	@echo "=========================================================="
+
+.PHONY: secrets
+secrets: ## Generate (once) the per-device secrets file, $(ENV_FILE)
+	@if [ -f $(ENV_FILE) ]; then
+		echo "$(ENV_FILE) already exists, leaving it untouched."
+	else
+		echo "Generating $(ENV_FILE) ..."
+		DEVICE_UUID=$$(command -v uuidgen >/dev/null 2>&1 && uuidgen || cat /proc/sys/kernel/random/uuid)
+		BRIDGE_SECRET=$$(openssl rand -hex 24)
+		OTC_DB_PASS=$$(openssl rand -base64 24 | tr -d '=+/')
+		SUBDOMAIN=otc-$$(echo $$DEVICE_UUID | cut -c1-8)
+		{
+			echo "# Generated $$(date -u +%FT%TZ) by 'make -f Makefile.pi secrets'."
+			echo "# Keep this out of git - it holds this device's DB password and bridge secret."
+			echo "DEVICE_UUID=$$DEVICE_UUID"
+			echo "BRIDGE_SECRET=$$BRIDGE_SECRET"
+			echo "OTC_DB_PASS=$$OTC_DB_PASS"
+			echo "SUBDOMAIN=$$SUBDOMAIN"
+		} > $(ENV_FILE)
+		echo "Wrote $(ENV_FILE) (SUBDOMAIN=$$SUBDOMAIN). Edit it before deploying if you want different values."
+	fi
+
+.PHONY: ping
+ping: ## Check SSH connectivity to the device
+	@echo "Checking SSH access to $(PI_USER)@$(TARGET)..."
+	$(SSH) 'echo "OK: $$(hostname) - $$(uname -srm)"' < /dev/null
+
+.PHONY: update
+update: ## apt-get update && upgrade
+	@echo "Updating OS packages on $(TARGET)..."
+	$(SSH) 'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade' < /dev/null
+
+.PHONY: packages
+packages: update ## Install the OS packages OTC needs (mdadm, mariadb, build tools, python...)
+	@echo "Installing base packages on $(TARGET)..."
+	$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+		mdadm parted mariadb-server build-essential git curl wget rsync \
+		ca-certificates python3 python3-venv python3-pip' < /dev/null
+	# LED support for raid-watch.service is optional; the script degrades to
+	# a dry-run if RPi.GPIO isn't available, so don't fail the build over it.
+	-$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi-lgpio || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi.gpio' < /dev/null
+
+.PHONY: swap
+swap: ## Bump swap to $(SWAP_MB)MB (helps MariaDB / the model export / go build on 8GB Pis)
+	@echo "Setting swap to $(SWAP_MB)MB on $(TARGET)..."
+	$(SSH) '
+		if [ -f /etc/dphys-swapfile ]; then
+			sudo sed -i "s/^CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$(SWAP_MB)/" /etc/dphys-swapfile
+			grep -q "^CONF_SWAPSIZE=" /etc/dphys-swapfile || echo "CONF_SWAPSIZE=$(SWAP_MB)" | sudo tee -a /etc/dphys-swapfile >/dev/null
+			sudo systemctl restart dphys-swapfile
+		else
+			echo "dphys-swapfile not present, skipping (unexpected on Raspberry Pi OS)"
+		fi
+	' < /dev/null
+
+# =============================================================================
+# Storage: RAID1 across DISK1/DISK2, mounted at MOUNT_POINT
+# =============================================================================
+
+.PHONY: raid
+raid: packages ## DESTRUCTIVE: wipe DISK1/DISK2 and build+mount a RAID1 array (asks for confirmation)
+	@echo "Disks currently visible on $(TARGET):"
+	-$(SSH) 'lsblk $(DISK1) $(DISK2) 2>&1' < /dev/null
+	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -e $(RAID_DEV)' < /dev/null; then
+		echo "$(RAID_DEV) already exists on $(TARGET) - assuming RAID1 is already built, skipping wipe."
+		echo "Pass FORCE=1 to rebuild it from scratch (DESTROYS the array's data)."
+	else
+		echo ""
+		echo "About to WIPE $(DISK1) and $(DISK2) on $(TARGET) and build RAID1 on $(RAID_DEV)."
+		echo "This DESTROYS ALL DATA on both disks. Check the lsblk output above:"
+		echo "confirm both disks are physically installed in the device and are"
+		echo "really the two you want wiped before continuing."
+		read -p "Type 'yes' to continue: " confirm
+		if [ "$$confirm" != "yes" ]; then
+			echo "Aborted."
+			exit 1
+		fi
+		$(SSH) '
+			set -e
+			sudo wipefs -a $(DISK1)
+			sudo wipefs -a $(DISK2)
+			sudo mdadm --create --verbose --run $(RAID_DEV) --level=1 --raid-devices=2 $(DISK1) $(DISK2)
+			sudo mkfs.ext4 -F $(RAID_DEV)
+			sudo mkdir -p $(MOUNT_POINT)
+			sudo mount $(RAID_DEV) $(MOUNT_POINT)
+			sudo mkdir -p $(MOUNT_POINT)/unencrypted
+			sudo mdadm --detail --scan | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null
+			sudo update-initramfs -u
+			grep -q "$(RAID_DEV)" /etc/fstab || echo "$(RAID_DEV)   $(MOUNT_POINT)   ext4   defaults   0   0" | sudo tee -a /etc/fstab >/dev/null
+		' < /dev/null
+		echo "RAID1 built and mounted at $(MOUNT_POINT)."
+	fi
+
+.PHONY: raid-status
+raid-status: ## Show RAID/disk status on the device
+	@$(SSH) 'cat /proc/mdstat; echo; df -h $(MOUNT_POINT) 2>&1 || true' < /dev/null
+
+.PHONY: raid-watch
+raid-watch: raid ## Install the RAID status-LED watcher service (scripts/raid_watch.py)
+	@echo "Installing raid-watch.service on $(TARGET)..."
+	$(SCP) scripts/raid_watch.py $(PI_USER)@$(TARGET):/tmp/raid_watch.py
+	$(SSH) 'sudo mv /tmp/raid_watch.py /usr/local/bin/raid_watch.py && sudo chmod +x /usr/local/bin/raid_watch.py' < /dev/null
+	$(SSH) 'sudo tee /etc/systemd/system/raid-watch.service >/dev/null' <<-'EOF'
+	[Unit]
+	Description=RAID1 watcher + LED driver
+	After=multi-user.target mdadm.service
+	
+	[Service]
+	Type=simple
+	ExecStart=/usr/bin/python3 /usr/local/bin/raid_watch.py
+	Restart=on-failure
+	User=root
+	
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+	$(SSH) 'sudo systemctl daemon-reload && sudo systemctl enable --now raid-watch.service' < /dev/null
+	@echo "NOTE: wire the status LEDs to the GPIO pins in scripts/raid_watch.py's CONFIG before relying on them."
+
+# =============================================================================
+# MariaDB
+# =============================================================================
+
+.PHONY: mariadb
+mariadb: raid packages ## Point MariaDB's datadir at the RAID array
+	@echo "Moving MariaDB's datadir onto $(MOUNT_POINT)..."
+	$(SSH) '
+		set -e
+		sudo systemctl stop mariadb
+		sudo mkdir -p $(MOUNT_POINT)/mysql
+		if [ ! -d $(MOUNT_POINT)/mysql/mysql ]; then
+			sudo rsync -aHAX --numeric-ids /var/lib/mysql/ $(MOUNT_POINT)/mysql/
+		fi
+		sudo chown -R mysql:mysql $(MOUNT_POINT)/mysql
+		if grep -q "^datadir" /etc/mysql/mariadb.conf.d/50-server.cnf; then
+			sudo sed -i "s#^datadir.*#datadir = $(MOUNT_POINT)/mysql#" /etc/mysql/mariadb.conf.d/50-server.cnf
+		else
+			echo "datadir = $(MOUNT_POINT)/mysql" | sudo tee -a /etc/mysql/mariadb.conf.d/50-server.cnf >/dev/null
+		fi
+		sudo systemctl start mariadb
+		sudo mysql -N -e "SHOW VARIABLES LIKE \"datadir\""
+	' < /dev/null
+
+.PHONY: db-schema
+db-schema: mariadb secrets ## Create the otc DB/user and load db/db.sql (idempotent)
+	@echo "Configuring the otc database and application user on $(TARGET)..."
+	source $(ENV_FILE)
+	$(SSH) 'sudo mysql' <<-SQL
+	CREATE DATABASE IF NOT EXISTS otc;
+	CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
+	ALTER USER 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
+	GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
+	FLUSH PRIVILEGES;
+	SQL
+	if $(SSH) 'sudo mysql otc -N -B' <<<'SHOW TABLES LIKE "files"' | grep -q files; then
+		echo "Schema already present on $(TARGET), skipping table creation."
+		echo "(To apply schema changes, run the relevant SQL from db/db.sql by hand.)"
+	else
+		echo "Loading schema from db/db.sql..."
+		tail -n +10 db/db.sql | $(SSH) 'sudo mysql otc'
+	fi
+	echo "Recording device identity (device_uuid/subdomain/bridge_secret)..."
+	$(SSH) 'sudo mysql otc' <<-SQL
+	INSERT INTO settings (device_uuid, subdomain, bridge_secret)
+	SELECT '$$DEVICE_UUID', '$$SUBDOMAIN', '$$BRIDGE_SECRET'
+	WHERE NOT EXISTS (SELECT 1 FROM settings);
+	SQL
+
+# =============================================================================
+# Go toolchain + ONNX Runtime
+# =============================================================================
+
+.PHONY: go-toolchain
+go-toolchain: packages ## Install Go $(GO_VERSION) (linux/arm64) on the device
+	@echo "Installing Go $(GO_VERSION) on $(TARGET)..."
+	$(SSH) '
+		set -e
+		if /usr/local/go/bin/go version 2>/dev/null | grep -q "go$(GO_VERSION) "; then
+			echo "Go $(GO_VERSION) already installed."
+		else
+			cd /tmp
+			wget -q https://go.dev/dl/go$(GO_VERSION).linux-arm64.tar.gz
+			sudo rm -rf /usr/local/go
+			sudo tar -C /usr/local -xzf go$(GO_VERSION).linux-arm64.tar.gz
+			rm go$(GO_VERSION).linux-arm64.tar.gz
+		fi
+		grep -q "/usr/local/go/bin" /etc/profile.d/go.sh 2>/dev/null || echo "export PATH=\$$PATH:/usr/local/go/bin:\$$HOME/go/bin" | sudo tee /etc/profile.d/go.sh >/dev/null
+		sudo chmod +x /etc/profile.d/go.sh
+	' < /dev/null
+
+.PHONY: onnxruntime
+onnxruntime: packages ## Install ONNX Runtime $(ONNXRUNTIME_VERSION) (linux/aarch64) to /opt/onnxruntime
+	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f /opt/onnxruntime/lib/libonnxruntime.so' < /dev/null; then
+		echo "ONNX Runtime already installed on $(TARGET)."
+	else
+		echo "Installing ONNX Runtime $(ONNXRUNTIME_VERSION) on $(TARGET)..."
+		$(SSH) '
+			set -e
+			cd /tmp
+			wget -q https://github.com/microsoft/onnxruntime/releases/download/v$(ONNXRUNTIME_VERSION)/onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION).tgz
+			tar -xzf onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION).tgz
+			sudo rm -rf /opt/onnxruntime
+			sudo mv onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION) /opt/onnxruntime
+			rm onnxruntime-linux-aarch64-$(ONNXRUNTIME_VERSION).tgz
+		' < /dev/null
+	fi
+
+# =============================================================================
+# RAM++ image-tagging model — exported directly on the device.
+#
+# This installs a full torch/transformers/timm pipeline in a venv on the Pi
+# and runs models/download.py + models/download_tags.py there. Expect this
+# to download several GB and take a long time on Pi hardware; the `swap`
+# target is a prerequisite to reduce the chance of it getting OOM-killed.
+# =============================================================================
+
+.PHONY: models
+models: packages secrets swap ## Export the RAM++ ONNX model + tag list directly on the device
+	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_ONNX) && test -f $(MODEL_TAGS)' < /dev/null; then
+		echo "Models already present at $(MODEL_DIR) on $(TARGET), skipping (pass FORCE=1 to re-export)."
+	else
+		echo "Setting up the model export environment on $(TARGET) - this is slow, budget significant time and bandwidth."
+		$(SSH) 'sudo mkdir -p $(MODEL_DIR) && sudo chown $(PI_USER):$(PI_USER) $(MODEL_DIR)' < /dev/null
+		$(SSH) 'test -d ~/$(MODEL_ENV) || python3 -m venv ~/$(MODEL_ENV)' < /dev/null
+		$(SSH) '
+			set -e
+			source ~/$(MODEL_ENV)/bin/activate
+			pip install --upgrade pip wheel setuptools
+			pip install huggingface_hub
+			pip install torch --index-url https://download.pytorch.org/whl/cpu || pip install torch
+			pip install timm==0.4.12 transformers==4.25.1 fairscale==0.4.4
+			pip install "git+https://github.com/xinyu1205/recognize-anything.git"
+			pip install "scipy>=1.10,<1.13" yacs einops
+		' < /dev/null
+		$(SCP) models/download.py models/download_tags.py $(PI_USER)@$(TARGET):~/$(MODEL_ENV)/
+		echo "Exporting the ONNX model (this is the slow part)..."
+		$(SSH) 'cd ~/$(MODEL_ENV) && source bin/activate && python download.py ram_plus --imgsz 384 --classes 4585' < /dev/null
+		echo "Downloading the tag list..."
+		$(SSH) 'cd ~/$(MODEL_ENV) && source bin/activate && python download_tags.py' < /dev/null
+		$(SSH) '
+			set -e
+			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx $(MODEL_ONNX)
+			cp ~/$(MODEL_ENV)/models/ram_plus/tags/tag_list_4585.txt $(MODEL_TAGS)
+		' < /dev/null
+		echo "Models installed at $(MODEL_DIR) on $(TARGET)."
+	fi
+
+# =============================================================================
+# App config, directories, systemd service, and the code deploy itself
+# =============================================================================
+
+.PHONY: dirs
+dirs: ## Create runtime directories (log, static, storage) with correct ownership
+	@echo "Creating runtime directories on $(TARGET)..."
+	$(SSH) '
+		sudo mkdir -p /var/log/otc /etc/otc /var/www $(STORAGE_PATH) $(UNENC_PATH)
+		sudo chown $(PI_USER):$(PI_USER) /var/log/otc /var/www $(STORAGE_PATH) $(UNENC_PATH)
+		sudo chmod 755 /var/log/otc
+	' < /dev/null
+
+.PHONY: config
+config: secrets ## Render and install /etc/otc_$(ENVIRONMENT).ini on the device
+	@echo "Writing /etc/otc_$(ENVIRONMENT).ini on $(TARGET)..."
+	source $(ENV_FILE)
+	$(SSH) 'sudo tee /etc/otc_$(ENVIRONMENT).ini >/dev/null' <<-EOF
+	[otc]
+	bridge-addr=$(BRIDGE_ADDR)
+	bridge-connections=$(BRIDGE_CONNECTIONS)
+	storage-path=$(STORAGE_PATH)
+	unenc-storage-path=$(UNENC_PATH)
+	max-thumbnail-width-px=$(MAX_THUMB_PX)
+	
+	[logger]
+	log_file=/var/log/otc/otc.log
+	max_log_size_mb=10
+	level=info
+	
+	[otc-api]
+	base-url=otc/
+	static=/var/www/
+	port=$(HTTP_PORT)
+	ssl-port=$(HTTPS_PORT)
+	ssl-cert=$(TLS_CERT)
+	ssl-key=$(TLS_KEY)
+	
+	[mysql]
+	user=otc
+	pass=$$OTC_DB_PASS
+	port=3306
+	db=otc
+	
+	[tagger]
+	model-path=$(MODEL_ONNX)
+	tags-path=$(MODEL_TAGS)
+	tags-per-image=$(TAGS_PER_IMAGE)
+	max-images-search=$(MAX_IMAGES_SEARCH)
+	EOF
+
+.PHONY: service
+service: dirs ## Install the otc.service systemd unit (does not start it)
+	@echo "Installing otc.service on $(TARGET)..."
+	$(SSH) 'sudo tee /etc/otc/otc.env >/dev/null' <<-'EOF'
+	OTC_LOG=info
+	OTC_ADDR=:$(HTTP_PORT)
+	EOF
+	$(SSH) 'sudo tee /etc/systemd/system/otc.service >/dev/null' <<-'EOF'
+	[Unit]
+	Description=Off The Cloud service
+	Wants=network-online.target
+	After=network-online.target mariadb.service
+	
+	[Service]
+	Type=simple
+	User=$(PI_USER)
+	Group=$(PI_USER)
+	WorkingDirectory=/var/lib/otc
+	EnvironmentFile=-/etc/otc/otc.env
+	ExecStart=/usr/bin/otc $(ENVIRONMENT)
+	Restart=on-failure
+	RestartSec=3
+	LimitNOFILE=65535
+	RuntimeDirectory=otc
+	StateDirectory=otc
+	LogsDirectory=otc
+	NoNewPrivileges=true
+	PrivateTmp=true
+	ProtectSystem=full
+	ProtectHome=true
+	ProtectKernelTunables=true
+	ProtectKernelModules=true
+	ProtectControlGroups=true
+	CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+	AmbientCapabilities=CAP_NET_BIND_SERVICE
+	SystemCallArchitectures=native
+	
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+	$(SSH) 'sudo systemctl daemon-reload && sudo systemctl enable otc.service' < /dev/null
+
+.PHONY: deploy
+deploy: dirs config service ## Build + ship the current code (Go binary + web) and (re)start the service
+	@echo "Building and deploying the app to $(TARGET)..."
+	$(MAKE) -f makefile TARGET=$(TARGET) sync web pi
+	@echo "Deployed and restarted otc.service on $(TARGET)."
+
+# =============================================================================
+# Day to day operations
+# =============================================================================
+
+.PHONY: status
+status: ## Show service/DB/RAID/health status on the device
+	@$(SSH) '
+		echo "-- otc.service --"; sudo systemctl --no-pager --lines=0 status otc.service || true
+		echo; echo "-- mariadb --"; sudo systemctl --no-pager --lines=0 status mariadb || true
+		echo; echo "-- RAID --"; cat /proc/mdstat 2>/dev/null || true
+		echo; echo "-- storage --"; df -h $(MOUNT_POINT) 2>/dev/null || true
+		echo; curl -sf http://localhost:$(HTTP_PORT)/check_healty >/dev/null && echo "healthcheck: OK" || echo "healthcheck: FAILED"
+	' < /dev/null
+
+.PHONY: logs
+logs: ## Tail the otc service logs on the device
+	@$(SSH) 'sudo journalctl -u otc -n 200 -f'
+
+.PHONY: restart
+restart: ## Restart the otc service on the device
+	@$(SSH) 'sudo systemctl restart otc.service' < /dev/null

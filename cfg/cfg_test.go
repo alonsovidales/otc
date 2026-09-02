@@ -34,3 +34,23 @@ func TestDebugLevel(t *testing.T) {
 		t.Error("Expected value for section \"section2\" and \"val_bool_false\" filed was \"false\"")
 	}
 }
+
+func TestGetFloat(t *testing.T) {
+	if err := Init("config", "dev"); err != nil {
+		t.Fatal("Test config file can't be loaded")
+	}
+
+	if got := GetFloat("section1", "val_float"); got != 3.14 {
+		t.Errorf("Expected value for section \"section1\" and \"val_float\" field was 3.14, got %v", got)
+	}
+}
+
+func TestGetUint64(t *testing.T) {
+	if err := Init("config", "dev"); err != nil {
+		t.Fatal("Test config file can't be loaded")
+	}
+
+	if got := GetUint64("section1", "val_uint"); got != 456 {
+		t.Errorf("Expected value for section \"section1\" and \"val_uint\" field was 456, got %v", got)
+	}
+}

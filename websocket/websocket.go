@@ -182,7 +182,7 @@ type connHandler struct {
 	friendProfile *profile.Profile
 }
 
-func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
 	}
@@ -349,7 +349,7 @@ func (ch *connHandler) processNonAuthRequest(env pb.ReqEnvelope) (resp *pb.RespE
 	return
 }
 
-func (ch *connHandler) processAuthAsFriendRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
 	}
@@ -403,7 +403,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env pb.ReqEnvelope) (resp *pb.
 	return
 }
 
-func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
 	}
@@ -601,7 +601,7 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 		}
 
 	case *pb.ReqEnvelope_ReqGetStatus:
-		log.Info(fmt.Sprintf("Requested status %d", p))
+		log.Info(fmt.Sprintf("Requested status %v", p))
 		st, err := status.GetStatus()
 
 		if err != nil {
@@ -617,7 +617,7 @@ func (ch *connHandler) processAuthRequest(env pb.ReqEnvelope) (resp *pb.RespEnve
 		}
 
 	case *pb.ReqEnvelope_ReqChangeKey:
-		log.Info(fmt.Sprintf("Change key %d", p))
+		log.Info(fmt.Sprintf("Change key %v", p))
 		err := ch.session.ChangeKey(p.ReqChangeKey.OldKey, p.ReqChangeKey.NewKey)
 
 		if err != nil {
@@ -701,14 +701,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			return
 		}
 
-		resp, closeConn := ch.processNonAuthRequest(env)
+		resp, closeConn := ch.processNonAuthRequest(&env)
 
 		if resp == nil && (ch.session != nil || ch.friendProfile != nil) {
-			resp, closeConn = ch.processAuthAsFriendRequest(env)
+			resp, closeConn = ch.processAuthAsFriendRequest(&env)
 		}
 
 		if resp == nil && ch.session != nil {
-			resp, closeConn = ch.processAuthRequest(env)
+			resp, closeConn = ch.processAuthRequest(&env)
 		}
 
 		respBin, _ := proto.Marshal(resp)
