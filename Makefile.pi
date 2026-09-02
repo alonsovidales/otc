@@ -228,8 +228,9 @@ raid-status: ## Show RAID/disk status on the device
 .PHONY: raid-watch
 raid-watch: raid ## Install the RAID status-LED watcher service (scripts/raid_watch.py)
 	@if [ "$(SKIP_RAID)" = "1" ]; then
-		echo "SKIP_RAID=1: no RAID array to watch, skipping raid-watch.service."
-		exit 0
+		echo "SKIP_RAID=1: no RAID array yet - installing raid-watch.service anyway,"
+		echo "dormant (it polls mdadm and just reports no members until an array"
+		echo "exists). Run 'make raid' once disks are attached to activate it."
 	fi
 	@echo "Installing raid-watch.service on $(TARGET)..."
 	$(SCP) scripts/raid_watch.py $(PI_USER)@$(TARGET):/tmp/raid_watch.py
