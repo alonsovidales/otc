@@ -58,6 +58,7 @@ BRIDGE_CONNECTIONS ?= 5
 STORAGE_PATH   ?= /mnt/storage/
 UNENC_PATH     ?= /mnt/storage/unencrypted/
 MAX_THUMB_PX   ?= 1000
+SHARED_LINK_TTL_HOURS ?= 168
 
 # ---- Storage (RAID1) --------------------------------------------------------
 DISK1          ?= /dev/sda
@@ -373,7 +374,8 @@ config: secrets ## Render and install /etc/otc_$(ENVIRONMENT).ini on the device
 	storage-path=$(STORAGE_PATH)
 	unenc-storage-path=$(UNENC_PATH)
 	max-thumbnail-width-px=$(MAX_THUMB_PX)
-	
+	shared-link-ttl-hours=$(SHARED_LINK_TTL_HOURS)
+
 	[logger]
 	log_file=/var/log/otc/otc.log
 	max_log_size_mb=10

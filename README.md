@@ -196,6 +196,7 @@ bridge-connections=5
 storage-path=/mnt/storage/
 unenc-storage-path=/mnt/storage/unencrypted/
 max-thumbnail-width-px=1000
+shared-link-ttl-hours=168
 
 [logger]
 log_file=/var/log/otc/otc.log

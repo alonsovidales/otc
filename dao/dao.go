@@ -312,6 +312,44 @@ func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
 	return
 }
 
+// GetSharedLinkCreated returns the creation time of a shared link, so
+// callers can decide whether it has expired. Returns sql.ErrNoRows if the
+// link doesn't exist (already expired and swept, or never existed).
+func (dao *Dao) GetSharedLinkCreated(pathUuid string) (created time.Time, err error) {
+	err = dao.db.QueryRow("select `created` from `shared_links` where `uuid` = ?", pathUuid).Scan(&created)
+
+	return
+}
+
+// GetExpiredSharedLinkUuids returns the uuids of every shared link created
+// before cutoff, so the caller can remove their on-disk content and delete
+// the rows.
+func (dao *Dao) GetExpiredSharedLinkUuids(cutoff time.Time) (uuids []string, err error) {
+	rows, err := dao.db.Query("select `uuid` from `shared_links` where `created` < ?", cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var uuid string
+		if err = rows.Scan(&uuid); err != nil {
+			return nil, err
+		}
+		uuids = append(uuids, uuid)
+	}
+
+	return uuids, rows.Err()
+}
+
+// DeleteSharedLink removes a shared link row, once its on-disk content has
+// been removed.
+func (dao *Dao) DeleteSharedLink(pathUuid string) (err error) {
+	_, err = dao.db.Exec("delete from `shared_links` where `uuid` = ?", pathUuid)
+
+	return
+}
+
 func (dao *Dao) UpdateLatestSync(domain string, latestSync *timestamppb.Timestamp) (err error) {
 	_, err = dao.db.Exec("update `social_friendship` set `latest_sync` = ? where `domain` = ?", latestSync.AsTime(), domain)
 	return

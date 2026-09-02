@@ -38,6 +38,16 @@ import (
 const (
 	CDownloadAttr = "?download="
 	cToeknsTTL    = 5 * time.Minute
+
+	// cDefaultSharedLinkTTL is used when [otc] shared-link-ttl-hours is
+	// absent or invalid in the config file.
+	cDefaultSharedLinkTTL = 7 * 24 * time.Hour
+	// cSharedLinksSweepInterval is how often expired shared links are
+	// swept from disk and the DB.
+	cSharedLinksSweepInterval = time.Hour
+	// cTokensCollectInterval is how often expired search tokens are
+	// swept from memory.
+	cTokensCollectInterval = time.Minute
 )
 
 // Manager Structure that provides HTTP access to manage all the different
@@ -49,6 +59,7 @@ type Manager struct {
 	tagger         *imagestagger.RAMTagger
 	searchTokens   *sync.Map
 	tokensToExpire *sync.Map
+	sharedLinkTTL  time.Duration
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
@@ -58,6 +69,7 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		baseUrl:        baseUrl,
 		dao:            dao,
 		maxUploads:     make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff and also power issues
+		sharedLinkTTL:  sharedLinkTTLFromCfg(),
 	}
 
 	var err error
@@ -67,12 +79,42 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		log.Fatal("Error loading image encoders:", err)
 	}
 
-	go mg.collector()
+	go mg.tokenCollector()
+	go mg.sharedLinksSweeper()
 
 	return mg
 }
 
-func (mg *Manager) collector() {
+// sharedLinkTTLFromCfg reads [otc] shared-link-ttl-hours, falling back to
+// cDefaultSharedLinkTTL when it's absent, zero or negative.
+func sharedLinkTTLFromCfg() time.Duration {
+	return sharedLinkTTLFromHours(cfg.GetInt("otc", "shared-link-ttl-hours"))
+}
+
+// sharedLinkTTLFromHours is the pure part of sharedLinkTTLFromCfg, split out
+// so the fallback rule can be unit tested without a loaded config file.
+func sharedLinkTTLFromHours(hours int64) time.Duration {
+	if hours <= 0 {
+		return cDefaultSharedLinkTTL
+	}
+
+	return time.Duration(hours) * time.Hour
+}
+
+// tokenCollector periodically sweeps expired search tokens out of memory.
+// Previously this ran a single pass via a bare "go mg.collector()" call, so
+// tokens were only ever swept once at startup (when tokensToExpire was
+// still empty) and never again for the life of the process.
+func (mg *Manager) tokenCollector() {
+	ticker := time.NewTicker(cTokensCollectInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		mg.collectExpiredTokens()
+	}
+}
+
+func (mg *Manager) collectExpiredTokens() {
 	t := time.Now()
 	mg.tokensToExpire.Range(func(token, expire any) bool {
 		if t.Sub(expire.(time.Time)) > cToeknsTTL {
@@ -83,6 +125,56 @@ func (mg *Manager) collector() {
 
 		return true
 	})
+}
+
+// isSharedLinkExpired reports whether a shared link created at "created"
+// has outlived ttl, as of "now". Pulled out as a pure function so the
+// expiry rule can be unit tested without a DB.
+func isSharedLinkExpired(created, now time.Time, ttl time.Duration) bool {
+	return now.Sub(created) > ttl
+}
+
+// sharedLinksSweeper periodically removes shared links (both the DB row and
+// the encrypted zip on disk) once they are older than mg.sharedLinkTTL.
+func (mg *Manager) sharedLinksSweeper() {
+	ticker := time.NewTicker(cSharedLinksSweepInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		mg.expireSharedLinks()
+	}
+}
+
+func (mg *Manager) expireSharedLinks() {
+	cutoff := time.Now().Add(-mg.sharedLinkTTL)
+
+	uuids, err := mg.dao.GetExpiredSharedLinkUuids(cutoff)
+	if err != nil {
+		log.Error("error listing expired shared links:", err)
+		return
+	}
+
+	for _, pathUuid := range uuids {
+		mg.deleteSharedLink(pathUuid)
+	}
+}
+
+// deleteSharedLink removes the on-disk content for a shared link and its DB
+// row. The disk file is removed first: if that fails we keep the DB row
+// around so the sweep retries next time, rather than losing track of
+// content still sitting on disk.
+func (mg *Manager) deleteSharedLink(pathUuid string) {
+	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)
+	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+		log.Error("error removing expired shared link content:", pathUuid, err)
+		return
+	}
+
+	if err := mg.dao.DeleteSharedLink(pathUuid); err != nil {
+		log.Error("error deleting expired shared link row:", pathUuid, err)
+	} else {
+		log.Debug("Expired shared link removed:", pathUuid)
+	}
 }
 
 func (mg *Manager) ListFiles(session *session.Session, path string, recursive bool) (files []*pb.File, err error) {
@@ -175,6 +267,17 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 }
 
 func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err error) {
+	created, err := mg.dao.GetSharedLinkCreated(uuid)
+	if err != nil {
+		return nil, err
+	}
+	if isSharedLinkExpired(created, time.Now(), mg.sharedLinkTTL) {
+		// Don't wait for the next sweep: drop the content and row now
+		// that we know it's expired, and refuse the download.
+		mg.deleteSharedLink(uuid)
+		return nil, errors.New("shared link has expired")
+	}
+
 	cipher := getCipher(secret)
 	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), uuid))
 	if err != nil {
