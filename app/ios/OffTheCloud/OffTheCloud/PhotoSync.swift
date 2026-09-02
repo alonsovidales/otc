@@ -171,12 +171,22 @@ final class PhotoSync {
         print("Trynig to stablish connection with \(url)")
         try await ws.connect(url: url)
 
+        // Fetch this connection's ephemeral public key and encrypt the
+        // password with it before it ever leaves the device (see issue #2:
+        // the bridge only relays already-encrypted payloads).
+        let pubKeyResp = try await ws.request { env in
+            env.payload = .reqGetPubKey(Msg_GetPubKey())
+        }
+        guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
+            throw NSError(domain: "auth", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch the connection's public key"])
+        }
+        let encryptedKey = try PwCrypto.encryptPassword(secrets.password, pubKeyDER: pubKey.publicKey)
+
         // Authenticate (if your server requires it first)
         _ = try await ws.request { env in
             var auth = Msg_Auth()
             auth.uuid = secrets.deviceId
-            auth.key = secrets.password
-            print("Password:", secrets.password)
+            auth.key = encryptedKey
             auth.create = false
             env.payload = .reqAuth(auth)
         }

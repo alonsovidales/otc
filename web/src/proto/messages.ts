@@ -237,8 +237,27 @@ export interface Status {
 
 export interface Auth {
   uuid: string;
-  key: string;
+  /**
+   * RSA-OAEP(SHA-256) ciphertext of the password, encrypted by the client
+   * using the public key returned by GetPubKey/PubKey for this connection.
+   */
+  key: Uint8Array;
   create: boolean;
+}
+
+/**
+ * GetPubKey requests the ephemeral RSA public key generated for this
+ * WebSocket connection. Clients must call this before sending Auth or
+ * ChangeKey, and use it to encrypt the key material client-side so that
+ * the plaintext password never crosses the bridge, which only relays
+ * already-encrypted application payloads between device and client.
+ */
+export interface GetPubKey {
+}
+
+export interface PubKey {
+  /** PKIX/SPKI DER-encoded RSA public key, valid only for this connection. */
+  publicKey: Uint8Array;
 }
 
 export interface UploadFile {
@@ -294,8 +313,9 @@ export interface TagsList {
 }
 
 export interface ChangeKey {
-  oldKey: string;
-  newKey: string;
+  /** RSA-OAEP(SHA-256) ciphertext, see Auth.key. */
+  oldKey: Uint8Array;
+  newKey: Uint8Array;
 }
 
 export interface NewSocialPublication {
@@ -524,6 +544,7 @@ export interface ReqEnvelope {
     | { $case: "reqSetProfile"; reqSetProfile: Profile }
     | { $case: "reqShareFilesLink"; reqShareFilesLink: ShareFilesLink }
     | { $case: "reqDownloadSharedLink"; reqDownloadSharedLink: DownloadSharedLink }
+    | { $case: "reqGetPubKey"; reqGetPubKey: GetPubKey }
     | undefined;
 }
 
@@ -548,6 +569,7 @@ export interface RespEnvelope {
     | { $case: "respSocialPublicationFiles"; respSocialPublicationFiles: SocialPublicationFiles }
     | { $case: "respFriendshipStatus"; respFriendshipStatus: FriendshipStatus }
     | { $case: "respEvents"; respEvents: Events }
+    | { $case: "respPubKey"; respPubKey: PubKey }
     | undefined;
 }
 
@@ -903,7 +925,7 @@ export const Status: MessageFns<Status> = {
 };
 
 function createBaseAuth(): Auth {
-  return { uuid: "", key: "", create: false };
+  return { uuid: "", key: new Uint8Array(0), create: false };
 }
 
 export const Auth: MessageFns<Auth> = {
@@ -911,8 +933,8 @@ export const Auth: MessageFns<Auth> = {
     if (message.uuid !== "") {
       writer.uint32(10).string(message.uuid);
     }
-    if (message.key !== "") {
-      writer.uint32(18).string(message.key);
+    if (message.key.length !== 0) {
+      writer.uint32(18).bytes(message.key);
     }
     if (message.create !== false) {
       writer.uint32(24).bool(message.create);
@@ -940,7 +962,7 @@ export const Auth: MessageFns<Auth> = {
             break;
           }
 
-          message.key = reader.string();
+          message.key = reader.bytes();
           continue;
         }
         case 3: {
@@ -963,7 +985,7 @@ export const Auth: MessageFns<Auth> = {
   fromJSON(object: any): Auth {
     return {
       uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      key: isSet(object.key) ? bytesFromBase64(object.key) : new Uint8Array(0),
       create: isSet(object.create) ? globalThis.Boolean(object.create) : false,
     };
   },
@@ -973,8 +995,8 @@ export const Auth: MessageFns<Auth> = {
     if (message.uuid !== "") {
       obj.uuid = message.uuid;
     }
-    if (message.key !== "") {
-      obj.key = message.key;
+    if (message.key.length !== 0) {
+      obj.key = base64FromBytes(message.key);
     }
     if (message.create !== false) {
       obj.create = message.create;
@@ -988,8 +1010,109 @@ export const Auth: MessageFns<Auth> = {
   fromPartial<I extends Exact<DeepPartial<Auth>, I>>(object: I): Auth {
     const message = createBaseAuth();
     message.uuid = object.uuid ?? "";
-    message.key = object.key ?? "";
+    message.key = object.key ?? new Uint8Array(0);
     message.create = object.create ?? false;
+    return message;
+  },
+};
+
+function createBaseGetPubKey(): GetPubKey {
+  return {};
+}
+
+export const GetPubKey: MessageFns<GetPubKey> = {
+  encode(_: GetPubKey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetPubKey {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetPubKey();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetPubKey {
+    return {};
+  },
+
+  toJSON(_: GetPubKey): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetPubKey>, I>>(base?: I): GetPubKey {
+    return GetPubKey.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetPubKey>, I>>(_: I): GetPubKey {
+    const message = createBaseGetPubKey();
+    return message;
+  },
+};
+
+function createBasePubKey(): PubKey {
+  return { publicKey: new Uint8Array(0) };
+}
+
+export const PubKey: MessageFns<PubKey> = {
+  encode(message: PubKey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.publicKey.length !== 0) {
+      writer.uint32(10).bytes(message.publicKey);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PubKey {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePubKey();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.publicKey = reader.bytes();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PubKey {
+    return { publicKey: isSet(object.publicKey) ? bytesFromBase64(object.publicKey) : new Uint8Array(0) };
+  },
+
+  toJSON(message: PubKey): unknown {
+    const obj: any = {};
+    if (message.publicKey.length !== 0) {
+      obj.publicKey = base64FromBytes(message.publicKey);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PubKey>, I>>(base?: I): PubKey {
+    return PubKey.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PubKey>, I>>(object: I): PubKey {
+    const message = createBasePubKey();
+    message.publicKey = object.publicKey ?? new Uint8Array(0);
     return message;
   },
 };
@@ -1780,16 +1903,16 @@ export const TagsList: MessageFns<TagsList> = {
 };
 
 function createBaseChangeKey(): ChangeKey {
-  return { oldKey: "", newKey: "" };
+  return { oldKey: new Uint8Array(0), newKey: new Uint8Array(0) };
 }
 
 export const ChangeKey: MessageFns<ChangeKey> = {
   encode(message: ChangeKey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.oldKey !== "") {
-      writer.uint32(10).string(message.oldKey);
+    if (message.oldKey.length !== 0) {
+      writer.uint32(10).bytes(message.oldKey);
     }
-    if (message.newKey !== "") {
-      writer.uint32(18).string(message.newKey);
+    if (message.newKey.length !== 0) {
+      writer.uint32(18).bytes(message.newKey);
     }
     return writer;
   },
@@ -1806,7 +1929,7 @@ export const ChangeKey: MessageFns<ChangeKey> = {
             break;
           }
 
-          message.oldKey = reader.string();
+          message.oldKey = reader.bytes();
           continue;
         }
         case 2: {
@@ -1814,7 +1937,7 @@ export const ChangeKey: MessageFns<ChangeKey> = {
             break;
           }
 
-          message.newKey = reader.string();
+          message.newKey = reader.bytes();
           continue;
         }
       }
@@ -1828,18 +1951,18 @@ export const ChangeKey: MessageFns<ChangeKey> = {
 
   fromJSON(object: any): ChangeKey {
     return {
-      oldKey: isSet(object.oldKey) ? globalThis.String(object.oldKey) : "",
-      newKey: isSet(object.newKey) ? globalThis.String(object.newKey) : "",
+      oldKey: isSet(object.oldKey) ? bytesFromBase64(object.oldKey) : new Uint8Array(0),
+      newKey: isSet(object.newKey) ? bytesFromBase64(object.newKey) : new Uint8Array(0),
     };
   },
 
   toJSON(message: ChangeKey): unknown {
     const obj: any = {};
-    if (message.oldKey !== "") {
-      obj.oldKey = message.oldKey;
+    if (message.oldKey.length !== 0) {
+      obj.oldKey = base64FromBytes(message.oldKey);
     }
-    if (message.newKey !== "") {
-      obj.newKey = message.newKey;
+    if (message.newKey.length !== 0) {
+      obj.newKey = base64FromBytes(message.newKey);
     }
     return obj;
   },
@@ -1849,8 +1972,8 @@ export const ChangeKey: MessageFns<ChangeKey> = {
   },
   fromPartial<I extends Exact<DeepPartial<ChangeKey>, I>>(object: I): ChangeKey {
     const message = createBaseChangeKey();
-    message.oldKey = object.oldKey ?? "";
-    message.newKey = object.newKey ?? "";
+    message.oldKey = object.oldKey ?? new Uint8Array(0);
+    message.newKey = object.newKey ?? new Uint8Array(0);
     return message;
   },
 };
@@ -4676,6 +4799,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqDownloadSharedLink":
         DownloadSharedLink.encode(message.payload.reqDownloadSharedLink, writer.uint32(274).fork()).join();
         break;
+      case "reqGetPubKey":
+        GetPubKey.encode(message.payload.reqGetPubKey, writer.uint32(346).fork()).join();
+        break;
     }
     return writer;
   },
@@ -4988,6 +5114,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 43: {
+          if (tag !== 346) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetPubKey", reqGetPubKey: GetPubKey.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5089,6 +5223,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqDownloadSharedLink",
           reqDownloadSharedLink: DownloadSharedLink.fromJSON(object.reqDownloadSharedLink),
         }
+        : isSet(object.reqGetPubKey)
+        ? { $case: "reqGetPubKey", reqGetPubKey: GetPubKey.fromJSON(object.reqGetPubKey) }
         : undefined,
     };
   },
@@ -5160,6 +5296,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqShareFilesLink = ShareFilesLink.toJSON(message.payload.reqShareFilesLink);
     } else if (message.payload?.$case === "reqDownloadSharedLink") {
       obj.reqDownloadSharedLink = DownloadSharedLink.toJSON(message.payload.reqDownloadSharedLink);
+    } else if (message.payload?.$case === "reqGetPubKey") {
+      obj.reqGetPubKey = GetPubKey.toJSON(message.payload.reqGetPubKey);
     }
     return obj;
   },
@@ -5435,6 +5573,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetPubKey": {
+        if (object.payload?.reqGetPubKey !== undefined && object.payload?.reqGetPubKey !== null) {
+          message.payload = { $case: "reqGetPubKey", reqGetPubKey: GetPubKey.fromPartial(object.payload.reqGetPubKey) };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -5503,6 +5647,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respEvents":
         Events.encode(message.payload.respEvents, writer.uint32(194).fork()).join();
+        break;
+      case "respPubKey":
+        PubKey.encode(message.payload.respPubKey, writer.uint32(210).fork()).join();
         break;
     }
     return writer;
@@ -5679,6 +5826,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respEvents", respEvents: Events.decode(reader, reader.uint32()) };
           continue;
         }
+        case 26: {
+          if (tag !== 210) {
+            break;
+          }
+
+          message.payload = { $case: "respPubKey", respPubKey: PubKey.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5737,6 +5892,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         }
         : isSet(object.respEvents)
         ? { $case: "respEvents", respEvents: Events.fromJSON(object.respEvents) }
+        : isSet(object.respPubKey)
+        ? { $case: "respPubKey", respPubKey: PubKey.fromJSON(object.respPubKey) }
         : undefined,
     };
   },
@@ -5784,6 +5941,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respFriendshipStatus = FriendshipStatus.toJSON(message.payload.respFriendshipStatus);
     } else if (message.payload?.$case === "respEvents") {
       obj.respEvents = Events.toJSON(message.payload.respEvents);
+    } else if (message.payload?.$case === "respPubKey") {
+      obj.respPubKey = PubKey.toJSON(message.payload.respPubKey);
     }
     return obj;
   },
@@ -5920,6 +6079,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       case "respEvents": {
         if (object.payload?.respEvents !== undefined && object.payload?.respEvents !== null) {
           message.payload = { $case: "respEvents", respEvents: Events.fromPartial(object.payload.respEvents) };
+        }
+        break;
+      }
+      case "respPubKey": {
+        if (object.payload?.respPubKey !== undefined && object.payload?.respPubKey !== null) {
+          message.payload = { $case: "respPubKey", respPubKey: PubKey.fromPartial(object.payload.respPubKey) };
         }
         break;
       }

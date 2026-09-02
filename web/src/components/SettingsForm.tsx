@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
+import { encryptForConnection } from "../net/pwCrypto";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -101,12 +102,14 @@ export default function SettingsForm() {
     setSavingKey(true);
     setStatus(null);
     try {
+      const encryptedOldKey = await encryptForConnection(useWS.request, oldKey);
+      const encryptedNewKey = await encryptForConnection(useWS.request, newKey);
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = {
           $case: "reqChangeKey",
           reqChangeKey: {
-            oldKey,
-            newKey,
+            oldKey: encryptedOldKey,
+            newKey: encryptedNewKey,
           },
         };
       });

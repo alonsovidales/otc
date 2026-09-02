@@ -177,9 +177,20 @@ final class WSClient {
 
     /// Convenience auth helper; returns true if resp_ack.ok
     func auth(key: String) async throws -> Bool {
+        // Fetch this connection's ephemeral public key and encrypt the
+        // password with it before it ever leaves the app (see issue #2:
+        // the bridge only relays already-encrypted payloads).
+        let pubKeyResp = try await request { req in
+            req.payload = .reqGetPubKey(Msg_GetPubKey())
+        }
+        guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
+            throw NSError(domain: "auth", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch the connection's public key"])
+        }
+        let encryptedKey = try PwCrypto.encryptPassword(key, pubKeyDER: pubKey.publicKey)
+
         let resp = try await request { req in
             var a = Auth()
-            a.key = key
+            a.key = encryptedKey
             a.create = false
             req.payload = .reqAuth(a)
         }

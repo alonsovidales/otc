@@ -1,6 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,24 +31,57 @@ func main() {
 	log.Printf("Connected...")
 	defer c.Close()
 
+	// Fetch the per-connection public key and use it to encrypt the
+	// password before it ever reaches the wire (see issue #2).
+	pubKeyMsg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqGetPubKey{
+			ReqGetPubKey: &pb.GetPubKey{},
+		},
+	}
+	b, _ := proto.Marshal(pubKeyMsg)
+	if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
+		log.Fatal("write:", err)
+	}
+
+	_, data, err := c.ReadMessage()
+	if err != nil {
+		log.Fatal("read:", err)
+	}
+	var pubKeyResp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &pubKeyResp); err != nil {
+		log.Fatal("Error parsing pub key response: ", err)
+	}
+	pubDER := pubKeyResp.Payload.(*pb.RespEnvelope_RespPubKey).RespPubKey.PublicKey
+	pubAny, err := x509.ParsePKIXPublicKey(pubDER)
+	if err != nil {
+		log.Fatal("Error parsing pub key: ", err)
+	}
+	pubKey := pubAny.(*rsa.PublicKey)
+
+	encKey, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, []byte("SecretKey"), nil)
+	if err != nil {
+		log.Fatal("Error encrypting key: ", err)
+	}
+
 	// AUTH the connection
 	msg := &pb.ReqEnvelope{
-		Id: 1,
+		Id: 2,
 		Payload: &pb.ReqEnvelope_ReqAuth{
 			ReqAuth: &pb.Auth{
 				Uuid:   "asdsadas",
-				Key:    "SecretKey",
+				Key:    encKey,
 				Create: true,
 			},
 		},
 	}
-	b, _ := proto.Marshal(msg)
+	b, _ = proto.Marshal(msg)
 	if err := c.WriteMessage(websocket.BinaryMessage, b); err != nil {
 		log.Fatal("write:", err)
 	}
 
 	// We should get back the Ack
-	_, data, err := c.ReadMessage()
+	_, data, err = c.ReadMessage()
 	if err != nil {
 		log.Fatal("read:", err)
 	}
