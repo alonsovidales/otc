@@ -165,27 +165,14 @@ final class PhotoSync {
     func runForeground() async throws {
         try await ensureAuth()
         let secrets = SecretsStore.loadOrCreate()
-        guard let url = URL(string: secrets.endpoint) else { throw NSError(domain:"cfg", code:1, userInfo:[NSLocalizedDescriptionKey:"Bad endpoint"]) }
-
-        let ws = WSClient()
-        print("Trynig to stablish connection with \(url)")
-        try await ws.connect(url: url)
-
-        // Authenticate (if your server requires it first)
-        _ = try await ws.request { env in
-            var auth = Msg_Auth()
-            auth.uuid = secrets.deviceId
-            auth.key = secrets.password
-            print("Password:", secrets.password)
-            auth.create = false
-            env.payload = .reqAuth(auth)
-        }
+        let ws = OTCConnection.shared
+        try await ws.ensureConnected()
 
         let last = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
         print("Sync photos from: \(last)")
         let assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
         UploadModel.shared.begin(total: assets.count)
-        
+
         let targetPath = "/ios/\(secrets.deviceId)/"
         // Get a list of all the files for the target path
         let resp = try await ws.request { env in
@@ -242,6 +229,5 @@ final class PhotoSync {
 
         UploadModel.shared.complete()
         UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
-        ws.close()
     }
 }

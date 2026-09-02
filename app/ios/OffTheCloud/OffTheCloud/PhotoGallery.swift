@@ -28,8 +28,8 @@ final class PhotoGalleryVM: ObservableObject {
         var isLocalOnly: Bool
     }
 
-    // WS from here (per your note)
-    private let ws: WSClient
+    // Shared, already-authenticated connection (see OTCConnection.swift)
+    private let ws = OTCConnection.shared
     private let deviceID: String
     private let localFolder: URL?
 
@@ -53,7 +53,6 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var selected: Set<String> = []
 
     init(deviceID: String, localPhotosFolder: URL?) {
-        self.ws = WSClient()                // ← as requested
         self.deviceID = deviceID
         self.localFolder = localPhotosFolder
     }
