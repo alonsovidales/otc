@@ -9,10 +9,13 @@ Prereqs (inside a clean venv, Python 3.10/3.11 recommended):
   pip install --upgrade pip wheel setuptools
   pip install huggingface_hub
   pip install torch --index-url https://download.pytorch.org/whl/cpu
+  pip install onnxscript  # needed by torch.onnx.export on current torch
   pip install timm==0.4.12 transformers==4.25.1 fairscale==0.4.4
   pip install "git+https://github.com/xinyu1205/recognize-anything.git"
-  # if needed by your env:
-  pip install "scipy>=1.10,<1.13" yacs einops
+  # if needed by your env (unpinned - not called directly by this script,
+  # and pinning it to an old range forces a from-source build on newer
+  # Python/arches with no prebuilt wheel):
+  pip install scipy yacs einops
 
 What this script does:
   • Downloads RAM++ checkpoints (.pth) from HF (anonymous).

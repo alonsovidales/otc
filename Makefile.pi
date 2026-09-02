@@ -54,6 +54,10 @@ TLS_CERT           ?=
 TLS_KEY            ?=
 BRIDGE_ADDR        ?= off-the.cloud
 BRIDGE_CONNECTIONS ?= 5
+# Full public subdomain this device registers with the bridge as (e.g.
+# pit.off-the.cloud). Defaults to a random otc-<8 hex chars>.$(BRIDGE_ADDR)
+# generated once by the `secrets` target; override to pick a specific name.
+SUBDOMAIN          ?=
 
 STORAGE_PATH   ?= /mnt/storage/
 UNENC_PATH     ?= /mnt/storage/unencrypted/
@@ -66,6 +70,12 @@ DISK2          ?= /dev/sdb
 RAID_DEV       ?= /dev/md0
 MOUNT_POINT    ?= /mnt/storage
 SWAP_MB        ?= 4096
+# Set SKIP_RAID=1 for a single-disk device (e.g. an SD-card-only test Pi with
+# no second/third disk to mirror): the `raid` target then just creates
+# $(MOUNT_POINT) as a plain directory on the root filesystem instead of
+# wiping DISK1/DISK2, and `raid-watch` (the RAID status-LED service) is
+# skipped entirely since there's no array to watch.
+SKIP_RAID      ?= 0
 
 # ---- Toolchain / runtime versions ------------------------------------------
 GO_VERSION           ?= 1.26.1
@@ -113,7 +123,10 @@ secrets: ## Generate (once) the per-device secrets file, $(ENV_FILE)
 		DEVICE_UUID=$$(command -v uuidgen >/dev/null 2>&1 && uuidgen || cat /proc/sys/kernel/random/uuid)
 		BRIDGE_SECRET=$$(openssl rand -hex 24)
 		OTC_DB_PASS=$$(openssl rand -base64 24 | tr -d '=+/')
-		SUBDOMAIN=otc-$$(echo $$DEVICE_UUID | cut -c1-8)
+		SUBDOMAIN="$(SUBDOMAIN)"
+		if [ -z "$$SUBDOMAIN" ]; then
+			SUBDOMAIN=otc-$$(echo $$DEVICE_UUID | cut -c1-8).$(BRIDGE_ADDR)
+		fi
 		{
 			echo "# Generated $$(date -u +%FT%TZ) by 'make -f Makefile.pi secrets'."
 			echo "# Keep this out of git - it holds this device's DB password and bridge secret."
@@ -138,9 +151,16 @@ update: ## apt-get update && upgrade
 .PHONY: packages
 packages: update ## Install the OS packages OTC needs (mdadm, mariadb, build tools, python...)
 	@echo "Installing base packages on $(TARGET)..."
+	# libssl-dev/pkg-config: the `models` step builds the tokenizers Rust
+	# extension from source, which links openssl via openssl-sys and needs
+	# its headers + pkg-config file to find them.
+	# gfortran/libopenblas-dev/liblapack-dev: that same step also builds
+	# scipy from source (no prebuilt wheel for this old pin on this
+	# Python/arch), which needs a Fortran compiler + BLAS/LAPACK.
 	$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
 		mdadm parted mariadb-server build-essential git curl wget rsync \
-		ca-certificates python3 python3-venv python3-pip' < /dev/null
+		ca-certificates python3 python3-venv python3-pip libssl-dev pkg-config \
+		gfortran libopenblas-dev liblapack-dev' < /dev/null
 	# LED support for raid-watch.service is optional; the script degrades to
 	# a dry-run if RPi.GPIO isn't available, so don't fail the build over it.
 	-$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi-lgpio || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi.gpio' < /dev/null
@@ -163,7 +183,12 @@ swap: ## Bump swap to $(SWAP_MB)MB (helps MariaDB / the model export / go build 
 # =============================================================================
 
 .PHONY: raid
-raid: packages ## DESTRUCTIVE: wipe DISK1/DISK2 and build+mount a RAID1 array (asks for confirmation)
+raid: packages ## DESTRUCTIVE: wipe DISK1/DISK2 and build+mount a RAID1 array (asks for confirmation). SKIP_RAID=1 for a single-disk device instead.
+	@if [ "$(SKIP_RAID)" = "1" ]; then
+		echo "SKIP_RAID=1: using $(MOUNT_POINT) as a plain directory on $(TARGET)'s root filesystem (no RAID)."
+		$(SSH) 'sudo mkdir -p $(MOUNT_POINT)/unencrypted' < /dev/null
+		exit 0
+	fi
 	@echo "Disks currently visible on $(TARGET):"
 	-$(SSH) 'lsblk $(DISK1) $(DISK2) 2>&1' < /dev/null
 	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -e $(RAID_DEV)' < /dev/null; then
@@ -202,6 +227,10 @@ raid-status: ## Show RAID/disk status on the device
 
 .PHONY: raid-watch
 raid-watch: raid ## Install the RAID status-LED watcher service (scripts/raid_watch.py)
+	@if [ "$(SKIP_RAID)" = "1" ]; then
+		echo "SKIP_RAID=1: no RAID array to watch, skipping raid-watch.service."
+		exit 0
+	fi
 	@echo "Installing raid-watch.service on $(TARGET)..."
 	$(SCP) scripts/raid_watch.py $(PI_USER)@$(TARGET):/tmp/raid_watch.py
 	$(SSH) 'sudo mv /tmp/raid_watch.py /usr/local/bin/raid_watch.py && sudo chmod +x /usr/local/bin/raid_watch.py' < /dev/null
@@ -321,30 +350,58 @@ onnxruntime: packages ## Install ONNX Runtime $(ONNXRUNTIME_VERSION) (linux/aarc
 
 .PHONY: models
 models: packages secrets swap ## Export the RAM++ ONNX model + tag list directly on the device
-	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_ONNX) && test -f $(MODEL_TAGS)' < /dev/null; then
+	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_ONNX) && test -f $(MODEL_ONNX).data && test -f $(MODEL_TAGS)' < /dev/null; then
 		echo "Models already present at $(MODEL_DIR) on $(TARGET), skipping (pass FORCE=1 to re-export)."
 	else
 		echo "Setting up the model export environment on $(TARGET) - this is slow, budget significant time and bandwidth."
 		$(SSH) 'sudo mkdir -p $(MODEL_DIR) && sudo chown $(PI_USER):$(PI_USER) $(MODEL_DIR)' < /dev/null
 		$(SSH) 'test -d ~/$(MODEL_ENV) || python3 -m venv ~/$(MODEL_ENV)' < /dev/null
+		# transformers==4.25.1 (pinned below for RAM++ compatibility) pulls in
+		# a tokenizers version with no prebuilt wheel for this Python/arch, so
+		# pip builds it from source via cargo - which needs a Rust compiler
+		# newer than the one Debian packages (rustc/cargo from apt is too old
+		# for tokenizers' current transitive deps). Install one via rustup
+		# instead of apt.
 		$(SSH) '
 			set -e
+			test -x $$HOME/.cargo/bin/cargo || curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+		' < /dev/null
+		# invalid_reference_casting is a lint that's deny-by-default on
+		# current rustc; tokenizers' old pinned source trips it (it predates
+		# the lint), so allow it just for this from-source build.
+		$(SSH) '
+			set -e
+			source $$HOME/.cargo/env
 			source ~/$(MODEL_ENV)/bin/activate
+			export RUSTFLAGS="-A invalid_reference_casting"
 			pip install --upgrade pip wheel setuptools
 			pip install huggingface_hub
 			pip install torch --index-url https://download.pytorch.org/whl/cpu || pip install torch
+			# Current torch routes torch.onnx.export through its newer
+			# exporter, which needs onnxscript even for the legacy path.
+			pip install onnxscript
 			pip install timm==0.4.12 transformers==4.25.1 fairscale==0.4.4
 			pip install "git+https://github.com/xinyu1205/recognize-anything.git"
-			pip install "scipy>=1.10,<1.13" yacs einops
+			# Unpinned: download.py does not call scipy directly (this is
+			# only here in case a transitive dep needs it), and pinning it
+			# to the old <1.13 range forces a from-source build with no
+			# prebuilt wheel for this Python/arch. Let pip pick a recent
+			# scipy that ships one instead.
+			pip install scipy yacs einops
 		' < /dev/null
 		$(SCP) models/download.py models/download_tags.py $(PI_USER)@$(TARGET):~/$(MODEL_ENV)/
 		echo "Exporting the ONNX model (this is the slow part)..."
 		$(SSH) 'cd ~/$(MODEL_ENV) && source bin/activate && python download.py ram_plus --imgsz 384 --classes 4585' < /dev/null
 		echo "Downloading the tag list..."
 		$(SSH) 'cd ~/$(MODEL_ENV) && source bin/activate && python download_tags.py' < /dev/null
+		# This model is >2GB, so torch.onnx.export writes its weights to a
+		# companion *.onnx.data file alongside the small .onnx graph file
+		# (ONNX's external-data format) - onnxruntime needs both at the
+		# same relative path to load it, so ship both.
 		$(SSH) '
 			set -e
 			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx $(MODEL_ONNX)
+			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx.data $(MODEL_ONNX).data
 			cp ~/$(MODEL_ENV)/models/ram_plus/tags/tag_list_4585.txt $(MODEL_TAGS)
 		' < /dev/null
 		echo "Models installed at $(MODEL_DIR) on $(TARGET)."

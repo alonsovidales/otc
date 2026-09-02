@@ -15,7 +15,9 @@ sync:
 	#ssh otc@$(TARGET) wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz
 	#ssh otc@$(TARGET) sudo mkdir -p /opt/onnxruntime/lib
 	#ssh otc@$(TARGET) sudo cp onnxruntime-linux-aarch64-1.22.0/lib/*.so* /opt/onnxruntime/lib/
-	rsync -avz --delete ./ otc@$(TARGET):/home/otc/otc/
+	rsync -avz --delete \
+	  --exclude='.git' --exclude='node_modules' --exclude='web/dist' --exclude='.env.pi' \
+	  ./ otc@$(TARGET):/home/otc/otc/
 
 .PHONY: sync
 
@@ -57,6 +59,7 @@ web:
 	@echo "$(OK_COLOR)==> Building web content...$(NO_COLOR)"
 	npm run build --prefix web
 	@echo "$(OK_COLOR)==> Copying static content...$(NO_COLOR)"
+	mkdir -p app/ios/OffTheCloud/web-dist
 	cp -a web/dist/* app/ios/OffTheCloud/web-dist/
 	cp -a web/dist/* bridge/static/
 	scp -r web/dist/* otc@$(TARGET):/var/www/
