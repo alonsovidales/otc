@@ -24,11 +24,8 @@
 .sv-publisher { font-weight: 600; }
 
 .sv-media { position: relative; background: #000; min-height: 200px; display: grid; place-items: center; }
-.sv-media img { max-height: 500px;  width: 100%; height: auto; object-fit: contain; background: #000; }
+.sv-media img { max-height: 500px;  width: 100%; height: auto; object-fit: contain; background: #000; cursor: pointer; }
 .sv-media-ph { color: #9aa3af; padding: 20px; }
-.sv-nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(0,0,0,.35); color: #fff; width: 36px; height: 36px; border-radius: 18px; cursor: pointer; }
-.sv-nav.left { left: 8px; }
-.sv-nav.right { right: 8px; }
 
 .sv-caption { padding: 10px 12px; }
 .sv-actions { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid #e5e7eb; }
@@ -44,7 +41,7 @@
 .sv-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 1000; }
 .sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: #0b0b0b; border-radius: 10px; padding: 10px; }
 .sv-close { position: absolute; top: 8px; right: 8px; border: 0; width: 34px; height: 34px; border-radius: 50%; color: #fff; background: rgba(255,255,255,.12); cursor: pointer; }
-.sv-full-wrap { position: relative; }
+.sv-full-wrap { position: relative; cursor: pointer; }
 .sv-full { max-width: 90vw; max-height: 80vh; display: block; }
 .sv-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
 

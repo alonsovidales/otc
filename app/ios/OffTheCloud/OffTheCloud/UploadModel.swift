@@ -45,8 +45,12 @@ final class UploadModel: ObservableObject {
     }
 }
 
-struct UploadBar: View {
-    @EnvironmentObject var upload: UploadModel
+/// The full upload detail — used both by the expanded global indicator and
+/// by the Uploads section in Settings (issue #14's fallback: if even a
+/// tap-to-expand hairline is unwelcome, the info is always reachable there
+/// without any global chrome at all).
+struct UploadDetail: View {
+    @ObservedObject var upload: UploadModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -64,9 +68,46 @@ struct UploadBar: View {
                 Text(upload.currentName).lineLimit(1).font(.caption2).foregroundColor(.secondary)
             }
         }
-        .padding(12)
-        .background(.ultraThinMaterial)
-        .cornerRadius(12)
-        .shadow(radius: 6)
+    }
+}
+
+/// Global upload indicator (issue #14). Used to be a floating card tall
+/// enough to cover other screens' own bottom UI (e.g. the Files tab's
+/// Edit-mode selection toolbar). Now it's just a hairline progress rule
+/// sitting right above the tab bar — thin enough to not obscure anything —
+/// that expands into the full detail card only when tapped, and collapses
+/// again on a second tap.
+struct UploadBar: View {
+    @EnvironmentObject var upload: UploadModel
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if expanded {
+                UploadDetail(upload: upload)
+                    .padding(12)
+                    .background(.ultraThinMaterial)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            // The visible rule stays a 3pt hairline, but a 3pt-tall region
+            // is nearly impossible to actually land a finger on — pad the
+            // *tappable* area out to something finger-sized while keeping
+            // the drawn line just as thin.
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Color.secondary.opacity(0.2))
+                    Rectangle().fill(Color.accentColor)
+                        .frame(width: geo.size.width * CGFloat(min(max(upload.progress, 0), 1)))
+                }
+            }
+            .frame(height: 3)
+            .padding(.vertical, 9) // 3pt line + padding = 21pt tap target
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            }
+        }
+        .background(expanded ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(.clear))
     }
 }

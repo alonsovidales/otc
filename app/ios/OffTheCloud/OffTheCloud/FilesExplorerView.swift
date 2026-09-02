@@ -108,7 +108,12 @@ final class FilesExplorerViewModel: ObservableObject {
 
     func open(_ row: FileRow) async {
         if row.isDir {
-            let newPath = row.path == ".." ? dirnamePath(path) + "/" : normPath(joinPath(path, row.name))
+            // issue #21: dirnamePath() already returns "/" once we're back
+            // at the root — blindly appending another "/" after it (as
+            // this used to) turned ".." from the top directory into "//".
+            // navigate() below re-normalizes anyway, so just hand it the
+            // bare dirname instead of guessing at a trailing slash here.
+            let newPath = row.path == ".." ? dirnamePath(path) : normPath(joinPath(path, row.name))
             navigate(to: newPath)
             return
         }
@@ -242,7 +247,10 @@ struct FilesExplorerView: View {
                     .background(.ultraThinMaterial)
                 }
             }
-            .navigationTitle("Files")
+            // No nav title (issue #19): the tab bar already labels this
+            // screen "Files", and the path field above already shows where
+            // you are. Still .inline so there's no big empty title bar.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showImporter = true } label: { Image(systemName: "square.and.arrow.down.on.square") }

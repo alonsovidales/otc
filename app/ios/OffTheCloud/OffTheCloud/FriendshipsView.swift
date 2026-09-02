@@ -136,18 +136,23 @@ struct FriendshipsView: View {
         NavigationView {
             List {
                 Section("Your Profile") {
-                    HStack(alignment: .top, spacing: 12) {
-                        avatarView(data: vm.imageData, size: 72)
-                        VStack(alignment: .leading, spacing: 8) {
-                            TextField("Name", text: $vm.name)
-                                .textFieldStyle(.roundedBorder)
-                            TextEditor(text: $vm.bio)
-                                .frame(height: 70)
-                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.25)))
-                            PhotosPicker("Change photo", selection: $photoItem, matching: .images)
-                                .font(.footnote)
-                        }
+                    // Issue #23: photo + "Change photo" as a centered block
+                    // of their own, with name/description stacked below at
+                    // full section width instead of squeezed into a narrow
+                    // column beside a small avatar.
+                    VStack(spacing: 8) {
+                        avatarView(data: vm.imageData, size: 96)
+                        PhotosPicker("Change photo", selection: $photoItem, matching: .images)
+                            .font(.footnote)
                     }
+                    .frame(maxWidth: .infinity)
+
+                    TextField("Name", text: $vm.name)
+                        .textFieldStyle(.roundedBorder)
+                    TextEditor(text: $vm.bio)
+                        .frame(height: 90)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.25)))
+
                     Button {
                         Task { await vm.saveProfile() }
                     } label: {
@@ -188,7 +193,10 @@ struct FriendshipsView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Profile")
+            // No nav title (issue #19): the tab bar already labels this
+            // screen "Profile". Still .inline (not the default .large) so
+            // there's no big empty title bar left behind.
+            .navigationBarTitleDisplayMode(.inline)
             .overlay(alignment: .top) {
                 if let toast = vm.toast {
                     Text(toast)

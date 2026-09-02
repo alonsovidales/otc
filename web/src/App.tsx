@@ -20,7 +20,7 @@ declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password:
 
 function App() {
   const cfg = window.__OTC_CONFIG!;
-  const [tab, setTab] = useState<TabKey>("Profile");
+  const [tab, setTab] = useState<TabKey>("Social");
   const [authenticated, setAuthenticated] = useState(false);
   const [sp] = useSearchParams();
 
@@ -45,7 +45,7 @@ function App() {
       (async () => {
         try {
           const ok = await useWS.sendAuth(cfg.password);
-          if (ok) setTab("AdminPannel");
+          if (ok) setTab("Social");
         } catch (e) {
           console.error("Auto-auth from container failed:", e);
         }
@@ -129,7 +129,7 @@ function App() {
         {tab === "Social" && <Social />}
         {tab === "SignIn" && <SignIn onAuth={async (key) => {
           if (await useWS.sendAuth(key)) {
-            setTab("Profile");
+            setTab("Social");
           }
         }} />}
         {tab === "AdminPannel" && <FilesExplorer initialPath="/" />}

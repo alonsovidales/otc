@@ -176,6 +176,15 @@ struct SettingsView: View {
                     StatusSectionContent(vm: status)
                 }
 
+                // Issue #14's fallback: the global indicator is now just a
+                // hairline above the tab bar, but the full detail is always
+                // reachable here too, with no floating chrome at all.
+                if upload.totalPending > 0 || upload.isUploading {
+                    Section(header: Text("Uploads")) {
+                        UploadDetail(upload: upload)
+                    }
+                }
+
                 Section(header: Text("Connection")) {
                     TextField("Endpoint (wss://…/ws)", text: $secrets.endpoint)
                         .autocapitalization(.none)
@@ -214,7 +223,10 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Settings")
+            // No nav title (issue #19): the tab bar already labels this
+            // screen "Settings". Still .inline so there's no big empty
+            // title bar left behind.
+            .navigationBarTitleDisplayMode(.inline)
             .overlay(alignment: .top) {
                 if let toast = device.toast {
                     Text(toast)

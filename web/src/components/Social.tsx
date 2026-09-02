@@ -24,8 +24,6 @@ const PAGE_SIZE = 4;
 export default function Social() {
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
-  const [busyLikePub, setBusyLikePub] = useState<string | null>(null);
-  const [busyLikeComm, setBusyLikeComm] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const endReachedRef = useRef(false);
   const loadingMoreRef = useRef(false);
@@ -82,40 +80,90 @@ export default function Social() {
     })();
   }, [loadFeed]);
 
+  // Issue #17: flip the UI the instant the user taps/sends, instead of
+  // waiting for the round-trip. The server's Ack for these three requests
+  // carries no data beyond ok/error, so the optimistic guess *is* the new
+  // truth on success — only a rejected/failed request needs to walk it back.
+
   const likePublication = useCallback(async (pub_uuid: string) => {
-    setBusyLikePub(pub_uuid);
+    const wasLiked = feedRef.current.find(p => p.uuid === pub_uuid)?.liked ?? false;
+    setFeed(prev => prev.map(p => p.uuid === pub_uuid
+      ? { ...p, liked: !wasLiked, likes: p.likes + (wasLiked ? -1 : 1) }
+      : p));
     try {
-      await useWS.request((e: Partial<ReqEnvelope>) => {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqLikePublication", reqLikePublication: { pubUuid: pub_uuid } };
       });
-      await refreshCurrentlyLoaded();
-    } finally {
-      setBusyLikePub(null);
+      if (resp.payload?.$case === "respAck" && !resp.payload.respAck.ok) {
+        setFeed(prev => prev.map(p => p.uuid === pub_uuid
+          ? { ...p, liked: wasLiked, likes: p.likes + (wasLiked ? 1 : -1) }
+          : p));
+      }
+    } catch {
+      setFeed(prev => prev.map(p => p.uuid === pub_uuid
+        ? { ...p, liked: wasLiked, likes: p.likes + (wasLiked ? 1 : -1) }
+        : p));
     }
-  }, [refreshCurrentlyLoaded]);
+  }, []);
 
   const likeComment = useCallback(async (comment_uuid: string) => {
-    setBusyLikeComm(comment_uuid);
+    const wasLiked = feedRef.current
+      .flatMap(p => p.comments)
+      .find(c => c.commentUuid === comment_uuid)?.liked ?? false;
+    const toggle = (liked: boolean) => setFeed(prev => prev.map(p => ({
+      ...p,
+      comments: p.comments.map(c => c.commentUuid === comment_uuid
+        ? { ...c, liked, likes: c.likes + (liked === wasLiked ? 0 : (liked ? 1 : -1)) }
+        : c),
+    })));
+    toggle(!wasLiked);
     try {
-      await useWS.request((e: Partial<ReqEnvelope>) => {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqLikeComment", reqLikeComment: { commentUuid: comment_uuid } };
       });
-      await refreshCurrentlyLoaded();
-    } finally {
-      setBusyLikeComm(null);
+      if (resp.payload?.$case === "respAck" && !resp.payload.respAck.ok) {
+        toggle(wasLiked);
+      }
+    } catch {
+      toggle(wasLiked);
     }
-  }, [refreshCurrentlyLoaded]);
+  }, []);
 
   const addComment = useCallback(async (pub_uuid: string, text: string, publisherName: string) => {
-    if (!text.trim()) return;
-    await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqNewSocialComment", reqNewSocialComment: {
-        pubUuid: pub_uuid,
-        comment: text.trim(),
-        publisher: publisherName, // whatever identity you use
-      }};
-    });
-    await refreshCurrentlyLoaded();
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const tempUuid = `pending-${Math.random().toString(36).slice(2)}`;
+    setFeed(prev => prev.map(p => p.uuid === pub_uuid
+      ? { ...p, comments: [...p.comments, {
+          pubUuid: pub_uuid, commentUuid: tempUuid, comment: trimmed,
+          publisher: publisherName, likes: 0, liked: false, dateTime: undefined,
+        }] }
+      : p));
+
+    const removeOptimistic = () => setFeed(prev => prev.map(p => p.uuid === pub_uuid
+      ? { ...p, comments: p.comments.filter(c => c.commentUuid !== tempUuid) }
+      : p));
+
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqNewSocialComment", reqNewSocialComment: {
+          pubUuid: pub_uuid,
+          comment: trimmed,
+          publisher: publisherName, // whatever identity you use
+        }};
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        // Swap the placeholder for the server's real comment (uuid,
+        // timestamp, anything anyone else posted meanwhile) quietly, now
+        // that the user has already seen their comment appear.
+        await refreshCurrentlyLoaded();
+      } else {
+        removeOptimistic();
+      }
+    } catch {
+      removeOptimistic();
+    }
   }, [refreshCurrentlyLoaded]);
 
   // ---------------- Image viewer (modal) ----------------
@@ -185,7 +233,7 @@ export default function Social() {
     return () => window.removeEventListener("keydown", onKey);
   }, [viewerOpen, nextImg, prevImg, closeViewer]);
 
-  // basic swipe for post images (not modal)
+  // basic swipe, shared by post images and the full-screen modal
   const useSwipe = () => {
     const startX = useRef<number | null>(null);
     const onTouchStart = (e: React.TouchEvent) => { startX.current = e.touches[0].clientX; };
@@ -197,6 +245,16 @@ export default function Social() {
       startX.current = null;
     };
     return { onTouchStart, onTouchEnd };
+  };
+  const modalSwipe = useSwipe();
+
+  // Issue #20: clicking the left/right portion of an image pages through
+  // it, like swiping — no separate nav buttons. `onNav` gets called with
+  // "left"/"right" for anything left/right of center.
+  const navByClickX = (e: React.MouseEvent<HTMLElement>, onLeft: () => void, onRight: () => void) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width / 2) onLeft(); else onRight();
   };
 
   // --------- Render helpers ----------
@@ -221,6 +279,34 @@ export default function Social() {
     const goLeft = () => setIdx(i => (i - 1 + p.files.length) % p.files.length);
     const goRight = () => setIdx(i => (i + 1) % p.files.length);
 
+    // Issue #27: with more than one image in a post, fix the media area's
+    // height to the tallest of them (capped at 3/4 of the viewport) instead
+    // of letting it resize per-image — swiping between mixed aspect ratios
+    // used to make the whole card jump taller/shorter on every image.
+    // `null` for a single-image post, which keeps its own natural height.
+    const [carouselHeight, setCarouselHeight] = useState<number | null>(null);
+    useEffect(() => {
+      if (p.files.length <= 1) { setCarouselHeight(null); return; }
+      let cancelled = false;
+      const width = rootRef.current?.getBoundingClientRect().width || window.innerWidth;
+      const urls = p.files
+        .map(f => bytesToURL(f.content as unknown as Uint8Array, f.mime))
+        .filter((u): u is string => !!u);
+      Promise.all(urls.map(u => new Promise<number>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img.naturalWidth > 0 ? width * (img.naturalHeight / img.naturalWidth) : 0);
+        img.onerror = () => resolve(0);
+        img.src = u;
+      }))).then((heights) => {
+        urls.forEach(URL.revokeObjectURL);
+        if (cancelled) return;
+        const tallest = Math.max(0, ...heights);
+        if (tallest > 0) setCarouselHeight(Math.min(tallest, window.innerHeight * 0.75));
+      });
+      return () => { cancelled = true; };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [p.uuid]);
+
     const current = p.files[idx];
     const lowURL = useMemo(
       () => bytesToURL(current.content as unknown as Uint8Array, current.mime),
@@ -242,22 +328,29 @@ export default function Social() {
         </header>
 
         <div className="sv-media"
+             style={carouselHeight ? { height: carouselHeight } : undefined}
              onTouchStart={swipe.onTouchStart}
              onTouchEnd={(e)=>swipe.onTouchEnd(e, goRight, goLeft)}>
           {lowURL ? (
             <img
               src={lowURL}
               alt={current.path}
-              onClick={() => openViewer(p, idx)}
+              style={carouselHeight ? { height: "100%", width: "100%", objectFit: "contain" } : undefined}
+              onClick={(e) => {
+                // Issue #20: click the left/right quarter of a multi-image
+                // post to page through it (no visible buttons) — the
+                // middle half still opens the full-screen viewer.
+                if (p.files.length > 1) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  if (x < rect.width * 0.25) { goLeft(); return; }
+                  if (x > rect.width * 0.75) { goRight(); return; }
+                }
+                openViewer(p, idx);
+              }}
             />
           ) : (
             <div className="sv-media-ph">🖼️</div>
-          )}
-          {p.files.length > 1 && (
-            <>
-              <button className="sv-nav left" onClick={goLeft}>‹</button>
-              <button className="sv-nav right" onClick={goRight}>›</button>
-            </>
           )}
         </div>
 
@@ -267,7 +360,6 @@ export default function Social() {
           <button
             className={`sv-btn${p.liked ? " liked" : ""}`}
             onClick={() => likePublication(p.uuid)}
-            disabled={busyLikePub === p.uuid}
             aria-label={p.liked ? "Unlike publication" : "Like publication"}
             aria-pressed={p.liked}
           >
@@ -287,7 +379,6 @@ export default function Social() {
               <button
                 className={`sv-btn tiny${c.liked ? " liked" : ""}`}
                 onClick={() => likeComment(c.commentUuid)}
-                disabled={busyLikeComm === c.commentUuid}
                 aria-label={c.liked ? "Unlike comment" : "Like comment"}
                 aria-pressed={c.liked}
               >
@@ -314,10 +405,17 @@ export default function Social() {
         <div className="sv-modal" onClick={closeViewer}>
           <div className="sv-modal-body" onClick={(e) => e.stopPropagation()}>
             <button className="sv-close" onClick={closeViewer}>✕</button>
-            <button className="sv-nav left" onClick={prevImg}>‹</button>
-            <button className="sv-nav right" onClick={nextImg}>›</button>
             {viewerURL ? (
-              <div className="sv-full-wrap">
+              <div
+                className="sv-full-wrap"
+                onTouchStart={modalSwipe.onTouchStart}
+                onTouchEnd={(e) => modalSwipe.onTouchEnd(e, nextImg, prevImg)}
+                onClick={(e) => {
+                  // Issue #20: click the left/right half to page through,
+                  // like swiping — no visible nav buttons.
+                  if ((viewerPub?.files.length ?? 0) > 1) navByClickX(e, prevImg, nextImg);
+                }}
+              >
                 <img className="sv-full" src={viewerURL} alt="full" />
                 {viewerLoading && <div className="sv-loading">Loading…</div>}
               </div>

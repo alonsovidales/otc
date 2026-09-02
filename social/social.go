@@ -1,6 +1,7 @@
 package social
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -229,6 +230,14 @@ func (sc *Social) SyncWithFriends() (err error) {
 				continue
 			}
 
+			// issue #26: pick up the friend's current name/photo/bio on
+			// every sync, not just whatever was true when the friendship
+			// was accepted. Non-fatal — a failure here shouldn't stop the
+			// events pull that follows.
+			if err = friend.refreshProfile(); err != nil {
+				log.Error("Error trying to refresh friend profile:", err)
+			}
+
 			err = friend.updateFriendEvents()
 			if err != nil {
 				log.Error("Error trying to update friendship:", err)
@@ -324,6 +333,55 @@ func (fr *friendship) autAsFriend() (err error) {
 	}
 
 	return
+}
+
+// refreshProfile fetches the friend's current name/image/bio and updates
+// our locally cached copy if it changed (issue #26): the friendship row
+// only ever stored a snapshot taken when the request was sent/accepted, so
+// without this a friend renaming themselves or changing their photo would
+// never be reflected on the friends who already added them.
+func (fr *friendship) refreshProfile() (err error) {
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqGetProfile{
+			ReqGetProfile: &pb.GetProfile{},
+		},
+	}
+	b, _ := proto.Marshal(msg)
+	if err = fr.conn.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		log.Error("write error trying to get profile from friend:", fr.data.OriginProfile.Domain, err)
+		return
+	}
+
+	_, data, err := fr.conn.ReadMessage()
+	if err != nil {
+		log.Error("read error trying to get profile from friend:", fr.data.OriginProfile.Domain, err)
+		return
+	}
+
+	var respProf pb.RespEnvelope
+	if err = proto.Unmarshal(data, &respProf); err != nil {
+		return
+	}
+	if respProf.Error {
+		log.Debug("Error trying to get profile from friend:", respProf.ErrorMessage)
+		return errors.New(respProf.ErrorMessage)
+	}
+	remote := respProf.Payload.(*pb.RespEnvelope_RespProfile).RespProfile
+
+	origin := fr.data.OriginProfile
+	if remote.Name == origin.Name && remote.Text == origin.Text && bytes.Equal(remote.Image, origin.Image) {
+		return nil
+	}
+
+	log.Debug("Friend profile changed, updating local cache for:", origin.Domain)
+	if err = fr.dao.UpdateFriendshipProfile(origin.Domain, remote.Name, remote.Text, remote.Image); err != nil {
+		return err
+	}
+	origin.Name = remote.Name
+	origin.Text = remote.Text
+	origin.Image = remote.Image
+	return nil
 }
 
 func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err error) {

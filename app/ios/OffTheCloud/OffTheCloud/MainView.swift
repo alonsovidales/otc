@@ -7,11 +7,11 @@ struct MainView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView {
-                FriendshipsView()
-                    .tabItem { Label("Profile", systemImage: "person.crop.circle") }
-
                 SocialFeedView()
                     .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
+
+                FriendshipsView()
+                    .tabItem { Label("Profile", systemImage: "person.crop.circle") }
 
                 FilesExplorerView(initialPath: "/")
                     .tabItem { Label("Files", systemImage: "folder") }
@@ -24,9 +24,13 @@ struct MainView: View {
             }
 
             if upload.totalPending > 0 || upload.isUploading {
+                // Full-width hairline sitting right above the tab bar (issue
+                // #14) — no side margins or card shadow, so it reads as a
+                // thin status rule rather than a floating panel that could
+                // cover another screen's own bottom UI (e.g. the Files tab's
+                // Edit-mode selection toolbar). It only grows when tapped.
                 UploadBar()
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 56) // sit just above the tab bar
+                    .padding(.bottom, 56) // sit right above the tab bar
             }
         }
     }

@@ -567,6 +567,16 @@ private struct ImageModal: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                        // Issue #18: swipe left/right to page through photos,
+                        // matching the Social feed's swipe (issue #13).
+                        .gesture(
+                            DragGesture(minimumDistance: 20)
+                                .onEnded { value in
+                                    if value.translation.width < -30, showNext { next() }
+                                    else if value.translation.width > 30, showPrev { prev() }
+                                }
+                        )
                 } else {
                     ProgressView().tint(.white).padding()
                 }

@@ -145,8 +145,13 @@ export default function FilesExplorer({
   const openEntry = async (f: PbFile) => {
     if (isDir(f)) {
       let newPath = '';
-      if (f.path === "..") newPath = dirname(path) + '/';
-      else {
+      if (f.path === "..") {
+        // issue #21: dirname() already returns "/" once we're back at the
+        // root — blindly appending another "/" after it (as this used to)
+        // turned ".." from the top directory into "//". normPath() only
+        // adds a trailing slash when one isn't already there.
+        newPath = normPath(dirname(path));
+      } else {
         // directory name from row (server may return full path; we want the leaf)
         const name = f.path === ".." ? ".." : leafName(f.path);
         newPath = normPath(joinPath(path, name));

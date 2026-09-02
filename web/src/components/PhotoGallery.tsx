@@ -226,6 +226,17 @@ export default function PhotoGallery() {
     return () => window.removeEventListener("keydown", onKey);
   }, [openIdx, items.length, openAt]);
 
+  // -------- swipe in modal (issue #18) --------------------------------------
+  const modalTouchStartX = useRef<number | null>(null);
+  const onModalTouchStart = (e: React.TouchEvent) => { modalTouchStartX.current = e.touches[0].clientX; };
+  const onModalTouchEnd = (e: React.TouchEvent) => {
+    if (modalTouchStartX.current == null || openIdx == null) return;
+    const dx = e.changedTouches[0].clientX - modalTouchStartX.current;
+    if (dx < -30 && openIdx < items.length - 1) openAt(openIdx + 1);
+    else if (dx > 30 && openIdx > 0) openAt(openIdx - 1);
+    modalTouchStartX.current = null;
+  };
+
   // -------- render ----------------------------------------------------------
   return (
     <div className="pg-root">
@@ -304,7 +315,11 @@ export default function PhotoGallery() {
             <button className="pg-close" onClick={() => setOpenIdx(null)}>×</button>
             {openIdx > 0 && <button className="pg-nav left" onClick={() => openAt(openIdx - 1)}>‹</button>}
             {openIdx < items.length - 1 && <button className="pg-nav right" onClick={() => openAt(openIdx + 1)}>›</button>}
-            <div className="pg-modal-imgwrap">
+            <div
+              className="pg-modal-imgwrap"
+              onTouchStart={onModalTouchStart}
+              onTouchEnd={onModalTouchEnd}
+            >
               {(() => {
                 const f = items[openIdx];
                 const thumb = bytesToURL(f.content, f.mime || "image/jpeg");

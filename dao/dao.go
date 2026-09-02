@@ -685,6 +685,16 @@ func (dao *Dao) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (e
 	return
 }
 
+// UpdateFriendshipProfile refreshes the locally cached snapshot of a
+// friend's name/image/bio (issue #26): the friendship row stores a copy of
+// the friend's profile taken when the request was accepted, and it's never
+// touched again on its own, so a friend renaming themselves or changing
+// their photo would otherwise never show up here.
+func (dao *Dao) UpdateFriendshipProfile(domain, name, text string, image []byte) (err error) {
+	_, err = dao.db.Exec("update `social_friendship` set `name` = ?, `text` = ?, `image` = ? where `domain` = ?", name, text, image, domain)
+	return
+}
+
 func (dao *Dao) NewEvent(eventType string, data []byte) (err error) {
 	log.Debug("Creating new event", eventType, data)
 	_, err = dao.db.Exec("insert into `events` (`uuid`, `dt`, `type`, `content`) values (?, now(), ?, ?)", uuid.New(), eventType, data)

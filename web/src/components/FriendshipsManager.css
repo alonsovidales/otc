@@ -14,8 +14,12 @@
 
 h2 { margin: 0 0 12px; font-size: 1.1rem; }
 
-.profile-row { display: grid; grid-template-columns: 140px 1fr; gap: 16px; }
-.profile-photo { display: grid; gap: 8px; align-content: start; }
+/* Issue #23: photo + "Change photo" as a centered block of their own, with
+   the name/bio form stacked below at the full card width, instead of a
+   narrow photo column squeezing the description into a side column. */
+.profile-row { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.profile-photo { display: grid; gap: 8px; justify-items: center; }
+.profile-form { width: 100%; }
 .profile-photo img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; }
 .profile-photo .ph { width: 120px; height: 120px; background: #222; border-radius: 10px; }
 .upload { font-size: .9rem; color: #09f; cursor: pointer; }
