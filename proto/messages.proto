@@ -251,6 +251,9 @@ message Comment {
   string publisher = 4;
   int32 likes = 5;
   google.protobuf.Timestamp date_time = 6;
+  // liked reports whether the requesting viewer already liked this
+  // comment, so clients can render a filled vs. outline heart.
+  bool liked = 7;
 }
 
 message SocialPublication {
@@ -260,6 +263,9 @@ message SocialPublication {
   repeated Comment comments = 4;
   int32 likes = 5;
   Profile publisher = 7;
+  // liked reports whether the requesting viewer already liked this
+  // publication, so clients can render a filled vs. outline heart.
+  bool liked = 8;
 }
 
 message SocialPublicationFiles {

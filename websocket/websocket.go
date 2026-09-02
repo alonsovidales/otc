@@ -439,7 +439,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqLikePublication:
 		log.Info("Liking publication", ch.mg.profile.Domain, "-", p.ReqLikePublication.PubUuid)
-		err := ch.mg.social.NewLikePublication(ch.mg.profile, p.ReqLikePublication.PubUuid)
+		_, err := ch.mg.social.NewLikePublication(ch.mg.profile, p.ReqLikePublication.PubUuid)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error liking publication: %s", err)
@@ -453,7 +453,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqLikeComment:
 		log.Info("Liking comment", ch.mg.profile.Domain, "-", p.ReqLikeComment.CommentUuid)
-		err := ch.mg.social.NewLikePublicationComment(ch.mg.profile, p.ReqLikeComment.CommentUuid)
+		_, err := ch.mg.social.NewLikePublicationComment(ch.mg.profile, p.ReqLikeComment.CommentUuid)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error liking publication comment: %s", err)

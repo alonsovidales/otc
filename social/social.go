@@ -146,7 +146,7 @@ func (sc *Social) GetPublicationFiles(uuid string) (files []*pb.File, err error)
 }
 
 func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total int32, ownOnly bool, exclude []string) (publications *pb.SocialPublications, err error) {
-	publications, err = sc.dao.GetSocialPublications(since, total, ownOnly, exclude, pr.Name, pr.Text, pr.Image)
+	publications, err = sc.dao.GetSocialPublications(since, total, ownOnly, exclude, pr.Name, pr.Text, pr.Image, pr.Domain)
 	if err != nil {
 		log.Debug("error retriving publications", err)
 		return
@@ -161,7 +161,7 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 			}
 		}
 
-		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid)
+		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain)
 		if err != nil {
 			return nil, err
 		}
@@ -626,36 +626,80 @@ func (sc *Social) statusToPb(status string) (pbStatus pb.FriendShipStatus) {
 	return
 }
 
-func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid string) (err error) {
+// NewLikePublicationComment toggles pr's like of commentUuid: if pr hasn't
+// liked it yet, it likes it; if pr already liked it, it undoes that like
+// instead. Returns the resulting liked state.
+func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid string) (liked bool, err error) {
+	alreadyLiked, err := sc.dao.HasLikedComment(commentUuid, pr.Domain)
+	if err != nil {
+		return false, err
+	}
+
+	action := ActionCreate
+	if alreadyLiked {
+		action = ActionDelete
+	}
+	// Reused for both the event content's identity and the like row's
+	// primary key, so a friend device consuming this event ends up with
+	// a row keyed the same as the origin device's.
 	likeUuid := uuid.New().String()
-	json, err := json.Marshal(LikePublicationComment{
+
+	eventPayload, err := json.Marshal(LikePublicationComment{
 		Uuid:         likeUuid,
-		Action:       ActionCreate,
+		Action:       action,
 		CommentUUID:  commentUuid,
 		Dt:           time.Now().Unix(),
 		FriendDomain: pr.Domain,
 	})
-	err = sc.dao.NewEvent(LikeCommentEvent, json)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain)
+	if err = sc.dao.NewEvent(LikeCommentEvent, eventPayload); err != nil {
+		return false, err
+	}
+
+	if alreadyLiked {
+		return false, sc.dao.DeleteLikePublicationComment(commentUuid, pr.Domain)
+	}
+	return true, sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain)
 }
 
-func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (err error) {
+// NewLikePublication toggles pr's like of pubUuid: if pr hasn't liked it
+// yet, it likes it; if pr already liked it, it undoes that like instead.
+// Returns the resulting liked state.
+func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked bool, err error) {
+	alreadyLiked, err := sc.dao.HasLikedPublication(pubUuid, pr.Domain)
+	if err != nil {
+		return false, err
+	}
+
+	action := ActionCreate
+	if alreadyLiked {
+		action = ActionDelete
+	}
+	// Reused for both the event content's identity and the like row's
+	// primary key, so a friend device consuming this event ends up with
+	// a row keyed the same as the origin device's.
 	likeUuid := uuid.New().String()
-	json, err := json.Marshal(LikePublication{
+
+	eventPayload, err := json.Marshal(LikePublication{
 		Uuid:         likeUuid,
-		Action:       ActionCreate,
+		Action:       action,
 		PubUUID:      pubUuid,
 		Dt:           time.Now().Unix(),
 		FriendDomain: pr.Domain,
 	})
-	err = sc.dao.NewEvent(LikeEvent, json)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain)
+	if err = sc.dao.NewEvent(LikeEvent, eventPayload); err != nil {
+		return false, err
+	}
+
+	if alreadyLiked {
+		return false, sc.dao.DeleteLikePublication(pubUuid, pr.Domain)
+	}
+	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain)
 }
 
 func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string) (err error) {

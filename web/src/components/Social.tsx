@@ -206,12 +206,13 @@ export default function Social() {
 
         <div className="sv-actions">
           <button
-            className="sv-btn"
+            className={`sv-btn${p.liked ? " liked" : ""}`}
             onClick={() => likePublication(p.uuid)}
             disabled={busyLikePub === p.uuid}
-            aria-label="Like publication"
+            aria-label={p.liked ? "Unlike publication" : "Like publication"}
+            aria-pressed={p.liked}
           >
-            ❤️ {p.likes}
+            {p.liked ? "❤️" : "🤍"} {p.likes}
           </button>
           <button className="sv-btn" onClick={() => alert("Share (not implemented)")}>↗︎ Share</button>
         </div>
@@ -225,12 +226,13 @@ export default function Social() {
                 <span className="sv-ctext">{c.comment}</span>
               </div>
               <button
-                className="sv-btn tiny"
+                className={`sv-btn tiny${c.liked ? " liked" : ""}`}
                 onClick={() => likeComment(c.commentUuid)}
                 disabled={busyLikeComm === c.commentUuid}
-                aria-label="Like comment"
+                aria-label={c.liked ? "Unlike comment" : "Like comment"}
+                aria-pressed={c.liked}
               >
-                ❤️ {c.likes}
+                {c.liked ? "❤️" : "🤍"} {c.likes}
               </button>
             </div>
           ))}

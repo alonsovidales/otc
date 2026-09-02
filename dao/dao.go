@@ -387,6 +387,36 @@ func (dao *Dao) NewLikePublication(uuid, pubUuid string, friendDomain string) (e
 	return
 }
 
+// HasLikedPublication reports whether likerDomain has already liked pubUuid.
+func (dao *Dao) HasLikedPublication(pubUuid, likerDomain string) (liked bool, err error) {
+	var exists int
+	err = dao.db.QueryRow("select 1 from `social_publication_likes` where `pub_uuid` = ? and `friend_domain` = ? limit 1", pubUuid, likerDomain).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// DeleteLikePublication removes likerDomain's like of pubUuid, if any, and
+// decrements the publication's like counter to match. A no-op (nil error)
+// if likerDomain hadn't liked it.
+func (dao *Dao) DeleteLikePublication(pubUuid, likerDomain string) (err error) {
+	res, err := dao.db.Exec("delete from `social_publication_likes` where `pub_uuid` = ? and `friend_domain` = ?", pubUuid, likerDomain)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+
+	_, err = dao.db.Exec("update `social_publications` set `likes` = `likes` - 1 where `uuid` = ? and `likes` > 0", pubUuid)
+	return
+}
+
 func (dao *Dao) GetEvents(since time.Time, total int32) (events []*pb.Event, err error) {
 	log.Debug("Get Events")
 	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? order by `dt` asc limit ?", since, total)
@@ -420,7 +450,37 @@ func (dao *Dao) NewLikePublicationComment(uuid, commentUuid string, friendDomain
 	return
 }
 
-func (dao *Dao) GetSocialPublicationComments(pubUuid string) (comments []*pb.Comment, err error) {
+// HasLikedComment reports whether likerDomain has already liked commentUuid.
+func (dao *Dao) HasLikedComment(commentUuid, likerDomain string) (liked bool, err error) {
+	var exists int
+	err = dao.db.QueryRow("select 1 from `social_publication_comment_likes` where `comment_uuid` = ? and `friend_domain` = ? limit 1", commentUuid, likerDomain).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// DeleteLikePublicationComment removes likerDomain's like of commentUuid, if
+// any, and decrements the comment's like counter to match. A no-op (nil
+// error) if likerDomain hadn't liked it.
+func (dao *Dao) DeleteLikePublicationComment(commentUuid, likerDomain string) (err error) {
+	res, err := dao.db.Exec("delete from `social_publication_comment_likes` where `comment_uuid` = ? and `friend_domain` = ?", commentUuid, likerDomain)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+
+	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = `likes` - 1 where `uuid` = ? and `likes` > 0", commentUuid)
+	return
+}
+
+func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comments []*pb.Comment, err error) {
 	log.Debug("Get SocialPublication Comments")
 	rowComms, err := dao.db.Query("select `uuid`, `dt`, `comment`, `publisher_name`, `likes` from `social_publications_comments` where `pub_uuid` = ? order by `dt` desc", pubUuid)
 	if err != nil {
@@ -438,6 +498,9 @@ func (dao *Dao) GetSocialPublicationComments(pubUuid string) (comments []*pb.Com
 		}
 
 		comment.DateTime = timestamppb.New(dt)
+		if comment.Liked, err = dao.HasLikedComment(comment.CommentUuid, viewerDomain); err != nil {
+			return nil, err
+		}
 		comments = append(comments, comment)
 	}
 
@@ -465,7 +528,7 @@ func (dao *Dao) GetSocialPublicationFiles(uuid string) (files []*pb.File, err er
 	return
 }
 
-func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool, exclude []string, prName, prText string, prImage []byte) (pubs *pb.SocialPublications, err error) {
+func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool, exclude []string, prName, prText string, prImage []byte, viewerDomain string) (pubs *pb.SocialPublications, err error) {
 	log.Debug("Get SocialPublications")
 	if len(exclude) == 0 {
 		exclude = []string{""}
@@ -527,6 +590,11 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 			continue
 		}
 		sp.Files = files
+
+		if sp.Liked, err = dao.HasLikedPublication(sp.Uuid, viewerDomain); err != nil {
+			log.Error("Error trying to check like state for publication")
+			continue
+		}
 
 		pubs.Since = timestamppb.New(dt)
 		pubs.Publications = append(pubs.Publications, sp)

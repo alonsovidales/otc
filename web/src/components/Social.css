@@ -7,6 +7,7 @@
 .sv-btn.small { padding: 6px 8px; font-size: 13px; }
 .sv-btn.tiny { padding: 4px 8px; font-size: 12px; }
 .sv-btn.danger { border-color: #fca5a5; color: #b91c1c; }
+.sv-btn.liked { border-color: #fca5a5; background: #fff1f2; color: #b91c1c; }
 .sv-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 
 .sv-favatar { width: 32px; height: 32px; display: grid; place-items: center; background: #f3f4f6; border-radius: 8px; }
