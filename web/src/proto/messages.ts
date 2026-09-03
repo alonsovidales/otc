@@ -418,6 +418,24 @@ export interface SetSettings {
 
 export interface Settings {
   domain: string;
+  /**
+   * bridge_secret is the shared secret this device registers with the
+   * bridge relay (see BridgeRegister below) — exposed so the setup section
+   * can show/update it (issue #40) instead of it only ever being set
+   * implicitly at first boot.
+   */
+  bridgeSecret: string;
+}
+
+/**
+ * SetBridgeSecret is deliberately its own request rather than a field on
+ * SetSettings: domain and bridge_secret used to be updated together (the
+ * secret was silently regenerated on every domain change), which broke a
+ * device's bridge pairing any time someone just wanted to rename their
+ * domain. They're independent settings now.
+ */
+export interface SetBridgeSecret {
+  secret: string;
 }
 
 export interface BridgeRegister {
@@ -606,6 +624,7 @@ export interface ReqEnvelope {
     | { $case: "reqGetCommentLikers"; reqGetCommentLikers: GetCommentLikers }
     | { $case: "reqDelSocialPublication"; reqDelSocialPublication: DelSocialPublication }
     | { $case: "reqGetFileInfo"; reqGetFileInfo: GetFileInfo }
+    | { $case: "reqSetBridgeSecret"; reqSetBridgeSecret: SetBridgeSecret }
     | undefined;
 }
 
@@ -3482,13 +3501,16 @@ export const SetSettings: MessageFns<SetSettings> = {
 };
 
 function createBaseSettings(): Settings {
-  return { domain: "" };
+  return { domain: "", bridgeSecret: "" };
 }
 
 export const Settings: MessageFns<Settings> = {
   encode(message: Settings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.domain !== "") {
       writer.uint32(10).string(message.domain);
+    }
+    if (message.bridgeSecret !== "") {
+      writer.uint32(18).string(message.bridgeSecret);
     }
     return writer;
   },
@@ -3508,6 +3530,14 @@ export const Settings: MessageFns<Settings> = {
           message.domain = reader.string();
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.bridgeSecret = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3518,13 +3548,19 @@ export const Settings: MessageFns<Settings> = {
   },
 
   fromJSON(object: any): Settings {
-    return { domain: isSet(object.domain) ? globalThis.String(object.domain) : "" };
+    return {
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      bridgeSecret: isSet(object.bridgeSecret) ? globalThis.String(object.bridgeSecret) : "",
+    };
   },
 
   toJSON(message: Settings): unknown {
     const obj: any = {};
     if (message.domain !== "") {
       obj.domain = message.domain;
+    }
+    if (message.bridgeSecret !== "") {
+      obj.bridgeSecret = message.bridgeSecret;
     }
     return obj;
   },
@@ -3535,6 +3571,65 @@ export const Settings: MessageFns<Settings> = {
   fromPartial<I extends Exact<DeepPartial<Settings>, I>>(object: I): Settings {
     const message = createBaseSettings();
     message.domain = object.domain ?? "";
+    message.bridgeSecret = object.bridgeSecret ?? "";
+    return message;
+  },
+};
+
+function createBaseSetBridgeSecret(): SetBridgeSecret {
+  return { secret: "" };
+}
+
+export const SetBridgeSecret: MessageFns<SetBridgeSecret> = {
+  encode(message: SetBridgeSecret, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.secret !== "") {
+      writer.uint32(10).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetBridgeSecret {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetBridgeSecret();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetBridgeSecret {
+    return { secret: isSet(object.secret) ? globalThis.String(object.secret) : "" };
+  },
+
+  toJSON(message: SetBridgeSecret): unknown {
+    const obj: any = {};
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetBridgeSecret>, I>>(base?: I): SetBridgeSecret {
+    return SetBridgeSecret.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetBridgeSecret>, I>>(object: I): SetBridgeSecret {
+    const message = createBaseSetBridgeSecret();
+    message.secret = object.secret ?? "";
     return message;
   },
 };
@@ -5494,6 +5589,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetFileInfo":
         GetFileInfo.encode(message.payload.reqGetFileInfo, writer.uint32(378).fork()).join();
         break;
+      case "reqSetBridgeSecret":
+        SetBridgeSecret.encode(message.payload.reqSetBridgeSecret, writer.uint32(386).fork()).join();
+        break;
     }
     return writer;
   },
@@ -5855,6 +5953,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqGetFileInfo", reqGetFileInfo: GetFileInfo.decode(reader, reader.uint32()) };
           continue;
         }
+        case 48: {
+          if (tag !== 386) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetBridgeSecret",
+            reqSetBridgeSecret: SetBridgeSecret.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5972,6 +6081,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         : isSet(object.reqGetFileInfo)
         ? { $case: "reqGetFileInfo", reqGetFileInfo: GetFileInfo.fromJSON(object.reqGetFileInfo) }
+        : isSet(object.reqSetBridgeSecret)
+        ? { $case: "reqSetBridgeSecret", reqSetBridgeSecret: SetBridgeSecret.fromJSON(object.reqSetBridgeSecret) }
         : undefined,
     };
   },
@@ -6053,6 +6164,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqDelSocialPublication = DelSocialPublication.toJSON(message.payload.reqDelSocialPublication);
     } else if (message.payload?.$case === "reqGetFileInfo") {
       obj.reqGetFileInfo = GetFileInfo.toJSON(message.payload.reqGetFileInfo);
+    } else if (message.payload?.$case === "reqSetBridgeSecret") {
+      obj.reqSetBridgeSecret = SetBridgeSecret.toJSON(message.payload.reqSetBridgeSecret);
     }
     return obj;
   },
@@ -6366,6 +6479,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqGetFileInfo",
             reqGetFileInfo: GetFileInfo.fromPartial(object.payload.reqGetFileInfo),
+          };
+        }
+        break;
+      }
+      case "reqSetBridgeSecret": {
+        if (object.payload?.reqSetBridgeSecret !== undefined && object.payload?.reqSetBridgeSecret !== null) {
+          message.payload = {
+            $case: "reqSetBridgeSecret",
+            reqSetBridgeSecret: SetBridgeSecret.fromPartial(object.payload.reqSetBridgeSecret),
           };
         }
         break;

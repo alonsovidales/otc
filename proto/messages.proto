@@ -227,6 +227,20 @@ message SetSettings {
 
 message Settings {
   string domain = 1;
+  // bridge_secret is the shared secret this device registers with the
+  // bridge relay (see BridgeRegister below) — exposed so the setup section
+  // can show/update it (issue #40) instead of it only ever being set
+  // implicitly at first boot.
+  string bridge_secret = 2;
+}
+
+// SetBridgeSecret is deliberately its own request rather than a field on
+// SetSettings: domain and bridge_secret used to be updated together (the
+// secret was silently regenerated on every domain change), which broke a
+// device's bridge pairing any time someone just wanted to rename their
+// domain. They're independent settings now.
+message SetBridgeSecret {
+  string secret = 1;
 }
 
 message BridgeRegister {
@@ -411,6 +425,7 @@ message ReqEnvelope {
     GetCommentLikers req_get_comment_likers = 45;
     DelSocialPublication req_del_social_publication = 46;
     GetFileInfo req_get_file_info = 47;
+    SetBridgeSecret req_set_bridge_secret = 48;
   }
 }
 

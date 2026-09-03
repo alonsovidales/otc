@@ -507,13 +507,22 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	}
 
 	if duplicated {
-		file, err = mg.dao.GetFileByPath(path)
+		// Bug fix: this used to reassign `file` itself to the *existing*
+		// row (old hash/size/mime), then re-store that same stale `file`
+		// on the forceOverride path below — silently discarding the new
+		// content's metadata. The DB row kept pointing at the old hash
+		// even though DelFile may have just deleted that hash's on-disk
+		// blob (if this was its last reference), while the real new
+		// content sat orphaned on disk under the new hash nothing
+		// referenced. Every "update an existing path" upload (the normal
+		// case for any sync client — mac, iOS re-uploads, etc.) hit this.
+		existing, err := mg.dao.GetFileByPath(path)
 		if err != nil {
 			return nil, err
 		}
-		if file.Hash == hash {
+		if existing.Hash == hash {
 			log.Debug("Same file with same content for:", path, hash)
-			return file, nil
+			return existing, nil
 		}
 		if forceOverride {
 			mg.DelFile(session, path)

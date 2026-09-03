@@ -813,6 +813,29 @@ public struct Msg_Settings: Sendable {
 
   public var domain: String = String()
 
+  /// bridge_secret is the shared secret this device registers with the
+  /// bridge relay (see BridgeRegister below) — exposed so the setup section
+  /// can show/update it (issue #40) instead of it only ever being set
+  /// implicitly at first boot.
+  public var bridgeSecret: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// SetBridgeSecret is deliberately its own request rather than a field on
+/// SetSettings: domain and bridge_secret used to be updated together (the
+/// secret was silently regenerated on every domain change), which broke a
+/// device's bridge pairing any time someone just wanted to rename their
+/// domain. They're independent settings now.
+public struct Msg_SetBridgeSecret: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var secret: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1518,6 +1541,14 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetFileInfo(newValue)}
   }
 
+  public var reqSetBridgeSecret: Msg_SetBridgeSecret {
+    get {
+      if case .reqSetBridgeSecret(let v)? = payload {return v}
+      return Msg_SetBridgeSecret()
+    }
+    set {payload = .reqSetBridgeSecret(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -1557,6 +1588,7 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqGetCommentLikers(Msg_GetCommentLikers)
     case reqDelSocialPublication(Msg_DelSocialPublication)
     case reqGetFileInfo(Msg_GetFileInfo)
+    case reqSetBridgeSecret(Msg_SetBridgeSecret)
 
   }
 
@@ -3106,7 +3138,7 @@ extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3115,6 +3147,7 @@ extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.domain) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.bridgeSecret) }()
       default: break
       }
     }
@@ -3124,11 +3157,45 @@ extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
     if !self.domain.isEmpty {
       try visitor.visitSingularStringField(value: self.domain, fieldNumber: 1)
     }
+    if !self.bridgeSecret.isEmpty {
+      try visitor.visitSingularStringField(value: self.bridgeSecret, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_Settings, rhs: Msg_Settings) -> Bool {
     if lhs.domain != rhs.domain {return false}
+    if lhs.bridgeSecret != rhs.bridgeSecret {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_SetBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetBridgeSecret"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}secret\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.secret) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.secret.isEmpty {
+      try visitor.visitSingularStringField(value: self.secret, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetBridgeSecret, rhs: Msg_SetBridgeSecret) -> Bool {
+    if lhs.secret != rhs.secret {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3953,7 +4020,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4430,6 +4497,19 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqGetFileInfo(v)
         }
       }()
+      case 48: try {
+        var v: Msg_SetBridgeSecret?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetBridgeSecret(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetBridgeSecret(v)
+        }
+      }()
       default: break
       }
     }
@@ -4587,6 +4667,10 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
     case .reqGetFileInfo?: try {
       guard case .reqGetFileInfo(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 47)
+    }()
+    case .reqSetBridgeSecret?: try {
+      guard case .reqSetBridgeSecret(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 48)
     }()
     case nil: break
     }

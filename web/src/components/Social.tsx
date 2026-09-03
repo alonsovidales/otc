@@ -40,7 +40,7 @@ function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
 // end, mirroring the native iOS app's pagination.
 const PAGE_SIZE = 4;
 
-export default function Social() {
+export default function Social({ authenticated }: { authenticated: boolean }) {
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -509,9 +509,14 @@ export default function Social() {
       </div>
 
       {/* Issue #32: new post — a dedicated picker (tag filter + tap to
-          select + single Publish action), not the full photo gallery. */}
-      <button className="sv-fab" onClick={() => setPickerOpen(true)} aria-label="New post">+</button>
-      {pickerOpen && (
+          select + single Publish action), not the full photo gallery.
+          Signed-out visitors have nothing to post with, so the button (and
+          the picker itself, which needs an authenticated connection for
+          every request it makes) only shows once signed in. */}
+      {authenticated && (
+        <button className="sv-fab" onClick={() => setPickerOpen(true)} aria-label="New post">+</button>
+      )}
+      {authenticated && pickerOpen && (
         <NewPostPicker
           onCancel={() => setPickerOpen(false)}
           onPosted={() => { setPickerOpen(false); void loadFeed(); }}

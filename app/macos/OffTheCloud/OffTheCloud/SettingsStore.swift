@@ -4,6 +4,11 @@ import Combine
 /// Persisted settings. Changes trigger re-connect/sync automatically.
 @MainActor
 final class SettingsStore: ObservableObject {
+    // Issue #37: shared so AppDelegate can bind sync at launch, before
+    // (and independent of) the menu bar popover ever being opened.
+    static let shared = SettingsStore()
+
+
     @Published var domain: String {
         didSet { save() }
     }

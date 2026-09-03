@@ -20,7 +20,13 @@ declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password:
 
 function App() {
   const cfg = window.__OTC_CONFIG!;
-  const [tab, setTab] = useState<TabKey>("Social");
+  // Anonymous visitors have no tab switcher at all (TopTabs only renders
+  // once authenticated, below), so their landing tab has to be one that
+  // actually works signed-out — Profile's ReqGetProfile is a non-auth
+  // request, Social's feed isn't. Signed-in users get moved to Social
+  // explicitly right after a successful sign-in (see sendAuth callers
+  // below), so this default only ever matters pre-auth.
+  const [tab, setTab] = useState<TabKey>("Profile");
   const [authenticated, setAuthenticated] = useState(false);
   const [sp] = useSearchParams();
 
@@ -126,7 +132,7 @@ function App() {
       <main>
         {tab === "Profile" && authenticated && <FriendshipsManager />}
         {tab === "Profile" && !authenticated && <ProfileCard authenticated={authenticated} />}
-        {tab === "Social" && <Social />}
+        {tab === "Social" && <Social authenticated={authenticated} />}
         {tab === "SignIn" && <SignIn onAuth={async (key) => {
           if (await useWS.sendAuth(key)) {
             setTab("Social");

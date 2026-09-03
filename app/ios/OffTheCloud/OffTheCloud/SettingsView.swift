@@ -19,6 +19,11 @@ final class DeviceSettingsViewModel: ObservableObject {
     @Published var domain = ""
     @Published var savingDomain = false
 
+    // Issue #40: shared secret this device registers with the bridge relay.
+    @Published var currentBridgeSecret = ""
+    @Published var newBridgeSecret = ""
+    @Published var savingSecret = false
+
     @Published var oldKey = ""
     @Published var newKey = ""
     @Published var confirmKey = ""
@@ -29,7 +34,10 @@ final class DeviceSettingsViewModel: ObservableObject {
     func loadSettings() async {
         do {
             let resp = try await ws.request { $0.payload = .reqGetSettings(Msg_GetSettings()) }
-            if case .respSettings(let s) = resp.payload { domain = s.domain }
+            if case .respSettings(let s) = resp.payload {
+                domain = s.domain
+                currentBridgeSecret = s.bridgeSecret
+            }
         } catch { /* leave blank; user can still type a new domain */ }
     }
 
@@ -53,6 +61,32 @@ final class DeviceSettingsViewModel: ObservableObject {
             }
         } catch {
             showToast("Error updating domain")
+        }
+    }
+
+    // Issue #40: update the bridge shared secret, independent of the
+    // domain (they used to be updated together server-side, which silently
+    // broke a device's bridge pairing on every plain domain rename).
+    func saveBridgeSecret() async {
+        let trimmed = newBridgeSecret.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        savingSecret = true
+        defer { savingSecret = false }
+        var req = Msg_SetBridgeSecret()
+        req.secret = trimmed
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetBridgeSecret(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                currentBridgeSecret = trimmed
+                newBridgeSecret = ""
+                showToast("Bridge secret updated ✅")
+            } else if case .respAck(let ack) = resp.payload {
+                showToast(ack.errorMsg.isEmpty ? "Update failed" : ack.errorMsg)
+            } else {
+                showToast("Unexpected response")
+            }
+        } catch {
+            showToast("Error updating bridge secret")
         }
     }
 
@@ -160,6 +194,30 @@ struct SettingsView: View {
                         }
                         .disabled(device.savingDomain || device.domain.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
+                }
+
+                // Issue #40: set/view the shared secret this device pairs
+                // with the bridge relay with, e.g. to match what's
+                // configured on the bridge's own admin panel.
+                Section(
+                    header: Text("Bridge Shared Secret"),
+                    footer: Text("This must match what the bridge has on record for this device — it can't learn a new one from here. To rotate it: on the bridge's admin panel, delete and re-add this device's domain (it'll hand you a new secret), then paste that value above.")
+                ) {
+                    LabeledContent("Current") {
+                        Text(device.currentBridgeSecret)
+                            .font(.system(.footnote, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    TextField("Secret from the bridge", text: $device.newBridgeSecret)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .font(.system(.body, design: .monospaced))
+                    Button(device.savingSecret ? "Saving…" : "Save Secret") {
+                        Task { await device.saveBridgeSecret() }
+                    }
+                    .disabled(device.savingSecret || device.newBridgeSecret.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
 
                 Section(header: Text("Change Password")) {

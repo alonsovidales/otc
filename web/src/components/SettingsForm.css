@@ -6,7 +6,12 @@
 .sf-value { color: #6b7280; }
 .sf-btn { margin-top: 8px; padding: 10px 12px; border: 0; border-radius: 8px; background: #1f6feb; color: #fff; cursor: pointer; }
 .sf-btn:disabled { opacity: .6; cursor: default; }
+.sf-btn.small { margin-top: 0; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
 .sf-note.error { color: #b00020; font-size: 13px; }
+.sf-hint { margin: -4px 0 10px; font-size: 13px; color: #6b7280; }
+.sf-secret-row { display: flex; gap: 8px; }
+.sf-secret-row .sf-input { flex: 1; font-family: ui-monospace, monospace; }
+.sf-secret-input { font-family: ui-monospace, monospace; width: 100%; box-sizing: border-box; }
 
 .sf-status { padding: 10px 12px; border-radius: 8px; }
 .sf-status.info { background: #f3f4f6; color: #374151; }

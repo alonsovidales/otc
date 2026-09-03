@@ -85,13 +85,7 @@ struct FolderRow: View {
             Text(folder.url.lastPathComponent)
                 .lineLimit(1)
             Spacer()
-            ProgressView(value: folder.progress)
-                .progressViewStyle(.linear)
-                .frame(width: 120)
-                .tint(progressColor)
-            Text("\(Int(folder.progress * 100))%")
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
+            statusView
             Button(role: .destructive) {
                 remove()
             } label: {
@@ -102,8 +96,61 @@ struct FolderRow: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
-    private var progressColor: Color {
-        let p = folder.progress
+    // Issue #37: folders are watched (event-driven), not perpetually
+    // rescanned, so "N%" only means something during the initial/periodic
+    // reconcile pass — otherwise it's just idle, up-to-date, watching.
+    @ViewBuilder
+    private var statusView: some View {
+        switch folder.state {
+        case .scanning(let progress, let currentFile):
+            VStack(alignment: .trailing, spacing: 2) {
+                HStack(spacing: 6) {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .frame(width: 100)
+                        .tint(progressColor(progress))
+                    Text("\(Int(progress * 100))%")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, alignment: .trailing)
+                }
+                // Shown so a folder with a couple of huge files (e.g.
+                // drone video) doesn't look stuck at a low percentage for
+                // the minutes it can genuinely take to send just one of
+                // them — issue #37's original complaint. The percentage
+                // itself can't move *during* that one file's transfer (no
+                // per-byte upload progress over the wire), so the spinner
+                // is what actually says "still alive" in the meantime.
+                if let currentFile {
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .controlSize(.mini)
+                        Text(currentFile)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .frame(maxWidth: 140, alignment: .trailing)
+                }
+            }
+        case .watching:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text("Watching")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .error(let message):
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    private func progressColor(_ p: Double) -> Color {
         if p < 0.20 { return .red }
         if p < 0.90 { return .yellow }
         return .green

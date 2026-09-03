@@ -157,8 +157,27 @@ func (mg *Manager) OpenBridge() {
 	}
 
 	var respAck pb.RespEnvelope
-	_ = proto.Unmarshal(data, &respAck)
-	if respAck.Payload.(*pb.RespEnvelope_RespBridgeAckOnboard).RespBridgeAckOnboard.Ok {
+	if err := proto.Unmarshal(data, &respAck); err != nil {
+		log.Error("error unmarshaling bridge register response:", err)
+		return
+	}
+
+	// The bridge answers a rejected registration (e.g. a stale/mismatched
+	// shared secret) with Error=true and no RespBridgeAckOnboard payload at
+	// all — asserting the type unconditionally used to panic here and take
+	// the whole process down with it (crash-looping every few seconds
+	// instead of just backing off and retrying like every other failure
+	// path in this function).
+	if respAck.Error {
+		log.Error("bridge rejected registration:", respAck.ErrorMessage)
+		return
+	}
+	onboard, ok := respAck.Payload.(*pb.RespEnvelope_RespBridgeAckOnboard)
+	if !ok || onboard.RespBridgeAckOnboard == nil {
+		log.Error("unexpected bridge register response:", respAck.Payload)
+		return
+	}
+	if onboard.RespBridgeAckOnboard.Ok {
 		log.Debug("Authenticated in the bridge, waiting for messages...")
 
 		mg.handleConnection(c, nil)
@@ -766,7 +785,30 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		err := ch.mg.settings.SetSettings(p.ReqSetSettings.Domain)
 
 		if err != nil {
-			log.Error("error trying to change secret key:", err)
+			log.Error("error trying to update domain:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	// Issue #40: update the bridge shared secret from the setup section,
+	// independent of the domain (see SetBridgeSecret's proto comment for
+	// why these two used to be — and no longer are — coupled).
+	case *pb.ReqEnvelope_ReqSetBridgeSecret:
+		log.Info("Set bridge secret")
+		secret := p.ReqSetBridgeSecret.Secret
+		if secret == "" {
+			resp.Error = true
+			resp.ErrorMessage = "secret cannot be empty"
+			break
+		}
+		if err := ch.mg.settings.SetBridgeSecret(secret); err != nil {
+			log.Error("error trying to update bridge secret:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()
 		} else {
@@ -798,7 +840,8 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 		resp.Payload = &pb.RespEnvelope_RespSettings{
 			RespSettings: &pb.Settings{
-				Domain: ch.mg.settings.Domain,
+				Domain:       ch.mg.settings.Domain,
+				BridgeSecret: ch.mg.settings.BridgeSecret,
 			},
 		}
 
@@ -838,6 +881,21 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 		if resp == nil && ch.session != nil {
 			resp, closeConn = ch.processAuthRequest(&env)
+		}
+
+		// A request needing a session this connection doesn't have (not
+		// authenticated, or authenticated as the wrong kind of session for
+		// this request) used to fall through here with resp still nil,
+		// which marshals to an empty message. Clients have no way to tell
+		// that apart from "no response yet" — the request they're
+		// awaiting just hangs forever instead of failing. Send a real
+		// error instead.
+		if resp == nil {
+			resp = &pb.RespEnvelope{
+				Id:           env.Id,
+				Error:        true,
+				ErrorMessage: "not authenticated",
+			}
 		}
 
 		respBin, _ := proto.Marshal(resp)
