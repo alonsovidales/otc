@@ -475,6 +475,34 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqDelSocialPublication:
+		log.Info("Deleting social publication:", p.ReqDelSocialPublication.PubUuid)
+		err := ch.mg.social.DeletePublication(p.ReqDelSocialPublication.PubUuid)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error deleting publication: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqDelSocialComment:
+		log.Info("Deleting social comment:", p.ReqDelSocialComment.CommentUuid)
+		err := ch.mg.social.DeleteComment(p.ReqDelSocialComment.CommentUuid)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error deleting comment: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqChangeFriendStatus:
 		log.Info("Change friend status:", p.ReqChangeFriendStatus.Domain, p.ReqChangeFriendStatus.Status)
 		err := ch.mg.social.ChangeFriendStatus(p.ReqChangeFriendStatus.Domain, p.ReqChangeFriendStatus.Status)
@@ -513,6 +541,34 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetPublicationLikers:
+		log.Info("Getting publication likers", p.ReqGetPublicationLikers.PubUuid)
+		likers, err := ch.mg.social.GetPublicationLikers(p.ReqGetPublicationLikers.PubUuid)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error getting publication likers: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespLikers{
+				RespLikers: &pb.Likers{
+					Likers: likers,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetCommentLikers:
+		log.Info("Getting comment likers", p.ReqGetCommentLikers.CommentUuid)
+		likers, err := ch.mg.social.GetCommentLikers(p.ReqGetCommentLikers.CommentUuid)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error getting comment likers: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespLikers{
+				RespLikers: &pb.Likers{
+					Likers: likers,
 				},
 			}
 		}
@@ -581,6 +637,20 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFile{
 				RespFile: pbFile,
+			}
+		}
+
+	// Issue #41: "More info" in the photo gallery — camera/EXIF metadata
+	// computed live from the file's own bytes, nothing persisted.
+	case *pb.ReqEnvelope_ReqGetFileInfo:
+		log.Info("Get file info with path:", p.ReqGetFileInfo.Path)
+		info, err := ch.mg.filesManager.GetFileInfo(ch.session, p.ReqGetFileInfo.Path)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file info: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFileInfo{
+				RespFileInfo: info,
 			}
 		}
 

@@ -14,7 +14,7 @@ func TestScoresToTagsThresholdAndSort(t *testing.T) {
 	tagNames := []string{"cat", "dog", "car", "tree"}
 	prob := []float32{0.9, 0.2, 0.95, 0.5}
 
-	got := scoresToTags(prob, tagNames, 0.5, 0)
+	got := scoresToTags(prob, tagNames, nil, 0.5, 0)
 
 	want := []RAMTag{{Name: "car", Score: 0.95}, {Name: "cat", Score: 0.9}, {Name: "tree", Score: 0.5}}
 	if len(got) != len(want) {
@@ -31,7 +31,7 @@ func TestScoresToTagsTopKCap(t *testing.T) {
 	tagNames := []string{"a", "b", "c", "d"}
 	prob := []float32{0.9, 0.8, 0.7, 0.6}
 
-	got := scoresToTags(prob, tagNames, 0.0, 2)
+	got := scoresToTags(prob, tagNames, nil, 0.0, 2)
 
 	if len(got) != 2 {
 		t.Fatalf("expected TopK to cap the result at 2 tags, got %d: %+v", len(got), got)
@@ -47,7 +47,7 @@ func TestScoresToTagsAppliesSigmoidForLogits(t *testing.T) {
 	// sigmoid: sigmoid(0) == 0.5.
 	prob := []float32{0, -10}
 
-	got := scoresToTags(prob, tagNames, 0.4, 0)
+	got := scoresToTags(prob, tagNames, nil, 0.4, 0)
 
 	if len(got) != 1 || got[0].Name != "a" {
 		t.Fatalf("expected only tag 'a' (sigmoid(0)=0.5 >= 0.4) to pass, got %+v", got)
@@ -61,7 +61,7 @@ func TestScoresToTagsNoSigmoidWhenAlreadyProbabilities(t *testing.T) {
 	tagNames := []string{"a", "b"}
 	prob := []float32{0.1, 0.9}
 
-	got := scoresToTags(prob, tagNames, 0.5, 0)
+	got := scoresToTags(prob, tagNames, nil, 0.5, 0)
 
 	if len(got) != 1 || got[0].Name != "b" || got[0].Score != 0.9 {
 		t.Errorf("values already in [0,1] should not be transformed, got %+v", got)
@@ -74,7 +74,7 @@ func TestScoresToTagsMoreScoresThanTagNames(t *testing.T) {
 	tagNames := []string{"only-one"}
 	prob := []float32{0.9, 0.9, 0.9}
 
-	got := scoresToTags(prob, tagNames, 0.5, 0)
+	got := scoresToTags(prob, tagNames, nil, 0.5, 0)
 
 	if len(got) != 1 || got[0].Name != "only-one" {
 		t.Errorf("expected exactly one tag, got %+v", got)
@@ -82,8 +82,34 @@ func TestScoresToTagsMoreScoresThanTagNames(t *testing.T) {
 }
 
 func TestScoresToTagsEmpty(t *testing.T) {
-	if got := scoresToTags(nil, nil, 0.5, 0); len(got) != 0 {
+	if got := scoresToTags(nil, nil, nil, 0.5, 0); len(got) != 0 {
 		t.Errorf("expected no tags for empty input, got %+v", got)
+	}
+}
+
+// Issue #33: per-tag thresholds should override the flat one wherever
+// they're provided, so a tag with a deliberately higher/lower calibrated
+// cutoff behaves accordingly instead of everything sharing one bar.
+func TestScoresToTagsPerTagThresholdOverridesFlat(t *testing.T) {
+	tagNames := []string{"strict", "lenient", "unset"}
+	prob := []float32{0.7, 0.55, 0.6}
+	perTag := []float32{0.8, 0.5, 0} // "unset" has no real override (index OOB below)
+	perTag = perTag[:2]              // only "strict" and "lenient" have entries
+
+	got := scoresToTags(prob, tagNames, perTag, 0.65, 0)
+
+	names := map[string]float32{}
+	for _, t := range got {
+		names[t.Name] = t.Score
+	}
+	if _, ok := names["strict"]; ok {
+		t.Errorf("expected 'strict' (0.7) to be rejected by its own 0.8 threshold, got %+v", got)
+	}
+	if _, ok := names["lenient"]; !ok {
+		t.Errorf("expected 'lenient' (0.55) to pass its own 0.5 threshold, got %+v", got)
+	}
+	if _, ok := names["unset"]; ok {
+		t.Errorf("expected 'unset' (0.6) to fall back to the flat 0.65 threshold and be rejected, got %+v", got)
 	}
 }
 

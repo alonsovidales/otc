@@ -144,6 +144,11 @@ message DelSocialComment {
   string comment_uuid = 1;
 }
 
+// issue #34: delete one of your own posts.
+message DelSocialPublication {
+  string pub_uuid = 1;
+}
+
 message DidSendFriendshipReq {
   string secret = 1;
   string domain = 2;
@@ -191,6 +196,19 @@ message LikePublication {
 
 message LikeComment {
   string comment_uuid = 1;
+}
+
+// issue #29: "who liked this" for a publication or a comment.
+message GetPublicationLikers {
+  string pub_uuid = 1;
+}
+
+message GetCommentLikers {
+  string comment_uuid = 1;
+}
+
+message Likers {
+  repeated Profile likers = 1;
 }
 
 enum ActionType {
@@ -282,10 +300,43 @@ message SocialPublication {
   // liked reports whether the requesting viewer already liked this
   // publication, so clients can render a filled vs. outline heart.
   bool liked = 8;
+  // own reports whether this is one of the device owner's own posts, so
+  // clients know when to offer delete-post / delete-any-comment actions
+  // (issues #34/#35).
+  bool own = 9;
+  // date_time is when the post was published, so clients can show it in
+  // the feed (same field shape as Comment.date_time above).
+  google.protobuf.Timestamp date_time = 10;
 }
 
 message SocialPublicationFiles {
   repeated File files = 1;
+}
+
+// FileExifInfo is a photo/video's camera/EXIF metadata, computed on demand
+// from the file's own bytes (never stored) for the photo gallery's "More
+// info" panel (issue #41). city/country are filled in from latitude/
+// longitude via an offline reverse-geocode (see geotag/) whenever has_gps
+// is true, the same lookup issue #42 uses to add them as searchable tags.
+message FileExifInfo {
+  string camera_make = 1;
+  string camera_model = 2;
+  google.protobuf.Timestamp taken_at = 3;
+  string exposure_time = 4;
+  string f_number = 5;
+  int32 iso = 6;
+  string focal_length = 7;
+  int32 width = 8;
+  int32 height = 9;
+  bool has_gps = 10;
+  double latitude = 11;
+  double longitude = 12;
+  string city = 13;
+  string country = 14;
+}
+
+message GetFileInfo {
+  string path = 1;
 }
 
 message SocialPublications {
@@ -356,6 +407,10 @@ message ReqEnvelope {
     ShareFilesLink req_share_files_link = 33;
     DownloadSharedLink req_download_shared_link = 34;
     GetPubKey req_get_pub_key = 43;
+    GetPublicationLikers req_get_publication_likers = 44;
+    GetCommentLikers req_get_comment_likers = 45;
+    DelSocialPublication req_del_social_publication = 46;
+    GetFileInfo req_get_file_info = 47;
   }
 }
 
@@ -381,5 +436,7 @@ message RespEnvelope {
     FriendshipStatus resp_friendship_status = 23;
     Events resp_events = 24;
     PubKey resp_pub_key = 26;
+    Likers resp_likers = 27;
+    FileExifInfo resp_file_info = 28;
   }
 }

@@ -205,6 +205,13 @@ final class PhotoSync {
 
         var idx = 0
         for chunk in assets.chunked(into: Self.cMaxConcurrentUploads) {
+            // Issue #30: pause/resume from the upload bar. Checked between
+            // chunks rather than cancelling in-flight requests — whatever's
+            // already uploading finishes, nothing new starts until resumed.
+            while UploadModel.shared.isPaused {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+
             await withTaskGroup(of: Void.self) { group in
                 for asset in chunk {
                     idx += 1

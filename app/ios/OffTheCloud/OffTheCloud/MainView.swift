@@ -23,12 +23,13 @@ struct MainView: View {
                     .tabItem { Label("Settings", systemImage: "gearshape") }
             }
 
-            if upload.totalPending > 0 || upload.isUploading {
+            if (upload.totalPending > 0 || upload.isUploading) && !upload.suppressed {
                 // Full-width hairline sitting right above the tab bar (issue
                 // #14) — no side margins or card shadow, so it reads as a
                 // thin status rule rather than a floating panel that could
                 // cover another screen's own bottom UI (e.g. the Files tab's
-                // Edit-mode selection toolbar). It only grows when tapped.
+                // Edit-mode selection toolbar, or the Images tab's
+                // multi-select action bar). It only grows when tapped.
                 UploadBar()
                     .padding(.bottom, 56) // sit right above the tab bar
             }

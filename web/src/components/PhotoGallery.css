@@ -22,6 +22,17 @@
 .pg-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .pg-modal-inner { position: relative; background: #111827; border-radius: 8px; padding: 16px; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; gap: 10px; }
 .pg-close { position: absolute; top: 6px; right: 6px; border: 0; background: transparent; color: white; font-size: 22px; }
+
+/* Issue #41: "More info" panel — camera/EXIF metadata + a location map. */
+.pg-info-btn { position: absolute; top: 6px; right: 44px; border: 0; background: transparent; color: white; font-size: 20px; cursor: pointer; }
+.pg-info-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; max-width: 85vw; background: #1a1a1a; color: #eee; overflow-y: auto; box-shadow: -4px 0 16px rgba(0,0,0,0.4); }
+.pg-info-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #333; font-weight: 600; }
+.pg-info-close { border: 0; background: transparent; color: #eee; font-size: 18px; cursor: pointer; }
+.pg-info-loading { padding: 14px; color: #9aa3af; }
+.pg-info-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 10px; }
+.pg-info-row { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.pg-info-label { color: #9aa3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.pg-info-map { width: 100%; height: 180px; border: 0; border-radius: 8px; margin-top: 4px; }
 .pg-nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(255,255,255,0.18); color: white; font-size: 28px; padding: 10px 14px; border-radius: 999px; }
 .pg-nav.left { left: -46px; } .pg-nav.right { right: -46px; }
 .pg-modal-imgwrap { display: flex; align-items: center; justify-content: center; max-width: 90vw; max-height: 90vh; }

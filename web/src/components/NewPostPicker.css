@@ -1,0 +1,27 @@
+.np-root { position: fixed; inset: 0; display: flex; flex-direction: column; background: #242424; color: #eee; z-index: 2000; }
+
+.np-header { display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #3a3a3a; }
+.np-title { flex: 1; text-align: center; font-weight: 600; }
+.np-header-spacer { width: 34px; } /* balances the close button so the title is truly centered */
+.np-close { width: 34px; height: 34px; border-radius: 50%; border: 0; color: #fff; background: rgba(255,255,255,0.12); cursor: pointer; font-size: 16px; }
+
+.np-search { padding: 8px 12px; border-bottom: 1px solid #3a3a3a; position: relative; }
+.np-chipbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.np-chipbar input { flex: 1; min-width: 160px; padding: 6px 8px; border: 1px solid #4b5563; border-radius: 6px; font-size: 16px; background: #1a1a1a; color: #eee; }
+.np-chip { border: 1px solid #6366f1; padding: 2px 8px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; background: rgba(99,102,241,0.15); }
+.np-chip-x { border: 0; background: transparent; color: inherit; cursor: pointer; }
+.np-suggest { position: absolute; z-index: 10; top: 100%; left: 12px; right: 12px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 8px; max-height: 220px; overflow: auto; box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+.np-suggest-item { padding: 8px 10px; cursor: pointer; }
+.np-suggest-item:hover { background: #2a2a2a; }
+
+.np-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.np-cell { position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; padding: 0; border: 2px solid transparent; cursor: pointer; background: #111; }
+.np-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-cell.selected { border-color: #2563eb; }
+.np-cell.selected img { opacity: 0.75; }
+.np-check { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: #2563eb; color: #fff; display: grid; place-items: center; font-size: 13px; }
+
+.np-composer { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid #3a3a3a; background: #1a1a1a; }
+.np-caption { flex: 1; padding: 8px 10px; border: 1px solid #4b5563; border-radius: 8px; background: #242424; color: #eee; font-size: 16px; }
+.np-publish { padding: 8px 14px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.np-publish:disabled { background: #4b5563; cursor: not-allowed; }

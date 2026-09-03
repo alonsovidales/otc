@@ -218,20 +218,31 @@ port=3306
 db=otc
 
 [tagger]
-model-path=/usr/local/models/ram_plus_swin_large_14m.onnx
+model-path=/usr/local/models/ram_plus_swin_large_14m.int8.onnx
 tags-path=/usr/local/models/tag_list_4585.txt
+thresholds-path=/usr/local/models/tag_list_4585_thresholds.txt
 tags-per-image=10
 max-images-search=5
 ```
 
-10. Download the models, from the repository directory:
+10. Download the models. `thresholds-path` is optional (older/from-scratch
+    exports have no threshold file — drop that line if you go with the
+    `models-export` fallback further below); when set, RAM++'s own per-tag
+    calibrated cutoffs are used instead of one flat threshold for all 4585
+    tags, which is more accurate. From the repository directory:
 ```
 $ cd models
-$ python dowload.py
-$ scp models/ram_plus/onnx/ram_plus_swin_large_14m.onnx otc@<otc_addr>:/usr/local/models/
-$ python download_tags.py
-$ scp ./models/ram_plus/tags/tag_list_4585.txt otc@<otc_addr>:/usr/local/models/
+$ curl -fL -o ram_plus_swin_large_14m.int8.onnx https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main/ram_plus_int8.onnx
+$ curl -fL -o tag_list_4585_thresholds.txt https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main/ram_tag_list_threshold.txt
+$ scp ram_plus_swin_large_14m.int8.onnx tag_list_4585_thresholds.txt tag_list_4585.txt otc@<otc_addr>:/usr/local/models/
 ```
+    (This is a community-hosted INT8 re-export of the same RAM++ Swin-Large
+    weights and 4585-tag vocabulary used below — same tags, ~2-3x faster,
+    half the size, no measurable accuracy loss in testing. If it's ever
+    unavailable, `make -f Makefile.pi models-export` exports the original
+    fp32 model from scratch instead — see that target for the manual
+    equivalent, which needs a Python/torch/transformers toolchain and takes
+    much longer.)
 
 11. Install ONNX runtime:
 ```

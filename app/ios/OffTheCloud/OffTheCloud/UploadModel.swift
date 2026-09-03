@@ -16,12 +16,30 @@ final class UploadModel: ObservableObject {
     @Published var progress: Double = 0.0
     @Published var isUploading: Bool = false
 
+    // Issue #30: a simple in-session pause flag, checked between uploads
+    // (see PhotoSync.runForeground) — doesn't cancel a request already in
+    // flight, just stops starting new ones until resumed.
+    @Published var isPaused: Bool = false
+
+    // Hides the global indicator (MainView) while some other bottom bar is
+    // showing — e.g. the Images tab's multi-select action bar — so the two
+    // don't stack on top of each other. Purely a display toggle: an upload
+    // in progress keeps running regardless.
+    @Published var suppressed: Bool = false
+
+    func togglePause() {
+        DispatchQueue.main.async {
+            self.isPaused.toggle()
+        }
+    }
+
     func begin(total: Int) {
         print("PENDING UPLOADS: \(total)")
         DispatchQueue.main.async {
             self.totalPending = total
             self.progress = 0
             self.isUploading = total > 0
+            self.isPaused = false
         }
     }
 
@@ -41,6 +59,7 @@ final class UploadModel: ObservableObject {
             self.currentName = ""
             self.progress = 1.0
             self.isUploading = false
+            self.isPaused = false
         }
     }
 }
@@ -55,11 +74,21 @@ struct UploadDetail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(upload.isUploading ? "Uploading…" : "Upload queue")
+                Text(upload.isPaused ? "Paused" : (upload.isUploading ? "Uploading…" : "Upload queue"))
                     .font(.subheadline).bold()
                 Spacer()
                 if upload.totalPending > 0 {
                     Text("\(upload.totalPending) left").font(.caption)
+                }
+                // Issue #30: pause/resume the sync right from here.
+                if upload.isUploading || upload.totalPending > 0 {
+                    Button {
+                        upload.togglePause()
+                    } label: {
+                        Image(systemName: upload.isPaused ? "play.fill" : "pause.fill")
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
                 }
             }
             ProgressView(value: upload.progress)

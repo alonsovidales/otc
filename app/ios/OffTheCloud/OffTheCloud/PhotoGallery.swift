@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftProtobuf
+import Photos
+import MapKit
 
 // MARK: - Proto typealiases (rename if your generated names differ)
 typealias ReqEnvelope       = Msg_ReqEnvelope
@@ -48,9 +50,22 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var hiResImage: UIImage? = nil
     @Published var showAlert = false
     @Published var alertMessage = ""
+    // Issue #9: the system share sheet for the currently-open photo. A file
+    // URL, not the raw UIImage — handing UIActivityViewController a large
+    // in-memory UIImage directly is what made the share sheet visibly slow
+    // to appear (it has to synchronously render previews from the full
+    // decoded bitmap); writing it to a temp file first lets it use the
+    // usual, much faster file-based path instead.
+    @Published var shareURL: URL? = nil
 
     // Selection (via long-press)
     @Published var selected: Set<String> = []
+
+    // Issue #41: "More info" — camera/EXIF metadata computed live on the
+    // server from the file's own bytes.
+    @Published var infoOpen = false
+    @Published var infoLoading = false
+    @Published var infoData: Msg_FileExifInfo? = nil
 
     init(deviceID: String, localPhotosFolder: URL?) {
         self.deviceID = deviceID
@@ -198,11 +213,132 @@ final class PhotoGalleryVM: ObservableObject {
         guard items.indices.contains(index) else { return }
         openIndex = index
         hiResImage = nil
+        infoOpen = false
+        infoData = nil
         Task { await fetchHiRes(index: index) }
     }
     func closeModal() { openIndex = nil; hiResImage = nil }
+
+    // Issue #41: fetch and show the currently-open photo/video's
+    // camera/EXIF metadata.
+    func openInfo() {
+        guard let idx = openIndex, items.indices.contains(idx) else { return }
+        infoOpen = true
+        infoLoading = true
+        infoData = nil
+        let path = items[idx].path
+        Task {
+            defer { infoLoading = false }
+            do {
+                let resp = try await ws.request { e in
+                    var req = ReqEnvelope()
+                    var gi = Msg_GetFileInfo()
+                    gi.path = path
+                    req.payload = .reqGetFileInfo(gi)
+                    e = req
+                }
+                if case .respFileInfo(let info) = resp.payload {
+                    infoData = info
+                }
+            } catch { /* leave infoData nil, shows "no metadata" */ }
+        }
+    }
+    func closeInfo() { infoOpen = false; infoData = nil }
     func prev() { if let i = openIndex, i > 0 { open(index: i-1) } }
     func next() { if let i = openIndex, i < items.count - 1 { open(index: i+1) } }
+
+    // Issue #9: share the already-loaded image — encoding it to a temp
+    // file happens off the main actor so the button responds instantly;
+    // only the (near-instant) file write's result touches published state.
+    func shareCurrentPhoto(_ image: UIImage?) {
+        guard let image else {
+            alertMessage = "Image isn't loaded yet"
+            showAlert = true
+            return
+        }
+        Task.detached(priority: .userInitiated) {
+            guard let data = image.jpegData(compressionQuality: 0.9) else { return }
+            let tmp = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("jpg")
+            do {
+                try data.write(to: tmp)
+                await MainActor.run { self.shareURL = tmp }
+            } catch {
+                await MainActor.run {
+                    self.alertMessage = "Share failed: \(error.localizedDescription)"
+                    self.showAlert = true
+                }
+            }
+        }
+    }
+
+    // Issue #9: save the already-loaded (hi-res, or thumb as a fallback)
+    // image straight to the Photos library — no re-download, no zip.
+    func saveToPhotos(_ image: UIImage?) {
+        guard let image else {
+            alertMessage = "Image isn't loaded yet"
+            showAlert = true
+            return
+        }
+        Task {
+            let current = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+            let status = current == .notDetermined
+                ? await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+                : current
+            guard status == .authorized || status == .limited else {
+                alertMessage = "Photos access denied"
+                showAlert = true
+                return
+            }
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetChangeRequest.creationRequestForAsset(from: image)
+                }
+                alertMessage = "Saved to Photos ✅"
+            } catch {
+                alertMessage = "Save failed: \(error.localizedDescription)"
+            }
+            showAlert = true
+        }
+    }
+
+    // Issue #9: delete the currently-open photo, iOS Photos app-style —
+    // removes it from the server and advances to the next one (or closes
+    // the viewer if it was the last one left).
+    func deleteCurrentPhoto() {
+        guard let idx = openIndex, items.indices.contains(idx) else { return }
+        let item = items[idx]
+        Task {
+            do {
+                let resp = try await ws.request { e in
+                    var req = ReqEnvelope()
+                    var del = Msg_DelFile()
+                    del.path = item.path
+                    req.payload = .reqDelFile(del)
+                    e = req
+                }
+                if resp.error {
+                    alertMessage = "Delete failed: \(resp.errorMessage)"
+                    showAlert = true
+                    return
+                }
+            } catch {
+                alertMessage = "Delete failed: \(error.localizedDescription)"
+                showAlert = true
+                return
+            }
+
+            items.remove(at: idx)
+            selected.remove(item.path)
+            if items.isEmpty {
+                closeModal()
+            } else {
+                let nextIdx = min(idx, items.count - 1)
+                open(index: nextIdx)
+            }
+        }
+    }
 
     private func fetchHiRes(index: Int) async {
         let it = items[index]
@@ -274,19 +410,20 @@ final class PhotoGalleryVM: ObservableObject {
                     req.payload = .reqNewSocialPublication(pub)
                     e = req
                 }
-                if case .respAck(let a) = resp.payload, a.ok {
+                // A successful ReqNewSocialPublication answers with
+                // RespNewSocial (the new publication's uuid), not a plain
+                // Ack — this was checking for the wrong case and reporting
+                // "Share failed" on every successful share.
+                if case .respNewSocial = resp.payload, !resp.error {
                     selected.removeAll()
                     alertMessage = "Shared!"
                 } else {
-                    alertMessage = "Share failed"
+                    alertMessage = resp.error ? "Share failed: \(resp.errorMessage)" : "Share failed"
                 }
             } catch { alertMessage = "Share failed: \(error.localizedDescription)" }
             showAlert = true
         }
     }
-
-    func createGroup() { alertMessage = "Create group (not implemented)"; showAlert = true }
-    func addToGroup() { alertMessage = "Add to existing group (not implemented)"; showAlert = true }
 
     func shareLink() {
         Task {
@@ -406,6 +543,7 @@ struct PhotoGalleryView: View {
                         PhotoTile(
                             item: it,
                             isSelected: vm.selected.contains(it.path),
+                            hasSelection: !vm.selected.isEmpty,
                             onTap: { openPath(it.path) },
                             onLongPress: { vm.toggleSelect(it.path) }
                         )
@@ -422,8 +560,6 @@ struct PhotoGalleryView: View {
                     ActionBar(
                         count: vm.selected.count,
                         share: vm.shareInSocial,
-                        createGroup: vm.createGroup,
-                        addGroup: vm.addToGroup,
                         shareLink: vm.shareLink,
                         downloadZip: vm.downloadZip
                     )
@@ -432,6 +568,12 @@ struct PhotoGalleryView: View {
             }
         }
         .onAppear { vm.onAppearInitial() }
+        // Hide the global upload indicator while the multi-select action
+        // bar is showing — the two would otherwise stack at the bottom.
+        .onChange(of: vm.selected.isEmpty) { _, isEmpty in
+            UploadModel.shared.suppressed = !isEmpty
+        }
+        .onDisappear { UploadModel.shared.suppressed = false }
         .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
         .sheet(item: Binding(
             get: { vm.openIndex.map { SheetIndex(index: $0) } },
@@ -444,7 +586,22 @@ struct PhotoGalleryView: View {
                 prev: vm.prev,
                 next: vm.next,
                 close: vm.closeModal,
-                download: { vm.downloadZip() }
+                save: { vm.saveToPhotos(vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) })) },
+                share: { vm.shareCurrentPhoto(vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) })) },
+                delete: { vm.deleteCurrentPhoto() },
+                // A second top-level `.sheet` on this same view (which is
+                // what this used to be) can't present while the ImageModal
+                // sheet above is already up — SwiftUI silently drops it, no
+                // error, no share sheet, ever. Nesting it inside ImageModal
+                // itself presents it from *that* sheet's own view instead,
+                // which works.
+                shareURL: $vm.shareURL,
+                // Issue #41: same nesting reasoning applies to the "More
+                // info" panel.
+                showInfo: { vm.openInfo() },
+                infoOpen: $vm.infoOpen,
+                infoLoading: vm.infoLoading,
+                infoData: vm.infoData
             )
         }
     }
@@ -488,29 +645,41 @@ struct PhotoGalleryView: View {
 private struct PhotoTile: View {
     let item: PhotoGalleryVM.Item
     let isSelected: Bool
+    // Whether *any* tile in the grid is currently selected — while true,
+    // tapping a tile toggles its selection instead of opening the preview,
+    // matching the Photos app's selection-mode behavior.
+    let hasSelection: Bool
     let onTap: () -> Void
     let onLongPress: () -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Button(action: onTap) {
-                ZStack(alignment: .bottomTrailing) {
-                    thumb
-                        .frame(maxWidth: 120, maxHeight: 120)
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(selectionOverlay)
-                    if item.isLocalOnly {
-                        Label("", systemImage: "iphone")
-                            .padding(4)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                            .padding(6)
-                    }
+            ZStack(alignment: .bottomTrailing) {
+                thumb
+                    .frame(maxWidth: 120, maxHeight: 120)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(selectionOverlay)
+                if item.isLocalOnly {
+                    Label("", systemImage: "iphone")
+                        .padding(4)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .padding(6)
                 }
             }
-            .buttonStyle(.plain)
-            .simultaneousGesture(LongPressGesture(minimumDuration: 0.25).onEnded { _ in onLongPress() })
+            .contentShape(Rectangle())
+            // Issue: long-pressing a tile used to ALSO open the preview —
+            // it was a Button (tap) plus a *simultaneous* long-press
+            // gesture, and "simultaneous" means both fire together on
+            // release, by design. Plain SwiftUI tap/long-press gestures
+            // (no Button) disambiguate properly instead of both firing.
+            .onTapGesture {
+                if hasSelection { onLongPress() } else { onTap() }
+            }
+            .onLongPressGesture(minimumDuration: 0.25) {
+                onLongPress()
+            }
         }
     }
 
@@ -542,6 +711,10 @@ private struct PhotoTile: View {
     }
 }
 
+/// The Photos app's own single-image viewer, minus the album picker: no
+/// Prev/Next buttons (issue #9) — page through with a swipe, same as the
+/// Social feed's viewer (issue #13/#18) — plus share/save-to-Photos/delete
+/// actions along the bottom, again matching the system Photos app.
 private struct ImageModal: View {
     let image: UIImage?
     let showPrev: Bool
@@ -549,13 +722,27 @@ private struct ImageModal: View {
     let prev: () -> Void
     let next: () -> Void
     let close: () -> Void
-    let download: () -> Void
+    let save: () -> Void
+    let share: () -> Void
+    let delete: () -> Void
+    @Binding var shareURL: URL?
+    // Issue #41: "More info" — camera/EXIF metadata computed live on the
+    // server from the file's own bytes.
+    let showInfo: () -> Void
+    @Binding var infoOpen: Bool
+    let infoLoading: Bool
+    let infoData: Msg_FileExifInfo?
+
+    @State private var confirmDelete = false
 
     var body: some View {
         ZStack {
             Color.black.opacity(0.9).ignoresSafeArea()
             VStack {
                 HStack {
+                    Button { showInfo() } label: {
+                        Image(systemName: "info.circle").font(.title2).foregroundStyle(.white)
+                    }
                     Spacer()
                     Button { close() } label: {
                         Image(systemName: "xmark.circle.fill").font(.title).foregroundStyle(.white)
@@ -568,8 +755,9 @@ private struct ImageModal: View {
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
-                        // Issue #18: swipe left/right to page through photos,
-                        // matching the Social feed's swipe (issue #13).
+                        // Issue #9: swipe left/right to page through photos —
+                        // no Prev/Next buttons, matching the Social feed's
+                        // swipe (issue #13/#18) and the system Photos app.
                         .gesture(
                             DragGesture(minimumDistance: 20)
                                 .onEnded { value in
@@ -581,14 +769,108 @@ private struct ImageModal: View {
                     ProgressView().tint(.white).padding()
                 }
 
-                HStack {
-                    if showPrev { Button("‹ Prev", action: prev) }
-                    Spacer()
-                    Button("Download", action: download)
-                    Spacer()
-                    if showNext { Button("Next ›", action: next) }
-                }.padding()
+                // Issue #9: share / save-to-Photos / delete, Photos
+                // app-style, instead of a single "Download" that used to
+                // just re-run the multi-select zip download.
+                HStack(spacing: 48) {
+                    Button { share() } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    Button { save() } label: {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                    Button(role: .destructive) {
+                        confirmDelete = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                }
+                .font(.title2)
+                .foregroundStyle(.white)
+                .padding(.top, 8)
             }.padding()
+        }
+        .confirmationDialog("Delete this photo?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete Photo", role: .destructive, action: delete)
+            Button("Cancel", role: .cancel) {}
+        }
+        // Nested inside this already-presented sheet rather than back on
+        // PhotoGalleryView — see the call site's comment for why.
+        .sheet(isPresented: Binding(
+            get: { shareURL != nil },
+            set: { if !$0 { shareURL = nil } }
+        )) {
+            if let url = shareURL { ActivityView(items: [url]) }
+        }
+        // Issue #41: same nesting reasoning as the share sheet above.
+        .sheet(isPresented: $infoOpen) {
+            FileInfoView(loading: infoLoading, info: infoData)
+        }
+    }
+}
+
+/// Issue #41: camera/EXIF metadata panel, with a native map for GPS.
+private struct FileInfoView: View {
+    let loading: Bool
+    let info: Msg_FileExifInfo?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if loading {
+                    ProgressView()
+                } else if let info {
+                    List {
+                        if !info.cameraMake.isEmpty || !info.cameraModel.isEmpty {
+                            row("Camera", [info.cameraMake, info.cameraModel].filter { !$0.isEmpty }.joined(separator: " "))
+                        }
+                        if info.hasTakenAt {
+                            row("Taken", info.takenAt.date.formatted(date: .abbreviated, time: .shortened))
+                        }
+                        if info.width > 0 && info.height > 0 {
+                            row("Dimensions", "\(info.width) × \(info.height)")
+                        }
+                        if !info.exposureTime.isEmpty { row("Exposure", info.exposureTime) }
+                        if !info.fNumber.isEmpty { row("Aperture", info.fNumber) }
+                        if info.iso > 0 { row("ISO", "\(info.iso)") }
+                        if !info.focalLength.isEmpty { row("Focal length", info.focalLength) }
+                        if !info.city.isEmpty || !info.country.isEmpty {
+                            row("Location", [info.city, info.country].filter { !$0.isEmpty }.joined(separator: ", "))
+                        }
+                        if info.hasGps_p {
+                            Map(initialPosition: .region(MKCoordinateRegion(
+                                center: CLLocationCoordinate2D(latitude: info.latitude, longitude: info.longitude),
+                                span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                            ))) {
+                                Marker("", coordinate: CLLocationCoordinate2D(latitude: info.latitude, longitude: info.longitude))
+                            }
+                            .frame(height: 200)
+                            .listRowInsets(EdgeInsets())
+                        }
+                        if info.cameraMake.isEmpty && info.cameraModel.isEmpty && !info.hasGps_p && info.exposureTime.isEmpty {
+                            Text("No EXIF metadata in this file").foregroundColor(.secondary)
+                        }
+                    }
+                } else {
+                    Text("No metadata found").foregroundColor(.secondary)
+                }
+            }
+            .navigationTitle("More Info")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label).foregroundColor(.secondary)
+            Spacer()
+            Text(value)
         }
     }
 }
@@ -596,17 +878,12 @@ private struct ImageModal: View {
 private struct ActionBar: View {
     let count: Int
     let share: () -> Void
-    let createGroup: () -> Void
-    let addGroup: () -> Void
     let shareLink: () -> Void
     let downloadZip: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
             Button("Share in social", action: share)
-            Divider().frame(height: 20)
-            Button("Create group", action: createGroup)
-            Button("Add to group", action: addGroup)
             Spacer()
             Button("Share link", action: shareLink)
             Button("Download", action: downloadZip)

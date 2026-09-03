@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/exifinfo"
+	"github.com/alonsovidales/otc/geotag"
 	"github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -73,7 +75,15 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	}
 
 	var err error
-	mg.tagger, err = imagestagger.NewRAMTagger(cfg.GetStr("tagger", "model-path"), cfg.GetStr("tagger", "tags-path"), imagestagger.DefaultRAMOptions())
+	// thresholds-path is optional (issue #33): a per-tag calibration file
+	// alongside the model, more accurate than one flat cutoff for every
+	// tag. Leave it unset in config to keep the old flat-threshold behavior.
+	mg.tagger, err = imagestagger.NewRAMTagger(
+		cfg.GetStr("tagger", "model-path"),
+		cfg.GetStr("tagger", "tags-path"),
+		cfg.GetStr("tagger", "thresholds-path"),
+		imagestagger.DefaultRAMOptions(),
+	)
 
 	if err != nil {
 		log.Fatal("Error loading image encoders:", err)
@@ -362,6 +372,87 @@ func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File
 	return
 }
 
+// GetFileInfo returns a photo/video's camera/EXIF metadata (issue #41),
+// computed live from its own bytes on every call — nothing here is
+// persisted, so "More info" works for files uploaded before this feature
+// existed too, not just new ones.
+func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.FileExifInfo, err error) {
+	file, err := mg.dao.GetFileByPath(path)
+	if err != nil {
+		return nil, err
+	}
+	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), file.Hash))
+	if err != nil {
+		return nil, err
+	}
+	content, err := session.Decrypt(encContent)
+	if err != nil {
+		return nil, err
+	}
+
+	ex, err := extractExif(content, file.Mime, file.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	info = &pb.FileExifInfo{
+		CameraMake:   ex.CameraMake,
+		CameraModel:  ex.CameraModel,
+		ExposureTime: ex.ExposureTime,
+		FNumber:      ex.FNumber,
+		Iso:          ex.ISO,
+		FocalLength:  ex.FocalLength,
+		Width:        ex.Width,
+		Height:       ex.Height,
+		HasGps:       ex.HasGPS,
+		Latitude:     ex.Latitude,
+		Longitude:    ex.Longitude,
+	}
+	if ex.HasTakenAt {
+		info.TakenAt = timestamppb.New(ex.TakenAt)
+	}
+	if ex.HasGPS {
+		if city, country, ok := geotag.ReverseGeocode(ex.Latitude, ex.Longitude); ok {
+			info.City = city
+			info.Country = country
+		}
+	}
+	return info, nil
+}
+
+// extractExif dispatches to the right exifinfo reader for mime/path, since
+// JPEG, HEIC, and video containers each embed EXIF/metadata differently.
+func extractExif(content []byte, mime, path string) (*exifinfo.Info, error) {
+	switch {
+	case strings.HasPrefix(mime, "video/"):
+		return exifinfo.FromVideo(content)
+	case strings.HasSuffix(path, ".HEIC"):
+		return exifinfo.FromHEIC(content)
+	case strings.HasPrefix(mime, "image/"):
+		return exifinfo.FromJPEG(content)
+	default:
+		return nil, fmt.Errorf("unsupported mime type for EXIF: %s", mime)
+	}
+}
+
+// locationTags turns a GPS coordinate into extra searchable tags (issue
+// #42) via a fully offline reverse-geocode (see geotag/) — no coordinates
+// ever leave the device. Returns nil if there's no GPS data or nothing in
+// the dataset is close enough to be meaningful.
+func locationTags(ex *exifinfo.Info) []imagestagger.RAMTag {
+	if ex == nil || !ex.HasGPS {
+		return nil
+	}
+	city, country, ok := geotag.ReverseGeocode(ex.Latitude, ex.Longitude)
+	if !ok {
+		return nil
+	}
+	return []imagestagger.RAMTag{
+		{Name: city, Score: 1},
+		{Name: country, Score: 1},
+	}
+}
+
 func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	file, err := mg.dao.GetFileByPath(path)
 	if err != nil {
@@ -451,6 +542,20 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		// We will try to create a thumbnail of images only
 		isHeic := strings.HasSuffix(file.Path, ".HEIC")
 		if file.Mime[:5] == "image" || isHeic {
+			// Issue #42: read GPS/EXIF from the *original* bytes before any
+			// HEIC->JPEG re-encode below, which (like most re-encodes) drops
+			// the EXIF segment entirely.
+			var exif *exifinfo.Info
+			if isHeic {
+				exif, err = exifinfo.FromHEIC(content)
+			} else {
+				exif, err = exifinfo.FromJPEG(content)
+			}
+			if err != nil {
+				log.Debug("no EXIF metadata for", targetPath, ":", err)
+				exif = nil
+			}
+
 			if isHeic {
 				content, err = mg.heicToJpeg(content, 6)
 				if err != nil {
@@ -473,6 +578,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 			if err != nil {
 				log.Error("Error processing tags:", err)
 			}
+			tags = append(tags, locationTags(exif)...)
 			log.Debug("Tags:", tags)
 
 			mg.dao.AddTags(file, tags)
@@ -496,6 +602,55 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 				err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
 				if err != nil {
 					log.Error("Error generating thumbnail:", err)
+				}
+			}
+			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
+		} else if strings.HasPrefix(file.Mime, "video/") {
+			// Videos get tagged the same way images do — search doesn't
+			// need to know the difference, since it's all just file_tags
+			// rows keyed by hash — just against a handful of frames
+			// sampled across the video instead of the one still image.
+			startClass := time.Now()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+
+			frames, err := extractVideoFrames(content, cVideoSampleFrames)
+			if err != nil {
+				log.Error("error extracting video frames:", err)
+				return
+			}
+
+			// Issue #42: videos carry GPS in their own container metadata
+			// (e.g. an iPhone's ISO-6709 "location" tag), separate from the
+			// frame images sampled above.
+			exif, err := exifinfo.FromVideo(content)
+			if err != nil {
+				log.Debug("no location metadata for", targetPath, ":", err)
+				exif = nil
+			}
+
+			tags := tagVideoFrames(ctx, mg.tagger, frames)
+			tags = append(tags, locationTags(exif)...)
+			log.Debug("Tags:", tags)
+
+			mg.dao.AddTags(file, tags)
+
+			log.Debug("Time classifying video:", time.Since(startClass), targetPath)
+
+			startThumb := time.Now()
+			thumbSrc := frames[0]
+			b := thumbSrc.Bounds()
+			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+			if b.Dx() > maxWidth {
+				newH := int(float64(b.Dy()) * float64(maxWidth) / float64(b.Dx()))
+				dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
+				draw.CatmullRom.Scale(dst, dst.Bounds(), thumbSrc, thumbSrc.Bounds(), draw.Over, nil)
+				var buf bytes.Buffer
+				jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
+				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
+				err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
+				if err != nil {
+					log.Error("Error generating video thumbnail:", err)
 				}
 			}
 			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)

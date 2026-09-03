@@ -586,6 +586,19 @@ public struct Msg_DelSocialComment: Sendable {
   public init() {}
 }
 
+/// issue #34: delete one of your own posts.
+public struct Msg_DelSocialPublication: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var pubUuid: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Msg_DidSendFriendshipReq: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -728,6 +741,43 @@ public struct Msg_LikeComment: Sendable {
   // methods supported on all messages.
 
   public var commentUuid: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// issue #29: "who liked this" for a publication or a comment.
+public struct Msg_GetPublicationLikers: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var pubUuid: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_GetCommentLikers: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var commentUuid: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_Likers: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var likers: [Msg_Profile] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -958,11 +1008,28 @@ public struct Msg_SocialPublication: Sendable {
   /// publication, so clients can render a filled vs. outline heart.
   public var liked: Bool = false
 
+  /// own reports whether this is one of the device owner's own posts, so
+  /// clients know when to offer delete-post / delete-any-comment actions
+  /// (issues #34/#35).
+  public var own: Bool = false
+
+  /// date_time is when the post was published, so clients can show it in
+  /// the feed (same field shape as Comment.date_time above).
+  public var dateTime: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _dateTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_dateTime = newValue}
+  }
+  /// Returns true if `dateTime` has been explicitly set.
+  public var hasDateTime: Bool {return self._dateTime != nil}
+  /// Clears the value of `dateTime`. Subsequent reads from it will return its default value.
+  public mutating func clearDateTime() {self._dateTime = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _publisher: Msg_Profile? = nil
+  fileprivate var _dateTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public struct Msg_SocialPublicationFiles: Sendable {
@@ -971,6 +1038,70 @@ public struct Msg_SocialPublicationFiles: Sendable {
   // methods supported on all messages.
 
   public var files: [Msg_File] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// FileExifInfo is a photo/video's camera/EXIF metadata, computed on demand
+/// from the file's own bytes (never stored) for the photo gallery's "More
+/// info" panel (issue #41). city/country are filled in from latitude/
+/// longitude via an offline reverse-geocode (see geotag/) whenever has_gps
+/// is true, the same lookup issue #42 uses to add them as searchable tags.
+public struct Msg_FileExifInfo: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var cameraMake: String = String()
+
+  public var cameraModel: String = String()
+
+  public var takenAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _takenAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_takenAt = newValue}
+  }
+  /// Returns true if `takenAt` has been explicitly set.
+  public var hasTakenAt: Bool {return self._takenAt != nil}
+  /// Clears the value of `takenAt`. Subsequent reads from it will return its default value.
+  public mutating func clearTakenAt() {self._takenAt = nil}
+
+  public var exposureTime: String = String()
+
+  public var fNumber: String = String()
+
+  public var iso: Int32 = 0
+
+  public var focalLength: String = String()
+
+  public var width: Int32 = 0
+
+  public var height: Int32 = 0
+
+  public var hasGps_p: Bool = false
+
+  public var latitude: Double = 0
+
+  public var longitude: Double = 0
+
+  public var city: String = String()
+
+  public var country: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _takenAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public struct Msg_GetFileInfo: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1355,6 +1486,38 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetPubKey(newValue)}
   }
 
+  public var reqGetPublicationLikers: Msg_GetPublicationLikers {
+    get {
+      if case .reqGetPublicationLikers(let v)? = payload {return v}
+      return Msg_GetPublicationLikers()
+    }
+    set {payload = .reqGetPublicationLikers(newValue)}
+  }
+
+  public var reqGetCommentLikers: Msg_GetCommentLikers {
+    get {
+      if case .reqGetCommentLikers(let v)? = payload {return v}
+      return Msg_GetCommentLikers()
+    }
+    set {payload = .reqGetCommentLikers(newValue)}
+  }
+
+  public var reqDelSocialPublication: Msg_DelSocialPublication {
+    get {
+      if case .reqDelSocialPublication(let v)? = payload {return v}
+      return Msg_DelSocialPublication()
+    }
+    set {payload = .reqDelSocialPublication(newValue)}
+  }
+
+  public var reqGetFileInfo: Msg_GetFileInfo {
+    get {
+      if case .reqGetFileInfo(let v)? = payload {return v}
+      return Msg_GetFileInfo()
+    }
+    set {payload = .reqGetFileInfo(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -1390,159 +1553,191 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqShareFilesLink(Msg_ShareFilesLink)
     case reqDownloadSharedLink(Msg_DownloadSharedLink)
     case reqGetPubKey(Msg_GetPubKey)
+    case reqGetPublicationLikers(Msg_GetPublicationLikers)
+    case reqGetCommentLikers(Msg_GetCommentLikers)
+    case reqDelSocialPublication(Msg_DelSocialPublication)
+    case reqGetFileInfo(Msg_GetFileInfo)
 
   }
 
   public init() {}
 }
 
-public struct Msg_RespEnvelope: Sendable {
+public struct Msg_RespEnvelope: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var id: Int32 = 0
+  public var id: Int32 {
+    get {return _storage._id}
+    set {_uniqueStorage()._id = newValue}
+  }
 
-  public var error: Bool = false
+  public var error: Bool {
+    get {return _storage._error}
+    set {_uniqueStorage()._error = newValue}
+  }
 
-  public var errorMessage: String = String()
+  public var errorMessage: String {
+    get {return _storage._errorMessage}
+    set {_uniqueStorage()._errorMessage = newValue}
+  }
 
-  public var payload: Msg_RespEnvelope.OneOf_Payload? = nil
+  public var payload: OneOf_Payload? {
+    get {return _storage._payload}
+    set {_uniqueStorage()._payload = newValue}
+  }
 
   public var respStatus: Msg_Status {
     get {
-      if case .respStatus(let v)? = payload {return v}
+      if case .respStatus(let v)? = _storage._payload {return v}
       return Msg_Status()
     }
-    set {payload = .respStatus(newValue)}
+    set {_uniqueStorage()._payload = .respStatus(newValue)}
   }
 
   public var respAck: Msg_Ack {
     get {
-      if case .respAck(let v)? = payload {return v}
+      if case .respAck(let v)? = _storage._payload {return v}
       return Msg_Ack()
     }
-    set {payload = .respAck(newValue)}
+    set {_uniqueStorage()._payload = .respAck(newValue)}
   }
 
   public var respFile: Msg_File {
     get {
-      if case .respFile(let v)? = payload {return v}
+      if case .respFile(let v)? = _storage._payload {return v}
       return Msg_File()
     }
-    set {payload = .respFile(newValue)}
+    set {_uniqueStorage()._payload = .respFile(newValue)}
   }
 
   public var respListOfFiles: Msg_ListOfFiles {
     get {
-      if case .respListOfFiles(let v)? = payload {return v}
+      if case .respListOfFiles(let v)? = _storage._payload {return v}
       return Msg_ListOfFiles()
     }
-    set {payload = .respListOfFiles(newValue)}
+    set {_uniqueStorage()._payload = .respListOfFiles(newValue)}
   }
 
   public var respTagsList: Msg_TagsList {
     get {
-      if case .respTagsList(let v)? = payload {return v}
+      if case .respTagsList(let v)? = _storage._payload {return v}
       return Msg_TagsList()
     }
-    set {payload = .respTagsList(newValue)}
+    set {_uniqueStorage()._payload = .respTagsList(newValue)}
   }
 
   public var respSettings: Msg_Settings {
     get {
-      if case .respSettings(let v)? = payload {return v}
+      if case .respSettings(let v)? = _storage._payload {return v}
       return Msg_Settings()
     }
-    set {payload = .respSettings(newValue)}
+    set {_uniqueStorage()._payload = .respSettings(newValue)}
   }
 
   public var respBridgeAckOnboard: Msg_BridgeAckOnboard {
     get {
-      if case .respBridgeAckOnboard(let v)? = payload {return v}
+      if case .respBridgeAckOnboard(let v)? = _storage._payload {return v}
       return Msg_BridgeAckOnboard()
     }
-    set {payload = .respBridgeAckOnboard(newValue)}
+    set {_uniqueStorage()._payload = .respBridgeAckOnboard(newValue)}
   }
 
   public var respProfile: Msg_Profile {
     get {
-      if case .respProfile(let v)? = payload {return v}
+      if case .respProfile(let v)? = _storage._payload {return v}
       return Msg_Profile()
     }
-    set {payload = .respProfile(newValue)}
+    set {_uniqueStorage()._payload = .respProfile(newValue)}
   }
 
   public var respShareLink: Msg_ShareLink {
     get {
-      if case .respShareLink(let v)? = payload {return v}
+      if case .respShareLink(let v)? = _storage._payload {return v}
       return Msg_ShareLink()
     }
-    set {payload = .respShareLink(newValue)}
+    set {_uniqueStorage()._payload = .respShareLink(newValue)}
   }
 
   public var respFriendships: Msg_Friendships {
     get {
-      if case .respFriendships(let v)? = payload {return v}
+      if case .respFriendships(let v)? = _storage._payload {return v}
       return Msg_Friendships()
     }
-    set {payload = .respFriendships(newValue)}
+    set {_uniqueStorage()._payload = .respFriendships(newValue)}
   }
 
   public var respSharedFiles: Msg_SharedFiles {
     get {
-      if case .respSharedFiles(let v)? = payload {return v}
+      if case .respSharedFiles(let v)? = _storage._payload {return v}
       return Msg_SharedFiles()
     }
-    set {payload = .respSharedFiles(newValue)}
+    set {_uniqueStorage()._payload = .respSharedFiles(newValue)}
   }
 
   public var respNewSocial: Msg_NewSocial {
     get {
-      if case .respNewSocial(let v)? = payload {return v}
+      if case .respNewSocial(let v)? = _storage._payload {return v}
       return Msg_NewSocial()
     }
-    set {payload = .respNewSocial(newValue)}
+    set {_uniqueStorage()._payload = .respNewSocial(newValue)}
   }
 
   public var respSocialPublications: Msg_SocialPublications {
     get {
-      if case .respSocialPublications(let v)? = payload {return v}
+      if case .respSocialPublications(let v)? = _storage._payload {return v}
       return Msg_SocialPublications()
     }
-    set {payload = .respSocialPublications(newValue)}
+    set {_uniqueStorage()._payload = .respSocialPublications(newValue)}
   }
 
   public var respSocialPublicationFiles: Msg_SocialPublicationFiles {
     get {
-      if case .respSocialPublicationFiles(let v)? = payload {return v}
+      if case .respSocialPublicationFiles(let v)? = _storage._payload {return v}
       return Msg_SocialPublicationFiles()
     }
-    set {payload = .respSocialPublicationFiles(newValue)}
+    set {_uniqueStorage()._payload = .respSocialPublicationFiles(newValue)}
   }
 
   public var respFriendshipStatus: Msg_FriendshipStatus {
     get {
-      if case .respFriendshipStatus(let v)? = payload {return v}
+      if case .respFriendshipStatus(let v)? = _storage._payload {return v}
       return Msg_FriendshipStatus()
     }
-    set {payload = .respFriendshipStatus(newValue)}
+    set {_uniqueStorage()._payload = .respFriendshipStatus(newValue)}
   }
 
   public var respEvents: Msg_Events {
     get {
-      if case .respEvents(let v)? = payload {return v}
+      if case .respEvents(let v)? = _storage._payload {return v}
       return Msg_Events()
     }
-    set {payload = .respEvents(newValue)}
+    set {_uniqueStorage()._payload = .respEvents(newValue)}
   }
 
   public var respPubKey: Msg_PubKey {
     get {
-      if case .respPubKey(let v)? = payload {return v}
+      if case .respPubKey(let v)? = _storage._payload {return v}
       return Msg_PubKey()
     }
-    set {payload = .respPubKey(newValue)}
+    set {_uniqueStorage()._payload = .respPubKey(newValue)}
+  }
+
+  public var respLikers: Msg_Likers {
+    get {
+      if case .respLikers(let v)? = _storage._payload {return v}
+      return Msg_Likers()
+    }
+    set {_uniqueStorage()._payload = .respLikers(newValue)}
+  }
+
+  public var respFileInfo: Msg_FileExifInfo {
+    get {
+      if case .respFileInfo(let v)? = _storage._payload {return v}
+      return Msg_FileExifInfo()
+    }
+    set {_uniqueStorage()._payload = .respFileInfo(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1565,10 +1760,14 @@ public struct Msg_RespEnvelope: Sendable {
     case respFriendshipStatus(Msg_FriendshipStatus)
     case respEvents(Msg_Events)
     case respPubKey(Msg_PubKey)
+    case respLikers(Msg_Likers)
+    case respFileInfo(Msg_FileExifInfo)
 
   }
 
   public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -2429,6 +2628,36 @@ extension Msg_DelSocialComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
+extension Msg_DelSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DelSocialPublication"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.pubUuid) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.pubUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.pubUuid, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_DelSocialPublication, rhs: Msg_DelSocialPublication) -> Bool {
+    if lhs.pubUuid != rhs.pubUuid {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_DidSendFriendshipReq: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DidSendFriendshipReq"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}secret\0\u{1}domain\0")
@@ -2731,6 +2960,96 @@ extension Msg_LikeComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
   public static func ==(lhs: Msg_LikeComment, rhs: Msg_LikeComment) -> Bool {
     if lhs.commentUuid != rhs.commentUuid {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_GetPublicationLikers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetPublicationLikers"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.pubUuid) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.pubUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.pubUuid, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetPublicationLikers, rhs: Msg_GetPublicationLikers) -> Bool {
+    if lhs.pubUuid != rhs.pubUuid {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_GetCommentLikers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetCommentLikers"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}comment_uuid\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.commentUuid) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.commentUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.commentUuid, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetCommentLikers, rhs: Msg_GetCommentLikers) -> Bool {
+    if lhs.commentUuid != rhs.commentUuid {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_Likers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Likers"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}likers\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.likers) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.likers.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.likers, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_Likers, rhs: Msg_Likers) -> Bool {
+    if lhs.likers != rhs.likers {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3174,7 +3493,7 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
 
 extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SocialPublication"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}text\0\u{1}files\0\u{1}comments\0\u{1}likes\0\u{2}\u{2}publisher\0\u{1}liked\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}text\0\u{1}files\0\u{1}comments\0\u{1}likes\0\u{2}\u{2}publisher\0\u{1}liked\0\u{1}own\0\u{3}date_time\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3189,6 +3508,8 @@ extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.likes) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._publisher) }()
       case 8: try { try decoder.decodeSingularBoolField(value: &self.liked) }()
+      case 9: try { try decoder.decodeSingularBoolField(value: &self.own) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._dateTime) }()
       default: break
       }
     }
@@ -3220,6 +3541,12 @@ extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if self.liked != false {
       try visitor.visitSingularBoolField(value: self.liked, fieldNumber: 8)
     }
+    if self.own != false {
+      try visitor.visitSingularBoolField(value: self.own, fieldNumber: 9)
+    }
+    try { if let v = self._dateTime {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3231,6 +3558,8 @@ extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if lhs.likes != rhs.likes {return false}
     if lhs._publisher != rhs._publisher {return false}
     if lhs.liked != rhs.liked {return false}
+    if lhs.own != rhs.own {return false}
+    if lhs._dateTime != rhs._dateTime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3261,6 +3590,135 @@ extension Msg_SocialPublicationFiles: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
   public static func ==(lhs: Msg_SocialPublicationFiles, rhs: Msg_SocialPublicationFiles) -> Bool {
     if lhs.files != rhs.files {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FileExifInfo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}camera_make\0\u{3}camera_model\0\u{3}taken_at\0\u{3}exposure_time\0\u{3}f_number\0\u{1}iso\0\u{3}focal_length\0\u{1}width\0\u{1}height\0\u{3}has_gps\0\u{1}latitude\0\u{1}longitude\0\u{1}city\0\u{1}country\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.cameraMake) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.cameraModel) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._takenAt) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.exposureTime) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.fNumber) }()
+      case 6: try { try decoder.decodeSingularInt32Field(value: &self.iso) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.focalLength) }()
+      case 8: try { try decoder.decodeSingularInt32Field(value: &self.width) }()
+      case 9: try { try decoder.decodeSingularInt32Field(value: &self.height) }()
+      case 10: try { try decoder.decodeSingularBoolField(value: &self.hasGps_p) }()
+      case 11: try { try decoder.decodeSingularDoubleField(value: &self.latitude) }()
+      case 12: try { try decoder.decodeSingularDoubleField(value: &self.longitude) }()
+      case 13: try { try decoder.decodeSingularStringField(value: &self.city) }()
+      case 14: try { try decoder.decodeSingularStringField(value: &self.country) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.cameraMake.isEmpty {
+      try visitor.visitSingularStringField(value: self.cameraMake, fieldNumber: 1)
+    }
+    if !self.cameraModel.isEmpty {
+      try visitor.visitSingularStringField(value: self.cameraModel, fieldNumber: 2)
+    }
+    try { if let v = self._takenAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if !self.exposureTime.isEmpty {
+      try visitor.visitSingularStringField(value: self.exposureTime, fieldNumber: 4)
+    }
+    if !self.fNumber.isEmpty {
+      try visitor.visitSingularStringField(value: self.fNumber, fieldNumber: 5)
+    }
+    if self.iso != 0 {
+      try visitor.visitSingularInt32Field(value: self.iso, fieldNumber: 6)
+    }
+    if !self.focalLength.isEmpty {
+      try visitor.visitSingularStringField(value: self.focalLength, fieldNumber: 7)
+    }
+    if self.width != 0 {
+      try visitor.visitSingularInt32Field(value: self.width, fieldNumber: 8)
+    }
+    if self.height != 0 {
+      try visitor.visitSingularInt32Field(value: self.height, fieldNumber: 9)
+    }
+    if self.hasGps_p != false {
+      try visitor.visitSingularBoolField(value: self.hasGps_p, fieldNumber: 10)
+    }
+    if self.latitude.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.latitude, fieldNumber: 11)
+    }
+    if self.longitude.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.longitude, fieldNumber: 12)
+    }
+    if !self.city.isEmpty {
+      try visitor.visitSingularStringField(value: self.city, fieldNumber: 13)
+    }
+    if !self.country.isEmpty {
+      try visitor.visitSingularStringField(value: self.country, fieldNumber: 14)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_FileExifInfo, rhs: Msg_FileExifInfo) -> Bool {
+    if lhs.cameraMake != rhs.cameraMake {return false}
+    if lhs.cameraModel != rhs.cameraModel {return false}
+    if lhs._takenAt != rhs._takenAt {return false}
+    if lhs.exposureTime != rhs.exposureTime {return false}
+    if lhs.fNumber != rhs.fNumber {return false}
+    if lhs.iso != rhs.iso {return false}
+    if lhs.focalLength != rhs.focalLength {return false}
+    if lhs.width != rhs.width {return false}
+    if lhs.height != rhs.height {return false}
+    if lhs.hasGps_p != rhs.hasGps_p {return false}
+    if lhs.latitude != rhs.latitude {return false}
+    if lhs.longitude != rhs.longitude {return false}
+    if lhs.city != rhs.city {return false}
+    if lhs.country != rhs.country {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_GetFileInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetFileInfo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetFileInfo, rhs: Msg_GetFileInfo) -> Bool {
+    if lhs.path != rhs.path {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3495,7 +3953,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3920,6 +4378,58 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqGetPubKey(v)
         }
       }()
+      case 44: try {
+        var v: Msg_GetPublicationLikers?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetPublicationLikers(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetPublicationLikers(v)
+        }
+      }()
+      case 45: try {
+        var v: Msg_GetCommentLikers?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetCommentLikers(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetCommentLikers(v)
+        }
+      }()
+      case 46: try {
+        var v: Msg_DelSocialPublication?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqDelSocialPublication(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqDelSocialPublication(v)
+        }
+      }()
+      case 47: try {
+        var v: Msg_GetFileInfo?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetFileInfo(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetFileInfo(v)
+        }
+      }()
       default: break
       }
     }
@@ -4062,6 +4572,22 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqGetPubKey(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 43)
     }()
+    case .reqGetPublicationLikers?: try {
+      guard case .reqGetPublicationLikers(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 44)
+    }()
+    case .reqGetCommentLikers?: try {
+      guard case .reqGetCommentLikers(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 45)
+    }()
+    case .reqDelSocialPublication?: try {
+      guard case .reqDelSocialPublication(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 46)
+    }()
+    case .reqGetFileInfo?: try {
+      guard case .reqGetFileInfo(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 47)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -4077,336 +4603,412 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0")
+
+  fileprivate class _StorageClass {
+    var _id: Int32 = 0
+    var _error: Bool = false
+    var _errorMessage: String = String()
+    var _payload: Msg_RespEnvelope.OneOf_Payload?
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _error = source._error
+      _errorMessage = source._errorMessage
+      _payload = source._payload
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularInt32Field(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularBoolField(value: &self.error) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.errorMessage) }()
-      case 10: try {
-        var v: Msg_Status?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respStatus(let m) = current {v = m}
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularInt32Field(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularBoolField(value: &_storage._error) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._errorMessage) }()
+        case 10: try {
+          var v: Msg_Status?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respStatus(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respStatus(v)
+          }
+        }()
+        case 11: try {
+          var v: Msg_Ack?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respAck(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respAck(v)
+          }
+        }()
+        case 12: try {
+          var v: Msg_File?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFile(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFile(v)
+          }
+        }()
+        case 13: try {
+          var v: Msg_ListOfFiles?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respListOfFiles(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respListOfFiles(v)
+          }
+        }()
+        case 14: try {
+          var v: Msg_TagsList?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respTagsList(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respTagsList(v)
+          }
+        }()
+        case 15: try {
+          var v: Msg_Settings?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respSettings(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respSettings(v)
+          }
+        }()
+        case 16: try {
+          var v: Msg_BridgeAckOnboard?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respBridgeAckOnboard(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respBridgeAckOnboard(v)
+          }
+        }()
+        case 17: try {
+          var v: Msg_Profile?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respProfile(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respProfile(v)
+          }
+        }()
+        case 18: try {
+          var v: Msg_ShareLink?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respShareLink(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respShareLink(v)
+          }
+        }()
+        case 19: try {
+          var v: Msg_Friendships?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFriendships(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFriendships(v)
+          }
+        }()
+        case 20: try {
+          var v: Msg_SharedFiles?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respSharedFiles(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respSharedFiles(v)
+          }
+        }()
+        case 21: try {
+          var v: Msg_NewSocial?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respNewSocial(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respNewSocial(v)
+          }
+        }()
+        case 22: try {
+          var v: Msg_SocialPublications?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respSocialPublications(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respSocialPublications(v)
+          }
+        }()
+        case 23: try {
+          var v: Msg_FriendshipStatus?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFriendshipStatus(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFriendshipStatus(v)
+          }
+        }()
+        case 24: try {
+          var v: Msg_Events?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respEvents(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respEvents(v)
+          }
+        }()
+        case 25: try {
+          var v: Msg_SocialPublicationFiles?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respSocialPublicationFiles(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respSocialPublicationFiles(v)
+          }
+        }()
+        case 26: try {
+          var v: Msg_PubKey?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respPubKey(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respPubKey(v)
+          }
+        }()
+        case 27: try {
+          var v: Msg_Likers?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respLikers(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respLikers(v)
+          }
+        }()
+        case 28: try {
+          var v: Msg_FileExifInfo?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFileInfo(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFileInfo(v)
+          }
+        }()
+        default: break
         }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respStatus(v)
-        }
-      }()
-      case 11: try {
-        var v: Msg_Ack?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respAck(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respAck(v)
-        }
-      }()
-      case 12: try {
-        var v: Msg_File?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respFile(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respFile(v)
-        }
-      }()
-      case 13: try {
-        var v: Msg_ListOfFiles?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respListOfFiles(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respListOfFiles(v)
-        }
-      }()
-      case 14: try {
-        var v: Msg_TagsList?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respTagsList(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respTagsList(v)
-        }
-      }()
-      case 15: try {
-        var v: Msg_Settings?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respSettings(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respSettings(v)
-        }
-      }()
-      case 16: try {
-        var v: Msg_BridgeAckOnboard?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respBridgeAckOnboard(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respBridgeAckOnboard(v)
-        }
-      }()
-      case 17: try {
-        var v: Msg_Profile?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respProfile(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respProfile(v)
-        }
-      }()
-      case 18: try {
-        var v: Msg_ShareLink?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respShareLink(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respShareLink(v)
-        }
-      }()
-      case 19: try {
-        var v: Msg_Friendships?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respFriendships(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respFriendships(v)
-        }
-      }()
-      case 20: try {
-        var v: Msg_SharedFiles?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respSharedFiles(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respSharedFiles(v)
-        }
-      }()
-      case 21: try {
-        var v: Msg_NewSocial?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respNewSocial(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respNewSocial(v)
-        }
-      }()
-      case 22: try {
-        var v: Msg_SocialPublications?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respSocialPublications(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respSocialPublications(v)
-        }
-      }()
-      case 23: try {
-        var v: Msg_FriendshipStatus?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respFriendshipStatus(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respFriendshipStatus(v)
-        }
-      }()
-      case 24: try {
-        var v: Msg_Events?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respEvents(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respEvents(v)
-        }
-      }()
-      case 25: try {
-        var v: Msg_SocialPublicationFiles?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respSocialPublicationFiles(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respSocialPublicationFiles(v)
-        }
-      }()
-      case 26: try {
-        var v: Msg_PubKey?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .respPubKey(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .respPubKey(v)
-        }
-      }()
-      default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.id != 0 {
-      try visitor.visitSingularInt32Field(value: self.id, fieldNumber: 1)
-    }
-    if self.error != false {
-      try visitor.visitSingularBoolField(value: self.error, fieldNumber: 2)
-    }
-    if !self.errorMessage.isEmpty {
-      try visitor.visitSingularStringField(value: self.errorMessage, fieldNumber: 3)
-    }
-    switch self.payload {
-    case .respStatus?: try {
-      guard case .respStatus(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
-    }()
-    case .respAck?: try {
-      guard case .respAck(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
-    }()
-    case .respFile?: try {
-      guard case .respFile(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
-    }()
-    case .respListOfFiles?: try {
-      guard case .respListOfFiles(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
-    }()
-    case .respTagsList?: try {
-      guard case .respTagsList(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
-    }()
-    case .respSettings?: try {
-      guard case .respSettings(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
-    }()
-    case .respBridgeAckOnboard?: try {
-      guard case .respBridgeAckOnboard(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
-    }()
-    case .respProfile?: try {
-      guard case .respProfile(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
-    }()
-    case .respShareLink?: try {
-      guard case .respShareLink(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 18)
-    }()
-    case .respFriendships?: try {
-      guard case .respFriendships(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 19)
-    }()
-    case .respSharedFiles?: try {
-      guard case .respSharedFiles(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
-    }()
-    case .respNewSocial?: try {
-      guard case .respNewSocial(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
-    }()
-    case .respSocialPublications?: try {
-      guard case .respSocialPublications(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
-    }()
-    case .respFriendshipStatus?: try {
-      guard case .respFriendshipStatus(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
-    }()
-    case .respEvents?: try {
-      guard case .respEvents(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
-    }()
-    case .respSocialPublicationFiles?: try {
-      guard case .respSocialPublicationFiles(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 25)
-    }()
-    case .respPubKey?: try {
-      guard case .respPubKey(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 26)
-    }()
-    case nil: break
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._id != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._id, fieldNumber: 1)
+      }
+      if _storage._error != false {
+        try visitor.visitSingularBoolField(value: _storage._error, fieldNumber: 2)
+      }
+      if !_storage._errorMessage.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._errorMessage, fieldNumber: 3)
+      }
+      switch _storage._payload {
+      case .respStatus?: try {
+        guard case .respStatus(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      }()
+      case .respAck?: try {
+        guard case .respAck(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      }()
+      case .respFile?: try {
+        guard case .respFile(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      }()
+      case .respListOfFiles?: try {
+        guard case .respListOfFiles(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      }()
+      case .respTagsList?: try {
+        guard case .respTagsList(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+      }()
+      case .respSettings?: try {
+        guard case .respSettings(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
+      }()
+      case .respBridgeAckOnboard?: try {
+        guard case .respBridgeAckOnboard(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
+      }()
+      case .respProfile?: try {
+        guard case .respProfile(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
+      }()
+      case .respShareLink?: try {
+        guard case .respShareLink(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 18)
+      }()
+      case .respFriendships?: try {
+        guard case .respFriendships(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 19)
+      }()
+      case .respSharedFiles?: try {
+        guard case .respSharedFiles(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
+      }()
+      case .respNewSocial?: try {
+        guard case .respNewSocial(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+      }()
+      case .respSocialPublications?: try {
+        guard case .respSocialPublications(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+      }()
+      case .respFriendshipStatus?: try {
+        guard case .respFriendshipStatus(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+      }()
+      case .respEvents?: try {
+        guard case .respEvents(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
+      }()
+      case .respSocialPublicationFiles?: try {
+        guard case .respSocialPublicationFiles(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 25)
+      }()
+      case .respPubKey?: try {
+        guard case .respPubKey(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 26)
+      }()
+      case .respLikers?: try {
+        guard case .respLikers(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 27)
+      }()
+      case .respFileInfo?: try {
+        guard case .respFileInfo(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 28)
+      }()
+      case nil: break
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_RespEnvelope, rhs: Msg_RespEnvelope) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.error != rhs.error {return false}
-    if lhs.errorMessage != rhs.errorMessage {return false}
-    if lhs.payload != rhs.payload {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._error != rhs_storage._error {return false}
+        if _storage._errorMessage != rhs_storage._errorMessage {return false}
+        if _storage._payload != rhs_storage._payload {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

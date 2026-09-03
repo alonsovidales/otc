@@ -8,6 +8,24 @@
 
 import SwiftUI
 
+// When a post was published, shown in its header. Relative for anything
+// recent (the timescale people actually care about scrolling a feed),
+// falling back to an absolute date once "3d ago" stops being more useful
+// than the date itself.
+private func formatPostDate(_ date: Date) -> String {
+    let mins = Int(Date().timeIntervalSince(date) / 60)
+    if mins < 1 { return "just now" }
+    if mins < 60 { return "\(mins)m ago" }
+    let hours = mins / 60
+    if hours < 24 { return "\(hours)h ago" }
+    let days = hours / 24
+    if days < 7 { return "\(days)d ago" }
+    let f = DateFormatter()
+    f.dateStyle = .medium
+    f.timeStyle = .none
+    return f.string(from: date)
+}
+
 @MainActor
 final class SocialFeedViewModel: ObservableObject {
     private let ws = OTCConnection.shared
@@ -237,10 +255,62 @@ final class SocialFeedViewModel: ObservableObject {
         posts[idx].comments.removeAll { $0.commentUuid == commentUuid }
     }
 
+    // Issue #29: who liked a publication/comment.
+    func fetchPublicationLikers(_ pubUuid: String) async -> [Msg_Profile] {
+        var req = Msg_GetPublicationLikers()
+        req.pubUuid = pubUuid
+        guard let resp = try? await ws.request({ $0.payload = .reqGetPublicationLikers(req) }) else { return [] }
+        if case .respLikers(let l) = resp.payload { return l.likers }
+        return []
+    }
+
+    func fetchCommentLikers(_ commentUuid: String) async -> [Msg_Profile] {
+        var req = Msg_GetCommentLikers()
+        req.commentUuid = commentUuid
+        guard let resp = try? await ws.request({ $0.payload = .reqGetCommentLikers(req) }) else { return [] }
+        if case .respLikers(let l) = resp.payload { return l.likers }
+        return []
+    }
+
+    // Issue #34: delete one of your own posts. Removed locally only once
+    // the server confirms it — this hits the DB (files, comments, likes),
+    // not something to optimistically guess at.
+    func deletePublication(_ pubUuid: String) async {
+        var req = Msg_DelSocialPublication()
+        req.pubUuid = pubUuid
+        do {
+            let resp = try await ws.request { $0.payload = .reqDelSocialPublication(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                posts.removeAll { $0.uuid == pubUuid }
+                saveCachedPosts()
+            }
+        } catch { /* leave the post in place; user can retry */ }
+    }
+
+    // Issue #35: delete a comment on one of your own posts (server-side
+    // enforces the "own post" rule regardless of who wrote the comment).
+    func deleteComment(_ commentUuid: String) async {
+        do {
+            var req = Msg_DelSocialComment()
+            req.commentUuid = commentUuid
+            let resp = try await ws.request { $0.payload = .reqDelSocialComment(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                for idx in posts.indices {
+                    posts[idx].comments.removeAll { $0.commentUuid == commentUuid }
+                }
+                saveCachedPosts()
+            }
+        } catch { /* leave the comment in place; user can retry */ }
+    }
+
 }
 
 struct SocialFeedView: View {
     @StateObject private var vm = SocialFeedViewModel()
+
+    // Issue #32: "+" opens a dedicated compose screen (tag filter + tap to
+    // select + a single Publish action) — not the Images tab reused.
+    @State private var showingPicker = false
 
     var body: some View {
         NavigationView {
@@ -269,7 +339,11 @@ struct SocialFeedView: View {
                                     post: post,
                                     onLikePub: { Task { await vm.likePublication(post.uuid) } },
                                     onLikeComment: { c in Task { await vm.likeComment(c) } },
-                                    onComment: { text in Task { await vm.addComment(pubUuid: post.uuid, text: text) } }
+                                    onComment: { text in Task { await vm.addComment(pubUuid: post.uuid, text: text) } },
+                                    fetchPublicationLikers: { await vm.fetchPublicationLikers($0) },
+                                    fetchCommentLikers: { await vm.fetchCommentLikers($0) },
+                                    onDeletePub: { Task { await vm.deletePublication(post.uuid) } },
+                                    onDeleteComment: { c in Task { await vm.deleteComment(c) } }
                                 )
                                 .task { await vm.loadMoreIfNeeded(current: post) }
                                 Divider()
@@ -288,6 +362,19 @@ struct SocialFeedView: View {
             // screen "Social", repeating it as a large title above the feed
             // was redundant chrome.
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showingPicker = true } label: {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    .accessibilityLabel("New post")
+                }
+            }
+        }
+        .sheet(isPresented: $showingPicker) {
+            NewPostPickerView {
+                Task { await vm.loadFeed() }
+            }
         }
     }
 }
@@ -297,9 +384,30 @@ private struct PostCard: View {
     let onLikePub: () -> Void
     let onLikeComment: (String) -> Void
     let onComment: (String) -> Void
+    let fetchPublicationLikers: (String) async -> [Msg_Profile]
+    let fetchCommentLikers: (String) async -> [Msg_Profile]
+    let onDeletePub: () -> Void
+    let onDeleteComment: (String) -> Void
 
     @State private var currentImage = 0
     @State private var commentText = ""
+    @State private var likersTarget: LikersTarget?
+    // Issues #34/#35: confirms before actually deleting — a post outright,
+    // or (since #35 allows deleting any comment on your own post) whichever
+    // comment's trash icon was tapped.
+    @State private var confirmDeletePost = false
+    @State private var commentPendingDelete: String?
+
+    // Issue #28: pinch to zoom, snapping back to original size on release,
+    // zooming around wherever the fingers actually are (MagnifyGesture's
+    // startAnchor) rather than always the image's center. @GestureState
+    // resets to its initial value automatically the instant the gesture
+    // ends, which is exactly "zoom while pinching, let go and it's back to
+    // normal" with no extra bookkeeping needed. Two separate properties
+    // (rather than one tuple) since .animation(value:) needs an Equatable
+    // value and tuples can't conform to that.
+    @GestureState private var pinchScale: CGFloat = 1.0
+    @GestureState private var pinchAnchor: UnitPoint = .center
 
     // Instagram-style, edge-to-edge feed (issue #12): no card background or
     // rounded frame around the whole post, and the image spans the full
@@ -312,8 +420,25 @@ private struct PostCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 avatarView(data: post.publisher.hasImage ? post.publisher.image : nil, size: 28)
-                Text(post.publisher.name.isEmpty ? "User" : post.publisher.name)
-                    .font(.subheadline).bold()
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(post.publisher.name.isEmpty ? "User" : post.publisher.name)
+                        .font(.subheadline).bold()
+                    if post.hasDateTime {
+                        Text(formatPostDate(post.dateTime.date))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                // Issue #34: delete one of your own posts.
+                if post.own {
+                    Menu {
+                        Button("Delete Post", role: .destructive) { confirmDeletePost = true }
+                    } label: {
+                        Image(systemName: "ellipsis").foregroundColor(.secondary)
+                            .padding(.horizontal, 6) // bigger tap target than the glyph alone
+                    }
+                }
             }
             .padding(.horizontal, sidePadding)
             .padding(.top, 10)
@@ -327,6 +452,9 @@ private struct PostCard: View {
                     // photo app to fall back on).
                     mediaContent(for: file)
                         .contentShape(Rectangle())
+                        .scaleEffect(pinchScale, anchor: pinchAnchor)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
+                        .zIndex(pinchScale > 1 ? 1 : 0)
 
                     if post.files.count > 1 {
                         // Issue #20: tapping the left/right half of the
@@ -368,19 +496,51 @@ private struct PostCard: View {
                             }
                         }
                 )
+                // Issue #28: pinch to zoom, attached at this level (not
+                // directly on the image) and as a *simultaneous* gesture —
+                // the invisible left/right tap zones (issue #20) sit on top
+                // of the image and were otherwise claiming every touch,
+                // including a pinch's, before it ever reached a gesture
+                // attached to the image itself. MagnifyGesture (rather than
+                // the older MagnificationGesture) carries a startAnchor, so
+                // the zoom centers on wherever the fingers actually are
+                // instead of always the image's center.
+                .simultaneousGesture(
+                    MagnifyGesture()
+                        .updating($pinchScale) { value, state, _ in
+                            state = value.magnification
+                        }
+                        .updating($pinchAnchor) { value, state, _ in
+                            state = value.startAnchor
+                        }
+                )
             }
 
             HStack(spacing: 16) {
                 Button {
                     onLikePub()
                 } label: {
-                    Label("\(post.likes)", systemImage: post.liked ? "heart.fill" : "heart")
+                    Image(systemName: post.liked ? "heart.fill" : "heart")
                         .foregroundColor(post.liked ? .red : .primary)
                 }
             }
             .font(.title3)
             .padding(.horizontal, sidePadding)
             .padding(.top, 4)
+
+            // Issue #29: tap the like count to see who liked it — kept
+            // separate from the heart button above, which just toggles
+            // your own like.
+            if post.likes > 0 {
+                Button {
+                    likersTarget = LikersTarget(kind: .publication(post.uuid))
+                } label: {
+                    Text("\(post.likes) like\(post.likes == 1 ? "" : "s")")
+                        .font(.footnote).bold()
+                        .foregroundColor(.primary)
+                }
+                .padding(.horizontal, sidePadding)
+            }
 
             if !post.text.isEmpty {
                 Text(post.text).font(.body)
@@ -393,11 +553,29 @@ private struct PostCard: View {
                         HStack {
                             Text(c.publisher.isEmpty ? "User" : c.publisher).bold() + Text(": " + c.comment)
                             Spacer()
+                            // Issue #29: tapping the count (not the heart
+                            // itself) shows who liked this comment.
+                            if c.likes > 0 {
+                                Button {
+                                    likersTarget = LikersTarget(kind: .comment(c.commentUuid))
+                                } label: {
+                                    Text("\(c.likes)").foregroundColor(.secondary)
+                                }
+                            }
                             Button {
                                 onLikeComment(c.commentUuid)
                             } label: {
-                                Label("\(c.likes)", systemImage: c.liked ? "heart.fill" : "heart")
+                                Image(systemName: c.liked ? "heart.fill" : "heart")
                                     .foregroundColor(c.liked ? .red : .secondary)
+                            }
+                            // Issue #35: on your own post, any comment can
+                            // be deleted — not just ones you wrote.
+                            if post.own {
+                                Button {
+                                    commentPendingDelete = c.commentUuid
+                                } label: {
+                                    Image(systemName: "trash").foregroundColor(.secondary)
+                                }
                             }
                         }
                         .font(.caption)
@@ -419,6 +597,23 @@ private struct PostCard: View {
             }
             .padding(.horizontal, sidePadding)
             .padding(.bottom, 10)
+        }
+        .sheet(item: $likersTarget) { target in
+            LikersListView(target: target, fetchPublicationLikers: fetchPublicationLikers, fetchCommentLikers: fetchCommentLikers)
+        }
+        .confirmationDialog("Delete this post?", isPresented: $confirmDeletePost, titleVisibility: .visible) {
+            Button("Delete Post", role: .destructive, action: onDeletePub)
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "Delete this comment?",
+            isPresented: Binding(get: { commentPendingDelete != nil }, set: { if !$0 { commentPendingDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete Comment", role: .destructive) {
+                if let uuid = commentPendingDelete { onDeleteComment(uuid) }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -461,4 +656,64 @@ private struct PostCard: View {
         return min(tallest, UIScreen.main.bounds.height * 0.75)
     }
 
+}
+
+// Issue #29: who liked a publication or a comment.
+
+private struct LikersTarget: Identifiable {
+    enum Kind {
+        case publication(String)
+        case comment(String)
+    }
+    let kind: Kind
+    var id: String {
+        switch kind {
+        case .publication(let uuid): return "pub-\(uuid)"
+        case .comment(let uuid): return "comment-\(uuid)"
+        }
+    }
+}
+
+private struct LikersListView: View {
+    let target: LikersTarget
+    let fetchPublicationLikers: (String) async -> [Msg_Profile]
+    let fetchCommentLikers: (String) async -> [Msg_Profile]
+
+    @State private var likers: [Msg_Profile]?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if let likers {
+                    if likers.isEmpty {
+                        ContentUnavailableView("No likes yet", systemImage: "heart")
+                    } else {
+                        List(Array(likers.enumerated()), id: \.offset) { _, liker in
+                            HStack(spacing: 12) {
+                                avatarView(data: liker.hasImage ? liker.image : nil, size: 36)
+                                Text(liker.name.isEmpty ? liker.domain : liker.name)
+                            }
+                        }
+                        .listStyle(.plain)
+                    }
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Likes")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .task(id: target.id) {
+            switch target.kind {
+            case .publication(let uuid): likers = await fetchPublicationLikers(uuid)
+            case .comment(let uuid): likers = await fetchCommentLikers(uuid)
+            }
+        }
+    }
 }

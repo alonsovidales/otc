@@ -83,8 +83,16 @@ ONNXRUNTIME_VERSION  ?= 1.24.3
 
 # ---- Image-tagging model -----------------------------------------------------
 MODEL_DIR          ?= /usr/local/models
-MODEL_ONNX         ?= $(MODEL_DIR)/ram_plus_swin_large_14m.onnx
+# issue #33: an INT8-quantized re-export of the same RAM++ Swin-Large
+# weights/vocabulary (community-hosted on Hugging Face) — ~2-3x faster and
+# half the size of the fp32 export `models-export` produces below, with no
+# measurable accuracy loss in side-by-side testing on real photos. Comes
+# with its own per-tag calibrated thresholds, which are more accurate than
+# one flat cutoff for all 4585 tags regardless of which .onnx is in use.
+MODEL_ONNX         ?= $(MODEL_DIR)/ram_plus_swin_large_14m.int8.onnx
 MODEL_TAGS         ?= $(MODEL_DIR)/tag_list_4585.txt
+MODEL_THRESHOLDS   ?= $(MODEL_DIR)/tag_list_4585_thresholds.txt
+MODEL_HF_REPO      ?= https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
 TAGS_PER_IMAGE     ?= 10
 MAX_IMAGES_SEARCH  ?= 5
 MODEL_ENV          ?= otc-model-env
@@ -157,10 +165,13 @@ packages: update ## Install the OS packages OTC needs (mdadm, mariadb, build too
 	# gfortran/libopenblas-dev/liblapack-dev: that same step also builds
 	# scipy from source (no prebuilt wheel for this old pin on this
 	# Python/arch), which needs a Fortran compiler + BLAS/LAPACK.
+	# ffmpeg: video tagging (issue #video-tags) extracts sampled frames from
+	# uploaded videos with it before running them through the same RAM++
+	# tagger images use.
 	$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
 		mdadm parted mariadb-server build-essential git curl wget rsync \
 		ca-certificates python3 python3-venv python3-pip libssl-dev pkg-config \
-		gfortran libopenblas-dev liblapack-dev' < /dev/null
+		gfortran libopenblas-dev liblapack-dev ffmpeg' < /dev/null
 	# LED support for raid-watch.service is optional; the script degrades to
 	# a dry-run if RPi.GPIO isn't available, so don't fail the build over it.
 	-$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi-lgpio || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi.gpio' < /dev/null
@@ -341,18 +352,51 @@ onnxruntime: packages ## Install ONNX Runtime $(ONNXRUNTIME_VERSION) (linux/aarc
 	fi
 
 # =============================================================================
-# RAM++ image-tagging model — exported directly on the device.
+# RAM++ image-tagging model.
 #
-# This installs a full torch/transformers/timm pipeline in a venv on the Pi
-# and runs models/download.py + models/download_tags.py there. Expect this
-# to download several GB and take a long time on Pi hardware; the `swap`
-# target is a prerequisite to reduce the chance of it getting OOM-killed.
+# `models` (default, issue #33): downloads a pre-quantized INT8 ONNX export
+# of the same RAM++ Swin-Large weights/vocabulary — one ~870MB file straight
+# from Hugging Face, no build toolchain needed on the device at all. Roughly
+# 2-3x faster and half the size of the fp32 export below, with no measurable
+# accuracy loss in side-by-side testing (same top tags on real photos); ships
+# its own per-tag calibrated thresholds, which are more accurate than one
+# flat cutoff for all 4585 tags regardless of which .onnx is in use. It's a
+# third-party re-hosting, not the original RAM++ authors — `models-export`
+# below remains as a from-scratch fallback if this ever disappears.
 # =============================================================================
 
 .PHONY: models
-models: packages secrets swap ## Export the RAM++ ONNX model + tag list directly on the device
-	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_ONNX) && test -f $(MODEL_ONNX).data && test -f $(MODEL_TAGS)' < /dev/null; then
-		echo "Models already present at $(MODEL_DIR) on $(TARGET), skipping (pass FORCE=1 to re-export)."
+models: packages secrets ## Download the quantized RAM++ ONNX model + per-tag thresholds (issue #33)
+	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_ONNX) && test -f $(MODEL_TAGS) && test -f $(MODEL_THRESHOLDS)' < /dev/null; then
+		echo "Models already present at $(MODEL_DIR) on $(TARGET), skipping (pass FORCE=1 to re-download)."
+	else
+		echo "Downloading the RAM++ INT8 model (~870MB) + per-tag thresholds to $(TARGET)..."
+		$(SSH) 'sudo mkdir -p $(MODEL_DIR) && sudo chown $(PI_USER):$(PI_USER) $(MODEL_DIR)' < /dev/null
+		$(SSH) 'curl -fL --retry 5 --retry-delay 2 -o $(MODEL_ONNX) $(MODEL_HF_REPO)/ram_plus_int8.onnx' < /dev/null
+		$(SSH) 'curl -fL --retry 5 --retry-delay 2 -o $(MODEL_THRESHOLDS) $(MODEL_HF_REPO)/ram_tag_list_threshold.txt' < /dev/null
+		# Our own tag_list_4585.txt (not the repo's) — same 4585 tags in the
+		# same order (verified), just our casing convention, which is what
+		# every already-tagged photo's file_tags rows already use.
+		$(SCP) models/tag_list_4585.txt $(PI_USER)@$(TARGET):$(MODEL_TAGS)
+		echo "Models installed at $(MODEL_DIR) on $(TARGET)."
+	fi
+
+# =============================================================================
+# Fallback: export the original fp32 RAM++ ONNX model from scratch, directly
+# on the device. Only needed if the INT8 mirror above ever goes away — this
+# installs a full torch/transformers/timm pipeline in a venv on the Pi and
+# runs models/download.py + models/download_tags.py there. Expect this to
+# download several GB and take a long time on Pi hardware; the `swap` target
+# is a prerequisite to reduce the chance of it getting OOM-killed. Writes to
+# its own fp32 filenames, independent of MODEL_ONNX/MODEL_TAGS above — update
+# your etc/otc_*.ini [tagger] section by hand to point at them (and drop
+# thresholds-path, since this export has no per-tag threshold file).
+# =============================================================================
+
+.PHONY: models-export
+models-export: packages secrets swap ## Fallback: export the fp32 RAM++ ONNX model + tag list from scratch on the device
+	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -f $(MODEL_DIR)/ram_plus_swin_large_14m.onnx && test -f $(MODEL_DIR)/ram_plus_swin_large_14m.onnx.data && test -f $(MODEL_TAGS)' < /dev/null; then
+		echo "fp32 model already present at $(MODEL_DIR) on $(TARGET), skipping (pass FORCE=1 to re-export)."
 	else
 		echo "Setting up the model export environment on $(TARGET) - this is slow, budget significant time and bandwidth."
 		$(SSH) 'sudo mkdir -p $(MODEL_DIR) && sudo chown $(PI_USER):$(PI_USER) $(MODEL_DIR)' < /dev/null
@@ -401,11 +445,11 @@ models: packages secrets swap ## Export the RAM++ ONNX model + tag list directly
 		# same relative path to load it, so ship both.
 		$(SSH) '
 			set -e
-			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx $(MODEL_ONNX)
-			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx.data $(MODEL_ONNX).data
+			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx $(MODEL_DIR)/ram_plus_swin_large_14m.onnx
+			cp ~/$(MODEL_ENV)/ram_plus/onnx/ram_plus_swin_large_14m.onnx.data $(MODEL_DIR)/ram_plus_swin_large_14m.onnx.data
 			cp ~/$(MODEL_ENV)/models/ram_plus/tags/tag_list_4585.txt $(MODEL_TAGS)
 		' < /dev/null
-		echo "Models installed at $(MODEL_DIR) on $(TARGET)."
+		echo "fp32 model installed at $(MODEL_DIR) on $(TARGET)."
 	fi
 
 # =============================================================================
@@ -456,6 +500,7 @@ config: secrets ## Render and install /etc/otc_$(ENVIRONMENT).ini on the device
 	[tagger]
 	model-path=$(MODEL_ONNX)
 	tags-path=$(MODEL_TAGS)
+	thresholds-path=$(MODEL_THRESHOLDS)
 	tags-per-image=$(TAGS_PER_IMAGE)
 	max-images-search=$(MAX_IMAGES_SEARCH)
 	EOF

@@ -1,13 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import NewPostPicker from "./NewPostPicker";
 import type {
   ReqEnvelope,
   RespEnvelope,
   SocialPublications as PbSocialPublications,
   SocialPublication as PbSocialPublication,
+  Profile as PbProfile,
   //File as PbFile,
 } from "../proto/messages";
 import "./Social.css";
+
+// When the post was published, shown in the feed. Relative for anything
+// recent (the timescale people actually care about scrolling a feed),
+// falling back to an absolute date once it's old enough that "3d ago" stops
+// being more useful than just the date.
+function formatPostDate(d?: Date): string {
+  if (!d) return "";
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
 
 function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
   if (!bytes || bytes.length === 0) return null;
@@ -165,6 +184,60 @@ export default function Social() {
       removeOptimistic();
     }
   }, [refreshCurrentlyLoaded]);
+
+  // Issue #34: delete one of your own posts.
+  const deletePublication = useCallback(async (pub_uuid: string) => {
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqDelSocialPublication", reqDelSocialPublication: { pubUuid: pub_uuid } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setFeed(prev => prev.filter(p => p.uuid !== pub_uuid));
+      }
+    } catch { /* leave the post in place; user can retry */ }
+  }, []);
+
+  // Issue #35: delete a comment on one of your own posts (server enforces
+  // the "own post" rule regardless of who wrote the comment).
+  const deleteComment = useCallback(async (comment_uuid: string) => {
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqDelSocialComment", reqDelSocialComment: { commentUuid: comment_uuid } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setFeed(prev => prev.map(p => ({ ...p, comments: p.comments.filter(c => c.commentUuid !== comment_uuid) })));
+      }
+    } catch { /* leave the comment in place; user can retry */ }
+  }, []);
+
+  // ---------------- New post picker (issue #32) ----------------
+  // "+" button opens the photo gallery (tag search included) so the user
+  // can pick photos and post them, without leaving the social tab.
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // ---------------- Likers modal (issue #29) ----------------
+  const [likersOpen, setLikersOpen] = useState(false);
+  const [likers, setLikers] = useState<PbProfile[] | null>(null);
+
+  const showPublicationLikers = useCallback(async (pub_uuid: string) => {
+    setLikersOpen(true);
+    setLikers(null);
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqGetPublicationLikers", reqGetPublicationLikers: { pubUuid: pub_uuid } };
+    });
+    setLikers(resp.payload?.$case === "respLikers" ? resp.payload.respLikers.likers : []);
+  }, []);
+
+  const showCommentLikers = useCallback(async (comment_uuid: string) => {
+    setLikersOpen(true);
+    setLikers(null);
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqGetCommentLikers", reqGetCommentLikers: { commentUuid: comment_uuid } };
+    });
+    setLikers(resp.payload?.$case === "respLikers" ? resp.payload.respLikers.likers : []);
+  }, []);
+
+  const closeLikers = useCallback(() => { setLikersOpen(false); setLikers(null); }, []);
 
   // ---------------- Image viewer (modal) ----------------
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -324,7 +397,20 @@ export default function Social() {
       <article className="sv-post" ref={rootRef as React.RefObject<HTMLElement>}>
         <header className="sv-post-hdr">
           {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
-          <div className="sv-publisher">{p.publisher?.name || "User"}</div>
+          <div className="sv-pub-meta">
+            <div className="sv-publisher">{p.publisher?.name || "User"}</div>
+            {p.dateTime && <div className="sv-post-date">{formatPostDate(p.dateTime)}</div>}
+          </div>
+          {/* Issue #34: delete one of your own posts. */}
+          {p.own && (
+            <button
+              className="sv-post-delete"
+              title="Delete post"
+              onClick={() => { if (window.confirm("Delete this post?")) void deletePublication(p.uuid); }}
+            >
+              🗑️
+            </button>
+          )}
         </header>
 
         <div className="sv-media"
@@ -363,10 +449,16 @@ export default function Social() {
             aria-label={p.liked ? "Unlike publication" : "Like publication"}
             aria-pressed={p.liked}
           >
-            {p.liked ? "❤️" : "🤍"} {p.likes}
+            {p.liked ? "❤️" : "🤍"}
           </button>
           <button className="sv-btn" onClick={() => alert("Share (not implemented)")}>↗︎ Share</button>
         </div>
+        {/* Issue #29: tap the count (separate from the heart toggle above) */}
+        {p.likes > 0 && (
+          <button className="sv-likes-link" onClick={() => showPublicationLikers(p.uuid)}>
+            {p.likes} like{p.likes === 1 ? "" : "s"}
+          </button>
+        )}
 
         {/* Comments */}
         <div className="sv-comments">
@@ -376,14 +468,30 @@ export default function Social() {
                 <span className="sv-cname">{c.publisher || "User"}:</span>
                 <span className="sv-ctext">{c.comment}</span>
               </div>
+              {c.likes > 0 && (
+                <button className="sv-likes-link tiny" onClick={() => showCommentLikers(c.commentUuid)}>
+                  {c.likes}
+                </button>
+              )}
               <button
                 className={`sv-btn tiny${c.liked ? " liked" : ""}`}
                 onClick={() => likeComment(c.commentUuid)}
                 aria-label={c.liked ? "Unlike comment" : "Like comment"}
                 aria-pressed={c.liked}
               >
-                {c.liked ? "❤️" : "🤍"} {c.likes}
+                {c.liked ? "❤️" : "🤍"}
               </button>
+              {/* Issue #35: on your own post, any comment can be deleted —
+                  not just ones you wrote. */}
+              {p.own && (
+                <button
+                  className="sv-btn tiny"
+                  title="Delete comment"
+                  onClick={() => { if (window.confirm("Delete this comment?")) void deleteComment(c.commentUuid); }}
+                >
+                  🗑️
+                </button>
+              )}
             </div>
           ))}
           <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, "me")} />
@@ -399,6 +507,16 @@ export default function Social() {
         {feed.map(p => <Post key={p.uuid} p={p} />)}
         {loadingMore && <div className="sv-loading-more">Loading more…</div>}
       </div>
+
+      {/* Issue #32: new post — a dedicated picker (tag filter + tap to
+          select + single Publish action), not the full photo gallery. */}
+      <button className="sv-fab" onClick={() => setPickerOpen(true)} aria-label="New post">+</button>
+      {pickerOpen && (
+        <NewPostPicker
+          onCancel={() => setPickerOpen(false)}
+          onPosted={() => { setPickerOpen(false); void loadFeed(); }}
+        />
+      )}
 
       {/* Image modal */}
       {viewerOpen && (
@@ -421,6 +539,33 @@ export default function Social() {
               </div>
             ) : (
               <div className="sv-loading">Loading…</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Likers modal (issue #29) */}
+      {likersOpen && (
+        <div className="sv-modal" onClick={closeLikers}>
+          <div className="sv-modal-body sv-likers-body" onClick={(e) => e.stopPropagation()}>
+            <button className="sv-close" onClick={closeLikers}>✕</button>
+            <h3 className="sv-likers-title">Likes</h3>
+            {likers == null ? (
+              <div className="sv-loading-more">Loading…</div>
+            ) : likers.length === 0 ? (
+              <div className="sv-loading-more">No likes yet</div>
+            ) : (
+              <ul className="sv-likers-list">
+                {likers.map((l, i) => {
+                  const avatarURL = bytesToURL(l.image as unknown as Uint8Array, "image/jpeg");
+                  return (
+                    <li key={`${l.domain}-${i}`}>
+                      {avatarURL ? <img src={avatarURL} className="sv-img-avatar" /> : <div className="sv-avatar">👤</div>}
+                      <span>{l.name || l.domain}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
         </div>

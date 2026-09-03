@@ -47,15 +47,23 @@ type RAMTagger struct {
 	mean     [3]float32
 	std      [3]float32
 	tagNames []string
+	// tagThresholds holds RAM++'s own per-tag calibrated cutoffs (issue
+	// #33), index-aligned with tagNames. nil when NewRAMTagger was given no
+	// thresholds file, in which case Tags falls back to the flat
+	// RAMOptions.Threshold for every tag, as before.
+	tagThresholds []float32
 }
 
 // Initialize ONNX Runtime once in main().
 //   defer ort.DestroyEnvironment()
 
 // NewRAMTagger creates a tagger for a RAM ONNX and a tag list file.
-// modelPath:   path to *.onnx (e.g., models/ram/ram_swin_large_14m.onnx)
-// tagListPath: path to tag list (tag_list.txt / labels.csv / etc.)
-func NewRAMTagger(modelPath, tagListPath string, opt RAMOptions) (*RAMTagger, error) {
+// modelPath:      path to *.onnx (e.g., models/ram/ram_swin_large_14m.onnx)
+// tagListPath:    path to tag list (tag_list.txt / labels.csv / etc.)
+// thresholdsPath: optional path to a per-tag threshold file (one float per
+// line, aligned by index to tagListPath) — issue #33. Pass "" to use the
+// flat RAMOptions.Threshold for every tag instead, as before.
+func NewRAMTagger(modelPath, tagListPath, thresholdsPath string, opt RAMOptions) (*RAMTagger, error) {
 	if opt.ImageSize == 0 {
 		opt.ImageSize = 384
 	}
@@ -74,6 +82,14 @@ func NewRAMTagger(modelPath, tagListPath string, opt RAMOptions) (*RAMTagger, er
 		return nil, errors.New("no tags found in list")
 	}
 
+	thresholds, err := readThresholds(thresholdsPath)
+	if err != nil {
+		return nil, err
+	}
+	if thresholds != nil && len(thresholds) != len(tags) {
+		return nil, fmt.Errorf("thresholds file has %d entries, tag list has %d", len(thresholds), len(tags))
+	}
+
 	// detect IO names (don't hardcode)
 	inName, outName, err := firstTensorIO(modelPath, "input", "logits")
 	if err != nil {
@@ -87,13 +103,14 @@ func NewRAMTagger(modelPath, tagListPath string, opt RAMOptions) (*RAMTagger, er
 	}
 
 	return &RAMTagger{
-		sess:     sess,
-		inName:   inName,
-		outName:  outName,
-		imgSize:  opt.ImageSize,
-		mean:     [3]float32{0.485, 0.456, 0.406},
-		std:      [3]float32{0.229, 0.224, 0.225},
-		tagNames: tags,
+		sess:          sess,
+		inName:        inName,
+		outName:       outName,
+		imgSize:       opt.ImageSize,
+		mean:          [3]float32{0.485, 0.456, 0.406},
+		std:           [3]float32{0.229, 0.224, 0.225},
+		tagNames:      tags,
+		tagThresholds: thresholds,
 	}, nil
 }
 
@@ -133,14 +150,20 @@ func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) (
 	// read scores
 	prob := y.GetData()
 
-	return scoresToTags(prob, r.tagNames, opt.Threshold, opt.TopK), nil
+	return scoresToTags(prob, r.tagNames, r.tagThresholds, opt.Threshold, opt.TopK), nil
 }
 
 // scoresToTags converts raw per-tag model output into a sorted list of tags
 // that clear threshold, capped at topK entries. Some RAM exports produce
 // logits rather than probabilities, so scores outside [0,1] are passed
 // through a sigmoid first. prob is mutated in place when that happens.
-func scoresToTags(prob []float32, tagNames []string, threshold float32, topK int) []RAMTag {
+//
+// perTag, when non-nil, overrides flatThreshold with RAM++'s own tuned
+// per-tag cutoff for that index (issue #33) — the model's authors found
+// some tags need a higher bar than others to avoid false positives, so a
+// single flat cutoff for all 4585 tags is strictly less accurate than
+// using their calibration.
+func scoresToTags(prob []float32, tagNames []string, perTag []float32, flatThreshold float32, topK int) []RAMTag {
 	isLogits := false
 	for i := 0; i < len(prob) && i < 10; i++ {
 		if prob[i] < 0 || prob[i] > 1 {
@@ -159,6 +182,10 @@ func scoresToTags(prob []float32, tagNames []string, threshold float32, topK int
 	for i, p := range prob {
 		if i >= len(tagNames) {
 			break
+		}
+		threshold := flatThreshold
+		if perTag != nil && i < len(perTag) {
+			threshold = perTag[i]
 		}
 		if p >= threshold {
 			pairs = append(pairs, RAMTag{Name: tagNames[i], Score: p})
@@ -234,6 +261,34 @@ func readTagList(path string) ([]string, error) {
 		}
 	}
 	return tags, nil
+}
+
+// readThresholds reads one float per line (RAM++'s own per-tag calibrated
+// cutoffs, issue #33), index-aligned to the tag list. Returns (nil, nil)
+// for an empty path — the caller falls back to a flat threshold in that
+// case, preserving old behavior for callers that don't have this file.
+func readThresholds(path string) ([]float32, error) {
+	if path == "" {
+		return nil, nil
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+	out := make([]float32, 0, len(lines))
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		v, err := strconv.ParseFloat(l, 32)
+		if err != nil {
+			return nil, fmt.Errorf("bad threshold line %q: %w", l, err)
+		}
+		out = append(out, float32(v))
+	}
+	return out, nil
 }
 
 // Resolve first input containing wantIn and first output containing wantOut (fallback to [0])

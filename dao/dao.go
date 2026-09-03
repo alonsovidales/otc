@@ -159,11 +159,50 @@ func (dao *Dao) GetFileByPath(path string) (file *pb.File, err error) {
 	return
 }
 
+// DelFileByPath deletes the files row at path. Files are deduplicated on
+// disk by hash (files_manager), so more than one path can share a hash —
+// file_tags only gets cleaned up for that hash once this is the last path
+// referencing it, and it all happens in one transaction so a delete either
+// fully succeeds or leaves both tables untouched. Without this, deleting
+// any tagged photo failed outright with a file_tags foreign-key violation
+// (error 1451) the moment the RAM++ tagger had ever tagged it.
+//
+// `files` is the parent side of that foreign key, so file_tags has to be
+// cleared (when this is the last reference to the hash) BEFORE deleting the
+// files row, not after — deleting the parent first is exactly what MySQL's
+// FK check rejects, no matter what cleanup happens afterward.
 func (dao *Dao) DelFileByPath(path string) (err error) {
 	log.Debug("Del file SQL:", path)
-	_, err = dao.db.Exec("delete from `files` where `path` = ?", path)
 
-	return
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var hash string
+	if err = tx.QueryRow("select `hash` from `files` where `path` = ?", path).Scan(&hash); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return err
+	}
+
+	var refCount int
+	if err = tx.QueryRow("select count(*) from `files` where `hash` = ?", hash).Scan(&refCount); err != nil {
+		return err
+	}
+	if refCount <= 1 {
+		if _, err = tx.Exec("delete from `file_tags` where `hash` = ?", hash); err != nil {
+			return err
+		}
+	}
+
+	if _, err = tx.Exec("delete from `files` where `path` = ?", path); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (dao *Dao) SearchByTags(path string, tags []string) (files []*pb.File, err error) {
@@ -477,6 +516,47 @@ func (dao *Dao) DeleteLikePublicationComment(commentUuid, likerDomain string) (e
 	return
 }
 
+// GetPublicationLikerDomains lists who liked pubUuid, most recent first
+// (issue #29). Each entry is either the owner's own domain (a self-like) or
+// a friend's domain — callers resolve those to a display name/photo.
+func (dao *Dao) GetPublicationLikerDomains(pubUuid string) (domains []string, err error) {
+	rows, err := dao.db.Query("select `friend_domain` from `social_publication_likes` where `pub_uuid` = ? order by `dt` desc", pubUuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	domains = []string{}
+	for rows.Next() {
+		var domain string
+		if err := rows.Scan(&domain); err != nil {
+			return nil, err
+		}
+		domains = append(domains, domain)
+	}
+	return
+}
+
+// GetCommentLikerDomains lists who liked commentUuid, most recent first
+// (issue #29). See GetPublicationLikerDomains.
+func (dao *Dao) GetCommentLikerDomains(commentUuid string) (domains []string, err error) {
+	rows, err := dao.db.Query("select `friend_domain` from `social_publication_comment_likes` where `comment_uuid` = ? order by `dt` desc", commentUuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	domains = []string{}
+	for rows.Next() {
+		var domain string
+		if err := rows.Scan(&domain); err != nil {
+			return nil, err
+		}
+		domains = append(domains, domain)
+	}
+	return
+}
+
 func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comments []*pb.Comment, err error) {
 	log.Debug("Get SocialPublication Comments")
 	rowComms, err := dao.db.Query("select `uuid`, `dt`, `comment`, `publisher_name`, `likes` from `social_publications_comments` where `pub_uuid` = ? order by `dt` desc", pubUuid)
@@ -557,6 +637,10 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 		if err := rowPubs.Scan(&friendDomain, &sp.Uuid, &dt, &sp.Text, &ownPub, &sp.Likes); err != nil {
 			return nil, err
 		}
+		// issues #34/#35: let clients know when to offer delete-post /
+		// delete-any-comment actions.
+		sp.Own = ownPub
+		sp.DateTime = timestamppb.New(dt)
 
 		if ownPub {
 			log.Debug("Own publication populating own data")
@@ -621,6 +705,15 @@ func (dao *Dao) getFriendshipByDomain(domain string) (status, name, text string,
 	return
 }
 
+// GetFriendProfile is the exported equivalent of getFriendshipByDomain for
+// callers outside this package that just want the cached name/bio/photo for
+// a friend's domain (issue #29's "who liked this" resolves liker domains
+// this way).
+func (dao *Dao) GetFriendProfile(domain string) (name, text string, image []byte, err error) {
+	_, name, text, image, _, err = dao.getFriendshipByDomain(domain)
+	return
+}
+
 func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret`, `latest_sync` from `social_friendship`")
 	if err != nil {
@@ -678,6 +771,77 @@ func (dao *Dao) NewComment(commentUuid, pubName, pubUuid, comment string) (err e
 	_, err = dao.db.Exec("insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`) values (?, ?, now(), ?, ?)", commentUuid, pubUuid, comment, pubName)
 
 	return err
+}
+
+// IsOwnPublication reports whether pubUuid is one of the device owner's own
+// publications, as opposed to one synced in from a friend (issue #34/#35:
+// deleting a post, or any comment on it, is restricted to the owner).
+func (dao *Dao) IsOwnPublication(pubUuid string) (own bool, err error) {
+	err = dao.db.QueryRow("select `own_publication` from `social_publications` where `uuid` = ?", pubUuid).Scan(&own)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return
+}
+
+// GetCommentPubUuid looks up which publication a comment belongs to, so
+// callers can check that publication's own_publication flag before
+// allowing a delete (issue #35).
+func (dao *Dao) GetCommentPubUuid(commentUuid string) (pubUuid string, err error) {
+	err = dao.db.QueryRow("select `pub_uuid` from `social_publications_comments` where `uuid` = ?", commentUuid).Scan(&pubUuid)
+	return
+}
+
+// DeleteSocialPublication removes pubUuid and everything attached to it —
+// its files, comments, comment likes, and publication likes — in one
+// transaction (issue #34). Children have to go before the parent, same
+// reasoning as DelFileByPath above: social_publications is the referenced
+// side of several foreign keys.
+func (dao *Dao) DeleteSocialPublication(pubUuid string) (err error) {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.Exec(
+		"delete from `social_publication_comment_likes` where `comment_uuid` in (select `uuid` from `social_publications_comments` where `pub_uuid` = ?)",
+		pubUuid,
+	); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("delete from `social_publications_comments` where `pub_uuid` = ?", pubUuid); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("delete from `social_publication_likes` where `pub_uuid` = ?", pubUuid); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("delete from `social_publications_files` where `uuid` = ?", pubUuid); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("delete from `social_publications` where `uuid` = ?", pubUuid); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// DeleteSocialComment removes commentUuid and its likes (issue #35).
+func (dao *Dao) DeleteSocialComment(commentUuid string) (err error) {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.Exec("delete from `social_publication_comment_likes` where `comment_uuid` = ?", commentUuid); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("delete from `social_publications_comments` where `uuid` = ?", commentUuid); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (dao *Dao) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (err error) {

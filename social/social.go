@@ -26,13 +26,15 @@ import (
 )
 
 const (
-	ActionCreate     = "create"
-	ActionModify     = "modify"
-	ActionDelete     = "delete"
-	PublicationEvent = "publication"
-	LikeEvent        = "like_event"
-	LikeCommentEvent = "like_comment_event"
-	CommentEvent     = "comment"
+	ActionCreate        = "create"
+	ActionModify        = "modify"
+	ActionDelete        = "delete"
+	PublicationEvent    = "publication"
+	LikeEvent           = "like_event"
+	LikeCommentEvent    = "like_comment_event"
+	CommentEvent        = "comment"
+	DelPublicationEvent = "del_publication_event"
+	DelCommentEvent     = "del_comment_event"
 )
 
 type Social struct {
@@ -63,6 +65,22 @@ type Publication struct {
 	Action string `json:"action"`
 	Dt     int64  `json:"dt"`
 	Text   string `json:"comment"`
+}
+
+// DelPublication is the event payload broadcast when the owner deletes one
+// of their own posts (issue #34), so friends who cached a copy of it
+// (received via PublicationEvent) remove theirs too on their next sync.
+type DelPublication struct {
+	PubUUID string `json:"pub_uuid"`
+	Dt      int64  `json:"dt"`
+}
+
+// DelComment is the event payload broadcast when the owner deletes a
+// comment on one of their own posts (issue #35), so friends who cached a
+// copy of it (received via CommentEvent) remove theirs too.
+type DelComment struct {
+	CommentUUID string `json:"comment_uuid"`
+	Dt          int64  `json:"dt"`
 }
 
 type Comment struct {
@@ -498,6 +516,20 @@ event_loop:
 			var comment Comment
 			json.Unmarshal([]byte(event.Content), &comment)
 			fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment)
+
+		case DelPublicationEvent:
+			// issue #34: the owner deleted one of their posts — remove our
+			// cached copy too.
+			var del DelPublication
+			json.Unmarshal([]byte(event.Content), &del)
+			fr.dao.DeleteSocialPublication(del.PubUUID)
+
+		case DelCommentEvent:
+			// issue #35: the post owner deleted a comment — remove our
+			// cached copy too.
+			var del DelComment
+			json.Unmarshal([]byte(event.Content), &del)
+			fr.dao.DeleteSocialComment(del.CommentUUID)
 		}
 
 		err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt)
@@ -760,6 +792,57 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked
 	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain)
 }
 
+// resolveLikerProfiles turns a list of liker domains (self or friends) into
+// displayable profiles (issue #29). A domain matching our own is resolved
+// to our own current profile; anything else is looked up in the friendship
+// cache (kept fresh by issue #26's periodic refresh) and simply skipped if
+// unknown, e.g. an ex-friend since removed.
+func (sc *Social) resolveLikerProfiles(domains []string) (likers []*pb.Profile, err error) {
+	likers = []*pb.Profile{}
+	for _, domain := range domains {
+		if domain == sc.settings.Domain {
+			likers = append(likers, &pb.Profile{
+				Name:   sc.profile.Name,
+				Text:   sc.profile.Text,
+				Image:  sc.profile.Image,
+				Domain: domain,
+			})
+			continue
+		}
+
+		name, text, image, err := sc.dao.GetFriendProfile(domain)
+		if err != nil {
+			log.Debug("Skipping unknown liker domain:", domain, err)
+			continue
+		}
+		likers = append(likers, &pb.Profile{
+			Name:   name,
+			Text:   text,
+			Image:  image,
+			Domain: domain,
+		})
+	}
+	return likers, nil
+}
+
+// GetPublicationLikers returns who liked pubUuid, most recent first.
+func (sc *Social) GetPublicationLikers(pubUuid string) (likers []*pb.Profile, err error) {
+	domains, err := sc.dao.GetPublicationLikerDomains(pubUuid)
+	if err != nil {
+		return nil, err
+	}
+	return sc.resolveLikerProfiles(domains)
+}
+
+// GetCommentLikers returns who liked commentUuid, most recent first.
+func (sc *Social) GetCommentLikers(commentUuid string) (likers []*pb.Profile, err error) {
+	domains, err := sc.dao.GetCommentLikerDomains(commentUuid)
+	if err != nil {
+		return nil, err
+	}
+	return sc.resolveLikerProfiles(domains)
+}
+
 func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string) (err error) {
 	commentUuid := uuid.New().String()
 	json, err := json.Marshal(Comment{
@@ -775,6 +858,57 @@ func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string)
 		return err
 	}
 	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment)
+}
+
+// DeletePublication removes pubUuid, provided it's one of the device
+// owner's own posts (issue #34), and logs an event so friends who cached a
+// copy of it remove theirs too on their next sync.
+func (sc *Social) DeletePublication(pubUuid string) (err error) {
+	own, err := sc.dao.IsOwnPublication(pubUuid)
+	if err != nil {
+		return err
+	}
+	if !own {
+		return errors.New("not your publication")
+	}
+
+	payload, err := json.Marshal(DelPublication{PubUUID: pubUuid, Dt: time.Now().Unix()})
+	if err != nil {
+		return err
+	}
+	if err = sc.dao.NewEvent(DelPublicationEvent, payload); err != nil {
+		return err
+	}
+
+	return sc.dao.DeleteSocialPublication(pubUuid)
+}
+
+// DeleteComment removes commentUuid, provided it's on one of the device
+// owner's own posts — issue #35: "even if the comment is not yours, but
+// only when the comment is in one of your posts." Logs an event so
+// friends who cached a copy of the comment remove theirs too.
+func (sc *Social) DeleteComment(commentUuid string) (err error) {
+	pubUuid, err := sc.dao.GetCommentPubUuid(commentUuid)
+	if err != nil {
+		return err
+	}
+	own, err := sc.dao.IsOwnPublication(pubUuid)
+	if err != nil {
+		return err
+	}
+	if !own {
+		return errors.New("not a comment on one of your own publications")
+	}
+
+	payload, err := json.Marshal(DelComment{CommentUUID: commentUuid, Dt: time.Now().Unix()})
+	if err != nil {
+		return err
+	}
+	if err = sc.dao.NewEvent(DelCommentEvent, payload); err != nil {
+		return err
+	}
+
+	return sc.dao.DeleteSocialComment(commentUuid)
 }
 
 func (sc *Social) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (err error) {

@@ -1,7 +1,7 @@
 // src/components/PhotoGallery.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
-import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
+import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo } from "../proto/messages";
 import './PhotoGallery.css';
 
 type Chip = string;
@@ -55,6 +55,11 @@ export default function PhotoGallery() {
   // -------- modal (hi-res) --------------------------------------------------
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [hiURL, setHiURL] = useState<string | null>(null);
+
+  // -------- "More info" panel (issue #41) ------------------------------------
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [infoData, setInfoData] = useState<FileExifInfo | null>(null);
 
   // -------- requests --------------------------------------------------------
   const loadTags = useCallback(async () => {
@@ -113,6 +118,8 @@ export default function PhotoGallery() {
     async (idx: number) => {
       setOpenIdx(idx);
       setHiURL(null);
+      setInfoOpen(false);
+      setInfoData(null);
       const f = items[idx];
       try {
         const resp = await useWS.request(e => {
@@ -128,6 +135,26 @@ export default function PhotoGallery() {
     },
     [items]
   );
+
+  // Issue #41: fetch and show a photo/video's camera/EXIF metadata,
+  // computed live on the server from the file's own bytes.
+  const openInfo = useCallback(async () => {
+    if (openIdx == null) return;
+    setInfoOpen(true);
+    setInfoLoading(true);
+    setInfoData(null);
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        (e as any).payload = { $case: "reqGetFileInfo", reqGetFileInfo: { path: items[openIdx].path } };
+      });
+      if (resp.payload?.$case === "respFileInfo") {
+        setInfoData(resp.payload.respFileInfo);
+      }
+    } finally {
+      setInfoLoading(false);
+    }
+  }, [openIdx, items]);
+  const closeInfo = useCallback(() => { setInfoOpen(false); setInfoData(null); }, []);
 
   // -------- initial load ----------------------------------------------------
   useEffect(() => {
@@ -313,6 +340,8 @@ export default function PhotoGallery() {
         <div className="pg-modal" onClick={() => setOpenIdx(null)}>
           <div className="pg-modal-inner" onClick={(e) => e.stopPropagation()}>
             <button className="pg-close" onClick={() => setOpenIdx(null)}>×</button>
+            {/* Issue #41: camera/EXIF metadata + location, on demand. */}
+            <button className="pg-info-btn" title="More info" onClick={openInfo}>ⓘ</button>
             {openIdx > 0 && <button className="pg-nav left" onClick={() => openAt(openIdx - 1)}>‹</button>}
             {openIdx < items.length - 1 && <button className="pg-nav right" onClick={() => openAt(openIdx + 1)}>›</button>}
             <div
@@ -326,6 +355,82 @@ export default function PhotoGallery() {
                 return <img src={hiURL || thumb} alt={f.path} />;
               })()}
             </div>
+
+            {infoOpen && (
+              <div className="pg-info-panel" onClick={(e) => e.stopPropagation()}>
+                <div className="pg-info-hdr">
+                  <span>More info</span>
+                  <button className="pg-info-close" onClick={closeInfo}>×</button>
+                </div>
+                {infoLoading ? (
+                  <div className="pg-info-loading">Loading…</div>
+                ) : !infoData ? (
+                  <div className="pg-info-loading">No metadata found</div>
+                ) : (
+                  <div className="pg-info-body">
+                    {(infoData.cameraMake || infoData.cameraModel) && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">Camera</span>
+                        <span>{[infoData.cameraMake, infoData.cameraModel].filter(Boolean).join(" ")}</span>
+                      </div>
+                    )}
+                    {infoData.takenAt && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">Taken</span>
+                        <span>{infoData.takenAt.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {!!(infoData.width && infoData.height) && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">Dimensions</span>
+                        <span>{infoData.width} × {infoData.height}</span>
+                      </div>
+                    )}
+                    {infoData.exposureTime && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">Exposure</span>
+                        <span>{infoData.exposureTime}</span>
+                      </div>
+                    )}
+                    {infoData.fNumber && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">Aperture</span>
+                        <span>{infoData.fNumber}</span>
+                      </div>
+                    )}
+                    {!!infoData.iso && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">ISO</span>
+                        <span>{infoData.iso}</span>
+                      </div>
+                    )}
+                    {infoData.focalLength && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">Focal length</span>
+                        <span>{infoData.focalLength}</span>
+                      </div>
+                    )}
+                    {(infoData.city || infoData.country) && (
+                      <div className="pg-info-row">
+                        <span className="pg-info-label">Location</span>
+                        <span>{[infoData.city, infoData.country].filter(Boolean).join(", ")}</span>
+                      </div>
+                    )}
+                    {infoData.hasGps && (
+                      <iframe
+                        className="pg-info-map"
+                        title="Photo location"
+                        loading="lazy"
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${infoData.longitude - 0.02}%2C${infoData.latitude - 0.02}%2C${infoData.longitude + 0.02}%2C${infoData.latitude + 0.02}&layer=mapnik&marker=${infoData.latitude}%2C${infoData.longitude}`}
+                      />
+                    )}
+                    {!infoData.cameraMake && !infoData.cameraModel && !infoData.hasGps && !infoData.exposureTime && (
+                      <div className="pg-info-loading">No EXIF metadata in this file</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

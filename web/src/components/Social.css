@@ -21,7 +21,11 @@
 .sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: #222; margin: auto; }
 .sv-post-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
 .sv-avatar { width: 28px; height: 28px; display: grid; place-items: center; background: #f3f4f6; border-radius: 50%; }
+.sv-pub-meta { flex: 1; display: flex; flex-direction: column; }
 .sv-publisher { font-weight: 600; }
+.sv-post-date { font-size: 12px; color: #9aa3af; }
+.sv-post-delete { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 15px; opacity: 0.7; }
+.sv-post-delete:hover { opacity: 1; }
 
 .sv-media { position: relative; background: #000; min-height: 200px; display: grid; place-items: center; }
 .sv-media img { max-height: 500px;  width: 100%; height: auto; object-fit: contain; background: #000; cursor: pointer; }
@@ -29,6 +33,11 @@
 
 .sv-caption { padding: 10px 12px; }
 .sv-actions { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid #e5e7eb; }
+
+/* Issue #29: "who liked this" — a plain text-link button, separate from the
+   heart toggle, so tapping the count doesn't also (un)like the post. */
+.sv-likes-link { border: 0; background: none; padding: 0 12px; margin-top: -4px; font-weight: 600; color: #eee; cursor: pointer; text-align: left; }
+.sv-likes-link.tiny { padding: 0; margin: 0; font-size: 12px; color: #9aa3af; }
 
 .sv-comments { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .sv-comment { display: flex; align-items: center; gap: 8px; }
@@ -38,10 +47,19 @@
 
 .sv-newcomment { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 
+/* Issue #32: floating "+" button to compose a new post from the feed. */
+.sv-fab { position: fixed; right: 20px; bottom: 24px; width: 56px; height: 56px; border-radius: 50%; border: 0; background: #2563eb; color: #fff; font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); z-index: 40; display: grid; place-items: center; }
+.sv-fab:hover { background: #1d4ed8; }
+
 .sv-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 1000; }
 .sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: #0b0b0b; border-radius: 10px; padding: 10px; }
 .sv-close { position: absolute; top: 8px; right: 8px; border: 0; width: 34px; height: 34px; border-radius: 50%; color: #fff; background: rgba(255,255,255,.12); cursor: pointer; }
 .sv-full-wrap { position: relative; cursor: pointer; }
 .sv-full { max-width: 90vw; max-height: 80vh; display: block; }
 .sv-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
+
+.sv-likers-body { width: 320px; max-width: 90vw; padding: 16px; }
+.sv-likers-title { margin: 0 0 12px; color: #fff; font-size: 1rem; }
+.sv-likers-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.sv-likers-list li { display: flex; align-items: center; gap: 10px; color: #eee; }
 
