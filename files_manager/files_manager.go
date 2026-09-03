@@ -363,13 +363,32 @@ func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File
 		if err != nil {
 			log.Error("error reading file from:", path, err)
 		}
-		file.Content, err = session.Decrypt(encContent)
+		content, err := session.Decrypt(encContent)
 		if err != nil {
 			log.Error("error decryptinig the data", err)
 		}
+
+		// Issue #44: the thumbnail is already a JPEG (converted at upload
+		// time), but the full-size original was still served as raw HEIC
+		// — unrenderable by an <img>/<video poster> in every browser
+		// except Safari, so "view full size" just showed nothing. Convert
+		// here too, the same way, so it actually displays everywhere.
+		if isHeicFile(file.Path, file.Mime) {
+			if converted, convErr := mg.heicToJpeg(content, 90); convErr == nil {
+				content = converted
+				file.Mime = "image/jpeg"
+			} else {
+				log.Error("error converting HEIC to JPEG for GetFile:", convErr)
+			}
+		}
+		file.Content = content
 	}
 
 	return
+}
+
+func isHeicFile(path, mime string) bool {
+	return strings.HasSuffix(strings.ToUpper(path), ".HEIC") || strings.EqualFold(mime, "image/heic")
 }
 
 // GetFileInfo returns a photo/video's camera/EXIF metadata (issue #41),

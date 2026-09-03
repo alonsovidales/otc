@@ -231,7 +231,10 @@ final class SyncModel: ObservableObject {
         let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
 
         if exists, !isDir.boolValue {
-            guard let localHash = try? sha256Hex(of: fileURL) else { return }
+            let localHash = try? await Task.detached(priority: .utility) {
+                try Self.sha256Hex(of: fileURL)
+            }.value
+            guard let localHash else { return }
             guard remoteHashesByFolder[folderId]?[remotePath] != localHash else { return }
             do {
                 try await upload(fileURL, to: remotePath)
@@ -280,7 +283,9 @@ final class SyncModel: ObservableObject {
                 remoteMap = Dictionary(uniqueKeysWithValues: lof.files.map { ($0.path, $0.hash) })
             }
 
-            let localFiles = enumerateFilesRecursively(at: root)
+            let localFiles = await Task.detached(priority: .utility) {
+                Self.enumerateFilesRecursively(at: root)
+            }.value
             let localRemotePaths = Set(localFiles.map { remotePathFor($0.path) })
 
             // Weighted by bytes, not file count: a folder with one 400MB
@@ -305,7 +310,10 @@ final class SyncModel: ObservableObject {
                 updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: fileURL.lastPathComponent))
 
                 let remotePath = remotePathFor(fileURL.path)
-                if let localHash = try? sha256Hex(of: fileURL), remoteMap[remotePath] != localHash {
+                let localHash = try? await Task.detached(priority: .utility) {
+                    try Self.sha256Hex(of: fileURL)
+                }.value
+                if let localHash, remoteMap[remotePath] != localHash {
                     do {
                         try await upload(fileURL, to: remotePath)
                         remoteMap[remotePath] = localHash
@@ -348,7 +356,12 @@ final class SyncModel: ObservableObject {
     // MARK: - Wire helpers
 
     private func upload(_ url: URL, to remotePath: String) async throws {
-        let data = try Data(contentsOf: url)
+        // Reading a multi-GB file synchronously used to happen right here,
+        // on the main actor — same UI-freezing problem as the hashing in
+        // reconcile(), just for the read instead of the digest.
+        let data = try await Task.detached(priority: .utility) {
+            try Data(contentsOf: url)
+        }.value
         let created = SwiftProtobuf.Google_Protobuf_Timestamp(
             date: (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
         )
@@ -381,7 +394,15 @@ final class SyncModel: ObservableObject {
         }
     }
 
-    private func enumerateFilesRecursively(at root: URL) -> [URL] {
+    // `static`/`nonisolated` and self-contained (no access to `self`) on
+    // purpose: walking a whole folder tree can take a while for a large
+    // library, and calling this straight from @MainActor `reconcile()`
+    // used to do that walk (and every file's hash below) right on the main
+    // thread — freezing the popover UI, which is what made the folder list
+    // look "stuck"/unopenable rather than just slow. Being a plain
+    // self-free static function makes it safe to hop off-actor via
+    // `Task.detached` at the call site.
+    private nonisolated static func enumerateFilesRecursively(at root: URL) -> [URL] {
         var urls: [URL] = []
         if let e = FileManager.default.enumerator(at: root,
                                                   includingPropertiesForKeys: [.isRegularFileKey],
@@ -404,7 +425,11 @@ final class SyncModel: ObservableObject {
         return "/mac/\(deviceName)\(path)"
     }
 
-    private func sha256Hex(of url: URL) throws -> String {
+    // See enumerateFilesRecursively's comment — same reasoning: this used to
+    // run synchronously on the main actor inside reconcile()'s per-file
+    // loop, so hashing e.g. a multi-GB video blocked the whole UI for as
+    // long as that took. `nonisolated static` lets it run off-actor.
+    private nonisolated static func sha256Hex(of url: URL) throws -> String {
         let data = try Data(contentsOf: url, options: .mappedIfSafe)
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()

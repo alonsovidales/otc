@@ -1,8 +1,19 @@
 import SwiftUI
 
 struct PopoverView: View {
-    @EnvironmentObject var settings: SettingsStore
-    @EnvironmentObject var sync: SyncModel
+    // Bound straight to the shared singletons rather than injected via
+    // .environmentObject() — MenuBarExtra(.window)'s content view has a
+    // real quirk where @EnvironmentObject doesn't reliably pick up changes
+    // that happened before its first render (here: folders restored from
+    // disk at launch, before the popover was ever opened), and a one-shot
+    // `.id()` forced-refresh worked around that but also defeated the
+    // *normal* re-diffing on later state changes (e.g. toggling Settings),
+    // which is what let the list "reappear" before this fix existed.
+    // @ObservedObject on the singleton sidesteps the whole issue: this view
+    // always reads the object's live state directly, so there's no snapshot
+    // to go stale in the first place.
+    @ObservedObject private var settings = SettingsStore.shared
+    @ObservedObject private var sync = SyncModel.shared
 
     @State private var showSettings = false
 
@@ -36,15 +47,25 @@ struct PopoverView: View {
                 SettingsInlineView()
             }
 
-            // Folders list
-            ScrollView {
-                VStack(spacing: 8) {
+            // Folders list — no ScrollView: the panel itself grows to fit
+            // however many folders there are, so they're all visible at
+            // once (per your call). MenuBarExtra(.window) sizes the popover
+            // from this content's own ideal height, so a plain VStack with
+            // no height cap is exactly what makes that "fit everything, no
+            // scrolling" behavior happen.
+            VStack(spacing: 8) {
+                if sync.folders.isEmpty {
+                    Text("No folders yet — add one below.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 24)
+                } else {
                     ForEach(sync.folders) { f in
                         FolderRow(folder: f, remove: { sync.removeFolder(f) })
                     }
                 }
-                .padding(.vertical, 4)
-            }.frame(maxHeight: 280)
+            }
+            .padding(.vertical, 4)
 
             HStack {
                 Button {
@@ -158,7 +179,7 @@ struct FolderRow: View {
 }
 
 struct SettingsInlineView: View {
-    @EnvironmentObject var settings: SettingsStore
+    @ObservedObject private var settings = SettingsStore.shared
     var body: some View {
         VStack(spacing: 8) {
             HStack {

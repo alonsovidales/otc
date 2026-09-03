@@ -120,6 +120,7 @@ export default function PhotoGallery() {
       setHiURL(null);
       setInfoOpen(false);
       setInfoData(null);
+      setZoomScale(1);
       const f = items[idx];
       try {
         const resp = await useWS.request(e => {
@@ -255,13 +256,49 @@ export default function PhotoGallery() {
 
   // -------- swipe in modal (issue #18) --------------------------------------
   const modalTouchStartX = useRef<number | null>(null);
-  const onModalTouchStart = (e: React.TouchEvent) => { modalTouchStartX.current = e.touches[0].clientX; };
+  // Issue #36: pinch-to-zoom, matching the native apps — a genuine 2-finger
+  // pinch on touch devices, and trackpad pinch (which browsers report as a
+  // ctrlKey+wheel event, there's no native "pinch" DOM event) on desktop.
+  const [zoomScale, setZoomScale] = useState(1);
+  const pinchStartDist = useRef<number | null>(null);
+  const pinchStartScale = useRef(1);
+
+  const touchDistance = (t: React.TouchList) => {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const onModalTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      pinchStartDist.current = touchDistance(e.touches);
+      pinchStartScale.current = zoomScale;
+    } else {
+      modalTouchStartX.current = e.touches[0].clientX;
+    }
+  };
+  const onModalTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchStartDist.current) {
+      e.preventDefault();
+      const scale = pinchStartScale.current * (touchDistance(e.touches) / pinchStartDist.current);
+      setZoomScale(Math.min(4, Math.max(1, scale)));
+    }
+  };
   const onModalTouchEnd = (e: React.TouchEvent) => {
-    if (modalTouchStartX.current == null || openIdx == null) return;
+    if (pinchStartDist.current != null) {
+      pinchStartDist.current = null;
+      return; // was pinching, not swiping — don't also page through images
+    }
+    if (modalTouchStartX.current == null || openIdx == null || zoomScale !== 1) return;
     const dx = e.changedTouches[0].clientX - modalTouchStartX.current;
     if (dx < -30 && openIdx < items.length - 1) openAt(openIdx + 1);
     else if (dx > 30 && openIdx > 0) openAt(openIdx - 1);
     modalTouchStartX.current = null;
+  };
+  const onModalWheel = (e: React.WheelEvent) => {
+    if (!e.ctrlKey) return; // plain scroll shouldn't zoom, only trackpad pinch
+    e.preventDefault();
+    setZoomScale(s => Math.min(4, Math.max(1, s - e.deltaY * 0.01)));
   };
 
   // -------- render ----------------------------------------------------------
@@ -347,12 +384,20 @@ export default function PhotoGallery() {
             <div
               className="pg-modal-imgwrap"
               onTouchStart={onModalTouchStart}
+              onTouchMove={onModalTouchMove}
               onTouchEnd={onModalTouchEnd}
+              onWheel={onModalWheel}
             >
               {(() => {
                 const f = items[openIdx];
                 const thumb = bytesToURL(f.content, f.mime || "image/jpeg");
-                return <img src={hiURL || thumb} alt={f.path} />;
+                return (
+                  <img
+                    src={hiURL || thumb}
+                    alt={f.path}
+                    style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }}
+                  />
+                );
               })()}
             </div>
 

@@ -735,6 +735,14 @@ private struct ImageModal: View {
 
     @State private var confirmDelete = false
 
+    // Issue #36: same pinch-to-zoom already in the Social feed (issue
+    // #28), now in the pictures section's own full-screen viewer too —
+    // zooms around wherever the fingers actually are (MagnifyGesture's
+    // startAnchor) and snaps back to normal on release, no extra
+    // bookkeeping since @GestureState resets itself when the gesture ends.
+    @GestureState private var pinchScale: CGFloat = 1.0
+    @GestureState private var pinchAnchor: UnitPoint = .center
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.9).ignoresSafeArea()
@@ -755,6 +763,8 @@ private struct ImageModal: View {
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
+                        .scaleEffect(pinchScale, anchor: pinchAnchor)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
                         // Issue #9: swipe left/right to page through photos —
                         // no Prev/Next buttons, matching the Social feed's
                         // swipe (issue #13/#18) and the system Photos app.
@@ -763,6 +773,17 @@ private struct ImageModal: View {
                                 .onEnded { value in
                                     if value.translation.width < -30, showNext { next() }
                                     else if value.translation.width > 30, showPrev { prev() }
+                                }
+                        )
+                        // Simultaneous (not a replacement) so pinching
+                        // doesn't get swallowed by the swipe gesture above.
+                        .simultaneousGesture(
+                            MagnifyGesture()
+                                .updating($pinchScale) { value, state, _ in
+                                    state = value.magnification
+                                }
+                                .updating($pinchAnchor) { value, state, _ in
+                                    state = value.startAnchor
                                 }
                         )
                 } else {
