@@ -47,6 +47,13 @@ final class SyncModel: ObservableObject {
     // writes while saving) are coalesced by waiting this long after the
     // last event before actually reading/uploading the file.
     private static let debounceInterval: Duration = .seconds(1)
+    // A folder that fails to reconcile (a dropped connection mid-request,
+    // a transient server error, etc.) does get retried by the periodic
+    // safety-net loop above — but waiting up to 10 minutes for that, with
+    // no sign a retry is even coming, is what made an error look
+    // permanent/stuck. This is a much shorter, dedicated retry just for
+    // folders currently in .error.
+    private static let errorRetryInterval: Duration = .seconds(30)
 
     @Published var folders: [TrackedFolder] = []
     @Published var overallStatus: String = "Not connected"
@@ -61,6 +68,7 @@ final class SyncModel: ObservableObject {
     // reconcile() and kept current as changes are pushed incrementally.
     private var remoteHashesByFolder: [UUID: [String: String]] = [:]
     private var debounceTasks: [String: Task<Void, Never>] = [:]
+    private var errorRetryTasks: [UUID: Task<Void, Never>] = [:]
     private var reconcileLoopStarted = false
 
     init() {
@@ -135,6 +143,8 @@ final class SyncModel: ObservableObject {
         folderWatchers[f.id]?.stop()
         folderWatchers.removeValue(forKey: f.id)
         remoteHashesByFolder.removeValue(forKey: f.id)
+        errorRetryTasks[f.id]?.cancel()
+        errorRetryTasks.removeValue(forKey: f.id)
 
         f.url.stopAccessingSecurityScopedResource()
         folders.removeAll { $0.id == f.id }
@@ -258,7 +268,12 @@ final class SyncModel: ObservableObject {
 
     private func reconcile(_ folder: TrackedFolder) async {
         guard ws.isConnected() else { return }
-        updateState(folder.id, .scanning(progress: 0))
+
+        // Reconciling now anyway (whatever triggered this call), so any
+        // still-pending short retry from a previous failure would just be
+        // a redundant duplicate once this one lands.
+        errorRetryTasks[folder.id]?.cancel()
+        errorRetryTasks[folder.id] = nil
 
         let root = folder.url
         let remotePrefix = remotePathFor(root.path) + "/"
@@ -288,43 +303,58 @@ final class SyncModel: ObservableObject {
             }.value
             let localRemotePaths = Set(localFiles.map { remotePathFor($0.path) })
 
-            // Weighted by bytes, not file count: a folder with one 400MB
-            // video and 30 small photos would otherwise sit at "0%" for
-            // the video's entire multi-minute transfer (1/31 files done),
-            // which reads as stuck even though it's actively working —
-            // issue #37's original complaint, and exactly what prompted
-            // this fix. Bytes give a number that actually reflects how
-            // much of the transfer is really left.
-            let fileSizes = localFiles.map { url -> Int64 in
-                (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
-            }
-            let totalBytes = max(fileSizes.reduce(0, +), 1)
-            var bytesDone: Int64 = 0
-
-            for (index, fileURL) in localFiles.enumerated() {
-                // Reported *before* the upload starts, not after — a
-                // multi-gigabyte file can take minutes to send, and
-                // without this the UI just sits on the previous file's
-                // number the whole time, which is exactly what looked
-                // like "stuck" before (issue #37).
-                updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: fileURL.lastPathComponent))
-
+            // Pass 1: figure out what actually needs uploading. This is
+            // pure verification — on a folder that's already in sync (the
+            // common case for the periodic safety-net reconcile, or just
+            // reopening the app) every file matches and nothing here is
+            // visible to the user at all, which is the point: hashing to
+            // *confirm* nothing changed shouldn't look like a transfer is
+            // underway. The progress bar below is reserved for real
+            // mismatches only.
+            var toUpload: [(url: URL, remotePath: String, hash: String, size: Int64)] = []
+            for fileURL in localFiles {
                 let remotePath = remotePathFor(fileURL.path)
                 let localHash = try? await Task.detached(priority: .utility) {
                     try Self.sha256Hex(of: fileURL)
                 }.value
-                if let localHash, remoteMap[remotePath] != localHash {
+                guard let localHash, remoteMap[remotePath] != localHash else { continue }
+                let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
+                toUpload.append((fileURL, remotePath, localHash, size))
+            }
+
+            // Pass 2: only the mismatches, so the percentage reflects how
+            // much of *this* work is left rather than the whole folder —
+            // otherwise one changed file in a folder of a thousand would
+            // sit at 99.9% the instant it starts, which is just as
+            // misleading as showing no progress at all.
+            if !toUpload.isEmpty {
+                // Weighted by bytes, not file count: a folder with one
+                // 400MB video and 30 small photos would otherwise sit at
+                // "0%" for the video's entire multi-minute transfer (1/31
+                // files done), which reads as stuck even though it's
+                // actively working — issue #37's original complaint.
+                let totalBytes = max(toUpload.reduce(0) { $0 + $1.size }, 1)
+                var bytesDone: Int64 = 0
+
+                for item in toUpload {
+                    // Reported *before* the upload starts, not after — a
+                    // multi-gigabyte file can take minutes to send, and
+                    // without this the UI just sits on the previous
+                    // file's number the whole time, which is exactly what
+                    // looked like "stuck" before (issue #37).
+                    updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: item.url.lastPathComponent))
+
                     do {
-                        try await upload(fileURL, to: remotePath)
-                        remoteMap[remotePath] = localHash
+                        try await upload(item.url, to: item.remotePath)
+                        remoteMap[item.remotePath] = item.hash
                     } catch {
                         // Logged and skipped, not fatal to the whole
                         // folder — the next reconcile pass (or another
                         // FSEvents change to this same path) will retry it.
-                        print("Error syncing \(fileURL.lastPathComponent): \(error)")
+                        print("Error syncing \(item.url.lastPathComponent): \(error)")
                     }
+                    bytesDone += item.size
                 }
-                bytesDone += fileSizes[index]
             }
 
             // Anything the device still has under this folder's prefix
@@ -344,6 +374,22 @@ final class SyncModel: ObservableObject {
             updateState(folder.id, .watching)
         } catch {
             updateState(folder.id, .error(error.localizedDescription))
+            scheduleErrorRetry(for: folder)
+        }
+    }
+
+    // A failure here is almost always transient (a dropped connection
+    // mid-request, a momentary server error) rather than something wrong
+    // with the folder itself, so retrying on its own is the right default
+    // — the alternative is an error that just sits there looking permanent
+    // until the next 10-minute safety-net pass happens to come around.
+    private func scheduleErrorRetry(for folder: TrackedFolder) {
+        errorRetryTasks[folder.id]?.cancel()
+        errorRetryTasks[folder.id] = Task { [weak self] in
+            try? await Task.sleep(for: Self.errorRetryInterval)
+            guard !Task.isCancelled, let self else { return }
+            self.errorRetryTasks[folder.id] = nil
+            await self.reconcile(folder)
         }
     }
 

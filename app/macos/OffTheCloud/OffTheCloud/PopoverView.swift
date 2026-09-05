@@ -123,6 +123,22 @@ struct FolderRow: View {
     @ViewBuilder
     private var statusView: some View {
         switch folder.state {
+        case .scanning(let progress, let currentFile) where progress == 0:
+            // A flat 0% bar right as a folder starts (or on the very
+            // first pass over it) reads as stalled/broken, not "working" —
+            // an indeterminate spinner says "something's happening" without
+            // implying a number that hasn't actually moved yet. Once real
+            // progress exists (bytesDone > 0) the case below takes over.
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(currentFile ?? "Checking…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 140, alignment: .trailing)
+            }
         case .scanning(let progress, let currentFile):
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 6) {
