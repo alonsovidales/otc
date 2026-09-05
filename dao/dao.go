@@ -41,8 +41,21 @@ func Init() (dao *Dao) {
 	dao.db.SetMaxIdleConns(10)
 	dao.db.SetConnMaxLifetime(30 * time.Minute)
 
-	if err = dao.db.Ping(); err != nil {
-		log.Fatal("it is not possible to ping the DB", err)
+	// A freshly-imaged device (issue #38) boots MariaDB and otc around the
+	// same time — systemd's `After=mariadb.service` orders the units, but
+	// "started" doesn't mean "accepting connections yet", and on a slow
+	// first boot (creating its data directory, etc.) that gap can be
+	// several seconds. This used to be log.Fatal, which crash-looped otc
+	// for that whole window instead of just waiting it out — the DB isn't
+	// needed for the process to *exist*, only for handling any actual
+	// request, so waiting here is strictly better than dying and letting
+	// systemd's RestartSec churn through the same crash repeatedly.
+	for {
+		if err = dao.db.Ping(); err == nil {
+			break
+		}
+		log.Error("cannot reach the DB yet, retrying in 5s:", err)
+		time.Sleep(5 * time.Second)
 	}
 
 	return

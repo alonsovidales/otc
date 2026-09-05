@@ -15,6 +15,7 @@ import type { TabKey } from "./components/TopTabs";
 import "./components/StatusWidget.css";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
+import { isNewDevice } from "./net/pwCrypto";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -45,6 +46,19 @@ function App() {
     endpoint = cfg.endpoint;
   }
   useWS.init(endpoint, setAuthenticated);
+
+  // Issue #38/#39: a device with no owner secret yet lands straight on
+  // setup — nobody should have to know to go click "Sign In" first just
+  // to see that a brand-new device needs configuring.
+  useEffect(() => {
+    (async () => {
+      try {
+        if (await isNewDevice(useWS.request)) setTab("SignIn");
+      } catch (e) {
+        console.error("Could not check device state:", e);
+      }
+    })();
+  }, []);
 
   if (mobile) {
     useEffect(() => {
@@ -133,11 +147,10 @@ function App() {
         {tab === "Profile" && authenticated && <FriendshipsManager />}
         {tab === "Profile" && !authenticated && <ProfileCard authenticated={authenticated} />}
         {tab === "Social" && <Social authenticated={authenticated} />}
-        {tab === "SignIn" && <SignIn onAuth={async (key) => {
-          if (await useWS.sendAuth(key)) {
-            setTab("Social");
-          }
-        }} />}
+        {tab === "SignIn" && <SignIn
+          onAuth={async (key) => await useWS.sendAuth(key)}
+          onDone={() => setTab("Social")}
+        />}
         {tab === "AdminPannel" && <FilesExplorer initialPath="/" />}
         {tab === "PhotoGallery" && <PhotoGallery />}
         {tab === "Settings" && <SettingsForm />}

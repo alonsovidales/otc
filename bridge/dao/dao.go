@@ -64,6 +64,28 @@ func (dao *Dao) RegistreDevice(owner, uuid, secret string) (err error) {
 	return
 }
 
+// RotateSecret replaces a device's secret with newSecret, but only if
+// oldSecret is exactly what's currently on record for owner+domain — an
+// atomic compare-and-swap in the WHERE clause rather than a separate
+// check-then-write, so knowing the current secret is both how this proves
+// it's really that device asking, and the only thing that can trigger a
+// replacement (self-service "Regenerate" in Settings, issue #40 follow-up).
+func (dao *Dao) RotateSecret(owner, domain, oldSecret, newSecret string) (ok bool, err error) {
+	log.Debug("Rotate device secret")
+	res, err := dao.db.Exec(
+		"update `devices` set `secret` = ? where `owner_uuid` = ? and `domain` = ? and `secret` = ?",
+		newSecret, owner, domain, oldSecret,
+	)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // Device is a row from the devices table, as returned to the admin panel.
 // Secret is intentionally omitted: the panel never needs it back, and
 // there's no reason to put it back on the wire once it's been set.

@@ -8,23 +8,33 @@ export class WSClient {
   private waiters = new Map<number, (env: RespEnvelope) => void>();
   private listeners: Set<RespListener> = new Set();
   public connected = false;
+  // Two components mounting at once (e.g. the app-level fresh-device check
+  // alongside a component's own first request) both used to call connect()
+  // concurrently. The old readyState-based guard only stopped the second
+  // caller from opening a *second* socket — it didn't make that caller
+  // actually wait for the first one to finish, so it returned as if
+  // already connected while the real socket was still CONNECTING, and its
+  // immediately-following request() failed with "WS not connected". Every
+  // caller now awaits this same in-flight promise instead.
+  private connecting?: Promise<void>;
 
   onMessage(fn: RespListener) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
 
-  async connect(url: string): Promise<void> {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+  connect(url: string): Promise<void> {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return Promise.resolve();
+    if (this.connecting) return this.connecting;
 
-    await new Promise<void>((resolve, reject) => {
+    this.connecting = new Promise<void>((resolve, reject) => {
       console.log('WS to endpoint:', url);
       const ws = new WebSocket(url);
       ws.binaryType = "arraybuffer";
 
-      ws.onopen = () => { this.connected = true; resolve(); };
-      ws.onerror = (e) => reject(e);
-      ws.onclose = () => { this.connected = false; };
+      ws.onopen = () => { this.connected = true; this.connecting = undefined; resolve(); };
+      ws.onerror = (e) => { this.connecting = undefined; reject(e); };
+      ws.onclose = () => { this.connected = false; this.connecting = undefined; };
       ws.onmessage = (ev) => {
         try {
           const env = RespEnvelope.decode(new Uint8Array(ev.data as ArrayBuffer));
@@ -38,6 +48,7 @@ export class WSClient {
 
       this.ws = ws;
     });
+    return this.connecting;
   }
 
   close() { this.ws?.close(); }

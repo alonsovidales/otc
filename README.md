@@ -53,12 +53,72 @@ With this you can access all your data and social network from any browser just 
 
 **Installation of the device**
 ==============================
+
+There are three ways to set up a device, from least to most work: flash the pre-built image
+(easiest - nothing to install by hand), run `Makefile.pi` against a plain Raspberry Pi OS install
+(recommended if you want to build from source), or follow the manual steps yourself.
+
+**Option 1: Flash the pre-built image (easiest)**
+--------------------------------------------------
+1. Download the latest image from the [Releases page](https://github.com/alonsovidales/otc/releases) -
+   look for an asset named like `off-the-cloud-v<version>-rpi-lite-arm64.img.xz`.
+2. Flash it to a MicroSD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/): choose
+   "Use custom", pick the downloaded `.img.xz` file, select your card, and write. Don't use Imager's
+   own `Customisation` step for this - the image already has everything it needs and generates its own
+   identity (device UUID, DB password, bridge secret) the first time it actually boots for real, so
+   nothing needs pre-filling in.
+3. Put the card in the Pi and power it on. On this first boot, if the device can't find a working
+   network (no ethernet plugged in, no WiFi configured), it opens its own temporary WiFi network
+   called **"Off The Cloud"** - no password. Join it from your phone or laptop; most devices will pop
+   up a "Sign in to network" prompt automatically, or open a browser and go to any address to reach
+   the setup page yourself.
+
+   Already have the Pi wired into your router with an ethernet cable? Then it's already online and
+   you can skip straight to the setup page at `http://<its-address>:8080/` - use whatever your router
+   shows for the device's IP, or try `http://otc.local:8080/` if your network supports mDNS.
+4. Follow the setup wizard (see **"Using the setup wizard"** below) to pick an owner name and
+   password, choose how to use any attached USB drives, and join your real WiFi network if you
+   reached it over the temporary AP.
+5. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 under
+   the manual instructions below for the pinout.
+
+To build and publish this image yourself instead of using a released one: bootstrap a device the
+normal way (`Makefile.pi bootstrap`, plus `raid-watch`/`network-setup`), then run
+`scripts/build_image.sh` (as root, on that same device) - it customizes a fresh Raspberry Pi OS Lite
+download by copying that device's already-working `otc` binary, web build, ONNX tagging model, and
+service scripts into it, and wires up `scripts/otc_firstrun.sh` to provision a fresh identity
+(device UUID, DB password, bridge secret) the first time each flashed card actually boots for real.
+Compress the resulting `otc.img` (`xz -T0 -k otc.img`) before uploading it as a release asset.
+
+**Using the setup wizard**
+---------------------------
+Whether you flashed the pre-built image or ran `Makefile.pi`/the manual steps against a plain OS
+install, the very first time you open the device's web app (`http://<device>:8080/`, or through the
+mobile/desktop apps) with no owner password set yet, you land straight on a short setup flow instead
+of the normal sign-in screen:
+
+1. **Owner name + password** - the password you set here becomes the device's permanent
+   password from that point on (there's no separate "create account" step later - whatever you type
+   here *is* the account). Pick something you can keep somewhere safe: it also protects your files and
+   social profile.
+2. **Storage** - if the device found spare USB drives attached (beyond the boot SD card), you can
+   pick up to two: pick two to mirror them into a RAID1 array (recommended - your files survive one
+   disk failing), pick one to use it alone with no redundancy, or pick none to just use the boot disk.
+   Building the array happens in the background after this step, so it's normal for storage to not be
+   "ready" the instant you click through.
+3. **WiFi** - only matters if you reached the device over its own temporary "Off The Cloud" network:
+   pick your real WiFi from the scanned list and enter its password. Already connected some other way
+   (ethernet, or WiFi set up through Raspberry Pi Imager)? Just skip this - joining a new network here
+   will drop whatever temporary connection got you to this page in the first place, so reconnect to
+   your normal WiFi afterwards and find the device there.
+
+After that you're dropped into the normal app, signed in. You can revisit the owner name, password,
+and bridge shared secret any time from Settings.
+
+**Option 2: `Makefile.pi` against a plain OS install**
+--------------------------------------------------------
 1. Install [Raspberry Pi OS (64-bit)](https://www.raspberrypi.com/software/operating-systems/) in the Raspberry Pi using [this tutorial](https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager). In `Customisation` select Enable SSH, use `otc` as the user name, and enable passwordless sudo for it (the default for the account created there).
 
-From here you have two options: let `Makefile.pi` do the rest automatically (recommended), or follow the numbered manual steps below yourself.
-
-**Automated installation (`Makefile.pi`)**
--------------------------------------------
 `Makefile.pi`, in the root of this repository, does everything from step 2 onwards on its own: builds the RAID1 array, installs and configures MariaDB, installs Go and ONNX Runtime, exports the RAM++ tagging model directly on the device, loads the database schema, writes the app config and systemd service, and finally builds and deploys the app itself. Run it from your computer (not the Pi), with the repository checked out:
 
 ```
@@ -83,8 +143,8 @@ Run `make -f Makefile.pi help` for the full list of targets (e.g. to re-run just
 
 The rest of this section documents what `Makefile.pi` does under the hood, step by step - useful if you want to customize the install, understand what changed on the device, or finish the job by hand if a step fails.
 
-**Manual installation (step by step)**
----------------------------------------
+**Option 3: Manual installation (step by step)**
+-------------------------------------------------
 2. SSH into the device and update the OS:
 ```
 $ sudo apt-get update

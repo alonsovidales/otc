@@ -286,6 +286,13 @@ public struct Msg_PubKey: Sendable {
   /// PKIX/SPKI DER-encoded RSA public key, valid only for this connection.
   public var publicKey: Data = Data()
 
+  /// True when this device has no owner secret set up yet (issue #39) —
+  /// every client already calls GetPubKey before Auth, so this is the
+  /// cheapest place to tell a fresh device apart from a normal login
+  /// without a dedicated round trip. Clients should show a first-run setup
+  /// flow (device password + owner name) instead of a plain sign-in form.
+  public var isNewDevice: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -841,6 +848,130 @@ public struct Msg_SetBridgeSecret: Sendable {
   public init() {}
 }
 
+/// Issue #39/#38: first-run storage setup. Listing is safe/read-only (just
+/// /sys/block enumeration), but actually building the array is destructive
+/// (formats whichever disks are picked), so it's kept as an explicit,
+/// separate confirmation step rather than something that happens
+/// automatically just because a device was detected.
+public struct Msg_ListStorageDevices: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_StorageDevice: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// e.g. "/dev/sda" — this exact string is what SetupStorage expects back.
+  public var path: String = String()
+
+  public var sizeBytes: Int64 = 0
+
+  public var model: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_StorageDevices: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Only devices safe to repurpose: the boot disk itself (and its
+  /// partitions), loop/ram devices, and anything with no usable size are
+  /// already filtered out server-side.
+  public var devices: [Msg_StorageDevice] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// SetupStorage is destructive on anything selected: 2 devices creates a
+/// RAID1 mirror across them, 1 formats and uses that single device alone
+/// (no redundancy), 0 leaves storage on the boot disk as-is.
+public struct Msg_SetupStorage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var devicePaths: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Issue #38: first-boot WiFi join, for a device reached over its own
+/// temporary "Off The Cloud" access point rather than an already-working
+/// network. Scanning is read-only (nmcli dev wifi list needs no special
+/// privilege), so it runs directly in the otc service like
+/// ListStorageDevices; actually joining a network is privileged the same
+/// way storage setup is — see SetWifi.
+public struct Msg_ListWifiNetworks: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_WifiNetwork: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ssid: String = String()
+
+  /// 0-100, from nmcli's SIGNAL column.
+  public var signal: Int32 = 0
+
+  public var secured: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_WifiNetworks: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var networks: [Msg_WifiNetwork] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// SetWifi hands the join off to a privileged process the same way
+/// SetupStorage does (see storage.RequestSetup) — the otc service can't run
+/// `nmcli connection up` itself. An empty password means an open network.
+public struct Msg_SetWifi: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ssid: String = String()
+
+  public var password: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Msg_BridgeRegister: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -863,6 +994,56 @@ public struct Msg_BridgeAckOnboard: Sendable {
   // methods supported on all messages.
 
   public var ok: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// RotateBridgeSecret lets a device that already knows its current secret
+/// get a fresh one issued, without an admin manually deleting and re-adding
+/// its domain on the bridge's admin panel. Sent bridge-side (not on the
+/// device's own client-facing /ws) — `secret` is the CURRENT secret, and is
+/// the only thing that authenticates this request: the bridge only replaces
+/// it if this matches what it already has on record for owner_uuid+domain,
+/// same compare-and-swap spirit as BridgeRegister's existing secret check.
+public struct Msg_RotateBridgeSecret: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ownerUuid: String = String()
+
+  public var domain: String = String()
+
+  public var secret: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RotateBridgeSecretAck: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var newSecret: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// RegenerateBridgeSecret is the client-facing (device /ws, authenticated)
+/// request behind the Settings page's "Regenerate" button: the device looks
+/// up its own owner_uuid/domain/current secret and does the
+/// RotateBridgeSecret round trip to the bridge itself, then persists and
+/// returns the new secret — the web app never talks to the bridge directly.
+public struct Msg_RegenerateBridgeSecret: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1549,6 +1730,54 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqSetBridgeSecret(newValue)}
   }
 
+  public var reqListStorageDevices: Msg_ListStorageDevices {
+    get {
+      if case .reqListStorageDevices(let v)? = payload {return v}
+      return Msg_ListStorageDevices()
+    }
+    set {payload = .reqListStorageDevices(newValue)}
+  }
+
+  public var reqSetupStorage: Msg_SetupStorage {
+    get {
+      if case .reqSetupStorage(let v)? = payload {return v}
+      return Msg_SetupStorage()
+    }
+    set {payload = .reqSetupStorage(newValue)}
+  }
+
+  public var reqRegenerateBridgeSecret: Msg_RegenerateBridgeSecret {
+    get {
+      if case .reqRegenerateBridgeSecret(let v)? = payload {return v}
+      return Msg_RegenerateBridgeSecret()
+    }
+    set {payload = .reqRegenerateBridgeSecret(newValue)}
+  }
+
+  public var reqRotateBridgeSecret: Msg_RotateBridgeSecret {
+    get {
+      if case .reqRotateBridgeSecret(let v)? = payload {return v}
+      return Msg_RotateBridgeSecret()
+    }
+    set {payload = .reqRotateBridgeSecret(newValue)}
+  }
+
+  public var reqListWifiNetworks: Msg_ListWifiNetworks {
+    get {
+      if case .reqListWifiNetworks(let v)? = payload {return v}
+      return Msg_ListWifiNetworks()
+    }
+    set {payload = .reqListWifiNetworks(newValue)}
+  }
+
+  public var reqSetWifi: Msg_SetWifi {
+    get {
+      if case .reqSetWifi(let v)? = payload {return v}
+      return Msg_SetWifi()
+    }
+    set {payload = .reqSetWifi(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -1589,6 +1818,12 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqDelSocialPublication(Msg_DelSocialPublication)
     case reqGetFileInfo(Msg_GetFileInfo)
     case reqSetBridgeSecret(Msg_SetBridgeSecret)
+    case reqListStorageDevices(Msg_ListStorageDevices)
+    case reqSetupStorage(Msg_SetupStorage)
+    case reqRegenerateBridgeSecret(Msg_RegenerateBridgeSecret)
+    case reqRotateBridgeSecret(Msg_RotateBridgeSecret)
+    case reqListWifiNetworks(Msg_ListWifiNetworks)
+    case reqSetWifi(Msg_SetWifi)
 
   }
 
@@ -1772,6 +2007,30 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respFileInfo(newValue)}
   }
 
+  public var respStorageDevices: Msg_StorageDevices {
+    get {
+      if case .respStorageDevices(let v)? = _storage._payload {return v}
+      return Msg_StorageDevices()
+    }
+    set {_uniqueStorage()._payload = .respStorageDevices(newValue)}
+  }
+
+  public var respRotateBridgeSecretAck: Msg_RotateBridgeSecretAck {
+    get {
+      if case .respRotateBridgeSecretAck(let v)? = _storage._payload {return v}
+      return Msg_RotateBridgeSecretAck()
+    }
+    set {_uniqueStorage()._payload = .respRotateBridgeSecretAck(newValue)}
+  }
+
+  public var respWifiNetworks: Msg_WifiNetworks {
+    get {
+      if case .respWifiNetworks(let v)? = _storage._payload {return v}
+      return Msg_WifiNetworks()
+    }
+    set {_uniqueStorage()._payload = .respWifiNetworks(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -1794,6 +2053,9 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     case respPubKey(Msg_PubKey)
     case respLikers(Msg_Likers)
     case respFileInfo(Msg_FileExifInfo)
+    case respStorageDevices(Msg_StorageDevices)
+    case respRotateBridgeSecretAck(Msg_RotateBridgeSecretAck)
+    case respWifiNetworks(Msg_WifiNetworks)
 
   }
 
@@ -2017,7 +2279,7 @@ extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
 extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PubKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2026,6 +2288,7 @@ extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBytesField(value: &self.publicKey) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.isNewDevice) }()
       default: break
       }
     }
@@ -2035,11 +2298,15 @@ extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
     if !self.publicKey.isEmpty {
       try visitor.visitSingularBytesField(value: self.publicKey, fieldNumber: 1)
     }
+    if self.isNewDevice != false {
+      try visitor.visitSingularBoolField(value: self.isNewDevice, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_PubKey, rhs: Msg_PubKey) -> Bool {
     if lhs.publicKey != rhs.publicKey {return false}
+    if lhs.isNewDevice != rhs.isNewDevice {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3201,6 +3468,249 @@ extension Msg_SetBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
+extension Msg_ListStorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListStorageDevices"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ListStorageDevices, rhs: Msg_ListStorageDevices) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_StorageDevice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StorageDevice"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}size_bytes\0\u{1}model\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.sizeBytes) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.model) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if self.sizeBytes != 0 {
+      try visitor.visitSingularInt64Field(value: self.sizeBytes, fieldNumber: 2)
+    }
+    if !self.model.isEmpty {
+      try visitor.visitSingularStringField(value: self.model, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_StorageDevice, rhs: Msg_StorageDevice) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.sizeBytes != rhs.sizeBytes {return false}
+    if lhs.model != rhs.model {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_StorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StorageDevices"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}devices\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.devices) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.devices.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.devices, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_StorageDevices, rhs: Msg_StorageDevices) -> Bool {
+    if lhs.devices != rhs.devices {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_SetupStorage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetupStorage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_paths\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.devicePaths) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.devicePaths.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.devicePaths, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetupStorage, rhs: Msg_SetupStorage) -> Bool {
+    if lhs.devicePaths != rhs.devicePaths {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ListWifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListWifiNetworks"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ListWifiNetworks, rhs: Msg_ListWifiNetworks) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WifiNetwork"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ssid\0\u{1}signal\0\u{1}secured\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ssid) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.signal) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.secured) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ssid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ssid, fieldNumber: 1)
+    }
+    if self.signal != 0 {
+      try visitor.visitSingularInt32Field(value: self.signal, fieldNumber: 2)
+    }
+    if self.secured != false {
+      try visitor.visitSingularBoolField(value: self.secured, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_WifiNetwork, rhs: Msg_WifiNetwork) -> Bool {
+    if lhs.ssid != rhs.ssid {return false}
+    if lhs.signal != rhs.signal {return false}
+    if lhs.secured != rhs.secured {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_WifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WifiNetworks"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}networks\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.networks) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.networks.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.networks, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_WifiNetworks, rhs: Msg_WifiNetworks) -> Bool {
+    if lhs.networks != rhs.networks {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_SetWifi: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetWifi"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ssid\0\u{1}password\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ssid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.password) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ssid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ssid, fieldNumber: 1)
+    }
+    if !self.password.isEmpty {
+      try visitor.visitSingularStringField(value: self.password, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetWifi, rhs: Msg_SetWifi) -> Bool {
+    if lhs.ssid != rhs.ssid {return false}
+    if lhs.password != rhs.password {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_BridgeRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BridgeRegister"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0")
@@ -3266,6 +3776,95 @@ extension Msg_BridgeAckOnboard: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 
   public static func ==(lhs: Msg_BridgeAckOnboard, rhs: Msg_BridgeAckOnboard) -> Bool {
     if lhs.ok != rhs.ok {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RotateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RotateBridgeSecret"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ownerUuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.domain) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.secret) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ownerUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ownerUuid, fieldNumber: 1)
+    }
+    if !self.domain.isEmpty {
+      try visitor.visitSingularStringField(value: self.domain, fieldNumber: 2)
+    }
+    if !self.secret.isEmpty {
+      try visitor.visitSingularStringField(value: self.secret, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RotateBridgeSecret, rhs: Msg_RotateBridgeSecret) -> Bool {
+    if lhs.ownerUuid != rhs.ownerUuid {return false}
+    if lhs.domain != rhs.domain {return false}
+    if lhs.secret != rhs.secret {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RotateBridgeSecretAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RotateBridgeSecretAck"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}new_secret\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.newSecret) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.newSecret.isEmpty {
+      try visitor.visitSingularStringField(value: self.newSecret, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RotateBridgeSecretAck, rhs: Msg_RotateBridgeSecretAck) -> Bool {
+    if lhs.newSecret != rhs.newSecret {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RegenerateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RegenerateBridgeSecret"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RegenerateBridgeSecret, rhs: Msg_RegenerateBridgeSecret) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4020,7 +4619,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4510,6 +5109,84 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqSetBridgeSecret(v)
         }
       }()
+      case 49: try {
+        var v: Msg_ListStorageDevices?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListStorageDevices(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListStorageDevices(v)
+        }
+      }()
+      case 50: try {
+        var v: Msg_SetupStorage?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetupStorage(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetupStorage(v)
+        }
+      }()
+      case 51: try {
+        var v: Msg_RegenerateBridgeSecret?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqRegenerateBridgeSecret(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqRegenerateBridgeSecret(v)
+        }
+      }()
+      case 52: try {
+        var v: Msg_RotateBridgeSecret?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqRotateBridgeSecret(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqRotateBridgeSecret(v)
+        }
+      }()
+      case 53: try {
+        var v: Msg_ListWifiNetworks?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListWifiNetworks(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListWifiNetworks(v)
+        }
+      }()
+      case 54: try {
+        var v: Msg_SetWifi?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetWifi(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetWifi(v)
+        }
+      }()
       default: break
       }
     }
@@ -4672,6 +5349,30 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqSetBridgeSecret(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 48)
     }()
+    case .reqListStorageDevices?: try {
+      guard case .reqListStorageDevices(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 49)
+    }()
+    case .reqSetupStorage?: try {
+      guard case .reqSetupStorage(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 50)
+    }()
+    case .reqRegenerateBridgeSecret?: try {
+      guard case .reqRegenerateBridgeSecret(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 51)
+    }()
+    case .reqRotateBridgeSecret?: try {
+      guard case .reqRotateBridgeSecret(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 52)
+    }()
+    case .reqListWifiNetworks?: try {
+      guard case .reqListWifiNetworks(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 53)
+    }()
+    case .reqSetWifi?: try {
+      guard case .reqSetWifi(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 54)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -4687,7 +5388,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -4976,6 +5677,45 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
             _storage._payload = .respFileInfo(v)
           }
         }()
+        case 29: try {
+          var v: Msg_StorageDevices?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respStorageDevices(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respStorageDevices(v)
+          }
+        }()
+        case 30: try {
+          var v: Msg_RotateBridgeSecretAck?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respRotateBridgeSecretAck(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respRotateBridgeSecretAck(v)
+          }
+        }()
+        case 31: try {
+          var v: Msg_WifiNetworks?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respWifiNetworks(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respWifiNetworks(v)
+          }
+        }()
         default: break
         }
       }
@@ -5073,6 +5813,18 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case .respFileInfo?: try {
         guard case .respFileInfo(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 28)
+      }()
+      case .respStorageDevices?: try {
+        guard case .respStorageDevices(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 29)
+      }()
+      case .respRotateBridgeSecretAck?: try {
+        guard case .respRotateBridgeSecretAck(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 30)
+      }()
+      case .respWifiNetworks?: try {
+        guard case .respWifiNetworks(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 31)
       }()
       case nil: break
       }

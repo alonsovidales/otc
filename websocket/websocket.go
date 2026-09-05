@@ -17,12 +17,14 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/network"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
 	"github.com/alonsovidales/otc/social"
 	"github.com/alonsovidales/otc/status"
+	"github.com/alonsovidales/otc/storage"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 )
@@ -186,6 +188,59 @@ func (mg *Manager) OpenBridge() {
 	return
 }
 
+// regenerateBridgeSecret backs the Settings page's self-service
+// "Regenerate" button (issue #40 follow-up): a short-lived, one-off dial to
+// the bridge (unlike OpenBridge's long-lived pool connections) that proves
+// ownership with the CURRENT secret and gets a fresh one back. The bridge
+// only replaces it if the current one still matches its own record — see
+// RotateSecret's compare-and-swap on the bridge side.
+func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
+	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
+	h := http.Header{}
+	h.Set("Sec-WebSocket-Protocol", "protobuf")
+	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	if err != nil {
+		return "", fmt.Errorf("dialing bridge: %w", err)
+	}
+	defer c.Close()
+
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqRotateBridgeSecret{
+			ReqRotateBridgeSecret: &pb.RotateBridgeSecret{
+				OwnerUuid: mg.settings.DeviceUuid,
+				Domain:    mg.settings.Domain,
+				Secret:    mg.settings.BridgeSecret,
+			},
+		},
+	}
+	b, err := proto.Marshal(msg)
+	if err != nil {
+		return "", err
+	}
+	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		return "", fmt.Errorf("writing to bridge: %w", err)
+	}
+
+	_, data, err := c.ReadMessage()
+	if err != nil {
+		return "", fmt.Errorf("reading from bridge: %w", err)
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		return "", err
+	}
+	if resp.Error {
+		return "", errors.New(resp.ErrorMessage)
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespRotateBridgeSecretAck)
+	if !ok || ack.RespRotateBridgeSecretAck == nil {
+		return "", errors.New("unexpected bridge response")
+	}
+
+	return ack.RespRotateBridgeSecretAck.NewSecret, nil
+}
+
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -251,9 +306,18 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			break
 		}
 
+		secretDefined, err := ch.mg.dao.IsSecretDefined()
+		if err != nil {
+			log.Error("error checking if secret is defined:", err)
+			resp.Error = true
+			resp.ErrorMessage = "error checking device state"
+			break
+		}
+
 		resp.Payload = &pb.RespEnvelope_RespPubKey{
 			RespPubKey: &pb.PubKey{
-				PublicKey: pubDER,
+				PublicKey:   pubDER,
+				IsNewDevice: !secretDefined,
 			},
 		}
 
@@ -819,6 +883,32 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
+	// Self-service "Regenerate": asks the bridge itself for a fresh secret
+	// (authenticated by the current one — see regenerateBridgeSecret) and
+	// persists it, rather than the device inventing one locally that the
+	// bridge would just reject.
+	case *pb.ReqEnvelope_ReqRegenerateBridgeSecret:
+		log.Info("Regenerate bridge secret")
+		newSecret, err := ch.mg.regenerateBridgeSecret()
+		if err != nil {
+			log.Error("error regenerating bridge secret:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		if err := ch.mg.settings.SetBridgeSecret(newSecret); err != nil {
+			log.Error("error persisting regenerated bridge secret:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespSettings{
+			RespSettings: &pb.Settings{
+				Domain:       ch.mg.settings.Domain,
+				BridgeSecret: ch.mg.settings.BridgeSecret,
+			},
+		}
+
 	case *pb.ReqEnvelope_ReqSetProfile:
 		log.Info("Set profile")
 		err := ch.mg.profile.SetProfile(p.ReqSetProfile.Name, p.ReqSetProfile.Image, p.ReqSetProfile.Text)
@@ -843,6 +933,95 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 				Domain:       ch.mg.settings.Domain,
 				BridgeSecret: ch.mg.settings.BridgeSecret,
 			},
+		}
+
+	case *pb.ReqEnvelope_ReqListStorageDevices:
+		// Issue #38/#39: read-only disk enumeration, safe to run directly —
+		// see storage.ListDevices's doc comment for why the actual
+		// (destructive) setup step isn't wired up here yet.
+		devices, err := storage.ListDevices()
+		if err != nil {
+			log.Error("error listing storage devices:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+
+		pbDevices := make([]*pb.StorageDevice, len(devices))
+		for i, d := range devices {
+			pbDevices[i] = &pb.StorageDevice{
+				Path:      d.Path,
+				SizeBytes: d.SizeBytes,
+				Model:     d.Model,
+			}
+		}
+		resp.Payload = &pb.RespEnvelope_RespStorageDevices{
+			RespStorageDevices: &pb.StorageDevices{
+				Devices: pbDevices,
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqSetupStorage:
+		// DESTRUCTIVE on anything selected (wipes/formats those disks) once
+		// applied — but this service can't do that itself (see storage
+		// package doc comment on why it's unprivileged), so this just hands
+		// the request off to scripts/raid_watch.py's root-owned service,
+		// which picks it up and does the actual work in the background.
+		log.Info("Setup storage:", p.ReqSetupStorage.DevicePaths)
+		err := storage.RequestSetup(p.ReqSetupStorage.DevicePaths)
+		if err != nil {
+			log.Error("error requesting storage setup:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqListWifiNetworks:
+		// Issue #38: safe, read-only scan — see network.ListNetworks's
+		// doc comment for why joining is handled differently.
+		networks, err := network.ListNetworks()
+		if err != nil {
+			log.Error("error listing wifi networks:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		pbNetworks := make([]*pb.WifiNetwork, len(networks))
+		for i, n := range networks {
+			pbNetworks[i] = &pb.WifiNetwork{
+				Ssid:    n.SSID,
+				Signal:  n.Signal,
+				Secured: n.Secured,
+			}
+		}
+		resp.Payload = &pb.RespEnvelope_RespWifiNetworks{
+			RespWifiNetworks: &pb.WifiNetworks{
+				Networks: pbNetworks,
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqSetWifi:
+		// DESTRUCTIVE to whatever network connection this device currently
+		// has — joining a new WiFi network drops any existing one. Handed
+		// off to network_setup.py the same way storage setup is; see
+		// network.RequestJoin's doc comment for why.
+		log.Info("Request wifi join:", p.ReqSetWifi.Ssid)
+		err := network.RequestJoin(p.ReqSetWifi.Ssid, p.ReqSetWifi.Password)
+		if err != nil {
+			log.Error("error requesting wifi join:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok: true,
+				},
+			}
 		}
 
 	default:

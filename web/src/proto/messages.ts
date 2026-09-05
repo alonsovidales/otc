@@ -258,6 +258,14 @@ export interface GetPubKey {
 export interface PubKey {
   /** PKIX/SPKI DER-encoded RSA public key, valid only for this connection. */
   publicKey: Uint8Array;
+  /**
+   * True when this device has no owner secret set up yet (issue #39) —
+   * every client already calls GetPubKey before Auth, so this is the
+   * cheapest place to tell a fresh device apart from a normal login
+   * without a dedicated round trip. Clients should show a first-run setup
+   * flow (device password + owner name) instead of a plain sign-in form.
+   */
+  isNewDevice: boolean;
 }
 
 export interface UploadFile {
@@ -438,6 +446,73 @@ export interface SetBridgeSecret {
   secret: string;
 }
 
+/**
+ * Issue #39/#38: first-run storage setup. Listing is safe/read-only (just
+ * /sys/block enumeration), but actually building the array is destructive
+ * (formats whichever disks are picked), so it's kept as an explicit,
+ * separate confirmation step rather than something that happens
+ * automatically just because a device was detected.
+ */
+export interface ListStorageDevices {
+}
+
+export interface StorageDevice {
+  /** e.g. "/dev/sda" — this exact string is what SetupStorage expects back. */
+  path: string;
+  sizeBytes: bigint;
+  model: string;
+}
+
+export interface StorageDevices {
+  /**
+   * Only devices safe to repurpose: the boot disk itself (and its
+   * partitions), loop/ram devices, and anything with no usable size are
+   * already filtered out server-side.
+   */
+  devices: StorageDevice[];
+}
+
+/**
+ * SetupStorage is destructive on anything selected: 2 devices creates a
+ * RAID1 mirror across them, 1 formats and uses that single device alone
+ * (no redundancy), 0 leaves storage on the boot disk as-is.
+ */
+export interface SetupStorage {
+  devicePaths: string[];
+}
+
+/**
+ * Issue #38: first-boot WiFi join, for a device reached over its own
+ * temporary "Off The Cloud" access point rather than an already-working
+ * network. Scanning is read-only (nmcli dev wifi list needs no special
+ * privilege), so it runs directly in the otc service like
+ * ListStorageDevices; actually joining a network is privileged the same
+ * way storage setup is — see SetWifi.
+ */
+export interface ListWifiNetworks {
+}
+
+export interface WifiNetwork {
+  ssid: string;
+  /** 0-100, from nmcli's SIGNAL column. */
+  signal: number;
+  secured: boolean;
+}
+
+export interface WifiNetworks {
+  networks: WifiNetwork[];
+}
+
+/**
+ * SetWifi hands the join off to a privileged process the same way
+ * SetupStorage does (see storage.RequestSetup) — the otc service can't run
+ * `nmcli connection up` itself. An empty password means an open network.
+ */
+export interface SetWifi {
+  ssid: string;
+  password: string;
+}
+
 export interface BridgeRegister {
   ownerUuid: string;
   domain: string;
@@ -446,6 +521,35 @@ export interface BridgeRegister {
 
 export interface BridgeAckOnboard {
   ok: boolean;
+}
+
+/**
+ * RotateBridgeSecret lets a device that already knows its current secret
+ * get a fresh one issued, without an admin manually deleting and re-adding
+ * its domain on the bridge's admin panel. Sent bridge-side (not on the
+ * device's own client-facing /ws) — `secret` is the CURRENT secret, and is
+ * the only thing that authenticates this request: the bridge only replaces
+ * it if this matches what it already has on record for owner_uuid+domain,
+ * same compare-and-swap spirit as BridgeRegister's existing secret check.
+ */
+export interface RotateBridgeSecret {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+}
+
+export interface RotateBridgeSecretAck {
+  newSecret: string;
+}
+
+/**
+ * RegenerateBridgeSecret is the client-facing (device /ws, authenticated)
+ * request behind the Settings page's "Regenerate" button: the device looks
+ * up its own owner_uuid/domain/current secret and does the
+ * RotateBridgeSecret round trip to the bridge itself, then persists and
+ * returns the new secret — the web app never talks to the bridge directly.
+ */
+export interface RegenerateBridgeSecret {
 }
 
 export interface GetProfile {
@@ -625,6 +729,12 @@ export interface ReqEnvelope {
     | { $case: "reqDelSocialPublication"; reqDelSocialPublication: DelSocialPublication }
     | { $case: "reqGetFileInfo"; reqGetFileInfo: GetFileInfo }
     | { $case: "reqSetBridgeSecret"; reqSetBridgeSecret: SetBridgeSecret }
+    | { $case: "reqListStorageDevices"; reqListStorageDevices: ListStorageDevices }
+    | { $case: "reqSetupStorage"; reqSetupStorage: SetupStorage }
+    | { $case: "reqRegenerateBridgeSecret"; reqRegenerateBridgeSecret: RegenerateBridgeSecret }
+    | { $case: "reqRotateBridgeSecret"; reqRotateBridgeSecret: RotateBridgeSecret }
+    | { $case: "reqListWifiNetworks"; reqListWifiNetworks: ListWifiNetworks }
+    | { $case: "reqSetWifi"; reqSetWifi: SetWifi }
     | undefined;
 }
 
@@ -652,6 +762,9 @@ export interface RespEnvelope {
     | { $case: "respPubKey"; respPubKey: PubKey }
     | { $case: "respLikers"; respLikers: Likers }
     | { $case: "respFileInfo"; respFileInfo: FileExifInfo }
+    | { $case: "respStorageDevices"; respStorageDevices: StorageDevices }
+    | { $case: "respRotateBridgeSecretAck"; respRotateBridgeSecretAck: RotateBridgeSecretAck }
+    | { $case: "respWifiNetworks"; respWifiNetworks: WifiNetworks }
     | undefined;
 }
 
@@ -1142,13 +1255,16 @@ export const GetPubKey: MessageFns<GetPubKey> = {
 };
 
 function createBasePubKey(): PubKey {
-  return { publicKey: new Uint8Array(0) };
+  return { publicKey: new Uint8Array(0), isNewDevice: false };
 }
 
 export const PubKey: MessageFns<PubKey> = {
   encode(message: PubKey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.publicKey.length !== 0) {
       writer.uint32(10).bytes(message.publicKey);
+    }
+    if (message.isNewDevice !== false) {
+      writer.uint32(16).bool(message.isNewDevice);
     }
     return writer;
   },
@@ -1168,6 +1284,14 @@ export const PubKey: MessageFns<PubKey> = {
           message.publicKey = reader.bytes();
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.isNewDevice = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1178,13 +1302,19 @@ export const PubKey: MessageFns<PubKey> = {
   },
 
   fromJSON(object: any): PubKey {
-    return { publicKey: isSet(object.publicKey) ? bytesFromBase64(object.publicKey) : new Uint8Array(0) };
+    return {
+      publicKey: isSet(object.publicKey) ? bytesFromBase64(object.publicKey) : new Uint8Array(0),
+      isNewDevice: isSet(object.isNewDevice) ? globalThis.Boolean(object.isNewDevice) : false,
+    };
   },
 
   toJSON(message: PubKey): unknown {
     const obj: any = {};
     if (message.publicKey.length !== 0) {
       obj.publicKey = base64FromBytes(message.publicKey);
+    }
+    if (message.isNewDevice !== false) {
+      obj.isNewDevice = message.isNewDevice;
     }
     return obj;
   },
@@ -1195,6 +1325,7 @@ export const PubKey: MessageFns<PubKey> = {
   fromPartial<I extends Exact<DeepPartial<PubKey>, I>>(object: I): PubKey {
     const message = createBasePubKey();
     message.publicKey = object.publicKey ?? new Uint8Array(0);
+    message.isNewDevice = object.isNewDevice ?? false;
     return message;
   },
 };
@@ -3634,6 +3765,541 @@ export const SetBridgeSecret: MessageFns<SetBridgeSecret> = {
   },
 };
 
+function createBaseListStorageDevices(): ListStorageDevices {
+  return {};
+}
+
+export const ListStorageDevices: MessageFns<ListStorageDevices> = {
+  encode(_: ListStorageDevices, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListStorageDevices {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListStorageDevices();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ListStorageDevices {
+    return {};
+  },
+
+  toJSON(_: ListStorageDevices): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListStorageDevices>, I>>(base?: I): ListStorageDevices {
+    return ListStorageDevices.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListStorageDevices>, I>>(_: I): ListStorageDevices {
+    const message = createBaseListStorageDevices();
+    return message;
+  },
+};
+
+function createBaseStorageDevice(): StorageDevice {
+  return { path: "", sizeBytes: 0n, model: "" };
+}
+
+export const StorageDevice: MessageFns<StorageDevice> = {
+  encode(message: StorageDevice, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.sizeBytes !== 0n) {
+      if (BigInt.asIntN(64, message.sizeBytes) !== message.sizeBytes) {
+        throw new globalThis.Error("value provided for field message.sizeBytes of type int64 too large");
+      }
+      writer.uint32(16).int64(message.sizeBytes);
+    }
+    if (message.model !== "") {
+      writer.uint32(26).string(message.model);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StorageDevice {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseStorageDevice();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.sizeBytes = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.model = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): StorageDevice {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      sizeBytes: isSet(object.sizeBytes) ? BigInt(object.sizeBytes) : 0n,
+      model: isSet(object.model) ? globalThis.String(object.model) : "",
+    };
+  },
+
+  toJSON(message: StorageDevice): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.sizeBytes !== 0n) {
+      obj.sizeBytes = message.sizeBytes.toString();
+    }
+    if (message.model !== "") {
+      obj.model = message.model;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StorageDevice>, I>>(base?: I): StorageDevice {
+    return StorageDevice.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StorageDevice>, I>>(object: I): StorageDevice {
+    const message = createBaseStorageDevice();
+    message.path = object.path ?? "";
+    message.sizeBytes = object.sizeBytes ?? 0n;
+    message.model = object.model ?? "";
+    return message;
+  },
+};
+
+function createBaseStorageDevices(): StorageDevices {
+  return { devices: [] };
+}
+
+export const StorageDevices: MessageFns<StorageDevices> = {
+  encode(message: StorageDevices, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.devices) {
+      StorageDevice.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StorageDevices {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseStorageDevices();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.devices.push(StorageDevice.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): StorageDevices {
+    return {
+      devices: globalThis.Array.isArray(object?.devices)
+        ? object.devices.map((e: any) => StorageDevice.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: StorageDevices): unknown {
+    const obj: any = {};
+    if (message.devices?.length) {
+      obj.devices = message.devices.map((e) => StorageDevice.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StorageDevices>, I>>(base?: I): StorageDevices {
+    return StorageDevices.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StorageDevices>, I>>(object: I): StorageDevices {
+    const message = createBaseStorageDevices();
+    message.devices = object.devices?.map((e) => StorageDevice.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSetupStorage(): SetupStorage {
+  return { devicePaths: [] };
+}
+
+export const SetupStorage: MessageFns<SetupStorage> = {
+  encode(message: SetupStorage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.devicePaths) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetupStorage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetupStorage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.devicePaths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetupStorage {
+    return {
+      devicePaths: globalThis.Array.isArray(object?.devicePaths)
+        ? object.devicePaths.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: SetupStorage): unknown {
+    const obj: any = {};
+    if (message.devicePaths?.length) {
+      obj.devicePaths = message.devicePaths;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetupStorage>, I>>(base?: I): SetupStorage {
+    return SetupStorage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetupStorage>, I>>(object: I): SetupStorage {
+    const message = createBaseSetupStorage();
+    message.devicePaths = object.devicePaths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseListWifiNetworks(): ListWifiNetworks {
+  return {};
+}
+
+export const ListWifiNetworks: MessageFns<ListWifiNetworks> = {
+  encode(_: ListWifiNetworks, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListWifiNetworks {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListWifiNetworks();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ListWifiNetworks {
+    return {};
+  },
+
+  toJSON(_: ListWifiNetworks): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListWifiNetworks>, I>>(base?: I): ListWifiNetworks {
+    return ListWifiNetworks.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListWifiNetworks>, I>>(_: I): ListWifiNetworks {
+    const message = createBaseListWifiNetworks();
+    return message;
+  },
+};
+
+function createBaseWifiNetwork(): WifiNetwork {
+  return { ssid: "", signal: 0, secured: false };
+}
+
+export const WifiNetwork: MessageFns<WifiNetwork> = {
+  encode(message: WifiNetwork, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ssid !== "") {
+      writer.uint32(10).string(message.ssid);
+    }
+    if (message.signal !== 0) {
+      writer.uint32(16).int32(message.signal);
+    }
+    if (message.secured !== false) {
+      writer.uint32(24).bool(message.secured);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WifiNetwork {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWifiNetwork();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ssid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.signal = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.secured = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WifiNetwork {
+    return {
+      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
+      signal: isSet(object.signal) ? globalThis.Number(object.signal) : 0,
+      secured: isSet(object.secured) ? globalThis.Boolean(object.secured) : false,
+    };
+  },
+
+  toJSON(message: WifiNetwork): unknown {
+    const obj: any = {};
+    if (message.ssid !== "") {
+      obj.ssid = message.ssid;
+    }
+    if (message.signal !== 0) {
+      obj.signal = Math.round(message.signal);
+    }
+    if (message.secured !== false) {
+      obj.secured = message.secured;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WifiNetwork>, I>>(base?: I): WifiNetwork {
+    return WifiNetwork.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WifiNetwork>, I>>(object: I): WifiNetwork {
+    const message = createBaseWifiNetwork();
+    message.ssid = object.ssid ?? "";
+    message.signal = object.signal ?? 0;
+    message.secured = object.secured ?? false;
+    return message;
+  },
+};
+
+function createBaseWifiNetworks(): WifiNetworks {
+  return { networks: [] };
+}
+
+export const WifiNetworks: MessageFns<WifiNetworks> = {
+  encode(message: WifiNetworks, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.networks) {
+      WifiNetwork.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WifiNetworks {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWifiNetworks();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.networks.push(WifiNetwork.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WifiNetworks {
+    return {
+      networks: globalThis.Array.isArray(object?.networks)
+        ? object.networks.map((e: any) => WifiNetwork.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WifiNetworks): unknown {
+    const obj: any = {};
+    if (message.networks?.length) {
+      obj.networks = message.networks.map((e) => WifiNetwork.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WifiNetworks>, I>>(base?: I): WifiNetworks {
+    return WifiNetworks.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WifiNetworks>, I>>(object: I): WifiNetworks {
+    const message = createBaseWifiNetworks();
+    message.networks = object.networks?.map((e) => WifiNetwork.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSetWifi(): SetWifi {
+  return { ssid: "", password: "" };
+}
+
+export const SetWifi: MessageFns<SetWifi> = {
+  encode(message: SetWifi, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ssid !== "") {
+      writer.uint32(10).string(message.ssid);
+    }
+    if (message.password !== "") {
+      writer.uint32(18).string(message.password);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetWifi {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetWifi();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ssid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.password = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetWifi {
+    return {
+      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
+      password: isSet(object.password) ? globalThis.String(object.password) : "",
+    };
+  },
+
+  toJSON(message: SetWifi): unknown {
+    const obj: any = {};
+    if (message.ssid !== "") {
+      obj.ssid = message.ssid;
+    }
+    if (message.password !== "") {
+      obj.password = message.password;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetWifi>, I>>(base?: I): SetWifi {
+    return SetWifi.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetWifi>, I>>(object: I): SetWifi {
+    const message = createBaseSetWifi();
+    message.ssid = object.ssid ?? "";
+    message.password = object.password ?? "";
+    return message;
+  },
+};
+
 function createBaseBridgeRegister(): BridgeRegister {
   return { ownerUuid: "", domain: "", secret: "" };
 }
@@ -3780,6 +4446,199 @@ export const BridgeAckOnboard: MessageFns<BridgeAckOnboard> = {
   fromPartial<I extends Exact<DeepPartial<BridgeAckOnboard>, I>>(object: I): BridgeAckOnboard {
     const message = createBaseBridgeAckOnboard();
     message.ok = object.ok ?? false;
+    return message;
+  },
+};
+
+function createBaseRotateBridgeSecret(): RotateBridgeSecret {
+  return { ownerUuid: "", domain: "", secret: "" };
+}
+
+export const RotateBridgeSecret: MessageFns<RotateBridgeSecret> = {
+  encode(message: RotateBridgeSecret, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RotateBridgeSecret {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRotateBridgeSecret();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RotateBridgeSecret {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: RotateBridgeSecret): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RotateBridgeSecret>, I>>(base?: I): RotateBridgeSecret {
+    return RotateBridgeSecret.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RotateBridgeSecret>, I>>(object: I): RotateBridgeSecret {
+    const message = createBaseRotateBridgeSecret();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    return message;
+  },
+};
+
+function createBaseRotateBridgeSecretAck(): RotateBridgeSecretAck {
+  return { newSecret: "" };
+}
+
+export const RotateBridgeSecretAck: MessageFns<RotateBridgeSecretAck> = {
+  encode(message: RotateBridgeSecretAck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.newSecret !== "") {
+      writer.uint32(10).string(message.newSecret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RotateBridgeSecretAck {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRotateBridgeSecretAck();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.newSecret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RotateBridgeSecretAck {
+    return { newSecret: isSet(object.newSecret) ? globalThis.String(object.newSecret) : "" };
+  },
+
+  toJSON(message: RotateBridgeSecretAck): unknown {
+    const obj: any = {};
+    if (message.newSecret !== "") {
+      obj.newSecret = message.newSecret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RotateBridgeSecretAck>, I>>(base?: I): RotateBridgeSecretAck {
+    return RotateBridgeSecretAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RotateBridgeSecretAck>, I>>(object: I): RotateBridgeSecretAck {
+    const message = createBaseRotateBridgeSecretAck();
+    message.newSecret = object.newSecret ?? "";
+    return message;
+  },
+};
+
+function createBaseRegenerateBridgeSecret(): RegenerateBridgeSecret {
+  return {};
+}
+
+export const RegenerateBridgeSecret: MessageFns<RegenerateBridgeSecret> = {
+  encode(_: RegenerateBridgeSecret, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RegenerateBridgeSecret {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRegenerateBridgeSecret();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): RegenerateBridgeSecret {
+    return {};
+  },
+
+  toJSON(_: RegenerateBridgeSecret): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RegenerateBridgeSecret>, I>>(base?: I): RegenerateBridgeSecret {
+    return RegenerateBridgeSecret.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RegenerateBridgeSecret>, I>>(_: I): RegenerateBridgeSecret {
+    const message = createBaseRegenerateBridgeSecret();
     return message;
   },
 };
@@ -5592,6 +6451,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetBridgeSecret":
         SetBridgeSecret.encode(message.payload.reqSetBridgeSecret, writer.uint32(386).fork()).join();
         break;
+      case "reqListStorageDevices":
+        ListStorageDevices.encode(message.payload.reqListStorageDevices, writer.uint32(394).fork()).join();
+        break;
+      case "reqSetupStorage":
+        SetupStorage.encode(message.payload.reqSetupStorage, writer.uint32(402).fork()).join();
+        break;
+      case "reqRegenerateBridgeSecret":
+        RegenerateBridgeSecret.encode(message.payload.reqRegenerateBridgeSecret, writer.uint32(410).fork()).join();
+        break;
+      case "reqRotateBridgeSecret":
+        RotateBridgeSecret.encode(message.payload.reqRotateBridgeSecret, writer.uint32(418).fork()).join();
+        break;
+      case "reqListWifiNetworks":
+        ListWifiNetworks.encode(message.payload.reqListWifiNetworks, writer.uint32(426).fork()).join();
+        break;
+      case "reqSetWifi":
+        SetWifi.encode(message.payload.reqSetWifi, writer.uint32(434).fork()).join();
+        break;
     }
     return writer;
   },
@@ -5964,6 +6841,66 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 49: {
+          if (tag !== 394) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListStorageDevices",
+            reqListStorageDevices: ListStorageDevices.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 50: {
+          if (tag !== 402) {
+            break;
+          }
+
+          message.payload = { $case: "reqSetupStorage", reqSetupStorage: SetupStorage.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 51: {
+          if (tag !== 410) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRegenerateBridgeSecret",
+            reqRegenerateBridgeSecret: RegenerateBridgeSecret.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 52: {
+          if (tag !== 418) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRotateBridgeSecret",
+            reqRotateBridgeSecret: RotateBridgeSecret.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 53: {
+          if (tag !== 426) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListWifiNetworks",
+            reqListWifiNetworks: ListWifiNetworks.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 54: {
+          if (tag !== 434) {
+            break;
+          }
+
+          message.payload = { $case: "reqSetWifi", reqSetWifi: SetWifi.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6083,6 +7020,27 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqGetFileInfo", reqGetFileInfo: GetFileInfo.fromJSON(object.reqGetFileInfo) }
         : isSet(object.reqSetBridgeSecret)
         ? { $case: "reqSetBridgeSecret", reqSetBridgeSecret: SetBridgeSecret.fromJSON(object.reqSetBridgeSecret) }
+        : isSet(object.reqListStorageDevices)
+        ? {
+          $case: "reqListStorageDevices",
+          reqListStorageDevices: ListStorageDevices.fromJSON(object.reqListStorageDevices),
+        }
+        : isSet(object.reqSetupStorage)
+        ? { $case: "reqSetupStorage", reqSetupStorage: SetupStorage.fromJSON(object.reqSetupStorage) }
+        : isSet(object.reqRegenerateBridgeSecret)
+        ? {
+          $case: "reqRegenerateBridgeSecret",
+          reqRegenerateBridgeSecret: RegenerateBridgeSecret.fromJSON(object.reqRegenerateBridgeSecret),
+        }
+        : isSet(object.reqRotateBridgeSecret)
+        ? {
+          $case: "reqRotateBridgeSecret",
+          reqRotateBridgeSecret: RotateBridgeSecret.fromJSON(object.reqRotateBridgeSecret),
+        }
+        : isSet(object.reqListWifiNetworks)
+        ? { $case: "reqListWifiNetworks", reqListWifiNetworks: ListWifiNetworks.fromJSON(object.reqListWifiNetworks) }
+        : isSet(object.reqSetWifi)
+        ? { $case: "reqSetWifi", reqSetWifi: SetWifi.fromJSON(object.reqSetWifi) }
         : undefined,
     };
   },
@@ -6166,6 +7124,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetFileInfo = GetFileInfo.toJSON(message.payload.reqGetFileInfo);
     } else if (message.payload?.$case === "reqSetBridgeSecret") {
       obj.reqSetBridgeSecret = SetBridgeSecret.toJSON(message.payload.reqSetBridgeSecret);
+    } else if (message.payload?.$case === "reqListStorageDevices") {
+      obj.reqListStorageDevices = ListStorageDevices.toJSON(message.payload.reqListStorageDevices);
+    } else if (message.payload?.$case === "reqSetupStorage") {
+      obj.reqSetupStorage = SetupStorage.toJSON(message.payload.reqSetupStorage);
+    } else if (message.payload?.$case === "reqRegenerateBridgeSecret") {
+      obj.reqRegenerateBridgeSecret = RegenerateBridgeSecret.toJSON(message.payload.reqRegenerateBridgeSecret);
+    } else if (message.payload?.$case === "reqRotateBridgeSecret") {
+      obj.reqRotateBridgeSecret = RotateBridgeSecret.toJSON(message.payload.reqRotateBridgeSecret);
+    } else if (message.payload?.$case === "reqListWifiNetworks") {
+      obj.reqListWifiNetworks = ListWifiNetworks.toJSON(message.payload.reqListWifiNetworks);
+    } else if (message.payload?.$case === "reqSetWifi") {
+      obj.reqSetWifi = SetWifi.toJSON(message.payload.reqSetWifi);
     }
     return obj;
   },
@@ -6492,6 +7462,59 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqListStorageDevices": {
+        if (object.payload?.reqListStorageDevices !== undefined && object.payload?.reqListStorageDevices !== null) {
+          message.payload = {
+            $case: "reqListStorageDevices",
+            reqListStorageDevices: ListStorageDevices.fromPartial(object.payload.reqListStorageDevices),
+          };
+        }
+        break;
+      }
+      case "reqSetupStorage": {
+        if (object.payload?.reqSetupStorage !== undefined && object.payload?.reqSetupStorage !== null) {
+          message.payload = {
+            $case: "reqSetupStorage",
+            reqSetupStorage: SetupStorage.fromPartial(object.payload.reqSetupStorage),
+          };
+        }
+        break;
+      }
+      case "reqRegenerateBridgeSecret": {
+        if (
+          object.payload?.reqRegenerateBridgeSecret !== undefined && object.payload?.reqRegenerateBridgeSecret !== null
+        ) {
+          message.payload = {
+            $case: "reqRegenerateBridgeSecret",
+            reqRegenerateBridgeSecret: RegenerateBridgeSecret.fromPartial(object.payload.reqRegenerateBridgeSecret),
+          };
+        }
+        break;
+      }
+      case "reqRotateBridgeSecret": {
+        if (object.payload?.reqRotateBridgeSecret !== undefined && object.payload?.reqRotateBridgeSecret !== null) {
+          message.payload = {
+            $case: "reqRotateBridgeSecret",
+            reqRotateBridgeSecret: RotateBridgeSecret.fromPartial(object.payload.reqRotateBridgeSecret),
+          };
+        }
+        break;
+      }
+      case "reqListWifiNetworks": {
+        if (object.payload?.reqListWifiNetworks !== undefined && object.payload?.reqListWifiNetworks !== null) {
+          message.payload = {
+            $case: "reqListWifiNetworks",
+            reqListWifiNetworks: ListWifiNetworks.fromPartial(object.payload.reqListWifiNetworks),
+          };
+        }
+        break;
+      }
+      case "reqSetWifi": {
+        if (object.payload?.reqSetWifi !== undefined && object.payload?.reqSetWifi !== null) {
+          message.payload = { $case: "reqSetWifi", reqSetWifi: SetWifi.fromPartial(object.payload.reqSetWifi) };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -6569,6 +7592,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respFileInfo":
         FileExifInfo.encode(message.payload.respFileInfo, writer.uint32(226).fork()).join();
+        break;
+      case "respStorageDevices":
+        StorageDevices.encode(message.payload.respStorageDevices, writer.uint32(234).fork()).join();
+        break;
+      case "respRotateBridgeSecretAck":
+        RotateBridgeSecretAck.encode(message.payload.respRotateBridgeSecretAck, writer.uint32(242).fork()).join();
+        break;
+      case "respWifiNetworks":
+        WifiNetworks.encode(message.payload.respWifiNetworks, writer.uint32(250).fork()).join();
         break;
     }
     return writer;
@@ -6769,6 +7801,39 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respFileInfo", respFileInfo: FileExifInfo.decode(reader, reader.uint32()) };
           continue;
         }
+        case 29: {
+          if (tag !== 234) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respStorageDevices",
+            respStorageDevices: StorageDevices.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 30: {
+          if (tag !== 242) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respRotateBridgeSecretAck",
+            respRotateBridgeSecretAck: RotateBridgeSecretAck.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 31: {
+          if (tag !== 250) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respWifiNetworks",
+            respWifiNetworks: WifiNetworks.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6833,6 +7898,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respLikers", respLikers: Likers.fromJSON(object.respLikers) }
         : isSet(object.respFileInfo)
         ? { $case: "respFileInfo", respFileInfo: FileExifInfo.fromJSON(object.respFileInfo) }
+        : isSet(object.respStorageDevices)
+        ? { $case: "respStorageDevices", respStorageDevices: StorageDevices.fromJSON(object.respStorageDevices) }
+        : isSet(object.respRotateBridgeSecretAck)
+        ? {
+          $case: "respRotateBridgeSecretAck",
+          respRotateBridgeSecretAck: RotateBridgeSecretAck.fromJSON(object.respRotateBridgeSecretAck),
+        }
+        : isSet(object.respWifiNetworks)
+        ? { $case: "respWifiNetworks", respWifiNetworks: WifiNetworks.fromJSON(object.respWifiNetworks) }
         : undefined,
     };
   },
@@ -6886,6 +7960,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respLikers = Likers.toJSON(message.payload.respLikers);
     } else if (message.payload?.$case === "respFileInfo") {
       obj.respFileInfo = FileExifInfo.toJSON(message.payload.respFileInfo);
+    } else if (message.payload?.$case === "respStorageDevices") {
+      obj.respStorageDevices = StorageDevices.toJSON(message.payload.respStorageDevices);
+    } else if (message.payload?.$case === "respRotateBridgeSecretAck") {
+      obj.respRotateBridgeSecretAck = RotateBridgeSecretAck.toJSON(message.payload.respRotateBridgeSecretAck);
+    } else if (message.payload?.$case === "respWifiNetworks") {
+      obj.respWifiNetworks = WifiNetworks.toJSON(message.payload.respWifiNetworks);
     }
     return obj;
   },
@@ -7042,6 +8122,35 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respFileInfo",
             respFileInfo: FileExifInfo.fromPartial(object.payload.respFileInfo),
+          };
+        }
+        break;
+      }
+      case "respStorageDevices": {
+        if (object.payload?.respStorageDevices !== undefined && object.payload?.respStorageDevices !== null) {
+          message.payload = {
+            $case: "respStorageDevices",
+            respStorageDevices: StorageDevices.fromPartial(object.payload.respStorageDevices),
+          };
+        }
+        break;
+      }
+      case "respRotateBridgeSecretAck": {
+        if (
+          object.payload?.respRotateBridgeSecretAck !== undefined && object.payload?.respRotateBridgeSecretAck !== null
+        ) {
+          message.payload = {
+            $case: "respRotateBridgeSecretAck",
+            respRotateBridgeSecretAck: RotateBridgeSecretAck.fromPartial(object.payload.respRotateBridgeSecretAck),
+          };
+        }
+        break;
+      }
+      case "respWifiNetworks": {
+        if (object.payload?.respWifiNetworks !== undefined && object.payload?.respWifiNetworks !== null) {
+          message.payload = {
+            $case: "respWifiNetworks",
+            respWifiNetworks: WifiNetworks.fromPartial(object.payload.respWifiNetworks),
           };
         }
         break;

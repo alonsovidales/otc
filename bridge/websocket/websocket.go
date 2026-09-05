@@ -155,6 +155,47 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// After the connection is created, we leave it open and return
 				return
 
+			case *pb.ReqEnvelope_ReqRotateBridgeSecret:
+				// Self-service "Regenerate" (issue #40 follow-up): the
+				// device's current secret is the only thing that
+				// authenticates this — see dao.RotateSecret's compare-and-
+				// swap. A one-off request/response, not a pooled relay
+				// connection, so this always closes the connection instead
+				// of returning early like ReqBridgeRegister does above.
+				defer conn.Close()
+				log.Info("Rotate bridge secret for device:", p.ReqRotateBridgeSecret.Domain)
+				newSecret := uuid.New().String() + uuid.New().String()
+				ok, err := mg.dao.RotateSecret(
+					p.ReqRotateBridgeSecret.OwnerUuid,
+					p.ReqRotateBridgeSecret.Domain,
+					p.ReqRotateBridgeSecret.Secret,
+					newSecret,
+				)
+				if err != nil {
+					log.Error("error rotating secret:", err)
+					resp.Error = true
+					resp.ErrorMessage = err.Error()
+				} else if !ok {
+					log.Error("rotate secret rejected: no matching device/secret")
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), p.ReqRotateBridgeSecret.Domain, p.ReqRotateBridgeSecret.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+						log.Error("error logging auth event:", logErr)
+					}
+					resp.Error = true
+					resp.ErrorMessage = "Invalid Secret"
+				} else {
+					resp.Payload = &pb.RespEnvelope_RespRotateBridgeSecretAck{
+						RespRotateBridgeSecretAck: &pb.RotateBridgeSecretAck{
+							NewSecret: newSecret,
+						},
+					}
+				}
+
+				respBin, _ := proto.Marshal(resp)
+				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
+
 			default:
 				defer conn.Close()
 				// This may be a direct request to a device, just forward it if the domain exists

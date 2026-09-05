@@ -264,6 +264,40 @@ raid-watch: raid ## Install the RAID status-LED watcher service (scripts/raid_wa
 	@echo "NOTE: wire the status LEDs to the GPIO pins in scripts/raid_watch.py's CONFIG before relying on them."
 
 # =============================================================================
+# First-boot WiFi setup (issue #38)
+# =============================================================================
+
+.PHONY: network-setup
+network-setup: ## Install the first-boot WiFi/AP watcher service (scripts/network_setup.py)
+	@echo "$(WARN_COLOR)CAUTION: this can bring down $(TARGET)'s current network connection"
+	@echo "if it decides there's no working one (or you later join a bad network via"
+	@echo "the setup wizard) - don't run this against a device you only reach over"
+	@echo "the same WiFi it might drop. $(NO_COLOR)"
+	@echo "Installing network-setup.service on $(TARGET)..."
+	$(SCP) scripts/network_setup.py $(PI_USER)@$(TARGET):/tmp/network_setup.py
+	$(SSH) 'sudo mv /tmp/network_setup.py /usr/local/bin/network_setup.py && sudo chmod +x /usr/local/bin/network_setup.py' < /dev/null
+	$(SSH) 'sudo tee /etc/systemd/system/network-setup.service >/dev/null' <<-'EOF'
+	[Unit]
+	Description=OTC first-boot WiFi/AP setup
+	After=NetworkManager.service
+	Wants=NetworkManager.service
+
+	[Service]
+	Type=simple
+	ExecStart=/usr/bin/python3 /usr/local/bin/network_setup.py
+	Restart=on-failure
+	User=root
+
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+	$(SSH) 'sudo systemctl daemon-reload && sudo systemctl enable --now network-setup.service' < /dev/null
+
+.PHONY: network-setup-status
+network-setup-status: ## Show network-setup.service status + active connections on the device
+	@$(SSH) 'sudo systemctl status network-setup --no-pager; echo; nmcli connection show --active' < /dev/null
+
+# =============================================================================
 # MariaDB
 # =============================================================================
 

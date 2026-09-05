@@ -29,6 +29,7 @@ Run
 
 import os
 import re
+import sys
 import time
 import json
 import glob
@@ -37,12 +38,31 @@ import signal
 import subprocess
 from pathlib import Path
 
+# Running under systemd, stdout is a pipe to journald, not a TTY — Python
+# switches to full block buffering in that case (only a TTY gets automatic
+# line buffering), so print() output can sit invisible for a long time
+# with nothing forcing a flush. Found this the hard way debugging a
+# storage-setup request that had actually already been applied correctly.
+sys.stdout.reconfigure(line_buffering=True)
+
 # ----------------------------
 # CONFIG (edit to your setup)
 # ----------------------------
 CONFIG = {
     # Your array device
     "raid_dev": "/dev/md0",
+
+    # Issue #38/#39: the otc service (unprivileged, hardened systemd unit —
+    # it can't run wipefs/mdadm/mkfs itself) writes the owner's storage
+    # choice from the first-run setup wizard here as JSON:
+    # {"device_paths": ["/dev/sda", "/dev/sdb"]}  (0, 1, or 2 paths).
+    # This script runs as root, so it's the one that actually does the
+    # one-time destructive bootstrap (wipe + mdadm --create/mkfs + mount),
+    # then deletes the request file. Everything after that first build is
+    # this same script's existing job: watch/repair the array.
+    "setup_request_file": "/var/lib/otc/storage_setup_request.json",
+    "mount_point": "/mnt/storage",
+    "unenc_subdir": "unencrypted",
 
     # GPIO pins (BCM numbering) for each LED (member slot 0 and 1)
     # Example pins; change to your wiring.
@@ -79,6 +99,7 @@ CONFIG = {
         "parted": "/usr/sbin/parted",
         "sgdisk": "/usr/sbin/sgdisk",  # optional
         "lsblk": "/bin/lsblk",
+        "wipefs": "/sbin/wipefs",
     },
 }
 
@@ -265,6 +286,13 @@ def pick_candidate_disk(existing_member_size, detail):
     for d, sz in disks:
         base = base_disk(d)
 
+        # Exclude empty devices (e.g. a card reader with nothing inserted
+        # reports as a real disk with size 0) — otherwise these get picked
+        # as a "candidate" every single poll and mdadm --add just fails on
+        # them forever, spamming the log for no benefit.
+        if sz == 0:
+            continue
+
         # Exclude any disk that is already a member (whole disk or parent of a partition member)
         if base in in_array_bases:
             continue
@@ -312,6 +340,130 @@ def prepare_disk_for_raid(disk):
 
 def add_member(raid_dev, new_dev):
     return run([CONFIG["paths"]["mdadm"], "--add", raid_dev, new_dev])
+
+# ----------------------------
+# First-time storage bootstrap (issue #38/#39)
+# ----------------------------
+def _fail_bootstrap(msg):
+    print(f"[raid-watch] storage setup request rejected: {msg}")
+
+def _safe_to_wipe(dev):
+    """Last line of defense before an irreversible wipe: the otc service's
+    device listing already excludes the boot disk and unmounted-but-empty
+    devices, but this runs as root off a request that ultimately came from
+    a web form, so it re-checks independently rather than trusting that
+    filtering held all the way through."""
+    root_base = root_base_disk()
+    if root_base and base_disk(dev) == root_base:
+        _fail_bootstrap(f"{dev} is the boot disk, refusing to touch it")
+        return False
+    mounts = run(["lsblk", "-ndo", "MOUNTPOINT", dev]).stdout.strip().splitlines()
+    if any(m for m in mounts if m.strip()):
+        _fail_bootstrap(f"{dev} (or a partition on it) is already mounted, refusing to wipe it")
+        return False
+    return True
+
+def _append_fstab(dev, mount_point):
+    line = f"{dev}   {mount_point}   ext4   defaults   0   0"
+    fstab = Path("/etc/fstab").read_text()
+    if dev not in fstab:
+        with open("/etc/fstab", "a") as f:
+            f.write(line + "\n")
+
+def _run_step(cmd):
+    """Like run(), but returns True/False and logs on failure — run()
+    itself swallows exceptions into a returncode=1 CompletedProcess rather
+    than raising, so `check=True` alone won't stop a failed bootstrap from
+    barreling into its next (now unsafe) step."""
+    res = run(cmd)
+    if res.returncode != 0:
+        _fail_bootstrap(f"`{' '.join(cmd)}` failed: {res.stderr or res.stdout}")
+        return False
+    return True
+
+def perform_pending_storage_setup():
+    """Reads CONFIG['setup_request_file'] (written by the web setup wizard
+    via the otc service) and performs the one-time bootstrap it asks for,
+    then removes the request file. Safe to call on every poll: if the file
+    isn't there, or the array/mount already exists, this is a no-op. Stops
+    (leaving the request file in place for inspection/retry) at the first
+    failed step rather than pushing on into further destructive commands
+    against a disk that's now in an unknown state."""
+    req_path = Path(CONFIG["setup_request_file"])
+    if not req_path.exists():
+        return
+
+    mount_point = CONFIG["mount_point"]
+    unenc_path = os.path.join(mount_point, CONFIG["unenc_subdir"])
+    raid_dev = CONFIG["raid_dev"]
+
+    try:
+        request = json.loads(req_path.read_text())
+        # `or []` (not just a .get default) because a present-but-null
+        # "device_paths" key — e.g. a Go nil slice marshaled to JSON `null`
+        # — parses to None, which .get()'s default never catches since the
+        # key *was* there.
+        device_paths = request.get("device_paths") or []
+    except Exception as e:
+        _fail_bootstrap(f"could not parse {req_path}: {e}")
+        req_path.unlink(missing_ok=True)
+        return
+
+    if os.path.ismount(mount_point):
+        print(f"[raid-watch] {mount_point} is already mounted — treating storage setup as already done.")
+        req_path.unlink(missing_ok=True)
+        return
+
+    print(f"[raid-watch] Applying storage setup request: {device_paths}")
+
+    if len(device_paths) == 0:
+        os.makedirs(unenc_path, exist_ok=True)
+        print(f"[raid-watch] No disks selected — using {mount_point} on the boot disk.")
+
+    elif len(device_paths) == 1:
+        dev = device_paths[0]
+        if not _safe_to_wipe(dev):
+            return
+        if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", dev]):
+            return
+        if not _run_step(["mkfs.ext4", "-F", dev]):
+            return
+        os.makedirs(mount_point, exist_ok=True)
+        if not _run_step(["mount", dev, mount_point]):
+            return
+        os.makedirs(unenc_path, exist_ok=True)
+        _append_fstab(dev, mount_point)
+        print(f"[raid-watch] {dev} formatted and mounted at {mount_point} (no RAID, single disk).")
+
+    elif len(device_paths) == 2:
+        d1, d2 = device_paths
+        if not _safe_to_wipe(d1) or not _safe_to_wipe(d2):
+            return
+        if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", d1]):
+            return
+        if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", d2]):
+            return
+        if not _run_step([CONFIG["paths"]["mdadm"], "--create", "--verbose", "--run", raid_dev,
+                           "--level=1", "--raid-devices=2", d1, d2]):
+            return
+        if not _run_step(["mkfs.ext4", "-F", raid_dev]):
+            return
+        os.makedirs(mount_point, exist_ok=True)
+        if not _run_step(["mount", raid_dev, mount_point]):
+            return
+        os.makedirs(unenc_path, exist_ok=True)
+        scan = run([CONFIG["paths"]["mdadm"], "--detail", "--scan"])
+        with open("/etc/mdadm/mdadm.conf", "a") as f:
+            f.write(scan.stdout)
+        run(["update-initramfs", "-u"])
+        _append_fstab(raid_dev, mount_point)
+        print(f"[raid-watch] RAID1 built on {raid_dev} from {d1}+{d2}, mounted at {mount_point}.")
+
+    else:
+        _fail_bootstrap(f"expected 0, 1, or 2 device paths, got {len(device_paths)}")
+        return
+
+    req_path.unlink(missing_ok=True)
 
 def raid_name_from_dev(raid_dev):
     return Path(raid_dev).name  # e.g., md0
@@ -386,6 +538,8 @@ def main():
 
     try:
         while True:
+            perform_pending_storage_setup()
+
             detail = mdadm_detail(raid_dev)
             state = (detail.get("state") or "").lower()
             members = detail.get("members", {})

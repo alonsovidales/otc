@@ -17,9 +17,8 @@ export default function SettingsForm() {
   const [newDomain, setNewDomain] = useState("");
   const [savingDomain, setSavingDomain] = useState(false);
 
-  // Bridge shared secret form (issue #40)
-  const [newSecret, setNewSecret] = useState("");
-  const [savingSecret, setSavingSecret] = useState(false);
+  // Bridge shared secret (issue #40)
+  const [regeneratingSecret, setRegeneratingSecret] = useState(false);
 
   // Password form
   const [oldKey, setOldKey] = useState("");
@@ -57,11 +56,6 @@ export default function SettingsForm() {
     const nd = newDomain.trim();
     return !!nd && nd !== currentDomain;
   }, [newDomain, currentDomain]);
-
-  const canSaveSecret = useMemo(() => {
-    const ns = newSecret.trim();
-    return !!ns && ns !== currentBridgeSecret;
-  }, [newSecret, currentBridgeSecret]);
 
   const pwMismatch = newKey.length > 0 && confirmKey.length > 0 && newKey !== confirmKey;
   const canSaveKey = useMemo(() => {
@@ -108,30 +102,32 @@ export default function SettingsForm() {
     }
   };
 
-  // Issue #40: update the bridge shared secret, independent of the domain
-  // form above (they used to be coupled server-side — see the proto
-  // comment on SetBridgeSecret).
-  const saveSecret = async () => {
-    if (!canSaveSecret || savingSecret || savingDomain || savingKey) return;
-    setSavingSecret(true);
+  // Issue #40 follow-up: the device asks the bridge itself for a fresh
+  // secret (authenticated by the current one) rather than inventing one
+  // locally — a self-generated secret would just be rejected by the
+  // bridge, which only ever accepts one it already has on record.
+  const regenerateSecret = async () => {
+    if (regeneratingSecret || savingDomain || savingKey) return;
+    setRegeneratingSecret(true);
     setStatus(null);
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqSetBridgeSecret", reqSetBridgeSecret: { secret: newSecret.trim() } };
+        (e as any).payload = { $case: "reqRegenerateBridgeSecret", reqRegenerateBridgeSecret: {} };
       });
-      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setCurrentBridgeSecret(newSecret.trim());
-        setNewSecret("");
-        setStatus({ kind: "success", text: "Bridge shared secret updated." });
+      if (resp.payload?.$case === "respSettings") {
+        setCurrentBridgeSecret(resp.payload.respSettings.bridgeSecret || "");
+        setStatus({ kind: "success", text: "Bridge shared secret regenerated." });
       } else if (resp.payload?.$case === "respAck") {
-        setStatus({ kind: "error", text: resp.payload.respAck.errorMsg || "Update failed." });
+        setStatus({ kind: "error", text: resp.payload.respAck.errorMsg || "Regenerate failed." });
+      } else if (resp.error) {
+        setStatus({ kind: "error", text: resp.errorMessage || "Regenerate failed." });
       } else {
         setStatus({ kind: "error", text: "Unexpected response." });
       }
     } catch (err: any) {
       setStatus({ kind: "error", text: err?.message ?? String(err) });
     } finally {
-      setSavingSecret(false);
+      setRegeneratingSecret(false);
     }
   };
 
@@ -208,32 +204,18 @@ export default function SettingsForm() {
       <section className="sf-section">
         <h3>Bridge Shared Secret</h3>
         <p className="sf-hint">
-          This must match what the bridge has on record for this device — the bridge only
-          accepts a secret it already knows, it can't learn a new one from here. To rotate it:
-          on the bridge's admin panel, delete and re-add this device's domain (it'll hand you a
-          new secret), then paste that value below.
+          This is what pairs this device with the bridge relay. Regenerating asks the bridge
+          for a new one on the spot — no need to visit its admin panel.
         </p>
         <div className="sf-row">
-          <label htmlFor="sf-current-secret">Current secret</label>
+          <label htmlFor="sf-current-secret">Secret</label>
           <div className="sf-secret-row">
             <input id="sf-current-secret" className="sf-input" value={currentBridgeSecret} readOnly />
             <button className="sf-btn small" type="button" onClick={() => void copyCurrentSecret()}>Copy</button>
           </div>
         </div>
-        <div className="sf-row">
-          <label htmlFor="sf-new-secret">Secret from the bridge</label>
-          <input
-            id="sf-new-secret"
-            className="sf-input sf-secret-input"
-            value={newSecret}
-            onChange={(e) => setNewSecret(e.target.value)}
-            placeholder="Paste the secret the bridge gave you"
-            autoCapitalize="none"
-            autoCorrect="off"
-          />
-        </div>
-        <button className="sf-btn" disabled={!canSaveSecret || savingSecret || savingDomain || savingKey} onClick={() => void saveSecret()}>
-          {savingSecret ? "Saving…" : "Save Secret"}
+        <button className="sf-btn" disabled={regeneratingSecret || savingDomain || savingKey} onClick={() => void regenerateSecret()}>
+          {regeneratingSecret ? "Regenerating…" : "Regenerate"}
         </button>
       </section>
 

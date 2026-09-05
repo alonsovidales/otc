@@ -54,6 +54,12 @@ message GetPubKey {
 message PubKey {
   // PKIX/SPKI DER-encoded RSA public key, valid only for this connection.
   bytes public_key = 1;
+  // True when this device has no owner secret set up yet (issue #39) —
+  // every client already calls GetPubKey before Auth, so this is the
+  // cheapest place to tell a fresh device apart from a normal login
+  // without a dedicated round trip. Clients should show a first-run setup
+  // flow (device password + owner name) instead of a plain sign-in form.
+  bool is_new_device = 2;
 }
 
 message UploadFile {
@@ -243,6 +249,63 @@ message SetBridgeSecret {
   string secret = 1;
 }
 
+// Issue #39/#38: first-run storage setup. Listing is safe/read-only (just
+// /sys/block enumeration), but actually building the array is destructive
+// (formats whichever disks are picked), so it's kept as an explicit,
+// separate confirmation step rather than something that happens
+// automatically just because a device was detected.
+message ListStorageDevices {
+}
+
+message StorageDevice {
+  // e.g. "/dev/sda" — this exact string is what SetupStorage expects back.
+  string path = 1;
+  int64 size_bytes = 2;
+  string model = 3;
+}
+
+message StorageDevices {
+  // Only devices safe to repurpose: the boot disk itself (and its
+  // partitions), loop/ram devices, and anything with no usable size are
+  // already filtered out server-side.
+  repeated StorageDevice devices = 1;
+}
+
+// SetupStorage is destructive on anything selected: 2 devices creates a
+// RAID1 mirror across them, 1 formats and uses that single device alone
+// (no redundancy), 0 leaves storage on the boot disk as-is.
+message SetupStorage {
+  repeated string device_paths = 1;
+}
+
+// Issue #38: first-boot WiFi join, for a device reached over its own
+// temporary "Off The Cloud" access point rather than an already-working
+// network. Scanning is read-only (nmcli dev wifi list needs no special
+// privilege), so it runs directly in the otc service like
+// ListStorageDevices; actually joining a network is privileged the same
+// way storage setup is — see SetWifi.
+message ListWifiNetworks {
+}
+
+message WifiNetwork {
+  string ssid = 1;
+  // 0-100, from nmcli's SIGNAL column.
+  int32 signal = 2;
+  bool secured = 3;
+}
+
+message WifiNetworks {
+  repeated WifiNetwork networks = 1;
+}
+
+// SetWifi hands the join off to a privileged process the same way
+// SetupStorage does (see storage.RequestSetup) — the otc service can't run
+// `nmcli connection up` itself. An empty password means an open network.
+message SetWifi {
+  string ssid = 1;
+  string password = 2;
+}
+
 message BridgeRegister {
   string owner_uuid = 1;
   string domain = 2;
@@ -259,6 +322,31 @@ enum BridgeOnboardErrorType {
 
 message BridgeAckOnboard {
   bool ok = 1;
+}
+
+// RotateBridgeSecret lets a device that already knows its current secret
+// get a fresh one issued, without an admin manually deleting and re-adding
+// its domain on the bridge's admin panel. Sent bridge-side (not on the
+// device's own client-facing /ws) — `secret` is the CURRENT secret, and is
+// the only thing that authenticates this request: the bridge only replaces
+// it if this matches what it already has on record for owner_uuid+domain,
+// same compare-and-swap spirit as BridgeRegister's existing secret check.
+message RotateBridgeSecret {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+}
+
+message RotateBridgeSecretAck {
+  string new_secret = 1;
+}
+
+// RegenerateBridgeSecret is the client-facing (device /ws, authenticated)
+// request behind the Settings page's "Regenerate" button: the device looks
+// up its own owner_uuid/domain/current secret and does the
+// RotateBridgeSecret round trip to the bridge itself, then persists and
+// returns the new secret — the web app never talks to the bridge directly.
+message RegenerateBridgeSecret {
 }
 
 message GetProfile {
@@ -426,6 +514,12 @@ message ReqEnvelope {
     DelSocialPublication req_del_social_publication = 46;
     GetFileInfo req_get_file_info = 47;
     SetBridgeSecret req_set_bridge_secret = 48;
+    ListStorageDevices req_list_storage_devices = 49;
+    SetupStorage req_setup_storage = 50;
+    RegenerateBridgeSecret req_regenerate_bridge_secret = 51;
+    RotateBridgeSecret req_rotate_bridge_secret = 52;
+    ListWifiNetworks req_list_wifi_networks = 53;
+    SetWifi req_set_wifi = 54;
   }
 }
 
@@ -453,5 +547,8 @@ message RespEnvelope {
     PubKey resp_pub_key = 26;
     Likers resp_likers = 27;
     FileExifInfo resp_file_info = 28;
+    StorageDevices resp_storage_devices = 29;
+    RotateBridgeSecretAck resp_rotate_bridge_secret_ack = 30;
+    WifiNetworks resp_wifi_networks = 31;
   }
 }
