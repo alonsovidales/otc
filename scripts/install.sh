@@ -104,7 +104,7 @@ mkdir -p "$MODEL_DIR"
 if [ ! -f "$MODEL_ONNX" ] || [ ! -f "$MODEL_TAGS" ] || [ ! -f "$MODEL_THRESHOLDS" ]; then
     curl -fL --retry 5 --retry-delay 2 -o "$MODEL_ONNX" "$MODEL_HF_REPO/ram_plus_int8.onnx"
     curl -fL --retry 5 --retry-delay 2 -o "$MODEL_THRESHOLDS" "$MODEL_HF_REPO/ram_tag_list_threshold.txt"
-    curl -fsSL -o "$MODEL_TAGS" "$RAW_BASE/models/tag_list_4585.txt"
+    curl -fsSL "$RAW_BASE/models/models/tag_list_4585.txt.gz" | gunzip > "$MODEL_TAGS"
 fi
 chown -R otc:otc "$MODEL_DIR"
 
