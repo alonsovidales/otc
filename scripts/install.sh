@@ -118,6 +118,13 @@ if [ -d "$SRC_DIR/.git" ]; then
 else
     git clone --depth 1 "$REPO_URL" "$SRC_DIR"
 fi
+
+# proto/generated/*.go is `make pb`'s protoc output, gitignored (not hand-
+# edited, not committed) — fetch the prebuilt package rather than requiring
+# a full protoc + plugin toolchain just to build this one Go package here.
+mkdir -p "$SRC_DIR/proto/generated"
+curl -fsSL "https://github.com/alonsovidales/otc/releases/latest/download/otc-proto-generated.tar.gz" \
+    | tar -xzf - -C "$SRC_DIR/proto/generated"
 (
     cd "$SRC_DIR"
     export CGO_ENABLED=1
