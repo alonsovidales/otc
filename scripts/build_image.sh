@@ -82,10 +82,42 @@ chroot "$MNT" /bin/bash -c "
     apt-get install -y mariadb-server ffmpeg libonnxruntime1.21
 "
 
+# cloud-init ships on stock Raspberry Pi OS to process Raspberry Pi
+# Imager's own Customisation data (user-data/network-config on the boot
+# partition) — this image never provides any, by design, since it
+# provisions itself instead (otc-firstrun.service/network-setup.service).
+# Found on real Pi 5 hardware that boot can stall reaching
+# cloud-init.target regardless of the MariaDB/otc-firstrun fixes above —
+# cloud-init's own datasource detection runs from a systemd *generator*
+# (executes unconditionally, very early in boot, before any unit can be
+# masked/disabled to stop it), so purging the package outright — removing
+# the generator script itself — is the only way to be sure this can't
+# happen, rather than trying to tune around whatever it's doing.
+chroot "$MNT" /bin/bash -c "
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get purge -y cloud-init
+    apt-get autoremove -y
+"
+
 echo "=== [8/10] Create the otc service account ==="
 chroot "$MNT" /bin/bash -c "
     id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin \
         -G dialout,video,plugdev,gpio,i2c,spi otc
+"
+
+# Masking userconfig.service below (stock Raspberry Pi OS's own first-boot
+# "create a login user" prompt) closes the interactive-console-blocking
+# hole it caused (issue #38 follow-up, found on real Pi 5 hardware) but
+# also removes the *only* way to ever get a shell on the device — the
+# service account above is deliberately non-interactive (-s
+# /usr/sbin/nologin), and Imager's own customisation is skipped by design
+# for this image. Without this, a stuck boot is completely undebuggable
+# from the console. This is console-only (SSH isn't enabled by this image
+# either), so it's gated by already having physical access to the device.
+DEBUG_PASSWORD_HASH=$(openssl passwd -6 'off-the-cloud')
+chroot "$MNT" /bin/bash -c "
+    id otc-debug >/dev/null 2>&1 || useradd -m -s /bin/bash -G sudo otc-debug
+    echo 'otc-debug:$DEBUG_PASSWORD_HASH' | chpasswd -e
 "
 
 echo "=== [9/10] Copy this device's own already-built/tested artifacts ==="
@@ -124,24 +156,37 @@ cat > "$MNT/etc/systemd/system/otc-firstrun.service" <<'EOF'
 Description=OTC first-boot provisioning
 After=mariadb.service
 Wants=mariadb.service
-Before=otc.service raid-watch.service network-setup.service
+Before=otc.service raid-watch.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# This script has its own internal ~240s polling ceiling for MariaDB, but
+# that's only a safety net *inside* the script — nothing previously bounded
+# how long systemd itself would wait for this unit's job to finish. Found
+# on real Pi 5 hardware that this mattered even with that internal limit:
+# boot can sit showing "Job otc-firstrun.service/start running" with no
+# console/login access at all until the job resolves one way or another.
+# This is the actual guarantee that it always does, regardless of what
+# otc_firstrun.sh is doing or why.
+TimeoutStartSec=300
 ExecStart=/usr/local/bin/otc_firstrun.sh
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# otc.service (and the two watchers) shouldn't even try to start before
-# firstrun has provisioned the DB/config — drop-in rather than editing the
-# unit files copied above verbatim.
+# otc.service and raid-watch genuinely need firstrun's DB/config done first
+# — drop-ins rather than editing the unit files copied above verbatim.
+# network-setup deliberately does NOT wait on this: it's what gets a
+# person to the setup wizard in the first place (the WiFi AP), and must
+# come up on its own regardless of whether firstrun (or MariaDB, or
+# anything else) is still working or has hit a snag — the one real bug
+# this fixes, found via a live test on real Pi 5 hardware where firstrun
+# blocking network-setup meant the WiFi AP never appeared at all.
 mkdir -p "$MNT/etc/systemd/system/otc.service.d" \
-         "$MNT/etc/systemd/system/raid-watch.service.d" \
-         "$MNT/etc/systemd/system/network-setup.service.d"
-for svc in otc raid-watch network-setup; do
+         "$MNT/etc/systemd/system/raid-watch.service.d"
+for svc in otc raid-watch; do
     cat > "$MNT/etc/systemd/system/$svc.service.d/override.conf" <<'EOF'
 [Unit]
 After=otc-firstrun.service
@@ -154,6 +199,19 @@ chroot "$MNT" systemctl enable otc-firstrun.service
 chroot "$MNT" systemctl enable otc.service
 chroot "$MNT" systemctl enable raid-watch.service
 chroot "$MNT" systemctl enable network-setup.service
+
+# Stock Raspberry Pi OS's own first-boot flow prompts *interactively on the
+# console* to create a user account when nothing satisfied it ahead of time
+# (normally Raspberry Pi Imager's own "Customisation" step writes
+# /boot/firmware/userconf.txt to pre-answer this) — since this image
+# provisions itself instead (otc-firstrun.service) and was flashed without
+# that step (see README), nothing was ever going to answer that prompt, so
+# it just sat there blocking every later boot step — including
+# network-setup and otc-firstrun themselves — waiting for a keyboard that
+# usually isn't even connected. Masking it outright is correct here: we
+# genuinely don't want an interactive Linux login account for this device
+# at all, only the otc service account, which is already created above.
+chroot "$MNT" systemctl mask userconfig.service 2>/dev/null || true
 
 chroot "$MNT" apt-get clean
 rm -rf "$MNT/var/lib/apt/lists/"*

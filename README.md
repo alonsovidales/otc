@@ -54,11 +54,36 @@ With this you can access all your data and social network from any browser just 
 **Installation of the device**
 ==============================
 
-There are three ways to set up a device, from least to most work: flash the pre-built image
-(easiest - nothing to install by hand), run `Makefile.pi` against a plain Raspberry Pi OS install
-(recommended if you want to build from source), or follow the manual steps yourself.
+There are four ways to set up a device, from least to most work: run the one-line install script
+against a machine you already have login access to (fastest - no flashing, no RAID/status LEDs),
+flash the pre-built image (best for a from-scratch Raspberry Pi with two SD cards for RAID1), run
+`Makefile.pi` against a plain Raspberry Pi OS install (recommended if you want to build from
+source), or follow the manual steps yourself.
 
-**Option 1: Flash the pre-built image (easiest)**
+**Option 0: One-line install script (fastest)**
+-------------------------------------------------
+Already have a Debian/Ubuntu-family Linux box you can log into (a Raspberry Pi, an old laptop, a
+VPS)? Skip flashing anything - log in and run:
+
+```
+$ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh | sudo bash -s -- <subdomain>
+```
+
+`<subdomain>` is this device's bridge address, e.g. `pit` for `pit.off-the.cloud` - omit it and the
+script prompts for one. It installs MariaDB, a native Go toolchain, ONNX Runtime, the RAM++ tagging
+model, and builds the `otc` binary from source right there, then writes the database schema, app
+config, and a systemd service - the same bring-up `Makefile.pi` automates over SSH from a separate
+dev machine, just run directly on the device itself with no cross-compiling or second computer
+needed. It's safe to re-run any time (e.g. to pick up new code) - device identity (UUID, DB
+password, bridge secret) is only ever generated once, on the first run.
+
+This path doesn't set up a RAID1 array, the WiFi-AP first-boot flow, or the RAID status LEDs - it
+assumes a single disk and a machine you already have network/login access to. For a RAID1 array
+across two disks, run `Makefile.pi`'s `raid`/`raid-watch` targets afterwards (see Option 2), or use
+the pre-built image below instead, which handles all of that from a first boot with nothing
+pre-configured.
+
+**Option 1: Flash the pre-built image (easiest for a fresh Raspberry Pi)**
 --------------------------------------------------
 1. Download the latest image from the [Releases page](https://github.com/alonsovidales/otc/releases) -
    look for an asset named like `off-the-cloud-v<version>-rpi-lite-arm64.img.xz`.
@@ -81,6 +106,11 @@ There are three ways to set up a device, from least to most work: flash the pre-
    reached it over the temporary AP.
 5. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 under
    the manual instructions below for the pinout.
+
+If you ever need a console shell on the device itself (a keyboard/monitor plugged directly into
+it - this image doesn't enable SSH), log in as `otc-debug` / `off-the-cloud` and `sudo` from there.
+This account only matters if you're troubleshooting a boot problem; nothing about normal setup or
+day-to-day use needs it.
 
 To build and publish this image yourself instead of using a released one: bootstrap a device the
 normal way (`Makefile.pi bootstrap`, plus `raid-watch`/`network-setup`), then run

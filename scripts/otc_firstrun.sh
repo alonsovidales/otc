@@ -25,10 +25,34 @@ echo "[otc-firstrun] provisioning device $DEVICE_UUID as $SUBDOMAIN"
 
 # mariadb-server's own postinst never got to start it for real (it was
 # installed inside a chroot during the image build, with no init system
-# running) — this is the first time it actually comes up.
-systemctl enable --now mariadb
-for i in $(seq 1 30); do
-    mysqladmin ping >/dev/null 2>&1 && break
+# running) — this is the first time it actually initializes its data
+# directory and comes up, which can genuinely take a few minutes on
+# slower storage. `systemctl start mariadb` is launched in the background
+# and polled directly for `mysqladmin ping` rather than wrapped in
+# `timeout`: found on real Pi 5 hardware that `timeout` killing the
+# `systemctl start` client doesn't reliably stop the systemd manager's own
+# underlying job, so it wasn't actually the fail-fast guard it looked
+# like. Polling for the thing we actually care about (can we connect?) is
+# more direct and doesn't depend on systemctl's own blocking semantics.
+echo "[otc-firstrun] starting mariadb (first-ever start — initializing its data directory can take a few minutes)"
+systemctl enable mariadb
+systemctl start mariadb &
+for i in $(seq 1 240); do
+    if mysqladmin ping >/dev/null 2>&1; then
+        echo "[otc-firstrun] mariadb is up after ${i}s"
+        break
+    fi
+    # Distinct from "not ready yet" — this means the unit has definitely
+    # given up (crashed, misconfigured, etc.), so there's no point
+    # burning the rest of the 240s waiting on it.
+    if systemctl is-failed --quiet mariadb; then
+        echo "[otc-firstrun] mariadb.service failed to start — see 'journalctl -u mariadb'."
+        exit 1
+    fi
+    if [ "$i" -eq 240 ]; then
+        echo "[otc-firstrun] mariadb did not come up within 240s — giving up. Check 'systemctl status mariadb' and 'journalctl -u mariadb'."
+        exit 1
+    fi
     sleep 1
 done
 

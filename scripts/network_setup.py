@@ -49,6 +49,34 @@ def run(cmd):
         return subprocess.CompletedProcess(cmd, 1, "", str(e))
 
 
+_wifi_unblocked = False
+
+
+def ensure_wifi_unblocked():
+    """Raspberry Pi's WiFi radio ships regulatory soft-blocked (rfkill)
+    until a wireless country is set — normally satisfied by Raspberry Pi
+    Imager's own "Customisation" step, which this image's whole point is
+    to not need. Found the hard way on real Pi 5 hardware: `wifi:
+    unavailable` in `nmcli device status` and an explicit "Wi-Fi is
+    currently blocked by rfkill" login banner meant the radio was off at
+    the driver level, so nothing here — AP mode included — could ever
+    have worked regardless of any other fix. `00` is the generic "world"
+    regulatory domain: conservative (reduced channels/power) but legal
+    everywhere, which is the right default for a device that doesn't know
+    where it physically is yet. The owner can set their real country
+    later from Settings for full channel access.
+    """
+    global _wifi_unblocked
+    if _wifi_unblocked:
+        return
+    # `iw reg set` before `rfkill unblock`: raspi-config's own
+    # do_wifi_country does it in this order, and a regulatory domain set
+    # while still soft-blocked is still honored once unblocked right after.
+    run(["iw", "reg", "set", "00"])
+    run(["rfkill", "unblock", "wifi"])
+    _wifi_unblocked = True
+
+
 def has_connectivity():
     """True if some connection (WiFi, ethernet, whatever) is actually up —
     not just that a radio is powered on."""
@@ -186,6 +214,7 @@ def perform_pending_wifi_join():
 
 def main():
     print("[network-setup] starting")
+    ensure_wifi_unblocked()
     while True:
         perform_pending_wifi_join()
         ensure_ap_mode()
