@@ -60,6 +60,8 @@ final class PhotoGalleryVM: ObservableObject {
 
     // Selection (via long-press)
     @Published var selected: Set<String> = []
+    // Issue #45: confirm before bulk-deleting the current multi-selection.
+    @Published var confirmDeleteSelected = false
 
     // Issue #41: "More info" — camera/EXIF metadata computed live on the
     // server from the file's own bytes.
@@ -395,6 +397,37 @@ final class PhotoGalleryVM: ObservableObject {
         return true
     }
 
+    // Issue #45: delete every currently-selected photo/video from the grid,
+    // mirroring deleteCurrentPhoto()'s single-item flow above.
+    func deleteSelected() {
+        let paths = Array(selected)
+        guard !paths.isEmpty else { return }
+        Task {
+            for path in paths {
+                do {
+                    let resp = try await ws.request { e in
+                        var req = ReqEnvelope()
+                        var del = Msg_DelFile()
+                        del.path = path
+                        req.payload = .reqDelFile(del)
+                        e = req
+                    }
+                    if resp.error {
+                        alertMessage = "Delete failed: \(resp.errorMessage)"
+                        showAlert = true
+                        continue
+                    }
+                } catch {
+                    alertMessage = "Delete failed: \(error.localizedDescription)"
+                    showAlert = true
+                    continue
+                }
+                items.removeAll { $0.path == path }
+                selected.remove(path)
+            }
+        }
+    }
+
     func shareInSocial() {
         Task {
             let paths = Array(selected)
@@ -561,7 +594,8 @@ struct PhotoGalleryView: View {
                         count: vm.selected.count,
                         share: vm.shareInSocial,
                         shareLink: vm.shareLink,
-                        downloadZip: vm.downloadZip
+                        downloadZip: vm.downloadZip,
+                        delete: { vm.confirmDeleteSelected = true }
                     )
                     .transition(.move(edge: .bottom))
                 }
@@ -574,6 +608,14 @@ struct PhotoGalleryView: View {
             UploadModel.shared.suppressed = !isEmpty
         }
         .onDisappear { UploadModel.shared.suppressed = false }
+        .confirmationDialog(
+            "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",
+            isPresented: $vm.confirmDeleteSelected,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive, action: vm.deleteSelected)
+            Button("Cancel", role: .cancel) {}
+        }
         .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
         .sheet(item: Binding(
             get: { vm.openIndex.map { SheetIndex(index: $0) } },
@@ -901,6 +943,7 @@ private struct ActionBar: View {
     let share: () -> Void
     let shareLink: () -> Void
     let downloadZip: () -> Void
+    let delete: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -908,6 +951,9 @@ private struct ActionBar: View {
             Spacer()
             Button("Share link", action: shareLink)
             Button("Download", action: downloadZip)
+            Button(role: .destructive, action: delete) {
+                Image(systemName: "trash")
+            }
             Text("\(count) selected").foregroundColor(.secondary)
         }
         .padding(10)

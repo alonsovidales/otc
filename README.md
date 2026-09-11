@@ -313,6 +313,24 @@ tags-path=/usr/local/models/tag_list_4585.txt
 thresholds-path=/usr/local/models/tag_list_4585_thresholds.txt
 tags-per-image=10
 max-images-search=5
+
+# Optional (issue #43) - push notifications to the iOS app when a friend
+# posts. Omit this whole section and it's simply skipped (the device token
+# still registers, just nothing gets sent) - web push needs no such section
+# at all, since the device generates its own VAPID keypair on first use.
+# Get these four values from your own Apple Developer account: Certificates,
+# Identifiers & Profiles > Keys > create one with the "Apple Push
+# Notifications service (APNs)" capability, download its .p8 file (Apple
+# only lets you download it once), and note its Key ID and your Team ID.
+[apns]
+key-path=/etc/otc/apns_auth_key.p8
+key-id=<key id from the Apple Developer portal>
+team-id=<your Apple Developer team id>
+bundle-id=otc.OffTheCloud
+# 1 once the app is TestFlight/App-Store distributed; leave unset (or 0)
+# while testing against Xcode's own debug builds, which use the sandbox
+# APNs environment instead.
+production=0
 ```
 
 10. Download the models. `thresholds-path` is optional (older/from-scratch

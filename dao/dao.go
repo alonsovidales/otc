@@ -110,6 +110,92 @@ func (dao *Dao) UpdateSecret(encCheck []byte) (err error) {
 	return
 }
 
+// GetVapidKeys returns this device's Web Push VAPID keypair, empty strings
+// if none has been generated yet (see push.Init, which generates one on
+// first use and calls SetVapidKeys).
+func (dao *Dao) GetVapidKeys() (pub, priv string, err error) {
+	var pubN, privN sql.NullString
+	err = dao.db.QueryRow("select `vapid_public_key`, `vapid_private_key` from `settings`").Scan(&pubN, &privN)
+	return pubN.String, privN.String, err
+}
+
+func (dao *Dao) SetVapidKeys(pub, priv string) (err error) {
+	_, err = dao.db.Exec("update `settings` set `vapid_public_key` = ?, `vapid_private_key` = ?", pub, priv)
+	return
+}
+
+// WebPushSubscription mirrors a browser PushSubscription's fields, verbatim
+// from subscription.toJSON() (issue #43).
+type WebPushSubscription struct {
+	Endpoint string
+	P256dh   string
+	Auth     string
+}
+
+func (dao *Dao) SaveWebPushSubscription(endpoint, p256dh, auth string) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `web_push_subscriptions` (`endpoint`, `p256dh`, `auth`, `created`) values (?, ?, ?, now()) "+
+			"on duplicate key update `p256dh` = values(`p256dh`), `auth` = values(`auth`)",
+		endpoint, p256dh, auth)
+	return
+}
+
+func (dao *Dao) ListWebPushSubscriptions() (subs []*WebPushSubscription, err error) {
+	rows, err := dao.db.Query("select `endpoint`, `p256dh`, `auth` from `web_push_subscriptions`")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		sub := &WebPushSubscription{}
+		if err = rows.Scan(&sub.Endpoint, &sub.P256dh, &sub.Auth); err != nil {
+			return
+		}
+		subs = append(subs, sub)
+	}
+	return
+}
+
+// DeleteWebPushSubscription removes a subscription the push service reports
+// as gone (HTTP 404/410) - the browser unsubscribed, or the endpoint expired.
+func (dao *Dao) DeleteWebPushSubscription(endpoint string) (err error) {
+	_, err = dao.db.Exec("delete from `web_push_subscriptions` where `endpoint` = ?", endpoint)
+	return
+}
+
+func (dao *Dao) SaveApnsToken(token string) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `apns_tokens` (`token`, `created`) values (?, now()) on duplicate key update `token` = values(`token`)",
+		token)
+	return
+}
+
+func (dao *Dao) ListApnsTokens() (tokens []string, err error) {
+	rows, err := dao.db.Query("select `token` from `apns_tokens`")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var token string
+		if err = rows.Scan(&token); err != nil {
+			return
+		}
+		tokens = append(tokens, token)
+	}
+	return
+}
+
+// DeleteApnsToken removes a token APNs reports as no longer valid
+// (BadDeviceToken/Unregistered) - the app was uninstalled, or the token
+// rotated.
+func (dao *Dao) DeleteApnsToken(token string) (err error) {
+	_, err = dao.db.Exec("delete from `apns_tokens` where `token` = ?", token)
+	return
+}
+
 func (dao *Dao) AddTags(file *pb.File, tags []imagestagger.RAMTag) {
 	for _, tag := range tags {
 		_, err := dao.db.Exec(
@@ -788,11 +874,24 @@ func (dao *Dao) pbToStatus(pbStatus pb.FriendShipStatus) (status string) {
 	return
 }
 
-func (dao *Dao) NewComment(commentUuid, pubName, pubUuid, comment string) (err error) {
+func (dao *Dao) NewComment(commentUuid, pubName, pubUuid, comment string, ownComment bool) (err error) {
 	log.Debug("Creating new comment")
-	_, err = dao.db.Exec("insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`) values (?, ?, now(), ?, ?)", commentUuid, pubUuid, comment, pubName)
+	_, err = dao.db.Exec(
+		"insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`, `own_comment`) values (?, ?, now(), ?, ?, ?)",
+		commentUuid, pubUuid, comment, pubName, ownComment)
 
 	return err
+}
+
+// IsOwnComment reports whether commentUuid is one the device owner wrote,
+// as opposed to one synced in from a friend (issue #43 follow-up: whether
+// a like on it is worth notifying the owner about).
+func (dao *Dao) IsOwnComment(commentUuid string) (own bool, err error) {
+	err = dao.db.QueryRow("select `own_comment` from `social_publications_comments` where `uuid` = ?", commentUuid).Scan(&own)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return
 }
 
 // IsOwnPublication reports whether pubUuid is one of the device owner's own

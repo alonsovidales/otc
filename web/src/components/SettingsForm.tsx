@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
-import { encryptForConnection } from "../net/pwCrypto";
+import { encryptForConnection, clearPersistedKey, savePersistedKey } from "../net/pwCrypto";
+import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -26,8 +27,35 @@ export default function SettingsForm() {
   const [confirmKey, setConfirmKey] = useState("");
   const [savingKey, setSavingKey] = useState(false);
 
+  // Push notifications (issue #43)
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
   // Status
   const [status, setStatus] = useState<{ kind: "info"|"success"|"error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (pushSupported()) void isPushSubscribed().then(setPushSubscribed);
+  }, []);
+
+  const togglePush = async () => {
+    setPushBusy(true);
+    setStatus(null);
+    try {
+      if (pushSubscribed) {
+        await disablePush();
+        setPushSubscribed(false);
+      } else {
+        const ok = await enablePush();
+        setPushSubscribed(ok);
+        if (!ok) setStatus({ kind: "error", text: "Notification permission was denied." });
+      }
+    } catch (err: any) {
+      setStatus({ kind: "error", text: err?.message ?? String(err) });
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   // ---------- Load settings once ----------
   useEffect(() => {
@@ -159,6 +187,10 @@ export default function SettingsForm() {
       });
 
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        // Issue #46: otherwise the persisted-session key goes stale the
+        // moment the password changes, and the next reload silently signs
+        // the user back out.
+        savePersistedKey(newKey);
         setOldKey(""); setNewKey(""); setConfirmKey("");
         setStatus({ kind: "success", text: "Password changed." });
       } else if (resp.payload?.$case === "respAck") {
@@ -255,6 +287,36 @@ export default function SettingsForm() {
 
         <button className="sf-btn" disabled={!canSaveKey || savingKey || savingDomain} onClick={() => void changePassword()}>
           {savingKey ? "Saving…" : "Change Password"}
+        </button>
+      </section>
+
+      {pushSupported() && (
+        <section className="sf-section">
+          <h3>Notifications</h3>
+          <p className="sf-hint">
+            Get a push notification in this browser when a friend posts. Self-hosted — this device
+            sends it directly, no third-party notification service involved.
+          </p>
+          <button className="sf-btn" disabled={pushBusy} onClick={() => void togglePush()}>
+            {pushBusy ? "Working…" : pushSubscribed ? "Disable Notifications" : "Enable Notifications"}
+          </button>
+        </section>
+      )}
+
+      <section className="sf-section">
+        <h3>Session</h3>
+        <p className="sf-hint">
+          This browser stays signed in across reloads. Sign out if you're on a shared or public
+          computer.
+        </p>
+        <button
+          className="sf-btn"
+          onClick={() => {
+            clearPersistedKey();
+            window.location.reload();
+          }}
+        >
+          Sign Out
         </button>
       </section>
     </div>

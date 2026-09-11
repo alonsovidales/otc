@@ -306,6 +306,34 @@ message SetWifi {
   string password = 2;
 }
 
+// Issue #43: push notifications when a friend posts. RegisterWebPush carries
+// a browser PushSubscription's fields verbatim (endpoint + the two keys from
+// subscription.toJSON().keys) so the device can send RFC8291-encrypted Web
+// Push messages directly, no third-party push provider account needed.
+message RegisterWebPush {
+  string endpoint = 1;
+  string p256dh = 2;
+  string auth = 3;
+}
+
+// RegisterApnsToken registers this device's APNs token for real push
+// delivery on iOS. Sending actually reaching the phone additionally needs
+// this OTC device configured with an APNs Auth Key (see the [apns] config
+// section) - registering the token here is safe/inert without one.
+message RegisterApnsToken {
+  string token = 1;
+}
+
+message GetVapidPublicKey {
+}
+
+// The device generates its own VAPID keypair on first use (see push.Init) -
+// no external account needed, unlike APNs. This is the public half, base64url
+// encoded, ready to pass as PushManager.subscribe's applicationServerKey.
+message VapidPublicKey {
+  string key = 1;
+}
+
 message BridgeRegister {
   string owner_uuid = 1;
   string domain = 2;
@@ -520,6 +548,9 @@ message ReqEnvelope {
     RotateBridgeSecret req_rotate_bridge_secret = 52;
     ListWifiNetworks req_list_wifi_networks = 53;
     SetWifi req_set_wifi = 54;
+    RegisterWebPush req_register_web_push = 55;
+    RegisterApnsToken req_register_apns_token = 56;
+    GetVapidPublicKey req_get_vapid_public_key = 57;
   }
 }
 
@@ -550,5 +581,6 @@ message RespEnvelope {
     StorageDevices resp_storage_devices = 29;
     RotateBridgeSecretAck resp_rotate_bridge_secret_ack = 30;
     WifiNetworks resp_wifi_networks = 31;
+    VapidPublicKey resp_vapid_public_key = 32;
   }
 }

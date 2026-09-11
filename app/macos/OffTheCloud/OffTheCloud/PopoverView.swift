@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct PopoverView: View {
     // Bound straight to the shared singletons rather than injected via
@@ -16,8 +17,33 @@ struct PopoverView: View {
     @ObservedObject private var sync = SyncModel.shared
 
     @State private var showSettings = false
+    // Issue #47: remote → local sync — browse the device's tree, then pick
+    // a local destination for it.
+    @State private var showRemotePicker = false
 
     var body: some View {
+        // Issue #47: swapped in *inline*, not as a .sheet() — a sheet
+        // presented from a MenuBarExtra(.window) popover has a real quirk
+        // where any state change inside it (here: tapping a directory row)
+        // makes the popover's own window lose key status and auto-close,
+        // since MenuBarExtra(.window) closes itself on exactly that
+        // transition. Staying inside the one already-open, already-key
+        // popover window (same trick showSettings already uses below)
+        // sidesteps the whole problem.
+        if showRemotePicker {
+            RemoteFolderPickerView(
+                onChoose: { remotePath in
+                    showRemotePicker = false
+                    chooseLocalDestinationAndAdd(remotePath: remotePath)
+                },
+                onCancel: { showRemotePicker = false }
+            )
+        } else {
+            mainContent
+        }
+    }
+
+    private var mainContent: some View {
         VStack(spacing: 12) {
             HStack {
                 Text("Off The Cloud — Sync")
@@ -54,7 +80,7 @@ struct PopoverView: View {
             // no height cap is exactly what makes that "fit everything, no
             // scrolling" behavior happen.
             VStack(spacing: 8) {
-                if sync.folders.isEmpty {
+                if sync.folders.isEmpty && sync.remoteFolders.isEmpty {
                     Text("No folders yet — add one below.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -63,16 +89,30 @@ struct PopoverView: View {
                     ForEach(sync.folders) { f in
                         FolderRow(folder: f, remove: { sync.removeFolder(f) })
                     }
+                    // Issue #47: remote → local mirrors, shown alongside
+                    // the (local → remote) upload folders above — same row
+                    // style, a down-arrow instead of a plain folder icon is
+                    // the only thing distinguishing direction.
+                    ForEach(sync.remoteFolders) { f in
+                        RemoteFolderRow(folder: f, remove: { sync.removeRemoteFolder(f) })
+                    }
                 }
             }
             .padding(.vertical, 4)
 
             HStack {
-                Button {
-                    sync.addFolder()
+                Menu {
+                    Button("Local Folder…") {
+                        sync.addFolder()
+                    }
+                    Button("Remote Folder…") {
+                        showRemotePicker = true
+                    }
                 } label: {
                     Label("Add Folder", systemImage: "plus.circle.fill")
                 }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
                 Spacer()
                 // status / version | optional
             }
@@ -82,6 +122,21 @@ struct PopoverView: View {
         .onAppear {
             // Start binding only once; safe if already bound.
             sync.bind(settings: settings)
+        }
+    }
+
+    /// Same NSOpenPanel SyncModel.addFolder() uses for a local folder — the
+    /// destination for the remote directory just picked, created if it
+    /// doesn't already exist so a fresh empty folder is a one-click option.
+    private func chooseLocalDestinationAndAdd(remotePath: String) {
+        let panel = NSOpenPanel()
+        panel.canCreateDirectories = true
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.prompt = "Choose"
+        panel.message = "Choose where to download “\(remotePath)” and keep it in sync."
+        if panel.runModal() == .OK, let url = panel.url {
+            sync.addRemoteFolder(remotePath: remotePath, localURL: url)
         }
     }
 
@@ -106,7 +161,7 @@ struct FolderRow: View {
             Text(folder.url.lastPathComponent)
                 .lineLimit(1)
             Spacer()
-            statusView
+            FolderStateView(state: folder.state, watchingLabel: "Watching")
             Button(role: .destructive) {
                 remove()
             } label: {
@@ -116,13 +171,62 @@ struct FolderRow: View {
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
+}
 
-    // Issue #37: folders are watched (event-driven), not perpetually
-    // rescanned, so "N%" only means something during the initial/periodic
-    // reconcile pass — otherwise it's just idle, up-to-date, watching.
-    @ViewBuilder
-    private var statusView: some View {
-        switch folder.state {
+// Issue #47: remote → local mirror — same row shape as FolderRow, a
+// down-arrow badge on the folder icon and the remote path as a subtitle
+// are the only things distinguishing direction. Shares FolderStateView
+// with FolderRow rather than re-deriving the same progress/watching/error
+// display for this direction too.
+struct RemoteFolderRow: View {
+    let folder: SyncModel.RemoteFolder
+    let remove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "folder.fill.badge.minus")
+                .foregroundStyle(Color.accentColor)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.blue)
+                        .background(Circle().fill(.white))
+                        .offset(x: 3, y: 3)
+                }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(folder.localURL.lastPathComponent)
+                    .lineLimit(1)
+                Text(folder.remotePath)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+            }
+            Spacer()
+            FolderStateView(state: folder.state, watchingLabel: "Synced")
+            Button(role: .destructive) {
+                remove()
+            } label: {
+                Image(systemName: "minus.circle")
+            }.buttonStyle(.plain)
+        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// Issue #37: folders are watched/polled, not perpetually rescanned, so
+// "N%" only means something during the initial/periodic reconcile pass —
+// otherwise it's just idle, up-to-date. `watchingLabel` is the only thing
+// that differs between the upload direction ("Watching", event-driven) and
+// the download direction ("Synced", polling-driven — see SyncModel's
+// RemoteFolder doc comment for why there's no watcher on that side).
+struct FolderStateView: View {
+    let state: SyncModel.FolderState
+    let watchingLabel: String
+
+    var body: some View {
+        switch state {
         case .scanning(let progress, let currentFile) where progress == 0:
             // A flat 0% bar right as a folder starts (or on the very
             // first pass over it) reads as stalled/broken, not "working" —
@@ -174,7 +278,7 @@ struct FolderRow: View {
         case .watching:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-            Text("Watching")
+            Text(watchingLabel)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         case .error(let message):

@@ -228,6 +228,26 @@ export default function PhotoGallery() {
     }
   };
 
+  // Issue #45: delete every selected photo/video.
+  const deleteSelected = async () => {
+    if (!selectedPaths.length) return;
+    if (!window.confirm(`Delete ${selectedPaths.length} item${selectedPaths.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
+
+    const toDelete = new Set(selectedPaths);
+    for (const path of selectedPaths) {
+      await useWS.request(e => {
+        (e as any).payload = { $case: "reqDelFile", reqDelFile: { path } };
+      });
+    }
+
+    setItems(prev => prev.filter(f => !toDelete.has(f.path)));
+    toDelete.forEach(p => mapRef.current.delete(p));
+    setSel(new Set());
+    // The modal may be pointing at an item that no longer exists (or whose
+    // index shifted) once the deleted items are filtered out of `items`.
+    setOpenIdx(null);
+  };
+
   const shareOrDownload = async (openAfter: boolean) => {
     if (!selectedPaths.length) return;
     const r1 = await useWS.request(e => {
@@ -368,6 +388,7 @@ export default function PhotoGallery() {
           <button onClick={() => alert("Add to existing group (not implemented)")}>Add to group</button>
           <button onClick={() => shareOrDownload(false)}>Share link</button>
           <button onClick={() => shareOrDownload(true)}>Download as ZIP</button>
+          <button className="pg-danger" onClick={() => void deleteSelected()}>Delete</button>
           <span className="pg-count">{sel.size} selected</span>
         </div>
       )}

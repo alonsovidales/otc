@@ -18,6 +18,7 @@
 .pg-actions { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; align-items: center; padding: 10px; border-top: 1px solid #e5e7eb; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); }
 .pg-actions button { padding: 6px 10px; border: 1px solid #d1d5db; background: #f9fafb; border-radius: 6px; }
 .pg-count { margin-left: auto; color: #4b5563; }
+.pg-danger { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
 
 .pg-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .pg-modal-inner { position: relative; background: #111827; border-radius: 8px; padding: 16px; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; gap: 10px; }

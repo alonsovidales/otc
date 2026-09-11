@@ -17,6 +17,7 @@ import (
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/profile"
+	"github.com/alonsovidales/otc/push"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
@@ -42,6 +43,7 @@ type Social struct {
 	filesmanager *filesmanager.Manager
 	settings     *settings.Settings
 	profile      *profile.Profile
+	push         *push.Push
 }
 
 type LikePublicationComment struct {
@@ -92,12 +94,13 @@ type Comment struct {
 	PublisherName string `json:"publisher_name"`
 }
 
-func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.Settings, profile *profile.Profile) *Social {
+func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.Settings, profile *profile.Profile, push *push.Push) *Social {
 	return &Social{
 		dao:          dao,
 		filesmanager: filesmanager,
 		settings:     settings,
 		profile:      profile,
+		push:         push,
 	}
 }
 
@@ -311,6 +314,20 @@ func (fr *friendship) updateFriendshipStatus() (err error) {
 	status := resp.RespFriendshipStatus.Status
 	log.Debug("Remote friendship status:", fr.data.OriginProfile.Domain, status)
 
+	// Issue #43 follow-up: notify exactly on the Pending -> Accepted
+	// transition, comparing against fr.data.Status as loaded at the top of
+	// this sync cycle (before ChangeFriendStatus below updates it) - this
+	// runs on every sync for every friendship we sent the request for, so
+	// without this comparison an already-accepted friendship would renotify
+	// every ~2 minutes forever.
+	if fr.sc.push != nil && fr.data.Status == pb.FriendShipStatus_Pending && status == pb.FriendShipStatus_Accepted {
+		friendName := fr.data.OriginProfile.Name
+		if friendName == "" {
+			friendName = fr.data.OriginProfile.Domain
+		}
+		fr.sc.push.NotifyFriendshipAccepted(friendName)
+	}
+
 	return fr.dao.ChangeFriendStatus(fr.data.OriginProfile.Domain, status)
 }
 
@@ -435,6 +452,52 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 	return respProf.Payload.(*pb.RespEnvelope_RespSocialPublicationFiles).RespSocialPublicationFiles.Files, nil
 }
 
+// notifyIfOwnPublication notifies about a like/comment only when pubUuid is
+// one of the device owner's own posts - like/comment events arriving here
+// can just as easily be about some other friend's post this device also
+// has a cached copy of, which isn't the owner's business to be notified
+// about.
+func (fr *friendship) notifyIfOwnPublication(pubUuid, action string) {
+	if fr.sc.push == nil {
+		return
+	}
+	own, err := fr.dao.IsOwnPublication(pubUuid)
+	if err != nil {
+		log.Error("could not check publication ownership for a push notification:", err)
+		return
+	}
+	if !own {
+		return
+	}
+	friendName := fr.data.OriginProfile.Name
+	if friendName == "" {
+		friendName = fr.data.OriginProfile.Domain
+	}
+	fr.sc.push.Notify(friendName, action)
+}
+
+// notifyIfOwnComment is notifyIfOwnPublication's counterpart for a like on
+// a comment - only the device owner's own comments are worth notifying
+// about.
+func (fr *friendship) notifyIfOwnComment(commentUuid, action string) {
+	if fr.sc.push == nil {
+		return
+	}
+	own, err := fr.dao.IsOwnComment(commentUuid)
+	if err != nil {
+		log.Error("could not check comment ownership for a push notification:", err)
+		return
+	}
+	if !own {
+		return
+	}
+	friendName := fr.data.OriginProfile.Name
+	if friendName == "" {
+		friendName = fr.data.OriginProfile.Domain
+	}
+	fr.sc.push.Notify(friendName, action)
+}
+
 func (fr *friendship) updateFriendEvents() (err error) {
 	log.Debug("Updating events")
 	msg := &pb.ReqEnvelope{
@@ -502,20 +565,40 @@ event_loop:
 				continue
 			}
 
+			// Issue #43: fr.data.LatestSync (advanced below, per event) means
+			// ReqGetEvents{Since: LatestSync} never returns an
+			// already-processed event again - every PublicationEvent
+			// reaching this point is a genuinely new post, exactly once.
+			if fr.sc.push != nil {
+				friendName := fr.data.OriginProfile.Name
+				if friendName == "" {
+					friendName = fr.data.OriginProfile.Domain
+				}
+				fr.sc.push.NotifyNewPost(friendName, pubData.Text)
+			}
+
 		case LikeEvent:
 			var like LikePublication
 			json.Unmarshal([]byte(event.Content), &like)
-			fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain)
+			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain); err == nil {
+				fr.notifyIfOwnPublication(like.PubUUID, "liked your post")
+			}
 
 		case LikeCommentEvent:
 			var like LikePublicationComment
 			json.Unmarshal([]byte(event.Content), &like)
-			fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain)
+			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain); err == nil {
+				fr.notifyIfOwnComment(like.CommentUUID, "liked your comment")
+			}
 
 		case CommentEvent:
 			var comment Comment
 			json.Unmarshal([]byte(event.Content), &comment)
-			fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment)
+			// false: this is a friend's comment, synced in - see
+			// NewSocialComment for the device owner's own-comment path.
+			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false); err == nil {
+				fr.notifyIfOwnPublication(comment.PubUUID, "commented on your post: "+comment.Comment)
+			}
 
 		case DelPublicationEvent:
 			// issue #34: the owner deleted one of their posts — remove our
@@ -675,7 +758,17 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 	}
 	if respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.Ok {
 		log.Debug("Frienship ack request sent...")
-		return sc.dao.NewFriendship(extDomain, secret, name, profileText, image, false)
+		if err = sc.dao.NewFriendship(extDomain, secret, name, profileText, image, false); err != nil {
+			return err
+		}
+		if sc.push != nil {
+			notifyName := name
+			if notifyName == "" {
+				notifyName = extDomain
+			}
+			sc.push.NotifyFriendshipRequest(notifyName)
+		}
+		return nil
 	}
 
 	log.Debug("Frienship ack request failed...", respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.ErrorMsg)
@@ -857,7 +950,7 @@ func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string)
 	if err != nil {
 		return err
 	}
-	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment)
+	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment, true)
 }
 
 // DeletePublication removes pubUuid, provided it's one of the device

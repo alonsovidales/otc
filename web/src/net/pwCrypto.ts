@@ -19,6 +19,41 @@ import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 
 type Requester = (build: (e: Partial<ReqEnvelope>) => void) => Promise<RespEnvelope>;
 
+// Issue #46: a plain browser tab has nothing else keeping the user signed
+// in across a reload — the mobile app already gets the same effect for
+// free by re-sending the Keychain-stored password on every launch (see
+// App.tsx's `mobile` auto-auth effect), since there's no session-token
+// concept in the protocol, only per-connection password auth (see Auth in
+// messages.proto). This mirrors that for the browser: the password is kept
+// in localStorage (scoped to this device's own origin) and replayed the
+// same way on mount.
+const cSessionKeyStorageKey = "otc_session_key";
+
+export function savePersistedKey(key: string) {
+  try {
+    localStorage.setItem(cSessionKeyStorageKey, key);
+  } catch {
+    // Storage can be unavailable (private browsing, quota) — session just
+    // won't survive a reload in that case, not worth surfacing an error for.
+  }
+}
+
+export function loadPersistedKey(): string | null {
+  try {
+    return localStorage.getItem(cSessionKeyStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+export function clearPersistedKey() {
+  try {
+    localStorage.removeItem(cSessionKeyStorageKey);
+  } catch {
+    // Nothing to clean up if storage isn't available in the first place.
+  }
+}
+
 /**
  * Issue #39: every client calls GetPubKey before Auth anyway, and the
  * server rides along a `is_new_device` flag on that same response (true

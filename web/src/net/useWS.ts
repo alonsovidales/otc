@@ -1,6 +1,6 @@
 import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { encryptForConnection } from "./pwCrypto";
+import { encryptForConnection, savePersistedKey, clearPersistedKey } from "./pwCrypto";
 
 export function UseWS() {
   let isConnected = false;
@@ -57,12 +57,21 @@ export function UseWS() {
     });
     console.log("auth resp", resp);
     if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      // Issue #46: keep the browser signed in across reloads — see
+      // pwCrypto.ts for why this replays the password rather than a
+      // session token (the protocol doesn't have one).
+      savePersistedKey(key);
       if (setAuth) {
         await setAuth(true);
       }
 
       return true;
     }
+
+    // Wrong/stale password (e.g. it was changed elsewhere, or a leftover
+    // key from a previous device) — don't keep retrying it on every future
+    // reload.
+    clearPersistedKey();
 
     if (window.__OTC_CONFIG!) {
       // Open the settings on error when we are in the mobile app

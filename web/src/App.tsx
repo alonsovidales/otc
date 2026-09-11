@@ -15,7 +15,9 @@ import type { TabKey } from "./components/TopTabs";
 import "./components/StatusWidget.css";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
-import { isNewDevice } from "./net/pwCrypto";
+import { isNewDevice, loadPersistedKey } from "./net/pwCrypto";
+import { promptForPushIfNeverAsked } from "./net/webPush";
+import { loadLastTab, saveLastTab } from "./net/uiState";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -24,10 +26,10 @@ function App() {
   // Anonymous visitors have no tab switcher at all (TopTabs only renders
   // once authenticated, below), so their landing tab has to be one that
   // actually works signed-out — Profile's ReqGetProfile is a non-auth
-  // request, Social's feed isn't. Signed-in users get moved to Social
-  // explicitly right after a successful sign-in (see sendAuth callers
-  // below), so this default only ever matters pre-auth.
-  const [tab, setTab] = useState<TabKey>("Profile");
+  // request, Social's feed isn't. A fresh sign-in moves to Social
+  // explicitly (see handleSignedIn below); otherwise (issue #53) a reload
+  // restores whatever tab was last open rather than always landing here.
+  const [tab, setTab] = useState<TabKey>(() => loadLastTab() ?? "Profile");
   const [authenticated, setAuthenticated] = useState(false);
   const [sp] = useSearchParams();
 
@@ -46,6 +48,23 @@ function App() {
     endpoint = cfg.endpoint;
   }
   useWS.init(endpoint, setAuthenticated);
+
+  // Issue #53: keep localStorage's "last tab" in sync with whatever's
+  // actually showing, so the *next* reload restores it.
+  useEffect(() => {
+    saveLastTab(tab);
+  }, [tab]);
+
+  // Issue #43: nudge for browser push permission right after sign-in,
+  // rather than requiring the user to go find "Enable Notifications" in
+  // Settings — only for the plain browser (mobile already registers for
+  // APNs natively, see OffTheCloudApp.swift's AppDelegate; this path has
+  // no bearing on that one). promptForPushIfNeverAsked no-ops after the
+  // first time it's ever asked, whichever way it went.
+  const handleSignedIn = () => {
+    setTab("Social");
+    if (!mobile) promptForPushIfNeverAsked();
+  };
 
   // Issue #38/#39: a device with no owner secret yet lands straight on
   // setup — nobody should have to know to go click "Sign In" first just
@@ -71,6 +90,29 @@ function App() {
         }
       })();
     }, [useWS]);
+  } else {
+    // Issue #46: a plain browser tab has no native container replaying a
+    // Keychain-stored password on every launch — reuse whatever this
+    // origin persisted from the last successful sign-in instead, so a
+    // reload doesn't drop back to the sign-in form.
+    useEffect(() => {
+      const key = loadPersistedKey();
+      if (!key) return;
+      (async () => {
+        try {
+          const ok = await useWS.sendAuth(key);
+          // Issue #53: unlike a fresh manual sign-in (handleSignedIn,
+          // which jumps to Social), this is a reload — `tab` was already
+          // initialized from the last-open view, and clobbering that back
+          // to Social on every reload is exactly the bug this issue is
+          // about. Only step in if the restored tab is "SignIn" itself,
+          // which isn't a sensible place to land now that this succeeded.
+          if (ok && tab === "SignIn") setTab("Social");
+        } catch (e) {
+          console.error("Auto-auth from stored session failed:", e);
+        }
+      })();
+    }, []);
   }
 
   // If this is a download, just download and don't render anything
@@ -149,7 +191,7 @@ function App() {
         {tab === "Social" && <Social authenticated={authenticated} />}
         {tab === "SignIn" && <SignIn
           onAuth={async (key) => await useWS.sendAuth(key)}
-          onDone={() => setTab("Social")}
+          onDone={handleSignedIn}
         />}
         {tab === "AdminPannel" && <FilesExplorer initialPath="/" />}
         {tab === "PhotoGallery" && <PhotoGallery />}

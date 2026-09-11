@@ -19,6 +19,7 @@ import (
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/network"
 	"github.com/alonsovidales/otc/profile"
+	"github.com/alonsovidales/otc/push"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
@@ -44,6 +45,7 @@ type Manager struct {
 	settings     *settings.Settings
 	profile      *profile.Profile
 	social       *social.Social
+	push         *push.Push
 	bg           *bgprocessor.BgProcessor
 }
 
@@ -57,6 +59,10 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *
 	if err != nil {
 		log.Fatal("Error loading the profile", err)
 	}
+	ps, err := push.Init(dao)
+	if err != nil {
+		log.Fatal("Error initializing push notifications", err)
+	}
 	mg = &Manager{
 		baseUrl:      baseUrl,
 		dao:          dao,
@@ -68,7 +74,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *
 		},
 		settings: st,
 		profile:  pr,
-		social:   social.Init(dao, filesManager, st, pr),
+		push:     ps,
+		social:   social.Init(dao, filesManager, st, pr, ps),
 	}
 
 	for i := 0; i < int(cfg.GetInt("otc", "bridge-connections")); i++ {
@@ -1022,6 +1029,39 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 					Ok: true,
 				},
 			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetVapidPublicKey:
+		resp.Payload = &pb.RespEnvelope_RespVapidPublicKey{
+			RespVapidPublicKey: &pb.VapidPublicKey{
+				Key: ch.mg.push.VapidPublicKey(),
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqRegisterWebPush:
+		log.Info("Register web push subscription")
+		err := ch.mg.push.RegisterWebPush(
+			p.ReqRegisterWebPush.Endpoint,
+			p.ReqRegisterWebPush.P256Dh,
+			p.ReqRegisterWebPush.Auth,
+		)
+		if err != nil {
+			log.Error("error registering web push subscription:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqRegisterApnsToken:
+		log.Info("Register APNs token")
+		err := ch.mg.push.RegisterApnsToken(p.ReqRegisterApnsToken.Token)
+		if err != nil {
+			log.Error("error registering APNs token:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
 	default:

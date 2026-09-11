@@ -63,6 +63,24 @@ func GetBool(sec, subsec string) (v bool) {
 	return vSec == "1" || vSec == "true"
 }
 
+// HasSection reports whether a config section is present, without the
+// log.Fatal loadSection triggers on a missing one - for genuinely optional
+// sections (e.g. [apns], issue #43) that a caller needs to skip gracefully
+// rather than crash the whole process when they're absent.
+func HasSection(name string) bool {
+	if _, ok := sections[name]; ok {
+		return true
+	}
+	if cfg == nil {
+		return false
+	}
+	if sec, err := cfg.Section(name); err == nil {
+		sections[name] = sec
+		return true
+	}
+	return false
+}
+
 // loadSection loads a section of the config file
 func loadSection(name string) (section *configparser.Section) {
 	if section, ok := sections[name]; ok {

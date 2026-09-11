@@ -513,6 +513,40 @@ export interface SetWifi {
   password: string;
 }
 
+/**
+ * Issue #43: push notifications when a friend posts. RegisterWebPush carries
+ * a browser PushSubscription's fields verbatim (endpoint + the two keys from
+ * subscription.toJSON().keys) so the device can send RFC8291-encrypted Web
+ * Push messages directly, no third-party push provider account needed.
+ */
+export interface RegisterWebPush {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+/**
+ * RegisterApnsToken registers this device's APNs token for real push
+ * delivery on iOS. Sending actually reaching the phone additionally needs
+ * this OTC device configured with an APNs Auth Key (see the [apns] config
+ * section) - registering the token here is safe/inert without one.
+ */
+export interface RegisterApnsToken {
+  token: string;
+}
+
+export interface GetVapidPublicKey {
+}
+
+/**
+ * The device generates its own VAPID keypair on first use (see push.Init) -
+ * no external account needed, unlike APNs. This is the public half, base64url
+ * encoded, ready to pass as PushManager.subscribe's applicationServerKey.
+ */
+export interface VapidPublicKey {
+  key: string;
+}
+
 export interface BridgeRegister {
   ownerUuid: string;
   domain: string;
@@ -735,6 +769,9 @@ export interface ReqEnvelope {
     | { $case: "reqRotateBridgeSecret"; reqRotateBridgeSecret: RotateBridgeSecret }
     | { $case: "reqListWifiNetworks"; reqListWifiNetworks: ListWifiNetworks }
     | { $case: "reqSetWifi"; reqSetWifi: SetWifi }
+    | { $case: "reqRegisterWebPush"; reqRegisterWebPush: RegisterWebPush }
+    | { $case: "reqRegisterApnsToken"; reqRegisterApnsToken: RegisterApnsToken }
+    | { $case: "reqGetVapidPublicKey"; reqGetVapidPublicKey: GetVapidPublicKey }
     | undefined;
 }
 
@@ -765,6 +802,7 @@ export interface RespEnvelope {
     | { $case: "respStorageDevices"; respStorageDevices: StorageDevices }
     | { $case: "respRotateBridgeSecretAck"; respRotateBridgeSecretAck: RotateBridgeSecretAck }
     | { $case: "respWifiNetworks"; respWifiNetworks: WifiNetworks }
+    | { $case: "respVapidPublicKey"; respVapidPublicKey: VapidPublicKey }
     | undefined;
 }
 
@@ -4300,6 +4338,257 @@ export const SetWifi: MessageFns<SetWifi> = {
   },
 };
 
+function createBaseRegisterWebPush(): RegisterWebPush {
+  return { endpoint: "", p256dh: "", auth: "" };
+}
+
+export const RegisterWebPush: MessageFns<RegisterWebPush> = {
+  encode(message: RegisterWebPush, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.endpoint !== "") {
+      writer.uint32(10).string(message.endpoint);
+    }
+    if (message.p256dh !== "") {
+      writer.uint32(18).string(message.p256dh);
+    }
+    if (message.auth !== "") {
+      writer.uint32(26).string(message.auth);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RegisterWebPush {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRegisterWebPush();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.endpoint = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.p256dh = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.auth = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RegisterWebPush {
+    return {
+      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
+      p256dh: isSet(object.p256dh) ? globalThis.String(object.p256dh) : "",
+      auth: isSet(object.auth) ? globalThis.String(object.auth) : "",
+    };
+  },
+
+  toJSON(message: RegisterWebPush): unknown {
+    const obj: any = {};
+    if (message.endpoint !== "") {
+      obj.endpoint = message.endpoint;
+    }
+    if (message.p256dh !== "") {
+      obj.p256dh = message.p256dh;
+    }
+    if (message.auth !== "") {
+      obj.auth = message.auth;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RegisterWebPush>, I>>(base?: I): RegisterWebPush {
+    return RegisterWebPush.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RegisterWebPush>, I>>(object: I): RegisterWebPush {
+    const message = createBaseRegisterWebPush();
+    message.endpoint = object.endpoint ?? "";
+    message.p256dh = object.p256dh ?? "";
+    message.auth = object.auth ?? "";
+    return message;
+  },
+};
+
+function createBaseRegisterApnsToken(): RegisterApnsToken {
+  return { token: "" };
+}
+
+export const RegisterApnsToken: MessageFns<RegisterApnsToken> = {
+  encode(message: RegisterApnsToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RegisterApnsToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRegisterApnsToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RegisterApnsToken {
+    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
+  },
+
+  toJSON(message: RegisterApnsToken): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RegisterApnsToken>, I>>(base?: I): RegisterApnsToken {
+    return RegisterApnsToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RegisterApnsToken>, I>>(object: I): RegisterApnsToken {
+    const message = createBaseRegisterApnsToken();
+    message.token = object.token ?? "";
+    return message;
+  },
+};
+
+function createBaseGetVapidPublicKey(): GetVapidPublicKey {
+  return {};
+}
+
+export const GetVapidPublicKey: MessageFns<GetVapidPublicKey> = {
+  encode(_: GetVapidPublicKey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetVapidPublicKey {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetVapidPublicKey();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetVapidPublicKey {
+    return {};
+  },
+
+  toJSON(_: GetVapidPublicKey): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetVapidPublicKey>, I>>(base?: I): GetVapidPublicKey {
+    return GetVapidPublicKey.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetVapidPublicKey>, I>>(_: I): GetVapidPublicKey {
+    const message = createBaseGetVapidPublicKey();
+    return message;
+  },
+};
+
+function createBaseVapidPublicKey(): VapidPublicKey {
+  return { key: "" };
+}
+
+export const VapidPublicKey: MessageFns<VapidPublicKey> = {
+  encode(message: VapidPublicKey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VapidPublicKey {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseVapidPublicKey();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): VapidPublicKey {
+    return { key: isSet(object.key) ? globalThis.String(object.key) : "" };
+  },
+
+  toJSON(message: VapidPublicKey): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<VapidPublicKey>, I>>(base?: I): VapidPublicKey {
+    return VapidPublicKey.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<VapidPublicKey>, I>>(object: I): VapidPublicKey {
+    const message = createBaseVapidPublicKey();
+    message.key = object.key ?? "";
+    return message;
+  },
+};
+
 function createBaseBridgeRegister(): BridgeRegister {
   return { ownerUuid: "", domain: "", secret: "" };
 }
@@ -6469,6 +6758,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetWifi":
         SetWifi.encode(message.payload.reqSetWifi, writer.uint32(434).fork()).join();
         break;
+      case "reqRegisterWebPush":
+        RegisterWebPush.encode(message.payload.reqRegisterWebPush, writer.uint32(442).fork()).join();
+        break;
+      case "reqRegisterApnsToken":
+        RegisterApnsToken.encode(message.payload.reqRegisterApnsToken, writer.uint32(450).fork()).join();
+        break;
+      case "reqGetVapidPublicKey":
+        GetVapidPublicKey.encode(message.payload.reqGetVapidPublicKey, writer.uint32(458).fork()).join();
+        break;
     }
     return writer;
   },
@@ -6901,6 +7199,39 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqSetWifi", reqSetWifi: SetWifi.decode(reader, reader.uint32()) };
           continue;
         }
+        case 55: {
+          if (tag !== 442) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRegisterWebPush",
+            reqRegisterWebPush: RegisterWebPush.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 56: {
+          if (tag !== 450) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRegisterApnsToken",
+            reqRegisterApnsToken: RegisterApnsToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 57: {
+          if (tag !== 458) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetVapidPublicKey",
+            reqGetVapidPublicKey: GetVapidPublicKey.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7041,6 +7372,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqListWifiNetworks", reqListWifiNetworks: ListWifiNetworks.fromJSON(object.reqListWifiNetworks) }
         : isSet(object.reqSetWifi)
         ? { $case: "reqSetWifi", reqSetWifi: SetWifi.fromJSON(object.reqSetWifi) }
+        : isSet(object.reqRegisterWebPush)
+        ? { $case: "reqRegisterWebPush", reqRegisterWebPush: RegisterWebPush.fromJSON(object.reqRegisterWebPush) }
+        : isSet(object.reqRegisterApnsToken)
+        ? {
+          $case: "reqRegisterApnsToken",
+          reqRegisterApnsToken: RegisterApnsToken.fromJSON(object.reqRegisterApnsToken),
+        }
+        : isSet(object.reqGetVapidPublicKey)
+        ? {
+          $case: "reqGetVapidPublicKey",
+          reqGetVapidPublicKey: GetVapidPublicKey.fromJSON(object.reqGetVapidPublicKey),
+        }
         : undefined,
     };
   },
@@ -7136,6 +7479,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqListWifiNetworks = ListWifiNetworks.toJSON(message.payload.reqListWifiNetworks);
     } else if (message.payload?.$case === "reqSetWifi") {
       obj.reqSetWifi = SetWifi.toJSON(message.payload.reqSetWifi);
+    } else if (message.payload?.$case === "reqRegisterWebPush") {
+      obj.reqRegisterWebPush = RegisterWebPush.toJSON(message.payload.reqRegisterWebPush);
+    } else if (message.payload?.$case === "reqRegisterApnsToken") {
+      obj.reqRegisterApnsToken = RegisterApnsToken.toJSON(message.payload.reqRegisterApnsToken);
+    } else if (message.payload?.$case === "reqGetVapidPublicKey") {
+      obj.reqGetVapidPublicKey = GetVapidPublicKey.toJSON(message.payload.reqGetVapidPublicKey);
     }
     return obj;
   },
@@ -7515,6 +7864,33 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqRegisterWebPush": {
+        if (object.payload?.reqRegisterWebPush !== undefined && object.payload?.reqRegisterWebPush !== null) {
+          message.payload = {
+            $case: "reqRegisterWebPush",
+            reqRegisterWebPush: RegisterWebPush.fromPartial(object.payload.reqRegisterWebPush),
+          };
+        }
+        break;
+      }
+      case "reqRegisterApnsToken": {
+        if (object.payload?.reqRegisterApnsToken !== undefined && object.payload?.reqRegisterApnsToken !== null) {
+          message.payload = {
+            $case: "reqRegisterApnsToken",
+            reqRegisterApnsToken: RegisterApnsToken.fromPartial(object.payload.reqRegisterApnsToken),
+          };
+        }
+        break;
+      }
+      case "reqGetVapidPublicKey": {
+        if (object.payload?.reqGetVapidPublicKey !== undefined && object.payload?.reqGetVapidPublicKey !== null) {
+          message.payload = {
+            $case: "reqGetVapidPublicKey",
+            reqGetVapidPublicKey: GetVapidPublicKey.fromPartial(object.payload.reqGetVapidPublicKey),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -7601,6 +7977,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respWifiNetworks":
         WifiNetworks.encode(message.payload.respWifiNetworks, writer.uint32(250).fork()).join();
+        break;
+      case "respVapidPublicKey":
+        VapidPublicKey.encode(message.payload.respVapidPublicKey, writer.uint32(258).fork()).join();
         break;
     }
     return writer;
@@ -7834,6 +8213,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 32: {
+          if (tag !== 258) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respVapidPublicKey",
+            respVapidPublicKey: VapidPublicKey.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7907,6 +8297,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         }
         : isSet(object.respWifiNetworks)
         ? { $case: "respWifiNetworks", respWifiNetworks: WifiNetworks.fromJSON(object.respWifiNetworks) }
+        : isSet(object.respVapidPublicKey)
+        ? { $case: "respVapidPublicKey", respVapidPublicKey: VapidPublicKey.fromJSON(object.respVapidPublicKey) }
         : undefined,
     };
   },
@@ -7966,6 +8358,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respRotateBridgeSecretAck = RotateBridgeSecretAck.toJSON(message.payload.respRotateBridgeSecretAck);
     } else if (message.payload?.$case === "respWifiNetworks") {
       obj.respWifiNetworks = WifiNetworks.toJSON(message.payload.respWifiNetworks);
+    } else if (message.payload?.$case === "respVapidPublicKey") {
+      obj.respVapidPublicKey = VapidPublicKey.toJSON(message.payload.respVapidPublicKey);
     }
     return obj;
   },
@@ -8151,6 +8545,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respWifiNetworks",
             respWifiNetworks: WifiNetworks.fromPartial(object.payload.respWifiNetworks),
+          };
+        }
+        break;
+      }
+      case "respVapidPublicKey": {
+        if (object.payload?.respVapidPublicKey !== undefined && object.payload?.respVapidPublicKey !== null) {
+          message.payload = {
+            $case: "respVapidPublicKey",
+            respVapidPublicKey: VapidPublicKey.fromPartial(object.payload.respVapidPublicKey),
           };
         }
         break;

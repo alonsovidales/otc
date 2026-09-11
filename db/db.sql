@@ -73,6 +73,11 @@ create table social_publications_comments
   `comment` text not null,
   `publisher_name` varchar(64) not null,
   `likes` int default 0,
+  -- Issue #43 follow-up: distinguishes a comment the device owner wrote
+  -- from one synced in from a friend, mirroring social_publications'
+  -- own_publication - needed to know whether "someone liked a comment" is
+  -- a comment worth notifying the owner about.
+  `own_comment` tinyint(1) not null default 0,
 
   INDEX USING BTREE (`dt`),
   unique (`uuid`),
@@ -131,7 +136,12 @@ create table settings
 (
   `device_uuid` varchar(128) not null,
   `subdomain` varchar(128) not null,
-  `bridge_secret` varchar(128) not null
+  `bridge_secret` varchar(128) not null,
+  -- Issue #43: this device's own VAPID keypair for Web Push, generated once
+  -- on first use (see push.Init) - self-hosted, no third-party account
+  -- needed, unlike APNs.
+  `vapid_public_key` varchar(255) default null,
+  `vapid_private_key` varchar(255) default null
 ) engine=InnoDB;
 
 create table profile
@@ -163,4 +173,23 @@ create table events
 
   key(`uuid`),
   INDEX USING BTREE (`dt`)
+) engine=InnoDB;
+
+-- Issue #43: push notifications when a friend posts.
+create table web_push_subscriptions
+(
+  `endpoint` varchar(512) not null,
+  `p256dh` varchar(255) not null,
+  `auth` varchar(255) not null,
+  `created` datetime not null,
+
+  primary key (`endpoint`)
+) engine=InnoDB;
+
+create table apns_tokens
+(
+  `token` varchar(255) not null,
+  `created` datetime not null,
+
+  primary key (`token`)
 ) engine=InnoDB;

@@ -31,12 +31,53 @@ final class SyncModel: ObservableObject {
         func hash(into hasher: inout Hasher) { hasher.combine(id) }
     }
 
+    // Issue #47: a remote directory on the device, linked to a local one
+    // and kept in **two-way** sync — a change on either side (add, edit,
+    // delete) propagates to the other, using the remote copy as the hub
+    // multiple devices/apps all converge through (device A uploads, device
+    // B's next reconcile picks it up from the remote; same for deletes).
+    // reconcileRemoteFolder does a three-way merge against
+    // lastSyncedByRemoteFolder (the baseline from the last successful
+    // pass) to tell "which side actually changed" apart from "these just
+    // already agree" — see that method's doc comment for the full
+    // reasoning, including the conflict tie-break and the guard against a
+    // deleted-local-root being mistaken for "delete everything remotely".
+    // Local changes get a FolderWatcher like TrackedFolder does; remote
+    // changes still have no push mechanism, so periodic polling
+    // (remoteReconcileInterval) remains the only way to notice those.
+    struct RemoteFolder: Identifiable, Hashable {
+        let id: UUID
+        var remotePath: String
+        var localURL: URL
+        var state: FolderState = .scanning(progress: 0)
+
+        static func == (lhs: RemoteFolder, rhs: RemoteFolder) -> Bool { lhs.id == rhs.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    }
+
+    // A remote directory entry, as shown in the remote folder picker
+    // (RemoteFolderPickerView) - not a wire type itself, just what
+    // listRemoteDirectory maps Msg_File into for the UI to walk.
+    struct RemoteEntry: Identifiable, Hashable {
+        let id: String // full remote path — unique within one listing
+        let name: String
+        let path: String
+        let isDir: Bool
+    }
+
     // ---- PERSISTENCE TYPES/KEYS ----
     private struct StoredFolder: Codable {
         let id: UUID
         let bookmark: Data
     }
     private let bookmarksKey = "sync.folders.bookmarks"
+
+    private struct StoredRemoteFolder: Codable {
+        let id: UUID
+        let remotePath: String
+        let bookmark: Data
+    }
+    private let remoteFoldersKey = "sync.remoteFolders.bookmarks"
 
     // Issue #37: FSEvents does the real-time work; this reconcile interval
     // is only a safety net for whatever it might have missed (the app
@@ -54,8 +95,17 @@ final class SyncModel: ObservableObject {
     // permanent/stuck. This is a much shorter, dedicated retry just for
     // folders currently in .error.
     private static let errorRetryInterval: Duration = .seconds(30)
+    // Issue #47: polling is the *only* way to notice a remote-side change
+    // (no watcher possible there), so this needs to be short enough to
+    // feel like "kept in sync" rather than the 10-minute upload-side
+    // safety-net interval, which only ever has to catch what FSEvents
+    // missed. Local-side changes also go through this same reconcile, but
+    // get there near-instantly via a FolderWatcher + debounce instead of
+    // waiting for the next poll — see startRemoteWatcher.
+    private static let remoteReconcileInterval: Duration = .seconds(60)
 
     @Published var folders: [TrackedFolder] = []
+    @Published var remoteFolders: [RemoteFolder] = []
     @Published var overallStatus: String = "Not connected"
 
     private let ws = WSClient()
@@ -67,12 +117,32 @@ final class SyncModel: ObservableObject {
     // — the local cache of "what the device already has", refreshed by
     // reconcile() and kept current as changes are pushed incrementally.
     private var remoteHashesByFolder: [UUID: [String: String]] = [:]
+    // Issue #47: three-way merge baseline for two-way RemoteFolder sync —
+    // the hash each relative path had as of the *last successful*
+    // reconcile, keyed by path relative to the folder's root (not a full
+    // local/remote path, since both sides need to compare against the same
+    // key). Comparing local's and remote's *current* hash against this
+    // baseline is what tells apart "local changed", "remote changed",
+    // "both changed (conflict)", and "already agree" — see
+    // reconcileRemoteFolder for the full logic.
+    private var lastSyncedByRemoteFolder: [UUID: [String: String]] = [:]
     private var debounceTasks: [String: Task<Void, Never>] = [:]
     private var errorRetryTasks: [UUID: Task<Void, Never>] = [:]
+    private var remoteErrorRetryTasks: [UUID: Task<Void, Never>] = [:]
     private var reconcileLoopStarted = false
+    private var remoteReconcileLoopStarted = false
+
+    // Issue #47: local-side changes to a RemoteFolder get picked up near-
+    // instantly via FSEvents, same infra TrackedFolder already uses —
+    // debounced per *folder* (not per file, unlike the upload-only side)
+    // since a single reconcileRemoteFolder pass already handles a whole
+    // batch of local changes correctly in one go.
+    private var remoteFolderWatchers: [UUID: FolderWatcher] = [:]
+    private var remoteFolderDebounce: [UUID: Task<Void, Never>] = [:]
 
     init() {
         restoreFolders()
+        restoreRemoteFolders()
 
         ws.onConnect = { [weak self] in
             Task { @MainActor in self?.overallStatus = "Connected" }
@@ -154,6 +224,86 @@ final class SyncModel: ObservableObject {
         persistFolders(bookmarks: stored)
     }
 
+    // MARK: - UI actions (issue #47: remote → local)
+
+    /// Lists one remote directory's immediate children, for
+    /// RemoteFolderPickerView to walk one level at a time — a full
+    /// recursive listing isn't needed (or wanted) just to browse.
+    func listRemoteDirectory(_ path: String) async throws -> [RemoteEntry] {
+        // dao.GetFilesByPath's non-recursive listing counts the path's own
+        // slashes to know which level to list — it needs a trailing "/" to
+        // count correctly (the web app's normPath() does the same before
+        // every ListFiles call, see FilesExplorer.tsx). Without this, every
+        // directory returned by one listing (never trailing-slashed by the
+        // server) breaks the *next* listing one level down, which is
+        // exactly why navigation looked stuck after one level.
+        let normalized = path.hasSuffix("/") ? path : path + "/"
+        let resp = try await ws.request { req in
+            var lf = ListFiles()
+            lf.path = normalized
+            lf.recursive = false
+            req.payload = .reqListFiles(lf)
+        }
+        if resp.error {
+            throw NSError(domain: "sync.listRemote", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "Could not list remote files" : resp.errorMessage])
+        }
+        guard case .respListOfFiles(let lof) = resp.payload else { return [] }
+        return lof.files
+            .map { RemoteEntry(id: $0.path, name: ($0.path as NSString).lastPathComponent, path: $0.path, isDir: $0.mime == "inode/directory") }
+            .sorted { lhs, rhs in
+                if lhs.isDir != rhs.isDir { return lhs.isDir }
+                return lhs.name.lowercased() < rhs.name.lowercased()
+            }
+    }
+
+    /// Called once the user has picked both a remote directory (via
+    /// RemoteFolderPickerView) and a local destination (via NSOpenPanel,
+    /// same picker addFolder() uses) for it.
+    func addRemoteFolder(remotePath: String, localURL: URL) {
+        do {
+            let bookmark = try localURL.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            _ = localURL.startAccessingSecurityScopedResource()
+
+            let rf = RemoteFolder(id: UUID(), remotePath: remotePath, localURL: localURL)
+            remoteFolders.append(rf)
+
+            var stored = existingStoredRemote()
+            stored.append(StoredRemoteFolder(id: rf.id, remotePath: remotePath, bookmark: bookmark))
+            persistRemoteFolders(bookmarks: stored)
+
+            if settings?.ready == true, ws.isConnected() {
+                Task {
+                    await self.reconcileRemoteFolder(rf)
+                    self.startRemoteWatcher(for: rf)
+                }
+                startRemoteReconcileLoop()
+            }
+        } catch {
+            print("Bookmark creation failed:", error)
+        }
+    }
+
+    func removeRemoteFolder(_ f: RemoteFolder) {
+        remoteFolderWatchers[f.id]?.stop()
+        remoteFolderWatchers.removeValue(forKey: f.id)
+        remoteFolderDebounce[f.id]?.cancel()
+        remoteFolderDebounce.removeValue(forKey: f.id)
+        lastSyncedByRemoteFolder.removeValue(forKey: f.id)
+        remoteErrorRetryTasks[f.id]?.cancel()
+        remoteErrorRetryTasks.removeValue(forKey: f.id)
+
+        f.localURL.stopAccessingSecurityScopedResource()
+        remoteFolders.removeAll { $0.id == f.id }
+
+        var stored = existingStoredRemote()
+        stored.removeAll { $0.id == f.id }
+        persistRemoteFolders(bookmarks: stored)
+    }
+
     // MARK: - Sync orchestration
 
     private func startSync() {
@@ -167,6 +317,18 @@ final class SyncModel: ObservableObject {
                 await setupFolder(folder)
             }
             startReconcileLoop()
+
+            for folder in remoteFolders {
+                await reconcileRemoteFolder(folder)
+                // A folder whose local root was found missing during that
+                // reconcile is already gone from `remoteFolders` (see the
+                // guard at the top of reconcileRemoteFolder) — nothing to
+                // watch in that case.
+                if self.remoteFolders.contains(where: { $0.id == folder.id }) {
+                    self.startRemoteWatcher(for: folder)
+                }
+            }
+            startRemoteReconcileLoop()
         }
     }
 
@@ -399,6 +561,267 @@ final class SyncModel: ObservableObject {
         }
     }
 
+    private func updateRemoteState(_ id: UUID, _ state: FolderState) {
+        if let idx = remoteFolders.firstIndex(where: { $0.id == id }) {
+            remoteFolders[idx].state = state
+        }
+    }
+
+    private func startRemoteReconcileLoop() {
+        guard !remoteReconcileLoopStarted else { return }
+        remoteReconcileLoopStarted = true
+        Task.detached { [weak self] in
+            while let self {
+                try? await Task.sleep(for: Self.remoteReconcileInterval)
+                let (ready, currentFolders): (Bool, [RemoteFolder]) = await MainActor.run {
+                    (self.settings?.ready ?? false, self.remoteFolders)
+                }
+                guard ready, self.ws.isConnected() else { continue }
+                for folder in currentFolders {
+                    await self.reconcileRemoteFolder(folder)
+                }
+            }
+        }
+    }
+
+    // MARK: - Reconcile, two-way (issue #47)
+    //
+    // Three-way merge: each relative path's *current* local hash and
+    // *current* remote hash are compared against lastSyncedByRemoteFolder
+    // (what that path looked like as of the last successful reconcile) to
+    // tell apart four cases:
+    //   - both sides agree with each other -> nothing to do
+    //   - only local differs from the baseline -> local changed -> push it
+    //     (upload, or delete remote if local no longer has this file)
+    //   - only remote differs from the baseline -> remote changed -> pull
+    //     it (download, or delete local if remote no longer has it)
+    //   - both differ from the baseline (or this path has never been seen
+    //     before on both sides at once) -> genuine conflict -> whichever
+    //     side's modification time is newer wins, matching "sync the
+    //     latest changes"
+    // This makes the remote directory the hub multiple devices converge
+    // through: device A's upload becomes device B's "remote changed" on
+    // B's next reconcile, and the same for deletes.
+    //
+    // Safety guard: if the local root itself is missing (trashed, drive
+    // unmounted, ...), that is NOT "every file under it was deleted" —
+    // propagating that literally would wipe the whole remote directory.
+    // Stop syncing this folder instead (removeRemoteFolder) and leave the
+    // remote untouched.
+    private func reconcileRemoteFolder(_ folder: RemoteFolder) async {
+        guard ws.isConnected() else { return }
+
+        remoteErrorRetryTasks[folder.id]?.cancel()
+        remoteErrorRetryTasks[folder.id] = nil
+
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folder.localURL.path, isDirectory: &isDir), isDir.boolValue else {
+            print("Remote folder's local root is gone (\(folder.localURL.path)) — stopping sync, remote left untouched.")
+            removeRemoteFolder(folder)
+            return
+        }
+
+        // Guards against a real prefix-collision risk in the recursive
+        // listing below: an unanchored "/subdir" would also match a
+        // sibling like "/subdir2/file.txt" (it's used as a regex prefix
+        // server-side — see dao.GetFilesByPath's recursive branch), so this
+        // needs the trailing "/" to only ever match this folder's own
+        // descendants. Same reasoning as remotePrefix in the upload-side
+        // reconcile() above.
+        let remotePrefix = folder.remotePath.hasSuffix("/") ? folder.remotePath : folder.remotePath + "/"
+
+        do {
+            let resp = try await ws.request { req in
+                var lf = ListFiles()
+                lf.path = remotePrefix
+                lf.recursive = true
+                req.payload = .reqListFiles(lf)
+            }
+            if resp.error {
+                updateRemoteState(folder.id, .error(resp.errorMessage.isEmpty ? "Could not list remote files" : resp.errorMessage))
+                scheduleRemoteErrorRetry(for: folder)
+                return
+            }
+            var remoteByRelative: [String: Msg_File] = [:]
+            if case .respListOfFiles(let lof) = resp.payload {
+                for file in lof.files {
+                    let relative = file.path.hasPrefix(remotePrefix) ? String(file.path.dropFirst(remotePrefix.count)) : file.path
+                    remoteByRelative[relative] = file
+                }
+            }
+
+            let localFiles = await Task.detached(priority: .utility) {
+                Self.enumerateFilesRecursively(at: folder.localURL)
+            }.value
+            let localRoot = folder.localURL.standardizedFileURL.path
+            var localByRelative: [String: URL] = [:]
+            for url in localFiles {
+                let full = url.standardizedFileURL.path
+                guard full.hasPrefix(localRoot) else { continue }
+                var relative = String(full.dropFirst(localRoot.count))
+                if relative.hasPrefix("/") { relative.removeFirst() }
+                localByRelative[relative] = url
+            }
+
+            // Hashing is the slow part, so only do it for what's actually
+            // on disk right now — remote's hash comes for free from the
+            // listing above.
+            var localHashes: [String: String] = [:]
+            for (relative, url) in localByRelative {
+                if let h = try? await Task.detached(priority: .utility) { try Self.sha256Hex(of: url) }.value {
+                    localHashes[relative] = h
+                }
+            }
+
+            let lastSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
+            let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
+
+            enum ActionKind { case upload, download, deleteLocal, deleteRemote }
+            var actions: [(relative: String, kind: ActionKind, size: Int)] = []
+            var newSynced = lastSynced
+
+            for relative in allRelativePaths {
+                let localHash = localHashes[relative]
+                let remoteFile = remoteByRelative[relative]
+                let remoteHash = remoteFile?.hash
+                let last = lastSynced[relative]
+
+                if localHash == remoteHash {
+                    // Already in agreement — includes both being nil,
+                    // which can't really land in allRelativePaths, but
+                    // harmless either way.
+                    if let localHash { newSynced[relative] = localHash } else { newSynced.removeValue(forKey: relative) }
+                    continue
+                }
+
+                let localChanged = localHash != last
+                let remoteChanged = remoteHash != last
+                // Genuine conflict (both sides moved since the baseline, or
+                // there's no baseline at all and they already disagree) —
+                // newest modification time wins.
+                let conflict = localChanged && remoteChanged
+
+                let remoteWins: Bool
+                if conflict {
+                    let localDate = localByRelative[relative].flatMap {
+                        try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+                    }
+                    let remoteDate = remoteFile?.modified.date
+                    switch (localDate, remoteDate) {
+                    case (nil, _): remoteWins = true
+                    case (_, nil): remoteWins = false
+                    case let (l?, r?): remoteWins = r > l
+                    }
+                } else {
+                    // Exactly one side changed — that's the one to propagate.
+                    remoteWins = remoteChanged
+                }
+
+                if remoteWins {
+                    if let remoteHash {
+                        actions.append((relative, .download, Int(remoteFile?.size ?? 0)))
+                        newSynced[relative] = remoteHash
+                    } else {
+                        actions.append((relative, .deleteLocal, 0))
+                        newSynced.removeValue(forKey: relative)
+                    }
+                } else {
+                    if let localHash {
+                        actions.append((relative, .upload, 0))
+                        newSynced[relative] = localHash
+                    } else {
+                        actions.append((relative, .deleteRemote, 0))
+                        newSynced.removeValue(forKey: relative)
+                    }
+                }
+            }
+
+            if !actions.isEmpty {
+                let total = actions.count
+                for (i, action) in actions.enumerated() {
+                    updateRemoteState(folder.id, .scanning(progress: Double(i) / Double(total), currentFile: (action.relative as NSString).lastPathComponent))
+                    let localURL = folder.localURL.appendingPathComponent(action.relative)
+                    let remotePath = remotePrefix + action.relative
+                    do {
+                        switch action.kind {
+                        case .upload: try await upload(localURL, to: remotePath)
+                        case .download: try await download(remotePath, to: localURL)
+                        case .deleteRemote: try await delete(remotePath)
+                        case .deleteLocal: try FileManager.default.removeItem(at: localURL)
+                        }
+                    } catch {
+                        // Revert this one path back to its pre-reconcile
+                        // baseline so a transient failure gets retried next
+                        // pass instead of being mistaken for "now agrees".
+                        if let prior = lastSynced[action.relative] {
+                            newSynced[action.relative] = prior
+                        } else {
+                            newSynced.removeValue(forKey: action.relative)
+                        }
+                        print("Error syncing \(action.relative): \(error)")
+                    }
+                }
+            }
+
+            lastSyncedByRemoteFolder[folder.id] = newSynced
+            updateRemoteState(folder.id, .watching)
+        } catch {
+            updateRemoteState(folder.id, .error(error.localizedDescription))
+            scheduleRemoteErrorRetry(for: folder)
+        }
+    }
+
+    private func startRemoteWatcher(for folder: RemoteFolder) {
+        guard remoteFolderWatchers[folder.id] == nil else { return }
+        let watcher = FolderWatcher { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                // Whole-folder debounce, not per-file: a single
+                // reconcileRemoteFolder pass already handles a batch of
+                // local changes correctly (and cheaply) in one go, so
+                // there's no need for the per-file granularity
+                // TrackedFolder's upload-only side uses.
+                self.remoteFolderDebounce[folder.id]?.cancel()
+                self.remoteFolderDebounce[folder.id] = Task { [weak self] in
+                    try? await Task.sleep(for: Self.debounceInterval)
+                    guard !Task.isCancelled, let self else { return }
+                    guard let current = self.remoteFolders.first(where: { $0.id == folder.id }) else { return }
+                    await self.reconcileRemoteFolder(current)
+                }
+            }
+        }
+        watcher.start(paths: [folder.localURL.path])
+        remoteFolderWatchers[folder.id] = watcher
+    }
+
+    private func scheduleRemoteErrorRetry(for folder: RemoteFolder) {
+        remoteErrorRetryTasks[folder.id]?.cancel()
+        remoteErrorRetryTasks[folder.id] = Task { [weak self] in
+            try? await Task.sleep(for: Self.errorRetryInterval)
+            guard !Task.isCancelled, let self else { return }
+            self.remoteErrorRetryTasks[folder.id] = nil
+            await self.reconcileRemoteFolder(folder)
+        }
+    }
+
+    private func download(_ remotePath: String, to dest: URL) async throws {
+        let resp = try await ws.request { req in
+            var gf = Msg_GetFile()
+            gf.path = remotePath
+            req.payload = .reqGetFile(gf)
+        }
+        if resp.error {
+            throw NSError(domain: "sync.download", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "download rejected" : resp.errorMessage])
+        }
+        guard case .respFile(let file) = resp.payload else {
+            throw NSError(domain: "sync.download", code: 2, userInfo: [NSLocalizedDescriptionKey: "unexpected response"])
+        }
+        try await Task.detached(priority: .utility) {
+            try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try file.content.write(to: dest, options: .atomic)
+        }.value
+    }
+
     // MARK: - Wire helpers
 
     private func upload(_ url: URL, to remotePath: String) async throws {
@@ -531,5 +954,54 @@ final class SyncModel: ObservableObject {
         }
 
         self.folders = restored
+    }
+
+    private func existingStoredRemote() -> [StoredRemoteFolder] {
+        guard let data = UserDefaults.standard.data(forKey: remoteFoldersKey) else { return [] }
+        return (try? JSONDecoder().decode([StoredRemoteFolder].self, from: data)) ?? []
+    }
+
+    private func persistRemoteFolders(bookmarks: [StoredRemoteFolder]) {
+        do {
+            let data = try JSONEncoder().encode(bookmarks)
+            UserDefaults.standard.set(data, forKey: remoteFoldersKey)
+        } catch {
+            print("Persist error:", error)
+        }
+    }
+
+    private func restoreRemoteFolders() {
+        let stored = existingStoredRemote()
+        var restored: [RemoteFolder] = []
+
+        for item in stored {
+            var stale = false
+            do {
+                let url = try URL(
+                    resolvingBookmarkData: item.bookmark,
+                    options: [.withSecurityScope],
+                    relativeTo: nil,
+                    bookmarkDataIsStale: &stale
+                )
+                _ = url.startAccessingSecurityScopedResource()
+
+                if stale {
+                    let fresh = try url.bookmarkData(options: [.withSecurityScope],
+                                                     includingResourceValuesForKeys: nil,
+                                                     relativeTo: nil)
+                    var updated = stored
+                    if let idx = updated.firstIndex(where: { $0.id == item.id }) {
+                        updated[idx] = StoredRemoteFolder(id: item.id, remotePath: item.remotePath, bookmark: fresh)
+                        persistRemoteFolders(bookmarks: updated)
+                    }
+                }
+
+                restored.append(RemoteFolder(id: item.id, remotePath: item.remotePath, localURL: url))
+            } catch {
+                print("Failed to resolve remote folder bookmark:", error)
+            }
+        }
+
+        self.remoteFolders = restored
     }
 }
