@@ -3,6 +3,7 @@ package websocket
 import (
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/google/uuid"
@@ -14,7 +15,28 @@ import (
 
 const (
 	CEndpoint = "/ws"
+
+	// Issue #53 follow-up: a device's own pool grows dynamically under
+	// load now instead of dialing a fixed count once (see
+	// websocket.ensureBridgePool on the device side) - this default caps
+	// that growth if [bridge] is left unconfigured, so one device can't
+	// accumulate an unbounded number of idle connections here.
+	cDefaultMaxConnectionsPerDevice = 100
 )
+
+// maxConnectionsPerDevice reads [bridge] max-connections-per-device,
+// falling back to cDefaultMaxConnectionsPerDevice if that section/key is
+// absent - deliberately optional config, not a required one, so existing
+// deployments don't need an ini change just to pick up this cap.
+func maxConnectionsPerDevice() int {
+	if !cfg.HasSection("bridge") {
+		return cDefaultMaxConnectionsPerDevice
+	}
+	if v := cfg.GetInt("bridge", "max-connections-per-device"); v > 0 {
+		return int(v)
+	}
+	return cDefaultMaxConnectionsPerDevice
+}
 
 type bridgePool struct {
 	availableConns []*gorilla.Conn
@@ -127,8 +149,17 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					log.Error("error trying to register:", err)
 					resp.Error = true
 					resp.ErrorMessage = err.Error()
+				} else if pool, ok := mg.bridges[p.ReqBridgeRegister.Domain]; ok && len(pool.availableConns) >= maxConnectionsPerDevice() {
+					// Issue #53 follow-up: a device now grows its own pool
+					// dynamically under load (see websocket.ensureBridgePool
+					// on the device side) rather than dialing a fixed count
+					// once - this is the backstop against that (or anything
+					// else) growing one device's pool unbounded.
+					log.Error("device at its connection cap, rejecting:", p.ReqBridgeRegister.Domain, len(pool.availableConns))
+					resp.Error = true
+					resp.ErrorMessage = "Device connection pool is full"
 				} else {
-					if pool, ok := mg.bridges[p.ReqBridgeRegister.Domain]; !ok {
+					if !ok {
 						log.Debug("Creating new pool")
 						mg.bridges[p.ReqBridgeRegister.Domain] = &bridgePool{
 							availableConns: []*gorilla.Conn{conn},

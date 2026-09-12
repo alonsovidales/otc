@@ -9,6 +9,7 @@
 import Foundation
 import Photos
 import SwiftProtobuf
+import CryptoKit
 
 final class PhotoSync {
     static let shared = PhotoSync()
@@ -36,6 +37,18 @@ final class PhotoSync {
         guard r == .authorized || r == .limited else {
             throw NSError(domain: "photos", code: 1, userInfo: [NSLocalizedDescriptionKey: "Photos access denied"])
         }
+    }
+
+    /// Just the filename PHAssetResource already has in its local metadata
+    /// - no network access, no download, unlike exportAssetToTempFile
+    /// below (which picks the same resource for the same reason, but
+    /// actually fetches its bytes). Used to compute an asset's remote path
+    /// cheaply, e.g. to check AssetSyncCache/knownPaths before deciding
+    /// whether the expensive iCloud fetch is even needed.
+    private func resourceFilename(for asset: PHAsset) -> String? {
+        let resources = PHAssetResource.assetResources(for: asset)
+        let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
+        return res?.originalFilename
     }
 
     func exportAssetToTempFile(_ asset: PHAsset,
@@ -187,6 +200,13 @@ final class PhotoSync {
         let assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
         UploadModel.shared.begin(total: assets.count)
 
+        // This was never actually wired up before — the "Sync from iCloud"
+        // toggle changed a setting nothing read, so turning it off had no
+        // effect on the running sync at all. Captured once, as a plain
+        // Bool, rather than passing `secrets` itself into the concurrent
+        // tasks below.
+        let allowICloudDownloads = secrets.downloadFromiCloud
+
         let targetPath = "/ios/\(secrets.deviceId)/"
         // Get a list of all the files for the target path
         let resp = try await ws.request { env in
@@ -218,35 +238,155 @@ final class PhotoSync {
                     let position = idx
                     group.addTask {
                         do {
-                            let (data, name, _) = try self.readData(for: asset)
-                            let cleanName = name.replacingOccurrences(of: "/", with: "_")
+                            // Cheap: local Photos metadata only, no
+                            // download - lets path (and therefore
+                            // knownPaths/the asset cache below) be checked
+                            // before ever touching the expensive part.
+                            guard let rawName = self.resourceFilename(for: asset) else {
+                                throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"])
+                            }
+                            let cleanName = rawName.replacingOccurrences(of: "/", with: "_")
                             let path = "\(targetPath)\(cleanName)"
 
                             if knownPaths.contains(path) {
                                 print("File already in server: \(path)")
-                                // TODO: Check also the hash
                                 return
                             }
 
                             UploadModel.shared.step(file: cleanName, index: position - 1, total: assets.count)
+                            let created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
 
-                            let resp = try await ws.request { env in
-                                var up = Msg_UploadFile()
-                                up.path = path
-                                up.content = data
-                                up.forceOverride = false
-                                up.created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
-                                //TODO: Set the creation date here and not in the server
-                                env.payload = .reqUploadFile(up)
+                            // Issue #58 follow-up: a previous successful
+                            // sync of this exact PHAsset already told us
+                            // its content hash - reuse it instead of
+                            // paying for another iCloud download + hash
+                            // just to (most likely) rediscover the same
+                            // thing. Most valuable after a reinstall: the
+                            // device ID (and therefore every remote path)
+                            // is fresh then, so the knownPaths check above
+                            // can never match even though the content is
+                            // identical to what synced before.
+                            var data: Data? = nil
+                            var hash: String
+                            if let cachedHash = AssetSyncCache.shared.hash(for: asset.localIdentifier) {
+                                print("[dedup] \(cleanName): asset cache hit -> \(cachedHash)")
+                                hash = cachedHash
+                            } else {
+                                // Not part of the dedup check at all - this
+                                // is PHAssetResourceManager fetching the
+                                // asset's bytes, which for a library using
+                                // iCloud's "Optimize storage" means a real
+                                // network download for any asset not
+                                // already cached locally. Timed separately
+                                // so it's obvious whether a slow gap
+                                // between [dedup] lines is this or
+                                // something else.
+                                let readStart = Date()
+                                let (readBytes, _, _) = try self.readData(for: asset, allowNetwork: allowICloudDownloads)
+                                print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
+                                data = readBytes
+
+                                let hashStart = Date()
+                                hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
+                                print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
                             }
 
-                            if case .respAck(let ack) = resp.payload, ack.ok {
-                                // ok
+                            // Issue #58: storage is deduplicated by hash on
+                            // the device already (see the Go
+                            // files_manager.UploadFile/LinkFile doc
+                            // comments) — this is what actually skips
+                            // re-sending the bytes for content the device
+                            // already has under some other path (e.g. the
+                            // same photo re-synced after a reinstall, or
+                            // shared into the library from elsewhere),
+                            // rather than relying on that dedup only
+                            // kicking in *after* the transfer.
+                            func checkHasFile() async throws -> Bool {
+                                let hasFileStart = Date()
+                                let hasResp = try await ws.request { env in
+                                    var hf = Msg_HasFile()
+                                    hf.hash = hash
+                                    env.payload = .reqHasFile(hf)
+                                }
+                                print("[dedup] \(cleanName): HasFile round trip in \(String(format: "%.3f", Date().timeIntervalSince(hasFileStart)))s")
+                                if case .respFileExists(let fe) = hasResp.payload {
+                                    return fe.exists
+                                }
+                                print("[dedup] \(cleanName): HasFile check failed/unexpected response (error=\(hasResp.error) \(hasResp.errorMessage)) - falling back to full upload")
+                                return false
+                            }
+
+                            var alreadyOnDevice = try await checkHasFile()
+
+                            // The cached hash turned out not to be on the
+                            // device after all (e.g. storage was reset) -
+                            // fall back to actually downloading and
+                            // hashing it fresh rather than failing outright.
+                            if !alreadyOnDevice && data == nil {
+                                print("[dedup] \(cleanName): cached hash not confirmed on device, downloading now")
+                                let readStart = Date()
+                                let (readBytes, _, _) = try self.readData(for: asset, allowNetwork: allowICloudDownloads)
+                                print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
+                                data = readBytes
+
+                                let hashStart = Date()
+                                hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
+                                print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                                alreadyOnDevice = try await checkHasFile()
+                            }
+                            print("[dedup] \(cleanName): already on device = \(alreadyOnDevice)")
+
+                            let sendStart = Date()
+                            let resp: Msg_RespEnvelope
+                            if alreadyOnDevice {
+                                resp = try await ws.request { env in
+                                    var lf = Msg_LinkFile()
+                                    lf.hash = hash
+                                    lf.path = path
+                                    lf.forceOverride = false
+                                    lf.created = created
+                                    env.payload = .reqLinkFile(lf)
+                                }
+                            } else {
+                                guard let data else {
+                                    throw NSError(domain: "PhotoExport", code: -13, userInfo: [NSLocalizedDescriptionKey: "No data to upload"])
+                                }
+                                resp = try await ws.request { env in
+                                    var up = Msg_UploadFile()
+                                    up.path = path
+                                    up.content = data
+                                    up.forceOverride = false
+                                    up.created = created
+                                    env.payload = .reqUploadFile(up)
+                                }
+                            }
+                            print("[dedup] \(cleanName): \(alreadyOnDevice ? "LinkFile" : "UploadFile") round trip in \(String(format: "%.3f", Date().timeIntervalSince(sendStart)))s")
+
+                            // A successful UploadFile/LinkFile answers with
+                            // RespFile (the stored file's metadata), not
+                            // RespAck — checking for the wrong case here
+                            // used to mean a real success matched neither
+                            // branch and was silently unobserved.
+                            if case .respFile = resp.payload {
+                                AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash)
                             } else if resp.error {
                                 print("Upload failed:", resp.errorMessage)
                             }
                         } catch {
-                            print("Upload error:", error)
+                            if !allowICloudDownloads {
+                                // The likely cause when "Sync from iCloud"
+                                // is off and this asset isn't cached
+                                // locally: PHAssetResourceManager can't
+                                // fetch it without network access, so it
+                                // throws instead of silently skipping.
+                                // That's the correct behavior for the
+                                // toggle (only sync what's already on the
+                                // device) - just worth a clearer log than
+                                // a bare error would give.
+                                print("Skipping (iCloud sync disabled, not cached locally):", error)
+                            } else {
+                                print("Upload error:", error)
+                            }
                         }
                     }
                 }
@@ -259,6 +399,11 @@ final class PhotoSync {
                 print("Latest date:", latest)
             }
         }
+
+        // Flush any records not yet written by AssetSyncCache's own batch
+        // threshold — otherwise a run that ends (or gets interrupted)
+        // between batches loses the last few entries.
+        AssetSyncCache.shared.flush()
 
         UploadModel.shared.complete()
         UserDefaults.standard.set(Date(), forKey: "lastSyncDate")

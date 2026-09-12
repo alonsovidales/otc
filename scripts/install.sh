@@ -50,7 +50,6 @@ MODEL_TAGS=$MODEL_DIR/tag_list_4585.txt
 MODEL_THRESHOLDS=$MODEL_DIR/tag_list_4585_thresholds.txt
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
 BRIDGE_ADDR=off-the.cloud
-BRIDGE_CONNECTIONS=5
 STORAGE_PATH=/mnt/storage/
 UNENC_PATH=/mnt/storage/unencrypted/
 ENVIRONMENT=dev
@@ -202,7 +201,6 @@ WHERE NOT EXISTS (SELECT 1 FROM settings);
 cat > "/etc/otc_${ENVIRONMENT}.ini" <<EOF
 [otc]
 bridge-addr=$BRIDGE_ADDR
-bridge-connections=$BRIDGE_CONNECTIONS
 storage-path=$STORAGE_PATH
 unenc-storage-path=$UNENC_PATH
 max-thumbnail-width-px=1000

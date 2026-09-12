@@ -91,8 +91,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   requires CGO + libonnxruntime at runtime (see Build section).
 - `bg_processor` — background job runner invoked from `files_manager`/`websocket`.
 - `websocket` — the `/ws` connection handler and dispatch switch described above; also owns
-  `OpenBridge()`, which the device uses to dial *out* to the bridge relay (`[otc] bridge-addr`,
-  `bridge-connections`) so the bridge can reach an otherwise unreachable home device.
+  `ensureBridgePool()`/`openBridgeConn()`, which the device uses to dial *out* to the bridge relay
+  (`[otc] bridge-addr`) so the bridge can reach an otherwise unreachable home device. The pool is
+  self-managing (5 ready, refilling in batches of 2 once it dips to 3) rather than a fixed count
+  dialed once at startup — see `ensureBridgePool`'s doc comment.
 - `social`, `session`, `settings`, `profile`, `status` — feature-specific logic (social feed/friend
   sync, auth sessions, device settings, owner profile, RAID/disk/CPU status) sitting between
   `websocket` and `dao`.

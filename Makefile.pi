@@ -53,7 +53,10 @@ HTTPS_PORT         ?= 443
 TLS_CERT           ?=
 TLS_KEY            ?=
 BRIDGE_ADDR        ?= off-the.cloud
-BRIDGE_CONNECTIONS ?= 5
+# No BRIDGE_CONNECTIONS knob anymore (issue #53 follow-up) - the device
+# manages its own bridge connection pool dynamically now (see
+# websocket.ensureBridgePool), growing it under load rather than dialing a
+# fixed count once at startup.
 # Full public subdomain this device registers with the bridge as (e.g.
 # pit.off-the.cloud). Defaults to a random otc-<8 hex chars>.$(BRIDGE_ADDR)
 # generated once by the `secrets` target; override to pick a specific name.
@@ -506,7 +509,6 @@ config: secrets ## Render and install /etc/otc_$(ENVIRONMENT).ini on the device
 	$(SSH) 'sudo tee /etc/otc_$(ENVIRONMENT).ini >/dev/null' <<-EOF
 	[otc]
 	bridge-addr=$(BRIDGE_ADDR)
-	bridge-connections=$(BRIDGE_CONNECTIONS)
 	storage-path=$(STORAGE_PATH)
 	unenc-storage-path=$(UNENC_PATH)
 	max-thumbnail-width-px=$(MAX_THUMB_PX)

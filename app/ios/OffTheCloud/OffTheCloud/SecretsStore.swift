@@ -15,9 +15,21 @@ final class SecretsStore: ObservableObject {
     @Published var deviceId: String
 
     // Settings
-    @Published var wifiOnly: Bool
-    @Published var includeVideos: Bool
-    @Published var downloadFromiCloud: Bool
+    // These three auto-persist on every change (unlike endpoint/password/
+    // deviceId above, which stay explicit-Save-button-only to avoid a
+    // Keychain write per keystroke) — a toggle here used to only survive
+    // an app relaunch if the user happened to also tap "Save Connection"/
+    // "Sync Now"/"Sync All" afterward, since nothing else ever called
+    // persist() for these.
+    @Published var wifiOnly: Bool {
+        didSet { persist() }
+    }
+    @Published var includeVideos: Bool {
+        didSet { persist() }
+    }
+    @Published var downloadFromiCloud: Bool {
+        didSet { persist() }
+    }
     
     var isConfigured: Bool { !endpoint.isEmpty && !password.isEmpty }
 

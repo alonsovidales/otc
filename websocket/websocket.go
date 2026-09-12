@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	bgprocessor "github.com/alonsovidales/otc/bg_processor"
@@ -33,7 +34,37 @@ import (
 const (
 	CEndpoint        = "/ws"
 	cWorkerSleepSecs = 120
+
+	// Bridge connection pool (each connection is single-use — the bridge
+	// closes it after relaying exactly one request, see
+	// bridge/websocket/websocket.go's default case). Rather than dialing a
+	// fixed number once at startup and hoping it's enough, this device
+	// keeps cBridgePoolTarget ready at all times: whenever the count of
+	// still-open (not yet consumed) connections drops to
+	// cBridgePoolLowWater, it opens cBridgePoolRefillBatch more. A pool
+	// sized only for steady-state traffic used to empty out under a real
+	// burst (several clients relayed through at once) faster than the
+	// old one-goroutine-self-replaces-itself loop could redial, which
+	// surfaced to users as "No available connections in the pool" —
+	// bumping the *static* count higher only raises how big a burst it
+	// takes to reproduce that, not the underlying issue.
+	cBridgePoolTarget      = 5
+	cBridgePoolRefillBatch = 2
+	cBridgePoolLowWater    = cBridgePoolTarget - cBridgePoolRefillBatch
 )
+
+// bridgeConnPool tracks this device's own accounting of its bridge
+// connections — not the bridge's, which is separate, server-side state.
+// available is how many of the connections this device has open right now
+// are just sitting idle in the bridge's pool, not yet consumed for a
+// relay; pending is how many dial+auth attempts are currently in flight
+// (counted toward the target too, so a slow dial doesn't cause a second,
+// redundant refill to fire before the first one even finishes).
+type bridgeConnPool struct {
+	mu        sync.Mutex
+	available int
+	pending   int
+}
 
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
@@ -47,6 +78,7 @@ type Manager struct {
 	social       *social.Social
 	push         *push.Push
 	bg           *bgprocessor.BgProcessor
+	bridgePool   bridgeConnPool
 }
 
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *bgprocessor.BgProcessor) (mg *Manager) {
@@ -78,9 +110,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *
 		social:   social.Init(dao, filesManager, st, pr, ps),
 	}
 
-	for i := 0; i < int(cfg.GetInt("otc", "bridge-connections")); i++ {
-		go mg.OpenBridge()
-	}
+	mg.ensureBridgePool()
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -120,15 +150,47 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 
 }
 
-func (mg *Manager) OpenBridge() {
-	// If this is a bridge connection, we will retry to connect to the bridge
-	defer func() {
-		log.Debug("Connection finished, open a new one")
-		d := (3 * rand.Float64()) * float64(time.Second) // Sleep in between 0.0–3.0 s
-		time.Sleep(time.Duration(d))
-		go mg.OpenBridge()
-	}()
+// ensureBridgePool tops the bridge connection pool back up to
+// cBridgePoolTarget whenever it's dropped to cBridgePoolLowWater or below
+// (available+pending together, so a dial already in flight counts toward
+// the target and doesn't trigger a redundant second batch). Always opens
+// exactly enough to reach the target, not a fixed cBridgePoolRefillBatch —
+// which happens to be the same thing in the steady-state case this was
+// designed around (one connection trickling down to the next at a time
+// puts total at exactly cBridgePoolLowWater, cBridgePoolRefillBatch short
+// of target), but matters at startup, where total starts at 0 and a fixed
+// +2 would leave the pool stuck below target forever (nothing re-checks
+// until a connection already in the pool gets consumed - see
+// openBridgeConn - which two idle, never-consumed connections would never
+// trigger on their own).
+//
+// Called once at startup, and again every time a connection is actually
+// consumed for a relay (see openBridgeConn) — NOT on a failed dial/auth
+// attempt, which schedules its own jittered retry instead (see
+// failedBridgeDial) rather than competing with this for the same refill.
+func (mg *Manager) ensureBridgePool() {
+	mg.bridgePool.mu.Lock()
+	total := mg.bridgePool.available + mg.bridgePool.pending
+	var toOpen int
+	if total <= cBridgePoolLowWater {
+		toOpen = cBridgePoolTarget - total
+		mg.bridgePool.pending += toOpen
+	}
+	mg.bridgePool.mu.Unlock()
 
+	for i := 0; i < toOpen; i++ {
+		go mg.openBridgeConn()
+	}
+}
+
+// openBridgeConn dials, registers, and then serves exactly one bridge
+// connection for its whole single-use lifetime (see cBridgePoolTarget's
+// doc comment). The caller (ensureBridgePool, or failedBridgeDial's own
+// retry) has already accounted for this attempt in pending before spawning
+// it — this function's job is just to move that accounting forward
+// correctly as the attempt succeeds, fails, or the connection is
+// eventually consumed.
+func (mg *Manager) openBridgeConn() {
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	log.Debug("Connecting to bridge:", cfg.GetStr("otc", "bridge-addr"), u)
 	h := http.Header{}
@@ -136,6 +198,7 @@ func (mg *Manager) OpenBridge() {
 	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
 	if err != nil {
 		log.Error("dialing websocket:", err)
+		mg.failedBridgeDial()
 		return
 	}
 	log.Debug("Connected to bridge...")
@@ -155,6 +218,7 @@ func (mg *Manager) OpenBridge() {
 	b, _ := proto.Marshal(msg)
 	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
 		log.Error("write:", err)
+		mg.failedBridgeDial()
 		return
 	}
 
@@ -162,37 +226,82 @@ func (mg *Manager) OpenBridge() {
 	_, data, err := c.ReadMessage()
 	if err != nil {
 		log.Error("read:", err)
+		mg.failedBridgeDial()
 		return
 	}
 
 	var respAck pb.RespEnvelope
 	if err := proto.Unmarshal(data, &respAck); err != nil {
 		log.Error("error unmarshaling bridge register response:", err)
+		mg.failedBridgeDial()
 		return
 	}
 
 	// The bridge answers a rejected registration (e.g. a stale/mismatched
-	// shared secret) with Error=true and no RespBridgeAckOnboard payload at
-	// all — asserting the type unconditionally used to panic here and take
-	// the whole process down with it (crash-looping every few seconds
-	// instead of just backing off and retrying like every other failure
-	// path in this function).
+	// shared secret, or this device already at its connection cap - see
+	// [bridge] max-connections-per-device on the bridge side) with
+	// Error=true and no RespBridgeAckOnboard payload at all - asserting the
+	// type unconditionally used to panic here and take the whole process
+	// down with it (crash-looping every few seconds instead of just
+	// backing off and retrying like every other failure path here).
 	if respAck.Error {
 		log.Error("bridge rejected registration:", respAck.ErrorMessage)
+		mg.failedBridgeDial()
 		return
 	}
 	onboard, ok := respAck.Payload.(*pb.RespEnvelope_RespBridgeAckOnboard)
 	if !ok || onboard.RespBridgeAckOnboard == nil {
 		log.Error("unexpected bridge register response:", respAck.Payload)
+		mg.failedBridgeDial()
 		return
 	}
-	if onboard.RespBridgeAckOnboard.Ok {
-		log.Debug("Authenticated in the bridge, waiting for messages...")
-
-		mg.handleConnection(c, nil)
+	if !onboard.RespBridgeAckOnboard.Ok {
+		mg.failedBridgeDial()
+		return
 	}
 
-	return
+	log.Debug("Authenticated in the bridge, waiting for messages...")
+	mg.bridgePool.mu.Lock()
+	mg.bridgePool.pending--
+	mg.bridgePool.available++
+	mg.bridgePool.mu.Unlock()
+
+	// Blocks for this connection's entire lifetime in the pool - returns
+	// once the bridge has consumed it for its one relay (or the underlying
+	// socket otherwise drops).
+	mg.handleConnection(c, nil)
+
+	mg.bridgePool.mu.Lock()
+	mg.bridgePool.available--
+	mg.bridgePool.mu.Unlock()
+	// A connection actually being consumed is normal, expected traffic —
+	// check immediately (no jitter) whether the pool needs topping up,
+	// same as ensureBridgePool's other callers.
+	mg.ensureBridgePool()
+}
+
+// failedBridgeDial accounts for one attempt that never became available
+// (a dial error, a rejected registration, ...) and schedules its
+// replacement after a random 0-3s backoff — keeping a persistent failure
+// (e.g. a stale secret) from turning into a tight retry loop hammering the
+// bridge, the same spirit as the jitter the old fixed-pool loop already
+// had. This intentionally does NOT call ensureBridgePool: the retry below
+// already re-adds exactly the one pending slot this attempt is giving up,
+// so the pool's total stays correct without a second, competing refill
+// decision.
+func (mg *Manager) failedBridgeDial() {
+	mg.bridgePool.mu.Lock()
+	mg.bridgePool.pending--
+	mg.bridgePool.mu.Unlock()
+
+	go func() {
+		d := (3 * rand.Float64()) * float64(time.Second)
+		time.Sleep(time.Duration(d))
+		mg.bridgePool.mu.Lock()
+		mg.bridgePool.pending++
+		mg.bridgePool.mu.Unlock()
+		mg.openBridgeConn()
+	}()
 }
 
 // regenerateBridgeSecret backs the Settings page's self-service
@@ -712,6 +821,29 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFile{
+				RespFile: pbFile,
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqHasFile:
+		exists, err := ch.mg.filesManager.HasFile(p.ReqHasFile.Hash)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error checking file hash: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFileExists{
+				RespFileExists: &pb.FileExists{Exists: exists},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqLinkFile:
+		log.Info("Linking file with path:", p.ReqLinkFile.Path, "to hash:", p.ReqLinkFile.Hash)
+		pbFile, err := ch.mg.filesManager.LinkFile(ch.session, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to link file: %s", err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFile{
 				RespFile: pbFile,

@@ -325,6 +325,67 @@ public struct Msg_UploadFile: Sendable {
   fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
+/// Issue #58: lets a sync client (iOS/macOS) check whether this device
+/// already has a file with this content before sending it - storage is
+/// already deduplicated by hash server-side (multiple paths can share one
+/// on-disk blob), this just lets a client find that out *before* spending
+/// the bandwidth on a re-upload, not just after.
+public struct Msg_HasFile: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var hash: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_FileExists: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var exists: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// LinkFile registers `path` as pointing at content this device already
+/// has (hash), without transferring it again - the client is expected to
+/// have confirmed via HasFile first that the hash actually exists here;
+/// the server verifies that itself too and rejects the request if not,
+/// rather than trusting the claim blindly.
+public struct Msg_LinkFile: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var hash: String = String()
+
+  public var path: String = String()
+
+  public var forceOverride: Bool = false
+
+  public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_created = newValue}
+  }
+  /// Returns true if `created` has been explicitly set.
+  public var hasCreated: Bool {return self._created != nil}
+  /// Clears the value of `created`. Subsequent reads from it will return its default value.
+  public mutating func clearCreated() {self._created = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
 public struct Msg_DelFile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1863,6 +1924,22 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetVapidPublicKey(newValue)}
   }
 
+  public var reqHasFile: Msg_HasFile {
+    get {
+      if case .reqHasFile(let v)? = payload {return v}
+      return Msg_HasFile()
+    }
+    set {payload = .reqHasFile(newValue)}
+  }
+
+  public var reqLinkFile: Msg_LinkFile {
+    get {
+      if case .reqLinkFile(let v)? = payload {return v}
+      return Msg_LinkFile()
+    }
+    set {payload = .reqLinkFile(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -1912,6 +1989,8 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqRegisterWebPush(Msg_RegisterWebPush)
     case reqRegisterApnsToken(Msg_RegisterApnsToken)
     case reqGetVapidPublicKey(Msg_GetVapidPublicKey)
+    case reqHasFile(Msg_HasFile)
+    case reqLinkFile(Msg_LinkFile)
 
   }
 
@@ -2127,6 +2206,14 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respVapidPublicKey(newValue)}
   }
 
+  public var respFileExists: Msg_FileExists {
+    get {
+      if case .respFileExists(let v)? = _storage._payload {return v}
+      return Msg_FileExists()
+    }
+    set {_uniqueStorage()._payload = .respFileExists(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2153,6 +2240,7 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     case respRotateBridgeSecretAck(Msg_RotateBridgeSecretAck)
     case respWifiNetworks(Msg_WifiNetworks)
     case respVapidPublicKey(Msg_VapidPublicKey)
+    case respFileExists(Msg_FileExists)
 
   }
 
@@ -2451,6 +2539,115 @@ extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   public static func ==(lhs: Msg_UploadFile, rhs: Msg_UploadFile) -> Bool {
     if lhs.path != rhs.path {return false}
     if lhs.content != rhs.content {return false}
+    if lhs.forceOverride != rhs.forceOverride {return false}
+    if lhs._created != rhs._created {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_HasFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".HasFile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_HasFile, rhs: Msg_HasFile) -> Bool {
+    if lhs.hash != rhs.hash {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_FileExists: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FileExists"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}exists\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.exists) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.exists != false {
+      try visitor.visitSingularBoolField(value: self.exists, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_FileExists, rhs: Msg_FileExists) -> Bool {
+    if lhs.exists != rhs.exists {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LinkFile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}path\0\u{1}forceOverride\0\u{1}created\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.forceOverride) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._created) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 1)
+    }
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 2)
+    }
+    if self.forceOverride != false {
+      try visitor.visitSingularBoolField(value: self.forceOverride, fieldNumber: 3)
+    }
+    try { if let v = self._created {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_LinkFile, rhs: Msg_LinkFile) -> Bool {
+    if lhs.hash != rhs.hash {return false}
+    if lhs.path != rhs.path {return false}
     if lhs.forceOverride != rhs.forceOverride {return false}
     if lhs._created != rhs._created {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -4835,7 +5032,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5442,6 +5639,32 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqGetVapidPublicKey(v)
         }
       }()
+      case 58: try {
+        var v: Msg_HasFile?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqHasFile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqHasFile(v)
+        }
+      }()
+      case 59: try {
+        var v: Msg_LinkFile?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqLinkFile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqLinkFile(v)
+        }
+      }()
       default: break
       }
     }
@@ -5640,6 +5863,14 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqGetVapidPublicKey(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 57)
     }()
+    case .reqHasFile?: try {
+      guard case .reqHasFile(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 58)
+    }()
+    case .reqLinkFile?: try {
+      guard case .reqLinkFile(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 59)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -5655,7 +5886,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -5996,6 +6227,19 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
             _storage._payload = .respVapidPublicKey(v)
           }
         }()
+        case 33: try {
+          var v: Msg_FileExists?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFileExists(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFileExists(v)
+          }
+        }()
         default: break
         }
       }
@@ -6109,6 +6353,10 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case .respVapidPublicKey?: try {
         guard case .respVapidPublicKey(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 32)
+      }()
+      case .respFileExists?: try {
+        guard case .respFileExists(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 33)
       }()
       case nil: break
       }

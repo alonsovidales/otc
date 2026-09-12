@@ -82,7 +82,6 @@ WHERE NOT EXISTS (SELECT 1 FROM settings);
 cat > /etc/otc_dev.ini <<EOF
 [otc]
 bridge-addr=off-the.cloud
-bridge-connections=5
 storage-path=/mnt/storage/
 unenc-storage-path=/mnt/storage/unencrypted/
 max-thumbnail-width-px=1000

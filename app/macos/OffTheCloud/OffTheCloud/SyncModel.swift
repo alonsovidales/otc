@@ -409,7 +409,7 @@ final class SyncModel: ObservableObject {
             guard let localHash else { return }
             guard remoteHashesByFolder[folderId]?[remotePath] != localHash else { return }
             do {
-                try await upload(fileURL, to: remotePath)
+                try await upload(fileURL, to: remotePath, knownHash: localHash)
                 remoteHashesByFolder[folderId, default: [:]][remotePath] = localHash
             } catch {
                 print("Error uploading \(path): \(error)")
@@ -507,7 +507,7 @@ final class SyncModel: ObservableObject {
                     updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: item.url.lastPathComponent))
 
                     do {
-                        try await upload(item.url, to: item.remotePath)
+                        try await upload(item.url, to: item.remotePath, knownHash: item.hash)
                         remoteMap[item.remotePath] = item.hash
                     } catch {
                         // Logged and skipped, not fatal to the whole
@@ -677,7 +677,11 @@ final class SyncModel: ObservableObject {
             let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
 
             enum ActionKind { case upload, download, deleteLocal, deleteRemote }
-            var actions: [(relative: String, kind: ActionKind, size: Int)] = []
+            // hash carries the already-computed local hash through to the
+            // .upload case below, purely to avoid hashing the same file
+            // twice (issue #58's HasFile check needs it anyway) — unused
+            // for the other three kinds.
+            var actions: [(relative: String, kind: ActionKind, size: Int, hash: String?)] = []
             var newSynced = lastSynced
 
             for relative in allRelativePaths {
@@ -719,18 +723,18 @@ final class SyncModel: ObservableObject {
 
                 if remoteWins {
                     if let remoteHash {
-                        actions.append((relative, .download, Int(remoteFile?.size ?? 0)))
+                        actions.append((relative, .download, Int(remoteFile?.size ?? 0), nil))
                         newSynced[relative] = remoteHash
                     } else {
-                        actions.append((relative, .deleteLocal, 0))
+                        actions.append((relative, .deleteLocal, 0, nil))
                         newSynced.removeValue(forKey: relative)
                     }
                 } else {
                     if let localHash {
-                        actions.append((relative, .upload, 0))
+                        actions.append((relative, .upload, 0, localHash))
                         newSynced[relative] = localHash
                     } else {
-                        actions.append((relative, .deleteRemote, 0))
+                        actions.append((relative, .deleteRemote, 0, nil))
                         newSynced.removeValue(forKey: relative)
                     }
                 }
@@ -744,7 +748,7 @@ final class SyncModel: ObservableObject {
                     let remotePath = remotePrefix + action.relative
                     do {
                         switch action.kind {
-                        case .upload: try await upload(localURL, to: remotePath)
+                        case .upload: try await upload(localURL, to: remotePath, knownHash: action.hash)
                         case .download: try await download(remotePath, to: localURL)
                         case .deleteRemote: try await delete(remotePath)
                         case .deleteLocal: try FileManager.default.removeItem(at: localURL)
@@ -824,16 +828,53 @@ final class SyncModel: ObservableObject {
 
     // MARK: - Wire helpers
 
-    private func upload(_ url: URL, to remotePath: String) async throws {
+    // Issue #58: storage is deduplicated by hash server-side already (see
+    // the Go files_manager.UploadFile/LinkFile doc comments) — this is
+    // what actually skips re-sending the bytes for a file the device
+    // already has under some other path, rather than relying on that
+    // dedup only kicking in *after* the transfer. `knownHash` lets a
+    // caller that already hashed this file for its own diffing (every
+    // call site here has) skip hashing it a second time.
+    private func upload(_ url: URL, to remotePath: String, knownHash: String? = nil) async throws {
+        let hash: String
+        if let knownHash {
+            hash = knownHash
+        } else {
+            hash = try await Task.detached(priority: .utility) {
+                try Self.sha256Hex(of: url)
+            }.value
+        }
+
+        let hasResp = try await ws.request { req in
+            var hf = Msg_HasFile()
+            hf.hash = hash
+            req.payload = .reqHasFile(hf)
+        }
+        let created = SwiftProtobuf.Google_Protobuf_Timestamp(
+            date: (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
+        )
+
+        if case .respFileExists(let fe) = hasResp.payload, fe.exists {
+            let resp = try await ws.request { req in
+                var lf = Msg_LinkFile()
+                lf.hash = hash
+                lf.path = remotePath
+                lf.forceOverride = true
+                lf.created = created
+                req.payload = .reqLinkFile(lf)
+            }
+            if resp.error {
+                throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "link rejected" : resp.errorMessage])
+            }
+            return
+        }
+
         // Reading a multi-GB file synchronously used to happen right here,
         // on the main actor — same UI-freezing problem as the hashing in
         // reconcile(), just for the read instead of the digest.
         let data = try await Task.detached(priority: .utility) {
             try Data(contentsOf: url)
         }.value
-        let created = SwiftProtobuf.Google_Protobuf_Timestamp(
-            date: (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
-        )
         let resp = try await ws.request { req in
             var up = UploadFile()
             up.path = remotePath

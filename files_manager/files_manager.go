@@ -8,6 +8,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -688,6 +689,80 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	}(targetPath, file, content)
 
 	return
+}
+
+// HasFile reports whether this device already has a file with this exact
+// content, by hash (issue #58) — storage is already deduplicated by hash
+// (see UploadFile's targetPath, and DelFile's "another reference with
+// another path" check), this just lets a sync client (iOS/macOS) find
+// that out *before* spending the bandwidth on a re-upload, via LinkFile
+// below, rather than only after the fact like the existing
+// duplicated-path check in UploadFile does.
+func (mg *Manager) HasFile(hash string) (exists bool, err error) {
+	_, err = mg.dao.GetFileByHash(hash)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// LinkFile registers path as pointing at content this device already has
+// (hash) — the on-disk blob, its thumbnail, and its tags are all already
+// keyed by hash (see UploadFile above), so a new path sharing an existing
+// hash needs none of that redone, just a new `files` row. Mirrors
+// UploadFile's own duplicated-path handling (same path already exists:
+// no-op if the hash already matches, otherwise only overwritten with
+// forceOverride) — the one difference is this never touches disk at all.
+func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created *timestamppb.Timestamp) (file *pb.File, err error) {
+	existing, err := mg.dao.GetFileByHash(hash)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("no file with that hash on this device")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if created == nil {
+		created = timestamppb.Now()
+	}
+
+	file = &pb.File{
+		Created:  created,
+		Modified: timestamppb.Now(),
+		Path:     path,
+		Mime:     existing.Mime,
+		Hash:     hash,
+		Size:     existing.Size,
+	}
+
+	duplicated, err := mg.dao.StoreNewFile(file)
+	if err != nil {
+		return nil, err
+	}
+	if duplicated {
+		existingAtPath, err := mg.dao.GetFileByPath(path)
+		if err != nil {
+			return nil, err
+		}
+		if existingAtPath.Hash == hash {
+			log.Debug("Same file already linked at:", path, hash)
+			return existingAtPath, nil
+		}
+		if !forceOverride {
+			return nil, errors.New("Duplicated file")
+		}
+		if err := mg.DelFile(session, path); err != nil {
+			return nil, err
+		}
+		if _, err := mg.dao.StoreNewFile(file); err != nil {
+			return nil, err
+		}
+	}
+
+	return file, nil
 }
 
 func (mg *Manager) heicToJpeg(heicData []byte, quality int) ([]byte, error) {

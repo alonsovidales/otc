@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftProtobuf
 import Photos
 import MapKit
+import CryptoKit
 
 // MARK: - Proto typealiases (rename if your generated names differ)
 typealias ReqEnvelope       = Msg_ReqEnvelope
@@ -376,15 +377,42 @@ final class PhotoGalleryVM: ObservableObject {
                 do {
                     let data = try Data(contentsOf: url)
                     let created = SwiftProtobuf.Google_Protobuf_Timestamp(date: Date())
-                    _ = try await ws.request { e in
+
+                    // Issue #58: skip re-sending content the device
+                    // already has under some other path — see
+                    // PhotoSync.swift's identical check for the full
+                    // reasoning.
+                    let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                    let hasResp = try await ws.request { e in
                         var req = ReqEnvelope()
-                        var up  = UploadFileMsg()
-                        up.path = p
-                        up.content = data
-                        up.forceOverride = true
-                        up.created = created
-                        req.payload = .reqUploadFile(up)
+                        var hf = Msg_HasFile()
+                        hf.hash = hash
+                        req.payload = .reqHasFile(hf)
                         e = req
+                    }
+
+                    if case .respFileExists(let fe) = hasResp.payload, fe.exists {
+                        _ = try await ws.request { e in
+                            var req = ReqEnvelope()
+                            var lf = Msg_LinkFile()
+                            lf.hash = hash
+                            lf.path = p
+                            lf.forceOverride = true
+                            lf.created = created
+                            req.payload = .reqLinkFile(lf)
+                            e = req
+                        }
+                    } else {
+                        _ = try await ws.request { e in
+                            var req = ReqEnvelope()
+                            var up  = UploadFileMsg()
+                            up.path = p
+                            up.content = data
+                            up.forceOverride = true
+                            up.created = created
+                            req.payload = .reqUploadFile(up)
+                            e = req
+                        }
                     }
                     items[idx].isLocalOnly = false
                 } catch {

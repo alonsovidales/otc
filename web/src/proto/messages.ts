@@ -275,6 +275,35 @@ export interface UploadFile {
   created?: Date | undefined;
 }
 
+/**
+ * Issue #58: lets a sync client (iOS/macOS) check whether this device
+ * already has a file with this content before sending it - storage is
+ * already deduplicated by hash server-side (multiple paths can share one
+ * on-disk blob), this just lets a client find that out *before* spending
+ * the bandwidth on a re-upload, not just after.
+ */
+export interface HasFile {
+  hash: string;
+}
+
+export interface FileExists {
+  exists: boolean;
+}
+
+/**
+ * LinkFile registers `path` as pointing at content this device already
+ * has (hash), without transferring it again - the client is expected to
+ * have confirmed via HasFile first that the hash actually exists here;
+ * the server verifies that itself too and rejects the request if not,
+ * rather than trusting the claim blindly.
+ */
+export interface LinkFile {
+  hash: string;
+  path: string;
+  forceOverride: boolean;
+  created?: Date | undefined;
+}
+
 export interface DelFile {
   path: string;
 }
@@ -772,6 +801,8 @@ export interface ReqEnvelope {
     | { $case: "reqRegisterWebPush"; reqRegisterWebPush: RegisterWebPush }
     | { $case: "reqRegisterApnsToken"; reqRegisterApnsToken: RegisterApnsToken }
     | { $case: "reqGetVapidPublicKey"; reqGetVapidPublicKey: GetVapidPublicKey }
+    | { $case: "reqHasFile"; reqHasFile: HasFile }
+    | { $case: "reqLinkFile"; reqLinkFile: LinkFile }
     | undefined;
 }
 
@@ -803,6 +834,7 @@ export interface RespEnvelope {
     | { $case: "respRotateBridgeSecretAck"; respRotateBridgeSecretAck: RotateBridgeSecretAck }
     | { $case: "respWifiNetworks"; respWifiNetworks: WifiNetworks }
     | { $case: "respVapidPublicKey"; respVapidPublicKey: VapidPublicKey }
+    | { $case: "respFileExists"; respFileExists: FileExists }
     | undefined;
 }
 
@@ -1470,6 +1502,230 @@ export const UploadFile: MessageFns<UploadFile> = {
     const message = createBaseUploadFile();
     message.path = object.path ?? "";
     message.content = object.content ?? new Uint8Array(0);
+    message.forceOverride = object.forceOverride ?? false;
+    message.created = object.created ?? undefined;
+    return message;
+  },
+};
+
+function createBaseHasFile(): HasFile {
+  return { hash: "" };
+}
+
+export const HasFile: MessageFns<HasFile> = {
+  encode(message: HasFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.hash !== "") {
+      writer.uint32(10).string(message.hash);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HasFile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHasFile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): HasFile {
+    return { hash: isSet(object.hash) ? globalThis.String(object.hash) : "" };
+  },
+
+  toJSON(message: HasFile): unknown {
+    const obj: any = {};
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HasFile>, I>>(base?: I): HasFile {
+    return HasFile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HasFile>, I>>(object: I): HasFile {
+    const message = createBaseHasFile();
+    message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
+function createBaseFileExists(): FileExists {
+  return { exists: false };
+}
+
+export const FileExists: MessageFns<FileExists> = {
+  encode(message: FileExists, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.exists !== false) {
+      writer.uint32(8).bool(message.exists);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FileExists {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFileExists();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.exists = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FileExists {
+    return { exists: isSet(object.exists) ? globalThis.Boolean(object.exists) : false };
+  },
+
+  toJSON(message: FileExists): unknown {
+    const obj: any = {};
+    if (message.exists !== false) {
+      obj.exists = message.exists;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FileExists>, I>>(base?: I): FileExists {
+    return FileExists.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FileExists>, I>>(object: I): FileExists {
+    const message = createBaseFileExists();
+    message.exists = object.exists ?? false;
+    return message;
+  },
+};
+
+function createBaseLinkFile(): LinkFile {
+  return { hash: "", path: "", forceOverride: false, created: undefined };
+}
+
+export const LinkFile: MessageFns<LinkFile> = {
+  encode(message: LinkFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.hash !== "") {
+      writer.uint32(10).string(message.hash);
+    }
+    if (message.path !== "") {
+      writer.uint32(18).string(message.path);
+    }
+    if (message.forceOverride !== false) {
+      writer.uint32(24).bool(message.forceOverride);
+    }
+    if (message.created !== undefined) {
+      Timestamp.encode(toTimestamp(message.created), writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LinkFile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseLinkFile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.forceOverride = reader.bool();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): LinkFile {
+    return {
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
+      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+    };
+  },
+
+  toJSON(message: LinkFile): unknown {
+    const obj: any = {};
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.forceOverride !== false) {
+      obj.forceOverride = message.forceOverride;
+    }
+    if (message.created !== undefined) {
+      obj.created = message.created.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<LinkFile>, I>>(base?: I): LinkFile {
+    return LinkFile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<LinkFile>, I>>(object: I): LinkFile {
+    const message = createBaseLinkFile();
+    message.hash = object.hash ?? "";
+    message.path = object.path ?? "";
     message.forceOverride = object.forceOverride ?? false;
     message.created = object.created ?? undefined;
     return message;
@@ -6767,6 +7023,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetVapidPublicKey":
         GetVapidPublicKey.encode(message.payload.reqGetVapidPublicKey, writer.uint32(458).fork()).join();
         break;
+      case "reqHasFile":
+        HasFile.encode(message.payload.reqHasFile, writer.uint32(466).fork()).join();
+        break;
+      case "reqLinkFile":
+        LinkFile.encode(message.payload.reqLinkFile, writer.uint32(474).fork()).join();
+        break;
     }
     return writer;
   },
@@ -7232,6 +7494,22 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 58: {
+          if (tag !== 466) {
+            break;
+          }
+
+          message.payload = { $case: "reqHasFile", reqHasFile: HasFile.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 59: {
+          if (tag !== 474) {
+            break;
+          }
+
+          message.payload = { $case: "reqLinkFile", reqLinkFile: LinkFile.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7384,6 +7662,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqGetVapidPublicKey",
           reqGetVapidPublicKey: GetVapidPublicKey.fromJSON(object.reqGetVapidPublicKey),
         }
+        : isSet(object.reqHasFile)
+        ? { $case: "reqHasFile", reqHasFile: HasFile.fromJSON(object.reqHasFile) }
+        : isSet(object.reqLinkFile)
+        ? { $case: "reqLinkFile", reqLinkFile: LinkFile.fromJSON(object.reqLinkFile) }
         : undefined,
     };
   },
@@ -7485,6 +7767,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqRegisterApnsToken = RegisterApnsToken.toJSON(message.payload.reqRegisterApnsToken);
     } else if (message.payload?.$case === "reqGetVapidPublicKey") {
       obj.reqGetVapidPublicKey = GetVapidPublicKey.toJSON(message.payload.reqGetVapidPublicKey);
+    } else if (message.payload?.$case === "reqHasFile") {
+      obj.reqHasFile = HasFile.toJSON(message.payload.reqHasFile);
+    } else if (message.payload?.$case === "reqLinkFile") {
+      obj.reqLinkFile = LinkFile.toJSON(message.payload.reqLinkFile);
     }
     return obj;
   },
@@ -7891,6 +8177,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqHasFile": {
+        if (object.payload?.reqHasFile !== undefined && object.payload?.reqHasFile !== null) {
+          message.payload = { $case: "reqHasFile", reqHasFile: HasFile.fromPartial(object.payload.reqHasFile) };
+        }
+        break;
+      }
+      case "reqLinkFile": {
+        if (object.payload?.reqLinkFile !== undefined && object.payload?.reqLinkFile !== null) {
+          message.payload = { $case: "reqLinkFile", reqLinkFile: LinkFile.fromPartial(object.payload.reqLinkFile) };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -7980,6 +8278,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respVapidPublicKey":
         VapidPublicKey.encode(message.payload.respVapidPublicKey, writer.uint32(258).fork()).join();
+        break;
+      case "respFileExists":
+        FileExists.encode(message.payload.respFileExists, writer.uint32(266).fork()).join();
         break;
     }
     return writer;
@@ -8224,6 +8525,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 33: {
+          if (tag !== 266) {
+            break;
+          }
+
+          message.payload = { $case: "respFileExists", respFileExists: FileExists.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8299,6 +8608,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respWifiNetworks", respWifiNetworks: WifiNetworks.fromJSON(object.respWifiNetworks) }
         : isSet(object.respVapidPublicKey)
         ? { $case: "respVapidPublicKey", respVapidPublicKey: VapidPublicKey.fromJSON(object.respVapidPublicKey) }
+        : isSet(object.respFileExists)
+        ? { $case: "respFileExists", respFileExists: FileExists.fromJSON(object.respFileExists) }
         : undefined,
     };
   },
@@ -8360,6 +8671,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respWifiNetworks = WifiNetworks.toJSON(message.payload.respWifiNetworks);
     } else if (message.payload?.$case === "respVapidPublicKey") {
       obj.respVapidPublicKey = VapidPublicKey.toJSON(message.payload.respVapidPublicKey);
+    } else if (message.payload?.$case === "respFileExists") {
+      obj.respFileExists = FileExists.toJSON(message.payload.respFileExists);
     }
     return obj;
   },
@@ -8554,6 +8867,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respVapidPublicKey",
             respVapidPublicKey: VapidPublicKey.fromPartial(object.payload.respVapidPublicKey),
+          };
+        }
+        break;
+      }
+      case "respFileExists": {
+        if (object.payload?.respFileExists !== undefined && object.payload?.respFileExists !== null) {
+          message.payload = {
+            $case: "respFileExists",
+            respFileExists: FileExists.fromPartial(object.payload.respFileExists),
           };
         }
         break;

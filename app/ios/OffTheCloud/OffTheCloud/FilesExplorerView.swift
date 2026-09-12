@@ -8,6 +8,7 @@
 //  image viewer for image files.
 
 import SwiftUI
+import CryptoKit
 import UniformTypeIdentifiers
 
 private func isDirFile(_ f: Msg_File) -> Bool { f.mime == "inode/directory" }
@@ -159,12 +160,34 @@ final class FilesExplorerViewModel: ObservableObject {
     }
 
     func upload(data: Data, filename: String) async {
-        var req = Msg_UploadFile()
-        req.path = joinPath(path, filename)
-        req.content = data
-        req.forceOverride = false
+        let path = joinPath(path, filename)
         do {
-            let resp = try await ws.request { $0.payload = .reqUploadFile(req) }
+            // Issue #58: skip re-sending content the device already has
+            // under some other path — see PhotoSync.swift's identical
+            // check for the full reasoning.
+            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            let hasResp = try await ws.request { e in
+                var hf = Msg_HasFile()
+                hf.hash = hash
+                e.payload = .reqHasFile(hf)
+            }
+
+            let resp: Msg_RespEnvelope
+            if case .respFileExists(let fe) = hasResp.payload, fe.exists {
+                resp = try await ws.request { e in
+                    var lf = Msg_LinkFile()
+                    lf.hash = hash
+                    lf.path = path
+                    lf.forceOverride = false
+                    e.payload = .reqLinkFile(lf)
+                }
+            } else {
+                var req = Msg_UploadFile()
+                req.path = path
+                req.content = data
+                req.forceOverride = false
+                resp = try await ws.request { $0.payload = .reqUploadFile(req) }
+            }
             if resp.error { showToast("Upload failed: \(resp.errorMessage)") }
         } catch {
             showToast("Upload failed: \(error.localizedDescription)")

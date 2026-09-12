@@ -282,7 +282,6 @@ $ sudo mysql -u root
 ```
 [otc]
 bridge-addr=off-the.cloud
-bridge-connections=5
 storage-path=/mnt/storage/
 unenc-storage-path=/mnt/storage/unencrypted/
 max-thumbnail-width-px=1000

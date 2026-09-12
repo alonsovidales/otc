@@ -69,6 +69,31 @@ message UploadFile {
   google.protobuf.Timestamp created = 4;
 }
 
+// Issue #58: lets a sync client (iOS/macOS) check whether this device
+// already has a file with this content before sending it - storage is
+// already deduplicated by hash server-side (multiple paths can share one
+// on-disk blob), this just lets a client find that out *before* spending
+// the bandwidth on a re-upload, not just after.
+message HasFile {
+  string hash = 1;
+}
+
+message FileExists {
+  bool exists = 1;
+}
+
+// LinkFile registers `path` as pointing at content this device already
+// has (hash), without transferring it again - the client is expected to
+// have confirmed via HasFile first that the hash actually exists here;
+// the server verifies that itself too and rejects the request if not,
+// rather than trusting the claim blindly.
+message LinkFile {
+  string hash = 1;
+  string path = 2;
+  bool forceOverride = 3;
+  google.protobuf.Timestamp created = 4;
+}
+
 message DelFile {
   string path = 1;
 }
@@ -551,6 +576,8 @@ message ReqEnvelope {
     RegisterWebPush req_register_web_push = 55;
     RegisterApnsToken req_register_apns_token = 56;
     GetVapidPublicKey req_get_vapid_public_key = 57;
+    HasFile req_has_file = 58;
+    LinkFile req_link_file = 59;
   }
 }
 
@@ -582,5 +609,6 @@ message RespEnvelope {
     RotateBridgeSecretAck resp_rotate_bridge_secret_ack = 30;
     WifiNetworks resp_wifi_networks = 31;
     VapidPublicKey resp_vapid_public_key = 32;
+    FileExists resp_file_exists = 33;
   }
 }
