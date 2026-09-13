@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package network implements the WiFi-scan side of first-boot network
 // setup (issue #38) — reaching a device over its own temporary "Off The
 // Cloud" access point rather than an already-working connection.

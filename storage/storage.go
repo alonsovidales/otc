@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package storage implements the disk-detection side of the first-run
 // "configure storage" step (issues #38/#39).
 //

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { encryptForConnection, savePersistedKey, clearPersistedKey } from "./pwCrypto";

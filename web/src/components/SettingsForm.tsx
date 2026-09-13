@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection, clearPersistedKey, savePersistedKey } from "../net/pwCrypto";

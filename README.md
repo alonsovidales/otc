@@ -450,3 +450,15 @@ $ sudo /usr/bin/otc_bridge <env> set-admin-password <username> <password>
 `[admin] session-secret` must also be set in the bridge's config file (`/etc/otc_<env>.ini`) - a
 random value that stays stable across restarts, e.g. `openssl rand -hex 32` - otherwise every
 restart logs every admin out.
+
+## License
+
+OTC is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-or-later).
+
+In short: you're free to use, study, modify, and redistribute this code, including forking it -
+but if you run a modified version as a network service (for example, your own bridge relay), the
+AGPL requires you to make that modified source available to your users too. This is stronger than
+the plain GPL specifically to cover server/SaaS-style use, which is most of what this project is.
+
+Every source file carries an `SPDX-License-Identifier: AGPL-3.0-or-later` header; see
+[CONTRIBUTING.md](CONTRIBUTING.md) for what that means for contributions.

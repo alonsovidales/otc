@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { useWS } from "./useWS";
 
 // Issue #43: browser push notifications for new posts from friends. Fully

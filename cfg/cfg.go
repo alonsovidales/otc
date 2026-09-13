@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package cfg
 
 // Package designed as easy to use interface for parse INI files

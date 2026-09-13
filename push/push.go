@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package push sends "a friend posted" notifications (issue #43) to every
 // device the owner has registered, over two independent channels:
 //

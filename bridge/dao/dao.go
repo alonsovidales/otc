@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package dao
 
 import (
@@ -189,6 +191,55 @@ func (dao *Dao) GetDeviceMetrics(domain string, since time.Time) (buckets []Metr
 	}
 
 	return buckets, rows.Err()
+}
+
+// NewContactRequest stores one submission of the public site's contact
+// form (issue #57) - a general enquiry or a request for bridge access.
+func (dao *Dao) NewContactRequest(name, email, reason, message string) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `contact_requests` (`name`, `email`, `reason`, `message`, `created`) values (?, ?, ?, ?, now())",
+		name, email, reason, message)
+	return
+}
+
+// ContactRequest is a row from the contact_requests table.
+type ContactRequest struct {
+	Id      int
+	Name    string
+	Email   string
+	Reason  string
+	Message string
+	Created time.Time
+	IsRead  bool
+}
+
+// ListContactRequests returns the most recent contact requests, newest
+// first, capped at limit.
+func (dao *Dao) ListContactRequests(limit int) (requests []ContactRequest, err error) {
+	rows, err := dao.db.Query(
+		"select `id`, `name`, `email`, `reason`, `message`, `created`, `is_read` from `contact_requests` order by `created` desc limit ?",
+		limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	requests = []ContactRequest{}
+	for rows.Next() {
+		var c ContactRequest
+		if err := rows.Scan(&c.Id, &c.Name, &c.Email, &c.Reason, &c.Message, &c.Created, &c.IsRead); err != nil {
+			return nil, err
+		}
+		requests = append(requests, c)
+	}
+
+	return requests, rows.Err()
+}
+
+// SetContactRequestRead marks a contact request read/unread.
+func (dao *Dao) SetContactRequestRead(id int, isRead bool) (err error) {
+	_, err = dao.db.Exec("update `contact_requests` set `is_read` = ? where `id` = ?", isRead, id)
+	return
 }
 
 // LogAuthEvent records a failed/suspicious bridge-registration attempt.

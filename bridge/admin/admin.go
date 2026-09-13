@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package admin implements the bridge's admin panel backend: operator
 // login, device management, and per-device metrics/security event
 // reporting (see GitHub issues #7 and #8). It's deliberately a plain
@@ -307,6 +309,49 @@ func (a *Admin) AuthEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, events)
+}
+
+// ContactRequests returns the most recent public-site contact form
+// submissions (issue #57), optionally capped by ?limit= (default 200, max
+// 1000, same convention as AuthEvents).
+func (a *Admin) ContactRequests(w http.ResponseWriter, r *http.Request) {
+	limit := cDefaultEventsLimit
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= cMaxEventsLimit {
+			limit = n
+		}
+	}
+
+	requests, err := a.dao.ListContactRequests(limit)
+	if err != nil {
+		log.Error("error reading contact requests:", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, requests)
+}
+
+// SetContactRequestRead marks a contact request read/unread (path:
+// /admin/api/contact-requests/{id}/read).
+func (a *Admin) SetContactRequestRead(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var body struct {
+		Read bool `json:"read"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := a.dao.SetContactRequestRead(id, body.Read); err != nil {
+		log.Error("error updating contact request:", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
 func isDuplicateKeyErr(err error) bool {

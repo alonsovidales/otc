@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { TabKey } from "../components/TopTabs";
 
 // Issue #53: a reload used to always drop the user back on the default tab

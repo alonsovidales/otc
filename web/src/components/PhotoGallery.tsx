@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // src/components/PhotoGallery.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";

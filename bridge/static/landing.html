@@ -3,350 +3,537 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Off The Cloud — Own your memories</title>
-  <meta name="description" content="A private, family-friendly personal cloud and social network you own. Plug in the box, pair the app, and your life is safely backed up and shareable with those who matter." />
+  <title>Off The Cloud — own your memories</title>
+  <meta name="description" content="A private, family-friendly NAS and ethical social network you own outright. Plug in a Raspberry Pi, pair the app, and your photos are backed up, tagged, and shareable with only the people you choose." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
   <style>
     :root{
-      --bg:#0b0e13;
-      --panel:#121720;
-      --muted:#95a3b8;
-      --text:#e7edf6;
-      --brand:#6ee7ff;
-      --brand-2:#8b5cf6;
-      --accent:#22d3ee;
-      --ok:#22c55e;
-      --warn:#f59e0b;
-      --danger:#ef4444;
-      --ring:0 0 0 8px rgba(110,231,255,.12), 0 0 0 2px rgba(139,92,246,.25);
-      --radius-xl:22px;
-      --radius:14px;
-      --shadow-lg:0 30px 80px rgba(2,8,23,.45);
-      --shadow-md:0 10px 30px rgba(2,8,23,.35);
-      --max:1100px;
+      --ink:#10231f;
+      --ink-2:#0b1815;
+      --ember:#ff6b4a;
+      --gold:#ffc857;
+      --mist:#eaf2ef;
+      --mist-dim:#b9c9c4;
+      --line:rgba(234,242,239,.12);
+      --panel:rgba(234,242,239,.04);
+      --max:1120px;
     }
     *{box-sizing:border-box}
+    /* overflow-x here (not on body) is deliberate: setting overflow-x alone
+       on an element forces its overflow-y to compute as auto (CSS Overflow
+       spec), so putting this on body instead of html would silently turn
+       body into its own scroll container separate from the document's -
+       breaking window.scrollTo/scrollIntoView and #hash navigation. */
+    html{overflow-x:hidden}
     html,body{height:100%}
     body{
       margin:0;
-      font:16px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(1200px 600px at 80% -10%, rgba(139,92,246,.25), transparent 60%),
-        radial-gradient(1000px 500px at -10% 20%, rgba(34,211,238,.18), transparent 60%),
-        var(--bg);
-      overflow-x:hidden;
+      font:16px/1.6 'Manrope', system-ui, -apple-system, sans-serif;
+      color:var(--mist);
+      background:var(--ink);
     }
-    a{color:var(--brand);text-decoration:none}
-    a:hover{opacity:.9}
-    .container{max-width:var(--max); margin:0 auto; padding:0 24px}
+    a{color:var(--gold)}
+    a:hover{opacity:.85}
+    img{max-width:100%;display:block}
+    .container{max-width:var(--max);margin:0 auto;padding:0 24px}
+    h1,h2,h3{font-family:'Unbounded',sans-serif;letter-spacing:-0.01em;text-wrap:balance}
+    .eyebrow{
+      font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--ember);
+    }
+
     header{
-      position:sticky; top:0; z-index:20;
-      backdrop-filter:saturate(140%) blur(10px);
-      background:linear-gradient(to bottom, rgba(11,14,19,.75), rgba(11,14,19,.35) 60%, transparent);
-      border-bottom:1px solid rgba(255,255,255,.06);
+      position:sticky;top:0;z-index:30;
+      background:linear-gradient(to bottom, rgba(11,24,21,.92), rgba(11,24,21,.7) 70%, transparent);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line);
     }
-    .nav{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:16px 0;
-    }
-    .brand{display:flex; align-items:center; gap:12px}
-    .brand svg{width:38px; height:38px; flex:0 0 auto; filter:drop-shadow(0 6px 20px rgba(110,231,255,.25))}
-    .brand .name{font-weight:700; letter-spacing:.2px}
-    .chip{
-      display:inline-flex; align-items:center; gap:8px;
-      background:linear-gradient(135deg, rgba(110,231,255,.12), rgba(139,92,246,.10));
-      border:1px solid rgba(255,255,255,.08);
-      padding:6px 12px; border-radius:999px; color:var(--muted); font-size:.9rem;
-    }
-    .cta{display:flex; gap:10px; align-items:center}
+    .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 0;gap:16px}
+    .nav > *{min-width:0}
+    .brand{display:flex;align-items:center;gap:10px;flex:none}
+    .brand svg{width:32px;height:32px}
+    .brand span{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16px}
+    .navlinks{display:flex;gap:26px;align-items:center}
+    .navlinks a{color:var(--mist-dim);font-size:14px;font-weight:600;text-decoration:none}
+    .navlinks a:hover{color:var(--mist)}
     .btn{
-      appearance:none; border:0; cursor:pointer;
-      padding:12px 18px; border-radius:12px; font-weight:600;
-      color:#0b0e13; background:linear-gradient(135deg, var(--brand), var(--brand-2));
-      box-shadow:var(--shadow-md);
-      transition:transform .06s ease, filter .2s ease;
+      appearance:none;border:0;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
+      padding:12px 20px;border-radius:12px;font-weight:700;font-size:14.5px;
+      color:var(--ink);background:var(--gold);
+      transition:transform .08s ease, filter .15s ease;
     }
-    .btn:hover{filter:saturate(110%) brightness(1.05)}
+    .btn:hover{filter:brightness(1.08)}
     .btn:active{transform:translateY(1px)}
-    .btn.secondary{
-      background:transparent; color:var(--text);
-      border:1px solid rgba(255,255,255,.18);
-    }
+    .btn.secondary{background:transparent;color:var(--mist);border:1px solid var(--line)}
+    .btn.ember{background:var(--ember);color:#26100a}
+    @media (max-width:760px){ .navlinks{display:none} }
 
     /* Hero */
-    .hero{
-      padding:64px 0 32px;
-      display:grid; gap:28px;
+    .hero{padding:88px 0 64px;display:grid;gap:20px;max-width:800px}
+    .hero > *{min-width:0}
+    .hero .pill{
+      display:inline-flex;align-items:center;gap:8px;width:fit-content;
+      font-size:13px;color:var(--mist-dim);border:1px solid var(--line);border-radius:999px;
+      padding:6px 14px;background:var(--panel);
     }
-    .hero h1{
-      font-size:clamp(28px, 4vw, 46px);
-      line-height:1.1; margin:10px 0 16px;
-      letter-spacing:.2px;
-      background:linear-gradient(180deg, #fff, #c6d3e6 70%);
-      -webkit-background-clip:text; background-clip:text; color:transparent;
-    }
-    .hero p.lead{
-      color:#c5d2e6; font-size:clamp(16px, 2.1vw, 20px); margin:0 0 18px;
-    }
-    .hero .card{
-      display:grid; gap:18px; padding:22px;
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:var(--radius-xl);
-      box-shadow:var(--shadow-lg);
-    }
-    .hero .bullets{display:grid; gap:10px; color:var(--muted)}
-    .hero .bullets li{list-style:none; display:flex; gap:10px; align-items:flex-start}
-    .hero .bullets .dot{width:8px; height:8px; margin-top:8px; border-radius:999px; background:linear-gradient(135deg,var(--brand),var(--brand-2))}
-    .glow{
-      position:absolute; inset:auto 0 0 0; height:220px; z-index:-1;
-      background:radial-gradient(60% 60% at 50% 50%, rgba(110,231,255,.12), transparent 60%);
-      filter:blur(40px);
-    }
+    .hero h1{font-size:clamp(34px,5.4vw,58px);line-height:1.06;margin:6px 0 4px}
+    .hero h1 em{font-style:normal;color:var(--ember)}
+    .hero p.lead{font-size:clamp(16px,1.9vw,19px);color:var(--mist-dim);max-width:62ch;margin:0}
+    .hero-install{display:grid;gap:10px;margin-top:8px;max-width:560px}
+    .hero-install-label{font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+    .hero-install-alt{font-size:13.5px;color:var(--mist-dim);text-decoration:none;width:fit-content}
+    .hero-install-alt:hover{color:var(--gold)}
 
-    section{padding:52px 0}
-    .section-title{font-size:24px; margin:0 0 16px}
-    .muted{color:var(--muted)}
+    section{padding:60px 0;border-top:1px solid var(--line)}
+    section:first-of-type{border-top:none}
+    .section-head{max-width:640px;margin-bottom:36px}
+    .section-head h2{font-size:clamp(24px,3.4vw,32px);margin:8px 0 10px}
+    .section-head p{color:var(--mist-dim);margin:0;font-size:15.5px}
 
-    /* Features grid */
-    .grid{
-      display:grid; gap:18px;
-      grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
+    /* What it is / value props */
+    .value-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .value-card{
+      background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;
+      display:grid;gap:8px;
     }
-    .feature{
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:var(--radius);
-      padding:18px; display:grid; gap:8px;
-    }
-    .feature h3{margin:0; font-size:18px}
-    .tag{
-      display:inline-flex; align-items:center; gap:8px;
-      font-size:.8rem; color:#cfe7ff;
-      border:1px solid rgba(255,255,255,.14);
-      padding:4px 8px; border-radius:999px;
-      background:linear-gradient(135deg, rgba(110,231,255,.10), rgba(139,92,246,.10));
-    }
+    .value-card .ico{font-size:22px}
+    .value-card h3{font-size:16px;margin:0}
+    .value-card p{margin:0;color:var(--mist-dim);font-size:14.5px;line-height:1.55}
 
-    /* How it works */
-    .steps{display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr))}
-    .step{padding:16px; border-radius:14px; border:1px dashed rgba(255,255,255,.18)}
+    /* Screenshots */
+    .shot-group{margin-bottom:40px}
+    .shot-group:last-child{margin-bottom:0}
+    .shot-group h3{font-size:15px;margin:0 0 14px;color:var(--mist-dim);font-family:'Manrope',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+    .shot-row{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+    .shot{
+      border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--ink-2);
+      height:180px;display:flex;align-items:center;justify-content:center;
+    }
+    .shot img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+    .shot.wide{height:240px;max-width:420px;justify-self:start}
+
+    /* Get started */
+    .code-card{
+      max-width:560px;
+      background:var(--ink-2);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+      min-width:0;
+    }
+    .code-card .code-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--mist-dim);
+    }
+    .code-card pre{
+      margin:0;padding:18px 16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;
+      font-size:13.5px;line-height:1.6;color:var(--mist);
+    }
+    .code-card .comment{color:var(--mist-dim)}
+    .copy-btn{
+      appearance:none;border:1px solid var(--line);background:transparent;color:var(--mist-dim);
+      padding:5px 10px;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Manrope',sans-serif;
+    }
+    .copy-btn:hover{color:var(--mist);border-color:var(--mist-dim)}
+    .steps{display:grid;gap:14px;max-width:640px}
+    .step{display:flex;gap:12px;align-items:flex-start}
     .step .num{
-      width:26px; height:26px; border-radius:999px;
-      display:inline-grid; place-items:center;
-      background:linear-gradient(135deg,var(--brand),var(--brand-2));
-      color:#02101f; font-weight:700; font-size:.9rem; margin-bottom:8px;
+      flex:none;width:26px;height:26px;border-radius:999px;display:grid;place-items:center;
+      background:var(--gold);color:var(--ink);font-weight:800;font-size:13px;
     }
-
-    /* Pricing */
-    .pricing{display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-    .price-card{
-      padding:20px; border-radius:16px;
-      border:1px solid rgba(255,255,255,.12);
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-    }
-    .price{font-size:28px; font-weight:700; margin:6px 0}
-    .small{font-size:.9rem; color:var(--muted)}
-
-    /* Comparison note */
+    .step p{margin:2px 0 0;color:var(--mist-dim);font-size:14.5px;line-height:1.5}
+    .step strong{color:var(--mist);font-size:15px}
     .note{
-      background:linear-gradient(180deg, rgba(34,211,238,.1), rgba(139,92,246,.08));
-      border:1px solid rgba(255,255,255,.18);
-      border-radius:14px; padding:14px; color:#d9ecff;
+      background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+      color:var(--mist-dim);font-size:14px;line-height:1.6;margin-top:24px;max-width:640px;
     }
+    .note strong{color:var(--mist)}
+
+    /* FAQ */
+    .faq{display:grid;gap:10px;max-width:800px}
+    details{
+      background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:4px 18px;
+    }
+    details summary{
+      cursor:pointer;padding:16px 0;font-weight:700;font-size:15.5px;list-style:none;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    details summary::-webkit-details-marker{display:none}
+    details summary::after{content:'+';font-size:20px;color:var(--gold);flex:none}
+    details[open] summary::after{content:'−'}
+    details p{margin:0 0 16px;color:var(--mist-dim);font-size:14.5px;line-height:1.6}
 
     /* Contact */
-    .contact{
-      display:grid; gap:18px;
-      grid-template-columns: 1.1fr .9fr;
+    .contact-wrap{display:grid;gap:28px;grid-template-columns:1fr 1fr}
+    @media (max-width:860px){ .contact-wrap{grid-template-columns:1fr} }
+    form{display:grid;gap:14px}
+    .field{display:grid;gap:6px}
+    label{font-size:13px;font-weight:700;color:var(--mist-dim)}
+    input,textarea,select{
+      width:100%;padding:12px 14px;border-radius:10px;font-family:'Manrope',sans-serif;font-size:14.5px;
+      border:1px solid var(--line);background:var(--ink-2);color:var(--mist);outline:none;
     }
-    @media (max-width:900px){ .contact{grid-template-columns:1fr} }
-    form{
-      display:grid; gap:12px;
-      padding:18px; border-radius:16px;
-      border:1px solid rgba(255,255,255,.12);
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-    }
-    label{font-weight:600; font-size:.92rem}
-    input, textarea, select{
-      width:100%; padding:12px 14px; border-radius:12px;
-      border:1px solid rgba(255,255,255,.14);
-      background:#0c121b; color:var(--text);
-      outline:none; transition: box-shadow .2s ease, border-color .2s ease;
-    }
-    input:focus, textarea:focus, select:focus{
-      box-shadow:var(--ring); border-color:transparent;
-    }
-    textarea{min-height:120px; resize:vertical}
-    .footer{
-      color:var(--muted); border-top:1px solid rgba(255,255,255,.08);
-      padding:28px 0 60px; font-size:.9rem; text-align:center;
-    }
-    .inline{display:inline-flex; gap:8px; align-items:center}
-    .green{color:var(--ok)} .amber{color:var(--warn)} .red{color:var(--danger)}
-    .pill{display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-size:.85rem}
+    input:focus,textarea:focus,select:focus{border-color:var(--gold)}
+    textarea{min-height:120px;resize:vertical}
+    .honeypot{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+    .form-msg{font-size:14px;padding:10px 14px;border-radius:10px;display:none}
+    .form-msg.ok{display:block;background:rgba(255,200,87,.12);color:var(--gold);border:1px solid rgba(255,200,87,.3)}
+    .form-msg.error{display:block;background:rgba(255,107,74,.12);color:var(--ember);border:1px solid rgba(255,107,74,.3)}
+    .contact-side{display:grid;gap:14px;align-content:start}
+    .contact-side .value-card h3{font-size:15px}
+
+    footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);font-size:13.5px}
+    .footer-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+    .footer-links{display:flex;gap:18px}
+    .footer-links a{color:var(--mist-dim);text-decoration:none;font-weight:600}
+    .footer-links a:hover{color:var(--mist)}
   </style>
 </head>
 <body>
+
   <header>
     <div class="container nav">
       <div class="brand" aria-label="Off The Cloud">
-        <!-- Simple brand mark (SVG) -->
-        <svg viewBox="0 0 64 64" role="img" aria-label="Off The Cloud logo">
-          <defs>
-            <linearGradient id="g" x1="0" x2="1">
-              <stop offset="0" stop-color="#6ee7ff"/><stop offset="1" stop-color="#8b5cf6"/>
-            </linearGradient>
-          </defs>
-          <rect x="4" y="10" width="56" height="40" rx="12" fill="url(#g)" />
-          <path d="M18 28h28v8H18z" fill="#0b0e13" opacity=".95"/>
-          <circle cx="18" cy="48" r="3" fill="#6ee7ff"/>
-          <circle cx="46" cy="48" r="3" fill="#8b5cf6"/>
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect width="100" height="100" rx="22" fill="#ffc857"/>
+          <path d="M22 46 Q22 41 26 38 L46 22 Q50 19 54 22 L74 38 Q78 41 78 46 L78 52 Q78 55 75 55 L25 55 Q22 55 22 52 Z" fill="#10231f"/>
+          <circle cx="50" cy="72" r="11" fill="#ff6b4a"/>
         </svg>
-        <div class="name">Off The Cloud</div>
-        <span class="chip" title="Open source & private">🔓 Open Source · 🔒 Private</span>
+        <span>Off The Cloud</span>
       </div>
-      <div class="cta">
-        <a class="btn secondary" href="#features">Features</a>
-        <a class="btn" href="#contact">Get Early Access</a>
-      </div>
+      <nav class="navlinks">
+        <a href="#get-started">Get started</a>
+        <a href="#what">What it is</a>
+        <a href="#screenshots">Gallery</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/alonsovidales/otc">GitHub</a>
+      </nav>
+      <a class="btn" href="#contact">Get bridge access</a>
     </div>
   </header>
 
   <main>
     <div class="container hero">
-      <span class="pill">Now preparing Kickstarter launch</span>
-      <h1>The Cheappest and more versatile NAS on the market and also the safest Social Network</em></h1>
+      <span class="pill">🔓 100% open source · self-hosted on your own Raspberry Pi</span>
+      <h1>Your photos, your rules.<br><em>Off the cloud</em>, for good.</h1>
       <p class="lead">
-	We reinvent the social networks as they should have been: <em>private, family-friendly, and owned by the user, no toxic behaviours, bots, doomscrolling, ust a safe space to share memories with your loved ones
+        Off The Cloud is a NAS and a social network in one small box you own outright: your
+        photos, videos, and documents back up in full resolution, get AI-tagged for instant
+        search, and stay behind RAID-1 protected disks — with an optional, ethical social feed
+        for sharing memories with the people who actually matter, free of ads, algorithms, and
+        doomscrolling.
       </p>
-      <p class="lead">
-        Off The Cloud is delivered as a plug-and-play device. You have to simply connect the box and the mobile app will connect by bluetooth to it. After entering the Wi-Fi credentials, choose a username and password and it will be ready to use.
-      </p>
-      <div class="card">
-        <ul class="bullets">
-          <li><span class="dot"></span>Per-file encryption at rest, the key is never stored in the device.</li>
-          <li><span class="dot"></span>Unprocessed, and uncompressed originals, your data as it, not like in most of the other photo/video solutions.</li>
-          <li><span class="dot"></span>RAID-1 safety with automatic rebuilds, led status and phone alerts.</li>
-          <li><span class="dot"></span>You own your data, it will never be re-sold or used to train AI models, speed toxicity...</li>
-          <li><span class="dot"></span>AI search on encrypted data, all your photos and documents are classified and tagged so you can find them right away</li>
-          <li><span class="dot"></span>The Cheappest NAS in the market: 1TB €250 · 2TB €300 · 4TB €450 all included as a plug and play box.</li>
-          <li><span class="dot"></span>Direct access or our optional Bridge (€19/yr but with the first 2 years with the purchase of a device).</li>
-          <li><span class="dot"></span>100% open source, everybody can downlod an image and build their own device with off-the-shelf hardward.</li>
-        </ul>
+      <div class="hero-install">
+        <span class="hero-install-label">Up and running in one command</span>
+        <div class="code-card">
+          <div class="code-head">
+            <span>Terminal</span>
+            <button class="copy-btn" id="copy-curl" type="button">Copy</button>
+          </div>
+          <pre><span class="comment"># log into your Raspberry Pi (or any Debian/Ubuntu box), then:</span>
+curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh \
+  | sudo bash -s -- &lt;subdomain&gt;</pre>
+        </div>
+        <a class="hero-install-alt" href="#contact">Also want to reach it from outside your home network? Ask about Bridge access →</a>
       </div>
     </div>
-    <div class="glow" aria-hidden="true"></div>
 
-    <section class="container">
-      <h2 class="section-title">How it works</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="num">1</div>
-          <strong>Plug in the box</strong>
-          <p class="muted">Raspberry Pi 5–based, low power, quiet. Connect Ethernet or Wi-Fi.</p>
+    <section id="get-started">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Get started</span>
+          <h2>What that command actually does</h2>
+          <p>There's no pre-built SD card image yet — the one-liner above is the fastest path today, against any Debian/Ubuntu box you can already log into, Raspberry Pi included.</p>
         </div>
-        <div class="step">
-          <div class="num">2</div>
-          <strong>Pair the app</strong>
-          <p class="muted">Open iOS/Android app → Bluetooth pairing → set Wi-Fi, username and password → Ready to use!</p>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <div><strong>Run the script</strong><p>It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service, reachable straight away at <code>http://&lt;device-ip&gt;:8080/</code> on your local network — safe to re-run any time to pick up updates.</p></div>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <div><strong>Pick a subdomain</strong><p>This just names the device for later, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> — it only does something once you have Bridge access: that's the address your apps and friends would then use to reach the device from outside your home network, instead of the local <code>:8080</code> address.</p></div>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <div><strong>Pair an app</strong><p>Open the web, iOS, Android, macOS or Windows client, point it at your subdomain, and start backing up.</p></div>
+          </div>
         </div>
-        <div class="step">
-          <div class="num">3</div>
-          <strong>Auto-backup & share</strong>
-          <p class="muted">Your phone & computers back up automatically. Share privately with family/friends.</p>
-        </div>
-        <div class="step">
-          <div class="num">4</div>
-          <strong>Access anywhere</strong>
-          <p class="muted">Use direct port open (static IP) or our optional Bridge (€19/yr) to access it from everywhere and also use the social media capabilities.</p>
+        <div class="note">
+          <strong>Want RAID-1 and the status LEDs?</strong> That needs a from-scratch Raspberry Pi
+          setup with two SD cards — see the full <a href="https://github.com/alonsovidales/otc#readme">README</a>
+          for that path and every configuration option. A flashable image is on the roadmap;
+          the script above is the fastest way to try OTC today.
         </div>
       </div>
     </section>
 
-    <section class="container">
-      <h2 class="section-title">Pricing (device + storage)</h2>
-      <div class="pricing">
-        <div class="price-card">
-          <div class="tag">Starter</div>
-          <div class="price">€250</div>
-          <div class="small">1 TB · encrypted · RAID-1</div>
+    <section id="what">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">What it is</span>
+          <h2>One device, four ways to reach it</h2>
+          <p>A Raspberry Pi in your home stores everything; native apps on every platform keep it in sync and let you browse, search, and share it.</p>
         </div>
-        <div class="price-card">
-          <div class="tag">Popular</div>
-          <div class="price">€300</div>
-          <div class="small">2 TB · encrypted · RAID-1</div>
-        </div>
-        <div class="price-card">
-          <div class="tag">Power</div>
-          <div class="price">€450</div>
-          <div class="small">4 TB · encrypted · RAID-1</div>
-        </div>
-        <div class="price-card">
-          <div class="tag">Bridge</div>
-          <div class="price">€19/yr</div>
-          <div class="small">Free for first 2 years with device purchase</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="contact" class="container">
-      <h2 class="section-title">Investors & Early Access</h2>
-      <div class="contact">
-        <form action="https://formspree.io/f/your-id" method="POST">
-          <label for="name">Name</label>
-          <input id="name" name="name" type="text" placeholder="Your name" required>
-
-          <label for="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="you@example.com" required>
-
-          <label for="role">I’m interested as</label>
-          <select id="role" name="role" required>
-            <option value="" disabled selected>Select one</option>
-            <option>Investor</option>
-            <option>Early Access User</option>
-            <option>Partner / Reseller</option>
-            <option>Press / Media</option>
-          </select>
-
-          <label for="message">Message</label>
-          <textarea id="message" name="message" placeholder="Tell us a bit about you, and how you’d like to get involved"></textarea>
-
-          <button class="btn" type="submit">Request Access</button>
-          <p class="small muted">By submitting, you agree to be contacted about Off The Cloud. We never sell your data.</p>
-        </form>
-
-        <div>
-          <div class="feature">
-            <span class="tag">Status</span>
-            <h3>Prototype complete</h3>
-            <p class="muted">Device, bridge, macOS & iOS apps working. Android & Windows clients in development. Targeting a December 2025 for Kickstarter campaing.</p>
+        <div class="value-grid">
+          <div class="value-card">
+            <span class="ico">💾</span>
+            <h3>The device</h3>
+            <p>A Raspberry Pi 5 with two SD cards in RAID-1, storing your originals unprocessed and uncompressed — encrypted at rest, key never stored on the device itself.</p>
           </div>
-          <div class="feature">
-            <span class="tag">Roadmap</span>
-            <h3>Kickstarter launch</h3>
-            <p class="muted">We’ll open pre-orders on Kickstarter, then scale D2C. Interested in leading the round for pre-production and tooling? Let’s talk.</p>
+          <div class="value-card">
+            <span class="ico">🖥️</span>
+            <h3>Desktop client</h3>
+            <p>macOS and Windows apps that keep chosen folders on your computer in two-way sync with the device, automatically.</p>
           </div>
-          <div class="feature">
-            <span class="tag">Founding Team</span>
-            <h3>Experienced builders</h3>
-            <p class="muted">Founder is a Software Engineer, former Microsoft, Meta, AWS, Spotify...</p>
+          <div class="value-card">
+            <span class="ico">📱</span>
+            <h3>Mobile app</h3>
+            <p>iOS and Android apps that back up your camera roll in the background, in full resolution, and double as the social feed.</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🌐</span>
+            <h3>Web app</h3>
+            <p>Everything above, from any browser — sign in with just your password, no app install required.</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🔍</span>
+            <h3>AI search, kept private</h3>
+            <p>Every photo is auto-tagged locally on the device, so you can search "beach" or "dog" instantly — nothing is sent to a third party to do it.</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🚫</span>
+            <h3>No toxic feed</h3>
+            <p>The social side has no ads, no influencers, no engagement algorithm — just posts from people you've actually approved as friends.</p>
           </div>
         </div>
       </div>
     </section>
 
+    <section id="screenshots">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">See it running</span>
+          <h2>Every part of the system, in one place</h2>
+          <p>The physical device, and the four apps that talk to it.</p>
+        </div>
+
+        <div class="shot-group">
+          <h3>The device</h3>
+          <div class="shot-row">
+            <div class="shot wide">
+              <img src="https://github.com/user-attachments/assets/25f5ccfb-b1fe-4440-830c-f4d34e9c3881" alt="The Off The Cloud device: a Raspberry Pi with two micro-SD cards and RAID status LEDs" loading="lazy">
+            </div>
+          </div>
+        </div>
+
+        <div class="shot-group">
+          <h3>macOS / Windows client</h3>
+          <div class="shot-row">
+            <div class="shot wide">
+              <img src="https://github.com/user-attachments/assets/c5fcc06f-3df4-484d-a6f9-6cbfa0a6f363" alt="macOS sync client showing folders kept in sync with the device" loading="lazy">
+            </div>
+          </div>
+        </div>
+
+        <div class="shot-group">
+          <h3>iOS / Android app</h3>
+          <div class="shot-row">
+            <div class="shot"><img src="https://github.com/user-attachments/assets/f147bfd7-7115-4e41-921c-4c59c3fa75a2" alt="Mobile app screenshot" loading="lazy"></div>
+            <div class="shot"><img src="https://github.com/user-attachments/assets/8c86bb84-255b-43dd-a726-ae4faaff69eb" alt="Mobile app screenshot" loading="lazy"></div>
+            <div class="shot"><img src="https://github.com/user-attachments/assets/957194a4-cdb0-4f0f-8018-3f971086d36e" alt="Mobile app screenshot" loading="lazy"></div>
+            <div class="shot"><img src="https://github.com/user-attachments/assets/30549feb-bd38-47ad-b886-6d7af8db6e2b" alt="Mobile app screenshot" loading="lazy"></div>
+          </div>
+        </div>
+
+        <div class="shot-group">
+          <h3>Web app</h3>
+          <div class="shot-row">
+            <div class="shot wide"><img src="https://github.com/user-attachments/assets/f20f2e79-0385-4cdc-b955-48e9d3c44619" alt="Web app screenshot" loading="lazy"></div>
+            <div class="shot wide"><img src="https://github.com/user-attachments/assets/08a7d890-33ec-4f67-8772-a8ed574baacf" alt="Web app screenshot" loading="lazy"></div>
+            <div class="shot wide"><img src="https://github.com/user-attachments/assets/5758ff5d-5a89-4494-a633-a8da14cc4c5b" alt="Web app screenshot" loading="lazy"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">FAQ</span>
+          <h2>Questions people actually ask</h2>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>Do I need to buy special hardware?</summary>
+            <p>A Raspberry Pi 5 (8GB) with two micro-SD cards for RAID-1 storage, a power supply, and an active cooler — all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list.</p>
+          </details>
+          <details>
+            <summary>What is "the Bridge", and do I need it?</summary>
+            <p>Your device isn't directly reachable from the internet by default. The Bridge is an optional relay service that lets your own apps and friends reach your device from outside your home network — without it, OTC still works fully at home, you'd just need your own port-forwarding/static IP setup to reach it remotely. Use the contact form below to request Bridge access.</p>
+          </details>
+          <details>
+            <summary>Is my data actually private?</summary>
+            <p>Files are encrypted at rest, and the encryption key is never stored on the device. Nothing is sold, used to train AI models, or shown to anyone you haven't explicitly approved as a friend. AI photo tagging also runs locally on the device — your photos never leave it to be tagged.</p>
+          </details>
+          <details>
+            <summary>Is it really open source?</summary>
+            <p>Yes — the device, bridge, and every client are all open source on <a href="https://github.com/alonsovidales/otc">GitHub</a>. You can audit it, self-host the bridge yourself, or build your own device image from source.</p>
+          </details>
+          <details>
+            <summary>What if I don't want the social network part?</summary>
+            <p>It's entirely optional. Use OTC purely as a NAS for backup and file sync if that's all you want — the social feed only shows content from friends you've explicitly accepted.</p>
+          </details>
+          <details>
+            <summary>Is there a pre-built image I can just flash?</summary>
+            <p>Not yet — it's on the roadmap. Today, the fastest path is the one-line <code>curl</code> install script above, run against a Raspberry Pi (or any Debian/Ubuntu machine) you already have access to.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Get in touch</span>
+          <h2>Questions, or need Bridge access?</h2>
+          <p>Send a message — whether it's a general question, help getting your device running, or a request for Bridge access.</p>
+        </div>
+        <div class="contact-wrap">
+          <form id="contact-form">
+            <div class="field">
+              <label for="c-name">Name</label>
+              <input id="c-name" name="name" type="text" required maxlength="150" placeholder="Your name">
+            </div>
+            <div class="field">
+              <label for="c-email">Email</label>
+              <input id="c-email" name="email" type="email" required maxlength="255" placeholder="you@example.com">
+            </div>
+            <div class="field">
+              <label for="c-reason">What's this about</label>
+              <select id="c-reason" name="reason" required>
+                <option value="" disabled selected>Select one</option>
+                <option value="bridge-access">Requesting Bridge access</option>
+                <option value="help">Help getting my device running</option>
+                <option value="general">General question</option>
+                <option value="press">Press / partnership</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="c-message">Message</label>
+              <textarea id="c-message" name="message" required maxlength="4000" placeholder="Tell us a bit about what you need"></textarea>
+            </div>
+            <div class="honeypot" aria-hidden="true">
+              <label for="c-website">Website</label>
+              <input id="c-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <div id="contact-msg" class="form-msg" role="status"></div>
+            <button class="btn ember" type="submit" id="contact-submit">Send message</button>
+          </form>
+          <div class="contact-side">
+            <div class="value-card">
+              <span class="ico">🧑‍💻</span>
+              <h3>Prototype status</h3>
+              <p>Device, bridge, macOS and iOS apps are working today. Android and Windows clients are in development.</p>
+            </div>
+            <div class="value-card">
+              <span class="ico">🌉</span>
+              <h3>Bridge access</h3>
+              <p>Running your own device but want to reach it (and friends) from outside your home network? Ask here and we'll set up a subdomain.</p>
+            </div>
+            <div class="value-card">
+              <span class="ico">🛠️</span>
+              <h3>Prefer to dig in yourself?</h3>
+              <p>Everything is documented in the <a href="https://github.com/alonsovidales/otc#readme">README</a> — architecture, config, and every install path.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <footer class="footer">
-    © <span id="y"></span> Off The Cloud · <span class="inline">🔒</span> Privacy-first · <span class="inline">🔓</span> Open source
+  <footer>
+    <div class="container footer-row">
+      <span>© <span id="y"></span> Off The Cloud · open source, self-hosted, yours.</span>
+      <div class="footer-links">
+        <a href="https://github.com/alonsovidales/otc">GitHub</a>
+        <a href="https://github.com/alonsovidales/otc#readme">Documentation</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </div>
   </footer>
 
   <script>
-    // Set current year
     document.getElementById('y').textContent = new Date().getFullYear();
+
+    // Smooth scrolling is applied only to in-page nav clicks, via JS, not
+    // as a global `scroll-behavior: smooth` - that CSS property is known to
+    // break Chrome's native jump to a URL's #hash on initial load (a fresh
+    // visit to e.g. off-the.cloud/#faq silently stays at the top), which
+    // matters here since every nav link, the header CTA, and the footer
+    // are all in-page hash links people may load or share directly.
+    document.querySelectorAll('a[href^="#"]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        const target = document.getElementById(link.getAttribute('href').slice(1));
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+        history.pushState(null, '', link.getAttribute('href'));
+      });
+    });
+
+    const copyBtn = document.getElementById('copy-curl');
+    copyBtn.addEventListener('click', async () => {
+      const cmd = 'curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh | sudo bash -s -- <subdomain>';
+      try {
+        await navigator.clipboard.writeText(cmd);
+        copyBtn.textContent = 'Copied!';
+      } catch (e) {
+        copyBtn.textContent = 'Select & copy manually';
+      }
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+    });
+
+    const form = document.getElementById('contact-form');
+    const msgEl = document.getElementById('contact-msg');
+    const submitBtn = document.getElementById('contact-submit');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msgEl.className = 'form-msg';
+      msgEl.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+
+      const fd = new FormData(form);
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: fd.get('name'),
+            email: fd.get('email'),
+            reason: fd.get('reason'),
+            message: fd.get('message'),
+            website: fd.get('website'),
+          }),
+        });
+        let data = null;
+        try { data = await res.json(); } catch (err) {}
+        if (!res.ok) {
+          throw new Error((data && data.error) || 'Something went wrong sending your message.');
+        }
+        msgEl.className = 'form-msg ok';
+        msgEl.textContent = "Thanks — we'll get back to you soon.";
+        form.reset();
+      } catch (err) {
+        msgEl.className = 'form-msg error';
+        msgEl.textContent = err.message || 'Something went wrong sending your message.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send message';
+      }
+    });
   </script>
 </body>
 </html>

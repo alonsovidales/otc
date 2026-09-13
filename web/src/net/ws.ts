@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 
 type RespListener = (env: RespEnvelope) => void;

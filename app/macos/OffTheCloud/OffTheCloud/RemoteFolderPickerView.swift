@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import SwiftUI
 
 // Issue #47: lets the user browse the device's remote file tree and pick a

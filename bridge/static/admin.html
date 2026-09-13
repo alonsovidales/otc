@@ -68,6 +68,10 @@
     #login-screen{max-width:360px;margin:15vh auto 0}
     .reason{color:var(--warn)}
     [hidden]{display:none !important}
+    #messages-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--brand-2);color:#0b0e13;font-size:11px;font-weight:700}
+    #messages-badge:empty{display:none}
+    tr.unread td{font-weight:600}
+    td.message-cell{max-width:320px;white-space:pre-wrap;word-break:break-word}
   </style>
 </head>
 <body>
@@ -100,6 +104,7 @@
         <div class="tab active" data-tab="devices">Devices</div>
         <div class="tab" data-tab="metrics">Metrics</div>
         <div class="tab" data-tab="security">Security</div>
+        <div class="tab" data-tab="messages">Messages<span id="messages-badge"></span></div>
       </div>
 
       <section id="tab-devices">
@@ -169,6 +174,16 @@
           <table>
             <thead><tr><th>Time</th><th>Domain</th><th>Owner UUID attempted</th><th>Remote address</th><th>Reason</th></tr></thead>
             <tbody id="security-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-messages" hidden>
+        <div class="card">
+          <p class="muted" style="margin-top:-8px">Submissions from the public site's contact form - general enquiries and bridge-access requests.</p>
+          <table>
+            <thead><tr><th></th><th>When</th><th>From</th><th>Reason</th><th>Message</th><th></th></tr></thead>
+            <tbody id="messages-body"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -255,11 +270,12 @@
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        ['devices', 'metrics', 'security'].forEach(name => {
+        ['devices', 'metrics', 'security', 'messages'].forEach(name => {
           document.getElementById(`tab-${name}`).hidden = name !== tab.dataset.tab;
         });
         if (tab.dataset.tab === 'metrics') refreshMetrics();
         if (tab.dataset.tab === 'security') refreshSecurity();
+        if (tab.dataset.tab === 'messages') refreshMessages();
       });
     });
 
@@ -373,7 +389,42 @@
         `).join('');
     }
 
-    tryEnterPanel();
+    // ---- Messages ----
+    async function refreshMessages() {
+      const requests = await api.call('GET', '/admin/api/contact-requests');
+      const body = document.getElementById('messages-body');
+      body.innerHTML = requests.length === 0
+        ? '<tr><td colspan="6" class="muted">No messages yet.</td></tr>'
+        : requests.map(r => `
+          <tr class="${r.IsRead ? '' : 'unread'}" data-id="${r.Id}">
+            <td>${r.IsRead ? '' : '🔵'}</td>
+            <td>${escapeHtml(new Date(r.Created).toLocaleString())}</td>
+            <td>${escapeHtml(r.Name)}<br><span class="muted">${escapeHtml(r.Email)}</span></td>
+            <td>${escapeHtml(r.Reason)}</td>
+            <td class="message-cell">${escapeHtml(r.Message)}</td>
+            <td><button class="btn" data-toggle="${r.Id}" data-read="${r.IsRead ? '1' : '0'}">${r.IsRead ? 'Mark unread' : 'Mark read'}</button></td>
+          </tr>
+        `).join('');
+      body.querySelectorAll('button[data-toggle]').forEach(btn => {
+        btn.addEventListener('click', () => toggleMessageRead(btn.dataset.toggle, btn.dataset.read !== '1'));
+      });
+      updateMessagesBadge(requests.filter(r => !r.IsRead).length);
+    }
+
+    async function toggleMessageRead(id, read) {
+      try {
+        await api.call('POST', `/admin/api/contact-requests/${id}/read`, { read });
+        await refreshMessages();
+      } catch (err) {
+        alert(err.message || 'Failed to update message');
+      }
+    }
+
+    function updateMessagesBadge(n) {
+      document.getElementById('messages-badge').textContent = n > 0 ? String(n) : '';
+    }
+
+    tryEnterPanel().then(() => { refreshMessages().catch(() => {}); });
   </script>
 </body>
 </html>

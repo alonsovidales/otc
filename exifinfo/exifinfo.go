@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package exifinfo reads camera/EXIF metadata out of photos and videos for
 // the photo gallery's "More info" panel (issue #41) and for location
 // tagging (issue #42). It never modifies the original file — everything

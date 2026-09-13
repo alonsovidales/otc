@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package geotag turns a GPS coordinate into a city/country name entirely
 // offline (issue #42) — no third-party geocoding API, no network call, and
 // no GPS coordinates ever leave the device. It works from a bundled,

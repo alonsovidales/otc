@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import React, { useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, Status as MsgStatus } from "../proto/messages";

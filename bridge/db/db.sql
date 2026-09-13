@@ -44,6 +44,23 @@ create table device_metrics
   key (`domain`)
 ) engine=InnoDB;
 
+-- Messages submitted through the public site's contact form (issue #57):
+-- a general "get in touch" or "give me bridge access" request. Reviewed
+-- from the admin panel's Messages tab, no automated action taken on them.
+create table contact_requests
+(
+  `id` int not null auto_increment,
+  `name` varchar(150) not null,
+  `email` varchar(255) not null,
+  `reason` varchar(64) not null,
+  `message` text not null,
+  `created` datetime not null,
+  `is_read` tinyint(1) not null default 0,
+
+  primary key (`id`),
+  key (`created`)
+) engine=InnoDB;
+
 -- Failed/suspicious bridge-registration attempts per device (issue #8:
 -- "logging issues to see if there is someone trying to hack into the
 -- device"). owner_uuid_attempted is whatever the client claimed, which

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // src/components/NewPostPicker.tsx
 //
 // Issue #32: a dedicated "compose a new post" screen opened from the

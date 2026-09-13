@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { useEffect, useMemo, useState } from "react";
 
 // Import your generated types (adjust paths/names if needed)
