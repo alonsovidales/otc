@@ -6,6 +6,7 @@ import type {
   ListOfFiles,
   File as PbFile,
 } from "../proto/messages";
+import { loadFilesPath, saveFilesPath } from "../net/uiState";
 import "./FilesExplorer.css";
 
 type Props = {
@@ -62,7 +63,10 @@ function leafName(full: string) {
 export default function FilesExplorer({
   initialPath = "/"
 }: Props) {
-  const [path, setPath] = useState(initialPath);
+  // Issue #53 follow-up: a reload restores the Files tab itself now, but
+  // used to still always drop back to initialPath ("/") rather than
+  // wherever the user had actually navigated to.
+  const [path, setPath] = useState(() => loadFilesPath() ?? initialPath);
   const [listing, setListing] = useState<PbFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +116,7 @@ export default function FilesExplorer({
   }, []);
 
   useEffect(() => { void loadList(path); }, [path, loadList]);
+  useEffect(() => { saveFilesPath(path); }, [path]);
 
   // -------- drag & drop upload (2) ----------
   const onDrop: React.DragEventHandler<HTMLDivElement> = async (ev) => {
@@ -208,6 +213,8 @@ export default function FilesExplorer({
   const selected = useMemo(() => listing.filter(f => sel[rowKey(f)]), [listing, sel]);
 
   const delSelected = async () => {
+    if (!selected.length) return;
+    if (!window.confirm(`Delete ${selected.length} item${selected.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
     for (const f of selected) {
       const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
       await useWS.request((e: Partial<ReqEnvelope>) => {

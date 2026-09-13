@@ -20,6 +20,18 @@
 .pg-count { margin-left: auto; color: #4b5563; }
 .pg-danger { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
 
+/* Issue #48: post order, shown both as a badge on the grid tile itself and
+   as a dedicated reorder strip above the action bar. */
+.pg-order-badge { position: absolute; top: 4px; right: 4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #4f46e5; color: white; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; z-index: 1; }
+.pg-order-strip { position: fixed; left: 0; right: 0; bottom: 46px; display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid #e5e7eb; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); overflow-x: auto; }
+.pg-order-strip-label { color: #4b5563; font-size: 13px; white-space: nowrap; }
+.pg-order-thumb { position: relative; flex: 0 0 auto; width: 56px; }
+.pg-order-thumb img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; display: block; }
+.pg-order-remove { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 999px; border: 0; background: #1f2937; color: white; font-size: 12px; line-height: 1; cursor: pointer; }
+.pg-order-controls { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: #4b5563; margin-top: 2px; }
+.pg-order-controls button { border: 0; background: transparent; cursor: pointer; padding: 0 2px; font-size: 13px; }
+.pg-order-controls button:disabled { opacity: 0.3; cursor: default; }
+
 .pg-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .pg-modal-inner { position: relative; background: #111827; border-radius: 8px; padding: 16px; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; gap: 10px; }
 .pg-close { position: absolute; top: 6px; right: 6px; border: 0; background: transparent; color: white; font-size: 22px; }

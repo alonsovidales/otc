@@ -119,9 +119,24 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			return "", err
 		}
 
-		unEncThumb, err := sc.filesmanager.GetThumbnail(ses, file)
-		if err != nil {
-			return "", err
+		// Issue #49: UploadFile writes the thumbnail from a background
+		// goroutine (see files_manager.UploadFile), not before returning -
+		// fine for the original flow (a post is always composed well
+		// after a prior, separate sync finished), but a client that
+		// uploads and immediately posts the same file (issue #49's
+		// Phone-source picker) can race that goroutine and find no
+		// thumbnail yet. Retried rather than failing the whole post over
+		// what's normally a sub-second delay.
+		var unEncThumb []byte
+		for attempt := 0; ; attempt++ {
+			unEncThumb, err = sc.filesmanager.GetThumbnail(ses, file)
+			if err == nil {
+				break
+			}
+			if attempt >= 19 {
+				return "", err
+			}
+			time.Sleep(250 * time.Millisecond)
 		}
 		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
 		err = os.WriteFile(unencPathThumb, unEncThumb, 0644) // perms: rw-r--r--

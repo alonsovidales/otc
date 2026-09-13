@@ -57,6 +57,9 @@ final class FilesExplorerViewModel: ObservableObject {
     @Published var toast: String?
     @Published var viewer: (name: String, image: UIImage)?
     @Published var shareURL: URL?
+    // Issue #54: every delete action should confirm first - this one
+    // didn't.
+    @Published var confirmDeleteSelected = false
 
     init(initialPath: String) { self.path = initialPath }
 
@@ -256,7 +259,7 @@ struct FilesExplorerView: View {
                     HStack {
                         Text("\(vm.selected.count) selected").font(.caption)
                         Spacer()
-                        Button(role: .destructive) { Task { await vm.deleteSelected() } } label: {
+                        Button(role: .destructive) { vm.confirmDeleteSelected = true } label: {
                             Image(systemName: "trash")
                         }
                         Button { Task { if let link = await vm.shareLink() { UIPasteboard.general.string = link; vm.showToast("Link copied") } } } label: {
@@ -313,6 +316,14 @@ struct FilesExplorerView: View {
             if let url = vm.shareURL {
                 ActivityView(items: [url])
             }
+        }
+        .confirmationDialog(
+            "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",
+            isPresented: $vm.confirmDeleteSelected,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) { Task { await vm.deleteSelected() } }
+            Button("Cancel", role: .cancel) {}
         }
     }
 

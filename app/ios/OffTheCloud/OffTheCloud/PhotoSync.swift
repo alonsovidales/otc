@@ -45,7 +45,7 @@ final class PhotoSync {
     /// actually fetches its bytes). Used to compute an asset's remote path
     /// cheaply, e.g. to check AssetSyncCache/knownPaths before deciding
     /// whether the expensive iCloud fetch is even needed.
-    private func resourceFilename(for asset: PHAsset) -> String? {
+    func resourceFilename(for asset: PHAsset) -> String? {
         let resources = PHAssetResource.assetResources(for: asset)
         let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
         return res?.originalFilename
@@ -163,9 +163,16 @@ final class PhotoSync {
         return out
     }
 
+    // 25MB was never revisited after this only had to handle photos - any
+    // video (this app syncs videos too, per the "Include videos" setting)
+    // over that size always threw AssetTooLargeForMemory, including from
+    // plain background sync, not just issue #49's new picker where this
+    // got noticed. Data(contentsOf:options:.mappedIfSafe) below is a
+    // memory-mapped read, not a full eager load, so 1GB here is a safety
+    // ceiling against a truly pathological file, not a real memory budget.
     func readData(for asset: PHAsset,
                   allowNetwork: Bool = true,
-                  maxBytes: Int64 = 25 * 1024 * 1024) throws -> (data: Data, filename: String, mime: String) {
+                  maxBytes: Int64 = 1024 * 1024 * 1024) throws -> (data: Data, filename: String, mime: String) {
 
         let (url, filename, mime) = try exportAssetToTempFile(asset, allowNetwork: allowNetwork)
 

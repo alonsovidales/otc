@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo } from "../proto/messages";
+import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import './PhotoGallery.css';
 
 type Chip = string;
@@ -22,7 +23,10 @@ const fileKey = (f: MsgFile, idx?: number) =>
 export default function PhotoGallery() {
   // -------- tags/typeahead --------------------------------------------------
   const [allTags, setAllTags] = useState<string[]>([]);
-  const [chips, setChips] = useState<Chip[]>([]);
+  // Issue #53 follow-up: a reload restores the Photos tab itself now, but
+  // used to still always drop the applied tag search rather than
+  // wherever the user had actually filtered to.
+  const [chips, setChips] = useState<Chip[]>(() => loadPhotoSearchTags());
   const [input, setInput] = useState("");
   const [showSuggest, setShowSuggest] = useState(false);
 
@@ -180,6 +184,7 @@ export default function PhotoGallery() {
       setEndReached(false);
       await fetchPage("");
     })();
+    savePhotoSearchTags(chips);
   }, [chips]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------- infinite scroll: one call at a time -----------------------------
@@ -202,14 +207,22 @@ export default function PhotoGallery() {
     };
   }, [fetchPage, loading, endReached]);
 
-  // -------- selection bar ---------------------------------------------------
-  const [sel, setSel] = useState<Set<string>>(new Set());
-  const toggleSel = (p: string) => setSel(prev => {
-    const n = new Set(prev);
-    n.has(p) ? n.delete(p) : n.add(p);
-    return n;
+  // -------- selection bar (issue #48: ordered, not a Set — post order
+  // matches selection order, and can be explicitly fixed up via moveSel
+  // rather than only by deselecting/reselecting everything) ------------------
+  const [selOrder, setSelOrder] = useState<string[]>([]);
+  const toggleSel = (p: string) => setSelOrder(prev =>
+    prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+  );
+  const moveSel = (p: string, offset: number) => setSelOrder(prev => {
+    const idx = prev.indexOf(p);
+    const newIdx = idx + offset;
+    if (idx < 0 || newIdx < 0 || newIdx >= prev.length) return prev;
+    const next = [...prev];
+    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+    return next;
   });
-  const selectedPaths = useMemo(() => Array.from(sel), [sel]);
+  const selectedPaths = selOrder;
 
   const shareInSocial = async () => {
     if (!selectedPaths.length) return;
@@ -222,7 +235,7 @@ export default function PhotoGallery() {
     });
     if (resp.payload?.$case === "respNewSocial" && resp.payload.respNewSocial.uuid) {
       alert("Shared: " + resp.payload.respNewSocial.uuid);
-      setSel(new Set());
+      setSelOrder([]);
     } else {
       alert("Error publishing");
     }
@@ -242,7 +255,7 @@ export default function PhotoGallery() {
 
     setItems(prev => prev.filter(f => !toDelete.has(f.path)));
     toDelete.forEach(p => mapRef.current.delete(p));
-    setSel(new Set());
+    setSelOrder([]);
     // The modal may be pointing at an item that no longer exists (or whose
     // index shifted) once the deleted items are filtered out of `items`.
     setOpenIdx(null);
@@ -365,12 +378,15 @@ export default function PhotoGallery() {
         {items.map((f, i) => {
           const key = fileKey(f, i); // unique key (fixes React warnings)
           const thumb = bytesToURL(f.content, f.mime || "image/jpeg");
-          const checked = sel.has(f.path);
+          const selIdx = selOrder.indexOf(f.path);
           return (
             <div key={key} className="pg-cell">
               <label className="pg-check">
-                <input type="checkbox" checked={!!checked} onChange={() => toggleSel(f.path)} />
+                <input type="checkbox" checked={selIdx >= 0} onChange={() => toggleSel(f.path)} />
               </label>
+              {/* Issue #48: a numbered badge instead of just a checkmark
+                  shows the post order directly in the grid. */}
+              {selIdx >= 0 && <span className="pg-order-badge">{selIdx + 1}</span>}
               <button className="pg-thumb" title={f.path} onClick={() => openAt(i)}>
                 <img src={thumb} alt={f.path} loading="lazy" />
               </button>
@@ -380,8 +396,32 @@ export default function PhotoGallery() {
         <div ref={sentinelRef} style={{ height: 1 }} />
       </div>
 
+      {/* Issue #48: the grid's own order isn't necessarily post order (it's
+          whatever the search/feed returned) - this strip shows the actual
+          order and lets it be fixed up directly. */}
+      {selOrder.length > 0 && (
+        <div className="pg-order-strip">
+          <span className="pg-order-strip-label">Order in post:</span>
+          {selOrder.map((path, idx) => {
+            const item = items.find(it => it.path === path);
+            const thumb = item ? bytesToURL(item.content, item.mime || "image/jpeg") : "";
+            return (
+              <div key={path} className="pg-order-thumb">
+                <img src={thumb} alt={path} />
+                <button className="pg-order-remove" title="Remove" onClick={() => toggleSel(path)}>×</button>
+                <div className="pg-order-controls">
+                  <button disabled={idx === 0} onClick={() => moveSel(path, -1)}>‹</button>
+                  <span>{idx + 1}</span>
+                  <button disabled={idx === selOrder.length - 1} onClick={() => moveSel(path, 1)}>›</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* bottom actions */}
-      {sel.size > 0 && (
+      {selOrder.length > 0 && (
         <div className="pg-actions">
           <button onClick={shareInSocial}>Share in social</button>
           <button onClick={() => alert("Create group (not implemented)")}>Create group</button>
@@ -389,7 +429,7 @@ export default function PhotoGallery() {
           <button onClick={() => shareOrDownload(false)}>Share link</button>
           <button onClick={() => shareOrDownload(true)}>Download as ZIP</button>
           <button className="pg-danger" onClick={() => void deleteSelected()}>Delete</button>
-          <span className="pg-count">{sel.size} selected</span>
+          <span className="pg-count">{selOrder.length} selected</span>
         </div>
       )}
 

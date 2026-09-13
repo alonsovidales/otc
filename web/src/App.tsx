@@ -193,9 +193,17 @@ function App() {
           onAuth={async (key) => await useWS.sendAuth(key)}
           onDone={handleSignedIn}
         />}
-        {tab === "AdminPannel" && <FilesExplorer initialPath="/" />}
-        {tab === "PhotoGallery" && <PhotoGallery />}
-        {tab === "Settings" && <SettingsForm />}
+        {/* Issue #53 follow-up: these three are authenticated-only views
+            with no meaningful signed-out state (unlike Profile/Social
+            above) — they used to mount unconditionally regardless of
+            `authenticated`, which only ever mattered in practice once a
+            reload could restore straight into one of them (see #53's tab
+            persistence): the component would mount and fire its data
+            request before the auto-auth from #46 had resolved, surfacing
+            as a bare "not authenticated" error instead of just waiting. */}
+        {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : <p>Signing in…</p>)}
+        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery /> : <p>Signing in…</p>)}
+        {tab === "Settings" && (authenticated ? <SettingsForm /> : <p>Signing in…</p>)}
       </main>
     </>
   )

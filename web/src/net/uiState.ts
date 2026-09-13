@@ -26,3 +26,46 @@ export function loadLastTab(): TabKey | null {
     return null;
   }
 }
+
+// Issue #53 follow-up: restoring the right *tab* isn't enough on its own —
+// a Files or Photos tab that comes back to its default directory/search on
+// every reload still doesn't feel like "the exact view you were in".
+
+const cFilesPathStorageKey = "otc_files_path";
+
+export function saveFilesPath(path: string) {
+  try {
+    localStorage.setItem(cFilesPathStorageKey, path);
+  } catch {
+    // See saveLastTab's catch — not worth surfacing.
+  }
+}
+
+export function loadFilesPath(): string | null {
+  try {
+    return localStorage.getItem(cFilesPathStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+const cPhotoSearchStorageKey = "otc_photo_search_tags";
+
+export function savePhotoSearchTags(tags: string[]) {
+  try {
+    localStorage.setItem(cPhotoSearchStorageKey, JSON.stringify(tags));
+  } catch {
+    // See saveLastTab's catch — not worth surfacing.
+  }
+}
+
+export function loadPhotoSearchTags(): string[] {
+  try {
+    const stored = localStorage.getItem(cPhotoSearchStorageKey);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) && parsed.every(t => typeof t === "string") ? parsed : [];
+  } catch {
+    return [];
+  }
+}
