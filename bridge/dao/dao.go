@@ -3,6 +3,7 @@
 package dao
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"fmt"
 	"github.com/alonsovidales/otc/cfg"
@@ -11,8 +12,27 @@ import (
 	"time"
 )
 
+const (
+	// cLogRetention is how long auth_events and device_metrics rows are
+	// kept before PruneOldLogs deletes them - both tables are operational/
+	// security logs (auth_events in particular holds remote IP addresses),
+	// not data anyone needs kept indefinitely. Neither had any retention
+	// policy before this.
+	cLogRetention  = 90 * 24 * time.Hour
+	cPruneInterval = 24 * time.Hour
+)
+
 type Dao struct {
-	db *sql.DB
+	db            *sql.DB
+	stopLogPruner chan struct{}
+}
+
+// NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
+// real MySQL dial and its log-pruner goroutine. Exported for tests that
+// need a Dao backed by a mock/fake connection (github.com/DATA-DOG/go-
+// sqlmock) rather than a live database.
+func NewWithDB(db *sql.DB) *Dao {
+	return &Dao{db: db}
 }
 
 func Init() (dao *Dao) {
@@ -41,11 +61,56 @@ func Init() (dao *Dao) {
 		log.Fatal("it is not possible to ping the DB", err)
 	}
 
+	dao.stopLogPruner = make(chan struct{})
+	dao.startLogPruner()
+
 	return
 }
 
 func (dao *Dao) Stop() {
+	if dao.stopLogPruner != nil {
+		close(dao.stopLogPruner)
+	}
 	dao.db.Close()
+}
+
+// startLogPruner runs PruneOldLogs once immediately (so upgrading onto
+// this catches up any backlog that built up before it existed, right away
+// rather than waiting up to cPruneInterval) and then every cPruneInterval
+// for as long as the process runs.
+func (dao *Dao) startLogPruner() {
+	go func() {
+		prune := func() {
+			if err := dao.PruneOldLogs(time.Now().Add(-cLogRetention)); err != nil {
+				log.Error("error pruning old auth_events/device_metrics rows:", err)
+			}
+		}
+		prune()
+
+		ticker := time.NewTicker(cPruneInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				prune()
+			case <-dao.stopLogPruner:
+				return
+			}
+		}
+	}()
+}
+
+// PruneOldLogs deletes auth_events and device_metrics rows older than
+// before - see cLogRetention's doc comment for why these two tables in
+// particular need one.
+func (dao *Dao) PruneOldLogs(before time.Time) (err error) {
+	if _, err = dao.db.Exec("delete from `auth_events` where `dt` < ?", before); err != nil {
+		return fmt.Errorf("pruning auth_events: %w", err)
+	}
+	if _, err = dao.db.Exec("delete from `device_metrics` where `hour_bucket` < ?", before); err != nil {
+		return fmt.Errorf("pruning device_metrics: %w", err)
+	}
+	return nil
 }
 
 func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecret bool, err error) {
@@ -57,7 +122,13 @@ func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecre
 		return err != sql.ErrNoRows, false, err
 	}
 
-	return true, owner == dbOwner && dbSecret == secret, nil
+	// Constant-time: this gates onto the bridge relay for a device, worth
+	// the same care as the admin session-token check elsewhere in this
+	// codebase rather than a plain == that leaks timing information about
+	// how many leading bytes of the secret a guess got right.
+	validSecret = subtle.ConstantTimeCompare([]byte(owner), []byte(dbOwner)) == 1 &&
+		subtle.ConstantTimeCompare([]byte(secret), []byte(dbSecret)) == 1
+	return true, validSecret, nil
 }
 
 func (dao *Dao) RegistreDevice(owner, uuid, secret string) (err error) {

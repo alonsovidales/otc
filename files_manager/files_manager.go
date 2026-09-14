@@ -566,8 +566,19 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		defer func() { <-mg.maxUploads }()
 
 		start := time.Now()
-		// Write to disk the content
-		err = os.WriteFile(targetPath, session.Encrypt(content), 0644) // perms: rw-r--r--
+		// Write to disk the content. This used to be unchecked: the DB row
+		// for the file (StoreNewFile, above, before this goroutine even
+		// starts) is already committed by the time this runs, so a
+		// disk-full/IO error here used to mean the DB silently claimed the
+		// file was safely stored while the bytes never actually landed on
+		// disk - the worst failure mode for a backup product. Still no way
+		// to tell the client after the fact (see issue #63) - logging
+		// loudly and bailing out of the rest of this file's processing is
+		// the best that can be done here today.
+		if err := os.WriteFile(targetPath, session.Encrypt(content), 0644); err != nil { // perms: rw-r--r--
+			log.Error("error writing uploaded file to disk, upload not actually persisted:", targetPath, err)
+			return
+		}
 		log.Debug("Time writting file:", time.Since(start), targetPath)
 
 		// We will try to create a thumbnail of images only

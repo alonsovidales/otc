@@ -9,6 +9,8 @@ import (
 	"crypto/x509"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/dao"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
@@ -96,7 +98,22 @@ func TestProcessAuthRequestAcksUnhandledPayload(t *testing.T) {
 // per-connection RSA public key and uses it to encrypt the password before
 // it ever leaves the client, so the bridge only ever relays ciphertext.
 func TestGetPubKeyGeneratesUsableKeypair(t *testing.T) {
-	ch := &connHandler{mg: &Manager{}}
+	// GetPubKey's handler also checks whether the vault's secret is
+	// defined yet (issue #39's IsNewDevice flag), so it needs a Dao behind
+	// it — a mock connection stands in for a live DB. Two ExpectQuery
+	// calls: the handler is exercised twice below (verifying keypair
+	// reuse), and each hit re-runs the same query.
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	countRow := sqlmock.NewRows([]string{"count(*)"}).AddRow(0)
+	mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(countRow)
+	countRow2 := sqlmock.NewRows([]string{"count(*)"}).AddRow(0)
+	mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(countRow2)
+
+	ch := &connHandler{mg: &Manager{dao: dao.NewWithDB(db)}}
 	env := &pb.ReqEnvelope{
 		Id:      1,
 		Payload: &pb.ReqEnvelope_ReqGetPubKey{ReqGetPubKey: &pb.GetPubKey{}},
@@ -143,7 +160,14 @@ func TestGetPubKeyGeneratesUsableKeypair(t *testing.T) {
 }
 
 func TestDecryptSecretRoundTrip(t *testing.T) {
-	ch := &connHandler{mg: &Manager{}}
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+
+	ch := &connHandler{mg: &Manager{dao: dao.NewWithDB(db)}}
 	env := &pb.ReqEnvelope{Id: 1, Payload: &pb.ReqEnvelope_ReqGetPubKey{ReqGetPubKey: &pb.GetPubKey{}}}
 	resp, _ := ch.processNonAuthRequest(env)
 	pubDER := resp.Payload.(*pb.RespEnvelope_RespPubKey).RespPubKey.PublicKey

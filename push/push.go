@@ -28,11 +28,6 @@ import (
 	"github.com/sideshow/apns2/token"
 )
 
-// webPushBodyLimit keeps the notification body short - this is a summary,
-// not the post itself, and Web Push messages have their own encrypted-size
-// ceiling (webpush.MaxRecordSize) besides.
-const webPushBodyLimit = 200
-
 type Push struct {
 	dao *dao.Dao
 
@@ -134,13 +129,18 @@ func (p *Push) RegisterApnsToken(t string) error {
 	return p.dao.SaveApnsToken(t)
 }
 
-// NotifyNewPost tells every registered device that friendName just posted.
-func (p *Push) NotifyNewPost(friendName, text string) {
-	body := text
-	if len(body) > webPushBodyLimit {
-		body = body[:webPushBodyLimit] + "…"
-	}
-	p.Notify(friendName, body)
+// NotifyNewPost tells every registered device that friendName just posted -
+// friendName only, deliberately never the post's own text or photo: this
+// goes out over APNs too, not just Web Push, and unlike Web Push's
+// mandatory end-to-end payload encryption, a standard APNs payload is
+// readable by Apple's own infrastructure in transit. Keeping every push
+// notification's body to a fixed, generic string regardless of channel -
+// friend identity only, never a friend's actual words, comment, or which
+// photo a like/comment landed on - means there's nothing there for it to
+// read even in principle, and one rule to keep instead of two different
+// ones per channel.
+func (p *Push) NotifyNewPost(friendName string) {
+	p.Notify(friendName, "posted something new")
 }
 
 // NotifyFriendshipRequest tells every registered device that fromName sent

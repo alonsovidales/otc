@@ -124,5 +124,8 @@ func RequestJoin(ssid, password string) error {
 	}
 
 	log.Info("network: writing wifi join request for ssid:", ssid)
-	return os.WriteFile(RequestFile, data, 0644)
+	// 0600, not 0644: this file briefly holds the WiFi password in plain
+	// text (network_setup.py deletes it once it's picked the request up),
+	// no reason for it to be world-readable in the meantime.
+	return os.WriteFile(RequestFile, data, 0600)
 }

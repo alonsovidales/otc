@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -19,8 +20,8 @@ import (
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/profile"
-	"github.com/alonsovidales/otc/push"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/push"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
 	"github.com/google/uuid"
@@ -96,6 +97,25 @@ type Comment struct {
 	PublisherName string `json:"publisher_name"`
 }
 
+// expectPayload type-asserts a friend device's RespEnvelope.Payload to the
+// shape this call expects, logging and returning an error instead of
+// panicking when it isn't. Every RPC this device makes to a friend's
+// device (SyncWithFriends' whole cycle, friendship requests) used to do
+// this assertion unchecked - fine as long as every friend's device always
+// answers exactly as expected, but a friend running a different protocol
+// version, a bug on their end, or a device simply misbehaving turned any
+// mismatch into a panic instead of a handled error. context names which
+// call site this is, purely for the log line.
+func expectPayload[T any](context, domain string, payload any) (T, error) {
+	v, ok := payload.(T)
+	if !ok {
+		log.Error(context, "- unexpected response from", domain, ", got payload type", fmt.Sprintf("%T", payload))
+		var zero T
+		return zero, fmt.Errorf("%s: unexpected response from %s", context, domain)
+	}
+	return v, nil
+}
+
 func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.Settings, profile *profile.Profile, push *push.Push) *Social {
 	return &Social{
 		dao:          dao,
@@ -112,6 +132,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		file, err := sc.filesmanager.GetFile(ses, path)
 		if err != nil {
 			log.Error("Error loading file:", err)
+			return "", fmt.Errorf("error loading file %q: %w", path, err)
 		}
 
 		files[i] = file
@@ -173,15 +194,28 @@ func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32) (
 }
 
 func (sc *Social) GetPublicationFiles(uuid string) (files []*pb.File, err error) {
-	files, err = sc.dao.GetSocialPublicationFiles(uuid)
-	for _, file := range files {
-		file.Content, err = os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
-		if err != nil {
-			return nil, err
-		}
+	all, err := sc.dao.GetSocialPublicationFiles(uuid)
+	if err != nil {
+		return nil, err
 	}
 
-	return
+	files = make([]*pb.File, 0, len(all))
+	for _, file := range all {
+		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
+		if readErr != nil {
+			// A single missing/corrupted thumbnail used to fail this
+			// whole request - one bad file permanently breaking a post
+			// (and, from GetPublications, the entire feed) for everyone
+			// until someone noticed and fixed the file on disk. Skipping
+			// it and continuing contains the damage to just this file.
+			log.Error("skipping missing/corrupted thumbnail for publication", uuid, "hash", file.Hash, ":", readErr)
+			continue
+		}
+		file.Content = content
+		files = append(files, file)
+	}
+
+	return files, nil
 }
 
 func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total int32, ownOnly bool, exclude []string) (publications *pb.SocialPublications, err error) {
@@ -191,14 +225,22 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 		return
 	}
 
-	// Populate the files content
+	// Populate the files content. A missing/corrupted thumbnail is skipped
+	// rather than failing the whole feed - see GetPublicationFiles' doc
+	// comment for why this used to be much worse than "this one photo is
+	// missing from this one post".
 	for _, pub := range publications.Publications {
+		goodFiles := make([]*pb.File, 0, len(pub.Files))
 		for _, file := range pub.Files {
-			file.Content, err = os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
-			if err != nil {
-				return nil, err
+			content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
+			if readErr != nil {
+				log.Error("skipping missing/corrupted thumbnail in feed for publication", pub.Uuid, "hash", file.Hash, ":", readErr)
+				continue
 			}
+			file.Content = content
+			goodFiles = append(goodFiles, file)
 		}
+		pub.Files = goodFiles
 
 		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain)
 		if err != nil {
@@ -209,7 +251,44 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 	return
 }
 
+// cDefaultFriendTLD is used when [otc] friend-domain-tld isn't set in
+// config, so existing installs keep working unchanged.
+const cDefaultFriendTLD = "off-the.cloud"
+
+// friendDomainTLD returns the TLD every friend domain must end in before
+// this device will dial out to it, from [otc] friend-domain-tld -
+// configurable (rather than hardcoded to off-the.cloud) so someone running
+// their own separate network of devices - their own bridge under their own
+// domain - can set their own value instead.
+func friendDomainTLD() string {
+	if cfg.HasSection("otc") {
+		if tld := cfg.GetStr("otc", "friend-domain-tld"); tld != "" {
+			return tld
+		}
+	}
+	return cDefaultFriendTLD
+}
+
+// isAllowedFriendDomain reports whether domain is a subdomain of the
+// configured friend TLD. connectToDevice is the one chokepoint every
+// outbound friend/bridge connection goes through (SendFriendshipReq,
+// SyncWithFriends, ExternalFriendshipRequest), so enforcing this here
+// rather than at each call site closes all of them at once: without it, an
+// inbound ReqFriendshipInterRequest naming an arbitrary domain (LAN
+// address, internal hostname, anything) made this device dial wherever a
+// stranger pointed it - a classic SSRF shape, and reachable pre-auth,
+// since a friend request has to be usable by someone not a friend yet.
+func isAllowedFriendDomain(domain string) bool {
+	tld := strings.ToLower(friendDomainTLD())
+	domain = strings.ToLower(domain)
+	return domain == tld || strings.HasSuffix(domain, "."+tld)
+}
+
 func (sc *Social) connectToDevice(domain string) (conn *gorilla.Conn, err error) {
+	if !isAllowedFriendDomain(domain) {
+		return nil, fmt.Errorf("domain %q is not a %s address", domain, friendDomainTLD())
+	}
+
 	// If this is a bridge connection, we will retry to connect to the bridge
 	u := url.URL{Scheme: "wss", Host: domain, Path: "/ws"}
 	log.Debug("Connecting to external:", domain, u)
@@ -327,7 +406,10 @@ func (fr *friendship) updateFriendshipStatus() (err error) {
 		log.Debug("Error reading friendship status:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	resp := respProf.Payload.(*pb.RespEnvelope_RespFriendshipStatus)
+	resp, err := expectPayload[*pb.RespEnvelope_RespFriendshipStatus]("update friendship status", fr.data.OriginProfile.Domain, respProf.Payload)
+	if err != nil {
+		return err
+	}
 	status := resp.RespFriendshipStatus.Status
 	log.Debug("Remote friendship status:", fr.data.OriginProfile.Domain, status)
 
@@ -379,7 +461,10 @@ func (fr *friendship) autAsFriend() (err error) {
 		log.Debug("Error trying to auth as friend:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	resp := respProf.Payload.(*pb.RespEnvelope_RespAck)
+	resp, err := expectPayload[*pb.RespEnvelope_RespAck]("auth as friend", fr.data.OriginProfile.Domain, respProf.Payload)
+	if err != nil {
+		return err
+	}
 	if !resp.RespAck.Ok {
 		return errors.New("Error authenticating as friend")
 	}
@@ -419,7 +504,11 @@ func (fr *friendship) refreshProfile() (err error) {
 		log.Debug("Error trying to get profile from friend:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	remote := respProf.Payload.(*pb.RespEnvelope_RespProfile).RespProfile
+	profResp, err := expectPayload[*pb.RespEnvelope_RespProfile]("refresh friend profile", fr.data.OriginProfile.Domain, respProf.Payload)
+	if err != nil {
+		return err
+	}
+	remote := profResp.RespProfile
 
 	origin := fr.data.OriginProfile
 	if remote.Name == origin.Name && remote.Text == origin.Text && bytes.Equal(remote.Image, origin.Image) {
@@ -466,7 +555,11 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 		log.Debug("Error trying to get publications from friend:", respProf.ErrorMessage)
 		return nil, errors.New(respProf.ErrorMessage)
 	}
-	return respProf.Payload.(*pb.RespEnvelope_RespSocialPublicationFiles).RespSocialPublicationFiles.Files, nil
+	filesResp, err := expectPayload[*pb.RespEnvelope_RespSocialPublicationFiles]("get publication files", fr.data.OriginProfile.Domain, respProf.Payload)
+	if err != nil {
+		return nil, err
+	}
+	return filesResp.RespSocialPublicationFiles.Files, nil
 }
 
 // notifyIfOwnPublication notifies about a like/comment only when pubUuid is
@@ -547,7 +640,10 @@ func (fr *friendship) updateFriendEvents() (err error) {
 		log.Debug("Error trying to publications from friend:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	resp := respProf.Payload.(*pb.RespEnvelope_RespEvents)
+	resp, err := expectPayload[*pb.RespEnvelope_RespEvents]("get events", fr.data.OriginProfile.Domain, respProf.Payload)
+	if err != nil {
+		return err
+	}
 	log.Debug("Events to update", len(resp.RespEvents.Events))
 event_loop:
 	for _, event := range resp.RespEvents.Events {
@@ -591,7 +687,7 @@ event_loop:
 				if friendName == "" {
 					friendName = fr.data.OriginProfile.Domain
 				}
-				fr.sc.push.NotifyNewPost(friendName, pubData.Text)
+				fr.sc.push.NotifyNewPost(friendName)
 			}
 
 		case LikeEvent:
@@ -614,7 +710,7 @@ event_loop:
 			// false: this is a friend's comment, synced in - see
 			// NewSocialComment for the device owner's own-comment path.
 			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false); err == nil {
-				fr.notifyIfOwnPublication(comment.PubUUID, "commented on your post: "+comment.Comment)
+				fr.notifyIfOwnPublication(comment.PubUUID, "commented on your post")
 			}
 
 		case DelPublicationEvent:
@@ -665,7 +761,11 @@ func (sc *Social) GetRemoteProfile(domain string, conn *gorilla.Conn) (name, tex
 	if err = proto.Unmarshal(data, &respProf); err != nil {
 		return
 	}
-	prof := respProf.Payload.(*pb.RespEnvelope_RespProfile).RespProfile
+	profResp, err := expectPayload[*pb.RespEnvelope_RespProfile]("get remote profile", domain, respProf.Payload)
+	if err != nil {
+		return "", "", nil, err
+	}
+	prof := profResp.RespProfile
 	log.Debug("Remote profile looks good:", domain, prof.Name)
 
 	return prof.Name, prof.Text, prof.Image, nil
@@ -725,13 +825,17 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 		log.Error("read error in unmarshalling friendship internal requestrespons3:", err)
 		return
 	}
-	if respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.Ok {
+	ackResp, err := expectPayload[*pb.RespEnvelope_RespAck]("send friendship request", domain, respAck.Payload)
+	if err != nil {
+		return err
+	}
+	if ackResp.RespAck.Ok {
 		log.Debug("Frienship request internal accepted...")
 		return
 	}
 
-	log.Debug("Frienship request failed...", respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.ErrorMsg)
-	return errors.New(respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.ErrorMsg)
+	log.Debug("Frienship request failed...", ackResp.RespAck.ErrorMsg)
+	return errors.New(ackResp.RespAck.ErrorMsg)
 }
 
 func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText string, image []byte) (err error) {
@@ -773,7 +877,11 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		log.Error("read error unmarshalling external friendship request:", err)
 		return
 	}
-	if respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.Ok {
+	ackResp, err := expectPayload[*pb.RespEnvelope_RespAck]("external friendship request", extDomain, respAck.Payload)
+	if err != nil {
+		return err
+	}
+	if ackResp.RespAck.Ok {
 		log.Debug("Frienship ack request sent...")
 		if err = sc.dao.NewFriendship(extDomain, secret, name, profileText, image, false); err != nil {
 			return err
@@ -788,8 +896,8 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		return nil
 	}
 
-	log.Debug("Frienship ack request failed...", respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.ErrorMsg)
-	return errors.New(respAck.Payload.(*pb.RespEnvelope_RespAck).RespAck.ErrorMsg)
+	log.Debug("Frienship ack request failed...", ackResp.RespAck.ErrorMsg)
+	return errors.New(ackResp.RespAck.ErrorMsg)
 }
 
 func (sc *Social) GetFriendship(domain, secret string) (friendship *pb.Friendship, err error) {

@@ -23,7 +23,12 @@ const (
 	// submission per remote address per window - not real anti-spam, just
 	// enough to stop a form left open in a tab (or a trivial retry loop)
 	// from flooding the table.
-	cContactCooldown  = 60 * time.Second
+	cContactCooldown = 60 * time.Second
+	// cContactMapTTL bounds how long a lastContactByAddr entry lingers
+	// after it stops actually blocking anything (cContactCooldown later) -
+	// well past that, but nowhere near "forever", which is what an
+	// unbounded map would otherwise do.
+	cContactMapTTL    = 10 * time.Minute
 	cContactMaxLen    = 4000
 	cContactNameMax   = 150
 	cContactEmailMax  = 255
@@ -197,18 +202,30 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 		reason = "general"
 	}
 
+	// r.RemoteAddr only, deliberately: the bridge terminates TLS itself and
+	// isn't behind a reverse proxy that would set X-Forwarded-For
+	// legitimately (see [otc-api] ssl-cert/ssl-key), so trusting a
+	// client-supplied one let anyone bypass this cooldown outright just by
+	// sending a different fake value on every request - and grow the map
+	// below with an entry per fake value, forever.
 	remoteAddr := r.RemoteAddr
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		remoteAddr = strings.TrimSpace(strings.SplitN(fwd, ",", 2)[0])
-	}
 
 	api.contactMu.Lock()
-	if last, ok := api.lastContactByAddr[remoteAddr]; ok && time.Since(last) < cContactCooldown {
+	now := time.Now()
+	if last, ok := api.lastContactByAddr[remoteAddr]; ok && now.Sub(last) < cContactCooldown {
 		api.contactMu.Unlock()
 		writeJSONErr(w, http.StatusTooManyRequests, "please wait a moment before sending another message")
 		return
 	}
-	api.lastContactByAddr[remoteAddr] = time.Now()
+	api.lastContactByAddr[remoteAddr] = now
+	// Opportunistic cleanup: entries past the TTL aren't doing anything for
+	// the cooldown check above anymore, so drop them rather than letting
+	// this map grow for as long as the process runs.
+	for addr, t := range api.lastContactByAddr {
+		if now.Sub(t) > cContactMapTTL {
+			delete(api.lastContactByAddr, addr)
+		}
+	}
 	api.contactMu.Unlock()
 
 	if err := api.dao.NewContactRequest(name, email, reason, message); err != nil {

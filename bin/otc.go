@@ -4,7 +4,6 @@ package main
 
 import (
 	"github.com/alonsovidales/otc/api"
-	"github.com/alonsovidales/otc/bg_processor"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
@@ -33,8 +32,7 @@ func main() {
 	dao := dao.Init()
 
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"), dao)
-	backgrunProcessor := bgprocessor.Init(dao, filesManager)
-	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao, filesManager, backgrunProcessor)
+	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao, filesManager)
 
 	api.Init(
 		filesManager,

@@ -12,6 +12,7 @@ import (
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 	"net/http"
+	"runtime/debug"
 	"sync"
 )
 
@@ -103,6 +104,18 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
+	// This serves every device and client connection the bridge relays, so
+	// a bug triggered by any single one of them (a malformed message, an
+	// edge case in a handler below) must not be able to take the whole
+	// bridge — and every device relying on it — down with an unrecovered
+	// panic. Closing just this connection is the correct blast radius.
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("recovered from panic handling connection:", r, string(debug.Stack()))
+			conn.Close()
+		}
+	}()
+
 	var deviceConn *gorilla.Conn
 	for {
 		_, frame, err := conn.ReadMessage()

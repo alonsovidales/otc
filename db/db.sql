@@ -7,18 +7,26 @@ GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
 
 use otc;
 
+-- `path` is a bounded varchar, not text: a bare `unique(path)`/`fulltext
+-- key(path)` on a TEXT column needs an explicit prefix length (MySQL
+-- rejects indexing a full TEXT/BLOB column without one) and is slower and
+-- larger than indexing a properly typed column. 768 chars is the most a
+-- unique index can cover in utf8mb4 within InnoDB's 3072-byte key limit
+-- (768 * 4 bytes/char), comfortably more than any real file path here. The
+-- fulltext index on path was dropped too: nothing in the codebase ever
+-- does a MATCH/AGAINST query against it - `LIKE`/`REGEXP`/`=` are all it's
+-- ever queried with, and those don't use a fulltext index at all.
 create table files
 (
   `hash` varchar(64) not null,
   `mime` varchar(150) not null,
   `created` datetime not null,
   `modified` datetime not null,
-  `path` text not null,
+  `path` varchar(768) not null,
   `size` int not null,
 
   key (`hash`),
   unique (`path`),
-  fulltext key (`path`),
   INDEX USING BTREE (`created`),
   INDEX USING BTREE (`modified`),
   INDEX USING BTREE (`size`)
@@ -32,6 +40,10 @@ create table file_tags
 
   key (`hash`),
   key (`tag`),
+  -- Without this, re-tagging a file (any reprocess) accumulated duplicate
+  -- rows per (hash, tag) pair, skewing SearchByTags' score/count. AddTags
+  -- upserts against it rather than failing an insert.
+  unique key (`hash`, `tag`),
 
   foreign key (hash) references files(hash)
 ) engine=InnoDB;
@@ -159,9 +171,15 @@ create table shared_links
   `created` datetime not null
 ) engine=InnoDB;
 
+-- `salt` is nullable on purpose: it's the marker between the two key-
+-- derivation schemes session.go supports - NULL means this vault predates
+-- salted derivation (see session.New's migration path), non-NULL means the
+-- password is run through Argon2id with this salt. New installs always
+-- get one from the start.
 create table vault
 (
-  `secret` blob not null
+  `secret` blob not null,
+  `salt` varbinary(32)
 );
 
 create table events

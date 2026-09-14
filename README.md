@@ -286,6 +286,13 @@ storage-path=/mnt/storage/
 unenc-storage-path=/mnt/storage/unencrypted/
 max-thumbnail-width-px=1000
 shared-link-ttl-hours=168
+# Every outbound friend/bridge connection this device makes must be to a
+# domain ending in this TLD (defaults to off-the.cloud if omitted) — closes
+# off dialing an arbitrary attacker-supplied domain (e.g. an inbound friend
+# request naming a LAN address) as an SSRF vector. Set this if you're
+# running your own separate network of devices under your own domain
+# instead of the public off-the.cloud bridge.
+friend-domain-tld=off-the.cloud
 
 [logger]
 log_file=/var/log/otc/otc.log

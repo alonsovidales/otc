@@ -31,9 +31,22 @@ type Requester = (build: (e: Partial<ReqEnvelope>) => void) => Promise<RespEnvel
 // same way on mount.
 const cSessionKeyStorageKey = "otc_session_key";
 
+// The password doesn't get to sit in localStorage forever just because the
+// tab does — an hour, then it's treated the same as never having been
+// saved (the app falls back to its normal sign-in prompt). Limits how long
+// a stolen/left-open device keeps the account (and, per session.go, the
+// actual data-encryption key) usable without the password being re-entered.
+const cPersistedKeyTTLMs = 60 * 60 * 1000;
+
+interface PersistedKey {
+  key: string;
+  savedAt: number;
+}
+
 export function savePersistedKey(key: string) {
   try {
-    localStorage.setItem(cSessionKeyStorageKey, key);
+    const entry: PersistedKey = { key, savedAt: Date.now() };
+    localStorage.setItem(cSessionKeyStorageKey, JSON.stringify(entry));
   } catch {
     // Storage can be unavailable (private browsing, quota) — session just
     // won't survive a reload in that case, not worth surfacing an error for.
@@ -42,7 +55,20 @@ export function savePersistedKey(key: string) {
 
 export function loadPersistedKey(): string | null {
   try {
-    return localStorage.getItem(cSessionKeyStorageKey);
+    const raw = localStorage.getItem(cSessionKeyStorageKey);
+    if (!raw) {
+      return null;
+    }
+    const entry = JSON.parse(raw) as Partial<PersistedKey>;
+    if (typeof entry.key !== "string" || typeof entry.savedAt !== "number") {
+      localStorage.removeItem(cSessionKeyStorageKey);
+      return null;
+    }
+    if (Date.now() - entry.savedAt > cPersistedKeyTTLMs) {
+      localStorage.removeItem(cSessionKeyStorageKey);
+      return null;
+    }
+    return entry.key;
   } catch {
     return null;
   }

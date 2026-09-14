@@ -12,18 +12,18 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"sync"
 	"time"
 
-	bgprocessor "github.com/alonsovidales/otc/bg_processor"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/network"
 	"github.com/alonsovidales/otc/profile"
-	"github.com/alonsovidales/otc/push"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/push"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
 	"github.com/alonsovidales/otc/social"
@@ -79,11 +79,10 @@ type Manager struct {
 	profile      *profile.Profile
 	social       *social.Social
 	push         *push.Push
-	bg           *bgprocessor.BgProcessor
 	bridgePool   bridgeConnPool
 }
 
-func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *bgprocessor.BgProcessor) (mg *Manager) {
+func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg *Manager) {
 	log.Debug("Init Websocket")
 	st, err := settings.Init(dao)
 	if err != nil {
@@ -100,7 +99,6 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, bg *
 	mg = &Manager{
 		baseUrl:      baseUrl,
 		dao:          dao,
-		bg:           bg,
 		filesManager: filesManager,
 		upgrader: gorilla.Upgrader{
 			// In production, set a proper origin check!
@@ -534,7 +532,10 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 		if err != nil {
-			time.Sleep(1)
+			// Deliberate delay on a failed auth attempt: was `time.Sleep(1)`,
+			// which is 1 *nanosecond* (time.Sleep takes a Duration, i.e.
+			// nanoseconds) — no throttling at all against repeated guesses.
+			time.Sleep(time.Second)
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok:       false,
@@ -543,29 +544,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			}
 			return resp, true
 		}
-		ch.mg.bg.SetSession(ch.session)
 		log.Info("Authenticated session")
 
 		resp.Payload = &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
 				Ok: true,
 			},
-		}
-
-	case *pb.ReqEnvelope_ReqNewSocialPublication:
-		log.Info("Download link")
-
-		uuid, err := ch.mg.social.NewPublication(ch.session, p.ReqNewSocialPublication.Text, p.ReqNewSocialPublication.Paths)
-
-		if err != nil {
-			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to create publication: %s", err)
-		} else {
-			resp.Payload = &pb.RespEnvelope_RespNewSocial{
-				RespNewSocial: &pb.NewSocial{
-					Uuid: uuid,
-				},
-			}
 		}
 
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
@@ -662,6 +646,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	}
 
 	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqNewSocialPublication:
+		log.Info("New social publication")
+
+		uuid, err := ch.mg.social.NewPublication(ch.session, p.ReqNewSocialPublication.Text, p.ReqNewSocialPublication.Paths)
+
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error trying to create publication: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespNewSocial{
+				RespNewSocial: &pb.NewSocial{
+					Uuid: uuid,
+				},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqNewSocialComment:
 		log.Info("Getting social publications")
 		err := ch.mg.social.NewSocialComment(ch.mg.profile, p.ReqNewSocialComment.PubUuid, p.ReqNewSocialComment.Comment)
@@ -1207,6 +1207,40 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	return
 }
 
+// processMessage dispatches one request to the pre-auth, friend-auth, or
+// owner-auth handler as appropriate, recovering from any panic along the
+// way. Without this, a bug in any single request handler (a nil dereference
+// on a malformed/unexpected request, say) would crash this goroutine
+// unrecovered — which takes down the entire process, for every connected
+// client, not just this one. Recovering here contains that to "this one
+// connection gets closed", regardless of what request type or handler bug
+// causes it in the future.
+func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("recovered from panic handling request:", r, string(debug.Stack()))
+			resp = &pb.RespEnvelope{
+				Id:           env.Id,
+				Error:        true,
+				ErrorMessage: "internal error",
+			}
+			closeConn = true
+		}
+	}()
+
+	resp, closeConn = ch.processNonAuthRequest(env)
+
+	if resp == nil && (ch.session != nil || ch.friendProfile != nil) {
+		resp, closeConn = ch.processAuthAsFriendRequest(env)
+	}
+
+	if resp == nil && ch.session != nil {
+		resp, closeConn = ch.processAuthRequest(env)
+	}
+
+	return
+}
+
 func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	ch := &connHandler{
 		mg: mg,
@@ -1226,15 +1260,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			return
 		}
 
-		resp, closeConn := ch.processNonAuthRequest(&env)
-
-		if resp == nil && (ch.session != nil || ch.friendProfile != nil) {
-			resp, closeConn = ch.processAuthAsFriendRequest(&env)
-		}
-
-		if resp == nil && ch.session != nil {
-			resp, closeConn = ch.processAuthRequest(&env)
-		}
+		resp, closeConn := ch.processMessage(&env)
 
 		// A request needing a session this connection doesn't have (not
 		// authenticated, or authenticated as the wrong kind of session for

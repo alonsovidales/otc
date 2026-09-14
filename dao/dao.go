@@ -21,6 +21,15 @@ type Dao struct {
 	db *sql.DB
 }
 
+// NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
+// real MySQL dial. Exported for tests in other packages (e.g.
+// websocket_test.go) that need a Dao backed by a mock/fake connection
+// (github.com/DATA-DOG/go-sqlmock) rather than a live database, since
+// Dao's db field itself isn't exported.
+func NewWithDB(db *sql.DB) *Dao {
+	return &Dao{db: db}
+}
+
 func Init() (dao *Dao) {
 	dao = new(Dao)
 
@@ -81,9 +90,17 @@ func (dao *Dao) GetSecret() (encText []byte, err error) {
 	return
 }
 
-func (dao *Dao) PersistSecret(encCheck []byte) (err error) {
+// GetSalt returns the vault's Argon2id salt, or a nil/empty slice for a
+// vault created before salted key derivation existed (see session.New,
+// which treats that as "migrate this install on next successful login").
+func (dao *Dao) GetSalt() (salt []byte, err error) {
+	err = dao.db.QueryRow("select `salt` from `vault`").Scan(&salt)
+	return
+}
+
+func (dao *Dao) PersistSecret(encCheck []byte, salt []byte) (err error) {
 	log.Debug("Creating Auth session:")
-	_, err = dao.db.Exec("insert into `vault` (`secret`) values (?)", encCheck)
+	_, err = dao.db.Exec("insert into `vault` (`secret`, `salt`) values (?, ?)", encCheck, salt)
 	return
 }
 
@@ -107,8 +124,8 @@ func (dao *Dao) UpdateBridgeSecret(secret string) (err error) {
 	return
 }
 
-func (dao *Dao) UpdateSecret(encCheck []byte) (err error) {
-	_, err = dao.db.Exec("update `vault` set `secret` = ?", encCheck)
+func (dao *Dao) UpdateSecret(encCheck []byte, salt []byte) (err error) {
+	_, err = dao.db.Exec("update `vault` set `secret` = ?, `salt` = ?", encCheck, salt)
 	return
 }
 
@@ -200,8 +217,14 @@ func (dao *Dao) DeleteApnsToken(token string) (err error) {
 
 func (dao *Dao) AddTags(file *pb.File, tags []imagestagger.RAMTag) {
 	for _, tag := range tags {
+		// Upsert against (hash, tag)'s unique key rather than a plain
+		// insert: a file getting reprocessed (a fix to the tagger, a
+		// forced re-tag) re-runs this for a hash that may already have
+		// these exact tags, and a plain insert would just fail on the
+		// second pass instead of refreshing the score.
 		_, err := dao.db.Exec(
-			"insert into `file_tags` (`hash`, `tag`, `score`) values (?, ?, ?)",
+			"insert into `file_tags` (`hash`, `tag`, `score`) values (?, ?, ?) "+
+				"on duplicate key update `score` = values(`score`)",
 			file.Hash, tag.Name, tag.Score)
 
 		if err != nil {
