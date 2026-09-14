@@ -12,6 +12,7 @@
 import SwiftUI
 import CryptoKit
 import UniformTypeIdentifiers
+import QuickLook
 
 private func isDirFile(_ f: Msg_File) -> Bool { f.mime == "inode/directory" }
 private func isImgFile(_ f: Msg_File) -> Bool { f.mime.hasPrefix("image/") }
@@ -57,8 +58,17 @@ final class FilesExplorerViewModel: ObservableObject {
     @Published var error: String?
     @Published var selected: Set<String> = []
     @Published var toast: String?
-    @Published var viewer: (name: String, image: UIImage)?
+    @Published var previewURL: URL?
     @Published var shareURL: URL?
+    // Issue #71: the only feedback a tap on a file used to get was however
+    // long GetFile's round trip actually took - nothing changed on screen
+    // in the meantime, so it looked stuck, and a user tapping again (or on
+    // other rows, thinking the first tap missed) queued up that many
+    // concurrent opens, each popping its own viewer open once its own
+    // fetch happened to finish. Tracking which single path is in flight
+    // both drives a spinner on that row and - via the guard in open()
+    // below - makes every other tap a no-op until it's done.
+    @Published var openingPath: String?
     // Issue #54: every delete action should confirm first - this one
     // didn't.
     @Published var confirmDeleteSelected = false
@@ -124,6 +134,14 @@ final class FilesExplorerViewModel: ObservableObject {
             return
         }
 
+        // Issue #71: single-flight - a tap while one open is already in
+        // progress (this row or another) is ignored rather than queued, so
+        // it can't pile up into several viewers popping open back to back
+        // once each fetch happens to land.
+        guard openingPath == nil else { return }
+        openingPath = row.path
+        defer { openingPath = nil }
+
         let full = fullPath(for: row)
         var req = Msg_GetFile()
         req.path = full
@@ -133,14 +151,17 @@ final class FilesExplorerViewModel: ObservableObject {
                 showToast("Could not fetch file")
                 return
             }
-            if isImgFile(row.raw), let img = UIImage(data: f.content) {
-                viewer = (leafName(row.path), img)
-            } else {
-                // Non-image: hand off to the system share sheet (save/open/etc).
-                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-                try? f.content.write(to: tmp)
-                shareURL = tmp
-            }
+            // Issue #72: QuickLook (the same previewer Mail/Files use for
+            // attachments) natively renders PDFs, Office docs, text, audio
+            // and video, not just images - writing to a temp file first
+            // (rather than the old image-only UIImage(data:) path) is what
+            // lets it identify the format at all, same as it would from a
+            // Files app download. Its own toolbar already has a share
+            // button, so this replaces the separate share-sheet fallback
+            // for non-images too, not just adds preview alongside it.
+            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
+            try f.content.write(to: tmp)
+            previewURL = tmp
         } catch {
             showToast("Download failed: \(error.localizedDescription)")
         }
@@ -213,7 +234,17 @@ struct FilesExplorerView: View {
     @StateObject private var vm: FilesExplorerViewModel
     @State private var pathField: String
     @State private var showImporter = false
-    @State private var editMode: EditMode = .inactive
+    // Replaces the native List(selection:) + EditButton()/EditMode
+    // combination this used to use: that pairing needs the row's tap
+    // gesture to be the *List's own* selection-toggle handling, but this
+    // view also needs a tap to open the file when not selecting - adding a
+    // custom .onTapGesture for that (even one that's a no-op while
+    // EditMode is .active) is enough to intercept the touch before the
+    // List's built-in selection handling ever sees it, so tapping a row in
+    // "Edit" mode silently did nothing instead of selecting it. Managing
+    // selection entirely ourselves - this flag, plus a checkbox drawn per
+    // row - sidesteps that conflict rather than fighting it.
+    @State private var selecting = false
 
     init(initialPath: String) {
         _vm = StateObject(wrappedValue: FilesExplorerViewModel(initialPath: initialPath))
@@ -235,11 +266,34 @@ struct FilesExplorerView: View {
                     Text(error).font(.caption).foregroundColor(.red).padding(.horizontal)
                 }
 
-                List(selection: $vm.selected) {
+                List {
                     ForEach(vm.rows) { row in
                         HStack {
-                            Image(systemName: row.isDir ? "folder.fill" : (isImgFile(row.raw) ? "photo" : "doc"))
-                                .foregroundColor(row.isDir ? .accentColor : .secondary)
+                            // A row's own checkbox while selecting, rather
+                            // than relying on the List's built-in selection
+                            // UI - see `selecting`'s doc comment for why.
+                            // Directories can't usefully be "selected" (the
+                            // delete/share/download actions below all
+                            // expect file paths), so this only ever shows
+                            // for a real file, and .. never gets one either
+                            // way since it's a directory entry too.
+                            if selecting && !row.isDir {
+                                Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
+                                    .frame(width: 20)
+                            }
+                            // Issue #71: a spinner in place of the row's own
+                            // icon while its GetFile round trip is in
+                            // flight - the only feedback a tap used to get
+                            // was however long that took, which just
+                            // looked stuck.
+                            if vm.openingPath == row.path {
+                                ProgressView().frame(width: 20)
+                            } else {
+                                Image(systemName: row.isDir ? "folder.fill" : (isImgFile(row.raw) ? "photo" : "doc"))
+                                    .foregroundColor(row.isDir ? .accentColor : .secondary)
+                                    .frame(width: 20)
+                            }
                             VStack(alignment: .leading) {
                                 Text(row.name).lineLimit(1)
                                 if !row.isDir {
@@ -250,9 +304,47 @@ struct FilesExplorerView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if editMode == .inactive { Task { await vm.open(row) } }
+                            if selecting {
+                                guard !row.isDir else { return }
+                                if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
+                                else { vm.selected.insert(row.path) }
+                                return
+                            }
+                            // Issue #71: ignore taps while any row's open is
+                            // already in flight - see openingPath's own doc
+                            // comment for why that's the fix, not just the
+                            // spinner above.
+                            if vm.openingPath == nil {
+                                Task { await vm.open(row) }
+                            }
                         }
-                        .tag(row.path)
+                        // Long-press for quick Share/Delete on a single
+                        // file, independent of (and without needing) the
+                        // Select mode above - the standard iOS pattern for
+                        // one-off actions on a single item. Directories
+                        // are left out: DelFile/ShareFilesLink both expect
+                        // file paths, same reason Select's own checkbox
+                        // skips them too.
+                        .contextMenu {
+                            if !row.isDir {
+                                Button {
+                                    Task {
+                                        vm.selected = [row.path]
+                                        if let link = await vm.shareLink(), let url = URL(string: link) {
+                                            vm.shareURL = url
+                                        }
+                                    }
+                                } label: {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                Button(role: .destructive) {
+                                    vm.selected = [row.path]
+                                    vm.confirmDeleteSelected = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -281,10 +373,18 @@ struct FilesExplorerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showImporter = true } label: { Image(systemName: "square.and.arrow.down.on.square") }
+                    // Select toggles the checkbox-per-row mode above;
+                    // Cancel here (matching the Photos app's own wording
+                    // for the same toggle) also clears whatever was
+                    // already selected, same as leaving selection mode any
+                    // other way should.
+                    Button(selecting ? "Cancel" : "Select") {
+                        selecting.toggle()
+                        if !selecting { vm.selected.removeAll() }
+                    }
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
+                    Button { showImporter = true } label: { Image(systemName: "square.and.arrow.down.on.square") }
                 }
             }
             .overlay(alignment: .top) {
@@ -295,7 +395,6 @@ struct FilesExplorerView: View {
                         .padding(.top, 8)
                 }
             }
-            .environment(\.editMode, $editMode)
         }
         .task { await vm.load() }
         .onChange(of: vm.path) { _, newValue in pathField = newValue }
@@ -309,9 +408,15 @@ struct FilesExplorerView: View {
                 }
             }
         }
-        .sheet(isPresented: Binding(get: { vm.viewer != nil }, set: { if !$0 { vm.viewer = nil } })) {
-            if let v = vm.viewer {
-                ImageQuickLook(name: v.name, image: v.image)
+        .sheet(isPresented: Binding(get: { vm.previewURL != nil }, set: { if !$0 { vm.previewURL = nil } })) {
+            if let url = vm.previewURL {
+                QuickLookView(url: url, onDismiss: { vm.previewURL = nil })
+                    // Draws edge-to-edge with its own navigation bar
+                    // (title, Done button, share button - see
+                    // QuickLookView's own doc comment) - ignoresSafeArea
+                    // keeps that bar from getting a second inset on top of
+                    // the one it already draws.
+                    .ignoresSafeArea()
             }
         }
         .sheet(isPresented: Binding(get: { vm.shareURL != nil }, set: { if !$0 { vm.shareURL = nil } })) {
@@ -338,21 +443,51 @@ struct FilesExplorerView: View {
     }
 }
 
-private struct ImageQuickLook: View {
-    let name: String
-    let image: UIImage
-    @Environment(\.dismiss) private var dismiss
+/// Issue #72: the system Quick Look previewer - the same one Mail/Files use
+/// for attachments/downloads - natively renders images, PDFs, Office docs,
+/// plain text, audio and video, not just images.
+///
+/// A bare QLPreviewController (what this used to hand straight to .sheet)
+/// has no Done button of its own and, for a PDF especially, its own
+/// pan/scroll gesture wins over the sheet's swipe-to-dismiss often enough
+/// that there was no way to close it at all (issue found right after #72
+/// shipped) — it only gets a Done button automatically when it's the root
+/// of a UINavigationController *and* that stack is what's presented
+/// modally, which a bare .sheet { QLPreviewController() } doesn't set up.
+/// Wrapping it here, plus an explicit Done item wired to onDismiss rather
+/// than relying on that auto-detection alone, makes sure the button is
+/// always there regardless.
+private struct QuickLookView: UIViewControllerRepresentable {
+    let url: URL
+    let onDismiss: () -> Void
 
-    var body: some View {
-        NavigationView {
-            Image(uiImage: image).resizable().scaledToFit()
-                .navigationTitle(name)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Done") { dismiss() }
-                    }
-                }
+    func makeCoordinator() -> Coordinator { Coordinator(url: url, onDismiss: onDismiss) }
+
+    func makeUIViewController(context: Context) -> UINavigationController {
+        let preview = QLPreviewController()
+        preview.dataSource = context.coordinator
+        preview.navigationItem.leftBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .done,
+            target: context.coordinator,
+            action: #selector(Coordinator.dismissTapped)
+        )
+        return UINavigationController(rootViewController: preview)
+    }
+
+    func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
+
+    final class Coordinator: NSObject, QLPreviewControllerDataSource {
+        let url: URL
+        let onDismiss: () -> Void
+        init(url: URL, onDismiss: @escaping () -> Void) {
+            self.url = url
+            self.onDismiss = onDismiss
         }
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+            url as NSURL
+        }
+        @objc func dismissTapped() { onDismiss() }
     }
 }
 

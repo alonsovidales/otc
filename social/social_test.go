@@ -4,6 +4,7 @@ package social
 
 import (
 	"testing"
+	"time"
 
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
@@ -52,5 +53,23 @@ func TestIsAllowedFriendDomain(t *testing.T) {
 		if got := isAllowedFriendDomain(c.domain); got != c.want {
 			t.Errorf("isAllowedFriendDomain(%q) = %v, want %v", c.domain, got, c.want)
 		}
+	}
+}
+
+// NewPublication's wait for a just-uploaded file's background thumbnail
+// was measured giving up (5s total, 20 attempts of 250ms) before a real,
+// un-raced thumbnail actually finished (8s, on a Raspberry Pi, once the
+// thumbnail step started doing EXIF/HEIC/orientation work for every image)
+// — a real "publish a brand new photo" failure, not a test of the polling
+// mechanism itself (that's exercised by NewPublication's own retry loop in
+// practice, not worth re-deriving with a fake filesmanager here). This
+// pins the total budget somewhere comfortably past what was actually
+// measured, so a future change to either constant can't silently shrink it
+// back down under that again.
+func TestThumbnailPollBudgetCoversMeasuredWorstCase(t *testing.T) {
+	const measuredWorstCase = 8 * time.Second
+	total := cThumbnailPollInterval * time.Duration(cThumbnailPollAttempts)
+	if total <= measuredWorstCase {
+		t.Errorf("total poll budget %v does not comfortably cover the measured 8s worst case", total)
 	}
 }

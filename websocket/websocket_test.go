@@ -7,11 +7,14 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/profile"
+	"github.com/alonsovidales/otc/session"
 )
 
 // handleConnection dispatches every incoming envelope through up to three
@@ -192,5 +195,89 @@ func TestDecryptSecretWithoutPubKeyFails(t *testing.T) {
 	ch := &connHandler{mg: &Manager{}}
 	if _, err := ch.decryptSecret([]byte("not a valid ciphertext")); err == nil {
 		t.Error("expected an error when no GetPubKey request preceded Auth")
+	}
+}
+
+// Incident: the bridge pins one pool connection to a client for that
+// client's whole session (see bridge/websocket/websocket.go), not just one
+// request — a pool sized for quick per-request turnover emptied out under
+// completely ordinary concurrent use (a phone app, a Mac app, a browser tab
+// each holding one open at once) and surfaced as "No available connections
+// in the pool" for every new session once it did. These lock in the
+// fallback default and the low-water calculation without needing a real
+// [otc] config section (cfg.HasSection safely reports false when cfg was
+// never initialized, as in this test binary).
+func TestBridgePoolTargetDefaultsWhenUnconfigured(t *testing.T) {
+	if got := bridgePoolTarget(); got != cDefaultBridgePoolTarget {
+		t.Errorf("expected default bridge pool target %d, got %d", cDefaultBridgePoolTarget, got)
+	}
+}
+
+func TestBridgePoolLowWaterIsRefillBatchBelowTarget(t *testing.T) {
+	want := cDefaultBridgePoolTarget - cBridgePoolRefillBatch
+	if got := bridgePoolLowWater(); got != want {
+		t.Errorf("expected low water %d, got %d", want, got)
+	}
+}
+
+// A connection's requests are now processed concurrently (see
+// handleConnection's doc comment) instead of one at a time, so
+// connHandler's session/friendProfile/privKey - each set once by one
+// request and read by many others - need a real, run-with-race-detector
+// guarantee, not just "it happens to work because setting one is fast".
+// getOrCreatePrivKey is the one with an actual check-then-act step
+// (generate only if nil), which is exactly the shape of bug an unguarded
+// version would have: two GetPubKey requests racing each other could each
+// see nil and generate their own keypair, with one silently overwriting
+// the other - a client that got the discarded one back would fail every
+// decrypt for the rest of the connection.
+func TestGetOrCreatePrivKeyIsSingletonUnderConcurrentCallers(t *testing.T) {
+	ch := &connHandler{}
+	const n = 30
+	keys := make([]*rsa.PrivateKey, n)
+	errs := make([]error, n)
+
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			keys[i], errs[i] = ch.getOrCreatePrivKey()
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("caller %d: unexpected error: %v", i, err)
+		}
+	}
+	for i := 1; i < n; i++ {
+		if keys[i] != keys[0] {
+			t.Errorf("expected every concurrent caller to get back the same keypair, caller %d got a different one", i)
+		}
+	}
+}
+
+func TestSessionAndFriendProfileAccessorsAreRaceSafe(t *testing.T) {
+	ch := &connHandler{}
+	ses := &session.Session{}
+	prof := &profile.Profile{}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 30; i++ {
+		wg.Add(4)
+		go func() { defer wg.Done(); ch.setSession(ses) }()
+		go func() { defer wg.Done(); ch.getSession() }()
+		go func() { defer wg.Done(); ch.setFriendProfile(prof) }()
+		go func() { defer wg.Done(); ch.getFriendProfile() }()
+	}
+	wg.Wait()
+
+	if ch.getSession() != ses {
+		t.Error("expected getSession to return the session that was set")
+	}
+	if ch.getFriendProfile() != prof {
+		t.Error("expected getFriendProfile to return the profile that was set")
 	}
 }

@@ -1,13 +1,33 @@
+/* Off The Cloud brand palette — matches the public site (bridge/static/landing.html)
+   so the app and the marketing page read as the same product. */
 :root {
+  /* Neutral dark background (the app's original tone), not the teal-tinted
+     --ink used on the public site - everything else here still matches it. */
+  --ink: #242424;
+  --ink-2: #1a1a1a;
+  --ink-3: #2e2e2e;
+  --ember: #ff6b4a;
+  --ember-ink: #26100a;
+  --gold: #ffc857;
+  --gold-ink: #10231f;
+  --mist: #eaf2ef;
+  --mist-dim: #90a8a3;
+  --line: rgba(234, 242, 239, 0.12);
+  --panel: rgba(234, 242, 239, 0.04);
+  --danger: #ff8a75;
+  --danger-bg: rgba(255, 107, 74, 0.15);
+  --success: #7ee2a8;
+  --success-bg: rgba(34, 197, 94, 0.15);
+
   display: flex;
   flex-direction: column;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: dark;
+  color: var(--mist);
+  background-color: var(--ink);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -19,7 +39,8 @@
   position: absolute;
   top: 0px;
   width: 100%;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-2);
   display: flex;
   align-items: center;
 }
@@ -32,12 +53,12 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--ember);
   text-decoration: inherit;
 }
 
 a:hover {
-  color: #535bf2;
+  opacity: 0.85;
 }
 
 body {
@@ -47,6 +68,8 @@ body {
   place-items: top;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--ink);
+  color: var(--mist);
 }
 
 h1 {
@@ -59,36 +82,29 @@ button {
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
-  background-color: #a4defd;
-  color: #646cff;
+  background-color: var(--ember);
+  color: var(--ember-ink);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: filter 0.15s ease;
 }
 button:hover {
-  border-color: #646cff;
+  filter: brightness(1.08);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  filter: none;
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
 }
 
 .top_sign_in {
   margin-left: auto;
   height: 40px;
   margin-right: 20px;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
 }

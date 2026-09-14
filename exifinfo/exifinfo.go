@@ -37,6 +37,10 @@ type Info struct {
 	HasGPS       bool
 	Latitude     float64
 	Longitude    float64
+	// Orientation is the raw EXIF tag (1-8, per the TIFF/EXIF spec). It
+	// defaults to 1 (no transform) when absent, which is the correct
+	// no-op value — most encoders that omit the tag mean "normal".
+	Orientation int
 }
 
 // FromJPEG reads standard EXIF (APP1 segment) out of JPEG bytes.
@@ -64,8 +68,13 @@ func FromHEIC(content []byte) (*Info, error) {
 }
 
 func fromExif(x *exif.Exif) *Info {
-	info := &Info{}
+	info := &Info{Orientation: 1}
 
+	if v, err := x.Get(exif.Orientation); err == nil {
+		if i, err := v.Int(0); err == nil && i >= 1 && i <= 8 {
+			info.Orientation = i
+		}
+	}
 	if v, err := x.Get(exif.Make); err == nil {
 		info.CameraMake, _ = v.StringVal()
 	}

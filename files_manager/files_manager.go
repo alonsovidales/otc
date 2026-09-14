@@ -24,6 +24,8 @@ import (
 	"github.com/alonsovidales/otc/session"
 	"github.com/google/uuid"
 	"github.com/jdeng/goheif"
+	"github.com/jdeng/goheif/heif"
+	"github.com/jdeng/goheif/heif/bmff"
 	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"image"
@@ -222,6 +224,40 @@ func getCipher(secret string) (cp cipher.AEAD) {
 	return
 }
 
+// commonDirPrefix returns the directory (with a trailing slash) shared by
+// every path given, so a caller can strip it to get each file's location
+// relative to what's actually common between them — e.g. two files both
+// under "/a/b/" reduce to "c.jpg"/"d.jpg", while "/a/b/c.jpg" and
+// "/a/e/f.jpg" (common dir only "/a/") keep just enough structure to tell
+// them apart: "b/c.jpg"/"e/f.jpg". An empty or single-path input has
+// nothing to compare against, so its own containing directory is "common"
+// by definition.
+func commonDirPrefix(paths []string) string {
+	if len(paths) == 0 {
+		return "/"
+	}
+	dirOf := func(p string) string {
+		if idx := strings.LastIndex(p, "/"); idx >= 0 {
+			return p[:idx+1]
+		}
+		return "/"
+	}
+
+	common := dirOf(paths[0])
+	for _, p := range paths[1:] {
+		d := dirOf(p)
+		for !strings.HasPrefix(d, common) {
+			trimmed := strings.TrimSuffix(common, "/")
+			idx := strings.LastIndex(trimmed, "/")
+			if idx < 0 {
+				return "/"
+			}
+			common = trimmed[:idx+1]
+		}
+	}
+	return common
+}
+
 func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domain string) (link string, err error) {
 	files := make([]*pb.File, len(paths))
 	for i, path := range paths {
@@ -231,12 +267,26 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 		}
 	}
 
+	// The archive used to name every entry "."+file.Path - each selected
+	// file's full path from the storage root - which reproduces the whole
+	// directory tree down to that file instead of holding just what was
+	// selected. Stripping the directory common to every file in *this*
+	// share keeps the archive flat when everything came from one folder
+	// (the reported case, and the common one), while still not colliding
+	// two same-named files from different folders when a share spans more
+	// than one.
+	filePaths := make([]string, len(files))
+	for i, file := range files {
+		filePaths[i] = file.Path
+	}
+	prefix := commonDirPrefix(filePaths)
+
 	var buff bytes.Buffer
 	zw := zip.NewWriter(&buff)
 
 	for _, file := range files {
 		h := &zip.FileHeader{
-			Name:   "." + file.Path,
+			Name:   strings.TrimPrefix(file.Path, prefix),
 			Method: zip.Deflate,
 		}
 		// set mod time (zip format stores DOS time; Go handles conversion)
@@ -377,7 +427,13 @@ func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File
 		// except Safari, so "view full size" just showed nothing. Convert
 		// here too, the same way, so it actually displays everywhere.
 		if isHeicFile(file.Path, file.Mime) {
-			if converted, convErr := mg.heicToJpeg(content, 90); convErr == nil {
+			// Issue #66: read the orientation so the conversion below
+			// rotates the pixels to match, instead of silently discarding it.
+			orientation := 1
+			if info, exifErr := exifinfo.FromHEIC(content); exifErr == nil {
+				orientation = info.Orientation
+			}
+			if converted, convErr := mg.heicToJpeg(content, 90, orientation); convErr == nil {
 				content = converted
 				file.Mime = "image/jpeg"
 			} else {
@@ -480,19 +536,31 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	if err != nil {
 		return
 	}
-	err = mg.dao.DelFileByPath(path)
-	if err != nil {
+	hash := file.Hash
+
+	if err = mg.dao.DelFileByPath(path); err != nil {
 		return
 	}
 
-	file, _ = mg.dao.GetFileByPath(path)
-	if file != nil {
-		// We don't delete the file since we still have another
-		// reference with another path
+	// Files are deduplicated on disk by hash (more than one path can point
+	// at the same blob), so the blob and thumbnail can only be removed
+	// once no path references that hash any more. This used to re-fetch by
+	// the exact path just deleted above, which — being freshly gone — a
+	// dao.GetFileByPath scan miss doesn't report by returning nil: it
+	// always returns a non-nil *pb.File regardless of whether the row was
+	// found (see its own implementation), only the error says so. `file !=
+	// nil` was therefore always true, so this returned early
+	// unconditionally: the underlying blob and thumbnail were never
+	// actually deleted from disk, no matter how many (zero, in the common
+	// case) other paths still referenced that hash. Checking GetFileByHash
+	// - and by hash, not the path that's now gone - is the check this was
+	// actually meant to make: does any *other* file row still point at
+	// this content.
+	if _, hashErr := mg.dao.GetFileByHash(hash); hashErr == nil {
 		return nil
 	}
 
-	fullPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), file.Hash)
+	fullPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
 	if err = os.Remove(fullPath); err != nil {
 		return err
 	}
@@ -599,7 +667,18 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 			}
 
 			if isHeic {
-				content, err = mg.heicToJpeg(content, 6)
+				// Issue #66: quality 6 produced severe compression artifacts
+				// ("colors are terrible") — 90 matches the quality used for
+				// the full-size conversion in GetFile, so the thumbnail
+				// derived from this below isn't starting from a
+				// already-mangled source. Orientation comes from the EXIF
+				// read above so the rotation baked in here actually matches
+				// how the photo was taken.
+				orientation := 1
+				if exif != nil {
+					orientation = exif.Orientation
+				}
+				content, err = mg.heicToJpeg(content, 90, orientation)
 				if err != nil {
 					log.Error("error converting from HEIC to JPEG:", err)
 					return
@@ -616,6 +695,23 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 				return
 			}
 
+			// Issue #66 follow-up: a plain JPEG straight from the phone (no
+			// HEIC involved at all - this is what actually reproduced the
+			// bug report, since it turns out that photo was never HEIC in
+			// the first place) was losing its rotation here just the same
+			// as a HEIC one - the resize/re-encode below always produces a
+			// brand new JPEG with no EXIF segment, so whatever Orientation
+			// tag the original had is gone from the thumbnail the feed
+			// actually shows. A HEIC source already had its rotation baked
+			// into its pixels above (heicToJpeg) using the HEIF container's
+			// own irot/imir, so this only runs for the non-HEIC case -
+			// applying `exif`'s (pre-conversion) Orientation again here too
+			// would double-rotate on the rare HEIC file that sets both a
+			// HEIF-native transform and a non-default EXIF Orientation.
+			if !isHeic && exif != nil {
+				img = applyOrientation(img, exif.Orientation)
+			}
+
 			tags, err := mg.tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
 			if err != nil {
 				log.Error("Error processing tags:", err)
@@ -628,21 +724,29 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 			log.Debug("Time classifying image:", time.Since(startClass), targetPath)
 
 			startThumb := time.Now()
-			imgCfg, _, err := image.DecodeConfig(bytes.NewReader(content))
-			if err != nil {
-				log.Error("error decoding image config:", err)
-				return
-			}
+			// Issue #66 follow-up: img.Bounds() (not a fresh
+			// image.DecodeConfig of content's raw bytes, as this used to
+			// do) reflects the real, orientation-corrected shape — see
+			// thumbnailSource's doc comment for why that distinction
+			// matters.
 			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-			if imgCfg.Width > maxWidth {
-				newH := int(float64(imgCfg.Height) * float64(maxWidth) / float64(imgCfg.Width))
-				dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
-				draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
-				var buf bytes.Buffer
-				jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
+			thumbImg := thumbnailSource(img, maxWidth)
+			// A thumbnail must exist once a file is uploaded, full stop —
+			// NewPublication, the social feed, etc. all read one back via
+			// GetThumbnail unconditionally. This used to only write one
+			// when resizing was actually needed (imgW > maxWidth), leaving
+			// nothing on disk at all for an image that was already narrow
+			// enough — a gap the orientation fix above made easy to hit for
+			// real: a portrait photo's corrected (post-rotation) width can
+			// end up smaller than maxWidth even when its original,
+			// unrotated width wasn't, silently skipping the thumbnail a
+			// post with that photo in it then failed to ever find.
+			var buf bytes.Buffer
+			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
+				log.Error("error encoding thumbnail:", err)
+			} else {
 				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-				err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
-				if err != nil {
+				if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
 					log.Error("Error generating thumbnail:", err)
 				}
 			}
@@ -778,7 +882,16 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	return file, nil
 }
 
-func (mg *Manager) heicToJpeg(heicData []byte, quality int) ([]byte, error) {
+// heicToJpeg re-encodes a HEIC file as JPEG, correcting for however this
+// particular file actually stores its rotation. goheif.Decode returns the
+// raw sensor-orientation pixel grid with no rotation applied at all (see
+// heifTransform's doc comment for where the real signal usually lives
+// instead), and Go's stdlib jpeg encoder has no way to carry rotation
+// metadata forward on its own, so it has to be baked into the pixels here
+// or it's lost for good (issue #66). fallbackOrientation is the source's
+// raw EXIF Orientation tag (1-8, 0/1 meaning "no transform"), used only
+// when the HEIC container itself carries no rotation/mirror of its own.
+func (mg *Manager) heicToJpeg(heicData []byte, quality int, fallbackOrientation int) ([]byte, error) {
 	if quality <= 0 || quality > 100 {
 		quality = 90
 	}
@@ -789,6 +902,8 @@ func (mg *Manager) heicToJpeg(heicData []byte, quality int) ([]byte, error) {
 		return nil, err
 	}
 
+	img = applyHeicOrientation(heicData, img, fallbackOrientation)
+
 	// Encode as JPEG to []byte
 	var out bytes.Buffer
 	if err := jpeg.Encode(&out, img, &jpeg.Options{Quality: quality}); err != nil {
@@ -796,4 +911,131 @@ func (mg *Manager) heicToJpeg(heicData []byte, quality int) ([]byte, error) {
 	}
 
 	return out.Bytes(), nil
+}
+
+// applyHeicOrientation corrects for however this specific HEIC file
+// actually stores its rotation. An earlier attempt at issue #66 read only
+// the EXIF Orientation tag, which turned out not to fix real iPhone
+// photos: Apple's Camera app (like most HEIC encoders) records a photo's
+// actual rotation in the HEIF container's own "irot"/"imir" transformative
+// item properties, not a traditional EXIF Orientation tag — which is
+// usually left at its default (1, "normal") on an HEIC even when the photo
+// is visibly rotated, simply because that's not where the signal lives.
+// fallbackOrientation (the EXIF Orientation tag, read separately by the
+// caller) is applied only when the container itself carries neither a
+// rotation nor a mirror of its own, covering an encoder that went the
+// EXIF-only route instead.
+func applyHeicOrientation(heicData []byte, img image.Image, fallbackOrientation int) image.Image {
+	rotations, hasMirror, mirrorAxis := heifTransform(heicData)
+	if rotations == 0 && !hasMirror {
+		return applyOrientation(img, fallbackOrientation)
+	}
+
+	if hasMirror {
+		if mirrorAxis == 1 {
+			img = applyOrientation(img, 4) // mirror about a horizontal axis: flip vertical
+		} else {
+			img = applyOrientation(img, 2) // mirror about a vertical axis: flip horizontal
+		}
+	}
+	// Per the HEIF spec, mirroring (above) is applied before rotation.
+	// orientation 8 is a single 90-degree counter-clockwise turn — the
+	// same direction heif.Item.Rotations() counts in — so composing
+	// `rotations` of them reproduces however many turns this file calls
+	// for, reusing the already-verified rotation math instead of
+	// duplicating it.
+	for i := 0; i < rotations; i++ {
+		img = applyOrientation(img, 8)
+	}
+	return img
+}
+
+// heifTransform reads the primary item's irot/imir transformative
+// properties directly out of the HEIF container structure — a lightweight
+// parse of box metadata (github.com/jdeng/goheif/heif), not a full image
+// decode. rotations is the number of 90-degree counter-clockwise turns
+// (0-3); mirrorAxis (only meaningful when hasMirror) is 0 for a mirror
+// about a vertical axis (left-right flip) or 1 for a mirror about a
+// horizontal axis (top-bottom flip), matching heif.Item.Mirror(). Returns
+// all-zero/false on any parse error — heicToJpeg then falls back to
+// whatever EXIF Orientation says, same as if this file just had neither
+// property at all.
+func heifTransform(heicData []byte) (rotations int, hasMirror bool, mirrorAxis int) {
+	it, err := heif.Open(bytes.NewReader(heicData)).PrimaryItem()
+	if err != nil {
+		return 0, false, 0
+	}
+	rotations = ((it.Rotations() % 4) + 4) % 4
+	for _, p := range it.Properties {
+		if m, ok := p.(*bmff.ImageMirror); ok {
+			return rotations, true, int(m.Mirror)
+		}
+	}
+	return rotations, false, 0
+}
+
+// thumbnailSource returns the image a thumbnail should be encoded from:
+// img resized down to maxWidth if it's wider than that, or img itself,
+// unchanged, if it's already narrow enough. Always returns something to
+// encode — a thumbnail must exist once a file is uploaded, full stop (see
+// this function's call site), so "no resize needed" must never mean "no
+// thumbnail". That distinction used to be missing here: the resize branch
+// was the only place anything got written to disk, silently leaving
+// nothing there at all for an already-narrow image — a gap the
+// orientation-correction fix above made easy to hit for real, since a
+// portrait photo's corrected (post-rotation) width can end up smaller than
+// maxWidth even when its original, unrotated width wasn't.
+func thumbnailSource(img image.Image, maxWidth int) image.Image {
+	w := img.Bounds().Dx()
+	if w <= maxWidth {
+		return img
+	}
+	h := img.Bounds().Dy()
+	newH := int(float64(h) * float64(maxWidth) / float64(w))
+	dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
+	draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
+	return dst
+}
+
+// applyOrientation bakes an EXIF Orientation transform into the pixel data,
+// returning a new image when a rotation/flip is needed (orientation outside
+// 2-8 is returned unchanged as a no-op). See the EXIF/TIFF spec's Orientation
+// tag (0x0112) for the 8 defined values.
+func applyOrientation(img image.Image, orientation int) image.Image {
+	if orientation <= 1 || orientation > 8 {
+		return img
+	}
+
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	dstW, dstH := w, h
+	if orientation >= 5 { // 5-8 rotate 90/270, swapping width and height
+		dstW, dstH = h, w
+	}
+	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			c := img.At(b.Min.X+x, b.Min.Y+y)
+			var dx, dy int
+			switch orientation {
+			case 2: // mirror horizontal
+				dx, dy = w-1-x, y
+			case 3: // rotate 180
+				dx, dy = w-1-x, h-1-y
+			case 4: // mirror vertical
+				dx, dy = x, h-1-y
+			case 5: // transpose (mirror horizontal + rotate 270 CW)
+				dx, dy = y, x
+			case 6: // rotate 90 CW
+				dx, dy = h-1-y, x
+			case 7: // transverse (mirror horizontal + rotate 90 CW)
+				dx, dy = h-1-y, w-1-x
+			case 8: // rotate 270 CW
+				dx, dy = y, w-1-x
+			}
+			dst.Set(dx, dy, c)
+		}
+	}
+	return dst
 }

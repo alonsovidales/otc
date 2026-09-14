@@ -59,6 +59,76 @@ export function statusErrorCodeToJSON(object: StatusErrorCode): string {
   }
 }
 
+/**
+ * Issue #65: RAID health as its own explicit state, not something the
+ * client has to infer from errors being present/absent. NoRaid covers a
+ * device with no md array at all (e.g. a single-disk test box) as distinct
+ * from Unknown (an array exists but /proc/mdstat couldn't be parsed) —
+ * both render as "no bar to draw", but they're different enough
+ * conditions to keep separate rather than collapsing to one "n/a" value.
+ */
+export const RaidState = {
+  RaidUnknown: 0,
+  RaidNone: 1,
+  RaidInSync: 2,
+  RaidSyncing: 3,
+  RaidDegraded: 4,
+  UNRECOGNIZED: -1,
+} as const;
+
+export type RaidState = typeof RaidState[keyof typeof RaidState];
+
+export namespace RaidState {
+  export type RaidUnknown = typeof RaidState.RaidUnknown;
+  export type RaidNone = typeof RaidState.RaidNone;
+  export type RaidInSync = typeof RaidState.RaidInSync;
+  export type RaidSyncing = typeof RaidState.RaidSyncing;
+  export type RaidDegraded = typeof RaidState.RaidDegraded;
+  export type UNRECOGNIZED = typeof RaidState.UNRECOGNIZED;
+}
+
+export function raidStateFromJSON(object: any): RaidState {
+  switch (object) {
+    case 0:
+    case "RaidUnknown":
+      return RaidState.RaidUnknown;
+    case 1:
+    case "RaidNone":
+      return RaidState.RaidNone;
+    case 2:
+    case "RaidInSync":
+      return RaidState.RaidInSync;
+    case 3:
+    case "RaidSyncing":
+      return RaidState.RaidSyncing;
+    case 4:
+    case "RaidDegraded":
+      return RaidState.RaidDegraded;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return RaidState.UNRECOGNIZED;
+  }
+}
+
+export function raidStateToJSON(object: RaidState): string {
+  switch (object) {
+    case RaidState.RaidUnknown:
+      return "RaidUnknown";
+    case RaidState.RaidNone:
+      return "RaidNone";
+    case RaidState.RaidInSync:
+      return "RaidInSync";
+    case RaidState.RaidSyncing:
+      return "RaidSyncing";
+    case RaidState.RaidDegraded:
+      return "RaidDegraded";
+    case RaidState.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export const FriendShipStatus = { Pending: 0, Accepted: 1, Blocked: 2, UNRECOGNIZED: -1 } as const;
 
 export type FriendShipStatus = typeof FriendShipStatus[keyof typeof FriendShipStatus];
@@ -223,7 +293,7 @@ export interface GetStatus {
 
 export interface Status {
   online: boolean;
-  localIp: string;
+  /** total physical devices in the RAID array (0 if none) */
   disks: number;
   errors: StatusErrors[];
   raidSize: number;
@@ -233,6 +303,14 @@ export interface Status {
   cpuUsagePrc: number;
   memSize: number;
   memUsage: number;
+  /** Issue #65: parsed from /proc/mdstat - see status.readRaidStatus. */
+  raidState: RaidState;
+  /** e.g. "raid1", "raid5"; "" if no array */
+  raidLevel: string;
+  /** active/in-sync devices, out of `disks` */
+  raidDevicesActive: number;
+  /** only meaningful when raid_state == Syncing */
+  raidSyncPercent: number;
 }
 
 export interface Auth {
@@ -960,7 +1038,6 @@ export const GetStatus: MessageFns<GetStatus> = {
 function createBaseStatus(): Status {
   return {
     online: false,
-    localIp: "",
     disks: 0,
     errors: [],
     raidSize: 0,
@@ -970,6 +1047,10 @@ function createBaseStatus(): Status {
     cpuUsagePrc: 0,
     memSize: 0,
     memUsage: 0,
+    raidState: 0,
+    raidLevel: "",
+    raidDevicesActive: 0,
+    raidSyncPercent: 0,
   };
 }
 
@@ -977,9 +1058,6 @@ export const Status: MessageFns<Status> = {
   encode(message: Status, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.online !== false) {
       writer.uint32(8).bool(message.online);
-    }
-    if (message.localIp !== "") {
-      writer.uint32(18).string(message.localIp);
     }
     if (message.disks !== 0) {
       writer.uint32(24).int32(message.disks);
@@ -1008,6 +1086,18 @@ export const Status: MessageFns<Status> = {
     if (message.memUsage !== 0) {
       writer.uint32(88).int32(message.memUsage);
     }
+    if (message.raidState !== 0) {
+      writer.uint32(96).int32(message.raidState);
+    }
+    if (message.raidLevel !== "") {
+      writer.uint32(106).string(message.raidLevel);
+    }
+    if (message.raidDevicesActive !== 0) {
+      writer.uint32(112).int32(message.raidDevicesActive);
+    }
+    if (message.raidSyncPercent !== 0) {
+      writer.uint32(125).float(message.raidSyncPercent);
+    }
     return writer;
   },
 
@@ -1024,14 +1114,6 @@ export const Status: MessageFns<Status> = {
           }
 
           message.online = reader.bool();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.localIp = reader.string();
           continue;
         }
         case 3: {
@@ -1106,6 +1188,38 @@ export const Status: MessageFns<Status> = {
           message.memUsage = reader.int32();
           continue;
         }
+        case 12: {
+          if (tag !== 96) {
+            break;
+          }
+
+          message.raidState = reader.int32() as any;
+          continue;
+        }
+        case 13: {
+          if (tag !== 106) {
+            break;
+          }
+
+          message.raidLevel = reader.string();
+          continue;
+        }
+        case 14: {
+          if (tag !== 112) {
+            break;
+          }
+
+          message.raidDevicesActive = reader.int32();
+          continue;
+        }
+        case 15: {
+          if (tag !== 125) {
+            break;
+          }
+
+          message.raidSyncPercent = reader.float();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1118,7 +1232,6 @@ export const Status: MessageFns<Status> = {
   fromJSON(object: any): Status {
     return {
       online: isSet(object.online) ? globalThis.Boolean(object.online) : false,
-      localIp: isSet(object.localIp) ? globalThis.String(object.localIp) : "",
       disks: isSet(object.disks) ? globalThis.Number(object.disks) : 0,
       errors: globalThis.Array.isArray(object?.errors) ? object.errors.map((e: any) => StatusErrors.fromJSON(e)) : [],
       raidSize: isSet(object.raidSize) ? globalThis.Number(object.raidSize) : 0,
@@ -1128,6 +1241,10 @@ export const Status: MessageFns<Status> = {
       cpuUsagePrc: isSet(object.cpuUsagePrc) ? globalThis.Number(object.cpuUsagePrc) : 0,
       memSize: isSet(object.memSize) ? globalThis.Number(object.memSize) : 0,
       memUsage: isSet(object.memUsage) ? globalThis.Number(object.memUsage) : 0,
+      raidState: isSet(object.raidState) ? raidStateFromJSON(object.raidState) : 0,
+      raidLevel: isSet(object.raidLevel) ? globalThis.String(object.raidLevel) : "",
+      raidDevicesActive: isSet(object.raidDevicesActive) ? globalThis.Number(object.raidDevicesActive) : 0,
+      raidSyncPercent: isSet(object.raidSyncPercent) ? globalThis.Number(object.raidSyncPercent) : 0,
     };
   },
 
@@ -1135,9 +1252,6 @@ export const Status: MessageFns<Status> = {
     const obj: any = {};
     if (message.online !== false) {
       obj.online = message.online;
-    }
-    if (message.localIp !== "") {
-      obj.localIp = message.localIp;
     }
     if (message.disks !== 0) {
       obj.disks = Math.round(message.disks);
@@ -1166,6 +1280,18 @@ export const Status: MessageFns<Status> = {
     if (message.memUsage !== 0) {
       obj.memUsage = Math.round(message.memUsage);
     }
+    if (message.raidState !== 0) {
+      obj.raidState = raidStateToJSON(message.raidState);
+    }
+    if (message.raidLevel !== "") {
+      obj.raidLevel = message.raidLevel;
+    }
+    if (message.raidDevicesActive !== 0) {
+      obj.raidDevicesActive = Math.round(message.raidDevicesActive);
+    }
+    if (message.raidSyncPercent !== 0) {
+      obj.raidSyncPercent = message.raidSyncPercent;
+    }
     return obj;
   },
 
@@ -1175,7 +1301,6 @@ export const Status: MessageFns<Status> = {
   fromPartial<I extends Exact<DeepPartial<Status>, I>>(object: I): Status {
     const message = createBaseStatus();
     message.online = object.online ?? false;
-    message.localIp = object.localIp ?? "";
     message.disks = object.disks ?? 0;
     message.errors = object.errors?.map((e) => StatusErrors.fromPartial(e)) || [];
     message.raidSize = object.raidSize ?? 0;
@@ -1185,6 +1310,10 @@ export const Status: MessageFns<Status> = {
     message.cpuUsagePrc = object.cpuUsagePrc ?? 0;
     message.memSize = object.memSize ?? 0;
     message.memUsage = object.memUsage ?? 0;
+    message.raidState = object.raidState ?? 0;
+    message.raidLevel = object.raidLevel ?? "";
+    message.raidDevicesActive = object.raidDevicesActive ?? 0;
+    message.raidSyncPercent = object.raidSyncPercent ?? 0;
     return message;
   },
 };

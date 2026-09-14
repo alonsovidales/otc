@@ -1,65 +1,88 @@
 .sv-wrap { padding: 0px; }
-.sv-aside { margin-left: 20px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; height: fit-content; }
-.sv-img-avatar { width: 50px; clip-path: circle(); } 
-.sv-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; font-size: 16px; }
-.sv-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.sv-aside { margin-left: 20px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--panel); height: fit-content; }
+.sv-img-avatar { width: 50px; clip-path: circle(); }
+.sv-input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 16px; background: var(--ink-2); color: var(--mist); }
+.sv-btn { border: 1px solid var(--line); background: var(--ink-2); color: var(--mist); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
 .sv-btn.wide { width: 100%; }
 .sv-btn.small { padding: 6px 8px; font-size: 13px; }
 .sv-btn.tiny { padding: 4px 8px; font-size: 12px; }
-.sv-btn.danger { border-color: #fca5a5; color: #b91c1c; }
-.sv-btn.liked { border-color: #fca5a5; background: #fff1f2; color: #b91c1c; }
+.sv-btn.danger { border-color: rgba(255,138,117,.4); color: var(--danger); }
+.sv-btn.liked { border-color: rgba(255,138,117,.4); background: var(--danger-bg); color: var(--danger); }
 .sv-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 
-.sv-favatar { width: 32px; height: 32px; display: grid; place-items: center; background: #f3f4f6; border-radius: 8px; }
+.sv-favatar { width: 32px; height: 32px; display: grid; place-items: center; background: var(--ink-2); border-radius: 8px; }
 .sv-fmeta { display: flex; flex-direction: column; }
-.sv-fname { font-weight: 600; }
-.sv-fstatus { font-size: 12px; color: #6b7280; }
+.sv-fname { font-weight: 600; color: var(--mist); }
+.sv-fstatus { font-size: 12px; color: var(--mist-dim); }
 .sv-factions { display: flex; gap: 6px; }
 
 .sv-feed { margin: auto; display: flex; flex-direction: column; gap: 16px; }
-.sv-loading-more { text-align: center; color: #6b7280; padding: 12px 0; }
-.sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: #222; margin: auto; }
+.sv-loading-more { text-align: center; color: var(--mist-dim); padding: 12px 0; }
+.sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); margin: auto; }
 .sv-post-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
-.sv-avatar { width: 28px; height: 28px; display: grid; place-items: center; background: #f3f4f6; border-radius: 50%; }
+.sv-avatar { width: 28px; height: 28px; display: grid; place-items: center; background: var(--ink-2); border-radius: 50%; }
 .sv-pub-meta { flex: 1; display: flex; flex-direction: column; }
-.sv-publisher { font-weight: 600; }
-.sv-post-date { font-size: 12px; color: #9aa3af; }
-.sv-post-delete { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 15px; opacity: 0.7; }
+.sv-publisher { font-weight: 600; color: var(--mist); }
+.sv-post-date { font-size: 12px; color: var(--mist-dim); }
+.sv-post-delete { margin-left: auto; border: 0; background: none; color: var(--mist-dim); cursor: pointer; font-size: 15px; opacity: 0.7; }
 .sv-post-delete:hover { opacity: 1; }
 
-.sv-media { position: relative; background: #000; min-height: 200px; display: grid; place-items: center; }
-.sv-media img { max-height: 500px;  width: 100%; height: auto; object-fit: contain; background: #000; cursor: pointer; }
-.sv-media-ph { color: #9aa3af; padding: 20px; }
+.sv-media { position: relative; background: var(--ink-2); min-height: 200px; display: grid; place-items: center; }
+.sv-media img { max-height: 500px;  width: 100%; height: auto; object-fit: contain; background: var(--ink-2); cursor: pointer; }
+.sv-media-ph { color: var(--mist-dim); padding: 20px; }
 
-.sv-caption { padding: 10px 12px; }
-.sv-actions { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid #e5e7eb; }
+/* Issue #68: one dot per image in a multi-image post, current one solid -
+   matches the iOS app's indicator. White/translucent rather than the brand
+   accent on purpose: this sits directly on top of a photo of unknown
+   content/color, where a neutral overlay reads reliably and an
+   ember/gold dot would sometimes just disappear into the image. */
+.sv-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.sv-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+}
+.sv-dot.active { background: #fff; }
+
+.sv-caption { padding: 10px 12px; color: var(--mist); }
+.sv-actions { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); }
 
 /* Issue #29: "who liked this" — a plain text-link button, separate from the
    heart toggle, so tapping the count doesn't also (un)like the post. */
-.sv-likes-link { border: 0; background: none; padding: 0 12px; margin-top: -4px; font-weight: 600; color: #eee; cursor: pointer; text-align: left; }
-.sv-likes-link.tiny { padding: 0; margin: 0; font-size: 12px; color: #9aa3af; }
+.sv-likes-link { border: 0; background: none; padding: 0 12px; margin-top: -4px; font-weight: 600; color: var(--mist); cursor: pointer; text-align: left; }
+.sv-likes-link.tiny { padding: 0; margin: 0; font-size: 12px; color: var(--mist-dim); }
 
 .sv-comments { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .sv-comment { display: flex; align-items: center; gap: 8px; }
 .sv-cmeta { flex: 1; }
-.sv-cname { font-weight: 600; margin-right: 6px; }
-.sv-ctext { color: #eee; }
+.sv-cname { font-weight: 600; margin-right: 6px; color: var(--mist); }
+.sv-ctext { color: var(--mist); }
 
 .sv-newcomment { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 
 /* Issue #32: floating "+" button to compose a new post from the feed. */
-.sv-fab { position: fixed; right: 20px; bottom: 24px; width: 56px; height: 56px; border-radius: 50%; border: 0; background: #2563eb; color: #fff; font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); z-index: 40; display: grid; place-items: center; }
-.sv-fab:hover { background: #1d4ed8; }
+.sv-fab { position: fixed; right: 20px; bottom: 24px; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--ember); color: var(--ember-ink); font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); z-index: 40; display: grid; place-items: center; }
+.sv-fab:hover { filter: brightness(1.08); }
 
 .sv-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 1000; }
-.sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: #0b0b0b; border-radius: 10px; padding: 10px; }
-.sv-close { position: absolute; top: 8px; right: 8px; border: 0; width: 34px; height: 34px; border-radius: 50%; color: #fff; background: rgba(255,255,255,.12); cursor: pointer; }
+.sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.sv-close { position: absolute; top: 8px; right: 8px; border: 0; width: 34px; height: 34px; border-radius: 50%; color: var(--mist); background: var(--panel); cursor: pointer; }
 .sv-full-wrap { position: relative; cursor: pointer; }
 .sv-full { max-width: 90vw; max-height: 80vh; display: block; }
-.sv-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
+.sv-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mist); }
 
 .sv-likers-body { width: 320px; max-width: 90vw; padding: 16px; }
-.sv-likers-title { margin: 0 0 12px; color: #fff; font-size: 1rem; }
+.sv-likers-title { margin: 0 0 12px; color: var(--mist); font-size: 1rem; }
 .sv-likers-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
-.sv-likers-list li { display: flex; align-items: center; gap: 10px; color: #eee; }
-
+.sv-likers-list li { display: flex; align-items: center; gap: 10px; color: var(--mist); }

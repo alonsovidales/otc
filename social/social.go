@@ -39,6 +39,19 @@ const (
 	CommentEvent        = "comment"
 	DelPublicationEvent = "del_publication_event"
 	DelCommentEvent     = "del_comment_event"
+
+	// NewPublication's wait for a just-uploaded file's background thumbnail
+	// (see its own doc comment) — polling interval and how many times to
+	// poll before giving up. Was 20 attempts (~5s total), sized when the
+	// thumbnail step was just a resize; it now also runs EXIF extraction,
+	// HEIC container parsing, and orientation correction (issue #66) on
+	// every image, not only HEIC ones — measured taking 8+ seconds for a
+	// single large photo on a Raspberry Pi, comfortably past the old
+	// budget, which is exactly what turned "publish a brand new photo"
+	// into "error trying to create publication: ... no such file or
+	// directory" for a real, un-raced upload that just hadn't finished yet.
+	cThumbnailPollInterval = 250 * time.Millisecond
+	cThumbnailPollAttempts = 119 // ~30s total at cThumbnailPollInterval, plus the first immediate try
 )
 
 type Social struct {
@@ -156,10 +169,10 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			if err == nil {
 				break
 			}
-			if attempt >= 19 {
+			if attempt >= cThumbnailPollAttempts-1 {
 				return "", err
 			}
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(cThumbnailPollInterval)
 		}
 		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
 		err = os.WriteFile(unencPathThumb, unEncThumb, 0644) // perms: rw-r--r--

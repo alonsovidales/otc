@@ -304,6 +304,20 @@ func (dao *Dao) GetFileByPath(path string) (file *pb.File, err error) {
 // cleared (when this is the last reference to the hash) BEFORE deleting the
 // files row, not after — deleting the parent first is exactly what MySQL's
 // FK check rejects, no matter what cleanup happens afterward.
+//
+// The ref-count check below is a classic check-then-act, and the check
+// alone isn't enough to make it safe once a connection's requests can run
+// concurrently (see websocket.handleConnection on the device side): a
+// batch delete of several duplicated files fires all of their DelFile
+// calls at once now, and two of them targeting the same hash could each
+// see "still >1 other reference" before either has deleted its own row,
+// so neither cleans up file_tags — leaving zero files rows for that hash
+// once both commit, while file_tags still references it, tripping this
+// exact FK error on whichever commits last. `for update` locks every
+// files row sharing this hash for the rest of this transaction, so a
+// second transaction doing the same check for the same hash blocks until
+// the first commits (and by then correctly recounts one fewer reference)
+// instead of racing it.
 func (dao *Dao) DelFileByPath(path string) (err error) {
 	log.Debug("Del file SQL:", path)
 
@@ -322,7 +336,7 @@ func (dao *Dao) DelFileByPath(path string) (err error) {
 	}
 
 	var refCount int
-	if err = tx.QueryRow("select count(*) from `files` where `hash` = ?", hash).Scan(&refCount); err != nil {
+	if err = tx.QueryRow("select count(*) from `files` where `hash` = ? for update", hash).Scan(&refCount); err != nil {
 		return err
 	}
 	if refCount <= 1 {

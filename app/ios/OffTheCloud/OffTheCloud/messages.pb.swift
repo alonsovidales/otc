@@ -63,6 +63,58 @@ public enum Msg_StatusErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
+/// Issue #65: RAID health as its own explicit state, not something the
+/// client has to infer from errors being present/absent. NoRaid covers a
+/// device with no md array at all (e.g. a single-disk test box) as distinct
+/// from Unknown (an array exists but /proc/mdstat couldn't be parsed) —
+/// both render as "no bar to draw", but they're different enough
+/// conditions to keep separate rather than collapsing to one "n/a" value.
+public enum Msg_RaidState: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case raidUnknown // = 0
+  case raidNone // = 1
+  case raidInSync // = 2
+  case raidSyncing // = 3
+  case raidDegraded // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .raidUnknown
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .raidUnknown
+    case 1: self = .raidNone
+    case 2: self = .raidInSync
+    case 3: self = .raidSyncing
+    case 4: self = .raidDegraded
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .raidUnknown: return 0
+    case .raidNone: return 1
+    case .raidInSync: return 2
+    case .raidSyncing: return 3
+    case .raidDegraded: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Msg_RaidState] = [
+    .raidUnknown,
+    .raidNone,
+    .raidInSync,
+    .raidSyncing,
+    .raidDegraded,
+  ]
+
+}
+
 public enum Msg_FriendShipStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case pending // = 0
@@ -220,8 +272,7 @@ public struct Msg_Status: Sendable {
 
   public var online: Bool = false
 
-  public var localIp: String = String()
-
+  /// total physical devices in the RAID array (0 if none)
   public var disks: Int32 = 0
 
   public var errors: [Msg_StatusErrors] = []
@@ -239,6 +290,18 @@ public struct Msg_Status: Sendable {
   public var memSize: Int32 = 0
 
   public var memUsage: Int32 = 0
+
+  /// Issue #65: parsed from /proc/mdstat - see status.readRaidStatus.
+  public var raidState: Msg_RaidState = .raidUnknown
+
+  /// e.g. "raid1", "raid5"; "" if no array
+  public var raidLevel: String = String()
+
+  /// active/in-sync devices, out of `disks`
+  public var raidDevicesActive: Int32 = 0
+
+  /// only meaningful when raid_state == Syncing
+  public var raidSyncPercent: Float = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2257,6 +2320,10 @@ extension Msg_StatusErrorCode: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DiskError\0\u{1}Syncing\0\u{1}MissingDisk\0\u{1}ErrorInDisk\0")
 }
 
+extension Msg_RaidState: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0RaidUnknown\0\u{1}RaidNone\0\u{1}RaidInSync\0\u{1}RaidSyncing\0\u{1}RaidDegraded\0")
+}
+
 extension Msg_FriendShipStatus: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0Pending\0\u{1}Accepted\0\u{1}Blocked\0")
 }
@@ -2325,7 +2392,7 @@ extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
 extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Status"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{3}local_ip\0\u{1}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2334,7 +2401,6 @@ extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.online) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.localIp) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.disks) }()
       case 4: try { try decoder.decodeRepeatedMessageField(value: &self.errors) }()
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.raidSize) }()
@@ -2344,6 +2410,10 @@ extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
       case 9: try { try decoder.decodeSingularFloatField(value: &self.cpuUsagePrc) }()
       case 10: try { try decoder.decodeSingularInt32Field(value: &self.memSize) }()
       case 11: try { try decoder.decodeSingularInt32Field(value: &self.memUsage) }()
+      case 12: try { try decoder.decodeSingularEnumField(value: &self.raidState) }()
+      case 13: try { try decoder.decodeSingularStringField(value: &self.raidLevel) }()
+      case 14: try { try decoder.decodeSingularInt32Field(value: &self.raidDevicesActive) }()
+      case 15: try { try decoder.decodeSingularFloatField(value: &self.raidSyncPercent) }()
       default: break
       }
     }
@@ -2352,9 +2422,6 @@ extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if self.online != false {
       try visitor.visitSingularBoolField(value: self.online, fieldNumber: 1)
-    }
-    if !self.localIp.isEmpty {
-      try visitor.visitSingularStringField(value: self.localIp, fieldNumber: 2)
     }
     if self.disks != 0 {
       try visitor.visitSingularInt32Field(value: self.disks, fieldNumber: 3)
@@ -2383,12 +2450,23 @@ extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
     if self.memUsage != 0 {
       try visitor.visitSingularInt32Field(value: self.memUsage, fieldNumber: 11)
     }
+    if self.raidState != .raidUnknown {
+      try visitor.visitSingularEnumField(value: self.raidState, fieldNumber: 12)
+    }
+    if !self.raidLevel.isEmpty {
+      try visitor.visitSingularStringField(value: self.raidLevel, fieldNumber: 13)
+    }
+    if self.raidDevicesActive != 0 {
+      try visitor.visitSingularInt32Field(value: self.raidDevicesActive, fieldNumber: 14)
+    }
+    if self.raidSyncPercent.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.raidSyncPercent, fieldNumber: 15)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_Status, rhs: Msg_Status) -> Bool {
     if lhs.online != rhs.online {return false}
-    if lhs.localIp != rhs.localIp {return false}
     if lhs.disks != rhs.disks {return false}
     if lhs.errors != rhs.errors {return false}
     if lhs.raidSize != rhs.raidSize {return false}
@@ -2398,6 +2476,10 @@ extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
     if lhs.cpuUsagePrc != rhs.cpuUsagePrc {return false}
     if lhs.memSize != rhs.memSize {return false}
     if lhs.memUsage != rhs.memUsage {return false}
+    if lhs.raidState != rhs.raidState {return false}
+    if lhs.raidLevel != rhs.raidLevel {return false}
+    if lhs.raidDevicesActive != rhs.raidDevicesActive {return false}
+    if lhs.raidSyncPercent != rhs.raidSyncPercent {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

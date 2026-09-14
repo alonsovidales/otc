@@ -6,13 +6,13 @@
   margin: auto;
   margin-top: 3px;
   height: 40px;
-  border: 1px solid #1f2937;      /* gray-800 */
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: #0f172a;            /* slate-900 */
-  color: #e5e7eb;                 /* gray-200 */
+  background: var(--ink-2);
+  color: var(--mist);
   box-shadow: 0 8px 24px rgba(0,0,0,0.18);
 }
-.status-widget2.has-errors { border-color: #7f1d1d; }
+.status-widget2.has-errors { border-color: rgba(255,138,117,.4); }
 
 /* Collapsed face (what you always see) */
 .sw2-face {
@@ -28,9 +28,27 @@
   gap: 8px;
   margin-bottom: 4px;
 }
-.sw2-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
-.sw2-dot.ok { background: #22c55e; }
+/* Semantic status colors (ok/warning/critical) are deliberately kept
+   distinct from the ember/gold brand accent — this is disk/RAID health,
+   not a brand moment. */
+.sw2-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.sw2-dot.ok { background: var(--success); }
 .sw2-title { font-weight: 700; font-size: 14px; }
+
+/* Row wrapping the usage bar so the degraded-RAID alert triangle can sit
+   right next to it, visible on the collapsed face without needing to
+   hover for the popover's own error detail. */
+.sw2-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sw2-bar-row .sw2-bar { flex: 1; }
+.sw2-alert {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 1;
+}
 
 /* Tri-color usage bar
    BG is a full-width gradient with stops at 60% and 90%.
@@ -40,7 +58,7 @@
   height: 10px;
   border-radius: 6px;
   overflow: hidden;
-  background: #111827; /* base */
+  background: var(--ink);
 }
 .sw2-bar-bg {
   position: absolute; inset: 0;
@@ -63,19 +81,22 @@
 }
 .sw2-bar-labels {
   display: flex; justify-content: space-between;
-  font-size: 10px; color: #9ca3af; margin-top: 4px;
+  font-size: 10px; color: var(--mist-dim); margin-top: 4px;
 }
 
-/* one-line status summary */
+/* one-line status summary - sits in the same bottom grid slot as
+   .sw2-errors (all-clear when there's nothing to list) or standalone in the
+   no-data fallback, so it spans both columns either way. */
 .sw2-summary {
+  grid-column: 1 / -1;
   margin-top: 4px;
   font-size: 12px;
   line-height: 16px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   opacity: 0.9;
 }
-.sw2-summary.ok  { color: #a7f3d0; } /* emerald-200 */
-.sw2-summary.bad { color: #fca5a5; } /* red-300 */
+.sw2-summary.ok  { color: var(--success); }
+.sw2-summary.bad { color: var(--danger); }
 
 /* Floating popover: appears on hover, doesn't change layout */
 .sw2-pop {
@@ -86,8 +107,8 @@
   max-height: 0;
   overflow: hidden;
   border-radius: 10px;
-  border: 1px solid #1f2937;
-  background: #0b1220;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
   box-shadow: 0 16px 40px rgba(0,0,0,0.35);
   transition: max-height 220ms ease, opacity 120ms ease;
   opacity: 0;
@@ -107,10 +128,10 @@
   padding: 12px;
   font-size: 12px;
   line-height: 16px;
+  color: var(--mist);
 }
 .sw2-errors {
   grid-column: 1 / -1;
   margin-top: 4px;
-  color: #fecaca;
+  color: var(--danger);
 }
-

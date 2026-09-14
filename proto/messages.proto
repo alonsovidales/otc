@@ -21,10 +21,27 @@ message StatusErrors {
 message GetStatus {
 }
 
+// Issue #65: RAID health as its own explicit state, not something the
+// client has to infer from errors being present/absent. NoRaid covers a
+// device with no md array at all (e.g. a single-disk test box) as distinct
+// from Unknown (an array exists but /proc/mdstat couldn't be parsed) —
+// both render as "no bar to draw", but they're different enough
+// conditions to keep separate rather than collapsing to one "n/a" value.
+enum RaidState {
+  RaidUnknown = 0;
+  RaidNone = 1;
+  RaidInSync = 2;
+  RaidSyncing = 3;
+  RaidDegraded = 4;
+}
+
 message Status {
   bool online = 1;
-  string  local_ip = 2;
-  int32  disks = 3;
+  reserved 2; // was local_ip - issue #65: a device's IP has no place in
+              // its own status readout, and nothing ever actually
+              // populated this field to begin with.
+  reserved "local_ip";
+  int32  disks = 3; // total physical devices in the RAID array (0 if none)
   repeated StatusErrors  errors = 4;
   int32  raid_size = 5;
   int32  raid_usage = 6;
@@ -33,6 +50,11 @@ message Status {
   float  cpu_usage_prc = 9;
   int32  mem_size = 10;
   int32  mem_usage = 11;
+  // Issue #65: parsed from /proc/mdstat - see status.readRaidStatus.
+  RaidState raid_state = 12;
+  string raid_level = 13;           // e.g. "raid1", "raid5"; "" if no array
+  int32 raid_devices_active = 14;   // active/in-sync devices, out of `disks`
+  float raid_sync_percent = 15;     // only meaningful when raid_state == Syncing
 }
 
 message Auth {

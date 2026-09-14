@@ -78,6 +78,16 @@ export default function FilesExplorer({
   // Image viewer
   const [viewer, setViewer] = useState<{ name: string; url: string } | null>(null);
 
+  // Issue #71: the only feedback a click on a file used to get was however
+  // long GetFile's round trip took - nothing changed on screen in the
+  // meantime, so it looked stuck, and clicking again (or on other rows,
+  // thinking the first click missed) queued up that many concurrent opens,
+  // each popping its own viewer/tab open once its own fetch happened to
+  // land. Tracking which single path is in flight both drives a loading
+  // state on that row and - via the guard in openEntry below - makes every
+  // other click a no-op until it's done.
+  const [openingPath, setOpeningPath] = useState<string | null>(null);
+
   // -------- load list (1, 3, 4) ----------
   const loadList = useCallback(async (p: string) => {
     setLoading(true); setError(null);
@@ -168,36 +178,52 @@ export default function FilesExplorer({
       return;
     }
 
-    if (isImg(f)) {
-      // open image in modal (fetch hi-res via GetFile)
-      try {
-        const fullPath = f.path.includes("/") ? f.path : joinPath(path, f.path);
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: fullPath } };
-        });
-        if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
-          const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
-          setViewer({ name: leafName(f.path), url });
-        }
-      } catch { /* ignore */ }
-      return;
-    }
+    // Issue #71: single-flight - a click while one open is already in
+    // progress (this row or another) is ignored rather than queued, so it
+    // can't pile up into several viewers/tabs popping open back to back
+    // once each fetch happens to land.
+    if (openingPath !== null) return;
+    setOpeningPath(f.path);
 
-    // non-image: download
+    // Issue #72: open a blank tab synchronously, in the same tick as the
+    // click, for a non-image - a tab opened later, after the GetFile
+    // await below resolves, reads to the browser as unrelated to the
+    // click that "caused" it, and gets popup-blocked. Filling in its
+    // location once the content's actually in hand still shows the
+    // browser's native viewer for anything it can render (PDFs chief among
+    // them) instead of always forcing a download the way this used to,
+    // unconditionally, for every non-image type.
+    const preopenedTab = isImg(f) ? null : window.open("", "_blank");
+
     try {
       const fullPath = f.path.includes("/") ? f.path : joinPath(path, f.path);
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: fullPath } };
       });
-      if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
-        const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+      if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) {
+        preopenedTab?.close();
+        return;
+      }
+      const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+      if (isImg(f)) {
+        setViewer({ name: leafName(f.path), url });
+      } else if (preopenedTab) {
+        preopenedTab.location.href = url;
+      } else {
+        // Popup blocked (or the browser otherwise refused window.open) -
+        // falling all the way back to a forced download beats losing the
+        // file entirely.
         const a = document.createElement("a");
         a.href = url;
         a.download = leafName(f.path);
         document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
       }
-    } catch { /* ignore */ }
+    } catch {
+      preopenedTab?.close();
+    } finally {
+      setOpeningPath(null);
+    }
   };
 
   // -------- selection + actions (6) ----------
@@ -318,8 +344,13 @@ export default function FilesExplorer({
                   className={`${r.isDir ? "link" : "file"}`}
                   title={r.name}
                   onClick={() => openEntry(r.file)}
+                  disabled={openingPath !== null}
                 >
-                  {r.name}
+                  {/* Issue #71: a spinner in place of the row's own label
+                      while its GetFile round trip is in flight - the only
+                      feedback a click used to get was however long that
+                      took, which just looked stuck. */}
+                  {openingPath === r.file.path ? <span className="fb-opening">Opening…</span> : r.name}
                 </button>
               </div>
               <div className="c c-size">{r.isDir ? "—" : fmtBytes(r.size)}</div>

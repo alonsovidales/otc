@@ -34,6 +34,9 @@ func TestFromJPEGReadsGPSAndCameraInfo(t *testing.T) {
 	if !info.HasTakenAt {
 		t.Error("expected HasTakenAt to be true")
 	}
+	if info.Orientation != 1 {
+		t.Errorf("expected orientation 1 (normal) for this fixture, got %d", info.Orientation)
+	}
 }
 
 func TestFromHEICReadsGPSAndCameraInfo(t *testing.T) {
@@ -53,6 +56,9 @@ func TestFromHEICReadsGPSAndCameraInfo(t *testing.T) {
 	}
 	if !info.HasTakenAt {
 		t.Error("expected HasTakenAt to be true")
+	}
+	if info.Orientation != 1 {
+		t.Errorf("expected orientation 1 (normal) for this fixture, got %d", info.Orientation)
 	}
 }
 

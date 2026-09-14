@@ -3,9 +3,9 @@
   grid-template-columns: 140px 1fr;
   gap: 16px;
   padding: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--panel);
   align-items: start;
   margin: auto;
   max-width: 600px;
@@ -23,43 +23,46 @@
   height: 120px;
   border-radius: 12px;
   object-fit: cover;
-  background: #f3f4f6;
+  background: var(--ink-2);
 }
 .pc-placeholder {
   display: grid;
   place-items: center;
   font-size: 42px;
-  color: #9aa3af;
+  color: var(--mist-dim);
 }
 
 .pc-btn {
   font-size: 13px;
-  color: #1f6feb;
+  color: var(--ember);
   cursor: pointer;
 }
 
 .pc-right { display: flex; flex-direction: column; gap: 10px; }
 
-.pc-name { color: #000000; margin: 0; font-size: 18px; }
-.pc-text { margin: 0; color: #4b5563; }
+.pc-name { color: var(--mist); margin: 0; font-size: 18px; }
+.pc-text { margin: 0; color: var(--mist-dim); }
 
 .pc-row { display: grid; align-items: start; }
-.pc-row label { color: #6b7280; font-size: 14px; padding-top: 10px; }
+.pc-row label { color: var(--mist-dim); font-size: 14px; padding-top: 10px; }
 
 .pc-input, .pc-textarea {
   width: 94%;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 14px;
+  background: var(--ink-2);
+  color: var(--mist);
 }
 
 .pc-actions { display: flex; justify-content: flex-end; }
 
 .pc-follow {
   border: 0;
-  background: #1f6feb;
-  color: #fff;
+  background: var(--ember);
+  color: var(--ember-ink);
+  font-weight: 600;
   padding: 10px 14px;
   border-radius: 8px;
   cursor: pointer;
@@ -68,8 +71,9 @@
 
 .pc-save {
   border: 0;
-  background: #1f6feb;
-  color: #fff;
+  background: var(--ember);
+  color: var(--ember-ink);
+  font-weight: 600;
   padding: 10px 14px;
   border-radius: 8px;
   cursor: pointer;
@@ -77,11 +81,10 @@
 .pc-save:disabled { opacity: .6; cursor: default; }
 
 .pc-status { padding: 8px 10px; border-radius: 8px; font-size: 13px; }
-.pc-status.error { background: #fde2e2; color: #991b1b; }
-.pc-status.success { background: #e7f7ee; color: #166534; }
+.pc-status.error { background: var(--danger-bg); color: var(--danger); }
+.pc-status.success { background: var(--success-bg); color: var(--success); }
 
 /* skeletons for loading state (read-only view) */
-.pc-skel { width: 120px; height: 120px; border-radius: 12px; background: #f3f4f6; }
-.pc-line { height: 14px; background: #f3f4f6; border-radius: 6px; }
+.pc-skel { width: 120px; height: 120px; border-radius: 12px; background: var(--ink-2); }
+.pc-line { height: 14px; background: var(--ink-2); border-radius: 6px; }
 .pc-line.short { width: 40%; }
-

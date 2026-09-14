@@ -293,6 +293,13 @@ shared-link-ttl-hours=168
 # running your own separate network of devices under your own domain
 # instead of the public off-the.cloud bridge.
 friend-domain-tld=off-the.cloud
+# How many standby connections this device keeps open to the bridge, ready
+# to be handed to a client (see websocket.ensureBridgePool). Each one is
+# pinned to a client for that client's *entire* session, not released after
+# one request, so this needs to cover every concurrent session (phone app,
+# Mac app, browser tabs, friends) this device is expected to serve through
+# the bridge at once. Defaults to 20 if omitted.
+bridge-pool-target=20
 
 [logger]
 log_file=/var/log/otc/otc.log

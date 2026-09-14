@@ -34,10 +34,16 @@ final class OTCConnection: ObservableObject {
     }
 
     /// Sends a request, connecting/authenticating first if needed. Retries
-    /// once if the socket died mid-flight (e.g. woke from background).
+    /// once end-to-end (a fresh connect+auth, then the request again) if
+    /// anything in that path fails — including the connect/auth handshake
+    /// itself, not just the request after it succeeded. Without covering the
+    /// handshake too, a transient failure right as the device restarts (the
+    /// common case: a deploy) surfaced as a hard error instead of quietly
+    /// reconnecting, since ensureConnected() throwing used to bypass the
+    /// retry entirely.
     func request(_ build: @escaping (inout Msg_ReqEnvelope) -> Void) async throws -> Msg_RespEnvelope {
-        try await ensureConnected()
         do {
+            try await ensureConnected()
             return try await ws.request(build: build)
         } catch {
             authenticated = false
@@ -77,31 +83,47 @@ final class OTCConnection: ObservableObject {
 
         try await ws.connect(url: url)
 
-        // Fetch this connection's ephemeral public key and encrypt the
-        // password with it before it ever leaves the device (issue #2: the
-        // bridge only relays already-encrypted payloads).
-        let pubKeyResp = try await ws.request { req in
-            req.payload = .reqGetPubKey(Msg_GetPubKey())
-        }
-        guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
-            throw NSError(domain: "OTCConnection", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch the connection's public key"])
-        }
-        let encryptedKey = try PwCrypto.encryptPassword(secrets.password, pubKeyDER: pubKey.publicKey)
+        // Everything past this point talks over a live socket that, once
+        // connected through the bridge, is pinned to this app's session for
+        // as long as it stays open (the bridge hands one of its device's
+        // pool connections to whoever connects, then reuses that same
+        // pairing for every later message — it doesn't release it back
+        // after just one request/response). So a failure partway through
+        // the handshake below must close the socket before giving up,
+        // not just abandon it: leaving it open would sit there holding
+        // that pool slot hostage for nothing, since a handshake that
+        // already failed here (bad pubkey response, rejected auth) isn't
+        // going to start working by being left alone.
+        do {
+            // Fetch this connection's ephemeral public key and encrypt the
+            // password with it before it ever leaves the device (issue #2:
+            // the bridge only relays already-encrypted payloads).
+            let pubKeyResp = try await ws.request { req in
+                req.payload = .reqGetPubKey(Msg_GetPubKey())
+            }
+            guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
+                throw NSError(domain: "OTCConnection", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch the connection's public key"])
+            }
+            let encryptedKey = try PwCrypto.encryptPassword(secrets.password, pubKeyDER: pubKey.publicKey)
 
-        var auth = Msg_Auth()
-        auth.uuid = secrets.deviceId
-        auth.key = encryptedKey
-        auth.create = false
+            var auth = Msg_Auth()
+            auth.uuid = secrets.deviceId
+            auth.key = encryptedKey
+            auth.create = false
 
-        let resp = try await ws.request { req in
-            req.payload = .reqAuth(auth)
-        }
-        guard case .respAck(let ack) = resp.payload, ack.ok else {
-            let msg: String
-            if case .respAck(let ack) = resp.payload { msg = ack.errorMsg }
-            else { msg = "Authentication failed" }
-            lastError = msg
-            throw NSError(domain: "OTCConnection", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
+            let resp = try await ws.request { req in
+                req.payload = .reqAuth(auth)
+            }
+            guard case .respAck(let ack) = resp.payload, ack.ok else {
+                let msg: String
+                if case .respAck(let ack) = resp.payload { msg = ack.errorMsg }
+                else { msg = "Authentication failed" }
+                lastError = msg
+                throw NSError(domain: "OTCConnection", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
+            }
+        } catch {
+            await ws.close()
+            throw error
         }
 
         lastError = nil

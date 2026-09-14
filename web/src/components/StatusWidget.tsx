@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
+import { RaidState } from "../proto/messages";
 import type { ReqEnvelope, RespEnvelope, Status as MsgStatus } from "../proto/messages";
 
 type Props = {
@@ -21,6 +22,19 @@ function round(num: number) {
 function pct(used?: number | null, total?: number | null) {
   if (!used || !total || total <= 0) return 0;
   return round((used/total) * 100);
+}
+
+// Issue #65: a plain, always-visible read of the RAID's own health -
+// "in sync"/"syncing"/"degraded" - rather than something the user has to
+// infer from whether an error banner happens to be showing.
+function raidStateLabel(status: MsgStatus): string {
+  switch (status.raidState) {
+    case RaidState.RaidNone: return "No RAID";
+    case RaidState.RaidInSync: return "In sync";
+    case RaidState.RaidSyncing: return `Syncing (${round(status.raidSyncPercent)}%)`;
+    case RaidState.RaidDegraded: return "Degraded";
+    default: return "Unknown";
+  }
 }
 
 const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
@@ -70,22 +84,19 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useWS.connected(), refreshMs]);
 
-  // tooltip text when collapsed
-  const summary =
-    err ? err :
-    hasErrors ? (status!.errors![0].Message || "Error") :
-    "All systems nominal";
-
   return (
     <div className={`status-widget2 ${className ?? ""} ${hasErrors ? "has-errors" : ""}`}>
       {/* Collapsed face (270x70) */}
       <div className="sw2-face" title={useWS.connected() ? "Server status" : "Disconnected"}>
         {/* RAID usage bar with tri-color palette */}
-        <div className="sw2-bar">
-          {/* background shows 0–60 green, 60–90 yellow, 90–100 red */}
-          <div className="sw2-bar-bg" />
-          {/* used overlay simply clips to used% */}
-          <div className="sw2-bar-used" style={{ width: `${usedPct}%` }} />
+        <div className="sw2-bar-row">
+          <div className="sw2-bar">
+            {/* background shows 0–60 green, 60–90 yellow, 90–100 red */}
+            <div className="sw2-bar-bg" />
+            {/* used overlay simply clips to used% */}
+            <div className="sw2-bar-used" style={{ width: `${usedPct}%` }} />
+          </div>
+          {hasErrors && <span className="sw2-alert" title="Needs attention">⚠️</span>}
         </div>
         <div className="sw2-bar-labels">
           <span>Used: {formatMB(status?.raidUsage)} ({usedPct}%)</span>
@@ -94,25 +105,26 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
 
       {/* Floating details (overlay; does NOT resize layout) */}
       <div className="sw2-pop">
-        {/* one-line summary / error */}
-        <div className={`sw2-summary ${err || hasErrors ? "bad" : "ok"}`}>
-          {summary}
-        </div>
         {status ? (
           <div className="sw2-grid">
             <div><strong>Free:</strong> {formatMB(freeMB)}</div>
-            <div><strong>Disks:</strong> {status.disks ?? "-"}</div>
-            <div><strong>Local IP:</strong> {status.localIp ?? "-"}</div>
-            <div><strong>RAID:</strong> {formatMB(status.raidUsage)} / {formatMB(status.raidSize)}</div>
+            <div><strong>Disks:</strong> {status.disks || "-"}</div>
+            <div><strong>RAID:</strong> {status.raidLevel ? `${status.raidLevel} — ${raidStateLabel(status)}` : raidStateLabel(status)}</div>
+            <div><strong>Used:</strong> {formatMB(status.raidUsage)} / {formatMB(status.raidSize)}</div>
             <div><strong>Disk:</strong> {formatMB(status.diskUsage)} / {formatMB(status.diskSize)}</div>
             <div><strong>CPU:</strong> {status.cpuUsagePrc != null ? `${round(status.cpuUsagePrc)}%` : "-"}</div>
             <div><strong>Mem:</strong> {formatMB(status.memUsage)} / {formatMB(status.memSize)}</div>
-            {hasErrors && (
+            {/* Same bottom slot either way: every error listed if there are
+                any, or a plain all-clear line if not - not a duplicate
+                top-of-popover message repeating the first error. */}
+            {hasErrors ? (
               <div className="sw2-errors">
                 {status.errors!.map((e, i) => (
                   <div key={i}>• {e.Message || String(e.StatusErrorCode)}</div>
                 ))}
               </div>
+            ) : (
+              <div className="sw2-summary ok">All systems nominal</div>
             )}
           </div>
         ) : (

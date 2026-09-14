@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime/debug"
+	"strconv"
 	"sync"
 	"time"
 
@@ -37,22 +38,34 @@ const (
 	CEndpoint        = "/ws"
 	cWorkerSleepSecs = 120
 
-	// Bridge connection pool (each connection is single-use — the bridge
-	// closes it after relaying exactly one request, see
-	// bridge/websocket/websocket.go's default case). Rather than dialing a
-	// fixed number once at startup and hoping it's enough, this device
-	// keeps cBridgePoolTarget ready at all times: whenever the count of
-	// still-open (not yet consumed) connections drops to
-	// cBridgePoolLowWater, it opens cBridgePoolRefillBatch more. A pool
-	// sized only for steady-state traffic used to empty out under a real
-	// burst (several clients relayed through at once) faster than the
-	// old one-goroutine-self-replaces-itself loop could redial, which
-	// surfaced to users as "No available connections in the pool" —
-	// bumping the *static* count higher only raises how big a burst it
-	// takes to reproduce that, not the underlying issue.
-	cBridgePoolTarget      = 5
-	cBridgePoolRefillBatch = 2
-	cBridgePoolLowWater    = cBridgePoolTarget - cBridgePoolRefillBatch
+	// Bridge connection pool. A connection is consumed for as long as the
+	// bridge-side client that picked it up keeps its socket open — see
+	// bridge/websocket/websocket.go's default case, which pins one pool
+	// connection to a client for that client's *entire* session (every
+	// message after the first reuses the same pairing), not just its first
+	// request. A previous version of this comment claimed each connection
+	// was released after one request; that hasn't been true since the
+	// bridge started pinning connections for a whole session, and sizing
+	// the pool as if it were (5 ready, assuming they'd cycle back quickly)
+	// is exactly what caused "No available connections in the pool" under
+	// completely ordinary use — a phone app, a Mac app, and a browser tab
+	// each hold one connection for as long as they're open, not just for
+	// the length of one round trip.
+	//
+	// Rather than dialing a fixed number once at startup and hoping it's
+	// enough, this device keeps cBridgePoolTarget() ready at all times:
+	// whenever the count of still-open (not yet consumed) connections
+	// drops to cBridgePoolLowWater(), it opens enough more to reach target
+	// again (see ensureBridgePool).
+	//
+	// cDefaultBridgePoolTarget is deliberately generous given the
+	// per-session (not per-request) consumption above — it only costs one
+	// idle websocket per spare slot. [otc] bridge-pool-target overrides it
+	// for a device that legitimately needs more concurrent sessions than
+	// that (a household with several people/devices talking to it through
+	// the bridge at once).
+	cDefaultBridgePoolTarget = 20
+	cBridgePoolRefillBatch   = 4
 )
 
 // bridgeConnPool tracks this device's own accounting of its bridge
@@ -150,18 +163,44 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 
 }
 
+// bridgePoolTarget reads [otc] bridge-pool-target, falling back to
+// cDefaultBridgePoolTarget if that section/key is absent — deliberately
+// optional config, not a required one, so existing deployments don't need
+// an ini change just to pick up a new default. Reads the raw string and
+// parses it here rather than going through cfg.GetInt: that logs an error
+// on every call whenever the key is simply absent (the expected common
+// case for an optional key), not only on a genuinely malformed value,
+// which would otherwise spam the log every time ensureBridgePool runs.
+func bridgePoolTarget() int {
+	if cfg.HasSection("otc") {
+		if s := cfg.GetStr("otc", "bridge-pool-target"); s != "" {
+			if v, err := strconv.Atoi(s); err == nil && v > 0 {
+				return v
+			}
+		}
+	}
+	return cDefaultBridgePoolTarget
+}
+
+// bridgePoolLowWater is how low (available+pending together) the pool has
+// to drop before ensureBridgePool tops it back up — cBridgePoolRefillBatch
+// short of the target, same reasoning as before sizing became configurable.
+func bridgePoolLowWater() int {
+	return bridgePoolTarget() - cBridgePoolRefillBatch
+}
+
 // ensureBridgePool tops the bridge connection pool back up to
-// cBridgePoolTarget whenever it's dropped to cBridgePoolLowWater or below
+// bridgePoolTarget() whenever it's dropped to bridgePoolLowWater() or below
 // (available+pending together, so a dial already in flight counts toward
 // the target and doesn't trigger a redundant second batch). Always opens
 // exactly enough to reach the target, not a fixed cBridgePoolRefillBatch —
 // which happens to be the same thing in the steady-state case this was
 // designed around (one connection trickling down to the next at a time
-// puts total at exactly cBridgePoolLowWater, cBridgePoolRefillBatch short
+// puts total at exactly the low water mark, cBridgePoolRefillBatch short
 // of target), but matters at startup, where total starts at 0 and a fixed
-// +2 would leave the pool stuck below target forever (nothing re-checks
+// batch would leave the pool stuck below target forever (nothing re-checks
 // until a connection already in the pool gets consumed - see
-// openBridgeConn - which two idle, never-consumed connections would never
+// openBridgeConn - which idle, never-consumed connections would never
 // trigger on their own).
 //
 // Called once at startup, and again every time a connection is actually
@@ -169,11 +208,14 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 // attempt, which schedules its own jittered retry instead (see
 // failedBridgeDial) rather than competing with this for the same refill.
 func (mg *Manager) ensureBridgePool() {
+	target := bridgePoolTarget()
+	lowWater := bridgePoolLowWater()
+
 	mg.bridgePool.mu.Lock()
 	total := mg.bridgePool.available + mg.bridgePool.pending
 	var toOpen int
-	if total <= cBridgePoolLowWater {
-		toOpen = cBridgePoolTarget - total
+	if total <= lowWater {
+		toOpen = target - total
 		mg.bridgePool.pending += toOpen
 	}
 	mg.bridgePool.mu.Unlock()
@@ -184,8 +226,9 @@ func (mg *Manager) ensureBridgePool() {
 }
 
 // openBridgeConn dials, registers, and then serves exactly one bridge
-// connection for its whole single-use lifetime (see cBridgePoolTarget's
-// doc comment). The caller (ensureBridgePool, or failedBridgeDial's own
+// connection for its whole single-use lifetime — one client's entire
+// session, not just one request (see the pool constants' doc comment
+// above). The caller (ensureBridgePool, or failedBridgeDial's own
 // retry) has already accounted for this attempt in pending before spawning
 // it — this function's job is just to move that accounting forward
 // correctly as the attempt succeeds, fails, or the connection is
@@ -371,8 +414,20 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	mg.handleConnection(conn, r)
 }
 
+// connHandler holds one WebSocket connection's per-connection state.
+// Requests on a connection are now processed concurrently (see
+// handleConnection) rather than one at a time, so every field below that
+// gets set during the connection's lifetime (as opposed to fixed at
+// construction, like mg) is guarded by mu — a request reading ch.session
+// while the Auth request that sets it is still in flight is a real
+// possibility now, not just a theoretical one, and needs an actual
+// happens-before relationship (not just "it'll usually already be set by
+// the time this runs"), or it's a data race regardless of how unlikely to
+// misbehave in practice.
 type connHandler struct {
-	mg            *Manager
+	mg *Manager
+
+	mu            sync.RWMutex
 	session       *session.Session
 	friendProfile *profile.Profile
 	// privKey is an ephemeral RSA keypair generated per WebSocket connection.
@@ -382,14 +437,65 @@ type connHandler struct {
 	privKey *rsa.PrivateKey
 }
 
+func (ch *connHandler) getSession() *session.Session {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	return ch.session
+}
+
+func (ch *connHandler) setSession(s *session.Session) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	ch.session = s
+}
+
+func (ch *connHandler) getFriendProfile() *profile.Profile {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	return ch.friendProfile
+}
+
+func (ch *connHandler) setFriendProfile(p *profile.Profile) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	ch.friendProfile = p
+}
+
+func (ch *connHandler) getPrivKey() *rsa.PrivateKey {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	return ch.privKey
+}
+
+// getOrCreatePrivKey returns this connection's keypair, generating it on
+// first call. The check-then-generate-then-set has to happen under one
+// lock, not as separate getPrivKey/setPrivKey calls, since two GetPubKey
+// requests racing each other would otherwise both see nil and each
+// generate their own keypair, with whichever sets ch.privKey last silently
+// winning — the client that got the other one back would then fail every
+// decrypt on this connection.
+func (ch *connHandler) getOrCreatePrivKey() (*rsa.PrivateKey, error) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	if ch.privKey == nil {
+		key, err := rsa.GenerateKey(crand.Reader, 2048)
+		if err != nil {
+			return nil, err
+		}
+		ch.privKey = key
+	}
+	return ch.privKey, nil
+}
+
 // decryptSecret decrypts an RSA-OAEP(SHA-256) ciphertext produced by a
 // client using the public key returned from GetPubKey on this same
 // connection. It's used for Auth.key and ChangeKey.old_key/new_key.
 func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
-	if ch.privKey == nil {
+	privKey := ch.getPrivKey()
+	if privKey == nil {
 		return "", errors.New("no public key was requested for this connection")
 	}
-	plain, err := rsa.DecryptOAEP(sha256.New(), crand.Reader, ch.privKey, ciphertext, nil)
+	plain, err := rsa.DecryptOAEP(sha256.New(), crand.Reader, privKey, ciphertext, nil)
 	if err != nil {
 		return "", errors.New("unable to decrypt key material")
 	}
@@ -403,18 +509,15 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 
 	switch p := env.Payload.(type) {
 	case *pb.ReqEnvelope_ReqGetPubKey:
-		if ch.privKey == nil {
-			key, err := rsa.GenerateKey(crand.Reader, 2048)
-			if err != nil {
-				log.Error("error generating connection keypair:", err)
-				resp.Error = true
-				resp.ErrorMessage = "error generating keypair"
-				break
-			}
-			ch.privKey = key
+		privKey, err := ch.getOrCreatePrivKey()
+		if err != nil {
+			log.Error("error generating connection keypair:", err)
+			resp.Error = true
+			resp.ErrorMessage = "error generating keypair"
+			break
 		}
 
-		pubDER, err := x509.MarshalPKIXPublicKey(&ch.privKey.PublicKey)
+		pubDER, err := x509.MarshalPKIXPublicKey(&privKey.PublicKey)
 		if err != nil {
 			log.Error("error marshaling public key:", err)
 			resp.Error = true
@@ -468,7 +571,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			return resp, true
 		}
 		log.Info("Authenticated as friend")
-		ch.friendProfile = profile.InitFromPb(ch.mg.dao, friendship.OriginProfile)
+		ch.setFriendProfile(profile.InitFromPb(ch.mg.dao, friendship.OriginProfile))
 
 		resp.Payload = &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
@@ -528,7 +631,11 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	case *pb.ReqEnvelope_ReqAuth:
 		key, err := ch.decryptSecret(p.ReqAuth.Key)
 		if err == nil {
-			ch.session, err = session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
+			var ses *session.Session
+			ses, err = session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
+			if err == nil {
+				ch.setSession(ses)
+			}
 		}
 
 		if err != nil {
@@ -623,7 +730,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 
 	case *pb.ReqEnvelope_ReqGetSocialPublications:
 		log.Info("Getting social publications")
-		publications, err := ch.mg.social.GetPublications(ch.mg.profile, p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, ch.friendProfile != nil, p.ReqGetSocialPublications.ExcludeUuids)
+		publications, err := ch.mg.social.GetPublications(ch.mg.profile, p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, ch.getFriendProfile() != nil, p.ReqGetSocialPublications.ExcludeUuids)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
@@ -644,12 +751,19 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
 	}
+	// Read once, up front: requests on a connection are now processed
+	// concurrently (see handleConnection), so ses could otherwise be
+	// read multiple times as this function runs, each call independently
+	// locking - fine for correctness (it's not going to change again once
+	// set), but there's no reason to pay for repeated locking within a
+	// single request's handling.
+	ses := ch.getSession()
 
 	switch p := env.Payload.(type) {
 	case *pb.ReqEnvelope_ReqNewSocialPublication:
 		log.Info("New social publication")
 
-		uuid, err := ch.mg.social.NewPublication(ch.session, p.ReqNewSocialPublication.Text, p.ReqNewSocialPublication.Paths)
+		uuid, err := ch.mg.social.NewPublication(ses, p.ReqNewSocialPublication.Text, p.ReqNewSocialPublication.Paths)
 
 		if err != nil {
 			resp.Error = true
@@ -805,7 +919,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqShareFilesLink:
 		log.Info("Sharing files with path:", p.ReqShareFilesLink.Paths)
-		link, err := ch.mg.filesManager.GetSharedLink(ch.session, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain)
+		link, err := ch.mg.filesManager.GetSharedLink(ses, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error creating files share link: %s", err)
@@ -819,7 +933,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqUploadFile:
 		log.Info("Uploading file with path:", p.ReqUploadFile.Path)
-		pbFile, err := ch.mg.filesManager.UploadFile(ch.session, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created)
+		pbFile, err := ch.mg.filesManager.UploadFile(ses, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
@@ -842,7 +956,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqLinkFile:
 		log.Info("Linking file with path:", p.ReqLinkFile.Path, "to hash:", p.ReqLinkFile.Hash)
-		pbFile, err := ch.mg.filesManager.LinkFile(ch.session, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created)
+		pbFile, err := ch.mg.filesManager.LinkFile(ses, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to link file: %s", err)
@@ -854,7 +968,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqGetFile:
 		log.Info("Get file with path:", p.ReqGetFile.Path)
-		pbFile, err := ch.mg.filesManager.GetFile(ch.session, p.ReqGetFile.Path)
+		pbFile, err := ch.mg.filesManager.GetFile(ses, p.ReqGetFile.Path)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file: %s", err)
@@ -868,7 +982,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	// computed live from the file's own bytes, nothing persisted.
 	case *pb.ReqEnvelope_ReqGetFileInfo:
 		log.Info("Get file info with path:", p.ReqGetFileInfo.Path)
-		info, err := ch.mg.filesManager.GetFileInfo(ch.session, p.ReqGetFileInfo.Path)
+		info, err := ch.mg.filesManager.GetFileInfo(ses, p.ReqGetFileInfo.Path)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file info: %s", err)
@@ -880,8 +994,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqDelFile:
 		log.Info("Del file by path:", p.ReqDelFile.Path)
-		err := ch.mg.filesManager.DelFile(ch.session, p.ReqDelFile.Path)
+		err := ch.mg.filesManager.DelFile(ses, p.ReqDelFile.Path)
 		if err != nil {
+			// This used to only ever reach the client, never the server's
+			// own log — tracking down a real "Delete failed" report meant
+			// searching the log for an error that was never actually
+			// written there, only sent over the wire.
+			log.Error("error trying to delete file:", p.ReqDelFile.Path, err)
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to delete file: %s", err)
 		} else {
@@ -896,7 +1015,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqListFiles:
 		log.Info("List of file by path:", p.ReqListFiles.Path, p.ReqListFiles.Recursive)
-		files, err := ch.mg.filesManager.ListFiles(ch.session, p.ReqListFiles.Path, p.ReqListFiles.Recursive)
+		files, err := ch.mg.filesManager.ListFiles(ses, p.ReqListFiles.Path, p.ReqListFiles.Recursive)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -930,7 +1049,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqSearchPhotos:
 		log.Info("Search by text:", p.ReqSearchPhotos.Tags)
-		files, token, err := ch.mg.filesManager.ImageSearch(ch.session, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token)
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -969,7 +1088,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			var newKey string
 			newKey, err = ch.decryptSecret(p.ReqChangeKey.NewKey)
 			if err == nil {
-				err = ch.session.ChangeKey(oldKey, newKey)
+				err = ses.ChangeKey(oldKey, newKey)
 			}
 		}
 
@@ -1230,21 +1349,62 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 
 	resp, closeConn = ch.processNonAuthRequest(env)
 
-	if resp == nil && (ch.session != nil || ch.friendProfile != nil) {
+	// Read once rather than call ch.getSession()/ch.getFriendProfile()
+	// separately in each condition below — both would still be internally
+	// consistent (neither is ever cleared once set), but there's no reason
+	// to lock twice over what's logically one check.
+	ses := ch.getSession()
+	friendProfile := ch.getFriendProfile()
+
+	if resp == nil && (ses != nil || friendProfile != nil) {
 		resp, closeConn = ch.processAuthAsFriendRequest(env)
 	}
 
-	if resp == nil && ch.session != nil {
+	if resp == nil && ses != nil {
 		resp, closeConn = ch.processAuthRequest(env)
 	}
 
 	return
 }
 
+// handleConnection reads one connection's requests in a single loop (a
+// gorilla *websocket.Conn only tolerates one concurrent reader) but hands
+// each one off to its own goroutine for actual processing and replying, so
+// one slow request (a big GetFile needing a HEIC decode/re-encode, a large
+// ListFiles, ...) can't stall unrelated ones behind it - the earlier
+// strictly-one-at-a-time version meant something as cheap as GetFileInfo
+// could sit queued behind whatever slower request happened to arrive just
+// before it, on the very same connection, entirely unrelated in practice.
+// Responses can therefore come back in a different order than their
+// requests were sent, which is fine: every response carries the request's
+// own id, and every client already correlates by id rather than by order.
+//
+// Writes are serialized with writeMu regardless (gorilla tolerates only one
+// concurrent writer too, same as one reader); closeOnce+closeConn ensure
+// whichever goroutine first decides the connection should end is the only
+// one that actually closes it, so a second goroutine finishing around the
+// same time doesn't double-close or race the first's close against its own
+// write; wg makes sure this function doesn't return - and so doesn't let a
+// caller's deferred conn.Close() run out from under a still-writing
+// goroutine - until every in-flight request has actually finished.
 func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	ch := &connHandler{
 		mg: mg,
 	}
+
+	var writeMu sync.Mutex
+	var wg sync.WaitGroup
+	var closeOnce sync.Once
+	closeConn := func() {
+		closeOnce.Do(func() {
+			conn.Close()
+		})
+	}
+	// However this loop exits, wait for every goroutine it started before
+	// returning - handleConnection returning is what lets a caller's own
+	// deferred conn.Close() (Listen) or its equivalent (openBridgeConn)
+	// run, and this connection needs to stay open and writable until then.
+	defer wg.Wait()
 
 	for {
 		log.Debug("Waiting for messages")
@@ -1260,30 +1420,47 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			return
 		}
 
-		resp, closeConn := ch.processMessage(&env)
+		wg.Add(1)
+		// Pass env by pointer, not value: pb.ReqEnvelope embeds a
+		// protobuf-runtime sync.Mutex (its lazy-marshal state), and copying
+		// that by value into the goroutine's argument is exactly the kind
+		// of lock-copying go vet's copylocks check exists to catch. env
+		// itself is a fresh local per loop iteration, so &env is safe to
+		// hand off - no aliasing with the next iteration's env.
+		go func(env *pb.ReqEnvelope) {
+			defer wg.Done()
 
-		// A request needing a session this connection doesn't have (not
-		// authenticated, or authenticated as the wrong kind of session for
-		// this request) used to fall through here with resp still nil,
-		// which marshals to an empty message. Clients have no way to tell
-		// that apart from "no response yet" — the request they're
-		// awaiting just hangs forever instead of failing. Send a real
-		// error instead.
-		if resp == nil {
-			resp = &pb.RespEnvelope{
-				Id:           env.Id,
-				Error:        true,
-				ErrorMessage: "not authenticated",
+			resp, doClose := ch.processMessage(env)
+
+			// A request needing a session this connection doesn't have (not
+			// authenticated, or authenticated as the wrong kind of session
+			// for this request) used to fall through here with resp still
+			// nil, which marshals to an empty message. Clients have no way
+			// to tell that apart from "no response yet" — the request
+			// they're awaiting just hangs forever instead of failing. Send
+			// a real error instead.
+			if resp == nil {
+				resp = &pb.RespEnvelope{
+					Id:           env.Id,
+					Error:        true,
+					ErrorMessage: "not authenticated",
+				}
 			}
-		}
 
-		respBin, _ := proto.Marshal(resp)
-		if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
-			log.Error("error responding, closing the connection:", err)
-			return
-		}
-		if closeConn {
-			return
-		}
+			respBin, _ := proto.Marshal(resp)
+
+			writeMu.Lock()
+			writeErr := conn.WriteMessage(gorilla.BinaryMessage, respBin)
+			writeMu.Unlock()
+
+			if writeErr != nil {
+				log.Error("error responding, closing the connection:", writeErr)
+				closeConn()
+				return
+			}
+			if doClose {
+				closeConn()
+			}
+		}(&env)
 	}
 }

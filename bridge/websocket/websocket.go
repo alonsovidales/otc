@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/cfg"
@@ -44,6 +45,111 @@ func maxConnectionsPerDevice() int {
 type bridgePool struct {
 	availableConns []*gorilla.Conn
 	lock           *sync.Mutex
+}
+
+// deviceRelay wraps one paired device connection with request/response
+// multiplexing by envelope id, so several client requests can be in flight
+// to the same device connection at once instead of strictly one at a time.
+// The device itself now processes a connection's requests concurrently
+// (see websocket.handleConnection's doc comment on the device side, added
+// for the same reason: a slow request — a large GetFile needing a HEIC
+// decode, say — used to sit in front of a cheap, unrelated one like
+// GetFileInfo, on the very same connection). Relaying them here strictly
+// one at a time would reintroduce that identical head-of-line blocking one
+// hop earlier, this time in a place the device-side fix can't reach at
+// all — every request/response for a given client<->device pairing was
+// forced through a single write-then-block-for-the-matching-read step
+// before the bridge would even read the client's next frame.
+type deviceRelay struct {
+	conn    *gorilla.Conn
+	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
+
+	mu      sync.Mutex
+	waiters map[int32]chan []byte
+}
+
+func newDeviceRelay(conn *gorilla.Conn) *deviceRelay {
+	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan []byte)}
+	go d.readLoop()
+	return d
+}
+
+// readLoop is this relay's one and only reader — gorilla tolerates only
+// one concurrent reader, same as one writer — so every response coming
+// back from the device passes through here and gets routed to whichever
+// forward() call is waiting on that response's envelope id.
+func (d *deviceRelay) readLoop() {
+	for {
+		_, frame, err := d.conn.ReadMessage()
+		if err != nil {
+			d.failAll()
+			return
+		}
+		var env pb.RespEnvelope
+		if err := proto.Unmarshal(frame, &env); err != nil {
+			log.Error("bad proto from device:", err)
+			continue
+		}
+		d.mu.Lock()
+		ch, ok := d.waiters[env.Id]
+		if ok {
+			delete(d.waiters, env.Id)
+		}
+		d.mu.Unlock()
+		if ok {
+			ch <- frame
+		}
+		// No waiter for this id (already gave up, or a stray/duplicate
+		// message) — nothing to deliver it to, so just drop it.
+	}
+}
+
+// failAll unblocks every still-pending forward() call once the device
+// connection itself has died, instead of leaving each one hanging forever
+// waiting on a response that will now never arrive.
+func (d *deviceRelay) failAll() {
+	d.mu.Lock()
+	waiters := d.waiters
+	d.waiters = make(map[int32]chan []byte)
+	d.mu.Unlock()
+	for _, ch := range waiters {
+		close(ch)
+	}
+}
+
+// forward sends one request frame to the device and returns its matching
+// response frame, correlated by envelope id — safe to call concurrently
+// for several requests in flight on the same relay at once.
+func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
+	var env pb.ReqEnvelope
+	if err := proto.Unmarshal(frame, &env); err != nil {
+		return nil, fmt.Errorf("bad proto: %w", err)
+	}
+
+	ch := make(chan []byte, 1)
+	d.mu.Lock()
+	d.waiters[env.Id] = ch
+	d.mu.Unlock()
+
+	d.writeMu.Lock()
+	err := d.conn.WriteMessage(gorilla.BinaryMessage, frame)
+	d.writeMu.Unlock()
+	if err != nil {
+		d.mu.Lock()
+		delete(d.waiters, env.Id)
+		d.mu.Unlock()
+		return nil, err
+	}
+
+	resp, ok := <-ch
+	if !ok {
+		return nil, errors.New("device connection closed")
+	}
+	return resp, nil
+}
+
+func (d *deviceRelay) Close() error {
+	return d.conn.Close()
 }
 
 // Manager Structure that provides HTTP access to manage all the different
@@ -116,7 +222,20 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		}
 	}()
 
-	var deviceConn *gorilla.Conn
+	// Once a client is paired with a device (relay != nil), each of its
+	// requests is relayed in its own goroutine via relay.forward, which
+	// multiplexes them over the one device connection by envelope id
+	// instead of forcing them through one at a time — see deviceRelay's
+	// doc comment for why that matters. writeMu serializes the responses
+	// those goroutines write back to conn (the client side; gorilla
+	// tolerates only one concurrent writer there too), and wg — waited on
+	// before this function returns — makes sure none of them are left
+	// trying to write to conn after it's already closed.
+	var relay *deviceRelay
+	var writeMu sync.Mutex
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
 	for {
 		_, frame, err := conn.ReadMessage()
 		if err != nil {
@@ -124,13 +243,40 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			return
 		}
 
-		if deviceConn != nil {
-			// We are connecting a device with a client, so just forward everything
-			log.Debug("New message with connection")
-			if err := mg.forwardMessage(r.Host, conn, deviceConn, frame); err != nil {
-				log.Error("Error fordwading message:", err)
-				return
-			}
+		if relay != nil {
+			wg.Add(1)
+			go func(frame []byte) {
+				defer wg.Done()
+				// Mirrors handleConnection's own top-level recover: this
+				// now runs on its own goroutine, which the outer recover
+				// above can't reach — an unrecovered panic here would
+				// otherwise still take the whole process down.
+				defer func() {
+					if r := recover(); r != nil {
+						log.Error("recovered from panic relaying message:", r, string(debug.Stack()))
+					}
+				}()
+
+				respFrame, err := relay.forward(frame)
+				if err != nil {
+					log.Error("Error fordwading message:", err)
+					return
+				}
+
+				writeMu.Lock()
+				writeErr := conn.WriteMessage(gorilla.BinaryMessage, respFrame)
+				writeMu.Unlock()
+				if writeErr != nil {
+					log.Error("error forwading respose, closing the connection:", writeErr)
+					return
+				}
+
+				if err := mg.dao.RecordDeviceActivity(r.Host, int64(len(frame)), int64(len(respFrame))); err != nil {
+					// Metrics are best-effort: never fail the actual relay
+					// over a metrics-write error.
+					log.Error("error recording device activity:", err)
+				}
+			}(frame)
 		} else {
 			var env pb.ReqEnvelope
 			if err := proto.Unmarshal(frame, &env); err != nil {
@@ -244,22 +390,41 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 			default:
 				defer conn.Close()
-				// This may be a direct request to a device, just forward it if the domain exists
+				// This may be a direct request to a device: pick one off
+				// the pool and pair with it for the rest of this
+				// connection's life (see deviceRelay/the relay != nil
+				// branch above) if the domain exists.
+				var deviceConn *gorilla.Conn
 				if pool, ok := mg.bridges[r.Host]; ok {
 					pool.lock.Lock()
 					for deviceConn == nil && len(pool.availableConns) > 0 {
 						deviceConn = pool.availableConns[0]
 						pool.availableConns = pool.availableConns[1:]
-						// Single use connection, close as soon
-						// as it is finished since they are authenticated
-						defer deviceConn.Close()
 
 						log.Debug("Connecting")
-						if err := mg.forwardMessage(r.Host, conn, deviceConn, frame); err != nil {
+						candidate := newDeviceRelay(deviceConn)
+						respFrame, err := candidate.forward(frame)
+						if err != nil {
 							log.Error("Error fordwading message:", err)
+							candidate.Close()
 							deviceConn = nil
+							continue
 						}
 						log.Debug("Connected")
+
+						relay = candidate
+						// Single use connection, close as soon as it is
+						// finished since they are authenticated.
+						defer relay.Close()
+
+						if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
+							log.Error("error responding, closing the connection:", err)
+							pool.lock.Unlock()
+							return
+						}
+						if err := mg.dao.RecordDeviceActivity(r.Host, int64(len(frame)), int64(len(respFrame))); err != nil {
+							log.Error("error recording device activity:", err)
+						}
 					}
 					pool.lock.Unlock()
 				}
@@ -277,35 +442,4 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			}
 		}
 	}
-}
-
-// forwardMessage relays one request/response round trip between a client
-// connection and a device connection, and records it against domain for
-// the admin panel's per-device metrics (issue #8). domain is the host the
-// client connected through, i.e. the device's own bridge subdomain.
-func (mg *Manager) forwardMessage(domain string, conn, deviceConn *gorilla.Conn, frame []byte) (err error) {
-	log.Debug("Forwading message to device")
-	if err := deviceConn.WriteMessage(gorilla.BinaryMessage, frame); err != nil {
-		log.Error("error forwarding, closing the connection:", err)
-		return err
-	}
-	log.Debug("Reading response from device")
-	_, respFrame, err := deviceConn.ReadMessage()
-	if err != nil {
-		log.Error("error reading from device, closing the connection:", err)
-		return err
-	}
-	log.Debug("Forwading response to client")
-	if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
-		log.Error("error forwading respose, closing the connection:", err)
-		return err
-	}
-
-	if err := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); err != nil {
-		// Metrics are best-effort: never fail the actual relay over a
-		// metrics-write error.
-		log.Error("error recording device activity:", err)
-	}
-
-	return
 }

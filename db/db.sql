@@ -43,9 +43,22 @@ create table file_tags
   -- Without this, re-tagging a file (any reprocess) accumulated duplicate
   -- rows per (hash, tag) pair, skewing SearchByTags' score/count. AddTags
   -- upserts against it rather than failing an insert.
-  unique key (`hash`, `tag`),
+  unique key (`hash`, `tag`)
 
-  foreign key (hash) references files(hash)
+  -- No FK to files(hash) on purpose: files.hash is deliberately non-unique
+  -- (dedup means several files rows legitimately share one hash), and
+  -- InnoDB's FK enforcement on a non-unique referenced column checks only
+  -- "does file_tags still have a row for this value" — not "would this
+  -- orphan anything given the other files rows sharing it". That rejected
+  -- deleting *any* duplicate copy of a tagged file as long as one still
+  -- existed, which is every duplicate but the last, every time — a real
+  -- "Cannot delete or update a parent row" failure reachable from the
+  -- ordinary "delete a synced photo" flow, not a corruption risk. Keeping
+  -- file_tags consistent with files (deleting a hash's tags only once its
+  -- last files row is gone) is dao.DelFileByPath's job now, done inside a
+  -- transaction with `select ... for update` on the ref-count so
+  -- concurrent deletes of the same hash's duplicates can't race each
+  -- other into leaving orphaned tag rows.
 ) engine=InnoDB;
 
 create table social_publications

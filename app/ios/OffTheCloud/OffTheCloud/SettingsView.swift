@@ -304,6 +304,19 @@ struct SettingsView: View {
     }
 }
 
+// Issue #65: a plain, always-visible read of the RAID's own health -
+// "in sync"/"syncing"/"degraded" - rather than something the user has to
+// infer from whether an error banner happens to be showing.
+private func raidStateLabel(_ s: Msg_Status) -> String {
+    switch s.raidState {
+    case .raidNone: return "No RAID"
+    case .raidInSync: return "In sync"
+    case .raidSyncing: return "Syncing (\(Int(s.raidSyncPercent))%)"
+    case .raidDegraded: return "Degraded"
+    default: return "Unknown"
+    }
+}
+
 private struct StatusSectionContent: View {
     @ObservedObject var vm: StatusViewModel
 
@@ -318,7 +331,7 @@ private struct StatusSectionContent: View {
                     .font(.caption)
                 Text("CPU: \(String(format: "%.1f", s.cpuUsagePrc))% · Mem: \(s.memUsage) MB / \(s.memSize) MB")
                     .font(.caption)
-                Text("Local IP: \(s.localIp) · Disks: \(s.disks)")
+                Text("RAID: \(s.raidLevel.isEmpty ? raidStateLabel(s) : "\(s.raidLevel) — \(raidStateLabel(s))") · Disks: \(s.disks)")
                     .font(.caption)
                 ForEach(s.errors, id: \.message) { e in
                     Text("⚠️ \(e.message)").font(.caption).foregroundColor(.red)

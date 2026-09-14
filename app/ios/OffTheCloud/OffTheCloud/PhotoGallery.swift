@@ -433,6 +433,16 @@ final class PhotoGalleryVM: ObservableObject {
         let paths = Array(selected)
         guard !paths.isEmpty else { return }
         Task {
+            // Collect the successes and apply them as one batch at the end,
+            // rather than mutating `items` (and so re-rendering the grid)
+            // once per successful delete inside the loop. With several
+            // selected items that are duplicates of the same underlying
+            // photo — same thumbnail, adjacent cells — that one-at-a-time
+            // pattern only ever visually removed the first one from the
+            // LazyVGrid; the rest stayed on screen (looking like the
+            // deletes silently failed) until the view reloaded from the
+            // server, even though every delete had actually succeeded.
+            var deletedPaths = Set<String>()
             for path in paths {
                 do {
                     let resp = try await ws.request { e in
@@ -452,8 +462,11 @@ final class PhotoGalleryVM: ObservableObject {
                     showAlert = true
                     continue
                 }
-                items.removeAll { $0.path == path }
-                selected.remove(path)
+                deletedPaths.insert(path)
+            }
+            if !deletedPaths.isEmpty {
+                items.removeAll { deletedPaths.contains($0.path) }
+                selected.subtract(deletedPaths)
             }
         }
     }

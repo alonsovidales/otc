@@ -440,6 +440,18 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
           ) : (
             <div className="sv-media-ph">🖼️</div>
           )}
+          {/* Issue #68: the iOS app already shows a dot per image (current
+              one solid, the rest dimmed) over a multi-image post - the web
+              feed had the exact same swipe/tap paging (goLeft/goRight
+              above) but nothing on screen showing there even *was* more
+              than one image, let alone which one you were on. */}
+          {p.files.length > 1 && (
+            <div className="sv-dots" aria-hidden="true">
+              {p.files.map((_, i) => (
+                <span key={i} className={`sv-dot${i === idx ? " active" : ""}`} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="sv-caption">{p.text}</div>
@@ -543,6 +555,13 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
               >
                 <img className="sv-full" src={viewerURL} alt="full" />
                 {viewerLoading && <div className="sv-loading">Loading…</div>}
+                {(viewerPub?.files.length ?? 0) > 1 && (
+                  <div className="sv-dots" aria-hidden="true">
+                    {viewerPub!.files.map((_, i) => (
+                      <span key={i} className={`sv-dot${i === viewerIdx ? " active" : ""}`} />
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="sv-loading">Loading…</div>
