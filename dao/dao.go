@@ -12,6 +12,7 @@ import (
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/push"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -143,14 +144,6 @@ func (dao *Dao) SetVapidKeys(pub, priv string) (err error) {
 	return
 }
 
-// WebPushSubscription mirrors a browser PushSubscription's fields, verbatim
-// from subscription.toJSON() (issue #43).
-type WebPushSubscription struct {
-	Endpoint string
-	P256dh   string
-	Auth     string
-}
-
 func (dao *Dao) SaveWebPushSubscription(endpoint, p256dh, auth string) (err error) {
 	_, err = dao.db.Exec(
 		"insert into `web_push_subscriptions` (`endpoint`, `p256dh`, `auth`, `created`) values (?, ?, ?, now()) "+
@@ -159,7 +152,12 @@ func (dao *Dao) SaveWebPushSubscription(endpoint, p256dh, auth string) (err erro
 	return
 }
 
-func (dao *Dao) ListWebPushSubscriptions() (subs []*WebPushSubscription, err error) {
+// ListWebPushSubscriptions returns push.WebPushSubscription (not a type of
+// its own) so *Dao satisfies push.Storage directly, without an adapter -
+// see push's own package doc for why that interface exists at all (issue
+// #62: the bridge needs to run this same sending logic against its own,
+// unrelated storage).
+func (dao *Dao) ListWebPushSubscriptions() (subs []*push.WebPushSubscription, err error) {
 	rows, err := dao.db.Query("select `endpoint`, `p256dh`, `auth` from `web_push_subscriptions`")
 	if err != nil {
 		return
@@ -167,7 +165,7 @@ func (dao *Dao) ListWebPushSubscriptions() (subs []*WebPushSubscription, err err
 	defer rows.Close()
 
 	for rows.Next() {
-		sub := &WebPushSubscription{}
+		sub := &push.WebPushSubscription{}
 		if err = rows.Scan(&sub.Endpoint, &sub.P256dh, &sub.Auth); err != nil {
 			return
 		}

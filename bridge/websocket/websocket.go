@@ -3,18 +3,21 @@
 package websocket
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/push"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 	"net/http"
 	"runtime/debug"
 	"sync"
+	"time"
 )
 
 const (
@@ -27,6 +30,16 @@ const (
 	// accumulate an unbounded number of idle connections here.
 	cDefaultMaxConnectionsPerDevice = 100
 )
+
+// cOfflineAlertGrace is how long a device can have zero live bridge
+// connections before it's treated as genuinely offline and a push alert
+// goes out (issue #62). A device's own pool refills continuously while
+// it's online - see websocket.ensureBridgePool's doc comment on the device
+// side: 5 ready, refilling in batches of 2 once it dips to 3 - so briefly
+// touching zero under simultaneous client load and refilling well within
+// this window is expected and must never alert. Var, not const, so tests
+// can shrink it instead of waiting on a real minute.
+var cOfflineAlertGrace = 60 * time.Second
 
 // maxConnectionsPerDevice reads [bridge] max-connections-per-device,
 // falling back to cDefaultMaxConnectionsPerDevice if that section/key is
@@ -42,9 +55,22 @@ func maxConnectionsPerDevice() int {
 	return cDefaultMaxConnectionsPerDevice
 }
 
+// bridgePool is one device's spare connections plus its offline-detection
+// state (issue #62). liveCount is every connection currently held for this
+// domain, idle-in-availableConns or already claimed for one client's relay
+// - not just the idle ones - since a connection being picked and single-
+// used doesn't mean the device went away, only that this particular tunnel
+// is spent; see the doc comment on deviceRelay.onDeath for how this and
+// availableConns are kept in sync.
 type bridgePool struct {
-	availableConns []*gorilla.Conn
-	lock           *sync.Mutex
+	availableConns []*deviceRelay
+	liveCount      int
+	// offlineTimer is non-nil exactly while a countdown is pending -
+	// started the instant liveCount drops to zero, stopped/cleared the
+	// instant a fresh registration brings it back above zero. If it fires
+	// with liveCount still at zero, the device is treated as offline.
+	offlineTimer *time.Timer
+	lock         *sync.Mutex
 }
 
 // deviceRelay wraps one paired device connection with request/response
@@ -60,18 +86,102 @@ type bridgePool struct {
 // all — every request/response for a given client<->device pairing was
 // forced through a single write-then-block-for-the-matching-read step
 // before the bridge would even read the client's next frame.
+// cPongWait/cPingPeriod (issue #62) are what actually let a truly-dead
+// device connection be noticed. A connection idle in the pool never has
+// anything written to it until picked, so a graceful shutdown (the device
+// process exiting, which sends a real TCP close) and a genuine network
+// failure (a cut cable, killed wifi, a powered-off Pi - no FIN, no RST,
+// just silence) are NOT the same failure from the bridge's point of view:
+// the former makes ReadMessage() return an error immediately, but the
+// latter leaves it blocked forever with nothing to time it out. Every
+// relay - idle or already claimed - gets an active ping/pong keepalive for
+// its whole life so both cases end up looking the same: a ReadMessage()
+// error, routed through failAll() into onDeath the same way either way.
+// cPongWait bounds how long a connection can go without word from the
+// device (a pong, or - moot in practice since pongs come far more often,
+// but harmless either way - genuine traffic) before it's declared dead;
+// cPingPeriod keeps probing well inside that window so a healthy-but-idle
+// connection never times out on its own inactivity. Vars, not consts, so
+// tests can shrink them instead of waiting on real tens-of-seconds delays.
+var (
+	cPongWait   = 40 * time.Second
+	cPingPeriod = (cPongWait * 8) / 10
+)
+
 type deviceRelay struct {
 	conn    *gorilla.Conn
 	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
 
 	mu      sync.Mutex
 	waiters map[int32]chan []byte
+
+	// onDeath (issue #62) fires exactly once, from failAll, whenever this
+	// connection stops being usable - whether that's a real network
+	// failure, a ping/pong timeout (see cPongWait above), or just Close()
+	// being called because a single-use relay finished its one job.
+	// Either way this device connection is gone from the pool now, which
+	// is exactly the signal bridgePool.liveCount needs; it doesn't matter
+	// to the offline-detection logic *why* a given connection died, only
+	// that the device keeps a healthy count of live ones by continuously
+	// registering new ones while it's actually online.
+	onDeath func()
+	once    sync.Once
+
+	stopPing chan struct{}  // closed once, from failAll, to stop pingLoop
+	wg       sync.WaitGroup // readLoop + pingLoop, so Close() can wait for both to actually exit
 }
 
-func newDeviceRelay(conn *gorilla.Conn) *deviceRelay {
-	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan []byte)}
-	go d.readLoop()
+// newDeviceRelay wraps conn and immediately starts reading from it via
+// readLoop - including for a connection that's about to sit idle in a
+// pool's availableConns rather than being handed to a client right away.
+// That immediacy matters for issue #62: previously a relay (and its read
+// loop) was only created lazily once a connection got picked, so a device
+// connection that died while still idle in the pool went completely
+// unnoticed until something eventually tried to use it. Reading from the
+// moment a device registers is what lets a dead idle connection be
+// detected (and liveCount decremented) right away instead - and pairing
+// that with the ping/pong keepalive below (also started here, for the same
+// reason) is what makes that detection actually fire for a silent network
+// failure, not just a graceful shutdown.
+func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
+	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan []byte), onDeath: onDeath, stopPing: make(chan struct{})}
+
+	conn.SetReadDeadline(time.Now().Add(cPongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(cPongWait))
+		return nil
+	})
+
+	d.wg.Add(2)
+	go func() { defer d.wg.Done(); d.readLoop() }()
+	go func() { defer d.wg.Done(); d.pingLoop() }()
 	return d
+}
+
+// pingLoop is deviceRelay's half of the keepalive - see cPongWait/
+// cPingPeriod's doc comment. Runs for the relay's whole life, whether it's
+// sitting idle in the pool or already claimed for one client's relay;
+// stops the instant failAll runs, same as readLoop.
+func (d *deviceRelay) pingLoop() {
+	ticker := time.NewTicker(cPingPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			d.writeMu.Lock()
+			err := d.conn.WriteMessage(gorilla.PingMessage, nil)
+			d.writeMu.Unlock()
+			if err != nil {
+				// readLoop's own ReadMessage() will fail from the same
+				// dead connection and drive failAll/onDeath - nothing
+				// more to do here than stop pinging a socket that's
+				// already gone.
+				return
+			}
+		case <-d.stopPing:
+			return
+		}
+	}
 }
 
 // readLoop is this relay's one and only reader — gorilla tolerates only
@@ -115,6 +225,19 @@ func (d *deviceRelay) failAll() {
 	for _, ch := range waiters {
 		close(ch)
 	}
+
+	// Stop pingLoop - readLoop (the only caller of failAll) is the one
+	// exiting right after this, so there's nothing left probing this
+	// connection's liveness once it's gone anyway.
+	close(d.stopPing)
+
+	// Exactly once per relay, regardless of how many times failAll could
+	// theoretically run (readLoop only calls it the one time it returns,
+	// but once.Do costs nothing and removes any doubt) - see onDeath's
+	// doc comment for what this drives.
+	if d.onDeath != nil {
+		d.once.Do(d.onDeath)
+	}
 }
 
 // forward sends one request frame to the device and returns its matching
@@ -148,17 +271,26 @@ func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 	return resp, nil
 }
 
+// Close closes the underlying connection and waits for readLoop/pingLoop to
+// both actually exit before returning - not just kicking them off. Beyond
+// making shutdown deterministic in general, this is what keeps cPongWait/
+// cPingPeriod safe for tests to override: without it, a relay's background
+// goroutines could still be running (briefly) after Close() returns, racing
+// a later test's change to those package vars.
 func (d *deviceRelay) Close() error {
-	return d.conn.Close()
+	err := d.conn.Close()
+	d.wg.Wait()
+	return err
 }
 
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
 type Manager struct {
-	baseUrl  string
-	dao      *dao.Dao
-	upgrader gorilla.Upgrader
-	bridges  map[string]*bridgePool // The domain is the key and the value the pool of connections
+	baseUrl   string
+	dao       *dao.Dao
+	upgrader  gorilla.Upgrader
+	bridges   map[string]*bridgePool // The domain is the key and the value the pool of connections
+	bridgesMu sync.RWMutex           // guards the bridges map itself, not each pool's own contents (pool.lock does that)
 }
 
 func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
@@ -173,6 +305,114 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 	}
 
 	return
+}
+
+// domainPushStorage adapts *dao.Dao's per-domain push-registration methods
+// to push.Storage (issue #62) - scoped to one domain, since the bridge (
+// unlike a device's own dao.Dao, which only ever holds that one device's
+// registrations) holds every domain's, so each read/write needs to say
+// which one.
+type domainPushStorage struct {
+	dao    *dao.Dao
+	domain string
+}
+
+func (s *domainPushStorage) GetVapidKeys() (pub, priv string, err error) {
+	return s.dao.GetVapidKeysForDomain(s.domain)
+}
+func (s *domainPushStorage) SetVapidKeys(pub, priv string) error {
+	return s.dao.SetVapidKeysForDomain(s.domain, pub, priv)
+}
+func (s *domainPushStorage) ListWebPushSubscriptions() ([]*push.WebPushSubscription, error) {
+	return s.dao.ListWebPushSubscriptionsForDomain(s.domain)
+}
+func (s *domainPushStorage) DeleteWebPushSubscription(endpoint string) error {
+	return s.dao.DeleteWebPushSubscriptionForDomain(s.domain, endpoint)
+}
+func (s *domainPushStorage) ListApnsTokens() ([]string, error) {
+	return s.dao.ListApnsTokensForDomain(s.domain)
+}
+func (s *domainPushStorage) DeleteApnsToken(t string) error {
+	return s.dao.DeleteApnsTokenForDomain(s.domain, t)
+}
+
+// sendOfflineAlert (issue #62) is called once cOfflineAlertGrace has
+// elapsed with domain's liveCount still at zero - see
+// onDeviceConnectionRegistered/onDeviceConnectionDied below for how that's
+// tracked. Builds a push.Push backed by this one domain's mirrored
+// registrations and sends a single generic notification, same as any other
+// push.Push.Notify call - no post content here, just "you might want to
+// check on this".
+func (mg *Manager) sendOfflineAlert(domain string) {
+	log.Info("device has had no live bridge connections for", cOfflineAlertGrace, "- alerting owner:", domain)
+	ps, err := push.Init(&domainPushStorage{dao: mg.dao, domain: domain})
+	if err != nil {
+		log.Error("could not init push for offline alert:", domain, err)
+		return
+	}
+	ps.Notify("Off The Cloud", "Your device appears to have gone offline")
+}
+
+// onDeviceConnectionRegistered records that domain just gained one more
+// live bridge connection (a fresh ReqBridgeRegister) - cancelling any
+// pending offline countdown, since the device is provably reachable again.
+// Must be called with pool.lock held.
+func (mg *Manager) onDeviceConnectionRegistered(domain string, pool *bridgePool) {
+	pool.liveCount++
+	if pool.offlineTimer != nil {
+		pool.offlineTimer.Stop()
+		pool.offlineTimer = nil
+		log.Info("device reconnected before its offline alert fired, cancelling countdown:", domain)
+	}
+}
+
+// onDeviceConnectionDied is deviceRelay.onDeath for every relay in domain's
+// pool (idle or already claimed - see bridgePool's doc comment for why
+// both count). When this decrement is what takes liveCount to zero, it
+// starts the cOfflineAlertGrace countdown per the exact design: "if the
+// device connections goes from > 1 to 0 then start a go routine with a
+// count down that will send the notification if it takes more than 1 min
+// to go back to 1".
+func (mg *Manager) onDeviceConnectionDied(domain string) {
+	mg.bridgesMu.RLock()
+	pool, ok := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	if !ok {
+		return
+	}
+
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+
+	if pool.liveCount > 0 {
+		pool.liveCount--
+	}
+	if pool.liveCount == 0 && pool.offlineTimer == nil {
+		log.Info("device has zero live bridge connections, starting offline countdown:", domain)
+		pool.offlineTimer = time.AfterFunc(cOfflineAlertGrace, func() { mg.fireOfflineAlertIfStillDown(domain) })
+	}
+}
+
+// fireOfflineAlertIfStillDown is cOfflineAlertGrace's timer callback -
+// re-checks liveCount under the pool's own lock (rather than trusting the
+// state at the moment the timer was scheduled) to close the narrow race
+// against a registration landing right as this fires.
+func (mg *Manager) fireOfflineAlertIfStillDown(domain string) {
+	mg.bridgesMu.RLock()
+	pool, ok := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	if !ok {
+		return
+	}
+
+	pool.lock.Lock()
+	stillDown := pool.liveCount == 0
+	pool.offlineTimer = nil
+	pool.lock.Unlock()
+
+	if stillDown {
+		mg.sendOfflineAlert(domain)
+	}
 }
 
 func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
@@ -290,11 +530,17 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			switch p := env.Payload.(type) {
 			case *pb.ReqEnvelope_ReqBridgeRegister:
 				log.Info("Register device")
+				domain := p.ReqBridgeRegister.Domain
 				// Check if we have the device already registered and if the pass is ok
-				defined, validSecret, err := mg.dao.IsValidDevice(p.ReqBridgeRegister.OwnerUuid, p.ReqBridgeRegister.Domain, p.ReqBridgeRegister.Secret)
+				defined, validSecret, err := mg.dao.IsValidDevice(p.ReqBridgeRegister.OwnerUuid, domain, p.ReqBridgeRegister.Secret)
 				if !defined {
-					err = mg.dao.RegistreDevice(p.ReqBridgeRegister.OwnerUuid, p.ReqBridgeRegister.Domain, p.ReqBridgeRegister.Secret)
+					err = mg.dao.RegistreDevice(p.ReqBridgeRegister.OwnerUuid, domain, p.ReqBridgeRegister.Secret)
 				}
+
+				mg.bridgesMu.RLock()
+				pool, ok := mg.bridges[domain]
+				mg.bridgesMu.RUnlock()
+
 				if defined && !validSecret {
 					log.Error("error registering bridge:", err)
 					resp.Error = true
@@ -303,33 +549,52 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// the wrong owner_uuid/secret - could be a misconfigured
 					// device, or someone probing for a weak/leaked secret.
 					// Surfaced in the admin panel's security log (issue #8).
-					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), p.ReqBridgeRegister.Domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
 				} else if err != nil {
 					log.Error("error trying to register:", err)
 					resp.Error = true
 					resp.ErrorMessage = err.Error()
-				} else if pool, ok := mg.bridges[p.ReqBridgeRegister.Domain]; ok && len(pool.availableConns) >= maxConnectionsPerDevice() {
+				} else if ok && len(pool.availableConns) >= maxConnectionsPerDevice() {
 					// Issue #53 follow-up: a device now grows its own pool
 					// dynamically under load (see websocket.ensureBridgePool
 					// on the device side) rather than dialing a fixed count
 					// once - this is the backstop against that (or anything
 					// else) growing one device's pool unbounded.
-					log.Error("device at its connection cap, rejecting:", p.ReqBridgeRegister.Domain, len(pool.availableConns))
+					log.Error("device at its connection cap, rejecting:", domain, len(pool.availableConns))
 					resp.Error = true
 					resp.ErrorMessage = "Device connection pool is full"
 				} else {
+					// The relay (and its read loop) is created right here,
+					// at registration time, rather than lazily once picked -
+					// see newDeviceRelay's doc comment for why that matters
+					// to issue #62's offline detection.
+					relay := newDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain) })
+
+					// Re-check under the write lock (rather than trusting
+					// the ok/pool snapshot read above) so two connections
+					// registering the same brand-new domain at once can't
+					// each create their own separate pool for it.
+					mg.bridgesMu.Lock()
+					pool, ok = mg.bridges[domain]
 					if !ok {
 						log.Debug("Creating new pool")
-						mg.bridges[p.ReqBridgeRegister.Domain] = &bridgePool{
-							availableConns: []*gorilla.Conn{conn},
+						pool = &bridgePool{
+							availableConns: []*deviceRelay{relay},
 							lock:           new(sync.Mutex),
 						}
+						mg.bridges[domain] = pool
+						mg.bridgesMu.Unlock()
+						pool.lock.Lock()
+						mg.onDeviceConnectionRegistered(domain, pool)
+						pool.lock.Unlock()
 					} else {
+						mg.bridgesMu.Unlock()
 						log.Debug("Adding to the pool:", len(pool.availableConns))
 						pool.lock.Lock()
-						pool.availableConns = append(pool.availableConns, conn)
+						pool.availableConns = append(pool.availableConns, relay)
+						mg.onDeviceConnectionRegistered(domain, pool)
 						pool.lock.Unlock()
 					}
 					resp.Payload = &pb.RespEnvelope_RespBridgeAckOnboard{
@@ -388,33 +653,86 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 				return
 
+			case *pb.ReqEnvelope_ReqUpdatePushRegistrations:
+				// One-off request/response, not a pooled relay connection -
+				// same shape as ReqRotateBridgeSecret above (issue #62): the
+				// device pushes its full current registration snapshot
+				// whenever it changes (and once at startup), the bridge
+				// just stores it so it has something to alert with if this
+				// device ever goes offline.
+				defer conn.Close()
+				req := p.ReqUpdatePushRegistrations
+				log.Info("Update push registrations for device:", req.Domain)
+
+				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
+				if err != nil && err != sql.ErrNoRows {
+					log.Error("error validating device for push registration update:", err)
+					resp.Error = true
+					resp.ErrorMessage = err.Error()
+				} else if !defined || !validSecret {
+					log.Error("push registration update rejected: invalid device/secret for", req.Domain)
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+						log.Error("error logging auth event:", logErr)
+					}
+					resp.Error = true
+					resp.ErrorMessage = "Invalid Secret"
+				} else {
+					webSubs := make([]push.WebPushSubscription, 0, len(req.WebPushSubs))
+					for _, s := range req.WebPushSubs {
+						webSubs = append(webSubs, push.WebPushSubscription{Endpoint: s.Endpoint, P256dh: s.P256Dh, Auth: s.Auth})
+					}
+					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, req.ApnsTokens, webSubs); err != nil {
+						log.Error("error storing push registrations:", err)
+						resp.Error = true
+						resp.ErrorMessage = err.Error()
+					} else {
+						resp.Payload = &pb.RespEnvelope_RespUpdatePushRegistrationsAck{
+							RespUpdatePushRegistrationsAck: &pb.UpdatePushRegistrationsAck{Ok: true},
+						}
+					}
+				}
+
+				respBin, _ := proto.Marshal(resp)
+				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
+
 			default:
 				defer conn.Close()
 				// This may be a direct request to a device: pick one off
 				// the pool and pair with it for the rest of this
 				// connection's life (see deviceRelay/the relay != nil
-				// branch above) if the domain exists.
-				var deviceConn *gorilla.Conn
-				if pool, ok := mg.bridges[r.Host]; ok {
+				// branch above) if the domain exists. Pool entries are
+				// already-live *deviceRelay values (registered, not
+				// wrapped here) - see ReqBridgeRegister above.
+				var picked *deviceRelay
+				mg.bridgesMu.RLock()
+				pool, ok := mg.bridges[r.Host]
+				mg.bridgesMu.RUnlock()
+				if ok {
 					pool.lock.Lock()
-					for deviceConn == nil && len(pool.availableConns) > 0 {
-						deviceConn = pool.availableConns[0]
+					for picked == nil && len(pool.availableConns) > 0 {
+						candidate := pool.availableConns[0]
 						pool.availableConns = pool.availableConns[1:]
 
 						log.Debug("Connecting")
-						candidate := newDeviceRelay(deviceConn)
 						respFrame, err := candidate.forward(frame)
 						if err != nil {
 							log.Error("Error fordwading message:", err)
 							candidate.Close()
-							deviceConn = nil
 							continue
 						}
 						log.Debug("Connected")
 
+						picked = candidate
 						relay = candidate
 						// Single use connection, close as soon as it is
-						// finished since they are authenticated.
+						// finished since they are authenticated. Close()
+						// triggers candidate's onDeath exactly once (via
+						// failAll), decrementing liveCount the same way a
+						// genuine network failure would - see
+						// deviceRelay.onDeath's doc comment.
 						defer relay.Close()
 
 						if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
@@ -429,7 +747,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					pool.lock.Unlock()
 				}
 
-				if deviceConn == nil {
+				if picked == nil {
 					log.Error("No available connections in the pool for this device")
 					resp.Error = true
 					resp.ErrorMessage = "No available connections in the pool for this device"

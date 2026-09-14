@@ -3,14 +3,18 @@
 package websocket
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/bridge/dao"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -53,13 +57,57 @@ func newEchoDeviceServer(t *testing.T, delay func(id int32) time.Duration) (*htt
 	return srv, wsURL
 }
 
+// newSilentAfterFirstDeviceServer starts a test server standing in for a
+// device that goes silent at the network level - no close frame, no FIN,
+// just nothing comes back any more (a cut cable, killed wifi, a powered-off
+// Pi). goSilent(), once called, makes the server swallow every ping it
+// receives instead of auto-replying with a pong, while leaving the
+// underlying connection technically open - the exact failure mode a
+// graceful shutdown (which sends a real close, and which every other test
+// in this file exercises) doesn't reproduce.
+func newSilentAfterFirstDeviceServer(t *testing.T) (srv *httptest.Server, wsURL string, goSilent func()) {
+	t.Helper()
+	upgrader := gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	silent := make(chan struct{})
+	var once sync.Once
+	goSilent = func() { once.Do(func() { close(silent) }) }
+
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		conn.SetPingHandler(func(appData string) error {
+			select {
+			case <-silent:
+				return nil // swallow it - no pong, simulating total silence
+			default:
+				return conn.WriteControl(gorilla.PongMessage, []byte(appData), time.Now().Add(time.Second))
+			}
+		})
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
+	wsURL = "ws" + strings.TrimPrefix(srv.URL, "http")
+	return srv, wsURL, goSilent
+}
+
 func dialRelay(t *testing.T, wsURL string) *deviceRelay {
+	t.Helper()
+	return dialRelayWithOnDeath(t, wsURL, nil)
+}
+
+func dialRelayWithOnDeath(t *testing.T, wsURL string, onDeath func()) *deviceRelay {
 	t.Helper()
 	conn, _, err := gorilla.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dialing test device server: %v", err)
 	}
-	return newDeviceRelay(conn)
+	return newDeviceRelay(conn, onDeath)
 }
 
 func envelopeFrame(t *testing.T, id int32) []byte {
@@ -157,4 +205,158 @@ func TestDeviceRelayFailAllUnblocksPendingForwardsWhenConnectionDies(t *testing.
 	case <-time.After(2 * time.Second):
 		t.Fatal("forward() never returned after the device connection died - a pending request is stuck forever")
 	}
+}
+
+// onDeath (issue #62) is what tells bridgePool.liveCount a device
+// connection is gone - it must fire, and must fire exactly once, whenever
+// the underlying connection dies, however that happens (explicit Close()
+// here; a genuine network failure hits the exact same failAll() path).
+func TestDeviceRelayOnDeathFiresExactlyOnceWhenConnectionDies(t *testing.T) {
+	srv, wsURL := newEchoDeviceServer(t, func(int32) time.Duration { return time.Hour })
+	defer srv.Close()
+
+	var calls int32
+	relay := dialRelayWithOnDeath(t, wsURL, func() { atomic.AddInt32(&calls, 1) })
+	relay.Close()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for atomic.LoadInt32(&calls) == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("onDeath called %d times, want exactly 1", got)
+	}
+}
+
+// The bug actually reported in the field: disconnecting a device at the
+// network level (no clean close) for several minutes never triggered an
+// alert. Every other death-detection test in this file kills the
+// connection with a real close, which ReadMessage() already errors out of
+// on its own with no help needed - that's not what happened. This
+// reproduces the real failure mode: the device goes silent (no more pongs)
+// while its socket stays technically open, and only the ping/pong
+// keepalive's read-deadline timeout (cPongWait/cPingPeriod) can ever
+// notice.
+func TestDeviceRelayDetectsSilentNetworkDeathViaPingPongTimeout(t *testing.T) {
+	origPongWait, origPingPeriod := cPongWait, cPingPeriod
+	cPongWait = 100 * time.Millisecond
+	cPingPeriod = 30 * time.Millisecond
+	defer func() { cPongWait, cPingPeriod = origPongWait, origPingPeriod }()
+
+	srv, wsURL, goSilent := newSilentAfterFirstDeviceServer(t)
+	defer srv.Close()
+
+	var calls int32
+	relay := dialRelayWithOnDeath(t, wsURL, func() { atomic.AddInt32(&calls, 1) })
+	defer relay.Close()
+
+	// Let a few healthy ping/pong cycles pass first - the keepalive must
+	// never kill a connection that's actually still answering.
+	time.Sleep(150 * time.Millisecond)
+	if atomic.LoadInt32(&calls) != 0 {
+		t.Fatal("onDeath fired before the connection ever went silent")
+	}
+
+	goSilent()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for atomic.LoadInt32(&calls) == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("onDeath called %d times after the connection went silent (no close, just no more pongs) - want exactly 1", got)
+	}
+}
+
+// The exact design (issue #62): "if the device connections goes from > 1
+// to 0 then start a go routine with a count down that will send the
+// notification if it takes more than 1 min to go back to 1". This pins
+// the zero-liveCount side: once the last live connection dies, a countdown
+// starts, and if nothing reconnects before it elapses, the offline alert
+// actually goes out (exercised here via the real push.Init/Notify flow,
+// backed by a mocked DB - the send itself no-ops because no APNs/web push
+// registrations exist).
+func TestOfflineCountdownFiresAlertWhenStillDownAfterGrace(t *testing.T) {
+	origGrace := cOfflineAlertGrace
+	cOfflineAlertGrace = 30 * time.Millisecond
+	defer func() { cOfflineAlertGrace = origGrace }()
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `vapid_public_key`, `vapid_private_key` from `push_registrations` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectExec("insert into `push_registrations`").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("select `endpoint`, `p256dh`, `auth` from `push_web_subs` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "p256dh", "auth"}))
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: make(map[string]*bridgePool)}
+	pool := &bridgePool{lock: new(sync.Mutex)}
+	mg.bridges["pit.otc"] = pool
+
+	pool.lock.Lock()
+	mg.onDeviceConnectionRegistered("pit.otc", pool) // liveCount 0 -> 1
+	pool.lock.Unlock()
+
+	mg.onDeviceConnectionDied("pit.otc") // liveCount 1 -> 0, starts the countdown
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if mock.ExpectationsWereMet() == nil {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expected the offline alert's push flow to have run once the grace period elapsed: %v", err)
+	}
+}
+
+// The other half of the same design: reconnecting within the grace window
+// must cancel the pending countdown so no alert ever fires for a device
+// that only briefly touched zero live connections.
+func TestOnDeviceConnectionRegisteredCancelsPendingOfflineCountdown(t *testing.T) {
+	origGrace := cOfflineAlertGrace
+	cOfflineAlertGrace = 50 * time.Millisecond
+	defer func() { cOfflineAlertGrace = origGrace }()
+
+	// mg.dao is deliberately left nil: if cancellation is broken and the
+	// countdown fires anyway, sendOfflineAlert's domainPushStorage would
+	// dereference a nil *dao.Dao and panic - the strictest possible check
+	// that the alert path never runs after a reconnect.
+	pool := &bridgePool{lock: new(sync.Mutex)}
+	mg := &Manager{bridges: map[string]*bridgePool{"pit.otc": pool}}
+
+	pool.lock.Lock()
+	mg.onDeviceConnectionRegistered("pit.otc", pool)
+	pool.lock.Unlock()
+
+	mg.onDeviceConnectionDied("pit.otc")
+
+	pool.lock.Lock()
+	hasPendingTimer := pool.offlineTimer != nil
+	pool.lock.Unlock()
+	if !hasPendingTimer {
+		t.Fatal("expected a pending offline timer once liveCount hit zero")
+	}
+
+	pool.lock.Lock()
+	mg.onDeviceConnectionRegistered("pit.otc", pool)
+	stillPending := pool.offlineTimer != nil
+	pool.lock.Unlock()
+	if stillPending {
+		t.Error("expected the offline timer to be cancelled once the device reconnected")
+	}
+
+	// Outlive the original grace window to give a wrongly-still-running
+	// timer a chance to fire (and panic, per the doc comment above).
+	time.Sleep(150 * time.Millisecond)
 }

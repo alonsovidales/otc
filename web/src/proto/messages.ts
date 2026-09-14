@@ -693,6 +693,45 @@ export interface RotateBridgeSecretAck {
 export interface RegenerateBridgeSecret {
 }
 
+/**
+ * Issue #62: the bridge is the only party still online when a device goes
+ * unreachable, so it has to be the one sending the "you're offline" alert —
+ * which means it needs its own copy of whatever this device would otherwise
+ * use to push-notify its own owner. Sent bridge-side (like
+ * BridgeRegister/RotateBridgeSecret above, not on the device's own
+ * client-facing /ws), and always the device's *current full* set of
+ * registrations, replacing whatever the bridge had stored for this domain
+ * before — simpler and self-healing (a bridge DB reset just looks like
+ * every device re-syncing on its next registration change) than trying to
+ * keep two independently-diffed copies in sync over time.
+ */
+export interface UpdatePushRegistrations {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+  apnsTokens: string[];
+  webPushSubs: WebPushSub[];
+  /**
+   * Web Push payloads are signed with the VAPID key the browser's
+   * subscription was originally created against - the bridge sending on
+   * this device's behalf has to sign with the exact same keypair this
+   * device already generated for itself (see push.Init), not one of its
+   * own, or every send would be rejected as a signature mismatch.
+   */
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
+}
+
+export interface WebPushSub {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+export interface UpdatePushRegistrationsAck {
+  ok: boolean;
+}
+
 export interface GetProfile {
 }
 
@@ -881,6 +920,7 @@ export interface ReqEnvelope {
     | { $case: "reqGetVapidPublicKey"; reqGetVapidPublicKey: GetVapidPublicKey }
     | { $case: "reqHasFile"; reqHasFile: HasFile }
     | { $case: "reqLinkFile"; reqLinkFile: LinkFile }
+    | { $case: "reqUpdatePushRegistrations"; reqUpdatePushRegistrations: UpdatePushRegistrations }
     | undefined;
 }
 
@@ -913,6 +953,7 @@ export interface RespEnvelope {
     | { $case: "respWifiNetworks"; respWifiNetworks: WifiNetworks }
     | { $case: "respVapidPublicKey"; respVapidPublicKey: VapidPublicKey }
     | { $case: "respFileExists"; respFileExists: FileExists }
+    | { $case: "respUpdatePushRegistrationsAck"; respUpdatePushRegistrationsAck: UpdatePushRegistrationsAck }
     | undefined;
 }
 
@@ -5317,6 +5358,324 @@ export const RegenerateBridgeSecret: MessageFns<RegenerateBridgeSecret> = {
   },
 };
 
+function createBaseUpdatePushRegistrations(): UpdatePushRegistrations {
+  return {
+    ownerUuid: "",
+    domain: "",
+    secret: "",
+    apnsTokens: [],
+    webPushSubs: [],
+    vapidPublicKey: "",
+    vapidPrivateKey: "",
+  };
+}
+
+export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
+  encode(message: UpdatePushRegistrations, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    for (const v of message.apnsTokens) {
+      writer.uint32(34).string(v!);
+    }
+    for (const v of message.webPushSubs) {
+      WebPushSub.encode(v!, writer.uint32(42).fork()).join();
+    }
+    if (message.vapidPublicKey !== "") {
+      writer.uint32(50).string(message.vapidPublicKey);
+    }
+    if (message.vapidPrivateKey !== "") {
+      writer.uint32(58).string(message.vapidPrivateKey);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdatePushRegistrations {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdatePushRegistrations();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.apnsTokens.push(reader.string());
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.webPushSubs.push(WebPushSub.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.vapidPublicKey = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.vapidPrivateKey = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpdatePushRegistrations {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      apnsTokens: globalThis.Array.isArray(object?.apnsTokens)
+        ? object.apnsTokens.map((e: any) => globalThis.String(e))
+        : [],
+      webPushSubs: globalThis.Array.isArray(object?.webPushSubs)
+        ? object.webPushSubs.map((e: any) => WebPushSub.fromJSON(e))
+        : [],
+      vapidPublicKey: isSet(object.vapidPublicKey) ? globalThis.String(object.vapidPublicKey) : "",
+      vapidPrivateKey: isSet(object.vapidPrivateKey) ? globalThis.String(object.vapidPrivateKey) : "",
+    };
+  },
+
+  toJSON(message: UpdatePushRegistrations): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.apnsTokens?.length) {
+      obj.apnsTokens = message.apnsTokens;
+    }
+    if (message.webPushSubs?.length) {
+      obj.webPushSubs = message.webPushSubs.map((e) => WebPushSub.toJSON(e));
+    }
+    if (message.vapidPublicKey !== "") {
+      obj.vapidPublicKey = message.vapidPublicKey;
+    }
+    if (message.vapidPrivateKey !== "") {
+      obj.vapidPrivateKey = message.vapidPrivateKey;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpdatePushRegistrations>, I>>(base?: I): UpdatePushRegistrations {
+    return UpdatePushRegistrations.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpdatePushRegistrations>, I>>(object: I): UpdatePushRegistrations {
+    const message = createBaseUpdatePushRegistrations();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    message.apnsTokens = object.apnsTokens?.map((e) => e) || [];
+    message.webPushSubs = object.webPushSubs?.map((e) => WebPushSub.fromPartial(e)) || [];
+    message.vapidPublicKey = object.vapidPublicKey ?? "";
+    message.vapidPrivateKey = object.vapidPrivateKey ?? "";
+    return message;
+  },
+};
+
+function createBaseWebPushSub(): WebPushSub {
+  return { endpoint: "", p256dh: "", auth: "" };
+}
+
+export const WebPushSub: MessageFns<WebPushSub> = {
+  encode(message: WebPushSub, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.endpoint !== "") {
+      writer.uint32(10).string(message.endpoint);
+    }
+    if (message.p256dh !== "") {
+      writer.uint32(18).string(message.p256dh);
+    }
+    if (message.auth !== "") {
+      writer.uint32(26).string(message.auth);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WebPushSub {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWebPushSub();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.endpoint = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.p256dh = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.auth = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WebPushSub {
+    return {
+      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
+      p256dh: isSet(object.p256dh) ? globalThis.String(object.p256dh) : "",
+      auth: isSet(object.auth) ? globalThis.String(object.auth) : "",
+    };
+  },
+
+  toJSON(message: WebPushSub): unknown {
+    const obj: any = {};
+    if (message.endpoint !== "") {
+      obj.endpoint = message.endpoint;
+    }
+    if (message.p256dh !== "") {
+      obj.p256dh = message.p256dh;
+    }
+    if (message.auth !== "") {
+      obj.auth = message.auth;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WebPushSub>, I>>(base?: I): WebPushSub {
+    return WebPushSub.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WebPushSub>, I>>(object: I): WebPushSub {
+    const message = createBaseWebPushSub();
+    message.endpoint = object.endpoint ?? "";
+    message.p256dh = object.p256dh ?? "";
+    message.auth = object.auth ?? "";
+    return message;
+  },
+};
+
+function createBaseUpdatePushRegistrationsAck(): UpdatePushRegistrationsAck {
+  return { ok: false };
+}
+
+export const UpdatePushRegistrationsAck: MessageFns<UpdatePushRegistrationsAck> = {
+  encode(message: UpdatePushRegistrationsAck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ok !== false) {
+      writer.uint32(8).bool(message.ok);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdatePushRegistrationsAck {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdatePushRegistrationsAck();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.ok = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpdatePushRegistrationsAck {
+    return { ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false };
+  },
+
+  toJSON(message: UpdatePushRegistrationsAck): unknown {
+    const obj: any = {};
+    if (message.ok !== false) {
+      obj.ok = message.ok;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpdatePushRegistrationsAck>, I>>(base?: I): UpdatePushRegistrationsAck {
+    return UpdatePushRegistrationsAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpdatePushRegistrationsAck>, I>>(object: I): UpdatePushRegistrationsAck {
+    const message = createBaseUpdatePushRegistrationsAck();
+    message.ok = object.ok ?? false;
+    return message;
+  },
+};
+
 function createBaseGetProfile(): GetProfile {
   return {};
 }
@@ -7158,6 +7517,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqLinkFile":
         LinkFile.encode(message.payload.reqLinkFile, writer.uint32(474).fork()).join();
         break;
+      case "reqUpdatePushRegistrations":
+        UpdatePushRegistrations.encode(message.payload.reqUpdatePushRegistrations, writer.uint32(482).fork()).join();
+        break;
     }
     return writer;
   },
@@ -7639,6 +8001,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqLinkFile", reqLinkFile: LinkFile.decode(reader, reader.uint32()) };
           continue;
         }
+        case 60: {
+          if (tag !== 482) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqUpdatePushRegistrations",
+            reqUpdatePushRegistrations: UpdatePushRegistrations.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7795,6 +8168,11 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqHasFile", reqHasFile: HasFile.fromJSON(object.reqHasFile) }
         : isSet(object.reqLinkFile)
         ? { $case: "reqLinkFile", reqLinkFile: LinkFile.fromJSON(object.reqLinkFile) }
+        : isSet(object.reqUpdatePushRegistrations)
+        ? {
+          $case: "reqUpdatePushRegistrations",
+          reqUpdatePushRegistrations: UpdatePushRegistrations.fromJSON(object.reqUpdatePushRegistrations),
+        }
         : undefined,
     };
   },
@@ -7900,6 +8278,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqHasFile = HasFile.toJSON(message.payload.reqHasFile);
     } else if (message.payload?.$case === "reqLinkFile") {
       obj.reqLinkFile = LinkFile.toJSON(message.payload.reqLinkFile);
+    } else if (message.payload?.$case === "reqUpdatePushRegistrations") {
+      obj.reqUpdatePushRegistrations = UpdatePushRegistrations.toJSON(message.payload.reqUpdatePushRegistrations);
     }
     return obj;
   },
@@ -8318,6 +8698,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqUpdatePushRegistrations": {
+        if (
+          object.payload?.reqUpdatePushRegistrations !== undefined &&
+          object.payload?.reqUpdatePushRegistrations !== null
+        ) {
+          message.payload = {
+            $case: "reqUpdatePushRegistrations",
+            reqUpdatePushRegistrations: UpdatePushRegistrations.fromPartial(object.payload.reqUpdatePushRegistrations),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -8410,6 +8802,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respFileExists":
         FileExists.encode(message.payload.respFileExists, writer.uint32(266).fork()).join();
+        break;
+      case "respUpdatePushRegistrationsAck":
+        UpdatePushRegistrationsAck.encode(message.payload.respUpdatePushRegistrationsAck, writer.uint32(274).fork())
+          .join();
         break;
     }
     return writer;
@@ -8662,6 +9058,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respFileExists", respFileExists: FileExists.decode(reader, reader.uint32()) };
           continue;
         }
+        case 34: {
+          if (tag !== 274) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respUpdatePushRegistrationsAck",
+            respUpdatePushRegistrationsAck: UpdatePushRegistrationsAck.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8739,6 +9146,11 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respVapidPublicKey", respVapidPublicKey: VapidPublicKey.fromJSON(object.respVapidPublicKey) }
         : isSet(object.respFileExists)
         ? { $case: "respFileExists", respFileExists: FileExists.fromJSON(object.respFileExists) }
+        : isSet(object.respUpdatePushRegistrationsAck)
+        ? {
+          $case: "respUpdatePushRegistrationsAck",
+          respUpdatePushRegistrationsAck: UpdatePushRegistrationsAck.fromJSON(object.respUpdatePushRegistrationsAck),
+        }
         : undefined,
     };
   },
@@ -8802,6 +9214,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respVapidPublicKey = VapidPublicKey.toJSON(message.payload.respVapidPublicKey);
     } else if (message.payload?.$case === "respFileExists") {
       obj.respFileExists = FileExists.toJSON(message.payload.respFileExists);
+    } else if (message.payload?.$case === "respUpdatePushRegistrationsAck") {
+      obj.respUpdatePushRegistrationsAck = UpdatePushRegistrationsAck.toJSON(
+        message.payload.respUpdatePushRegistrationsAck,
+      );
     }
     return obj;
   },
@@ -9005,6 +9421,20 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respFileExists",
             respFileExists: FileExists.fromPartial(object.payload.respFileExists),
+          };
+        }
+        break;
+      }
+      case "respUpdatePushRegistrationsAck": {
+        if (
+          object.payload?.respUpdatePushRegistrationsAck !== undefined &&
+          object.payload?.respUpdatePushRegistrationsAck !== null
+        ) {
+          message.payload = {
+            $case: "respUpdatePushRegistrationsAck",
+            respUpdatePushRegistrationsAck: UpdatePushRegistrationsAck.fromPartial(
+              object.payload.respUpdatePushRegistrationsAck,
+            ),
           };
         }
         break;

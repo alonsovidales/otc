@@ -3,10 +3,12 @@
 package dao
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/push"
 )
 
 // PruneOldLogs is the only thing standing between auth_events (which holds
@@ -35,5 +37,120 @@ func TestPruneOldLogsDeletesBothTables(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// SetPushRegistrations replaces a domain's whole snapshot (vapid keys,
+// apns tokens, web push subs) in one transaction - issue #62 relies on
+// this never leaving a half-replaced set for a concurrent read to observe,
+// and on it actually deleting the old rows rather than only ever adding.
+func TestSetPushRegistrationsReplacesWholeSnapshotInOneTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `push_registrations`").
+		WithArgs("pit.otc", "pub-key", "priv-key").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `push_apns_tokens` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectExec("insert into `push_apns_tokens`").
+		WithArgs("pit.otc", "tok-1").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `push_web_subs` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("insert into `push_web_subs`").
+		WithArgs("pit.otc", "https://push.example/ep", "p256dh-val", "auth-val").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	d := NewWithDB(db)
+	err = d.SetPushRegistrations("pit.otc", "pub-key", "priv-key",
+		[]string{"tok-1"},
+		[]push.WebPushSubscription{{Endpoint: "https://push.example/ep", P256dh: "p256dh-val", Auth: "auth-val"}},
+	)
+	if err != nil {
+		t.Fatalf("SetPushRegistrations returned an error: %v", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// A failure partway through must roll back rather than leave, say, the
+// apns tokens cleared but the web push subs untouched.
+func TestSetPushRegistrationsRollsBackOnFailure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `push_registrations`").
+		WithArgs("pit.otc", "pub-key", "priv-key").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `push_apns_tokens` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnError(sqlmock.ErrCancelled)
+	mock.ExpectRollback()
+
+	d := NewWithDB(db)
+	if err := d.SetPushRegistrations("pit.otc", "pub-key", "priv-key", nil, nil); err == nil {
+		t.Fatal("expected an error when a statement mid-transaction fails")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran (rollback missing?): %v", err)
+	}
+}
+
+func TestGetVapidKeysForDomainReturnsEmptyWhenNoRowYet(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `vapid_public_key`, `vapid_private_key` from `push_registrations`").
+		WithArgs("new-domain.otc").
+		WillReturnError(sql.ErrNoRows)
+
+	d := NewWithDB(db)
+	pub, priv, err := d.GetVapidKeysForDomain("new-domain.otc")
+	if err != nil {
+		t.Fatalf("expected no error for a not-yet-synced domain, got: %v", err)
+	}
+	if pub != "" || priv != "" {
+		t.Errorf("expected empty keys, got pub=%q priv=%q", pub, priv)
+	}
+}
+
+func TestListWebPushSubscriptionsForDomainScopesToOneDomain(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	rows := sqlmock.NewRows([]string{"endpoint", "p256dh", "auth"}).
+		AddRow("https://push.example/a", "p256-a", "auth-a")
+	mock.ExpectQuery("select `endpoint`, `p256dh`, `auth` from `push_web_subs` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnRows(rows)
+
+	d := NewWithDB(db)
+	subs, err := d.ListWebPushSubscriptionsForDomain("pit.otc")
+	if err != nil {
+		t.Fatalf("ListWebPushSubscriptionsForDomain returned an error: %v", err)
+	}
+	if len(subs) != 1 || subs[0].Endpoint != "https://push.example/a" {
+		t.Errorf("unexpected subs: %+v", subs)
 	}
 }

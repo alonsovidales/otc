@@ -61,6 +61,47 @@ create table contact_requests
   key (`created`)
 ) engine=InnoDB;
 
+-- Per-device push-notification registrations, mirrored from the device
+-- itself (issue #62: "alert the owner if their device goes unreachable" -
+-- the bridge is the only party that can ever observe that, since offline
+-- is a state the device itself can't report). vapid keys are one row per
+-- domain; apns tokens and web push subscriptions are one row each, kept in
+-- their own tables rather than a single delimited column so a domain can
+-- have any number of either. All three are replaced wholesale on every
+-- sync (see dao.SetPushRegistrations) rather than upserted in place - this
+-- data only ever mirrors the device's own already-authoritative state, so
+-- a full replace is simpler than reconciling adds/removes and self-heals
+-- after any partial/stale write. No unique key on endpoint/token: they can
+-- be arbitrarily long (real push-service URLs), and InnoDB's 3072-byte
+-- key-size limit makes a long varchar column a poor unique-key candidate -
+-- a plain, non-unique `key (domain)` is all lookups here ever need anyway.
+create table push_registrations
+(
+  `domain`            varchar(150) not null,
+  `vapid_public_key`  varchar(255) not null default '',
+  `vapid_private_key` varchar(255) not null default '',
+
+  primary key (`domain`)
+) engine=InnoDB;
+
+create table push_apns_tokens
+(
+  `domain` varchar(150) not null,
+  `token`  varchar(255) not null,
+
+  key (`domain`)
+) engine=InnoDB;
+
+create table push_web_subs
+(
+  `domain`   varchar(150) not null,
+  `endpoint` varchar(1000) not null,
+  `p256dh`   varchar(255) not null,
+  `auth`     varchar(255) not null,
+
+  key (`domain`)
+) engine=InnoDB;
+
 -- Failed/suspicious bridge-registration attempts per device (issue #8:
 -- "logging issues to see if there is someone trying to hack into the
 -- device"). owner_uuid_attempted is whatever the client claimed, which

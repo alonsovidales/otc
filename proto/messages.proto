@@ -424,6 +424,41 @@ message RotateBridgeSecretAck {
 message RegenerateBridgeSecret {
 }
 
+// Issue #62: the bridge is the only party still online when a device goes
+// unreachable, so it has to be the one sending the "you're offline" alert —
+// which means it needs its own copy of whatever this device would otherwise
+// use to push-notify its own owner. Sent bridge-side (like
+// BridgeRegister/RotateBridgeSecret above, not on the device's own
+// client-facing /ws), and always the device's *current full* set of
+// registrations, replacing whatever the bridge had stored for this domain
+// before — simpler and self-healing (a bridge DB reset just looks like
+// every device re-syncing on its next registration change) than trying to
+// keep two independently-diffed copies in sync over time.
+message UpdatePushRegistrations {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+  repeated string apns_tokens = 4;
+  repeated WebPushSub web_push_subs = 5;
+  // Web Push payloads are signed with the VAPID key the browser's
+  // subscription was originally created against - the bridge sending on
+  // this device's behalf has to sign with the exact same keypair this
+  // device already generated for itself (see push.Init), not one of its
+  // own, or every send would be rejected as a signature mismatch.
+  string vapid_public_key = 6;
+  string vapid_private_key = 7;
+}
+
+message WebPushSub {
+  string endpoint = 1;
+  string p256dh = 2;
+  string auth = 3;
+}
+
+message UpdatePushRegistrationsAck {
+  bool ok = 1;
+}
+
 message GetProfile {
 }
 
@@ -600,6 +635,7 @@ message ReqEnvelope {
     GetVapidPublicKey req_get_vapid_public_key = 57;
     HasFile req_has_file = 58;
     LinkFile req_link_file = 59;
+    UpdatePushRegistrations req_update_push_registrations = 60;
   }
 }
 
@@ -632,5 +668,6 @@ message RespEnvelope {
     WifiNetworks resp_wifi_networks = 31;
     VapidPublicKey resp_vapid_public_key = 32;
     FileExists resp_file_exists = 33;
+    UpdatePushRegistrationsAck resp_update_push_registrations_ack = 34;
   }
 }

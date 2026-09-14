@@ -1,17 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package push sends "a friend posted" notifications (issue #43) to every
-// device the owner has registered, over two independent channels:
+// Package push sends notifications to every device the owner has
+// registered, over two independent channels:
 //
 //   - Web Push (browsers): fully self-hosted, no third-party account
-//     needed. This device generates its own VAPID keypair on first use
-//     (see Init) and talks directly to the browser vendor's push service
-//     using it.
+//     needed. A device generates its own VAPID keypair on first use (see
+//     Init) and talks directly to the browser vendor's push service using
+//     it.
 //   - APNs (iOS): genuinely can't be self-hosted - it needs an APNs Auth
 //     Key (.p8) generated in the device owner's own Apple Developer
 //     account, configured via the [apns] section below. Until that's
 //     configured, Send just skips the APNs half and logs once - device
 //     token registration itself still works and isn't lost.
+//
+// This started (issue #43) as "a friend posted" notifications sent by the
+// OTC device itself, backed directly by its own *dao.Dao. Issue #62 (alert
+// the owner if their device goes unreachable) needs the exact same sending
+// logic to run from the bridge instead - the device is the thing that's
+// offline, so it's the one party that provably can't send its own "I'm
+// offline" push. Since the bridge has its own, unrelated *dao.Dao (it
+// isn't part of the device module at all - see CLAUDE.md), Push is backed
+// by the Storage interface below rather than a concrete dao type, so both
+// a device's own dao.Dao and the bridge's own per-domain adapter (over
+// whatever it was told to store for that one domain - see
+// bridge/websocket's UpdatePushRegistrations handling) can satisfy it.
 package push
 
 import (
@@ -21,15 +33,34 @@ import (
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/alonsovidales/otc/cfg"
-	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/payload"
 	"github.com/sideshow/apns2/token"
 )
 
+// WebPushSubscription mirrors a browser PushSubscription's fields, verbatim
+// from subscription.toJSON() (issue #43).
+type WebPushSubscription struct {
+	Endpoint string
+	P256dh   string
+	Auth     string
+}
+
+// Storage is everything Push needs to persist/read registrations and the
+// VAPID keypair - see the package doc for why this is an interface rather
+// than a concrete dao type.
+type Storage interface {
+	GetVapidKeys() (pub, priv string, err error)
+	SetVapidKeys(pub, priv string) error
+	ListWebPushSubscriptions() ([]*WebPushSubscription, error)
+	DeleteWebPushSubscription(endpoint string) error
+	ListApnsTokens() ([]string, error)
+	DeleteApnsToken(token string) error
+}
+
 type Push struct {
-	dao *dao.Dao
+	storage Storage
 
 	vapidPublicKey  string
 	vapidPrivateKey string
@@ -39,12 +70,26 @@ type Push struct {
 	apnsClient   *apns2.Client
 	apnsTopic    string
 	subscriberID string
+
+	// OnChange, if set, is called after a stale subscription/token is
+	// pruned (see sendWebPush/sendApns) - i.e. whenever storage's
+	// registration set actually changed as a side effect of sending. The
+	// device wires this to re-sync its registrations to the bridge
+	// (issue #62), so the bridge's copy doesn't accumulate dead
+	// entries between explicit register/unregister calls. Never called
+	// for any other reason, and nil is a valid no-op value (the bridge's
+	// own Push instance has no further hop to sync to).
+	OnChange func()
 }
 
-// Init loads (generating on first use) this device's VAPID keypair, and
-// loads APNs config if the optional [apns] section is present.
-func Init(d *dao.Dao) (p *Push, err error) {
-	p = &Push{dao: d, subscriberID: "mailto:otc@localhost"}
+// Init loads (generating on first use - see loadOrGenerateVapidKeys) this
+// device's VAPID keypair, and loads APNs config if the optional [apns]
+// section is present. The bridge, sending on an already-registered
+// device's behalf, never hits the "generate" path: it always has real
+// keys already, reported by that device (see loadOrGenerateVapidKeys' own
+// doc comment).
+func Init(s Storage) (p *Push, err error) {
+	p = &Push{storage: s, subscriberID: "mailto:otc@localhost"}
 
 	if err = p.loadOrGenerateVapidKeys(); err != nil {
 		return nil, err
@@ -54,8 +99,17 @@ func Init(d *dao.Dao) (p *Push, err error) {
 	return p, nil
 }
 
+// loadOrGenerateVapidKeys loads whatever keypair storage already has, or -
+// only when storage is a device's own, and it's truly the first time
+// (nothing generated yet) - generates and persists a new one. The bridge's
+// own Storage adapter (issue #62) always has real keys by the time it's
+// asked, reported by the device itself in UpdatePushRegistrations, so this
+// generate path never actually runs there in practice; it's kept
+// unconditional rather than split into a separate device-only method so
+// there's exactly one code path for "make sure the keys are loaded",
+// regardless of which Storage is behind it.
 func (p *Push) loadOrGenerateVapidKeys() (err error) {
-	pub, priv, err := p.dao.GetVapidKeys()
+	pub, priv, err := p.storage.GetVapidKeys()
 	if err != nil {
 		return err
 	}
@@ -69,7 +123,7 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 	if err != nil {
 		return fmt.Errorf("generating VAPID keys: %w", err)
 	}
-	if err = p.dao.SetVapidKeys(pub, priv); err != nil {
+	if err = p.storage.SetVapidKeys(pub, priv); err != nil {
 		return fmt.Errorf("persisting VAPID keys: %w", err)
 	}
 	p.vapidPublicKey, p.vapidPrivateKey = pub, priv
@@ -121,14 +175,6 @@ func (p *Push) loadApns() {
 
 func (p *Push) VapidPublicKey() string { return p.vapidPublicKey }
 
-func (p *Push) RegisterWebPush(endpoint, p256dh, auth string) error {
-	return p.dao.SaveWebPushSubscription(endpoint, p256dh, auth)
-}
-
-func (p *Push) RegisterApnsToken(t string) error {
-	return p.dao.SaveApnsToken(t)
-}
-
 // NotifyNewPost tells every registered device that friendName just posted -
 // friendName only, deliberately never the post's own text or photo: this
 // goes out over APNs too, not just Web Push, and unlike Web Push's
@@ -173,7 +219,7 @@ func (p *Push) Notify(title, body string) {
 }
 
 func (p *Push) sendWebPush(title, body string) {
-	subs, err := p.dao.ListWebPushSubscriptions()
+	subs, err := p.storage.ListWebPushSubscriptions()
 	if err != nil {
 		log.Error("could not list web push subscriptions:", err)
 		return
@@ -209,8 +255,10 @@ func (p *Push) sendWebPush(title, body string) {
 		// exists (browser unsubscribed, or the endpoint expired) - stop
 		// retrying it forever.
 		if resp.StatusCode == 404 || resp.StatusCode == 410 {
-			if delErr := p.dao.DeleteWebPushSubscription(sub.Endpoint); delErr != nil {
+			if delErr := p.storage.DeleteWebPushSubscription(sub.Endpoint); delErr != nil {
 				log.Error("could not remove stale web push subscription:", delErr)
+			} else if p.OnChange != nil {
+				p.OnChange()
 			}
 		}
 	}
@@ -221,7 +269,7 @@ func (p *Push) sendApns(title, body string) {
 		return
 	}
 
-	tokens, err := p.dao.ListApnsTokens()
+	tokens, err := p.storage.ListApnsTokens()
 	if err != nil {
 		log.Error("could not list APNs tokens:", err)
 		return
@@ -244,8 +292,10 @@ func (p *Push) sendApns(title, body string) {
 			// (app uninstalled, or 410-equivalent) both mean this token
 			// will never work again.
 			if resp.Reason == "BadDeviceToken" || resp.Reason == "Unregistered" {
-				if delErr := p.dao.DeleteApnsToken(t); delErr != nil {
+				if delErr := p.storage.DeleteApnsToken(t); delErr != nil {
 					log.Error("could not remove stale APNs token:", delErr)
+				} else if p.OnChange != nil {
+					p.OnChange()
 				}
 			}
 		}

@@ -1235,6 +1235,73 @@ public struct Msg_RegenerateBridgeSecret: Sendable {
   public init() {}
 }
 
+/// Issue #62: the bridge is the only party still online when a device goes
+/// unreachable, so it has to be the one sending the "you're offline" alert —
+/// which means it needs its own copy of whatever this device would otherwise
+/// use to push-notify its own owner. Sent bridge-side (like
+/// BridgeRegister/RotateBridgeSecret above, not on the device's own
+/// client-facing /ws), and always the device's *current full* set of
+/// registrations, replacing whatever the bridge had stored for this domain
+/// before — simpler and self-healing (a bridge DB reset just looks like
+/// every device re-syncing on its next registration change) than trying to
+/// keep two independently-diffed copies in sync over time.
+public struct Msg_UpdatePushRegistrations: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ownerUuid: String = String()
+
+  public var domain: String = String()
+
+  public var secret: String = String()
+
+  public var apnsTokens: [String] = []
+
+  public var webPushSubs: [Msg_WebPushSub] = []
+
+  /// Web Push payloads are signed with the VAPID key the browser's
+  /// subscription was originally created against - the bridge sending on
+  /// this device's behalf has to sign with the exact same keypair this
+  /// device already generated for itself (see push.Init), not one of its
+  /// own, or every send would be rejected as a signature mismatch.
+  public var vapidPublicKey: String = String()
+
+  public var vapidPrivateKey: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_WebPushSub: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var endpoint: String = String()
+
+  public var p256Dh: String = String()
+
+  public var auth: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_UpdatePushRegistrationsAck: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ok: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Msg_GetProfile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2003,6 +2070,14 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqLinkFile(newValue)}
   }
 
+  public var reqUpdatePushRegistrations: Msg_UpdatePushRegistrations {
+    get {
+      if case .reqUpdatePushRegistrations(let v)? = payload {return v}
+      return Msg_UpdatePushRegistrations()
+    }
+    set {payload = .reqUpdatePushRegistrations(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2054,6 +2129,7 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqGetVapidPublicKey(Msg_GetVapidPublicKey)
     case reqHasFile(Msg_HasFile)
     case reqLinkFile(Msg_LinkFile)
+    case reqUpdatePushRegistrations(Msg_UpdatePushRegistrations)
 
   }
 
@@ -2277,6 +2353,14 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respFileExists(newValue)}
   }
 
+  public var respUpdatePushRegistrationsAck: Msg_UpdatePushRegistrationsAck {
+    get {
+      if case .respUpdatePushRegistrationsAck(let v)? = _storage._payload {return v}
+      return Msg_UpdatePushRegistrationsAck()
+    }
+    set {_uniqueStorage()._payload = .respUpdatePushRegistrationsAck(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2304,6 +2388,7 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     case respWifiNetworks(Msg_WifiNetworks)
     case respVapidPublicKey(Msg_VapidPublicKey)
     case respFileExists(Msg_FileExists)
+    case respUpdatePushRegistrationsAck(Msg_UpdatePushRegistrationsAck)
 
   }
 
@@ -4365,6 +4450,136 @@ extension Msg_RegenerateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
+extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdatePushRegistrations"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{3}apns_tokens\0\u{3}web_push_subs\0\u{3}vapid_public_key\0\u{3}vapid_private_key\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ownerUuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.domain) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.secret) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.apnsTokens) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.webPushSubs) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.vapidPublicKey) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.vapidPrivateKey) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ownerUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ownerUuid, fieldNumber: 1)
+    }
+    if !self.domain.isEmpty {
+      try visitor.visitSingularStringField(value: self.domain, fieldNumber: 2)
+    }
+    if !self.secret.isEmpty {
+      try visitor.visitSingularStringField(value: self.secret, fieldNumber: 3)
+    }
+    if !self.apnsTokens.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.apnsTokens, fieldNumber: 4)
+    }
+    if !self.webPushSubs.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.webPushSubs, fieldNumber: 5)
+    }
+    if !self.vapidPublicKey.isEmpty {
+      try visitor.visitSingularStringField(value: self.vapidPublicKey, fieldNumber: 6)
+    }
+    if !self.vapidPrivateKey.isEmpty {
+      try visitor.visitSingularStringField(value: self.vapidPrivateKey, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_UpdatePushRegistrations, rhs: Msg_UpdatePushRegistrations) -> Bool {
+    if lhs.ownerUuid != rhs.ownerUuid {return false}
+    if lhs.domain != rhs.domain {return false}
+    if lhs.secret != rhs.secret {return false}
+    if lhs.apnsTokens != rhs.apnsTokens {return false}
+    if lhs.webPushSubs != rhs.webPushSubs {return false}
+    if lhs.vapidPublicKey != rhs.vapidPublicKey {return false}
+    if lhs.vapidPrivateKey != rhs.vapidPrivateKey {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_WebPushSub: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WebPushSub"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}endpoint\0\u{1}p256dh\0\u{1}auth\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.endpoint) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.p256Dh) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.endpoint.isEmpty {
+      try visitor.visitSingularStringField(value: self.endpoint, fieldNumber: 1)
+    }
+    if !self.p256Dh.isEmpty {
+      try visitor.visitSingularStringField(value: self.p256Dh, fieldNumber: 2)
+    }
+    if !self.auth.isEmpty {
+      try visitor.visitSingularStringField(value: self.auth, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_WebPushSub, rhs: Msg_WebPushSub) -> Bool {
+    if lhs.endpoint != rhs.endpoint {return false}
+    if lhs.p256Dh != rhs.p256Dh {return false}
+    if lhs.auth != rhs.auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_UpdatePushRegistrationsAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdatePushRegistrationsAck"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.ok != false {
+      try visitor.visitSingularBoolField(value: self.ok, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_UpdatePushRegistrationsAck, rhs: Msg_UpdatePushRegistrationsAck) -> Bool {
+    if lhs.ok != rhs.ok {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_GetProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetProfile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
@@ -5114,7 +5329,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5747,6 +5962,19 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqLinkFile(v)
         }
       }()
+      case 60: try {
+        var v: Msg_UpdatePushRegistrations?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqUpdatePushRegistrations(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqUpdatePushRegistrations(v)
+        }
+      }()
       default: break
       }
     }
@@ -5953,6 +6181,10 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqLinkFile(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 59)
     }()
+    case .reqUpdatePushRegistrations?: try {
+      guard case .reqUpdatePushRegistrations(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 60)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -5968,7 +6200,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -6322,6 +6554,19 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
             _storage._payload = .respFileExists(v)
           }
         }()
+        case 34: try {
+          var v: Msg_UpdatePushRegistrationsAck?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respUpdatePushRegistrationsAck(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respUpdatePushRegistrationsAck(v)
+          }
+        }()
         default: break
         }
       }
@@ -6439,6 +6684,10 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case .respFileExists?: try {
         guard case .respFileExists(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 33)
+      }()
+      case .respUpdatePushRegistrationsAck?: try {
+        guard case .respUpdatePushRegistrationsAck(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 34)
       }()
       case nil: break
       }

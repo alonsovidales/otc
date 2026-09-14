@@ -123,7 +123,22 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 		social:   social.Init(dao, filesManager, st, pr, ps),
 	}
 
+	// Issue #62: whenever this device's own Push instance (used for social
+	// notifications) prunes a stale subscription/token, re-sync the
+	// bridge's copy too, so it doesn't keep a dead entry around between
+	// explicit register/unregister calls. Async: sendWebPush/sendApns run
+	// from the background friend-sync loop and shouldn't block on a
+	// bridge round-trip.
+	ps.OnChange = func() { go mg.syncPushRegistrationsToBridge() }
+
 	mg.ensureBridgePool()
+
+	// Issue #62: re-sync on every startup too, not just on the next
+	// register - the bridge's own copy of this device's push registrations
+	// could otherwise stay stale forever after a bridge-side DB reset, or
+	// simply never exist at all for a device that registered tokens before
+	// this feature shipped.
+	go mg.syncPushRegistrationsToBridge()
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -398,6 +413,91 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 	}
 
 	return ack.RespRotateBridgeSecretAck.NewSecret, nil
+}
+
+// syncPushRegistrationsToBridge sends this device's current, full set of
+// push registrations to the bridge (issue #62: alert the owner if this
+// device goes unreachable) — see push's own package doc for why the bridge
+// needs a copy of this at all, and its own doc comment on why it's always
+// the complete current set rather than an incremental diff. A one-off
+// connection, same pattern as regenerateBridgeSecret above, not a pooled
+// relay connection — this has nothing to do with client traffic.
+//
+// Fire-and-forget: called from a goroutine by every caller below, since a
+// failed sync isn't worth slowing down (or failing) whatever
+// register/startup path triggered it, and there's nowhere better to
+// surface the error to — the next successful sync (the very next
+// register, or this device's own next restart) naturally catches the
+// bridge back up.
+func (mg *Manager) syncPushRegistrationsToBridge() {
+	apnsTokens, err := mg.dao.ListApnsTokens()
+	if err != nil {
+		log.Error("error listing APNs tokens for bridge push-registrations sync:", err)
+		return
+	}
+	webPushSubs, err := mg.dao.ListWebPushSubscriptions()
+	if err != nil {
+		log.Error("error listing web push subscriptions for bridge push-registrations sync:", err)
+		return
+	}
+	vapidPub, vapidPriv, err := mg.dao.GetVapidKeys()
+	if err != nil {
+		log.Error("error loading VAPID keys for bridge push-registrations sync:", err)
+		return
+	}
+
+	pbSubs := make([]*pb.WebPushSub, len(webPushSubs))
+	for i, s := range webPushSubs {
+		pbSubs[i] = &pb.WebPushSub{Endpoint: s.Endpoint, P256Dh: s.P256dh, Auth: s.Auth}
+	}
+
+	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
+	h := http.Header{}
+	h.Set("Sec-WebSocket-Protocol", "protobuf")
+	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	if err != nil {
+		log.Error("error dialing bridge for push-registrations sync:", err)
+		return
+	}
+	defer c.Close()
+
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqUpdatePushRegistrations{
+			ReqUpdatePushRegistrations: &pb.UpdatePushRegistrations{
+				OwnerUuid:       mg.settings.DeviceUuid,
+				Domain:          mg.settings.Domain,
+				Secret:          mg.settings.BridgeSecret,
+				ApnsTokens:      apnsTokens,
+				WebPushSubs:     pbSubs,
+				VapidPublicKey:  vapidPub,
+				VapidPrivateKey: vapidPriv,
+			},
+		},
+	}
+	b, err := proto.Marshal(msg)
+	if err != nil {
+		log.Error("error marshaling push-registrations sync:", err)
+		return
+	}
+	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		log.Error("error writing push-registrations sync to bridge:", err)
+		return
+	}
+
+	_, data, err := c.ReadMessage()
+	if err != nil {
+		log.Error("error reading push-registrations sync ack from bridge:", err)
+		return
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		log.Error("error unmarshaling push-registrations sync ack:", err)
+		return
+	}
+	if resp.Error {
+		log.Error("bridge rejected push-registrations sync:", resp.ErrorMessage)
+	}
 }
 
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
@@ -1293,7 +1393,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqRegisterWebPush:
 		log.Info("Register web push subscription")
-		err := ch.mg.push.RegisterWebPush(
+		err := ch.mg.dao.SaveWebPushSubscription(
 			p.ReqRegisterWebPush.Endpoint,
 			p.ReqRegisterWebPush.P256Dh,
 			p.ReqRegisterWebPush.Auth,
@@ -1304,17 +1404,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			// Issue #62: the bridge needs its own copy of this to be able
+			// to alert the owner if this device ever goes unreachable -
+			// see syncPushRegistrationsToBridge's own doc comment.
+			go ch.mg.syncPushRegistrationsToBridge()
 		}
 
 	case *pb.ReqEnvelope_ReqRegisterApnsToken:
 		log.Info("Register APNs token")
-		err := ch.mg.push.RegisterApnsToken(p.ReqRegisterApnsToken.Token)
+		err := ch.mg.dao.SaveApnsToken(p.ReqRegisterApnsToken.Token)
 		if err != nil {
 			log.Error("error registering APNs token:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			go ch.mg.syncPushRegistrationsToBridge()
 		}
 
 	default:

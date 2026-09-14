@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/push"
 	_ "github.com/go-sql-driver/mysql"
 	"time"
 )
@@ -354,4 +355,125 @@ func (dao *Dao) GetAuthEvents(domain string, limit int) (events []AuthEvent, err
 	}
 
 	return events, rows.Err()
+}
+
+// SetPushRegistrations replaces the full push-registration snapshot for
+// domain - this device's current VAPID keypair, APNs tokens, and Web Push
+// subscriptions, as reported by ReqUpdatePushRegistrations (issue #62). See
+// push_registrations/push_apns_tokens/push_web_subs' shared doc comment in
+// db.sql for why this is delete-all-then-reinsert rather than a row-by-row
+// reconcile. All in one transaction so a client of ListWebPushSubscriptions-
+// ForDomain/ListApnsTokensForDomain never observes a half-replaced set.
+func (dao *Dao) SetPushRegistrations(domain, vapidPub, vapidPriv string, apnsTokens []string, webSubs []push.WebPushSubscription) (err error) {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.Exec(
+		"insert into `push_registrations` (`domain`, `vapid_public_key`, `vapid_private_key`) values (?, ?, ?) "+
+			"on duplicate key update `vapid_public_key` = values(`vapid_public_key`), `vapid_private_key` = values(`vapid_private_key`)",
+		domain, vapidPub, vapidPriv); err != nil {
+		return fmt.Errorf("upserting vapid keys: %w", err)
+	}
+
+	if _, err = tx.Exec("delete from `push_apns_tokens` where `domain` = ?", domain); err != nil {
+		return fmt.Errorf("clearing apns tokens: %w", err)
+	}
+	for _, t := range apnsTokens {
+		if _, err = tx.Exec("insert into `push_apns_tokens` (`domain`, `token`) values (?, ?)", domain, t); err != nil {
+			return fmt.Errorf("inserting apns token: %w", err)
+		}
+	}
+
+	if _, err = tx.Exec("delete from `push_web_subs` where `domain` = ?", domain); err != nil {
+		return fmt.Errorf("clearing web push subs: %w", err)
+	}
+	for _, s := range webSubs {
+		if _, err = tx.Exec(
+			"insert into `push_web_subs` (`domain`, `endpoint`, `p256dh`, `auth`) values (?, ?, ?, ?)",
+			domain, s.Endpoint, s.P256dh, s.Auth); err != nil {
+			return fmt.Errorf("inserting web push sub: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+// GetVapidKeysForDomain, SetVapidKeysForDomain, ListWebPushSubscriptions-
+// ForDomain, DeleteWebPushSubscriptionForDomain, ListApnsTokensForDomain and
+// DeleteApnsTokenForDomain below are the domain-scoped equivalents of
+// push.Storage's methods - a device's own dao.Dao only ever holds one
+// device's worth of registrations, but the bridge holds every domain's, so
+// each of these needs to say which one. See websocket.domainPushStorage,
+// the small per-domain adapter that lets *Dao back a push.Push the same way
+// a device's own *dao.Dao does.
+
+func (dao *Dao) GetVapidKeysForDomain(domain string) (pub, priv string, err error) {
+	err = dao.db.QueryRow("select `vapid_public_key`, `vapid_private_key` from `push_registrations` where `domain` = ?", domain).Scan(&pub, &priv)
+	if err == sql.ErrNoRows {
+		return "", "", nil
+	}
+	return pub, priv, err
+}
+
+// SetVapidKeysForDomain exists only to satisfy push.Storage - in practice
+// never called for a bridge-side adapter, since the device always reports
+// its own real keys before the bridge ever needs them (see
+// push.loadOrGenerateVapidKeys' doc comment).
+func (dao *Dao) SetVapidKeysForDomain(domain, pub, priv string) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `push_registrations` (`domain`, `vapid_public_key`, `vapid_private_key`) values (?, ?, ?) "+
+			"on duplicate key update `vapid_public_key` = values(`vapid_public_key`), `vapid_private_key` = values(`vapid_private_key`)",
+		domain, pub, priv)
+	return
+}
+
+func (dao *Dao) ListWebPushSubscriptionsForDomain(domain string) (subs []*push.WebPushSubscription, err error) {
+	rows, err := dao.db.Query("select `endpoint`, `p256dh`, `auth` from `push_web_subs` where `domain` = ?", domain)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	subs = []*push.WebPushSubscription{}
+	for rows.Next() {
+		var s push.WebPushSubscription
+		if err := rows.Scan(&s.Endpoint, &s.P256dh, &s.Auth); err != nil {
+			return nil, err
+		}
+		subs = append(subs, &s)
+	}
+
+	return subs, rows.Err()
+}
+
+func (dao *Dao) DeleteWebPushSubscriptionForDomain(domain, endpoint string) (err error) {
+	_, err = dao.db.Exec("delete from `push_web_subs` where `domain` = ? and `endpoint` = ?", domain, endpoint)
+	return
+}
+
+func (dao *Dao) ListApnsTokensForDomain(domain string) (tokens []string, err error) {
+	rows, err := dao.db.Query("select `token` from `push_apns_tokens` where `domain` = ?", domain)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tokens = []string{}
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+
+	return tokens, rows.Err()
+}
+
+func (dao *Dao) DeleteApnsTokenForDomain(domain, token string) (err error) {
+	_, err = dao.db.Exec("delete from `push_apns_tokens` where `domain` = ? and `token` = ?", domain, token)
+	return
 }
