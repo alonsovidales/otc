@@ -79,8 +79,16 @@ export default function PhotoGallery() {
   }, []);
 
   const fetchPage = useCallback(
-    async (overrideToken?: Token) => {
-      if (loading || endReached) return;
+    async (overrideToken?: Token, force = false) => {
+      // force skips the loading/endReached guard: a deliberate fresh
+      // search (chips just changed) always resets those to false right
+      // before calling this, but that reset and this call happen in the
+      // same tick - React hasn't re-rendered yet, so without `force` this
+      // closure would still see whatever they were for the *previous*
+      // search (e.g. endReached=true from having scrolled to the bottom
+      // of it), silently no-op, and leave the old results on screen until
+      // a full reload reset everything fresh.
+      if (!force && (loading || endReached)) return;
       setLoading(true);
       try {
         const resp: RespEnvelope = await useWS.request(e => {
@@ -164,27 +172,27 @@ export default function PhotoGallery() {
   const closeInfo = useCallback(() => { setInfoOpen(false); setInfoData(null); }, []);
 
   // -------- initial load ----------------------------------------------------
+  // Just the autocomplete tag list - the photo list itself is fetched by
+  // the chips effect below, which also fires on mount (with whatever tags
+  // were persisted from a previous session, per issue #53) so fetching it
+  // here too was pure duplicate work, not just on first load but racing
+  // this effect's own fetchPage against the chips effect's.
   useEffect(() => {
-    (async () => {
-      await loadTags();
-      // initial list (no tags)
-      setItems([]);
-      mapRef.current = new Map();
-      setToken(null);
-      setEndReached(false);
-      await fetchPage("");
-    })();
+    loadTags();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // re-run search when chips change (fresh paging)
+  // Fetch fresh whenever chips change - including on mount, for whichever
+  // tags (possibly none) were persisted. force=true: see fetchPage's own
+  // comment for why a plain (non-forced) call here could silently do
+  // nothing.
   useEffect(() => {
     (async () => {
       setItems([]);
       mapRef.current = new Map();
       setToken(null);
       setEndReached(false);
-      await fetchPage("");
+      await fetchPage("", true);
     })();
     savePhotoSearchTags(chips);
   }, [chips]); // eslint-disable-line react-hooks/exhaustive-deps
