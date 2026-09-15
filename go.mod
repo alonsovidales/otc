@@ -15,6 +15,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.25.8
 	github.com/sideshow/apns2 v0.25.0
 	github.com/yalue/onnxruntime_go v1.21.0
+	gocv.io/x/gocv v0.40.0
 	golang.org/x/crypto v0.55.0
 	golang.org/x/image v0.30.0
 	golang.org/x/sys v0.47.0

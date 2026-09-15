@@ -20,6 +20,9 @@
 .np-cell.selected { border-color: var(--ember); }
 .np-cell.selected img { opacity: 0.75; }
 .np-check { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--ember); color: var(--ember-ink); display: grid; place-items: center; font-size: 13px; }
+/* Issue #60: marks a video tile in the composer's grid - bottom-left so it
+   never collides with the selection checkmark (top-right) above. */
+.np-video-badge { position: absolute; bottom: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; display: grid; place-items: center; font-size: 11px; }
 
 .np-composer { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--ink-2); }
 .np-caption { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--ink); color: var(--mist); font-size: 16px; }

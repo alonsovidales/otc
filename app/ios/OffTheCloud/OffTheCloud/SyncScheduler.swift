@@ -24,11 +24,9 @@ enum SyncScheduler {
 
     static func handle(task: BGProcessingTask) {
         print("Handle")
-        scheduleNext() // plan the next one
-        task.expirationHandler = {
-            // Called if you run out of time
-        }
-        Task.detached {
+        scheduleNext() // plan the next one, regardless of how this one goes
+
+        let work = Task.detached {
             do {
                 print("Run forground sync...")
                 try await PhotoSync.shared.runForeground()
@@ -36,6 +34,15 @@ enum SyncScheduler {
             } catch {
                 task.setTaskCompleted(success: false)
             }
+        }
+        // Issue #70: this used to be an empty closure - iOS calling it
+        // means the task's time budget is up, and doing nothing here left
+        // the sync running right past its allotted window instead of
+        // winding down. Cancelling `work` is checked between chunks inside
+        // runForeground (Task.isCancelled), so whatever chunk is already
+        // uploading finishes cleanly rather than being killed mid-request.
+        task.expirationHandler = {
+            work.cancel()
         }
     }
 }

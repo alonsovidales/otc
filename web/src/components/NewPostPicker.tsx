@@ -64,7 +64,9 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         const resp: RespEnvelope = await useWS.request(e => {
           (e as any).payload = {
             $case: "reqSearchPhotos",
-            reqSearchPhotos: { tags: chips, token: overrideToken ?? token ?? "" },
+            // includeVideos (issue #60): the composer offers videos
+            // alongside photos, unlike the Photo Gallery's own search.
+            reqSearchPhotos: { tags: chips, token: overrideToken ?? token ?? "", includeVideos: true },
           };
         });
         if (resp.payload?.$case !== "respListOfFiles") return;
@@ -210,7 +212,13 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       <div className="np-grid">
         {items.map((f, i) => {
           const key = fileKey(f, i);
-          const thumb = bytesToURL(f.content, f.mime || "image/jpeg");
+          // The tile's content is always a server-generated JPEG thumbnail
+          // (see files_manager.GetThumbnail), for a video file same as a
+          // photo — never pass the file's own mime here, or a video tile's
+          // Blob gets tagged "video/mp4" over genuinely-JPEG bytes and the
+          // browser refuses to render it as an <img>.
+          const thumb = bytesToURL(f.content, "image/jpeg");
+          const isVideo = (f.mime || "").startsWith("video/");
           const checked = sel.has(f.path);
           return (
             <button
@@ -220,6 +228,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               title={f.path}
             >
               <img src={thumb} alt={f.path} loading="lazy" />
+              {isVideo && <span className="np-video-badge">▶</span>}
               {checked && <span className="np-check">✓</span>}
             </button>
           );

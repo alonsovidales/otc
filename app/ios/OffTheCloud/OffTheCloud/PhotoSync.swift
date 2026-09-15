@@ -13,9 +13,54 @@ import Photos
 import SwiftProtobuf
 import CryptoKit
 
-final class PhotoSync {
+final class PhotoSync: NSObject {
     static let shared = PhotoSync()
-    private init() {}
+    private override init() {
+        super.init()
+        // Issue #70: react the moment the Photos library actually changes
+        // (a new photo taken, an iCloud download finishing, ...) instead
+        // of only ever checking on a cold launch or whenever iOS happens
+        // to grant a background task - see photoLibraryDidChange below.
+        // PHPhotoLibrary holds observers weakly, so this doesn't need an
+        // unregister anywhere: `shared` living for the app's whole process
+        // lifetime is what actually keeps it alive. NSObject (rather than
+        // a plain class) is required here: PHPhotoLibraryChangeObserver is
+        // an @objc protocol.
+        PHPhotoLibrary.shared().register(self)
+    }
+
+    // Issue #70: guards against two runForeground() calls actually
+    // uploading concurrently - now that a sync can be triggered from
+    // several independent places (cold launch, returning to foreground,
+    // a Photos library change, a BGProcessingTask), more than one of
+    // those can legitimately land close together. Uploads are already
+    // idempotent (the knownPaths/HasFile dedup checks), so an overlap
+    // wouldn't corrupt anything, but it would double up network/disk work
+    // and stomp on UploadModel's shared progress state from two directions
+    // at once. NSLock rather than an actor: PhotoSync's other methods
+    // (resourceFilename, readData, exportAssetToTempFile) are called
+    // synchronously from NewPostPicker and have no need to become
+    // actor-isolated just for this one flag. The lock/unlock calls
+    // themselves stay inside the two plain (non-async) helpers below,
+    // never directly in runForeground's own async body - calling
+    // NSLock.lock()/.unlock() straight from an async function is flagged
+    // even today, and becomes an outright error under Swift 6.
+    private let syncLock = NSLock()
+    private var isSyncing = false
+
+    private func beginSyncIfNotAlreadyRunning() -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        if isSyncing { return false }
+        isSyncing = true
+        return true
+    }
+
+    private func endSync() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        isSyncing = false
+    }
 
     // How many assets to read from disk + upload at the same time (issue
     // #10). A fixed pool rather than a single sequential stream: each
@@ -199,6 +244,12 @@ final class PhotoSync {
     }
     
     func runForeground() async throws {
+        guard beginSyncIfNotAlreadyRunning() else {
+            print("Sync already running, skipping overlapping request")
+            return
+        }
+        defer { endSync() }
+
         try await ensureAuth()
         let secrets = SecretsStore.loadOrCreate()
         let ws = OTCConnection.shared
@@ -234,6 +285,14 @@ final class PhotoSync {
 
         var idx = 0
         for chunk in assets.chunked(into: Self.cMaxConcurrentUploads) {
+            // Issue #70: a BGProcessingTask's expirationHandler cancels the
+            // Task running this loop when iOS runs out of patience with it
+            // - checked between chunks (same granularity as the pause
+            // check right below) rather than per-asset, so whatever's
+            // already uploading in the current chunk finishes cleanly
+            // instead of being torn down mid-request.
+            if Task.isCancelled { break }
+
             // Issue #30: pause/resume from the upload bar. Checked between
             // chunks rather than cancelling in-flight requests — whatever's
             // already uploading finishes, nothing new starts until resumed.
@@ -416,6 +475,31 @@ final class PhotoSync {
 
         UploadModel.shared.complete()
         UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+    }
+}
+
+// Issue #70: "the photo sync only runs when the app opens and ... doesn't
+// continue checking for new photos - it should check all the time." A
+// timer/poll would work but wastes battery re-scanning the library on a
+// schedule that's either too slow (miss a photo taken between polls, the
+// exact bug reported) or too fast (pointless churn when nothing changed).
+// PHPhotoLibraryChangeObserver is the event-driven alternative Photos
+// itself offers: this fires the moment the library actually changes, so a
+// freshly-taken photo (or one that finishes downloading from iCloud)
+// triggers a sync right away, no matter how long the app has been sitting
+// idle in the foreground.
+extension PhotoSync: PHPhotoLibraryChangeObserver {
+    func photoLibraryDidChange(_ changeInstance: PHChange) {
+        // Runs on an arbitrary PhotoKit-owned queue - hop into a Task
+        // rather than calling the async runForeground() directly here.
+        // isSyncing (checked inside runForeground) coalesces a burst of
+        // several rapid changes (e.g. importing multiple Live Photos at
+        // once fires this more than once) into whichever pass is already
+        // in flight picking all of them up, rather than one overlapping
+        // run per notification.
+        Task {
+            try? await runForeground()
+        }
     }
 }
 

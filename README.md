@@ -344,6 +344,14 @@ bundle-id=otc.OffTheCloud
 # while testing against Xcode's own debug builds, which use the sandbox
 # APNs environment instead.
 production=0
+
+# Optional (issue #52) - face recognition ("People" search), humans only.
+# Omit this whole section and the feature just stays unavailable - it's
+# off by default (toggled from Settings in the app) even when this is
+# present. See step 11 below for where to get these two model files.
+[faces]
+detector-model-path=/usr/local/models/face_detection_yunet_2023mar.onnx
+recognizer-model-path=/usr/local/models/face_recognition_sface_2021dec_int8.onnx
 ```
 
 10. Download the models. `thresholds-path` is optional (older/from-scratch
@@ -371,6 +379,21 @@ $ wget https://github.com/microsoft/onnxruntime/releases/download/v1.24.3/onnxru
 $ tar -xzf onnxruntime-linux-aarch64-1.24.3.tgz
 $ sudo mv onnxruntime-linux-aarch64-1.24.3 /opt/onnxruntime
 ```
+
+    Issue #52 (face recognition, "People" search) needs OpenCV's actual
+    headers/libs at build time (unlike ONNX Runtime above, found via
+    pkg-config rather than a manually-placed .so), and the two small
+    (~230KB + ~10MB) YuNet/SFace models:
+```
+$ sudo apt-get install libopencv-dev pkg-config
+$ curl -fL -o /usr/local/models/face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+$ curl -fL -o /usr/local/models/face_recognition_sface_2021dec_int8.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx
+```
+    Both are official OpenCV Zoo models (MIT/Apache-2.0), designed as a
+    matched pair - see `face_recognition/face_recognition.go`'s package doc
+    comment. The feature stays off until turned on from Settings in the app
+    regardless of whether these are installed; skip this if you don't want
+    it.
 
 12. In your computer, in the repository directory execute: `make all`, this will compile nd copy all the content to the device, note that you need [Go installed](https://go.dev/doc/install). Everytime that you want to change something and re-compile, this is the step to run
 

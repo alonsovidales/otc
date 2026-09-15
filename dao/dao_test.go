@@ -4,10 +4,284 @@ package dao
 
 import (
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
+
+// SearchMedia composes whichever filters the Photo Gallery's search bar
+// actually applied (issue #52 follow-up: person filters live there now,
+// not a separate People screen) - these pin its query-building logic
+// (which joins get added, args land in the right order, and multiple
+// people are AND'd via a HAVING count, not OR'd) without needing a real
+// database.
+func TestSearchMediaNoFiltersImagesOnly(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("from `files` as `f` where `f`\\.`mime` like 'image%' order by `f`\\.`created` desc").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", nil, nil, true); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestSearchMediaTagsOnlyOrdersByScore(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("join `file_tags` as `tg` on `tg`\\.`hash` = `f`\\.`hash` and `tg`\\.`tag` in \\(\\?,\\?\\).*group by `f`\\.`hash`.*order by `score` desc").
+		WithArgs("dogs", "beach").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", []string{"dogs", "beach"}, nil, true); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Two selected people must AND, not OR - a photo of just one of them
+// doesn't qualify.
+func TestSearchMediaMultiplePeopleRequiresAllOfThem(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?,\\?\\).*group by `f`\\.`hash`.*having count\\(distinct `fc`\\.`person_id`\\) = 2").
+		WithArgs("alice-id", "bob-id").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", nil, []string{"alice-id", "bob-id"}, true); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// "person X with dogs": tags and a person filter combine on one request,
+// args bound in the order their placeholders actually appear in the
+// assembled query (tags' join first, then the person join).
+func TestSearchMediaCombinesTagsAndPerson(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery(
+		"join `file_tags` as `tg` on `tg`\\.`hash` = `f`\\.`hash` and `tg`\\.`tag` in \\(\\?\\) "+
+			"join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?\\).*"+
+			"having count\\(distinct `fc`\\.`person_id`\\) = 1 order by `score` desc").
+		WithArgs("dogs", "alice-id").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", []string{"dogs"}, []string{"alice-id"}, true); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// imagesOnly must be ignored once any filter is applied - matches the old
+// SearchByTags/SearchByPerson behavior (neither ever filtered by mime),
+// only the plain "browse everything" case respects it.
+func TestSearchMediaImagesOnlyIgnoredWhenFiltersApplied(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("join `faces`").
+		WithArgs("alice-id").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, true); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran (imagesOnly should be ignored, no mime filter expected in the query): %v", err)
+	}
+}
+
+// ListRawFaces/UpdateFaceEncryption back files_manager.MigrateLegacyFace
+// Encryption's one-off re-encryption sweep (issue #52 follow-up) - see
+// that function's doc comment for why it exists.
+func TestListRawFaces(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select .* from `faces`").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "embedding", "thumbnail"}).
+			AddRow("face-1", []byte("emb-1"), []byte("thumb-1")).
+			AddRow("face-2", []byte("emb-2"), []byte(nil)))
+
+	d := NewWithDB(db)
+	faces, err := d.ListRawFaces()
+	if err != nil {
+		t.Fatalf("ListRawFaces: %v", err)
+	}
+	if len(faces) != 2 {
+		t.Fatalf("ListRawFaces returned %d rows, want 2", len(faces))
+	}
+	if faces[0].ID != "face-1" || string(faces[0].Embedding) != "emb-1" || string(faces[0].Thumbnail) != "thumb-1" {
+		t.Errorf("faces[0] = %+v, want id=face-1 embedding=emb-1 thumbnail=thumb-1", faces[0])
+	}
+	if faces[1].ID != "face-2" || len(faces[1].Thumbnail) != 0 {
+		t.Errorf("faces[1] = %+v, want id=face-2 with no thumbnail", faces[1])
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestUpdateFaceEncryption(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `faces` set `embedding` = \\?, `thumbnail` = \\? where `id` = \\?").
+		WithArgs([]byte("new-emb"), []byte("new-thumb"), "face-1").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.UpdateFaceEncryption("face-1", []byte("new-emb"), []byte("new-thumb")); err != nil {
+		t.Fatalf("UpdateFaceEncryption: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Issue #75: most-photographed person first, not most-recently-created.
+func TestListPeopleOrdersByFaceCountDesc(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select .* from `people`.*order by `face_count` desc, `p`\\.`created` desc").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count"}).
+			AddRow("alice-id", "Alice", 5).
+			AddRow("bob-id", "Bob", 1))
+	// ListPeople follows up with one cover-thumbnail lookup per person.
+	mock.ExpectQuery("select `thumbnail` from `faces`").WithArgs("alice-id").
+		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-a")))
+	mock.ExpectQuery("select `thumbnail` from `faces`").WithArgs("bob-id").
+		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-b")))
+
+	d := NewWithDB(db)
+	people, err := d.ListPeople()
+	if err != nil {
+		t.Fatalf("ListPeople: %v", err)
+	}
+	if len(people) != 2 || people[0].Id != "alice-id" || people[1].Id != "bob-id" {
+		t.Fatalf("ListPeople() = %+v, want alice-id (5 faces) before bob-id (1 face)", people)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Issue #74: merging folds every source person's faces into the target and
+// removes the (now-empty) source person rows, all in one transaction.
+func TestMergePeopleReassignsFacesAndDeletesSources(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("update `faces` set `person_id` = \\? where `person_id` in \\(\\?,\\?\\)").
+		WithArgs("target-id", "src-1", "src-2").
+		WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectExec("delete from `people` where `id` in \\(\\?,\\?\\)").
+		WithArgs("src-1", "src-2").
+		WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectCommit()
+
+	d := NewWithDB(db)
+	if err := d.MergePeople("target-id", []string{"src-1", "src-2"}); err != nil {
+		t.Fatalf("MergePeople: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// A target id accidentally included in its own source list is dropped
+// rather than merged into itself - see MergePeople's own doc comment.
+func TestMergePeopleFiltersTargetOutOfSources(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("update `faces` set `person_id` = \\? where `person_id` in \\(\\?\\)").
+		WithArgs("target-id", "src-1").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `people` where `id` in \\(\\?\\)").
+		WithArgs("src-1").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	d := NewWithDB(db)
+	if err := d.MergePeople("target-id", []string{"src-1", "target-id"}); err != nil {
+		t.Fatalf("MergePeople: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Merging with only the target itself in sourceIDs is a no-op, not an
+// error and not an empty transaction against the database.
+func TestMergePeopleNoOpWhenOnlySourceIsTarget(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	d := NewWithDB(db)
+	if err := d.MergePeople("target-id", []string{"target-id"}); err != nil {
+		t.Fatalf("MergePeople: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected database calls for a no-op merge: %v", err)
+	}
+}
 
 func TestStatusToPb(t *testing.T) {
 	d := &Dao{}
@@ -117,4 +391,186 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 			t.Errorf("unmet expectations (a fix that deletes file_tags even though another path still references the hash would show up here): %v", err)
 		}
 	})
+}
+
+// Issue #73: full-library reprocess bookkeeping.
+
+func TestGetReprocessState(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `status`, `total`, `processed`, `last_hash` from `reprocess_state` where `id` = 1").
+		WillReturnRows(sqlmock.NewRows([]string{"status", "total", "processed", "last_hash"}).
+			AddRow("running", 100, 42, "abc123"))
+
+	d := NewWithDB(db)
+	state, err := d.GetReprocessState()
+	if err != nil {
+		t.Fatalf("GetReprocessState: %v", err)
+	}
+	want := ReprocessState{Status: "running", Total: 100, Processed: 42, LastHash: "abc123"}
+	if state != want {
+		t.Errorf("GetReprocessState() = %+v, want %+v", state, want)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestStartReprocessResetsProgress(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `reprocess_state` set `status` = 'running', `total` = \\?, `processed` = 0, `last_hash` = '', `started` = now\\(\\), `updated` = now\\(\\) where `id` = 1").
+		WithArgs(250).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.StartReprocess(250); err != nil {
+		t.Fatalf("StartReprocess: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestResumeReprocessLeavesProgressAlone(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	// No `total`/`processed`/`last_hash` in this statement at all - a
+	// resume must not reset the checkpoint StartReprocess owns.
+	mock.ExpectExec("update `reprocess_state` set `status` = 'running', `updated` = now\\(\\) where `id` = 1").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.ResumeReprocess(); err != nil {
+		t.Fatalf("ResumeReprocess: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestUpdateReprocessProgress(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `reprocess_state` set `processed` = \\?, `last_hash` = \\?, `updated` = now\\(\\) where `id` = 1").
+		WithArgs(7, "deadbeef").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.UpdateReprocessProgress(7, "deadbeef"); err != nil {
+		t.Fatalf("UpdateReprocessProgress: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestFinishReprocess(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `reprocess_state` set `status` = \\?, `updated` = now\\(\\) where `id` = 1").
+		WithArgs("completed").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.FinishReprocess("completed"); err != nil {
+		t.Fatalf("FinishReprocess: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestWipeTagsAndFacesDeletesAllThreeTablesInOneTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("delete from `file_tags`").WillReturnResult(sqlmock.NewResult(0, 10))
+	mock.ExpectExec("delete from `faces`").WillReturnResult(sqlmock.NewResult(0, 5))
+	mock.ExpectExec("delete from `people`").WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectCommit()
+
+	d := NewWithDB(db)
+	if err := d.WipeTagsAndFaces(); err != nil {
+		t.Fatalf("WipeTagsAndFaces: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran (order matters here: file_tags, then faces, then people): %v", err)
+	}
+}
+
+func TestCountMediaFilesCountsDistinctHashes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select count\\(distinct `hash`\\) from `files` where `mime` like 'image%' or `mime` like 'video%'").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(42))
+
+	d := NewWithDB(db)
+	count, err := d.CountMediaFiles()
+	if err != nil {
+		t.Fatalf("CountMediaFiles: %v", err)
+	}
+	if count != 42 {
+		t.Errorf("CountMediaFiles() = %d, want 42", count)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestListMediaForReprocessGroupsByHash(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	// Two rows sharing "hash-1" (a deduped file uploaded under two paths)
+	// must collapse into a single result - see this method's own doc
+	// comment on why walking one row per path would make hash-ordered
+	// pagination unsafe.
+	mock.ExpectQuery("select .* from `files`.*group by `hash` order by `hash` asc limit \\?").
+		WithArgs("hash-0", 20).
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
+			AddRow("hash-1", "image/jpeg", time.Now(), time.Now(), "/a.jpg", 100))
+
+	d := NewWithDB(db)
+	files, err := d.ListMediaForReprocess("hash-0", 20)
+	if err != nil {
+		t.Fatalf("ListMediaForReprocess: %v", err)
+	}
+	if len(files) != 1 || files[0].Hash != "hash-1" {
+		t.Fatalf("ListMediaForReprocess() = %+v, want exactly one file with hash-1", files)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
 }

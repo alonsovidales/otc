@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection, clearPersistedKey, savePersistedKey } from "../net/pwCrypto";
 import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
@@ -32,6 +32,83 @@ export default function SettingsForm() {
   // Push notifications (issue #43)
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+
+  // Face recognition / People search (issue #52) - off by default. Turning
+  // it on only affects photos uploaded from that point on; it never scans
+  // whatever's already in the library.
+  const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(false);
+  const [faceRecognitionBusy, setFaceRecognitionBusy] = useState(false);
+
+  const toggleFaceRecognition = async () => {
+    setFaceRecognitionBusy(true);
+    setStatus(null);
+    const next = !faceRecognitionEnabled;
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqSetFaceRecognitionEnabled", reqSetFaceRecognitionEnabled: { enabled: next } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setFaceRecognitionEnabled(next);
+      } else {
+        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not update this setting." });
+      }
+    } catch (err: any) {
+      setStatus({ kind: "error", text: err?.message ?? String(err) });
+    } finally {
+      setFaceRecognitionBusy(false);
+    }
+  };
+
+  // Issue #73: full-library reprocess - re-runs tagging/face detection
+  // against every already-uploaded photo/video (e.g. after a detection
+  // fix), stripping existing tags/people first so they're recalculated
+  // clean rather than piling on top of possibly-wrong old data. Runs
+  // entirely server-side; this just starts it and polls for progress,
+  // same pattern as StatusWidget polling GetStatus.
+  const [reprocessStatus, setReprocessStatus] = useState<{ status: string; total: number; processed: number } | null>(null);
+  const [reprocessConfirming, setReprocessConfirming] = useState(false);
+  const [reprocessBusy, setReprocessBusy] = useState(false);
+
+  const loadReprocessStatus = useCallback(async () => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqGetReprocessStatus", reqGetReprocessStatus: {} };
+    });
+    if (resp.payload?.$case === "respReprocessStatus") {
+      setReprocessStatus(resp.payload.respReprocessStatus);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReprocessStatus();
+  }, [loadReprocessStatus]);
+
+  // Only actually polls while a run is active - a completed/failed/idle
+  // status doesn't change on its own, no point re-fetching it every tick.
+  useEffect(() => {
+    if (reprocessStatus?.status !== "running") return;
+    const t = setInterval(loadReprocessStatus, 1500);
+    return () => clearInterval(t);
+  }, [reprocessStatus?.status, loadReprocessStatus]);
+
+  const startReprocess = async () => {
+    setReprocessConfirming(false);
+    setReprocessBusy(true);
+    setStatus(null);
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqStartReprocess", reqStartReprocess: {} };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        await loadReprocessStatus();
+      } else {
+        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not start reprocessing." });
+      }
+    } catch (err: any) {
+      setStatus({ kind: "error", text: err?.message ?? String(err) });
+    } finally {
+      setReprocessBusy(false);
+    }
+  };
 
   // Status
   const [status, setStatus] = useState<{ kind: "info"|"success"|"error"; text: string } | null>(null);
@@ -71,6 +148,7 @@ export default function SettingsForm() {
           const s: PbSettings = resp.payload.respSettings;
           setCurrentDomain(s.domain || "");
           setCurrentBridgeSecret(s.bridgeSecret || "");
+          setFaceRecognitionEnabled(!!s.faceRecognitionEnabled);
         } else if (resp.payload?.$case === "respAck") {
           const msg = resp.payload.respAck.errorMsg || "Failed to load settings.";
           setStatus({ kind: "error", text: msg });
@@ -303,6 +381,68 @@ export default function SettingsForm() {
             {pushBusy ? "Working…" : pushSubscribed ? "Disable Notifications" : "Enable Notifications"}
           </button>
         </section>
+      )}
+
+      <section className="sf-section">
+        <h3>People</h3>
+        <p className="sf-hint">
+          Detect faces in newly uploaded photos so you can search by person, like other photo
+          apps. Off by default. Turning this on only affects photos uploaded from now on — it
+          never scans photos you already have, even after you enable it.
+        </p>
+        <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
+          {faceRecognitionBusy ? "Working…" : faceRecognitionEnabled ? "Disable Face Recognition" : "Enable Face Recognition"}
+        </button>
+      </section>
+
+      <section className="sf-section">
+        <h3>Reprocess Media</h3>
+        <p className="sf-hint">
+          Re-run tagging and face detection on every photo and video already in your library —
+          useful after a detection fix or model update. This clears existing tags and recognized
+          people first and rebuilds them from scratch.
+        </p>
+        {reprocessStatus?.status === "running" ? (
+          <div className="sf-progress">
+            <div className="sf-progress-track">
+              <div
+                className="sf-progress-fill"
+                style={{ width: `${reprocessStatus.total > 0 ? Math.min(100, (reprocessStatus.processed / reprocessStatus.total) * 100) : 0}%` }}
+              />
+            </div>
+            <div className="sf-hint">
+              Reprocessing… {reprocessStatus.processed} / {reprocessStatus.total}
+            </div>
+          </div>
+        ) : (
+          <>
+            <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming(true)}>
+              {reprocessBusy ? "Starting…" : "Reprocess All Media"}
+            </button>
+            {reprocessStatus?.status === "completed" && (
+              <div className="sf-hint">Last run completed — {reprocessStatus.processed} file(s) processed.</div>
+            )}
+            {reprocessStatus?.status === "failed" && (
+              <div className="sf-note error">Last run failed after {reprocessStatus.processed} file(s) — try again.</div>
+            )}
+          </>
+        )}
+      </section>
+
+      {reprocessConfirming && (
+        <div className="sf-modal" onClick={() => setReprocessConfirming(false)}>
+          <div className="sf-modal-inner" onClick={e => e.stopPropagation()}>
+            <p>
+              Reprocess every photo and video in your library? This deletes all existing tags and
+              recognized people and rebuilds them from scratch. It can take a while and can't be
+              undone.
+            </p>
+            <div className="sf-modal-actions">
+              <button className="sf-btn small" onClick={() => setReprocessConfirming(false)}>Cancel</button>
+              <button className="sf-btn small sf-danger" onClick={() => void startReprocess()}>Reprocess</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <section className="sf-section">

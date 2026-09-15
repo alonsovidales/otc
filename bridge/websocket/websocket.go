@@ -41,6 +41,16 @@ const (
 // can shrink it instead of waiting on a real minute.
 var cOfflineAlertGrace = 60 * time.Second
 
+// cForwardTimeout bounds how long deviceRelay.forward waits for a
+// response - see its own doc comment for the real bug this backstops
+// (a relay that died via a ping/pong timeout, not an explicit Close, could
+// leave a later forward() call waiting on a response nothing would ever
+// deliver). Generous rather than tight: a real GetFile for a large photo/
+// video over a slow connection can legitimately take a while, and this
+// only exists to catch "will actually never answer", not to race normal
+// slow requests. Var, not const, so tests can shrink it.
+var cForwardTimeout = 90 * time.Second
+
 // maxConnectionsPerDevice reads [bridge] max-connections-per-device,
 // falling back to cDefaultMaxConnectionsPerDevice if that section/key is
 // absent - deliberately optional config, not a required one, so existing
@@ -226,6 +236,24 @@ func (d *deviceRelay) failAll() {
 		close(ch)
 	}
 
+	// Close the underlying socket here, not just when the public Close()
+	// is called explicitly - readLoop's error path (a ping/pong read-
+	// deadline timeout in particular) means *our own* read gave up, but
+	// says nothing about the OS-level TCP connection, which a bare
+	// deadline expiry never touches. Without this, a relay that died this
+	// way stayed sitting in the pool as a connection that still *looks*
+	// writable (WriteMessage on a merely-deadline-expired socket can
+	// still succeed, buffered locally) - if it was later picked and
+	// forward() called again, it registered a waiter that nothing would
+	// ever fulfill (this relay's one and only readLoop had already
+	// returned for good), hanging that request forever with no timeout of
+	// its own. Closing here guarantees any later write on this relay
+	// fails fast instead. (Calling the underlying conn.Close() directly,
+	// not the public Close() method - that one calls wg.Wait(), which
+	// would deadlock: failAll only ever runs from inside readLoop itself,
+	// before its own wg.Done() has fired.)
+	d.conn.Close()
+
 	// Stop pingLoop - readLoop (the only caller of failAll) is the one
 	// exiting right after this, so there's nothing left probing this
 	// connection's liveness once it's gone anyway.
@@ -264,11 +292,26 @@ func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, ok := <-ch
-	if !ok {
-		return nil, errors.New("device connection closed")
+	// A bounded wait, not just <-ch: the failAll() fix above (closing the
+	// underlying socket on any death, not just an explicit Close()) should
+	// mean a relay can no longer end up in a state where nothing will ever
+	// answer this waiter, but this is the backstop for that guarantee
+	// being wrong in some case not yet found - the actual, live bug this
+	// closes was a client's request (and the client itself) hanging
+	// forever with no error at all, which is worse than the request just
+	// failing.
+	select {
+	case resp, ok := <-ch:
+		if !ok {
+			return nil, errors.New("device connection closed")
+		}
+		return resp, nil
+	case <-time.After(cForwardTimeout):
+		d.mu.Lock()
+		delete(d.waiters, env.Id)
+		d.mu.Unlock()
+		return nil, fmt.Errorf("timed out waiting for device response")
 	}
-	return resp, nil
 }
 
 // Close closes the underlying connection and waits for readLoop/pingLoop to

@@ -43,10 +43,55 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var chips: [String] = []
     @Published var queryInput: String = ""
 
+    // Issue #52 follow-up: person filter, next to the tag search bar
+    // rather than a separate People screen. Selecting more than one person
+    // means AND, not OR - see dao.SearchMedia on the backend: a photo must
+    // contain a face matched to *every* person selected, not just one.
+    @Published var allPeople: [Msg_Person] = []
+    @Published var selectedPeople: [String] = []
+    @Published var editingPersonID: String? = nil
+    @Published var editingPersonName: String = ""
+
+    // Issue #74: merge two people the model split into separate identities.
+    // A second, narrower "pick mode" layered on the person strip, distinct
+    // from selectedPeople (that's the search filter, a different thing
+    // people already multi-select for AND-search - conflating the two
+    // would make clicking a person while merging also change the filter).
+    @Published var mergeTargetID: String? = nil
+    @Published var pendingMerge: PendingMerge? = nil
+    struct PendingMerge { let target: Msg_Person; let source: Msg_Person }
+
     @Published var items: [Item] = []
     @Published var loading = false
     @Published var endReached = false
     private var token: String? = nil
+    // Bumped every time a fresh search starts (resetAndLoadFirstPage) -
+    // fetchPage captures the value at call time and checks it's unchanged
+    // before applying its response. Toggling a person filter (or a tag)
+    // twice in quick succession spawns two overlapping Tasks; without
+    // this, whichever *response* happens to land last wins even if it was
+    // for the *older* selection - reproduced live on the web app as: tap
+    // a person on then off quickly, the avatar shows selected/deselected
+    // correctly but the grid shows the other request's (wrong) results,
+    // because that one's reply simply arrived second.
+    private var searchGeneration = 0
+    // The in-flight Task from the *previous* restartSearch() call, if any -
+    // explicitly cancelled the moment a newer one starts, on top of (not
+    // instead of) searchGeneration above: cancellation alone can't stop a
+    // request already in flight over the shared socket, so the generation
+    // check is still what actually keeps a stale reply from being applied.
+    // This just makes sure an old Task doesn't keep doing pointless work
+    // (or hold onto stale local state) any longer than it has to.
+    private var searchTask: Task<Void, Never>?
+
+    // Every filter mutation (a tag or person toggled on/off) funnels
+    // through here rather than each spawning its own bare `Task { }` -
+    // reported live as clicking a person filter repeatedly sometimes
+    // showing unrelated photos mixed into the correct ones.
+    private func restartSearch() {
+        searchTask?.cancel()
+        searchTask = Task { await resetAndLoadFirstPage() }
+    }
 
     // Modal
     @Published var openIndex: Int? = nil
@@ -80,6 +125,7 @@ final class PhotoGalleryVM: ObservableObject {
     func onAppearInitial() {
         Task {
             await loadTags()
+            await loadPeople()
             await resetAndLoadFirstPage()
         }
     }
@@ -88,11 +134,11 @@ final class PhotoGalleryVM: ObservableObject {
         let x = t.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !x.isEmpty, !chips.contains(x) else { return }
         chips.append(x)
-        Task { await resetAndLoadFirstPage() }
+        restartSearch()
     }
     func removeChip(_ t: String) {
         chips.removeAll { $0 == t }
-        Task { await resetAndLoadFirstPage() }
+        restartSearch()
     }
 
     // MARK: Tags
@@ -109,8 +155,96 @@ final class PhotoGalleryVM: ObservableObject {
         } catch { /* ignore */ }
     }
 
+    // MARK: People (issue #52 follow-up)
+    private func loadPeople() async {
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            req.payload = .reqListPeople(.init())
+            e = req
+        }) else { return }
+        if case .respPeople(let p) = resp.payload { allPeople = p.people }
+    }
+
+    func togglePerson(_ id: String) {
+        if let idx = selectedPeople.firstIndex(of: id) {
+            selectedPeople.remove(at: idx)
+        } else {
+            selectedPeople.append(id)
+        }
+        restartSearch()
+    }
+
+    func startRenamePerson(_ p: Msg_Person) {
+        editingPersonID = p.id
+        editingPersonName = p.name
+    }
+
+    func commitRenamePerson(_ id: String) async {
+        let name = editingPersonName.trimmingCharacters(in: .whitespacesAndNewlines)
+        editingPersonID = nil
+        var req = Msg_RenamePerson()
+        req.id = id
+        req.name = name
+        guard let resp = try? await ws.request({ e in
+            var envelope = ReqEnvelope()
+            envelope.payload = .reqRenamePerson(req)
+            e = envelope
+        }) else { return }
+        if case .respAck(let ack) = resp.payload, ack.ok {
+            if let idx = allPeople.firstIndex(where: { $0.id == id }) { allPeople[idx].name = name }
+        }
+    }
+
+    func deletePerson(_ id: String) async {
+        var req = Msg_DeletePerson()
+        req.id = id
+        guard let resp = try? await ws.request({ e in
+            var envelope = ReqEnvelope()
+            envelope.payload = .reqDeletePerson(req)
+            e = envelope
+        }) else { return }
+        if case .respAck(let ack) = resp.payload, ack.ok {
+            allPeople.removeAll { $0.id == id }
+            selectedPeople.removeAll { $0 == id }
+        }
+    }
+
+    // Tapping a person's avatar while merge-picking is active merges
+    // instead of toggling the search filter - see mergeTargetID's own doc
+    // comment. Mirrors web's pickMergeTarget in PhotoGallery.tsx.
+    func pickMergeTarget(_ p: Msg_Person) {
+        if mergeTargetID == p.id {
+            mergeTargetID = nil // tapped the target again - cancel picking
+            return
+        }
+        guard let target = allPeople.first(where: { $0.id == mergeTargetID }) else { return }
+        mergeTargetID = nil
+        pendingMerge = PendingMerge(target: target, source: p)
+    }
+
+    func confirmMerge() async {
+        guard let merge = pendingMerge else { return }
+        pendingMerge = nil
+        var req = Msg_MergePeople()
+        req.targetID = merge.target.id
+        req.sourceIds = [merge.source.id]
+        guard let resp = try? await ws.request({ e in
+            var envelope = ReqEnvelope()
+            envelope.payload = .reqMergePeople(req)
+            e = envelope
+        }) else { return }
+        if case .respAck(let ack) = resp.payload, ack.ok {
+            selectedPeople.removeAll { $0 == merge.source.id }
+            await loadPeople() // re-sort by the merged face count (issue #75) rather than patch counts by hand
+        }
+    }
+
     // MARK: Paging
     func resetAndLoadFirstPage() async {
+        // Invalidates any still-in-flight fetchPage from the *previous*
+        // selection before this one's own request even goes out - see
+        // searchGeneration's doc comment.
+        searchGeneration += 1
         loading = false
         endReached = false
         token = ""
@@ -130,18 +264,48 @@ final class PhotoGalleryVM: ObservableObject {
 
     private func fetchPage(overrideToken: String? = nil) async {
         guard !loading, !endReached else { return }
+        let myGeneration = searchGeneration
         loading = true
-        defer { loading = false }
+        defer {
+            // Only this request's own generation may clear loading - a
+            // stale one finishing after a newer search started must not
+            // report "done" for a fetch that isn't actually the current
+            // one.
+            if myGeneration == searchGeneration { loading = false }
+        }
+
+        // Snapshot the filter right now, not inside the request-building
+        // closure below: OTCConnection.request can suspend for a while
+        // before that closure actually runs (ensureConnected() may need to
+        // reconnect/re-auth first), and the closure reads through `self`,
+        // not a captured value - so without this snapshot, a filter change
+        // that lands in that window would make THIS call silently send
+        // whatever the *newer* filter is instead of the one it was invoked
+        // for, wiring an unrelated result set to this generation's id and
+        // defeating the myGeneration guard entirely (it only protects
+        // against a stale *response*, not a request that mutated out from
+        // under itself before it was even sent).
+        let tags = chips
+        let people = selectedPeople
+        let requestToken = overrideToken ?? token ?? ""
 
         do {
             let resp = try await ws.request { e in
                 var req = ReqEnvelope()
                 var sp  = SearchPhotosMsg()
-                sp.tags  = self.chips
-                sp.token = overrideToken ?? self.token ?? ""
+                sp.tags  = tags
+                sp.personIds = people
+                sp.token = requestToken
                 req.payload = .reqSearchPhotos(sp)
                 e = req
             }
+            // A newer search superseded this one while it was in flight -
+            // discard rather than let a stale reply clobber current
+            // results. Task.isCancelled backs up the generation check
+            // (restartSearch cancels this call's Task the moment a newer
+            // one starts) - belt and suspenders, since either alone
+            // catches the same case here.
+            guard myGeneration == searchGeneration, !Task.isCancelled else { return }
             guard case .respListOfFiles(let lof) = resp.payload else { return }
 
             var newItems: [Item] = []
@@ -190,6 +354,16 @@ final class PhotoGalleryVM: ObservableObject {
 
     private func mergeLocalIfAny() {
         guard localFolder != nil else { return }
+        // Local-only files are whatever's sitting in the sync folder that
+        // hasn't made it to the server yet - by definition unfiled and
+        // untagged there, so they can never legitimately match a tag/
+        // person search. Without this guard every local file gets treated
+        // as "missing from these (filtered) results" and dumped in
+        // regardless of the active filter - reported live as a person
+        // filter's results coming back mixed with a pile of unrelated
+        // photos (a previous unfiltered browse's local files, not a stale
+        // server response as first suspected).
+        guard chips.isEmpty && selectedPeople.isEmpty else { return }
         let remotePaths = Set(items.map(\.path))
         let locals = scanLocalFiles()
         var adds: [Item] = []
@@ -561,6 +735,7 @@ struct PhotoGalleryView: View {
     @StateObject private var vm: PhotoGalleryVM
 
     @State private var showSuggest = false
+    @State private var personPendingDelete: String? = nil
     private let cols = Array(repeating: GridItem(.flexible(minimum: 120, maximum: 160), spacing: 10), count: 3)
 
     init(deviceID: String, localPhotosFolder: URL?) {
@@ -608,6 +783,53 @@ struct PhotoGalleryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .padding(.horizontal, 8)
                 }
+
+                // Issue #52 follow-up: person filter, right next to the tag
+                // search bar - combines with tags on the same search (e.g.
+                // a person plus the "dogs" tag), and picking more than one
+                // person means photos containing all of them, not just one.
+                if !vm.allPeople.isEmpty {
+                    Divider().padding(.horizontal, 8)
+                    // Issue #74: while merge-picking is active, tapping a
+                    // person's avatar below merges instead of toggling the
+                    // search filter - see mergeTargetID's own doc comment.
+                    if let targetID = vm.mergeTargetID {
+                        HStack(spacing: 4) {
+                            Text("Merging into \(vm.allPeople.first(where: { $0.id == targetID })?.name.isEmpty == false ? vm.allPeople.first(where: { $0.id == targetID })!.name : "Unnamed") — tap another person to merge them in.")
+                            Button("Cancel") { vm.mergeTargetID = nil }
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                    }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(alignment: .top, spacing: 12) {
+                            ForEach(vm.allPeople, id: \.id) { person in
+                                PersonFilterChip(
+                                    person: person,
+                                    isSelected: vm.selectedPeople.contains(person.id),
+                                    isMergeTarget: vm.mergeTargetID == person.id,
+                                    isEditing: vm.editingPersonID == person.id,
+                                    editingName: $vm.editingPersonName,
+                                    onTap: {
+                                        if vm.mergeTargetID != nil {
+                                            vm.pickMergeTarget(person)
+                                        } else {
+                                            vm.togglePerson(person.id)
+                                        }
+                                    },
+                                    onStartRename: { vm.startRenamePerson(person) },
+                                    onCommitRename: { Task { await vm.commitRenamePerson(person.id) } },
+                                    onMerge: { vm.mergeTargetID = person.id },
+                                    onDelete: { personPendingDelete = person.id }
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                    }
+                }
+                // Nothing renders at all when there's no one to filter by
+                // yet - no explanatory hint needed.
             }
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
@@ -660,6 +882,26 @@ struct PhotoGalleryView: View {
             Button("Cancel", role: .cancel) {}
         }
         .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
+        .confirmationDialog(
+            "Delete this person? This removes every face matched to them — it can't be undone.",
+            isPresented: Binding(get: { personPendingDelete != nil }, set: { if !$0 { personPendingDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let id = personPendingDelete { Task { await vm.deletePerson(id) } }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(
+            vm.pendingMerge.map {
+                "Merge \($0.source.name.isEmpty ? "Unnamed" : $0.source.name) into \($0.target.name.isEmpty ? "Unnamed" : $0.target.name)? Every photo of \($0.source.name.isEmpty ? "Unnamed" : $0.source.name) will show up under \($0.target.name.isEmpty ? "Unnamed" : $0.target.name) instead — this can't be undone."
+            } ?? "",
+            isPresented: Binding(get: { vm.pendingMerge != nil }, set: { if !$0 { vm.pendingMerge = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Merge", role: .destructive) { Task { await vm.confirmMerge() } }
+            Button("Cancel", role: .cancel) { vm.pendingMerge = nil }
+        }
         .sheet(item: Binding(
             get: { vm.openIndex.map { SheetIndex(index: $0) } },
             set: { vm.openIndex = $0?.index }
@@ -726,6 +968,72 @@ struct PhotoGalleryView: View {
 }
 
 // MARK: - UI pieces (iOS)
+
+// Issue #52 follow-up: one person in the Photo Gallery's search bar - tap
+// the avatar to toggle it as a filter, tap the name to rename, trash to
+// delete. Replaces the standalone People tab/screen.
+private struct PersonFilterChip: View {
+    let person: Msg_Person
+    let isSelected: Bool
+    // Issue #74: distinct from isSelected (the search-filter state) - this
+    // person is the currently-picked merge target, shown with its own
+    // dashed highlight so the two states never look the same.
+    let isMergeTarget: Bool
+    let isEditing: Bool
+    @Binding var editingName: String
+    let onTap: () -> Void
+    let onStartRename: () -> Void
+    let onCommitRename: () -> Void
+    let onMerge: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Button(action: onTap) {
+                Group {
+                    if let img = UIImage(data: person.coverThumbnail) {
+                        Image(uiImage: img).resizable().scaledToFill()
+                    } else {
+                        Color.gray.opacity(0.2).overlay(Image(systemName: "person.fill"))
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(Circle())
+                .overlay(
+                    Circle().stroke(
+                        isMergeTarget ? Color.red : (isSelected ? Color.accentColor : .clear),
+                        style: StrokeStyle(lineWidth: 3, dash: isMergeTarget ? [3, 2] : [])
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            if isEditing {
+                TextField("Name", text: $editingName, onCommit: onCommitRename)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption2)
+                    .frame(width: 60)
+            } else {
+                Button(action: onStartRename) {
+                    Text(person.name.isEmpty ? "Unnamed" : person.name)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .frame(maxWidth: 60)
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(spacing: 8) {
+                Button(action: onMerge) {
+                    Image(systemName: "link").font(.system(size: 9)).foregroundStyle(.secondary)
+                }
+                Button(action: onDelete) {
+                    Image(systemName: "trash").font(.system(size: 9)).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}
 
 private struct PhotoTile: View {
     let item: PhotoGalleryVM.Item

@@ -18,3 +18,16 @@
 .sf-status.info { background: var(--panel); color: var(--mist-dim); }
 .sf-status.success { background: var(--success-bg); color: var(--success); }
 .sf-status.error { background: var(--danger-bg); color: var(--danger); }
+
+/* Issue #73: reprocess progress - same visual language as the native
+   apps' upload indicator (a thin linear bar + label), but scoped to this
+   settings section only, not a global bar. */
+.sf-progress { display: flex; flex-direction: column; gap: 6px; }
+.sf-progress-track { height: 8px; border-radius: 999px; background: var(--ink-2); overflow: hidden; }
+.sf-progress-fill { height: 100%; background: var(--ember); border-radius: 999px; transition: width 0.3s ease; }
+
+.sf-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.sf-modal-inner { background: var(--ink-2); border: 1px solid var(--line); border-radius: 8px; padding: 16px; max-width: 360px; }
+.sf-modal-inner p { color: var(--mist); margin: 0 0 12px; }
+.sf-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.sf-danger { background: var(--danger-bg); color: var(--danger); }

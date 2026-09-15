@@ -247,6 +247,16 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
   const [viewerIdx, setViewerIdx] = useState(0);
   const [viewerURL, setViewerURL] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
+  // Issue #60: a video post needs two separate URLs, not one swapped
+  // low->hi like an image - viewerPosterURL is the thumbnail (always a
+  // JPEG, shown immediately), viewerVideoURL is the actual playable file,
+  // set only once the hi-res GetFile below resolves. Rendering a <video>
+  // against the JPEG poster URL (or an <img> against the video bytes)
+  // would both silently fail, so these can't share viewerURL the way an
+  // image's low/hi pair does.
+  const [viewerIsVideo, setViewerIsVideo] = useState(false);
+  const [viewerPosterURL, setViewerPosterURL] = useState<string | null>(null);
+  const [viewerVideoURL, setViewerVideoURL] = useState<string | null>(null);
 
   const openViewer = useCallback(async (pub: PbSocialPublication, index: number) => {
     setViewerPub(pub);
@@ -254,22 +264,43 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
     setViewerOpen(true);
 
     const f = pub.files[index];
-    // show low-res first
-    const low = bytesToURL(f.content as unknown as Uint8Array, f.mime) || null;
-    setViewerURL(low);
+    const isVideo = (f.mime || "").startsWith("video/");
+    setViewerIsVideo(isVideo);
 
-    // then fetch hi-res
+    // f.content is always a JPEG thumbnail (see the isVideo comment near
+    // current/lowURL above) - shown immediately either as the low-res
+    // image preview, or as a video's poster while its real bytes load.
+    const thumb = bytesToURL(f.content as unknown as Uint8Array, "image/jpeg") || null;
+    if (isVideo) {
+      setViewerPosterURL(thumb);
+      setViewerVideoURL(null);
+      setViewerURL(null);
+    } else {
+      setViewerURL(thumb);
+      setViewerPosterURL(null);
+      setViewerVideoURL(null);
+    }
+
+    // then fetch the full file - the actual video bytes for a video, or
+    // the hi-res original for an image
     setViewerLoading(true);
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: f.path } };
       });
       if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
-        const hi = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
-        setViewerURL(prev => {
-          if (prev && prev !== hi) URL.revokeObjectURL(prev);
-          return hi;
-        });
+        const full = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+        if (isVideo) {
+          setViewerVideoURL(prev => {
+            if (prev && prev !== full) URL.revokeObjectURL(prev);
+            return full;
+          });
+        } else {
+          setViewerURL(prev => {
+            if (prev && prev !== full) URL.revokeObjectURL(prev);
+            return full;
+          });
+        }
       }
     } finally {
       setViewerLoading(false);
@@ -280,9 +311,14 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
     setViewerOpen(false);
     setViewerLoading(false);
     if (viewerURL) URL.revokeObjectURL(viewerURL);
+    if (viewerPosterURL) URL.revokeObjectURL(viewerPosterURL);
+    if (viewerVideoURL) URL.revokeObjectURL(viewerVideoURL);
     setViewerURL(null);
+    setViewerPosterURL(null);
+    setViewerVideoURL(null);
+    setViewerIsVideo(false);
     setViewerPub(null);
-  }, [viewerURL]);
+  }, [viewerURL, viewerPosterURL, viewerVideoURL]);
 
   const nextImg = useCallback(() => {
     if (!viewerPub) return;
@@ -364,8 +400,11 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
       if (p.files.length <= 1) { setCarouselHeight(null); return; }
       let cancelled = false;
       const width = rootRef.current?.getBoundingClientRect().width || window.innerWidth;
+      // Every file's content here is its JPEG thumbnail (see the isVideo
+      // comment above current/lowURL) - always decode it as one,
+      // regardless of the underlying file's own mime.
       const urls = p.files
-        .map(f => bytesToURL(f.content as unknown as Uint8Array, f.mime))
+        .map(f => bytesToURL(f.content as unknown as Uint8Array, "image/jpeg"))
         .filter((u): u is string => !!u);
       Promise.all(urls.map(u => new Promise<number>((resolve) => {
         const img = new Image();
@@ -383,13 +422,19 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
     }, [p.uuid]);
 
     const current = p.files[idx];
+    const isVideo = (current.mime || "").startsWith("video/");
+    // current.content is always a server-generated JPEG thumbnail (see
+    // files_manager.GetThumbnail), for a video file same as a photo -
+    // never pass the file's own mime here, or a video post's Blob gets
+    // tagged "video/mp4" over genuinely-JPEG bytes and the browser refuses
+    // to render it as an <img> (issue #60).
     const lowURL = useMemo(
-      () => bytesToURL(current.content as unknown as Uint8Array, current.mime),
+      () => bytesToURL(current.content as unknown as Uint8Array, "image/jpeg"),
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [p.uuid, idx]
     );
     const profURL = useMemo(
-      () => bytesToURL(p.publisher?.image as unknown as Uint8Array, current.mime),
+      () => bytesToURL(p.publisher?.image as unknown as Uint8Array, "image/jpeg"),
       [p.uuid, idx]
     );
 
@@ -427,7 +472,9 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
               onClick={(e) => {
                 // Issue #20: click the left/right quarter of a multi-image
                 // post to page through it (no visible buttons) — the
-                // middle half still opens the full-screen viewer.
+                // middle half still opens the full-screen viewer, which is
+                // also where a video post's thumbnail (its poster, tapped
+                // here) actually starts playing (issue #60).
                 if (p.files.length > 1) {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const x = e.clientX - rect.left;
@@ -440,6 +487,7 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
           ) : (
             <div className="sv-media-ph">🖼️</div>
           )}
+          {isVideo && <div className="sv-video-badge" aria-hidden="true">▶</div>}
           {/* Issue #68: the iOS app already shows a dot per image (current
               one solid, the rest dimmed) over a multi-image post - the web
               feed had the exact same swipe/tap paging (goLeft/goRight
@@ -542,7 +590,26 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
         <div className="sv-modal" onClick={closeViewer}>
           <div className="sv-modal-body" onClick={(e) => e.stopPropagation()}>
             <button className="sv-close" onClick={closeViewer}>✕</button>
-            {viewerURL ? (
+            {viewerIsVideo ? (
+              <div className="sv-full-wrap">
+                {viewerVideoURL ? (
+                  // Real bytes are in - hand every click straight to the
+                  // native video controls, unlike the image case below
+                  // which uses clicks for prev/next paging.
+                  <video className="sv-full" src={viewerVideoURL} poster={viewerPosterURL ?? undefined} controls autoPlay />
+                ) : viewerPosterURL ? (
+                  <img className="sv-full" src={viewerPosterURL} alt="video loading" />
+                ) : null}
+                {viewerLoading && !viewerVideoURL && <div className="sv-loading">Loading…</div>}
+                {(viewerPub?.files.length ?? 0) > 1 && (
+                  <div className="sv-dots" aria-hidden="true">
+                    {viewerPub!.files.map((_, i) => (
+                      <span key={i} className={`sv-dot${i === viewerIdx ? " active" : ""}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : viewerURL ? (
               <div
                 className="sv-full-wrap"
                 onTouchStart={modalSwipe.onTouchStart}

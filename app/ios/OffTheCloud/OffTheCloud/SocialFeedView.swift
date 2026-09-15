@@ -9,6 +9,7 @@
 //  viewer for multi-image posts (with a hi-res fetch once opened).
 
 import SwiftUI
+import AVKit
 
 // When a post was published, shown in its header. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
@@ -411,6 +412,14 @@ private struct PostCard: View {
     @GestureState private var pinchScale: CGFloat = 1.0
     @GestureState private var pinchAnchor: UnitPoint = .center
 
+    // Issue #60: a video post shows its thumbnail as a poster with a play
+    // button until tapped, then fetches the real bytes and plays them
+    // in-place. Scoped to whichever file is currently showing - reset by
+    // .onChange(of: currentImage) below so paging away from a video
+    // doesn't leave its player state applying to the next file.
+    @State private var videoPlaybackURL: URL?
+    @State private var loadingVideo = false
+
     // Instagram-style, edge-to-edge feed (issue #12): no card background or
     // rounded frame around the whole post, and the image spans the full
     // screen width at its own real aspect ratio instead of being cropped
@@ -448,15 +457,21 @@ private struct PostCard: View {
             if !post.files.isEmpty {
                 let file = post.files[min(currentImage, post.files.count - 1)]
                 ZStack(alignment: .bottom) {
-                    // Just the image — no tap action of its own. Timeline
-                    // images are browse-only on iOS; the full-screen popup
-                    // only makes sense on the web (where there's no native
-                    // photo app to fall back on).
+                    // Just the image — no tap action of its own, unless
+                    // it's a video (issue #60), which taps to play in
+                    // place. Timeline images are otherwise browse-only on
+                    // iOS; the full-screen popup only makes sense on the
+                    // web (where there's no native photo app to fall back
+                    // on).
                     mediaContent(for: file)
                         .contentShape(Rectangle())
                         .scaleEffect(pinchScale, anchor: pinchAnchor)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
                         .zIndex(pinchScale > 1 ? 1 : 0)
+                        .onChange(of: currentImage) { _, _ in
+                            videoPlaybackURL = nil
+                            loadingVideo = false
+                        }
 
                     if post.files.count > 1 {
                         // Issue #20: tapping the left/right half of the
@@ -623,10 +638,13 @@ private struct PostCard: View {
     /// cropping, no fixed box. `.aspectRatio(contentMode: .fit)` computes
     /// height from the proposed width itself, so unlike the `scaledToFill()`
     /// this replaced, it can't report an oversized ideal size that pushes
-    /// the view wider than the screen.
+    /// the view wider than the screen. Issue #60: a video file renders as
+    /// its own poster-plus-play-button (see videoContent) instead.
     @ViewBuilder
     private func mediaContent(for file: Msg_File) -> some View {
-        if file.hasContent, let ui = UIImage(data: file.content) {
+        if file.mime.hasPrefix("video/") {
+            videoContent(for: file)
+        } else if file.hasContent, let ui = UIImage(data: file.content) {
             Image(uiImage: ui)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -639,6 +657,67 @@ private struct PostCard: View {
                 .overlay {
                     Image(systemName: "photo").font(.largeTitle).foregroundColor(.secondary)
                 }
+        }
+    }
+
+    /// Issue #60: a video post shows its thumbnail as a poster with a play
+    /// button; tapping it fetches the actual file (GetFile, same RPC an
+    /// image would use for a hi-res view on web - iOS has no such hi-res
+    /// step for images today, so this is the first user of it here) and
+    /// plays it in place once the bytes arrive.
+    @ViewBuilder
+    private func videoContent(for file: Msg_File) -> some View {
+        if let url = videoPlaybackURL {
+            VideoPlayer(player: AVPlayer(url: url))
+                .frame(maxWidth: .infinity, maxHeight: carouselHeight)
+                .frame(height: carouselHeight ?? 320)
+        } else {
+            ZStack {
+                if file.hasContent, let ui = UIImage(data: file.content) {
+                    Image(uiImage: ui)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: carouselHeight)
+                        .frame(height: carouselHeight)
+                } else {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.08))
+                        .frame(maxWidth: .infinity, minHeight: 200, maxHeight: carouselHeight ?? 320)
+                }
+                if loadingVideo {
+                    ProgressView().tint(.white)
+                } else {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 56))
+                        .foregroundStyle(.white)
+                        .shadow(radius: 4)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { loadAndPlayVideo(file) }
+        }
+    }
+
+    private func loadAndPlayVideo(_ file: Msg_File) {
+        guard !loadingVideo, videoPlaybackURL == nil else { return }
+        loadingVideo = true
+        Task {
+            defer { loadingVideo = false }
+            do {
+                let resp = try await OTCConnection.shared.request { e in
+                    var gf = Msg_GetFile()
+                    gf.path = file.path
+                    e.payload = .reqGetFile(gf)
+                }
+                guard case .respFile(let rf) = resp.payload, rf.hasContent else { return }
+                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
+                try rf.content.write(to: tmp)
+                videoPlaybackURL = tmp
+            } catch {
+                // Leave the poster + play button in place - tapping again
+                // retries, same as the rest of this app's best-effort
+                // network calls.
+            }
         }
     }
 

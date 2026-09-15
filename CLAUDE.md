@@ -42,6 +42,13 @@ The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
   target) expects an aarch64 cross-compiler (`aarch64-unknown-linux-gnu-gcc`) and an ONNX Runtime
   aarch64 build unpacked at `~/ort-aarch64/onnxruntime-linux-aarch64-<version>/`. Building/running
   natively on the device instead avoids needing the cross toolchain (see `make pi`).
+- The device binary also needs **CGO** + a real **OpenCV** install (headers/libs, found via
+  `pkg-config`, not just a runtime `.so`) for `face_recognition` (issue #52's "People" search, via
+  `gocv.io/x/gocv` - pinned to v0.40.0, matching OpenCV 4.10.x). `apt-get install libopencv-dev
+  pkg-config` on Debian/Raspberry Pi OS; on macOS, `brew install opencv@4` (plain `brew install
+  opencv` currently installs OpenCV 5, which gocv v0.40.0 doesn't build against) and add
+  `$(brew --prefix opencv@4)/lib/pkgconfig` to `PKG_CONFIG_PATH` if `pkg-config --exists opencv4`
+  doesn't already find it.
 - `make pb` needs `npx protoc` with the Go, Go-gRPC, ts-proto, and Swift protoc plugins available.
 
 **Tests**: only `cfg/` and `log/` currently have `_test.go` files. Run with
@@ -84,11 +91,18 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
   `file_tags`, `social_publications` + likes/comments, `social_friendship`, `settings`, `profile`,
-  `shared_links`, `vault`, `events`). Business logic in other packages should go through `dao`, not
-  raw SQL.
+  `shared_links`, `vault`, `events`, `people`, `faces`). Business logic in other packages should go
+  through `dao`, not raw SQL.
 - `files_manager` — file storage, hashing, dedup on disk.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
+- `face_recognition` — issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)
+  via `gocv`, humans only. `files_manager.processFaces` (called from `UploadFile`'s background
+  goroutine) gates this on `settings.face_recognition_enabled` (off by default) checked *at upload
+  time* - enabling it later never retroactively processes anything already in the library, by
+  design (see the `faces` table's doc comment in `db.sql`). Requires CGO + a real OpenCV install at
+  build time (see Build section); optional at runtime like APNs - a device with `[faces]`
+  unconfigured just has the feature unavailable, nothing else affected.
 - `bg_processor` — background job runner invoked from `files_manager`/`websocket`.
 - `websocket` — the `/ws` connection handler and dispatch switch described above; also owns
   `ensureBridgePool()`/`openBridgeConn()`, which the device uses to dial *out* to the bridge relay
@@ -130,4 +144,4 @@ same `/ws` protocol.
 Runtime config is INI, loaded via `cfg.Init(appName, env)`: it reads `etc/otc_<env>.ini` relative to
 the working directory, or `/etc/otc_<env>.ini` if that's missing. Dev config lives at
 `cfg/etc/config_dev.ini`; see `README.md` for the full annotated `[otc]`, `[otc-api]`, `[mysql]`,
-`[logger]`, `[tagger]` sections used in production on the Pi.
+`[logger]`, `[tagger]`, `[faces]` sections used in production on the Pi.

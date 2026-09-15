@@ -73,3 +73,31 @@ func TestThumbnailPollBudgetCoversMeasuredWorstCase(t *testing.T) {
 		t.Errorf("total poll budget %v does not comfortably cover the measured 8s worst case", total)
 	}
 }
+
+// shouldCompressForSocial is NewPublication's actual decision of whether a
+// file needs compressing (issue #60) - pinned directly here since driving
+// NewPublication itself needs a real (or faked) filesmanager, same
+// reasoning as TestThumbnailPollBudgetCoversMeasuredWorstCase above.
+func TestShouldCompressForSocial(t *testing.T) {
+	cases := []struct {
+		name string
+		mime string
+		size int
+		want bool
+	}{
+		{"small video stays as-is", "video/mp4", 5 * 1024 * 1024, false},
+		{"oversized video gets compressed", "video/mp4", 11 * 1024 * 1024, true},
+		{"exactly at the limit stays as-is", "video/mp4", cSocialVideoSizeLimit, false},
+		{"one byte over the limit gets compressed", "video/mp4", cSocialVideoSizeLimit + 1, true},
+		{"oversized quicktime video gets compressed", "video/quicktime", 15 * 1024 * 1024, true},
+		{"large image is never touched", "image/jpeg", 20 * 1024 * 1024, false},
+		{"empty mime is never touched", "", 20 * 1024 * 1024, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := shouldCompressForSocial(c.mime, c.size); got != c.want {
+				t.Errorf("shouldCompressForSocial(%q, %d) = %v, want %v", c.mime, c.size, got, c.want)
+			}
+		})
+	}
+}

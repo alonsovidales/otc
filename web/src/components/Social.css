@@ -31,6 +31,26 @@
 .sv-media img { max-height: 500px;  width: 100%; height: auto; object-fit: contain; background: var(--ink-2); cursor: pointer; }
 .sv-media-ph { color: var(--mist-dim); padding: 20px; }
 
+/* Issue #60: marks a video post's thumbnail in the feed - centered over
+   the poster image, tapping it (like the rest of the image) opens the
+   full-screen viewer where it actually plays. pointer-events: none so the
+   click always reaches the <img> underneath, not this overlay. */
+.sv-video-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  pointer-events: none;
+}
+
 /* Issue #68: one dot per image in a multi-image post, current one solid -
    matches the iOS app's indicator. White/translucent rather than the brand
    accent on purpose: this sits directly on top of a photo of unknown

@@ -33,14 +33,109 @@ final class DeviceSettingsViewModel: ObservableObject {
 
     @Published var toast: String?
 
+    // Issue #52: off by default - see db.sql's settings.face_recognition_
+    // enabled doc comment for why turning this on never retroactively
+    // processes anything already in the library.
+    @Published var faceRecognitionEnabled = false
+    @Published var savingFaceRecognition = false
+
+    // Issue #73: full-library reprocess - re-runs tagging/face detection
+    // against every already-uploaded photo/video (e.g. after a detection
+    // fix), stripping existing tags/people first so they're recalculated
+    // clean. Runs entirely server-side; this just starts it and polls for
+    // progress the same way status.swift's StatusViewModel polls GetStatus.
+    @Published var reprocessStatus = ""
+    @Published var reprocessTotal: Int32 = 0
+    @Published var reprocessProcessed: Int32 = 0
+    @Published var startingReprocess = false
+    @Published var showReprocessConfirm = false
+    private var reprocessPollTask: Task<Void, Never>?
+
+    func loadReprocessStatus() async {
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            req.payload = .reqGetReprocessStatus(.init())
+            e = req
+        }) else { return }
+        if case .respReprocessStatus(let s) = resp.payload {
+            reprocessStatus = s.status
+            reprocessTotal = s.total
+            reprocessProcessed = s.processed
+        }
+    }
+
+    // Self-rescheduling: loads once, and if that leaves status "running",
+    // schedules another load in 1.5s - same idle-when-nothing's-happening
+    // shape as OTCConnection's own reconnect backoff, just on a fixed
+    // interval since this only ever needs to run while a job is active.
+    func pollReprocessStatusWhileRunning() {
+        reprocessPollTask?.cancel()
+        reprocessPollTask = Task {
+            await loadReprocessStatus()
+            while !Task.isCancelled && reprocessStatus == "running" {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard !Task.isCancelled else { return }
+                await loadReprocessStatus()
+            }
+        }
+    }
+
+    func stopPollingReprocessStatus() {
+        reprocessPollTask?.cancel()
+        reprocessPollTask = nil
+    }
+
+    func startReprocess() async {
+        showReprocessConfirm = false
+        startingReprocess = true
+        defer { startingReprocess = false }
+        do {
+            let resp = try await ws.request { e in
+                var req = ReqEnvelope()
+                req.payload = .reqStartReprocess(.init())
+                e = req
+            }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                pollReprocessStatusWhileRunning()
+            } else if case .respAck(let ack) = resp.payload {
+                showToast(ack.errorMsg.isEmpty ? "Could not start reprocessing" : ack.errorMsg)
+            }
+        } catch {
+            showToast("Error starting reprocessing")
+        }
+    }
+
     func loadSettings() async {
         do {
             let resp = try await ws.request { $0.payload = .reqGetSettings(Msg_GetSettings()) }
             if case .respSettings(let s) = resp.payload {
                 domain = s.domain
                 currentBridgeSecret = s.bridgeSecret
+                faceRecognitionEnabled = s.faceRecognitionEnabled
             }
         } catch { /* leave blank; user can still type a new domain */ }
+    }
+
+    func toggleFaceRecognition(_ enabled: Bool) async {
+        savingFaceRecognition = true
+        defer { savingFaceRecognition = false }
+        var req = Msg_SetFaceRecognitionEnabled()
+        req.enabled = enabled
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetFaceRecognitionEnabled(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                faceRecognitionEnabled = enabled
+            } else {
+                // Revert the optimistic toggle - see the Toggle binding below.
+                faceRecognitionEnabled = !enabled
+                if case .respAck(let ack) = resp.payload {
+                    showToast(ack.errorMsg.isEmpty ? "Update failed" : ack.errorMsg)
+                }
+            }
+        } catch {
+            faceRecognitionEnabled = !enabled
+            showToast("Error updating this setting")
+        }
     }
 
     func saveDomain() async {
@@ -222,6 +317,47 @@ struct SettingsView: View {
                     .disabled(device.savingSecret || device.newBridgeSecret.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
 
+                Section(
+                    header: Text("People"),
+                    footer: Text("Detect faces in newly uploaded photos so you can search by person. Off by default. Turning this on only affects photos uploaded from now on — it never scans photos you already have, even after you enable it.")
+                ) {
+                    Toggle(
+                        "Face Recognition",
+                        isOn: Binding(
+                            get: { device.faceRecognitionEnabled },
+                            set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
+                        )
+                    )
+                    .disabled(device.savingFaceRecognition)
+                }
+
+                Section(
+                    header: Text("Reprocess Media"),
+                    footer: Text("Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.")
+                ) {
+                    if device.reprocessStatus == "running" {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ProgressView(value: device.reprocessTotal > 0 ? Double(device.reprocessProcessed) / Double(device.reprocessTotal) : 0)
+                                .progressViewStyle(.linear)
+                            Text("Reprocessing… \(device.reprocessProcessed) / \(device.reprocessTotal)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else {
+                        Button(device.startingReprocess ? "Starting…" : "Reprocess All Media") {
+                            device.showReprocessConfirm = true
+                        }
+                        .disabled(device.startingReprocess)
+                        if device.reprocessStatus == "completed" {
+                            Text("Last run completed — \(device.reprocessProcessed) file(s) processed.")
+                                .font(.caption).foregroundColor(.secondary)
+                        } else if device.reprocessStatus == "failed" {
+                            Text("Last run failed after \(device.reprocessProcessed) file(s) — try again.")
+                                .font(.caption).foregroundColor(.red)
+                        }
+                    }
+                }
+
                 Section(header: Text("Change Password")) {
                     SecureField("Current password", text: $device.oldKey)
                     SecureField("New password", text: $device.newKey)
@@ -299,8 +435,28 @@ struct SettingsView: View {
         .task {
             await device.loadSettings()
             status.start()
+            // Covers both "a run is already in progress" (this screen was
+            // reopened while it's going) and "was interrupted" (status is
+            // still 'running' from a server restart - the poll loop just
+            // sees it hasn't advanced until the user starts it again,
+            // which is fine, that's Reprocess's own resume path to drive).
+            await device.loadReprocessStatus()
+            if device.reprocessStatus == "running" {
+                device.pollReprocessStatusWhileRunning()
+            }
         }
-        .onDisappear { status.stop() }
+        .onDisappear {
+            status.stop()
+            device.stopPollingReprocessStatus()
+        }
+        .confirmationDialog(
+            "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+            isPresented: $device.showReprocessConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Reprocess", role: .destructive) { Task { await device.startReprocess() } }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 

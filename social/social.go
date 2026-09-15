@@ -52,6 +52,22 @@ const (
 	// directory" for a real, un-raced upload that just hadn't finished yet.
 	cThumbnailPollInterval = 250 * time.Millisecond
 	cThumbnailPollAttempts = 119 // ~30s total at cThumbnailPollInterval, plus the first immediate try
+
+	// cSocialVideoSizeLimit (issue #60): a video attached to a new post
+	// larger than this gets compressed down (see
+	// filesmanager.CompressVideoForSocial) to a new, separate file before
+	// publishing, rather than distributing the original at full size to
+	// every friend's feed. The original stays exactly as the owner has it
+	// in Files/the gallery - only the *published* copy is the compressed
+	// one.
+	cSocialVideoSizeLimit = 10 * 1024 * 1024
+
+	// cSocialVideoPath is the fixed, dot-prefixed directory social-only
+	// video compressions are stored under - deliberately outside anywhere
+	// the owner would browse to in the Files section, since these aren't
+	// files they chose to keep: they exist purely so NewPublication has
+	// something smaller to actually distribute for an oversized video.
+	cSocialVideoPath = "/.otc-social-video-cache/"
 )
 
 type Social struct {
@@ -139,6 +155,16 @@ func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.S
 	}
 }
 
+// shouldCompressForSocial reports whether a file attached to a new post
+// should be compressed down before publishing (issue #60) - scoped to
+// exactly what the issue asked for: a video over cSocialVideoSizeLimit.
+// Images are unaffected regardless of size - they're already distributed
+// via their own thumbnail plus an on-demand hi-res fetch, not a wholesale
+// copy of the original like a video's full playback would be.
+func shouldCompressForSocial(mime string, size int) bool {
+	return strings.HasPrefix(mime, "video/") && size > cSocialVideoSizeLimit
+}
+
 func (sc *Social) NewPublication(ses *session.Session, text string, paths []string) (pubUuID string, err error) {
 	files := make([]*pb.File, len(paths))
 	for i, path := range paths {
@@ -146,6 +172,36 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		if err != nil {
 			log.Error("Error loading file:", err)
 			return "", fmt.Errorf("error loading file %q: %w", path, err)
+		}
+
+		// Issue #60: an oversized video gets compressed and republished as
+		// a brand new file *before* anything below treats it as this
+		// post's file - every subsequent step (the unenc cache write, the
+		// thumbnail poll, the file actually stored on the publication)
+		// then operates on the compressed copy transparently, exactly as
+		// if the owner had picked it directly.
+		if shouldCompressForSocial(file.Mime, len(file.Content)) {
+			compressed, cErr := sc.filesmanager.CompressVideoForSocial(file.Content)
+			if cErr != nil {
+				log.Error("error compressing oversized video for publication, publishing the original instead:", path, cErr)
+			} else {
+				socialPath := fmt.Sprintf("%s%s.mp4", cSocialVideoPath, uuid.New().String())
+				compressedFile, upErr := sc.filesmanager.UploadFile(ses, socialPath, compressed, false, nil)
+				if upErr != nil {
+					log.Error("error storing compressed video for publication, publishing the original instead:", path, upErr)
+				} else {
+					log.Debug("Publishing compressed video instead of oversized original:", path, "->", socialPath, len(file.Content), "->", len(compressed))
+					file = compressedFile
+					// The compressed file is now what gets loaded below for
+					// the unenc cache/thumbnail - GetFile fills in Content,
+					// UploadFile's own return value doesn't.
+					file, err = sc.filesmanager.GetFile(ses, socialPath)
+					if err != nil {
+						log.Error("Error loading compressed video:", err)
+						return "", fmt.Errorf("error loading compressed video %q: %w", socialPath, err)
+					}
+				}
+			}
 		}
 
 		files[i] = file

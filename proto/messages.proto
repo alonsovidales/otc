@@ -132,6 +132,18 @@ message ListFiles {
 message SearchPhotos {
   repeated string tags = 1;
   string token = 2;
+  // include_videos (issue #60): the Photo Gallery's own search stays
+  // images-only (its default, unset value), but the social composer wants
+  // to offer videos alongside photos too - both share this one RPC, so a
+  // caller opts in explicitly rather than the gallery silently gaining
+  // videos it never asked for.
+  bool include_videos = 3;
+  // person_ids (issue #52 follow-up): filters to photos containing a face
+  // matched to *every* person listed here (AND, not OR) - "person X with
+  // dogs" means combining this with tags = ["dogs"] on the same request,
+  // not two separate searches. Lives on the Photo Gallery's own search bar
+  // now, not a separate People screen.
+  repeated string person_ids = 4;
 }
 
 message ListOfFiles {
@@ -285,6 +297,96 @@ message Settings {
   // can show/update it (issue #40) instead of it only ever being set
   // implicitly at first boot.
   string bridge_secret = 2;
+  // face_recognition_enabled (issue #52) - off by default. Toggled via
+  // SetFaceRecognitionEnabled below, not SetSettings: same reasoning as
+  // SetBridgeSecret being its own request rather than a field bundled onto
+  // SetSettings (see its own doc comment).
+  bool face_recognition_enabled = 3;
+}
+
+// SetFaceRecognitionEnabled (issue #52) is deliberately its own request,
+// not a field on SetSettings - see Settings.face_recognition_enabled's doc
+// comment. A photo uploaded while this is off is never processed for faces
+// even after this is turned back on - see the `faces` table's own doc
+// comment in db.sql for why that's a deliberate design choice, not a
+// missing backfill feature.
+message SetFaceRecognitionEnabled {
+  bool enabled = 1;
+}
+
+// Person is one named (or not-yet-named) individual recognized across the
+// library (issue #52). cover_thumbnail is one representative face crop (an
+// aligned, already-small JPEG - see face_recognition.FaceDetection), enough
+// to render a People list without a second round trip per entry.
+message Person {
+  string id = 1;
+  string name = 2;
+  int32 face_count = 3;
+  bytes cover_thumbnail = 4;
+}
+
+message ListPeople {
+}
+
+message People {
+  repeated Person people = 1;
+}
+
+// RenamePerson also *creates* the name for a still-unnamed (name == "")
+// person - there's no separate "add a name" request, since from the
+// server's point of view naming an unnamed person and renaming an already-
+// named one are the exact same update.
+message RenamePerson {
+  string id = 1;
+  string name = 2;
+}
+
+// DeletePerson removes this person and every face detection that was
+// matched to them (issue #52: "just click on delete the individual") - see
+// the `faces` table's own doc comment in db.sql. Not reversible: a face
+// that reappears in a *future* photo gets clustered into a brand new
+// person, same as if it had never been seen before.
+message DeletePerson {
+  string id = 1;
+}
+
+// MergePeople folds every source_ids person into target_id (issue #74) -
+// for when the same individual got clustered into more than one Person
+// (different angle/lighting missed face_recognition's same-person
+// threshold). Every face detection belonging to a source person is
+// reassigned to target_id and the source person rows are removed; target_
+// id's own name/id are untouched, so pick whichever of the merged people
+// already has the right name as the target. Not reversible - see
+// DeletePerson's own doc comment on why an un-merge isn't a thing either
+// (a future photo of that source identity just gets clustered fresh).
+message MergePeople {
+  string target_id = 1;
+  repeated string source_ids = 2;
+}
+
+// StartReprocess kicks off issue #73's full-library reprocess: every
+// image/video already uploaded gets its tags and faces recalculated from
+// scratch (existing file_tags/faces/people are wiped first - see
+// dao.WipeTagsAndFaces), run in the background using this connection's
+// already-authenticated session. Answered with the generic Ack the moment
+// the run starts (or resumes/no-ops - see files_manager.Reprocess), not
+// when it finishes; poll GetReprocessStatus for progress. Calling this
+// again while a run is already active in this process is a no-op, not an
+// error - it just leaves the existing run going.
+message StartReprocess {
+}
+
+// GetReprocessStatus is polled (same pattern as GetStatus for RAID/disk)
+// to drive the Settings screen's progress bar while a reprocess run is
+// active - see ReprocessStatus.
+message GetReprocessStatus {
+}
+
+message ReprocessStatus {
+  // "idle" (never run), "running", "completed", or "failed".
+  string status = 1;
+  int32 total = 2;
+  int32 processed = 3;
 }
 
 // SetBridgeSecret is deliberately its own request rather than a field on
@@ -636,6 +738,18 @@ message ReqEnvelope {
     HasFile req_has_file = 58;
     LinkFile req_link_file = 59;
     UpdatePushRegistrations req_update_push_registrations = 60;
+
+    // Issue #52: face recognition (person search, folded into
+    // SearchPhotos.person_ids above rather than its own RPC).
+    SetFaceRecognitionEnabled req_set_face_recognition_enabled = 61;
+    ListPeople req_list_people = 62;
+    RenamePerson req_rename_person = 63;
+    DeletePerson req_delete_person = 64;
+    // Issue #74.
+    MergePeople req_merge_people = 65;
+    // Issue #73.
+    StartReprocess req_start_reprocess = 66;
+    GetReprocessStatus req_get_reprocess_status = 67;
   }
 }
 
@@ -669,5 +783,12 @@ message RespEnvelope {
     VapidPublicKey resp_vapid_public_key = 32;
     FileExists resp_file_exists = 33;
     UpdatePushRegistrationsAck resp_update_push_registrations_ack = 34;
+
+    // Issue #52: face recognition (person search). RenamePerson/
+    // DeletePerson/SetFaceRecognitionEnabled all just answer with the
+    // generic Ack above.
+    People resp_people = 35;
+    // Issue #73.
+    ReprocessStatus resp_reprocess_status = 36;
   }
 }

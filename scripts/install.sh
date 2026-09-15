@@ -49,6 +49,15 @@ MODEL_ONNX=$MODEL_DIR/ram_plus_swin_large_14m.int8.onnx
 MODEL_TAGS=$MODEL_DIR/tag_list_4585.txt
 MODEL_THRESHOLDS=$MODEL_DIR/tag_list_4585_thresholds.txt
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
+# Issue #52: face recognition ("People" search), humans only - off by
+# default (settings.face_recognition_enabled), but both models are small
+# enough (~230KB + ~10MB) to just always fetch here rather than making that
+# a second, deferred download the first time someone enables the feature.
+# Official OpenCV Zoo models (MIT/Apache-2.0), designed as a matched pair -
+# see face_recognition/face_recognition.go's package doc comment.
+FACE_DETECTOR_ONNX=$MODEL_DIR/face_detection_yunet_2023mar.onnx
+FACE_RECOGNIZER_ONNX=$MODEL_DIR/face_recognition_sface_2021dec_int8.onnx
+OPENCV_ZOO_RAW=https://github.com/opencv/opencv_zoo/raw/main/models
 BRIDGE_ADDR=off-the.cloud
 STORAGE_PATH=/mnt/storage/
 UNENC_PATH=/mnt/storage/unencrypted/
@@ -68,7 +77,10 @@ fi
 log "[1/9] apt-get update + base packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg
+# libopencv-dev + pkg-config (issue #52): face recognition builds against
+# gocv, which needs OpenCV's real headers/libs at compile time, found via
+# pkg-config - not just a runtime .so like ONNX Runtime below.
+apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg libopencv-dev pkg-config
 
 log "[2/9] otc service account"
 id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin otc
@@ -104,6 +116,14 @@ if [ ! -f "$MODEL_ONNX" ] || [ ! -f "$MODEL_TAGS" ] || [ ! -f "$MODEL_THRESHOLDS
     curl -fL --retry 5 --retry-delay 2 -o "$MODEL_ONNX" "$MODEL_HF_REPO/ram_plus_int8.onnx"
     curl -fL --retry 5 --retry-delay 2 -o "$MODEL_THRESHOLDS" "$MODEL_HF_REPO/ram_tag_list_threshold.txt"
     curl -fsSL "$RAW_BASE/models/models/tag_list_4585.txt.gz" | gunzip > "$MODEL_TAGS"
+fi
+
+log "[5/9] Face recognition models (issue #52, ~10MB total, only downloaded once)"
+if [ ! -f "$FACE_DETECTOR_ONNX" ]; then
+    curl -fL --retry 5 --retry-delay 2 -o "$FACE_DETECTOR_ONNX" "$OPENCV_ZOO_RAW/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+fi
+if [ ! -f "$FACE_RECOGNIZER_ONNX" ]; then
+    curl -fL --retry 5 --retry-delay 2 -o "$FACE_RECOGNIZER_ONNX" "$OPENCV_ZOO_RAW/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx"
 fi
 chown -R otc:otc "$MODEL_DIR"
 
@@ -188,10 +208,55 @@ GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
 FLUSH PRIVILEGES;
 "
 if mysql otc -N -B -e 'SHOW TABLES LIKE "files"' 2>/dev/null | grep -q files; then
-    log "schema already present, skipping table creation"
+    log "schema already present, applying any new tables/columns since your last update"
 else
     tail -n +10 "$SRC_DIR/db/db.sql" | mysql otc
 fi
+# Issue #52: face recognition tables/column, added after the schema-or-skip
+# check above - an existing install re-running this script (this script's
+# normal upgrade path) needs these applied explicitly, since a fresh
+# db.sql run only happens once, on this device's very first install. Every
+# statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
+# install too (where db.sql just created them already).
+mysql otc -e "
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS people (
+  id VARCHAR(36) NOT NULL,
+  name VARCHAR(150) NOT NULL DEFAULT '',
+  created DATETIME NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS faces (
+  id VARCHAR(36) NOT NULL,
+  hash VARCHAR(64) NOT NULL,
+  person_id VARCHAR(36) NOT NULL,
+  bbox_x INT NOT NULL,
+  bbox_y INT NOT NULL,
+  bbox_w INT NOT NULL,
+  bbox_h INT NOT NULL,
+  embedding BLOB NOT NULL,
+  thumbnail MEDIUMBLOB NOT NULL,
+  created DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY (hash),
+  KEY (person_id)
+) ENGINE=InnoDB;
+"
+# Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
+# the face recognition block above.
+mysql otc -e "
+CREATE TABLE IF NOT EXISTS reprocess_state (
+  id TINYINT NOT NULL DEFAULT 1,
+  status VARCHAR(20) NOT NULL DEFAULT 'idle',
+  total INT NOT NULL DEFAULT 0,
+  processed INT NOT NULL DEFAULT 0,
+  last_hash VARCHAR(64) NOT NULL DEFAULT '',
+  started DATETIME DEFAULT NULL,
+  updated DATETIME DEFAULT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB;
+INSERT INTO reprocess_state (id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM reprocess_state WHERE id = 1);
+"
 mysql otc -e "
 INSERT INTO settings (device_uuid, subdomain, bridge_secret)
 SELECT '${DEVICE_UUID}', '${SUBDOMAIN}.${BRIDGE_ADDR}', '${BRIDGE_SECRET}'
@@ -231,6 +296,14 @@ tags-path=$MODEL_TAGS
 thresholds-path=$MODEL_THRESHOLDS
 tags-per-image=10
 max-images-search=5
+
+# Issue #52: face recognition ("People" search), humans only - off by
+# default (toggle it from Settings in the app), regardless of this section
+# being present. See face_recognition/face_recognition.go's package doc
+# comment for what these two models are.
+[faces]
+detector-model-path=$FACE_DETECTOR_ONNX
+recognizer-model-path=$FACE_RECOGNIZER_ONNX
 EOF
 
 cat > /etc/systemd/system/otc.service <<EOF

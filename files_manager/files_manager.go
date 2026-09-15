@@ -17,6 +17,7 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/exifinfo"
+	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	"github.com/alonsovidales/otc/geotag"
 	"github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
@@ -67,6 +68,21 @@ type Manager struct {
 	searchTokens   *sync.Map
 	tokensToExpire *sync.Map
 	sharedLinkTTL  time.Duration
+	// faceRecognizer is nil until/unless [faces] is configured with both
+	// model paths (issue #52) - every call site below treats a nil
+	// recognizer as "the feature isn't set up on this device yet", not an
+	// error, same as push.Push's nil apnsClient.
+	faceRecognizer *facerecognition.Recognizer
+
+	// reprocessing guards issue #73's full-library reprocess job - true
+	// only while a goroutine started by *this process* is actively working
+	// through it. Deliberately separate from the persisted
+	// reprocess_state.status ('running' in the DB survives a crash/restart
+	// with no goroutine left alive to match it) - see reprocess.go's
+	// StartReprocess for how the two combine to tell "already running"
+	// apart from "was interrupted, resume".
+	reprocessMu  sync.Mutex
+	reprocessing bool
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
@@ -92,6 +108,19 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 
 	if err != nil {
 		log.Fatal("Error loading image encoders:", err)
+	}
+
+	// Issue #52: unlike the tagger above, a missing/misconfigured [faces]
+	// section is not fatal - the feature is opt-in (off by default, see
+	// db.sql's settings.face_recognition_enabled) and a device that never
+	// turns it on shouldn't need these two extra models downloaded at all.
+	mg.faceRecognizer, err = facerecognition.NewRecognizer(
+		cfg.GetStr("faces", "detector-model-path"),
+		cfg.GetStr("faces", "recognizer-model-path"),
+	)
+	if err != nil {
+		log.Info("Face recognition not available (issue #52 stays off until this is configured):", err)
+		mg.faceRecognizer = nil
 	}
 
 	go mg.tokenCollector()
@@ -367,7 +396,19 @@ func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (conten
 	return session.Decrypt(encContent)
 }
 
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string) (files []*pb.File, token string, err error) {
+// includeVideos (issue #60) only affects the no-filters case below - a
+// tag- or person-filtered search already includes videos regardless
+// (dao.SearchMedia only applies the images-only filter when browsing with
+// no filters at all), so the Photo Gallery's own filtered search is
+// unaffected either way. Callers that don't care (every existing one
+// before issue #60) get exactly today's images-only default browsing by
+// passing false.
+//
+// personIDs (issue #52 follow-up): folded into this same search rather
+// than a separate RPC, since the Photo Gallery's search bar combines
+// person and tag filters on one request - see dao.SearchMedia for the AND/
+// OR semantics of combining them.
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	tokenFound := false
 	if oldToken != "" {
@@ -377,11 +418,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		token = oldToken
 	}
 	if !tokenFound {
-		if len(tags) > 0 {
-			files, err = mg.dao.SearchByTags(path, tags)
-		} else {
-			files, err = mg.dao.GetFilesByPath(path, true, true)
-		}
+		files, err = mg.dao.SearchMedia(path, tags, personIDs, !includeVideos)
 		if err != nil {
 			return
 		}
@@ -649,163 +686,180 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 		log.Debug("Time writting file:", time.Since(start), targetPath)
 
-		// We will try to create a thumbnail of images only
-		isHeic := strings.HasSuffix(file.Path, ".HEIC")
-		if file.Mime[:5] == "image" || isHeic {
-			// Issue #42: read GPS/EXIF from the *original* bytes before any
-			// HEIC->JPEG re-encode below, which (like most re-encodes) drops
-			// the EXIF segment entirely.
-			var exif *exifinfo.Info
-			if isHeic {
-				exif, err = exifinfo.FromHEIC(content)
-			} else {
-				exif, err = exifinfo.FromJPEG(content)
-			}
-			if err != nil {
-				log.Debug("no EXIF metadata for", targetPath, ":", err)
-				exif = nil
-			}
-
-			if isHeic {
-				// Issue #66: quality 6 produced severe compression artifacts
-				// ("colors are terrible") — 90 matches the quality used for
-				// the full-size conversion in GetFile, so the thumbnail
-				// derived from this below isn't starting from a
-				// already-mangled source. Orientation comes from the EXIF
-				// read above so the rotation baked in here actually matches
-				// how the photo was taken.
-				orientation := 1
-				if exif != nil {
-					orientation = exif.Orientation
-				}
-				content, err = mg.heicToJpeg(content, 90, orientation)
-				if err != nil {
-					log.Error("error converting from HEIC to JPEG:", err)
-					return
-				}
-			}
-
-			startClass := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			img, _, err := image.Decode(bytes.NewReader(content))
-			if err != nil {
-				log.Error("error decoding the image:", err)
-				return
-			}
-
-			// Issue #66 follow-up: a plain JPEG straight from the phone (no
-			// HEIC involved at all - this is what actually reproduced the
-			// bug report, since it turns out that photo was never HEIC in
-			// the first place) was losing its rotation here just the same
-			// as a HEIC one - the resize/re-encode below always produces a
-			// brand new JPEG with no EXIF segment, so whatever Orientation
-			// tag the original had is gone from the thumbnail the feed
-			// actually shows. A HEIC source already had its rotation baked
-			// into its pixels above (heicToJpeg) using the HEIF container's
-			// own irot/imir, so this only runs for the non-HEIC case -
-			// applying `exif`'s (pre-conversion) Orientation again here too
-			// would double-rotate on the rare HEIC file that sets both a
-			// HEIF-native transform and a non-default EXIF Orientation.
-			if !isHeic && exif != nil {
-				img = applyOrientation(img, exif.Orientation)
-			}
-
-			tags, err := mg.tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
-			if err != nil {
-				log.Error("Error processing tags:", err)
-			}
-			tags = append(tags, locationTags(exif)...)
-			log.Debug("Tags:", tags)
-
-			mg.dao.AddTags(file, tags)
-
-			log.Debug("Time classifying image:", time.Since(startClass), targetPath)
-
-			startThumb := time.Now()
-			// Issue #66 follow-up: img.Bounds() (not a fresh
-			// image.DecodeConfig of content's raw bytes, as this used to
-			// do) reflects the real, orientation-corrected shape — see
-			// thumbnailSource's doc comment for why that distinction
-			// matters.
-			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-			thumbImg := thumbnailSource(img, maxWidth)
-			// A thumbnail must exist once a file is uploaded, full stop —
-			// NewPublication, the social feed, etc. all read one back via
-			// GetThumbnail unconditionally. This used to only write one
-			// when resizing was actually needed (imgW > maxWidth), leaving
-			// nothing on disk at all for an image that was already narrow
-			// enough — a gap the orientation fix above made easy to hit for
-			// real: a portrait photo's corrected (post-rotation) width can
-			// end up smaller than maxWidth even when its original,
-			// unrotated width wasn't, silently skipping the thumbnail a
-			// post with that photo in it then failed to ever find.
-			var buf bytes.Buffer
-			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-				log.Error("error encoding thumbnail:", err)
-			} else {
-				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-				if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
-					log.Error("Error generating thumbnail:", err)
-				}
-			}
-			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
-		} else if strings.HasPrefix(file.Mime, "video/") {
-			// Videos get tagged the same way images do — search doesn't
-			// need to know the difference, since it's all just file_tags
-			// rows keyed by hash — just against a handful of frames
-			// sampled across the video instead of the one still image.
-			startClass := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-
-			frames, err := extractVideoFrames(content, cVideoSampleFrames)
-			if err != nil {
-				log.Error("error extracting video frames:", err)
-				return
-			}
-
-			// Issue #42: videos carry GPS in their own container metadata
-			// (e.g. an iPhone's ISO-6709 "location" tag), separate from the
-			// frame images sampled above.
-			exif, err := exifinfo.FromVideo(content)
-			if err != nil {
-				log.Debug("no location metadata for", targetPath, ":", err)
-				exif = nil
-			}
-
-			tags := tagVideoFrames(ctx, mg.tagger, frames)
-			tags = append(tags, locationTags(exif)...)
-			log.Debug("Tags:", tags)
-
-			mg.dao.AddTags(file, tags)
-
-			log.Debug("Time classifying video:", time.Since(startClass), targetPath)
-
-			startThumb := time.Now()
-			thumbSrc := frames[0]
-			b := thumbSrc.Bounds()
-			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-			if b.Dx() > maxWidth {
-				newH := int(float64(b.Dy()) * float64(maxWidth) / float64(b.Dx()))
-				dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
-				draw.CatmullRom.Scale(dst, dst.Bounds(), thumbSrc, thumbSrc.Bounds(), draw.Over, nil)
-				var buf bytes.Buffer
-				jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
-				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-				err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
-				if err != nil {
-					log.Error("Error generating video thumbnail:", err)
-				}
-			}
-			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
-		}
+		mg.processMediaContent(session, file, targetPath, content)
 
 		log.Debug("Time processing image:", time.Since(start), targetPath)
 	}(targetPath, file, content)
 
 	return
+}
+
+// processMediaContent runs the tag/thumbnail/face pipeline against a
+// file's original bytes - the part of UploadFile's background goroutine
+// that doesn't care whether those bytes just arrived or have been sitting
+// on disk for years. Factored out so Reprocess (issue #73: "re-run this
+// against everything already uploaded, e.g. after a model change") drives
+// the *exact* same code a fresh upload does, rather than a second copy
+// that inevitably drifts. content is the file's original, undecoded bytes
+// (whatever format it was stored in - HEIC handling happens right here,
+// same as it always did); targetPath is only used to derive the
+// "<hash>_thumbnail" sibling path.
+func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte) {
+	// We will try to create a thumbnail of images only
+	isHeic := strings.HasSuffix(file.Path, ".HEIC")
+	if file.Mime[:5] == "image" || isHeic {
+		// Issue #42: read GPS/EXIF from the *original* bytes before any
+		// HEIC->JPEG re-encode below, which (like most re-encodes) drops
+		// the EXIF segment entirely.
+		var exif *exifinfo.Info
+		var err error
+		if isHeic {
+			exif, err = exifinfo.FromHEIC(content)
+		} else {
+			exif, err = exifinfo.FromJPEG(content)
+		}
+		if err != nil {
+			log.Debug("no EXIF metadata for", targetPath, ":", err)
+			exif = nil
+		}
+
+		if isHeic {
+			// Issue #66: quality 6 produced severe compression artifacts
+			// ("colors are terrible") — 90 matches the quality used for
+			// the full-size conversion in GetFile, so the thumbnail
+			// derived from this below isn't starting from a
+			// already-mangled source. Orientation comes from the EXIF
+			// read above so the rotation baked in here actually matches
+			// how the photo was taken.
+			orientation := 1
+			if exif != nil {
+				orientation = exif.Orientation
+			}
+			content, err = mg.heicToJpeg(content, 90, orientation)
+			if err != nil {
+				log.Error("error converting from HEIC to JPEG:", err)
+				return
+			}
+		}
+
+		startClass := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		img, _, err := image.Decode(bytes.NewReader(content))
+		if err != nil {
+			log.Error("error decoding the image:", err)
+			return
+		}
+
+		// Issue #66 follow-up: a plain JPEG straight from the phone (no
+		// HEIC involved at all - this is what actually reproduced the
+		// bug report, since it turns out that photo was never HEIC in
+		// the first place) was losing its rotation here just the same
+		// as a HEIC one - the resize/re-encode below always produces a
+		// brand new JPEG with no EXIF segment, so whatever Orientation
+		// tag the original had is gone from the thumbnail the feed
+		// actually shows. A HEIC source already had its rotation baked
+		// into its pixels above (heicToJpeg) using the HEIF container's
+		// own irot/imir, so this only runs for the non-HEIC case -
+		// applying `exif`'s (pre-conversion) Orientation again here too
+		// would double-rotate on the rare HEIC file that sets both a
+		// HEIF-native transform and a non-default EXIF Orientation.
+		if !isHeic && exif != nil {
+			img = applyOrientation(img, exif.Orientation)
+		}
+
+		tags, err := mg.tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
+		if err != nil {
+			log.Error("Error processing tags:", err)
+		}
+		tags = append(tags, locationTags(exif)...)
+		log.Debug("Tags:", tags)
+
+		mg.dao.AddTags(file, tags)
+
+		log.Debug("Time classifying image:", time.Since(startClass), targetPath)
+
+		startThumb := time.Now()
+		// Issue #66 follow-up: img.Bounds() (not a fresh
+		// image.DecodeConfig of content's raw bytes, as this used to
+		// do) reflects the real, orientation-corrected shape — see
+		// thumbnailSource's doc comment for why that distinction
+		// matters.
+		maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+		thumbImg := thumbnailSource(img, maxWidth)
+		// A thumbnail must exist once a file is uploaded, full stop —
+		// NewPublication, the social feed, etc. all read one back via
+		// GetThumbnail unconditionally. This used to only write one
+		// when resizing was actually needed (imgW > maxWidth), leaving
+		// nothing on disk at all for an image that was already narrow
+		// enough — a gap the orientation fix above made easy to hit for
+		// real: a portrait photo's corrected (post-rotation) width can
+		// end up smaller than maxWidth even when its original,
+		// unrotated width wasn't, silently skipping the thumbnail a
+		// post with that photo in it then failed to ever find.
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
+			log.Error("error encoding thumbnail:", err)
+		} else {
+			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
+			if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
+				log.Error("Error generating thumbnail:", err)
+			}
+		}
+		log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
+
+		mg.processFaces(session, file, img)
+	} else if strings.HasPrefix(file.Mime, "video/") {
+		// Videos get tagged the same way images do — search doesn't
+		// need to know the difference, since it's all just file_tags
+		// rows keyed by hash — just against a handful of frames
+		// sampled across the video instead of the one still image.
+		startClass := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		frames, err := extractVideoFrames(content, cVideoSampleFrames)
+		if err != nil {
+			log.Error("error extracting video frames:", err)
+			return
+		}
+
+		// Issue #42: videos carry GPS in their own container metadata
+		// (e.g. an iPhone's ISO-6709 "location" tag), separate from the
+		// frame images sampled above.
+		exif, err := exifinfo.FromVideo(content)
+		if err != nil {
+			log.Debug("no location metadata for", targetPath, ":", err)
+			exif = nil
+		}
+
+		tags := tagVideoFrames(ctx, mg.tagger, frames)
+		tags = append(tags, locationTags(exif)...)
+		log.Debug("Tags:", tags)
+
+		mg.dao.AddTags(file, tags)
+
+		log.Debug("Time classifying video:", time.Since(startClass), targetPath)
+
+		startThumb := time.Now()
+		thumbSrc := frames[0]
+		b := thumbSrc.Bounds()
+		maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+		if b.Dx() > maxWidth {
+			newH := int(float64(b.Dy()) * float64(maxWidth) / float64(b.Dx()))
+			dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
+			draw.CatmullRom.Scale(dst, dst.Bounds(), thumbSrc, thumbSrc.Bounds(), draw.Over, nil)
+			var buf bytes.Buffer
+			jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
+			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
+			err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
+			if err != nil {
+				log.Error("Error generating video thumbnail:", err)
+			}
+		}
+		log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
+	}
 }
 
 // HasFile reports whether this device already has a file with this exact

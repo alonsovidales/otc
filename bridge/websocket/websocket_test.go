@@ -269,6 +269,57 @@ func TestDeviceRelayDetectsSilentNetworkDeathViaPingPongTimeout(t *testing.T) {
 	}
 }
 
+// The actual production bug: a relay that died via the ping/pong timeout
+// (not an explicit Close()) used to leave its underlying socket
+// technically still open - if the bridge's pool later picked that same
+// relay again (exactly what happens when a dead entry sits unevicted in
+// availableConns) and called forward() on it, nothing would ever answer
+// the waiter it registered, since this relay's one and only readLoop had
+// already returned for good. That hung the caller (and the real client
+// behind it) forever, with no error - reproduced here directly: forward()
+// after a ping/pong death must fail promptly, not hang.
+func TestDeviceRelayForwardFailsPromptlyAfterPingPongTimeoutDeath(t *testing.T) {
+	origPongWait, origPingPeriod, origForwardTimeout := cPongWait, cPingPeriod, cForwardTimeout
+	cPongWait = 100 * time.Millisecond
+	cPingPeriod = 30 * time.Millisecond
+	cForwardTimeout = 2 * time.Second
+	defer func() { cPongWait, cPingPeriod, cForwardTimeout = origPongWait, origPingPeriod, origForwardTimeout }()
+
+	srv, wsURL, goSilent := newSilentAfterFirstDeviceServer(t)
+	defer srv.Close()
+
+	var calls int32
+	relay := dialRelayWithOnDeath(t, wsURL, func() { atomic.AddInt32(&calls, 1) })
+	defer relay.Close()
+
+	goSilent()
+	deadline := time.Now().Add(2 * time.Second)
+	for atomic.LoadInt32(&calls) == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if atomic.LoadInt32(&calls) != 1 {
+		t.Fatal("relay never died via the ping/pong timeout - test setup is broken")
+	}
+
+	// This is the exact scenario: the pool still holds this now-dead
+	// relay (nothing evicts it from availableConns just because it died
+	// while idle) and picks it for a real request.
+	done := make(chan error, 1)
+	go func() {
+		_, err := relay.forward(envelopeFrame(t, 99))
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("expected an error forwarding through an already-dead relay, got nil")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("forward() hung instead of failing promptly - the underlying socket was never actually closed on death")
+	}
+}
+
 // The exact design (issue #62): "if the device connections goes from > 1
 // to 0 then start a go routine with a count down that will send the
 // notification if it takes more than 1 min to go back to 1". This pins

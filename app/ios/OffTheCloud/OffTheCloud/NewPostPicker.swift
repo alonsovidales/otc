@@ -50,6 +50,12 @@ final class NewPostPickerVM: ObservableObject {
         // Set only for Source.phone items - nil for anything already on
         // the device (Source.synced).
         var asset: PHAsset?
+        // Issue #60: drives PickTile/SelectedThumb's play badge - derived
+        // from the server File's mime for Source.synced, or the PHAsset's
+        // own mediaType for Source.phone (both fetches already include
+        // videos with no restriction, so this is purely cosmetic, not a
+        // filter).
+        var isVideo: Bool = false
 
         // UIImage/PHAsset aren't Hashable, and don't need to be: id alone
         // already uniquely identifies an item.
@@ -162,13 +168,16 @@ final class NewPostPickerVM: ObservableObject {
                 var sp = Msg_SearchPhotos()
                 sp.tags = self.chips
                 sp.token = overrideToken ?? self.token ?? ""
+                // Issue #60: the composer offers videos alongside photos,
+                // unlike the Photo Gallery's own search.
+                sp.includeVideos = true
                 req.payload = .reqSearchPhotos(sp)
                 e = req
             }
             guard case .respListOfFiles(let lof) = resp.payload else { return }
             var newItems: [Item] = []
             for f in lof.files {
-                newItems.append(Item(id: "\(f.path)#\(f.hash)#\(f.size)", path: f.path, thumbData: f.hasContent ? f.content : nil))
+                newItems.append(Item(id: "\(f.path)#\(f.hash)#\(f.size)", path: f.path, thumbData: f.hasContent ? f.content : nil, isVideo: f.mime.hasPrefix("video/")))
             }
             let existing = Set(items.map(\.id))
             let filtered = newItems.filter { !existing.contains($0.id) }
@@ -262,7 +271,7 @@ final class NewPostPickerVM: ObservableObject {
                     cont.resume(returning: image)
                 }
             }
-            newItems.append(Item(id: "local#\(asset.localIdentifier)", path: "", thumbImage: thumb, asset: asset))
+            newItems.append(Item(id: "local#\(asset.localIdentifier)", path: "", thumbImage: thumb, asset: asset, isVideo: asset.mediaType == .video))
         }
         items.append(contentsOf: newItems)
         localLoadedCount = end
@@ -609,6 +618,18 @@ private struct PickTile: View {
                     .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 3)
             )
             .opacity(isSelected ? 0.75 : 1)
+            .overlay(alignment: .bottomLeading) {
+                // Issue #60: marks a video tile - bottom-leading so it
+                // never collides with the selection number (top-trailing).
+                if item.isVideo {
+                    Image(systemName: "play.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Color.black.opacity(0.55), in: Circle())
+                        .padding(6)
+                }
+            }
 
             if let selectionNumber {
                 Text("\(selectionNumber)")

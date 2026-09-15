@@ -350,69 +350,6 @@ func (dao *Dao) DelFileByPath(path string) (err error) {
 	return tx.Commit()
 }
 
-func (dao *Dao) SearchByTags(path string, tags []string) (files []*pb.File, err error) {
-	var pathSearch string
-
-	if path != "" {
-		// We want to search only in this directory
-		pathSearch = " `f`.`path` like ? and "
-		path = "^" + path + "[^/]+$"
-	}
-
-	ph := strings.Repeat("?,", len(tags))
-	ph = ph[:len(ph)-1]
-
-	searchStr := "select " +
-		"`f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`, sum(`tg`.`score`) as `score`, count(`tg`.`tag`) as `total_tags` " +
-		"from `file_tags` as `tg` left join `files` as `f` on `tg`.`hash` = `f`.`hash` " +
-		"where " + pathSearch + " `tg`.`tag` in (" + ph + ") " +
-		"group by `f`.`hash` " +
-		"order by `score` desc"
-		//"limit " + fmt.Sprintf("%d", cfg.GetInt("tagger", "max-images-search"))
-
-	argsLen := len(tags)
-	if path != "" {
-		argsLen += 1
-	}
-	args := make([]any, argsLen)
-	if path != "" {
-		args[0] = path
-	}
-	for i, t := range tags {
-		if path != "" {
-			args[i+1] = t
-		} else {
-			args[i] = t
-		}
-	}
-	rows, err := dao.db.Query(searchStr, args...)
-	log.Debug("Search Query:", searchStr, args)
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		file := new(pb.File)
-		var created, modified time.Time
-		var score float32
-		var totalTags int
-		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size, &score, &totalTags); err != nil {
-			return nil, err
-		}
-		log.Debug("Img:", file.Hash, "Tags:", totalTags, "Score:", score)
-		file.Created = timestamppb.New(created)
-		file.Modified = timestamppb.New(modified)
-		files = append(files, file)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return
-}
-
 func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (files []*pb.File, err error) {
 	log.Debug("Get Files by path initial:", path, recursive)
 	if !recursive {
@@ -1022,4 +959,445 @@ func (dao *Dao) NewEvent(eventType string, data []byte) (err error) {
 	_, err = dao.db.Exec("insert into `events` (`uuid`, `dt`, `type`, `content`) values (?, now(), ?, ?)", uuid.New(), eventType, data)
 
 	return err
+}
+
+// GetFaceRecognitionEnabled/SetFaceRecognitionEnabled back issue #52's
+// settings toggle - see db.sql's own doc comment on `settings.face_
+// recognition_enabled` for why enabling it never retroactively processes
+// anything already uploaded.
+func (dao *Dao) GetFaceRecognitionEnabled() (enabled bool, err error) {
+	err = dao.db.QueryRow("select `face_recognition_enabled` from `settings`").Scan(&enabled)
+	return
+}
+
+func (dao *Dao) SetFaceRecognitionEnabled(enabled bool) (err error) {
+	_, err = dao.db.Exec("update `settings` set `face_recognition_enabled` = ?", enabled)
+	return
+}
+
+// CreatePerson inserts a brand new, still-unnamed person (issue #52) -
+// every detected face either matches an existing one (see
+// ListFaceEmbeddings) or gets one of these created for it.
+func (dao *Dao) CreatePerson(id string) (err error) {
+	_, err = dao.db.Exec("insert into `people` (`id`, `name`, `created`) values (?, '', now())", id)
+	return
+}
+
+// AddFace stores one detected face (issue #52), already resolved to
+// whichever person it was matched to (see CreatePerson). embedding is the
+// raw feature vector, encoded via face_recognition.EncodeEmbedding -
+// opaque to this layer, never interpreted here.
+func (dao *Dao) AddFace(id, hash, personID string, x, y, w, h int, embedding, thumbnail []byte) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `faces` (`id`, `hash`, `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `created`) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, now())",
+		id, hash, personID, x, y, w, h, embedding, thumbnail)
+	return
+}
+
+// RawFace is one face row's id plus its two encrypted-at-rest blobs, for
+// files_manager.MigrateLegacyFaceEncryption - see that function's doc
+// comment for why this one-off read/rewrite exists.
+type RawFace struct {
+	ID        string
+	Embedding []byte
+	Thumbnail []byte
+}
+
+// ListRawFaces returns every stored face's id/embedding/thumbnail, opaque
+// to this layer - see RawFace.
+func (dao *Dao) ListRawFaces() (faces []RawFace, err error) {
+	rows, err := dao.db.Query("select `id`, `embedding`, `thumbnail` from `faces`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var f RawFace
+		if err := rows.Scan(&f.ID, &f.Embedding, &f.Thumbnail); err != nil {
+			return nil, err
+		}
+		faces = append(faces, f)
+	}
+	return faces, rows.Err()
+}
+
+// UpdateFaceEncryption overwrites a face row's embedding/thumbnail in
+// place - the write side of MigrateLegacyFaceEncryption's re-encryption
+// pass, never called from the normal detect-and-store path (AddFace owns
+// that).
+func (dao *Dao) UpdateFaceEncryption(id string, embedding, thumbnail []byte) (err error) {
+	_, err = dao.db.Exec("update `faces` set `embedding` = ?, `thumbnail` = ? where `id` = ?", embedding, thumbnail, id)
+	return
+}
+
+// FaceEmbedding is one stored face's identity, for matching a newly
+// detected face against (issue #52) - see ListFaceEmbeddings.
+type FaceEmbedding struct {
+	PersonID  string
+	Embedding []byte
+}
+
+// ListFaceEmbeddings returns every stored face's person + raw embedding -
+// the full set a newly detected face gets compared against (see
+// face_recognition.CosineSimilarity/IsSamePersonScore) to decide whether
+// it matches an existing person or needs a new one. A full-table read
+// rather than anything indexed/ANN-based: a personal photo library's face
+// count is small enough (thousands, not millions) for a linear scan on
+// every new upload to be trivial, and it's more accurate than maintaining
+// per-person centroids would be (a person's different angles/lighting/
+// expressions are better matched against their nearest individual face
+// than an average of all of them).
+func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
+	rows, err := dao.db.Query("select `person_id`, `embedding` from `faces`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var f FaceEmbedding
+		if err := rows.Scan(&f.PersonID, &f.Embedding); err != nil {
+			return nil, err
+		}
+		faces = append(faces, f)
+	}
+	return faces, rows.Err()
+}
+
+// ListPeople returns every recognized person (issue #52), most-photographed
+// first (issue #75: the people you actually care about browsing by surface
+// before one-off strangers/false positives a background face was matched
+// to), each with its face count and one representative face thumbnail (its
+// oldest detected face - arbitrary but stable, so a person's cover photo
+// doesn't change from one call to the next). `p.created` breaks ties
+// between two people with the same count, newest first, same as the old
+// sole ordering.
+func (dao *Dao) ListPeople() (people []*pb.Person, err error) {
+	rows, err := dao.db.Query(
+		"select `p`.`id`, `p`.`name`, count(`f`.`id`) as `face_count` " +
+			"from `people` as `p` left join `faces` as `f` on `f`.`person_id` = `p`.`id` " +
+			"group by `p`.`id`, `p`.`name` order by `face_count` desc, `p`.`created` desc")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		p := new(pb.Person)
+		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount); err != nil {
+			return nil, err
+		}
+		people = append(people, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, p := range people {
+		var thumb []byte
+		err = dao.db.QueryRow("select `thumbnail` from `faces` where `person_id` = ? order by `created` asc limit 1", p.Id).Scan(&thumb)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+		p.CoverThumbnail = thumb
+	}
+
+	return people, nil
+}
+
+// RenamePerson also *creates* the name for a still-unnamed person - see
+// the RenamePerson proto message's own doc comment.
+func (dao *Dao) RenamePerson(id, name string) (err error) {
+	_, err = dao.db.Exec("update `people` set `name` = ? where `id` = ?", name, id)
+	return
+}
+
+// DeletePerson removes this person and every face detection matched to
+// them (issue #52: "just click on delete the individual") - see the
+// `faces` table's own doc comment in db.sql for why both are deleted
+// together rather than leaving orphaned face rows behind.
+func (dao *Dao) DeletePerson(id string) (err error) {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.Exec("delete from `faces` where `person_id` = ?", id); err != nil {
+		return fmt.Errorf("deleting person's faces: %w", err)
+	}
+	if _, err = tx.Exec("delete from `people` where `id` = ?", id); err != nil {
+		return fmt.Errorf("deleting person: %w", err)
+	}
+	return tx.Commit()
+}
+
+// MergePeople folds every sourceIDs person into targetID (issue #74) - see
+// the MergePeople proto message's own doc comment for why this exists and
+// what it does to targetID vs. the sources. targetID itself is filtered
+// out of sourceIDs (merging a person into themselves is a no-op, not an
+// error) so a client doesn't need to de-duplicate before calling this.
+func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
+	ids := make([]string, 0, len(sourceIDs))
+	for _, id := range sourceIDs {
+		if id != targetID {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	ph := strings.Repeat("?,", len(ids))
+	ph = ph[:len(ph)-1]
+	args := make([]any, 0, len(ids)+1)
+	args = append(args, targetID)
+	for _, id := range ids {
+		args = append(args, id)
+	}
+
+	if _, err = tx.Exec("update `faces` set `person_id` = ? where `person_id` in ("+ph+")", args...); err != nil {
+		return fmt.Errorf("reassigning merged faces: %w", err)
+	}
+	if _, err = tx.Exec("delete from `people` where `id` in ("+ph+")", args[1:]...); err != nil {
+		return fmt.Errorf("deleting merged people: %w", err)
+	}
+	return tx.Commit()
+}
+
+// SearchMedia is the Photo Gallery's one general search, composing
+// whichever filters were actually given (issue #52 follow-up: "next to the
+// search bar you can filter by people but also add tags... select multiple
+// people so it will search for images that contain more than one person").
+// tags keep their existing behavior: any file tagged with at least one of
+// them, ranked by summed score across however many matched - unchanged
+// from the old SearchByTags. personIDs is AND, not OR: a file must have a
+// face matched to *every* person listed (a photo of just one of two
+// selected people doesn't qualify) - combining both narrows further still,
+// e.g. tags=["dogs"] + personIDs=[alice] means "photos of a dog that alice
+// is also in", not "either". imagesOnly is ignored whenever tags or
+// personIDs are given, same as the old SearchByTags/SearchByPerson never
+// filtered by mime either - it only applies to the plain "browse
+// everything, no filters" case, matching GetFilesByPath's own contract.
+func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, imagesOnly bool) (files []*pb.File, err error) {
+	from := "from `files` as `f`"
+	var args []any
+	selectExtra := ""
+	groupBy := ""
+	having := ""
+	orderBy := " order by `f`.`created` desc"
+
+	if len(tags) > 0 {
+		ph := strings.Repeat("?,", len(tags))
+		ph = ph[:len(ph)-1]
+		from += " join `file_tags` as `tg` on `tg`.`hash` = `f`.`hash` and `tg`.`tag` in (" + ph + ")"
+		for _, t := range tags {
+			args = append(args, t)
+		}
+		selectExtra = ", sum(`tg`.`score`) as `score`"
+		groupBy = " group by `f`.`hash`"
+		orderBy = " order by `score` desc"
+	}
+
+	if len(personIDs) > 0 {
+		ph := strings.Repeat("?,", len(personIDs))
+		ph = ph[:len(ph)-1]
+		from += " join `faces` as `fc` on `fc`.`hash` = `f`.`hash` and `fc`.`person_id` in (" + ph + ")"
+		for _, p := range personIDs {
+			args = append(args, p)
+		}
+		groupBy = " group by `f`.`hash`"
+		having = fmt.Sprintf(" having count(distinct `fc`.`person_id`) = %d", len(personIDs))
+	}
+
+	var where string
+	var whereParts []string
+	if path != "" {
+		whereParts = append(whereParts, "`f`.`path` regexp ?")
+		// The WHERE clause comes after the FROM/JOIN clauses above in the
+		// final query text, so its placeholder's arg must be appended
+		// after theirs, not before - args must stay in the exact
+		// left-to-right order the ?s appear in the assembled query.
+		args = append(args, "^"+path+"[^/]+$")
+	}
+	if len(tags) == 0 && len(personIDs) == 0 && imagesOnly {
+		whereParts = append(whereParts, "`f`.`mime` like 'image%'")
+	}
+	if len(whereParts) > 0 {
+		where = " where " + strings.Join(whereParts, " and ")
+	}
+
+	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
+		from + where + groupBy + having + orderBy
+
+	rows, err := dao.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		file := new(pb.File)
+		var created, modified time.Time
+		dest := []any{&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size}
+		if len(tags) > 0 {
+			var score float64
+			dest = append(dest, &score)
+		}
+		if err := rows.Scan(dest...); err != nil {
+			return nil, err
+		}
+		file.Created = timestamppb.New(created)
+		file.Modified = timestamppb.New(modified)
+		files = append(files, file)
+	}
+	return files, rows.Err()
+}
+
+// ReprocessState mirrors the `reprocess_state` singleton row (issue #73) -
+// deliberately not a pb type, same reasoning as FaceEmbedding: it's
+// internal bookkeeping for files_manager.Reprocess, translated to
+// pb.ReprocessStatus only at the websocket layer for whichever subset a
+// client actually needs.
+type ReprocessState struct {
+	Status    string
+	Total     int
+	Processed int
+	LastHash  string
+}
+
+// GetReprocessState reads the current (singleton) reprocess row.
+func (dao *Dao) GetReprocessState() (state ReprocessState, err error) {
+	err = dao.db.QueryRow(
+		"select `status`, `total`, `processed`, `last_hash` from `reprocess_state` where `id` = 1",
+	).Scan(&state.Status, &state.Total, &state.Processed, &state.LastHash)
+	return
+}
+
+// StartReprocess marks a brand new run: status becomes 'running', progress
+// and the resume checkpoint both reset to zero/empty. Only called for a
+// *fresh* start (see files_manager.Reprocess) - resuming an interrupted
+// run instead updates status in place via ResumeReprocess, keeping
+// whatever total/processed/last_hash it already had.
+func (dao *Dao) StartReprocess(total int) (err error) {
+	_, err = dao.db.Exec(
+		"update `reprocess_state` set `status` = 'running', `total` = ?, `processed` = 0, `last_hash` = '', `started` = now(), `updated` = now() where `id` = 1",
+		total)
+	return
+}
+
+// ResumeReprocess flips a stale 'running' row (left behind by a server
+// restart mid-run - see the table's own doc comment in db.sql) back to
+// 'running' without touching total/processed/last_hash, so the next batch
+// picks up exactly where the interrupted run left off.
+func (dao *Dao) ResumeReprocess() (err error) {
+	_, err = dao.db.Exec("update `reprocess_state` set `status` = 'running', `updated` = now() where `id` = 1")
+	return
+}
+
+// UpdateReprocessProgress advances the resume checkpoint after each file -
+// frequent, deliberately: the whole point of last_hash is to lose as
+// little work as possible to an interruption.
+func (dao *Dao) UpdateReprocessProgress(processed int, lastHash string) (err error) {
+	_, err = dao.db.Exec(
+		"update `reprocess_state` set `processed` = ?, `last_hash` = ?, `updated` = now() where `id` = 1",
+		processed, lastHash)
+	return
+}
+
+// FinishReprocess marks the run's terminal state - "completed" when every
+// file was walked, "failed" if the run had to give up outright (as
+// opposed to skipping one bad file and continuing, which doesn't fail the
+// run - see files_manager.Reprocess).
+func (dao *Dao) FinishReprocess(status string) (err error) {
+	_, err = dao.db.Exec("update `reprocess_state` set `status` = ?, `updated` = now() where `id` = 1", status)
+	return
+}
+
+// WipeTagsAndFaces deletes every file_tags/faces/people row, in one
+// transaction - the "strip pre-existing data so it can be recalculated"
+// half of issue #73, run once at the start of a *fresh* reprocess (never
+// on resume - see Reprocess's own doc comment). people goes too, not just
+// faces: a stale person cluster from a since-fixed detection bug (a false
+// positive on a pet, a garbled crop) is worse than useless, and every
+// person gets freshly re-clustered as reprocessing goes rather than
+// reconciled against old, possibly-wrong ones.
+func (dao *Dao) WipeTagsAndFaces() (err error) {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err = tx.Exec("delete from `file_tags`"); err != nil {
+		return fmt.Errorf("wiping file_tags: %w", err)
+	}
+	if _, err = tx.Exec("delete from `faces`"); err != nil {
+		return fmt.Errorf("wiping faces: %w", err)
+	}
+	if _, err = tx.Exec("delete from `people`"); err != nil {
+		return fmt.Errorf("wiping people: %w", err)
+	}
+	return tx.Commit()
+}
+
+// CountMediaFiles returns how many *distinct* pieces of content (images and
+// videos - everything files_manager.processMediaContent actually knows how
+// to reprocess) a fresh reprocess run has ahead of it. Distinct hashes, not
+// file rows: files.hash is deliberately non-unique (see file_tags' own doc
+// comment - dedup means several paths can legitimately share one hash),
+// and tags/faces are keyed by hash, so two paths pointing at identical
+// content need reprocessing exactly once between them, not twice. This
+// count must match what ListMediaForReprocess actually walks, or the
+// progress bar's denominator lies.
+func (dao *Dao) CountMediaFiles() (count int, err error) {
+	err = dao.db.QueryRow("select count(distinct `hash`) from `files` where `mime` like 'image%' or `mime` like 'video%'").Scan(&count)
+	return
+}
+
+// ListMediaForReprocess returns the next batch of distinct-content media
+// files after afterHash, ordered by hash ascending - a stable walk order
+// that doubles as the resume checkpoint (see reprocess_state's own doc
+// comment in db.sql). afterHash is "" for the very first batch.
+//
+// Grouped by hash (not one row per path) for the same reason as
+// CountMediaFiles: besides being redundant work, walking one row per path
+// would make `hash > afterHash` pagination itself unsafe - two paths
+// sharing a hash could straddle a batch boundary, and advancing the
+// checkpoint past that hash after only one of them was seen would skip
+// the other forever. Grouping first means every hash the walk will ever
+// see appears exactly once, so that can't happen. Which path/mime
+// represents the group doesn't matter to processMediaContent (it only
+// needs *a* valid path/mime for this content, not it consulting every
+// duplicate) - min() picks one deterministically.
+func (dao *Dao) ListMediaForReprocess(afterHash string, limit int) (files []*pb.File, err error) {
+	rows, err := dao.db.Query(
+		"select `hash`, min(`mime`), min(`created`), min(`modified`), min(`path`), min(`size`) from `files` "+
+			"where (`mime` like 'image%' or `mime` like 'video%') and `hash` > ? "+
+			"group by `hash` order by `hash` asc limit ?",
+		afterHash, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		file := new(pb.File)
+		var created, modified time.Time
+		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size); err != nil {
+			return nil, err
+		}
+		file.Created = timestamppb.New(created)
+		file.Modified = timestamppb.New(modified)
+		files = append(files, file)
+	}
+	return files, rows.Err()
 }

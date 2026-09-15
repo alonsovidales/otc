@@ -9,6 +9,11 @@ type Settings struct {
 	Domain       string
 	DeviceUuid   string
 	BridgeSecret string
+	// FaceRecognitionEnabled (issue #52) - off by default. See
+	// SetFaceRecognitionEnabled and db.sql's settings.face_recognition_
+	// enabled doc comment for why turning it on never retroactively
+	// processes anything already uploaded.
+	FaceRecognitionEnabled bool
 }
 
 func Init(dao *dao.Dao) (*Settings, error) {
@@ -16,13 +21,31 @@ func Init(dao *dao.Dao) (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
+	faceRecognitionEnabled, err := dao.GetFaceRecognitionEnabled()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Settings{
-		dao:          dao,
-		Domain:       domain,
-		DeviceUuid:   deviceUuid,
-		BridgeSecret: bridgeSecret,
+		dao:                    dao,
+		Domain:                 domain,
+		DeviceUuid:             deviceUuid,
+		BridgeSecret:           bridgeSecret,
+		FaceRecognitionEnabled: faceRecognitionEnabled,
 	}, nil
+}
+
+// SetFaceRecognitionEnabled toggles issue #52's feature. Purely a switch
+// for *future* uploads - see its own doc comment in db.sql/the proto
+// message for why this never triggers (or needs) a backfill of whatever
+// was already in the library.
+func (st *Settings) SetFaceRecognitionEnabled(enabled bool) (err error) {
+	err = st.dao.SetFaceRecognitionEnabled(enabled)
+	if err == nil {
+		st.FaceRecognitionEnabled = enabled
+	}
+
+	return err
 }
 
 func (st *Settings) SetSettings(domain string) (err error) {

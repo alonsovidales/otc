@@ -496,6 +496,20 @@ public struct Msg_SearchPhotos: Sendable {
 
   public var token: String = String()
 
+  /// include_videos (issue #60): the Photo Gallery's own search stays
+  /// images-only (its default, unset value), but the social composer wants
+  /// to offer videos alongside photos too - both share this one RPC, so a
+  /// caller opts in explicitly rather than the gallery silently gaining
+  /// videos it never asked for.
+  public var includeVideos: Bool = false
+
+  /// person_ids (issue #52 follow-up): filters to photos containing a face
+  /// matched to *every* person listed here (AND, not OR) - "person X with
+  /// dogs" means combining this with tags = ["dogs"] on the same request,
+  /// not two separate searches. Lives on the Photo Gallery's own search bar
+  /// now, not a separate People screen.
+  public var personIds: [String] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -949,6 +963,181 @@ public struct Msg_Settings: Sendable {
   /// can show/update it (issue #40) instead of it only ever being set
   /// implicitly at first boot.
   public var bridgeSecret: String = String()
+
+  /// face_recognition_enabled (issue #52) - off by default. Toggled via
+  /// SetFaceRecognitionEnabled below, not SetSettings: same reasoning as
+  /// SetBridgeSecret being its own request rather than a field bundled onto
+  /// SetSettings (see its own doc comment).
+  public var faceRecognitionEnabled: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// SetFaceRecognitionEnabled (issue #52) is deliberately its own request,
+/// not a field on SetSettings - see Settings.face_recognition_enabled's doc
+/// comment. A photo uploaded while this is off is never processed for faces
+/// even after this is turned back on - see the `faces` table's own doc
+/// comment in db.sql for why that's a deliberate design choice, not a
+/// missing backfill feature.
+public struct Msg_SetFaceRecognitionEnabled: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var enabled: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Person is one named (or not-yet-named) individual recognized across the
+/// library (issue #52). cover_thumbnail is one representative face crop (an
+/// aligned, already-small JPEG - see face_recognition.FaceDetection), enough
+/// to render a People list without a second round trip per entry.
+public struct Msg_Person: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var name: String = String()
+
+  public var faceCount: Int32 = 0
+
+  public var coverThumbnail: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_ListPeople: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_People: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var people: [Msg_Person] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// RenamePerson also *creates* the name for a still-unnamed (name == "")
+/// person - there's no separate "add a name" request, since from the
+/// server's point of view naming an unnamed person and renaming an already-
+/// named one are the exact same update.
+public struct Msg_RenamePerson: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var name: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// DeletePerson removes this person and every face detection that was
+/// matched to them (issue #52: "just click on delete the individual") - see
+/// the `faces` table's own doc comment in db.sql. Not reversible: a face
+/// that reappears in a *future* photo gets clustered into a brand new
+/// person, same as if it had never been seen before.
+public struct Msg_DeletePerson: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// MergePeople folds every source_ids person into target_id (issue #74) -
+/// for when the same individual got clustered into more than one Person
+/// (different angle/lighting missed face_recognition's same-person
+/// threshold). Every face detection belonging to a source person is
+/// reassigned to target_id and the source person rows are removed; target_
+/// id's own name/id are untouched, so pick whichever of the merged people
+/// already has the right name as the target. Not reversible - see
+/// DeletePerson's own doc comment on why an un-merge isn't a thing either
+/// (a future photo of that source identity just gets clustered fresh).
+public struct Msg_MergePeople: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var targetID: String = String()
+
+  public var sourceIds: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// StartReprocess kicks off issue #73's full-library reprocess: every
+/// image/video already uploaded gets its tags and faces recalculated from
+/// scratch (existing file_tags/faces/people are wiped first - see
+/// dao.WipeTagsAndFaces), run in the background using this connection's
+/// already-authenticated session. Answered with the generic Ack the moment
+/// the run starts (or resumes/no-ops - see files_manager.Reprocess), not
+/// when it finishes; poll GetReprocessStatus for progress. Calling this
+/// again while a run is already active in this process is a no-op, not an
+/// error - it just leaves the existing run going.
+public struct Msg_StartReprocess: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// GetReprocessStatus is polled (same pattern as GetStatus for RAID/disk)
+/// to drive the Settings screen's progress bar while a reprocess run is
+/// active - see ReprocessStatus.
+public struct Msg_GetReprocessStatus: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_ReprocessStatus: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// "idle" (never run), "running", "completed", or "failed".
+  public var status: String = String()
+
+  public var total: Int32 = 0
+
+  public var processed: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2078,6 +2267,66 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqUpdatePushRegistrations(newValue)}
   }
 
+  /// Issue #52: face recognition (person search, folded into
+  /// SearchPhotos.person_ids above rather than its own RPC).
+  public var reqSetFaceRecognitionEnabled: Msg_SetFaceRecognitionEnabled {
+    get {
+      if case .reqSetFaceRecognitionEnabled(let v)? = payload {return v}
+      return Msg_SetFaceRecognitionEnabled()
+    }
+    set {payload = .reqSetFaceRecognitionEnabled(newValue)}
+  }
+
+  public var reqListPeople: Msg_ListPeople {
+    get {
+      if case .reqListPeople(let v)? = payload {return v}
+      return Msg_ListPeople()
+    }
+    set {payload = .reqListPeople(newValue)}
+  }
+
+  public var reqRenamePerson: Msg_RenamePerson {
+    get {
+      if case .reqRenamePerson(let v)? = payload {return v}
+      return Msg_RenamePerson()
+    }
+    set {payload = .reqRenamePerson(newValue)}
+  }
+
+  public var reqDeletePerson: Msg_DeletePerson {
+    get {
+      if case .reqDeletePerson(let v)? = payload {return v}
+      return Msg_DeletePerson()
+    }
+    set {payload = .reqDeletePerson(newValue)}
+  }
+
+  /// Issue #74.
+  public var reqMergePeople: Msg_MergePeople {
+    get {
+      if case .reqMergePeople(let v)? = payload {return v}
+      return Msg_MergePeople()
+    }
+    set {payload = .reqMergePeople(newValue)}
+  }
+
+  /// Issue #73.
+  public var reqStartReprocess: Msg_StartReprocess {
+    get {
+      if case .reqStartReprocess(let v)? = payload {return v}
+      return Msg_StartReprocess()
+    }
+    set {payload = .reqStartReprocess(newValue)}
+  }
+
+  public var reqGetReprocessStatus: Msg_GetReprocessStatus {
+    get {
+      if case .reqGetReprocessStatus(let v)? = payload {return v}
+      return Msg_GetReprocessStatus()
+    }
+    set {payload = .reqGetReprocessStatus(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2130,6 +2379,17 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqHasFile(Msg_HasFile)
     case reqLinkFile(Msg_LinkFile)
     case reqUpdatePushRegistrations(Msg_UpdatePushRegistrations)
+    /// Issue #52: face recognition (person search, folded into
+    /// SearchPhotos.person_ids above rather than its own RPC).
+    case reqSetFaceRecognitionEnabled(Msg_SetFaceRecognitionEnabled)
+    case reqListPeople(Msg_ListPeople)
+    case reqRenamePerson(Msg_RenamePerson)
+    case reqDeletePerson(Msg_DeletePerson)
+    /// Issue #74.
+    case reqMergePeople(Msg_MergePeople)
+    /// Issue #73.
+    case reqStartReprocess(Msg_StartReprocess)
+    case reqGetReprocessStatus(Msg_GetReprocessStatus)
 
   }
 
@@ -2361,6 +2621,26 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respUpdatePushRegistrationsAck(newValue)}
   }
 
+  /// Issue #52: face recognition (person search). RenamePerson/
+  /// DeletePerson/SetFaceRecognitionEnabled all just answer with the
+  /// generic Ack above.
+  public var respPeople: Msg_People {
+    get {
+      if case .respPeople(let v)? = _storage._payload {return v}
+      return Msg_People()
+    }
+    set {_uniqueStorage()._payload = .respPeople(newValue)}
+  }
+
+  /// Issue #73.
+  public var respReprocessStatus: Msg_ReprocessStatus {
+    get {
+      if case .respReprocessStatus(let v)? = _storage._payload {return v}
+      return Msg_ReprocessStatus()
+    }
+    set {_uniqueStorage()._payload = .respReprocessStatus(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2389,6 +2669,12 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     case respVapidPublicKey(Msg_VapidPublicKey)
     case respFileExists(Msg_FileExists)
     case respUpdatePushRegistrationsAck(Msg_UpdatePushRegistrationsAck)
+    /// Issue #52: face recognition (person search). RenamePerson/
+    /// DeletePerson/SetFaceRecognitionEnabled all just answer with the
+    /// generic Ack above.
+    case respPeople(Msg_People)
+    /// Issue #73.
+    case respReprocessStatus(Msg_ReprocessStatus)
 
   }
 
@@ -2919,7 +3205,7 @@ extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
 extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2929,6 +3215,8 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedStringField(value: &self.tags) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.token) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.includeVideos) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.personIds) }()
       default: break
       }
     }
@@ -2941,12 +3229,20 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     if !self.token.isEmpty {
       try visitor.visitSingularStringField(value: self.token, fieldNumber: 2)
     }
+    if self.includeVideos != false {
+      try visitor.visitSingularBoolField(value: self.includeVideos, fieldNumber: 3)
+    }
+    if !self.personIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.personIds, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_SearchPhotos, rhs: Msg_SearchPhotos) -> Bool {
     if lhs.tags != rhs.tags {return false}
     if lhs.token != rhs.token {return false}
+    if lhs.includeVideos != rhs.includeVideos {return false}
+    if lhs.personIds != rhs.personIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3866,7 +4162,7 @@ extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3876,6 +4172,7 @@ extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.domain) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.bridgeSecret) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.faceRecognitionEnabled) }()
       default: break
       }
     }
@@ -3888,12 +4185,318 @@ extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
     if !self.bridgeSecret.isEmpty {
       try visitor.visitSingularStringField(value: self.bridgeSecret, fieldNumber: 2)
     }
+    if self.faceRecognitionEnabled != false {
+      try visitor.visitSingularBoolField(value: self.faceRecognitionEnabled, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_Settings, rhs: Msg_Settings) -> Bool {
     if lhs.domain != rhs.domain {return false}
     if lhs.bridgeSecret != rhs.bridgeSecret {return false}
+    if lhs.faceRecognitionEnabled != rhs.faceRecognitionEnabled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_SetFaceRecognitionEnabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetFaceRecognitionEnabled"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetFaceRecognitionEnabled, rhs: Msg_SetFaceRecognitionEnabled) -> Bool {
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Person"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{3}face_count\0\u{3}cover_thumbnail\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.faceCount) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.coverThumbnail) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
+    }
+    if self.faceCount != 0 {
+      try visitor.visitSingularInt32Field(value: self.faceCount, fieldNumber: 3)
+    }
+    if !self.coverThumbnail.isEmpty {
+      try visitor.visitSingularBytesField(value: self.coverThumbnail, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_Person, rhs: Msg_Person) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.faceCount != rhs.faceCount {return false}
+    if lhs.coverThumbnail != rhs.coverThumbnail {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ListPeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListPeople"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ListPeople, rhs: Msg_ListPeople) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_People: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".People"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}people\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.people) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.people.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.people, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_People, rhs: Msg_People) -> Bool {
+    if lhs.people != rhs.people {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RenamePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RenamePerson"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RenamePerson, rhs: Msg_RenamePerson) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_DeletePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeletePerson"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_DeletePerson, rhs: Msg_DeletePerson) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_MergePeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MergePeople"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}target_id\0\u{3}source_ids\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.targetID) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.sourceIds) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.targetID.isEmpty {
+      try visitor.visitSingularStringField(value: self.targetID, fieldNumber: 1)
+    }
+    if !self.sourceIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.sourceIds, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_MergePeople, rhs: Msg_MergePeople) -> Bool {
+    if lhs.targetID != rhs.targetID {return false}
+    if lhs.sourceIds != rhs.sourceIds {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_StartReprocess: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StartReprocess"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_StartReprocess, rhs: Msg_StartReprocess) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_GetReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetReprocessStatus"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetReprocessStatus, rhs: Msg_GetReprocessStatus) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReprocessStatus"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{1}total\0\u{1}processed\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.status) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.total) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.processed) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.status.isEmpty {
+      try visitor.visitSingularStringField(value: self.status, fieldNumber: 1)
+    }
+    if self.total != 0 {
+      try visitor.visitSingularInt32Field(value: self.total, fieldNumber: 2)
+    }
+    if self.processed != 0 {
+      try visitor.visitSingularInt32Field(value: self.processed, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReprocessStatus, rhs: Msg_ReprocessStatus) -> Bool {
+    if lhs.status != rhs.status {return false}
+    if lhs.total != rhs.total {return false}
+    if lhs.processed != rhs.processed {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5329,7 +5932,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5975,6 +6578,97 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqUpdatePushRegistrations(v)
         }
       }()
+      case 61: try {
+        var v: Msg_SetFaceRecognitionEnabled?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetFaceRecognitionEnabled(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetFaceRecognitionEnabled(v)
+        }
+      }()
+      case 62: try {
+        var v: Msg_ListPeople?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListPeople(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListPeople(v)
+        }
+      }()
+      case 63: try {
+        var v: Msg_RenamePerson?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqRenamePerson(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqRenamePerson(v)
+        }
+      }()
+      case 64: try {
+        var v: Msg_DeletePerson?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqDeletePerson(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqDeletePerson(v)
+        }
+      }()
+      case 65: try {
+        var v: Msg_MergePeople?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqMergePeople(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqMergePeople(v)
+        }
+      }()
+      case 66: try {
+        var v: Msg_StartReprocess?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqStartReprocess(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqStartReprocess(v)
+        }
+      }()
+      case 67: try {
+        var v: Msg_GetReprocessStatus?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetReprocessStatus(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetReprocessStatus(v)
+        }
+      }()
       default: break
       }
     }
@@ -6185,6 +6879,34 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqUpdatePushRegistrations(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 60)
     }()
+    case .reqSetFaceRecognitionEnabled?: try {
+      guard case .reqSetFaceRecognitionEnabled(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 61)
+    }()
+    case .reqListPeople?: try {
+      guard case .reqListPeople(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 62)
+    }()
+    case .reqRenamePerson?: try {
+      guard case .reqRenamePerson(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 63)
+    }()
+    case .reqDeletePerson?: try {
+      guard case .reqDeletePerson(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 64)
+    }()
+    case .reqMergePeople?: try {
+      guard case .reqMergePeople(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 65)
+    }()
+    case .reqStartReprocess?: try {
+      guard case .reqStartReprocess(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 66)
+    }()
+    case .reqGetReprocessStatus?: try {
+      guard case .reqGetReprocessStatus(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 67)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -6200,7 +6922,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -6567,6 +7289,32 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
             _storage._payload = .respUpdatePushRegistrationsAck(v)
           }
         }()
+        case 35: try {
+          var v: Msg_People?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respPeople(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respPeople(v)
+          }
+        }()
+        case 36: try {
+          var v: Msg_ReprocessStatus?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respReprocessStatus(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respReprocessStatus(v)
+          }
+        }()
         default: break
         }
       }
@@ -6688,6 +7436,14 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case .respUpdatePushRegistrationsAck?: try {
         guard case .respUpdatePushRegistrationsAck(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 34)
+      }()
+      case .respPeople?: try {
+        guard case .respPeople(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 35)
+      }()
+      case .respReprocessStatus?: try {
+        guard case .respReprocessStatus(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 36)
       }()
       case nil: break
       }

@@ -166,7 +166,13 @@ create table settings
   -- on first use (see push.Init) - self-hosted, no third-party account
   -- needed, unlike APNs.
   `vapid_public_key` varchar(255) default null,
-  `vapid_private_key` varchar(255) default null
+  `vapid_private_key` varchar(255) default null,
+  -- Issue #52: off by default, opt-in - gates whether a NEWLY uploaded
+  -- photo gets run through face detection at all. Read once, at upload
+  -- time, by files_manager's background processing goroutine - a photo
+  -- uploaded while this was off is never revisited later just because it
+  -- gets turned on afterward (see people/faces' own doc comment below).
+  `face_recognition_enabled` tinyint(1) not null default 0
 ) engine=InnoDB;
 
 create table profile
@@ -224,3 +230,85 @@ create table apns_tokens
 
   primary key (`token`)
 ) engine=InnoDB;
+
+-- Issue #52: face recognition ("People" search), humans only. A person is
+-- just a name attached to a set of face detections - never the raw
+-- embeddings themselves, deliberately: if the detection/recognition models
+-- are ever swapped for better ones, every face gets re-embedded from its
+-- original photo (always kept, at files.hash) and re-clustered, but the
+-- *names* a person already gave their people survive that untouched, since
+-- naming a person and clustering their faces are two independent concerns
+-- here. `name` empty means "detected, not yet named" - still shown in the
+-- People list so a face can be named/deleted, just without a label yet.
+create table people
+(
+  `id` varchar(36) not null,
+  `name` varchar(150) not null default '',
+  `created` datetime not null,
+
+  primary key (`id`)
+) engine=InnoDB;
+
+-- One row per detected face (not per photo - a group photo has one row per
+-- person in it). `person_id` is set the moment a face is detected (see
+-- files_manager.processFaces): matched to an existing person via
+-- face_recognition.IsSamePerson against every other face already on
+-- record, or, when nothing matches closely enough, a freshly created
+-- (unnamed) person. `thumbnail` is the small aligned face crop the
+-- recognizer itself already produces, stored once here so the People list/
+-- a person's detail view never needs to re-fetch and re-crop the original
+-- photo just to show a face. Deleting a person (issue #52: "just click on
+-- delete the individual") deletes every face row here that pointed to
+-- them, not just the `people` row - see dao.DeletePerson.
+create table faces
+(
+  `id` varchar(36) not null,
+  `hash` varchar(64) not null,
+  `person_id` varchar(36) not null,
+  `bbox_x` int not null,
+  `bbox_y` int not null,
+  `bbox_w` int not null,
+  `bbox_h` int not null,
+  `embedding` blob not null,
+  `thumbnail` mediumblob not null,
+  `created` datetime not null,
+
+  primary key (`id`),
+  key (`hash`),
+  key (`person_id`)
+) engine=InnoDB;
+
+-- Issue #73: tracks a full-library reprocess run (re-running tagging/face
+-- detection against every already-uploaded photo/video, e.g. after a model
+-- change like the detection fixes that motivated this) - a singleton row
+-- (`id` is always 1, enforced by the primary key rather than a second
+-- table), since this device has exactly one owner/library, never several
+-- concurrent runs.
+--
+-- `status` is one of 'idle' (never run, or the UI's default before the
+-- first read), 'running', 'completed', 'failed'. `last_hash` is the resume
+-- checkpoint - files are walked in a stable order (`hash` ascending, see
+-- dao.ListMediaForReprocess), so "continue where it was left" is just
+-- "hash > last_hash". This is what makes resuming after an interruption
+-- possible at all: the owner's encryption key only ever lives in the
+-- memory of the session that started/resumed the run (see
+-- files_manager.Reprocess's own doc comment) - if the server restarts
+-- mid-run, the goroutine and its key are both gone, but this row survives
+-- and tells the next run exactly where to pick back up, without redoing
+-- (or re-wiping) work already done in an earlier segment of the same run.
+-- A *fresh* run (started from 'idle'/'completed'/'failed') is the only
+-- time file_tags/faces/people get wiped first - see the issue's own
+-- "strip pre-existing data so it can be recalculated" requirement.
+create table reprocess_state
+(
+  `id` tinyint not null default 1,
+  `status` varchar(20) not null default 'idle',
+  `total` int not null default 0,
+  `processed` int not null default 0,
+  `last_hash` varchar(64) not null default '',
+  `started` datetime default null,
+  `updated` datetime default null,
+
+  primary key (`id`)
+) engine=InnoDB;
+insert into `reprocess_state` (`id`) values (1);

@@ -753,6 +753,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 		log.Info("Authenticated session")
 
+		// One-off self-healing sweep for any face row written before
+		// encryption-at-rest was added for it - see MigrateLegacyFace
+		// Encryption's doc comment. Backgrounded: it only touches leftover
+		// plaintext rows (a no-op most logins) and must never delay the
+		// auth response.
+		go ch.mg.filesManager.MigrateLegacyFaceEncryption(ch.getSession())
+
 		resp.Payload = &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
 				Ok: true,
@@ -1149,7 +1156,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqSearchPhotos:
 		log.Info("Search by text:", p.ReqSearchPhotos.Tags)
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token)
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -1264,8 +1271,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 		resp.Payload = &pb.RespEnvelope_RespSettings{
 			RespSettings: &pb.Settings{
-				Domain:       ch.mg.settings.Domain,
-				BridgeSecret: ch.mg.settings.BridgeSecret,
+				Domain:                 ch.mg.settings.Domain,
+				BridgeSecret:           ch.mg.settings.BridgeSecret,
+				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled,
 			},
 		}
 
@@ -1290,9 +1298,115 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 		resp.Payload = &pb.RespEnvelope_RespSettings{
 			RespSettings: &pb.Settings{
-				Domain:       ch.mg.settings.Domain,
-				BridgeSecret: ch.mg.settings.BridgeSecret,
+				Domain:                 ch.mg.settings.Domain,
+				BridgeSecret:           ch.mg.settings.BridgeSecret,
+				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled,
 			},
+		}
+
+	// Issue #52: face recognition ("People" search), humans only.
+	case *pb.ReqEnvelope_ReqSetFaceRecognitionEnabled:
+		log.Info("Set face recognition enabled:", p.ReqSetFaceRecognitionEnabled.Enabled)
+		if err := ch.mg.settings.SetFaceRecognitionEnabled(p.ReqSetFaceRecognitionEnabled.Enabled); err != nil {
+			log.Error("error trying to update face_recognition_enabled:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: true},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqListPeople:
+		people, err := ch.mg.dao.ListPeople()
+		if err != nil {
+			log.Error("error listing people:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			// CoverThumbnail comes back from the DB encrypted at rest (see
+			// files_manager.processFaces) - decrypt it here, same as
+			// GetThumbnail does for a regular file, before it ever reaches
+			// the wire.
+			for _, person := range people {
+				if len(person.CoverThumbnail) == 0 {
+					continue
+				}
+				plain, err := ses.Decrypt(person.CoverThumbnail)
+				if err != nil {
+					log.Error("error decrypting a person's cover thumbnail:", err)
+					person.CoverThumbnail = nil
+					continue
+				}
+				person.CoverThumbnail = plain
+			}
+			resp.Payload = &pb.RespEnvelope_RespPeople{
+				RespPeople: &pb.People{People: people},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqRenamePerson:
+		log.Info("Rename person:", p.ReqRenamePerson.Id)
+		if err := ch.mg.dao.RenamePerson(p.ReqRenamePerson.Id, p.ReqRenamePerson.Name); err != nil {
+			log.Error("error renaming person:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: true},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqDeletePerson:
+		log.Info("Delete person:", p.ReqDeletePerson.Id)
+		if err := ch.mg.dao.DeletePerson(p.ReqDeletePerson.Id); err != nil {
+			log.Error("error deleting person:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: true},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqMergePeople:
+		log.Info("Merge people:", p.ReqMergePeople.SourceIds, "into", p.ReqMergePeople.TargetId)
+		if err := ch.mg.dao.MergePeople(p.ReqMergePeople.TargetId, p.ReqMergePeople.SourceIds); err != nil {
+			log.Error("error merging people:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: true},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqStartReprocess:
+		log.Info("Start reprocess")
+		if err := ch.mg.filesManager.Reprocess(ses); err != nil {
+			log.Error("error starting reprocess:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: true},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetReprocessStatus:
+		status, total, processed, err := ch.mg.filesManager.ReprocessStatus()
+		if err != nil {
+			log.Error("error reading reprocess status:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespReprocessStatus{
+				RespReprocessStatus: &pb.ReprocessStatus{
+					Status:    status,
+					Total:     total,
+					Processed: processed,
+				},
+			}
 		}
 
 	case *pb.ReqEnvelope_ReqListStorageDevices:

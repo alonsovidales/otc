@@ -3,7 +3,7 @@
 // src/components/PhotoGallery.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
-import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo } from "../proto/messages";
+import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo, Person } from "../proto/messages";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import './PhotoGallery.css';
 
@@ -48,6 +48,99 @@ export default function PhotoGallery() {
   };
   const removeChip = (t: string) => setChips(prev => prev.filter(x => x !== t));
 
+  // -------- people filter (issue #52 follow-up: lives next to the tag
+  // search bar, not a separate People screen) --------------------------------
+  const [allPeople, setAllPeople] = useState<Person[]>([]);
+  // Multiple people selected means AND, not OR - see dao.SearchMedia on
+  // the backend: a photo must contain a face matched to *every* person
+  // selected here, not just one of them.
+  const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
+  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+  const [editingPersonName, setEditingPersonName] = useState("");
+  const [confirmDeletePersonId, setConfirmDeletePersonId] = useState<string | null>(null);
+  // Issue #74: merge two people the model split into separate identities
+  // (different angle/lighting missed the same-person threshold). A second,
+  // narrower "pick mode" layered on the person strip rather than reusing
+  // selectedPeople - that state means "search filter", a different thing
+  // people already select multiple of for AND-search, and conflating the
+  // two would make clicking a person while merging also change the filter.
+  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
+  const [pendingMerge, setPendingMerge] = useState<{ target: Person; source: Person } | null>(null);
+  const personThumbURLs = useRef<Map<string, string>>(new Map());
+
+  const loadPeople = useCallback(async () => {
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = { $case: "reqListPeople", reqListPeople: {} };
+    });
+    if (resp.payload?.$case === "respPeople") {
+      setAllPeople(resp.payload.respPeople.people ?? []);
+    }
+  }, []);
+
+  const togglePerson = (id: string) => setSelectedPeople(prev =>
+    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+  );
+
+  const startRenamePerson = (p: Person) => {
+    setEditingPersonId(p.id);
+    setEditingPersonName(p.name);
+  };
+  const commitRenamePerson = async (id: string) => {
+    const name = editingPersonName.trim();
+    setEditingPersonId(null);
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = { $case: "reqRenamePerson", reqRenamePerson: { id, name } };
+    });
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      setAllPeople(prev => prev.map(p => (p.id === id ? { ...p, name } : p)));
+    }
+  };
+  const deletePerson = async (id: string) => {
+    setConfirmDeletePersonId(null);
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = { $case: "reqDeletePerson", reqDeletePerson: { id } };
+    });
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      setAllPeople(prev => prev.filter(p => p.id !== id));
+      setSelectedPeople(prev => prev.filter(x => x !== id));
+    }
+  };
+  // Clicking a person's avatar while merge-picking is active merges instead
+  // of toggling the search filter (see mergeTargetId's own doc comment) -
+  // this is that branch, invoked from the thumb's onClick below.
+  const pickMergeTarget = (p: Person) => {
+    if (mergeTargetId === p.id) {
+      setMergeTargetId(null); // clicked the target again - cancel picking
+      return;
+    }
+    const target = allPeople.find(x => x.id === mergeTargetId);
+    setMergeTargetId(null);
+    if (target) setPendingMerge({ target, source: p });
+  };
+  const confirmMerge = async () => {
+    if (!pendingMerge) return;
+    const { target, source } = pendingMerge;
+    setPendingMerge(null);
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = {
+        $case: "reqMergePeople",
+        reqMergePeople: { targetId: target.id, sourceIds: [source.id] },
+      };
+    });
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      setSelectedPeople(prev => prev.filter(x => x !== source.id));
+      await loadPeople(); // re-sort by the merged face count (issue #75) rather than patch counts by hand
+    }
+  };
+  const personThumb = (p: Person) => {
+    const cached = personThumbURLs.current.get(p.id);
+    if (cached) return cached;
+    const url = bytesToURL(p.coverThumbnail as unknown as Uint8Array, "image/jpeg");
+    if (url) personThumbURLs.current.set(p.id, url);
+    return url;
+  };
+  useEffect(() => () => { personThumbURLs.current.forEach(u => URL.revokeObjectURL(u)); }, []);
+
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
   const mapRef = useRef<Map<string, MsgFile>>(new Map()); // dedupe
@@ -78,6 +171,17 @@ export default function PhotoGallery() {
     }
   }, []);
 
+  // Bumped every time chips/selectedPeople trigger a fresh search (see the
+  // effect below) - fetchPage captures the value at call time and checks
+  // it's unchanged before applying its response. Toggling a person filter
+  // (or a tag) twice in quick succession fires two overlapping requests;
+  // without this, whichever *response* happens to land last wins even if
+  // it was for the *older* selection - reproduced live as: click a person
+  // on then off quickly, the avatar shows selected/deselected correctly
+  // but the grid shows the other request's (wrong) results, because that
+  // one's reply simply arrived second.
+  const searchGenRef = useRef(0);
+
   const fetchPage = useCallback(
     async (overrideToken?: Token, force = false) => {
       // force skips the loading/endReached guard: a deliberate fresh
@@ -89,6 +193,7 @@ export default function PhotoGallery() {
       // of it), silently no-op, and leave the old results on screen until
       // a full reload reset everything fresh.
       if (!force && (loading || endReached)) return;
+      const myGen = searchGenRef.current;
       setLoading(true);
       try {
         const resp: RespEnvelope = await useWS.request(e => {
@@ -96,10 +201,14 @@ export default function PhotoGallery() {
             $case: "reqSearchPhotos",
             reqSearchPhotos: {
               tags: chips,
+              personIds: selectedPeople,
               token: overrideToken ?? token ?? "",
             },
           };
         });
+        // A newer search superseded this one while it was in flight -
+        // discard rather than let a stale reply clobber current results.
+        if (myGen !== searchGenRef.current) return;
         if (resp.payload?.$case !== "respListOfFiles") return;
 
         const lof = resp.payload.respListOfFiles!;
@@ -121,10 +230,13 @@ export default function PhotoGallery() {
         setToken(nextToken);
         setEndReached(!nextToken); // if no token back, we've reached the end
       } finally {
-        setLoading(false);
+        // Only this request's own generation may clear loading - a stale
+        // one finishing after a newer search started must not report
+        // "done" for a fetch that isn't actually the current one.
+        if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [chips, token, loading, endReached]
+    [chips, selectedPeople, token, loading, endReached]
   );
 
   // open modal and fetch hi-res for current index
@@ -179,14 +291,19 @@ export default function PhotoGallery() {
   // this effect's own fetchPage against the chips effect's.
   useEffect(() => {
     loadTags();
+    loadPeople();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch fresh whenever chips change - including on mount, for whichever
-  // tags (possibly none) were persisted. force=true: see fetchPage's own
-  // comment for why a plain (non-forced) call here could silently do
-  // nothing.
+  // Fetch fresh whenever chips or the selected people change - including on
+  // mount, for whichever tags (possibly none) were persisted. force=true:
+  // see fetchPage's own comment for why a plain (non-forced) call here
+  // could silently do nothing.
   useEffect(() => {
+    // Invalidates any still-in-flight fetchPage from the *previous*
+    // selection before this one's own request even goes out - see
+    // searchGenRef's doc comment.
+    searchGenRef.current += 1;
     (async () => {
       setItems([]);
       mapRef.current = new Map();
@@ -195,7 +312,7 @@ export default function PhotoGallery() {
       await fetchPage("", true);
     })();
     savePhotoSearchTags(chips);
-  }, [chips]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chips, selectedPeople]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------- infinite scroll: one call at a time -----------------------------
   useEffect(() => {
@@ -381,7 +498,106 @@ export default function PhotoGallery() {
             ))}
           </div>
         )}
+
+        {/* Issue #52 follow-up: filter by person right here, alongside
+            tags - combines with them on the same search (e.g. a person
+            plus the "dogs" tag), and selecting more than one person means
+            photos containing all of them, not just one. Nothing renders at
+            all when there's no one to filter by yet - no explanatory
+            hint needed. */}
+        {allPeople.length > 0 && (
+          <>
+            {mergeTargetId && (
+              <div className="pg-people-hint pg-merge-hint">
+                Merging into <strong>{allPeople.find(x => x.id === mergeTargetId)?.name || "Unnamed"}</strong> —
+                tap another person below to merge them in, or{" "}
+                <button className="pg-link-btn" onClick={() => setMergeTargetId(null)}>cancel</button>.
+              </div>
+            )}
+            <div className="pg-people-strip">
+              {allPeople.map(p => {
+                const selected = selectedPeople.includes(p.id);
+                const isMergeTarget = mergeTargetId === p.id;
+                const thumb = personThumb(p);
+                return (
+                  <div key={p.id} className={`pg-person${selected ? " selected" : ""}${isMergeTarget ? " merge-target" : ""}`}>
+                    <button
+                      className="pg-person-thumb"
+                      onClick={() => (mergeTargetId ? pickMergeTarget(p) : togglePerson(p.id))}
+                      title={mergeTargetId ? (isMergeTarget ? "Cancel merge" : `Merge into ${allPeople.find(x => x.id === mergeTargetId)?.name || "Unnamed"}`) : (p.name || "Unnamed")}
+                    >
+                      {thumb ? <img src={thumb} alt={p.name || "Unnamed"} /> : <span className="pg-person-ph">🙂</span>}
+                    </button>
+                    {editingPersonId === p.id ? (
+                      <input
+                        className="pg-person-name-input"
+                        autoFocus
+                        placeholder="Name…"
+                        value={editingPersonName}
+                        onChange={e => setEditingPersonName(e.target.value)}
+                        onBlur={() => void commitRenamePerson(p.id)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") void commitRenamePerson(p.id);
+                          if (e.key === "Escape") setEditingPersonId(null);
+                        }}
+                      />
+                    ) : (
+                      <button className="pg-person-name" onClick={() => startRenamePerson(p)}>
+                        {p.name || "Unnamed"}
+                      </button>
+                    )}
+                    <div className="pg-person-actions">
+                      <button
+                        className="pg-person-merge"
+                        title="Merge another person into this one"
+                        onClick={() => setMergeTargetId(p.id)}
+                      >
+                        🔗
+                      </button>
+                      <button
+                        className="pg-person-delete"
+                        title="Delete this person"
+                        onClick={() => setConfirmDeletePersonId(p.id)}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
+
+      {confirmDeletePersonId && (
+        <div className="pg-modal" onClick={() => setConfirmDeletePersonId(null)}>
+          <div className="pg-modal-inner pg-person-confirm" onClick={e => e.stopPropagation()}>
+            <p>Delete this person? This removes every face matched to them — it can't be undone.</p>
+            <div className="pg-modal-actions">
+              <button onClick={() => setConfirmDeletePersonId(null)}>Cancel</button>
+              <button className="pg-danger" onClick={() => void deletePerson(confirmDeletePersonId)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingMerge && (
+        <div className="pg-modal" onClick={() => setPendingMerge(null)}>
+          <div className="pg-modal-inner pg-person-confirm" onClick={e => e.stopPropagation()}>
+            <p>
+              Merge <strong>{pendingMerge.source.name || "Unnamed"}</strong> into{" "}
+              <strong>{pendingMerge.target.name || "Unnamed"}</strong>? Every photo of{" "}
+              {pendingMerge.source.name || "Unnamed"} will show up under{" "}
+              {pendingMerge.target.name || "Unnamed"} instead — this can't be undone.
+            </p>
+            <div className="pg-modal-actions">
+              <button onClick={() => setPendingMerge(null)}>Cancel</button>
+              <button className="pg-danger" onClick={() => void confirmMerge()}>Merge</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* grid */}
       <div className="pg-grid">
