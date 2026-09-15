@@ -7,6 +7,12 @@
 .sf-btn { margin-top: 8px; padding: 10px 12px; border: 0; border-radius: 8px; background: var(--ember); color: var(--ember-ink); font-weight: 600; cursor: pointer; }
 .sf-btn:disabled { opacity: .6; cursor: default; }
 .sf-btn.small { margin-top: 0; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
+.sf-btn-row { display: flex; gap: 8px; align-items: center; }
+.sf-btn-row .sf-btn { margin-top: 0; }
+/* Same padding/font-size as the plain .sf-btn (no "small" modifier) so a
+   primary/secondary pair - e.g. Resume/Start Over - render at matching
+   sizes; only the fill color marks this one as the lesser action. */
+.sf-btn-secondary { background: var(--ink-2); color: var(--mist); }
 .sf-note.error { color: var(--danger); font-size: 13px; }
 .sf-note.success { color: var(--success); font-size: 13px; }
 .sf-hint { margin: -4px 0 10px; font-size: 13px; color: var(--mist-dim); }
@@ -24,6 +30,8 @@
    settings section only, not a global bar. */
 .sf-progress { display: flex; flex-direction: column; gap: 6px; }
 .sf-progress-track { height: 8px; border-radius: 999px; background: var(--ink-2); overflow: hidden; }
+.sf-progress-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sf-progress-row .sf-hint { margin: 0; }
 .sf-progress-fill { height: 100%; background: var(--ember); border-radius: 999px; transition: width 0.3s ease; }
 
 .sf-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }

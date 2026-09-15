@@ -647,6 +647,15 @@ export interface MergePeople {
  * error - it just leaves the existing run going.
  */
 export interface StartReprocess {
+  /**
+   * Normally a previously stopped/interrupted run (status "running" or
+   * "stopped") resumes from where it left off. force_restart says "no,
+   * wipe everything and start over from the beginning anyway" - the
+   * owner explicitly choosing a fresh run instead of continuing one
+   * that's already partway done. Ignored while a run is actively active
+   * in this process (cancel it first - see StopReprocess).
+   */
+  forceRestart: boolean;
 }
 
 /**
@@ -658,10 +667,25 @@ export interface GetReprocessStatus {
 }
 
 export interface ReprocessStatus {
-  /** "idle" (never run), "running", "completed", or "failed". */
+  /**
+   * "idle" (never run), "running", "stopped" (cancelled - see
+   * StopReprocess), "completed", or "failed".
+   */
   status: string;
   total: number;
   processed: number;
+}
+
+/**
+ * StopReprocess cancels the active run, if any - a no-op otherwise.
+ * Answered with the generic Ack once the cancellation has been requested,
+ * not once the worker has actually wound down (it notices between files,
+ * see files_manager.CancelReprocess) - poll GetReprocessStatus to see
+ * status flip to "stopped". Stopping is not the same as it never having
+ * run: the next StartReprocess resumes from wherever this left off,
+ * exactly like recovering from an interrupted run.
+ */
+export interface StopReprocess {
 }
 
 /**
@@ -1059,6 +1083,7 @@ export interface ReqEnvelope {
     /** Issue #73. */
     { $case: "reqStartReprocess"; reqStartReprocess: StartReprocess }
     | { $case: "reqGetReprocessStatus"; reqGetReprocessStatus: GetReprocessStatus }
+    | { $case: "reqStopReprocess"; reqStopReprocess: StopReprocess }
     | undefined;
 }
 
@@ -4853,11 +4878,14 @@ export const MergePeople: MessageFns<MergePeople> = {
 };
 
 function createBaseStartReprocess(): StartReprocess {
-  return {};
+  return { forceRestart: false };
 }
 
 export const StartReprocess: MessageFns<StartReprocess> = {
-  encode(_: StartReprocess, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: StartReprocess, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.forceRestart !== false) {
+      writer.uint32(8).bool(message.forceRestart);
+    }
     return writer;
   },
 
@@ -4868,6 +4896,14 @@ export const StartReprocess: MessageFns<StartReprocess> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.forceRestart = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4877,20 +4913,24 @@ export const StartReprocess: MessageFns<StartReprocess> = {
     return message;
   },
 
-  fromJSON(_: any): StartReprocess {
-    return {};
+  fromJSON(object: any): StartReprocess {
+    return { forceRestart: isSet(object.forceRestart) ? globalThis.Boolean(object.forceRestart) : false };
   },
 
-  toJSON(_: StartReprocess): unknown {
+  toJSON(message: StartReprocess): unknown {
     const obj: any = {};
+    if (message.forceRestart !== false) {
+      obj.forceRestart = message.forceRestart;
+    }
     return obj;
   },
 
   create<I extends Exact<DeepPartial<StartReprocess>, I>>(base?: I): StartReprocess {
     return StartReprocess.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<StartReprocess>, I>>(_: I): StartReprocess {
+  fromPartial<I extends Exact<DeepPartial<StartReprocess>, I>>(object: I): StartReprocess {
     const message = createBaseStartReprocess();
+    message.forceRestart = object.forceRestart ?? false;
     return message;
   },
 };
@@ -5026,6 +5066,49 @@ export const ReprocessStatus: MessageFns<ReprocessStatus> = {
     message.status = object.status ?? "";
     message.total = object.total ?? 0;
     message.processed = object.processed ?? 0;
+    return message;
+  },
+};
+
+function createBaseStopReprocess(): StopReprocess {
+  return {};
+}
+
+export const StopReprocess: MessageFns<StopReprocess> = {
+  encode(_: StopReprocess, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): StopReprocess {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseStopReprocess();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): StopReprocess {
+    return {};
+  },
+
+  toJSON(_: StopReprocess): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<StopReprocess>, I>>(base?: I): StopReprocess {
+    return StopReprocess.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<StopReprocess>, I>>(_: I): StopReprocess {
+    const message = createBaseStopReprocess();
     return message;
   },
 };
@@ -8401,6 +8484,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetReprocessStatus":
         GetReprocessStatus.encode(message.payload.reqGetReprocessStatus, writer.uint32(538).fork()).join();
         break;
+      case "reqStopReprocess":
+        StopReprocess.encode(message.payload.reqStopReprocess, writer.uint32(546).fork()).join();
+        break;
     }
     return writer;
   },
@@ -8958,6 +9044,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 68: {
+          if (tag !== 546) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqStopReprocess",
+            reqStopReprocess: StopReprocess.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9139,6 +9236,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqGetReprocessStatus",
           reqGetReprocessStatus: GetReprocessStatus.fromJSON(object.reqGetReprocessStatus),
         }
+        : isSet(object.reqStopReprocess)
+        ? { $case: "reqStopReprocess", reqStopReprocess: StopReprocess.fromJSON(object.reqStopReprocess) }
         : undefined,
     };
   },
@@ -9260,6 +9359,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqStartReprocess = StartReprocess.toJSON(message.payload.reqStartReprocess);
     } else if (message.payload?.$case === "reqGetReprocessStatus") {
       obj.reqGetReprocessStatus = GetReprocessStatus.toJSON(message.payload.reqGetReprocessStatus);
+    } else if (message.payload?.$case === "reqStopReprocess") {
+      obj.reqStopReprocess = StopReprocess.toJSON(message.payload.reqStopReprocess);
     }
     return obj;
   },
@@ -9754,6 +9855,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqGetReprocessStatus",
             reqGetReprocessStatus: GetReprocessStatus.fromPartial(object.payload.reqGetReprocessStatus),
+          };
+        }
+        break;
+      }
+      case "reqStopReprocess": {
+        if (object.payload?.reqStopReprocess !== undefined && object.payload?.reqStopReprocess !== null) {
+          message.payload = {
+            $case: "reqStopReprocess",
+            reqStopReprocess: StopReprocess.fromPartial(object.payload.reqStopReprocess),
           };
         }
         break;

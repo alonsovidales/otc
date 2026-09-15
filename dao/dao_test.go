@@ -188,23 +188,106 @@ func TestListPeopleOrdersByFaceCountDesc(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select .* from `people`.*order by `face_count` desc, `p`\\.`created` desc").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count"}).
-			AddRow("alice-id", "Alice", 5).
-			AddRow("bob-id", "Bob", 1))
-	// ListPeople follows up with one cover-thumbnail lookup per person.
-	mock.ExpectQuery("select `thumbnail` from `faces`").WithArgs("alice-id").
+	// 0.363 mirrors face_recognition.SamePersonThreshold - not imported
+	// here (or anywhere else in dao) since face_recognition pulls in
+	// CGO/OpenCV, which this package is deliberately free of.
+	const cohesionThreshold = 0.363
+	mock.ExpectQuery("select .* from `people`.*order by \\(`p`\\.`cohesion`.*`face_count` desc, `p`\\.`created` desc").
+		WithArgs(cohesionThreshold).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count", "cover_face_id"}).
+			AddRow("alice-id", "Alice", 5, nil).
+			AddRow("bob-id", "Bob", 1, nil))
+	// No cover_face_id yet for either - ListPeople falls back to each
+	// person's oldest face (see TestListPeoplePrefersMedoidCoverFace for
+	// the case where one's already been computed).
+	mock.ExpectQuery("select `thumbnail` from `faces` where `person_id` = \\?").WithArgs("alice-id").
 		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-a")))
-	mock.ExpectQuery("select `thumbnail` from `faces`").WithArgs("bob-id").
+	mock.ExpectQuery("select `thumbnail` from `faces` where `person_id` = \\?").WithArgs("bob-id").
 		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-b")))
 
 	d := NewWithDB(db)
-	people, err := d.ListPeople()
+	people, err := d.ListPeople(cohesionThreshold)
 	if err != nil {
 		t.Fatalf("ListPeople: %v", err)
 	}
 	if len(people) != 2 || people[0].Id != "alice-id" || people[1].Id != "bob-id" {
 		t.Fatalf("ListPeople() = %+v, want alice-id (5 faces) before bob-id (1 face)", people)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Once a person has a computed medoid (face_recognition.MedoidFaceID, set
+// via SetPersonCoverFace), ListPeople must look their cover thumbnail up
+// by that specific face id, not fall back to "oldest face" - the whole
+// point of the medoid pick is to show a better thumbnail than that
+// arbitrary default.
+func TestListPeoplePrefersMedoidCoverFace(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select .* from `people`.*order by \\(`p`\\.`cohesion`.*`face_count` desc, `p`\\.`created` desc").
+		WithArgs(0.363).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count", "cover_face_id"}).
+			AddRow("alice-id", "Alice", 5, "face-42"))
+	mock.ExpectQuery("select `thumbnail` from `faces` where `id` = \\?").WithArgs("face-42").
+		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-medoid")))
+
+	d := NewWithDB(db)
+	people, err := d.ListPeople(0.363)
+	if err != nil {
+		t.Fatalf("ListPeople: %v", err)
+	}
+	if len(people) != 1 || string(people[0].CoverThumbnail) != "thumb-medoid" {
+		t.Fatalf("ListPeople() = %+v, want the medoid face's thumbnail", people)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran (should look up by face id, not fall back to oldest-face): %v", err)
+	}
+}
+
+func TestSetPersonCoverFace(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `people` set `cover_face_id` = \\?, `cohesion` = \\? where `id` = \\?").
+		WithArgs("face-1", float32(0.82), "alice-id").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.SetPersonCoverFace("alice-id", "face-1", 0.82); err != nil {
+		t.Fatalf("SetPersonCoverFace: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestListFaceEmbeddingsIncludesID(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces`").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id", "embedding"}).
+			AddRow("face-1", "alice-id", []byte("emb-1")))
+
+	d := NewWithDB(db)
+	faces, err := d.ListFaceEmbeddings()
+	if err != nil {
+		t.Fatalf("ListFaceEmbeddings: %v", err)
+	}
+	if len(faces) != 1 || faces[0].ID != "face-1" || faces[0].PersonID != "alice-id" {
+		t.Fatalf("ListFaceEmbeddings() = %+v, want one row with id=face-1 person=alice-id", faces)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
@@ -572,5 +655,24 @@ func TestListMediaForReprocessGroupsByHash(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestMarkStaleReprocessStopped(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `reprocess_state` set `status` = 'stopped', `updated` = now\\(\\) where `id` = 1 and `status` = 'running'").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.MarkStaleReprocessStopped(); err != nil {
+		t.Fatalf("MarkStaleReprocessStopped: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran (must only touch status='running' rows): %v", err)
 	}
 }

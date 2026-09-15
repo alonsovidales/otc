@@ -67,6 +67,16 @@ export default function PhotoGallery() {
   const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
   const [pendingMerge, setPendingMerge] = useState<{ target: Person; source: Person } | null>(null);
   const personThumbURLs = useRef<Map<string, string>>(new Map());
+  // Issue #76: the strip used to wrap onto as many rows as there were
+  // people, pushing the photo grid further down the more faces got
+  // recognized. Collapse it to one row by default and only reveal an
+  // "expand" toggle when there's actually a second row hiding - measured
+  // from the real DOM rather than guessed from a fixed people-per-row
+  // count, since that count depends on the strip's own (responsive) width.
+  const peopleStripRef = useRef<HTMLDivElement>(null);
+  const [peopleExpanded, setPeopleExpanded] = useState(false);
+  const [peopleOverflowing, setPeopleOverflowing] = useState(false);
+  const [peopleRowHeight, setPeopleRowHeight] = useState<number | null>(null);
 
   const loadPeople = useCallback(async () => {
     const resp: RespEnvelope = await useWS.request(e => {
@@ -140,6 +150,30 @@ export default function PhotoGallery() {
     return url;
   };
   useEffect(() => () => { personThumbURLs.current.forEach(u => URL.revokeObjectURL(u)); }, []);
+
+  // Re-measure whenever the people list changes and whenever the strip's
+  // own width changes (window resize, sidebar toggle, etc.) - a
+  // ResizeObserver rather than a one-shot effect because the wrap point
+  // depends on layout, not just on how many people there are.
+  useEffect(() => {
+    const el = peopleStripRef.current;
+    if (!el) return;
+    const measure = () => {
+      const firstItem = el.querySelector<HTMLElement>(".pg-person");
+      if (!firstItem) { setPeopleOverflowing(false); return; }
+      const rowHeight = firstItem.offsetHeight;
+      setPeopleRowHeight(rowHeight);
+      // scrollHeight is the full, un-clipped content height even while
+      // overflow:hidden + max-height are actively clipping it - that's
+      // exactly what lets this double as both the measurement and the
+      // thing being collapsed.
+      setPeopleOverflowing(el.scrollHeight > rowHeight + 2);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [allPeople]);
 
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
@@ -514,7 +548,13 @@ export default function PhotoGallery() {
                 <button className="pg-link-btn" onClick={() => setMergeTargetId(null)}>cancel</button>.
               </div>
             )}
-            <div className="pg-people-strip">
+            <div
+              className="pg-people-strip"
+              ref={peopleStripRef}
+              style={!peopleExpanded && peopleOverflowing && peopleRowHeight
+                ? { maxHeight: peopleRowHeight, overflow: "hidden" }
+                : undefined}
+            >
               {allPeople.map(p => {
                 const selected = selectedPeople.includes(p.id);
                 const isMergeTarget = mergeTargetId === p.id;
@@ -566,6 +606,20 @@ export default function PhotoGallery() {
                 );
               })}
             </div>
+            {peopleOverflowing && (
+              <button
+                className="pg-link-btn pg-people-toggle"
+                onClick={() => setPeopleExpanded(v => !v)}
+              >
+                <span>{peopleExpanded ? "Show less" : `Show all (${allPeople.length})`}</span>
+                <svg
+                  className={`pg-people-toggle-chevron${peopleExpanded ? " expanded" : ""}`}
+                  width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"
+                >
+                  <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
           </>
         )}
       </div>

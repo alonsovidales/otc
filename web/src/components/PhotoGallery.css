@@ -31,6 +31,14 @@
 .pg-person-confirm p { color: var(--mist); max-width: 280px; }
 .pg-merge-hint { border-top: 0; padding-top: 0; margin-top: 0; margin-bottom: 4px; }
 .pg-link-btn { border: 0; background: transparent; color: var(--gold); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+/* Issue #76: the strip itself is collapsed to one row via an inline
+   max-height (computed from the real row height, see PhotoGallery.tsx) -
+   this centers the toggle below it and pairs it with a chevron that
+   flips to point "up" once expanded, rather than relying on the label
+   text alone to say what tapping it does. */
+.pg-people-toggle { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 6px; font-size: 12px; text-decoration: none; }
+.pg-people-toggle-chevron { transition: transform 0.15s ease; }
+.pg-people-toggle-chevron.expanded { transform: rotate(180deg); }
 
 .pg-grid { padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
 .pg-cell { position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ink-2); }

@@ -88,18 +88,21 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
     <div className={`status-widget2 ${className ?? ""} ${hasErrors ? "has-errors" : ""}`}>
       {/* Collapsed face (270x70) */}
       <div className="sw2-face" title={useWS.connected() ? "Server status" : "Disconnected"}>
-        {/* RAID usage bar with tri-color palette */}
+        {/* RAID usage bar - a single fill color, chosen by how full the
+            bar actually is (not a fixed zoned gradient the fill happened
+            to sit on top of), so "yellow"/"red" always means "getting
+            full", not "used% for other reasons crossed some x position". */}
         <div className="sw2-bar-row">
           <div className="sw2-bar">
-            {/* background shows 0–60 green, 60–90 yellow, 90–100 red */}
-            <div className="sw2-bar-bg" />
-            {/* used overlay simply clips to used% */}
-            <div className="sw2-bar-used" style={{ width: `${usedPct}%` }} />
+            <div
+              className={`sw2-bar-used${usedPct >= 90 ? " crit" : usedPct >= 70 ? " warn" : ""}`}
+              style={{ width: `${usedPct}%` }}
+            />
           </div>
           {hasErrors && <span className="sw2-alert" title="Needs attention">⚠️</span>}
         </div>
         <div className="sw2-bar-labels">
-          <span>Used: {formatMB(status?.raidUsage)} ({usedPct}%)</span>
+          <span>{usedPct}%</span>
         </div>
       </div>
 

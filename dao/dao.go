@@ -983,6 +983,18 @@ func (dao *Dao) CreatePerson(id string) (err error) {
 	return
 }
 
+// SetPersonCoverFace records which of a person's faces is their current
+// medoid (see face_recognition.MedoidAndCohesion) plus that medoid's
+// cohesion score - both recomputed by files_manager.processFaces every
+// time a new face is added to them, so ListPeople's cover thumbnail can
+// only get more representative over time, and its ordering (see
+// ListPeople's own doc comment) can tell a real, recurring person from
+// faces chained together by nearest-neighbor matching.
+func (dao *Dao) SetPersonCoverFace(personID, faceID string, cohesion float32) (err error) {
+	_, err = dao.db.Exec("update `people` set `cover_face_id` = ?, `cohesion` = ? where `id` = ?", faceID, cohesion, personID)
+	return
+}
+
 // AddFace stores one detected face (issue #52), already resolved to
 // whichever person it was matched to (see CreatePerson). embedding is the
 // raw feature vector, encoded via face_recognition.EncodeEmbedding -
@@ -1033,13 +1045,16 @@ func (dao *Dao) UpdateFaceEncryption(id string, embedding, thumbnail []byte) (er
 }
 
 // FaceEmbedding is one stored face's identity, for matching a newly
-// detected face against (issue #52) - see ListFaceEmbeddings.
+// detected face against (issue #52) - see ListFaceEmbeddings. ID is also
+// used to recompute a person's medoid cover face whenever a new one is
+// added (see files_manager.processFaces and face_recognition.MedoidFaceID).
 type FaceEmbedding struct {
+	ID        string
 	PersonID  string
 	Embedding []byte
 }
 
-// ListFaceEmbeddings returns every stored face's person + raw embedding -
+// ListFaceEmbeddings returns every stored face's id/person/raw embedding -
 // the full set a newly detected face gets compared against (see
 // face_recognition.CosineSimilarity/IsSamePersonScore) to decide whether
 // it matches an existing person or needs a new one. A full-table read
@@ -1050,7 +1065,7 @@ type FaceEmbedding struct {
 // expressions are better matched against their nearest individual face
 // than an average of all of them).
 func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
-	rows, err := dao.db.Query("select `person_id`, `embedding` from `faces`")
+	rows, err := dao.db.Query("select `id`, `person_id`, `embedding` from `faces`")
 	if err != nil {
 		return nil, err
 	}
@@ -1058,7 +1073,7 @@ func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
 
 	for rows.Next() {
 		var f FaceEmbedding
-		if err := rows.Scan(&f.PersonID, &f.Embedding); err != nil {
+		if err := rows.Scan(&f.ID, &f.PersonID, &f.Embedding); err != nil {
 			return nil, err
 		}
 		faces = append(faces, f)
@@ -1066,38 +1081,65 @@ func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
 	return faces, rows.Err()
 }
 
-// ListPeople returns every recognized person (issue #52), most-photographed
-// first (issue #75: the people you actually care about browsing by surface
-// before one-off strangers/false positives a background face was matched
-// to), each with its face count and one representative face thumbnail (its
-// oldest detected face - arbitrary but stable, so a person's cover photo
-// doesn't change from one call to the next). `p.created` breaks ties
-// between two people with the same count, newest first, same as the old
-// sole ordering.
-func (dao *Dao) ListPeople() (people []*pb.Person, err error) {
+// ListPeople returns every recognized person (issue #52), legitimate and
+// well-photographed people first, each with its face count and one
+// representative face thumbnail - their medoid face (see
+// face_recognition.MedoidAndCohesion's own doc comment: the most
+// "typical" example of their face already on file, kept up to date
+// incrementally by files_manager.processFaces) once one's been computed,
+// falling back to their oldest detected face for a person added before
+// this existed.
+//
+// Ordering is (1) cohesion at or above cohesionThreshold (or not yet
+// computed - a brand new person, or one that predates this column) ahead
+// of anyone below it, then (2) most-photographed first within each group
+// (issue #75), then (3) newest first as a final tie-break. The cohesion
+// split exists because raw face count alone isn't a legitimacy signal:
+// matchOrNewPerson clusters by nearest-neighbor, so a person can rack up
+// a high count purely by chaining through marginal matches - reproduced
+// live as one someone renamed "Nope" (a mix of unrelated junk, one frame
+// literally a dog) out-ranking real, recurring people under a face-count-
+// only sort. cohesionThreshold is a parameter (not a dao-owned constant)
+// so this low-level, CGO/OpenCV-free-by-design package doesn't need to
+// import face_recognition itself - pass face_recognition.
+// SamePersonThreshold. See face_recognition.MedoidAndCohesion for the
+// full mechanics.
+func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err error) {
 	rows, err := dao.db.Query(
-		"select `p`.`id`, `p`.`name`, count(`f`.`id`) as `face_count` " +
+		"select `p`.`id`, `p`.`name`, count(`f`.`id`) as `face_count`, `p`.`cover_face_id` " +
 			"from `people` as `p` left join `faces` as `f` on `f`.`person_id` = `p`.`id` " +
-			"group by `p`.`id`, `p`.`name` order by `face_count` desc, `p`.`created` desc")
+			"group by `p`.`id`, `p`.`name`, `p`.`cover_face_id`, `p`.`cohesion` " +
+			"order by (`p`.`cohesion` is null or `p`.`cohesion` >= ?) desc, `face_count` desc, `p`.`created` desc",
+		cohesionThreshold)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	// coverFaceIDs[i] pairs with people[i] - kept alongside rather than on
+	// pb.Person itself, since cover_face_id is server-side bookkeeping a
+	// client never needs to see.
+	var coverFaceIDs []sql.NullString
 	for rows.Next() {
 		p := new(pb.Person)
-		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount); err != nil {
+		var coverFaceID sql.NullString
+		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount, &coverFaceID); err != nil {
 			return nil, err
 		}
 		people = append(people, p)
+		coverFaceIDs = append(coverFaceIDs, coverFaceID)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	for _, p := range people {
+	for i, p := range people {
 		var thumb []byte
-		err = dao.db.QueryRow("select `thumbnail` from `faces` where `person_id` = ? order by `created` asc limit 1", p.Id).Scan(&thumb)
+		if coverFaceIDs[i].Valid && coverFaceIDs[i].String != "" {
+			err = dao.db.QueryRow("select `thumbnail` from `faces` where `id` = ?", coverFaceIDs[i].String).Scan(&thumb)
+		} else {
+			err = dao.db.QueryRow("select `thumbnail` from `faces` where `person_id` = ? order by `created` asc limit 1", p.Id).Scan(&thumb)
+		}
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
 		}
@@ -1319,6 +1361,21 @@ func (dao *Dao) UpdateReprocessProgress(processed int, lastHash string) (err err
 // run - see files_manager.Reprocess).
 func (dao *Dao) FinishReprocess(status string) (err error) {
 	_, err = dao.db.Exec("update `reprocess_state` set `status` = ?, `updated` = now() where `id` = 1", status)
+	return
+}
+
+// MarkStaleReprocessStopped flips a leftover "running" row to "stopped" -
+// called once at startup (see files_manager.Init). A process that just
+// started can't possibly have a reprocess goroutine still going (nothing
+// survives a restart), so a "running" status found at boot is always
+// stale: the previous run was killed outright (a deploy, a crash) rather
+// than cleanly cancelled, and nothing was left behind to ever notice and
+// update it - reported live as a Cancel button that appeared to do
+// nothing, because there was really nothing left running to cancel in
+// the first place, and the status never moved off "running" to say so.
+// A no-op (WHERE excludes every other status) if there's nothing to fix.
+func (dao *Dao) MarkStaleReprocessStopped() (err error) {
+	_, err = dao.db.Exec("update `reprocess_state` set `status` = 'stopped', `updated` = now() where `id` = 1 and `status` = 'running'")
 	return
 }
 

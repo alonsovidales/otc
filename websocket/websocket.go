@@ -19,6 +19,7 @@ import (
 
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/network"
@@ -1318,7 +1319,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqListPeople:
-		people, err := ch.mg.dao.ListPeople()
+		people, err := ch.mg.dao.ListPeople(facerecognition.SamePersonThreshold)
 		if err != nil {
 			log.Error("error listing people:", err)
 			resp.Error = true
@@ -1383,7 +1384,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqStartReprocess:
 		log.Info("Start reprocess")
-		if err := ch.mg.filesManager.Reprocess(ses); err != nil {
+		if err := ch.mg.filesManager.Reprocess(ses, p.ReqStartReprocess.ForceRestart); err != nil {
 			log.Error("error starting reprocess:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()
@@ -1407,6 +1408,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 					Processed: processed,
 				},
 			}
+		}
+
+	case *pb.ReqEnvelope_ReqStopReprocess:
+		log.Info("Stop reprocess")
+		ch.mg.filesManager.CancelReprocess()
+		resp.Payload = &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{Ok: true},
 		}
 
 	case *pb.ReqEnvelope_ReqListStorageDevices:

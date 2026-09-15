@@ -245,6 +245,23 @@ create table people
   `id` varchar(36) not null,
   `name` varchar(150) not null default '',
   `created` datetime not null,
+  -- This person's medoid face (see face_recognition.MedoidAndCohesion) -
+  -- the most representative face already on file, used as ListPeople's
+  -- cover thumbnail. Recomputed by files_manager.processFaces every time
+  -- a new face is added to this person. NULL until their first face (or
+  -- for a person that predates this column) - ListPeople falls back to
+  -- their oldest face in that case, same as the original behavior.
+  `cover_face_id` varchar(36) default null,
+  -- The medoid's own cohesion score (that face's average cosine
+  -- similarity to every other face this person has) - see
+  -- face_recognition.MedoidAndCohesion's doc comment for why this exists:
+  -- matchOrNewPerson clusters by nearest-neighbor, so a "person" can
+  -- accumulate a high face count purely by chaining through marginal
+  -- matches without any of them actually being mutually alike. NULL
+  -- alongside cover_face_id until this person's first face, or for one
+  -- that predates this column - ListPeople treats NULL as "not
+  -- disqualified" rather than penalizing it.
+  `cohesion` float default null,
 
   primary key (`id`)
 ) engine=InnoDB;

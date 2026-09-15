@@ -374,6 +374,13 @@ message MergePeople {
 // again while a run is already active in this process is a no-op, not an
 // error - it just leaves the existing run going.
 message StartReprocess {
+  // Normally a previously stopped/interrupted run (status "running" or
+  // "stopped") resumes from where it left off. force_restart says "no,
+  // wipe everything and start over from the beginning anyway" - the
+  // owner explicitly choosing a fresh run instead of continuing one
+  // that's already partway done. Ignored while a run is actively active
+  // in this process (cancel it first - see StopReprocess).
+  bool force_restart = 1;
 }
 
 // GetReprocessStatus is polled (same pattern as GetStatus for RAID/disk)
@@ -383,10 +390,21 @@ message GetReprocessStatus {
 }
 
 message ReprocessStatus {
-  // "idle" (never run), "running", "completed", or "failed".
+  // "idle" (never run), "running", "stopped" (cancelled - see
+  // StopReprocess), "completed", or "failed".
   string status = 1;
   int32 total = 2;
   int32 processed = 3;
+}
+
+// StopReprocess cancels the active run, if any - a no-op otherwise.
+// Answered with the generic Ack once the cancellation has been requested,
+// not once the worker has actually wound down (it notices between files,
+// see files_manager.CancelReprocess) - poll GetReprocessStatus to see
+// status flip to "stopped". Stopping is not the same as it never having
+// run: the next StartReprocess resumes from wherever this left off,
+// exactly like recovering from an interrupted run.
+message StopReprocess {
 }
 
 // SetBridgeSecret is deliberately its own request rather than a field on
@@ -750,6 +768,7 @@ message ReqEnvelope {
     // Issue #73.
     StartReprocess req_start_reprocess = 66;
     GetReprocessStatus req_get_reprocess_status = 67;
+    StopReprocess req_stop_reprocess = 68;
   }
 }
 

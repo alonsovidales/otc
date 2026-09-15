@@ -7,7 +7,14 @@ type RespListener = (env: RespEnvelope) => void;
 export class WSClient {
   private ws?: WebSocket;
   private nextId = 1;
-  private waiters = new Map<number, (env: RespEnvelope) => void>();
+  // Holds both callbacks (not just resolve) so a dropped connection can
+  // actually reject whatever's still waiting - see onclose below. A
+  // request in flight when the socket closes used to just hang forever
+  // (the Promise executor only ever captured `resolve`, nothing ever
+  // called `reject`), reproduced live as a Cancel button stuck reading
+  // "Stopping…" until a manual reload, because the server happened to
+  // restart between the request going out and its reply coming back.
+  private waiters = new Map<number, { resolve: (env: RespEnvelope) => void; reject: (err: Error) => void }>();
   private listeners: Set<RespListener> = new Set();
   public connected = false;
   // Two components mounting at once (e.g. the app-level fresh-device check
@@ -36,12 +43,24 @@ export class WSClient {
 
       ws.onopen = () => { this.connected = true; this.connecting = undefined; resolve(); };
       ws.onerror = (e) => { this.connecting = undefined; reject(e); };
-      ws.onclose = () => { this.connected = false; this.connecting = undefined; };
+      ws.onclose = () => {
+        this.connected = false;
+        this.connecting = undefined;
+        // Fail every request that was still waiting on this socket -
+        // without this, one that closes mid-flight (a server restart is
+        // the common case) leaves its caller awaiting a reply that will
+        // never come. Snapshot-then-clear so a reject handler that
+        // itself starts a new request doesn't touch the map while it's
+        // still being iterated.
+        const pending = this.waiters;
+        this.waiters = new Map();
+        pending.forEach(({ reject }) => reject(new Error("WS connection closed")));
+      };
       ws.onmessage = (ev) => {
         try {
           const env = RespEnvelope.decode(new Uint8Array(ev.data as ArrayBuffer));
           const cont = this.waiters.get(env.id);
-          if (cont) { this.waiters.delete(env.id); cont(env); }
+          if (cont) { this.waiters.delete(env.id); cont.resolve(env); }
           this.listeners.forEach(fn => fn(env));
         } catch (err) {
           console.error("WS decode error", err);
@@ -65,7 +84,7 @@ export class WSClient {
     const req = ReqEnvelope.fromPartial(draft);
     const bytes = ReqEnvelope.encode(req).finish();
     this.ws.send(bytes);
-    return new Promise<RespEnvelope>((resolve) => this.waiters.set(id, resolve));
+    return new Promise<RespEnvelope>((resolve, reject) => this.waiters.set(id, { resolve, reject }));
   }
 }
 

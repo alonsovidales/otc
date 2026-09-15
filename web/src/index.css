@@ -97,7 +97,16 @@ button:disabled {
   cursor: default;
   filter: none;
 }
-button:focus,
+/* :focus-visible only, not plain :focus - browsers already restrict
+   :focus-visible to keyboard/switch-control navigation and skip it for a
+   mouse/touch click, which is exactly what's needed here. Also matching
+   :focus meant clicking a button left this same gold outline sitting on
+   it afterward - on the Photo Gallery's person-filter avatars that looked
+   identical to (and was mistaken for) the "selected" indicator
+   (.pg-person.selected's gold border), so a person you'd just deselected
+   still visually looked selected until you focused something else -
+   reported as "click/unclick fast and it shows unrelated photos", but the
+   search results were always correct; only this leftover ring was wrong. */
 button:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 1px;

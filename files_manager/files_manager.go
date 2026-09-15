@@ -83,6 +83,12 @@ type Manager struct {
 	// apart from "was interrupted, resume".
 	reprocessMu  sync.Mutex
 	reprocessing bool
+	// reprocessCancel stops the active run (see CancelReprocess) - nil
+	// whenever reprocessing is false. A cancelled run is treated exactly
+	// like an interrupted one (status 'stopped', not 'completed'/'failed')
+	// so the existing resume-from-last_hash path is what picks it back up
+	// on the next "Reprocess" click, rather than a separate code path.
+	reprocessCancel context.CancelFunc
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
@@ -125,6 +131,18 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 
 	go mg.tokenCollector()
 	go mg.sharedLinksSweeper()
+
+	// Issue #73 follow-up: a fresh process can't possibly have a
+	// reprocess goroutine already running, so a "running" reprocess_state
+	// row found right now is necessarily stale - the previous run was
+	// killed outright (this process restarting is exactly that) rather
+	// than cleanly cancelled. Left alone, the status just sits on
+	// "running" forever with nothing left to ever move it off that,
+	// which is what made Cancel look broken: there was nothing left
+	// running to actually cancel.
+	if err := dao.MarkStaleReprocessStopped(); err != nil {
+		log.Error("error clearing a stale reprocess status at startup:", err)
+	}
 
 	return mg
 }

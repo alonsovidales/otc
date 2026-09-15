@@ -48,7 +48,12 @@ final class DeviceSettingsViewModel: ObservableObject {
     @Published var reprocessTotal: Int32 = 0
     @Published var reprocessProcessed: Int32 = 0
     @Published var startingReprocess = false
-    @Published var showReprocessConfirm = false
+    // "resume": continue a stopped run from where it left off. "restart":
+    // wipe everything and start fresh - always available for a first run,
+    // and also offered *instead of* resume when a run was stopped, so the
+    // owner isn't stuck only ever continuing (issue #73 follow-up).
+    enum ReprocessConfirmAction { case resume, restart }
+    @Published var reprocessConfirmAction: ReprocessConfirmAction? = nil
     private var reprocessPollTask: Task<Void, Never>?
 
     func loadReprocessStatus() async {
@@ -85,15 +90,25 @@ final class DeviceSettingsViewModel: ObservableObject {
         reprocessPollTask = nil
     }
 
-    func startReprocess() async {
-        showReprocessConfirm = false
+    // Rounded, clamped to [0, 100] - total can be 0 right when a run has
+    // just started and the very first status poll hasn't landed yet.
+    var reprocessPercent: Int {
+        guard reprocessTotal > 0 else { return 0 }
+        let pct = Int((Double(reprocessProcessed) / Double(reprocessTotal) * 100).rounded())
+        return max(0, min(100, pct))
+    }
+
+    func startReprocess(forceRestart: Bool) async {
+        reprocessConfirmAction = nil
         startingReprocess = true
         defer { startingReprocess = false }
         do {
+            var req = Msg_StartReprocess()
+            req.forceRestart = forceRestart
             let resp = try await ws.request { e in
-                var req = ReqEnvelope()
-                req.payload = .reqStartReprocess(.init())
-                e = req
+                var envelope = ReqEnvelope()
+                envelope.payload = .reqStartReprocess(req)
+                e = envelope
             }
             if case .respAck(let ack) = resp.payload, ack.ok {
                 pollReprocessStatusWhileRunning()
@@ -102,6 +117,43 @@ final class DeviceSettingsViewModel: ObservableObject {
             }
         } catch {
             showToast("Error starting reprocessing")
+        }
+    }
+
+    // Cancelling doesn't wait for the worker to actually wind down (it
+    // notices between files - see files_manager.CancelReprocess) - just
+    // requests it and refreshes status, same as starting.
+    @Published var cancellingReprocess = false
+    func stopReprocess() async {
+        cancellingReprocess = true
+        defer { cancellingReprocess = false }
+        do {
+            let resp = try await ws.request { e in
+                var req = ReqEnvelope()
+                req.payload = .reqStopReprocess(.init())
+                e = req
+            }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                // Deliberately does NOT stop polling here, and does not
+                // force one extra status read either: this Ack just means
+                // the cancellation was *requested* - the worker only
+                // notices between files (see files_manager.
+                // CancelReprocess), which can take several seconds on a
+                // slow file. Reading status right now would very likely
+                // still see "running" and, if that got treated as fresh
+                // truth while the poll loop was torn down, the screen
+                // would freeze on "running" forever with nothing left to
+                // ever notice the real "stopped" that follows a few
+                // seconds later - exactly the bug this comment replaced.
+                // The existing pollReprocessStatusWhileRunning loop
+                // (already active, since this button only shows while
+                // status is "running") keeps ticking every 1.5s and exits
+                // itself the moment it actually observes "stopped".
+            } else if case .respAck(let ack) = resp.payload {
+                showToast(ack.errorMsg.isEmpty ? "Could not stop reprocessing" : ack.errorMsg)
+            }
+        } catch {
+            showToast("Error stopping reprocessing")
         }
     }
 
@@ -339,13 +391,36 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             ProgressView(value: device.reprocessTotal > 0 ? Double(device.reprocessProcessed) / Double(device.reprocessTotal) : 0)
                                 .progressViewStyle(.linear)
-                            Text("Reprocessing… \(device.reprocessProcessed) / \(device.reprocessTotal)")
+                            HStack {
+                                Text("Reprocessing… \(device.reprocessPercent)% (\(device.reprocessProcessed) / \(device.reprocessTotal))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Button(device.cancellingReprocess ? "Stopping…" : "Cancel") {
+                                    Task { await device.stopReprocess() }
+                                }
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.red)
+                                .disabled(device.cancellingReprocess)
+                            }
+                        }
+                    } else if device.reprocessStatus == "stopped" {
+                        Text("Stopped at \(device.reprocessPercent)% (\(device.reprocessProcessed) / \(device.reprocessTotal)).")
+                            .font(.caption).foregroundColor(.secondary)
+                        HStack {
+                            Button(device.startingReprocess ? "Starting…" : "Resume Reprocessing") {
+                                device.reprocessConfirmAction = .resume
+                            }
+                            .disabled(device.startingReprocess)
+                            Spacer()
+                            Button("Start Over") {
+                                device.reprocessConfirmAction = .restart
+                            }
+                            .disabled(device.startingReprocess)
                         }
                     } else {
                         Button(device.startingReprocess ? "Starting…" : "Reprocess All Media") {
-                            device.showReprocessConfirm = true
+                            device.reprocessConfirmAction = .restart
                         }
                         .disabled(device.startingReprocess)
                         if device.reprocessStatus == "completed" {
@@ -450,11 +525,18 @@ struct SettingsView: View {
             device.stopPollingReprocessStatus()
         }
         .confirmationDialog(
-            "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
-            isPresented: $device.showReprocessConfirm,
+            device.reprocessConfirmAction == .resume
+                ? "Resume reprocessing where it left off? It can take a while."
+                : "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+            isPresented: Binding(
+                get: { device.reprocessConfirmAction != nil },
+                set: { if !$0 { device.reprocessConfirmAction = nil } }
+            ),
             titleVisibility: .visible
         ) {
-            Button("Reprocess", role: .destructive) { Task { await device.startReprocess() } }
+            Button(device.reprocessConfirmAction == .resume ? "Resume" : "Reprocess", role: .destructive) {
+                Task { await device.startReprocess(forceRestart: device.reprocessConfirmAction == .restart) }
+            }
             Button("Cancel", role: .cancel) {}
         }
     }
@@ -479,8 +561,14 @@ private struct StatusSectionContent: View {
     var body: some View {
         if let s = vm.status {
             let usedPct = s.raidSize > 0 ? Double(s.raidUsage) / Double(s.raidSize) * 100 : 0
+            // Same threshold as the web bar (see StatusWidget.tsx): a
+            // single fill color that itself says "getting full" - green
+            // under 70%, amber 70-90%, red past that - rather than a fixed
+            // tint that doesn't track how full the RAID actually is.
+            let usedTint: Color = usedPct >= 90 ? .red : usedPct >= 70 ? .yellow : .green
             VStack(alignment: .leading, spacing: 6) {
                 ProgressView(value: min(max(usedPct, 0), 100), total: 100)
+                    .tint(usedTint)
                 Text("RAID used: \(s.raidUsage) MB / \(s.raidSize) MB (\(Int(usedPct))%)")
                     .font(.caption)
                 Text("Disk: \(s.diskUsage) MB / \(s.diskSize) MB")

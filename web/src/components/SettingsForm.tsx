@@ -11,6 +11,13 @@ import type {
 } from "../proto/messages";
 import "./SettingsForm.css";
 
+// Rounded, clamped to [0, 100] - total can be 0 right when a run has just
+// started and the very first status poll hasn't landed yet.
+function reprocessPercent(s: { total: number; processed: number }): number {
+  if (s.total <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((s.processed / s.total) * 100)));
+}
+
 export default function SettingsForm() {
   // Loaded settings
   const [currentDomain, setCurrentDomain] = useState("");
@@ -66,8 +73,13 @@ export default function SettingsForm() {
   // entirely server-side; this just starts it and polls for progress,
   // same pattern as StatusWidget polling GetStatus.
   const [reprocessStatus, setReprocessStatus] = useState<{ status: string; total: number; processed: number } | null>(null);
-  const [reprocessConfirming, setReprocessConfirming] = useState(false);
+  // "resume": continue a stopped run from where it left off. "restart":
+  // wipe everything and start fresh - always available for a first run,
+  // and also offered *instead of* resume when a run was stopped, so the
+  // owner isn't stuck only ever continuing (issue #73 follow-up).
+  const [reprocessConfirming, setReprocessConfirming] = useState<"resume" | "restart" | null>(null);
   const [reprocessBusy, setReprocessBusy] = useState(false);
+  const [reprocessCancelling, setReprocessCancelling] = useState(false);
 
   const loadReprocessStatus = useCallback(async () => {
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -90,13 +102,13 @@ export default function SettingsForm() {
     return () => clearInterval(t);
   }, [reprocessStatus?.status, loadReprocessStatus]);
 
-  const startReprocess = async () => {
-    setReprocessConfirming(false);
+  const startReprocess = async (forceRestart: boolean) => {
+    setReprocessConfirming(null);
     setReprocessBusy(true);
     setStatus(null);
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqStartReprocess", reqStartReprocess: {} };
+        (e as any).payload = { $case: "reqStartReprocess", reqStartReprocess: { forceRestart } };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         await loadReprocessStatus();
@@ -107,6 +119,28 @@ export default function SettingsForm() {
       setStatus({ kind: "error", text: err?.message ?? String(err) });
     } finally {
       setReprocessBusy(false);
+    }
+  };
+
+  // Cancelling doesn't wait for the worker to actually wind down (it
+  // notices between files - see files_manager.CancelReprocess) - just
+  // requests it and refreshes status, same as starting.
+  const stopReprocess = async () => {
+    setReprocessCancelling(true);
+    setStatus(null);
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqStopReprocess", reqStopReprocess: {} };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        await loadReprocessStatus();
+      } else {
+        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not stop reprocessing." });
+      }
+    } catch (err: any) {
+      setStatus({ kind: "error", text: err?.message ?? String(err) });
+    } finally {
+      setReprocessCancelling(false);
     }
   };
 
@@ -407,16 +441,33 @@ export default function SettingsForm() {
             <div className="sf-progress-track">
               <div
                 className="sf-progress-fill"
-                style={{ width: `${reprocessStatus.total > 0 ? Math.min(100, (reprocessStatus.processed / reprocessStatus.total) * 100) : 0}%` }}
+                style={{ width: `${reprocessPercent(reprocessStatus)}%` }}
               />
             </div>
-            <div className="sf-hint">
-              Reprocessing… {reprocessStatus.processed} / {reprocessStatus.total}
+            <div className="sf-progress-row">
+              <div className="sf-hint">
+                Reprocessing… {reprocessPercent(reprocessStatus)}% ({reprocessStatus.processed} / {reprocessStatus.total})
+              </div>
+              <button className="sf-btn small sf-danger" disabled={reprocessCancelling} onClick={() => void stopReprocess()}>
+                {reprocessCancelling ? "Stopping…" : "Cancel"}
+              </button>
             </div>
           </div>
+        ) : reprocessStatus?.status === "stopped" ? (
+          <>
+            <div className="sf-hint">Stopped at {reprocessPercent(reprocessStatus)}% ({reprocessStatus.processed} / {reprocessStatus.total}).</div>
+            <div className="sf-btn-row">
+              <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming("resume")}>
+                {reprocessBusy ? "Starting…" : "Resume Reprocessing"}
+              </button>
+              <button className="sf-btn sf-btn-secondary" disabled={reprocessBusy} onClick={() => setReprocessConfirming("restart")}>
+                Start Over
+              </button>
+            </div>
+          </>
         ) : (
           <>
-            <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming(true)}>
+            <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming("restart")}>
               {reprocessBusy ? "Starting…" : "Reprocess All Media"}
             </button>
             {reprocessStatus?.status === "completed" && (
@@ -430,16 +481,18 @@ export default function SettingsForm() {
       </section>
 
       {reprocessConfirming && (
-        <div className="sf-modal" onClick={() => setReprocessConfirming(false)}>
+        <div className="sf-modal" onClick={() => setReprocessConfirming(null)}>
           <div className="sf-modal-inner" onClick={e => e.stopPropagation()}>
             <p>
-              Reprocess every photo and video in your library? This deletes all existing tags and
-              recognized people and rebuilds them from scratch. It can take a while and can't be
-              undone.
+              {reprocessConfirming === "resume"
+                ? "Resume reprocessing where it left off? It can take a while."
+                : "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone."}
             </p>
             <div className="sf-modal-actions">
-              <button className="sf-btn small" onClick={() => setReprocessConfirming(false)}>Cancel</button>
-              <button className="sf-btn small sf-danger" onClick={() => void startReprocess()}>Reprocess</button>
+              <button className="sf-btn small" onClick={() => setReprocessConfirming(null)}>Cancel</button>
+              <button className="sf-btn small sf-danger" onClick={() => void startReprocess(reprocessConfirming === "restart")}>
+                {reprocessConfirming === "resume" ? "Resume" : "Reprocess"}
+              </button>
             </div>
           </div>
         </div>
