@@ -174,7 +174,13 @@ function App() {
         }
 
         {authenticated &&
-          <div style={{ flex: 1, display: "block", justifyContent: "center" }}>
+          // alignSelf: stretch overrides .header's own align-items:center
+          // just for this child, so it spans the header's full height
+          // (set by the logo) instead of shrinking to its own content -
+          // that's what lets justifyContent:space-between push the usage
+          // bar all the way down to the header's own bottom edge instead
+          // of floating centered partway down it.
+          <div style={{ flex: 1, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
               <TopTabs value={tab} onChange={setTab} />
             </div>

@@ -567,9 +567,10 @@ private struct StatusSectionContent: View {
             // tint that doesn't track how full the RAID actually is.
             let usedTint: Color = usedPct >= 90 ? .red : usedPct >= 70 ? .yellow : .green
             VStack(alignment: .leading, spacing: 6) {
-                ProgressView(value: min(max(usedPct, 0), 100), total: 100)
-                    .tint(usedTint)
-                Text("RAID used: \(s.raidUsage) MB / \(s.raidSize) MB (\(Int(usedPct))%)")
+                RaidUsageBar(percent: usedPct, tint: usedTint)
+                // The % now lives inside the bar itself - just the MB
+                // figures here, not a repeated "(Z%)" suffix.
+                Text("RAID used: \(s.raidUsage) MB / \(s.raidSize) MB")
                     .font(.caption)
                 Text("Disk: \(s.diskUsage) MB / \(s.diskSize) MB")
                     .font(.caption)
@@ -586,5 +587,42 @@ private struct StatusSectionContent: View {
         } else {
             ProgressView()
         }
+    }
+}
+
+// A bigger, custom bar rather than the plain system ProgressView - matches
+// the web version (StatusWidget.tsx/.css): tall enough to carry the % as a
+// dark chip inside the bar's own right edge, so it reads whether that spot
+// happens to sit over bare track or over the (light) fill color.
+private struct RaidUsageBar: View {
+    let percent: Double
+    let tint: Color
+
+    var body: some View {
+        let clamped = min(max(percent, 0), 100)
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color(.systemGray5))
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(tint)
+                    .frame(width: geo.size.width * clamped / 100)
+                HStack {
+                    Spacer()
+                    Text("\(Int(clamped))%")
+                        .font(.system(size: 9, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 0.5)
+                        .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 4))
+                        .padding(.trailing, 3)
+                }
+            }
+        }
+        // Matches the bar height to the % chip's own height rather than
+        // padding it out - see the web version (StatusWidget.css) for the
+        // same 14px sizing.
+        .frame(height: 14)
     }
 }

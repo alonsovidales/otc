@@ -98,11 +98,13 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
               className={`sw2-bar-used${usedPct >= 90 ? " crit" : usedPct >= 70 ? " warn" : ""}`}
               style={{ width: `${usedPct}%` }}
             />
+            {/* Sits in a dark chip rather than plain text so it stays
+                readable at any fill level - at low usedPct it's over the
+                bare dark track, at high usedPct it's over the (light)
+                fill color, and a fixed text color can't read well on both. */}
+            <span className="sw2-bar-pct">{usedPct}%</span>
           </div>
           {hasErrors && <span className="sw2-alert" title="Needs attention">⚠️</span>}
-        </div>
-        <div className="sw2-bar-labels">
-          <span>{usedPct}%</span>
         </div>
       </div>
 
