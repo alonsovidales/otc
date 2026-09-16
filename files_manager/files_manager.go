@@ -120,12 +120,24 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// section is not fatal - the feature is opt-in (off by default, see
 	// db.sql's settings.face_recognition_enabled) and a device that never
 	// turns it on shouldn't need these two extra models downloaded at all.
-	mg.faceRecognizer, err = facerecognition.NewRecognizer(
-		cfg.GetStr("faces", "detector-model-path"),
-		cfg.GetStr("faces", "recognizer-model-path"),
-	)
-	if err != nil {
-		log.Info("Face recognition not available (issue #52 stays off until this is configured):", err)
+	// Guard with HasSection (same idiom as push.go's [apns] check) rather
+	// than calling cfg.GetStr directly: an entirely absent section makes
+	// cfg.go's loadSection call log.Fatal and kill the whole process
+	// before NewRecognizer's own error handling below ever gets a chance
+	// to run - a real device (Cala, re-provisioned from scratch) hit
+	// exactly this crash-loop when its freshly generated ini had no
+	// [faces] section at all.
+	if cfg.HasSection("faces") {
+		mg.faceRecognizer, err = facerecognition.NewRecognizer(
+			cfg.GetStr("faces", "detector-model-path"),
+			cfg.GetStr("faces", "recognizer-model-path"),
+		)
+		if err != nil {
+			log.Info("Face recognition not available (issue #52 stays off until this is configured):", err)
+			mg.faceRecognizer = nil
+		}
+	} else {
+		log.Info("Face recognition not available ([faces] section not configured)")
 		mg.faceRecognizer = nil
 	}
 

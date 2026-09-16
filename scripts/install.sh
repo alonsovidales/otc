@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 # OTC one-line installer (issue #38) — turns a fresh Debian/Ubuntu-family
-# machine into a running OTC device: MariaDB, a native Go toolchain, ONNX
-# Runtime, the RAM++ tagging model, the database schema, app config, a
-# systemd service, and the otc binary itself — built from source, live, on
-# this machine, using the exact same versions/URLs Makefile.pi already
-# automates over SSH from a dev machine (see that file for the authoritative,
-# more granular version, e.g. to re-run just one step, or to add a RAID1
-# array across two disks via its `raid`/`raid-watch` targets — this script
-# deliberately skips that, since it assumes you already have network+login
-# access, i.e. this isn't the headless flash-an-SD-card flow that issue #38's
-# pre-built image + first-boot WiFi wizard covers).
+# machine into a running OTC device: RAID1 storage, MariaDB, a native Go
+# toolchain, ONNX Runtime, the RAM++ tagging model, the database schema, app
+# config, a systemd service, and the otc binary itself — built from source,
+# live, on this machine, using the exact same versions/URLs Makefile.pi
+# already automates over SSH from a dev machine (see that file for the
+# authoritative, more granular version, e.g. to re-run just one step).
 #
 # Usage: log into any Debian/Ubuntu box (Raspberry Pi OS included) and run
 #
@@ -17,11 +13,42 @@
 #
 # <subdomain> (optional) is this device's bridge subdomain, e.g. "pit" for
 # pit.off-the.cloud — a name you and your friends' clients use to reach this
-# device through the bridge relay. Omit it and the script prompts for one.
+# device through the bridge relay. Omit it and the script prompts for one
+# (only works if you saved the script locally first — see below, a piped
+# `curl | bash` has no terminal left over for a prompt to read from).
+#
+# Disaster recovery ("the Pi died, I swapped it and kept the two data
+# disks"): this script builds a RAID1 array on OTC_DISK1/OTC_DISK2 (default
+# /dev/sda + /dev/sdb) the exact same way Makefile.pi's `raid`/`mariadb`
+# targets do, including pointing MariaDB's datadir onto it — so re-running
+# this script against a freshly re-imaged machine with the SAME two data
+# disks re-attached reassembles the existing array (via `mdadm --assemble
+# --scan`, tried before ever considering a wipe) and picks the recovered
+# database/files back up automatically, no manual mdadm steps needed. A
+# genuinely new device with blank disks needs one extra confirmation before
+# they get wiped — see OTC_RAID_CONFIRM_WIPE below.
+#
+# Env vars (all optional):
+#   OTC_DISK1 / OTC_DISK2       block devices for the RAID1 pair (default
+#                               /dev/sda / /dev/sdb, matching Makefile.pi)
+#   OTC_SKIP_RAID=1             single-disk device (e.g. SD-card-only test
+#                               box) — uses $MOUNT_POINT as a plain directory
+#                               on the root filesystem instead of RAID
+#   OTC_RAID_CONFIRM_WIPE=yes   required to build a *fresh* array (wipes
+#                               both disks) when no existing one is found —
+#                               a curl|bash pipe has no terminal left to ask
+#                               "type yes to continue" interactively, so this
+#                               is the non-interactive equivalent of that
+#                               confirmation. Never needed for the recovery
+#                               case above, since an existing array is found
+#                               and reassembled instead of wiped.
 #
 # Safe to re-run: it retries whatever step failed, and picks up new code
 # (an upgrade) on every run — device identity (DEVICE_UUID/BRIDGE_SECRET/DB
-# password) is only ever generated once, on the very first run.
+# password) is only ever generated once, on the very first run (or the first
+# run after a re-image, since that file doesn't live on the RAID array —
+# see the Database + config section below for why that's still safe against
+# a recovered database).
 set -euo pipefail
 
 log() { echo "[otc-install] $*"; }
@@ -34,8 +61,8 @@ die() { echo "[otc-install] ERROR: $*" >&2; exit 1; }
 command -v apt-get >/dev/null 2>&1 || die "only Debian/Ubuntu-family distros are supported (no apt-get found)"
 
 case "$(uname -m)" in
-    aarch64) ARCH=arm64; ORT_ARCH=aarch64 ;;
-    x86_64)  ARCH=amd64; ORT_ARCH=x64 ;;
+    aarch64) ARCH=arm64; ORT_ARCH=aarch64; PROTOC_ARCH=aarch_64 ;;
+    x86_64)  ARCH=amd64; ORT_ARCH=x64; PROTOC_ARCH=x86_64 ;;
     *) die "unsupported architecture $(uname -m) (need arm64 or amd64)" ;;
 esac
 
@@ -44,6 +71,7 @@ RAW_BASE=https://raw.githubusercontent.com/alonsovidales/otc/main
 SRC_DIR=/opt/otc-src
 GO_VERSION=1.26.1
 ONNXRUNTIME_VERSION=1.24.3
+PROTOC_VERSION=29.3
 MODEL_DIR=/usr/local/models
 MODEL_ONNX=$MODEL_DIR/ram_plus_swin_large_14m.int8.onnx
 MODEL_TAGS=$MODEL_DIR/tag_list_4585.txt
@@ -65,6 +93,13 @@ ENVIRONMENT=dev
 HTTP_PORT=8080
 ENV_FILE=/etc/otc/otc-install.env
 
+# ---- RAID1 storage (see the "Disaster recovery" note up top) --------------
+DISK1="${OTC_DISK1:-/dev/sda}"
+DISK2="${OTC_DISK2:-/dev/sdb}"
+RAID_DEV=/dev/md0
+MOUNT_POINT=/mnt/storage
+SKIP_RAID="${OTC_SKIP_RAID:-0}"
+
 SUBDOMAIN="${1:-}"
 if [ -z "$SUBDOMAIN" ]; then
     read -rp "Choose a subdomain for this device (e.g. 'pit' for pit.$BRIDGE_ADDR): " SUBDOMAIN
@@ -74,24 +109,66 @@ fi
 # ---------------------------------------------------------------------------
 # 1. OS packages
 # ---------------------------------------------------------------------------
-log "[1/9] apt-get update + base packages"
+log "[1/10] apt-get update + base packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 # libopencv-dev + pkg-config (issue #52): face recognition builds against
 # gocv, which needs OpenCV's real headers/libs at compile time, found via
-# pkg-config - not just a runtime .so like ONNX Runtime below.
-apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg libopencv-dev pkg-config
+# pkg-config - not just a runtime .so like ONNX Runtime below. mdadm: RAID1
+# storage. unzip: extracting the protoc release archive below.
+apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg libopencv-dev pkg-config mdadm unzip
 
-log "[2/9] otc service account"
+log "[2/10] otc service account"
 id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin otc
 for g in dialout video plugdev gpio i2c spi; do
     getent group "$g" >/dev/null 2>&1 && usermod -aG "$g" otc || true
 done
 
 # ---------------------------------------------------------------------------
-# 2. Toolchain + runtime deps
+# 2. RAID1 storage
 # ---------------------------------------------------------------------------
-log "[3/9] Go $GO_VERSION ($ARCH)"
+log "[3/10] RAID1 storage ($MOUNT_POINT)"
+mkdir -p "$MOUNT_POINT"
+if [ "$SKIP_RAID" = "1" ]; then
+    log "OTC_SKIP_RAID=1: using $MOUNT_POINT as a plain directory on this filesystem (no RAID)."
+elif mountpoint -q "$MOUNT_POINT"; then
+    log "$MOUNT_POINT already mounted, skipping."
+else
+    if [ ! -e "$RAID_DEV" ]; then
+        # Disaster recovery: an array previously built by this same block
+        # leaves its superblocks on DISK1/DISK2 themselves, so re-imaging
+        # only the boot disk/SD card and re-attaching those same two data
+        # disks should bring the array back with zero data loss and no
+        # need to ever repeat --create. Try assembling before considering
+        # a wipe - this is the step a from-scratch `curl | bash` run used
+        # to skip entirely, forcing a manual `mdadm --assemble --scan` by
+        # hand after the fact.
+        log "No $RAID_DEV yet - checking for an existing array on $DISK1/$DISK2..."
+        mdadm --assemble --scan 2>/dev/null || true
+    fi
+    if [ -e "$RAID_DEV" ]; then
+        log "$RAID_DEV exists (existing array assembled) - skipping wipe."
+        mountpoint -q "$MOUNT_POINT" || mount "$RAID_DEV" "$MOUNT_POINT" 2>/dev/null || true
+    else
+        [ "${OTC_RAID_CONFIRM_WIPE:-}" = "yes" ] || die "no existing RAID1 array found on $DISK1/$DISK2 (checked via mdadm --assemble --scan). If these are brand-new disks, re-run with OTC_RAID_CONFIRM_WIPE=yes to build a fresh array there (WIPES BOTH DISKS). For a single-disk device, use OTC_SKIP_RAID=1 instead. To point at different disks, set OTC_DISK1/OTC_DISK2."
+        log "Building a fresh RAID1 array on $DISK1 + $DISK2 (WIPES BOTH DISKS)..."
+        wipefs -a "$DISK1"
+        wipefs -a "$DISK2"
+        mdadm --create --verbose --run "$RAID_DEV" --level=1 --raid-devices=2 "$DISK1" "$DISK2"
+        mkfs.ext4 -F "$RAID_DEV"
+    fi
+    mkdir -p /etc/mdadm
+    mdadm --detail --scan | tee -a /etc/mdadm/mdadm.conf >/dev/null
+    update-initramfs -u
+    grep -q "$RAID_DEV" /etc/fstab || echo "$RAID_DEV   $MOUNT_POINT   ext4   defaults   0   0" >> /etc/fstab
+    mountpoint -q "$MOUNT_POINT" || mount "$RAID_DEV" "$MOUNT_POINT"
+fi
+mkdir -p "$UNENC_PATH"
+
+# ---------------------------------------------------------------------------
+# 3. Toolchain + runtime deps
+# ---------------------------------------------------------------------------
+log "[4/10] Go $GO_VERSION ($ARCH)"
 if ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go$GO_VERSION "; then
     tmp=$(mktemp -d)
     curl -fsSL -o "$tmp/go.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz"
@@ -100,7 +177,7 @@ if ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go$GO_VERSION "; then
     rm -rf "$tmp"
 fi
 
-log "[4/9] ONNX Runtime $ONNXRUNTIME_VERSION ($ORT_ARCH)"
+log "[5/10] ONNX Runtime $ONNXRUNTIME_VERSION ($ORT_ARCH)"
 if [ ! -f /opt/onnxruntime/lib/libonnxruntime.so ]; then
     tmp=$(mktemp -d)
     curl -fsSL -o "$tmp/ort.tgz" "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}.tgz"
@@ -110,7 +187,7 @@ if [ ! -f /opt/onnxruntime/lib/libonnxruntime.so ]; then
     rm -rf "$tmp"
 fi
 
-log "[5/9] RAM++ tagging model (~870MB, only downloaded once)"
+log "[6/10] RAM++ tagging model (~870MB, only downloaded once)"
 mkdir -p "$MODEL_DIR"
 if [ ! -f "$MODEL_ONNX" ] || [ ! -f "$MODEL_TAGS" ] || [ ! -f "$MODEL_THRESHOLDS" ]; then
     curl -fL --retry 5 --retry-delay 2 -o "$MODEL_ONNX" "$MODEL_HF_REPO/ram_plus_int8.onnx"
@@ -118,7 +195,7 @@ if [ ! -f "$MODEL_ONNX" ] || [ ! -f "$MODEL_TAGS" ] || [ ! -f "$MODEL_THRESHOLDS
     curl -fsSL "$RAW_BASE/models/models/tag_list_4585.txt.gz" | gunzip > "$MODEL_TAGS"
 fi
 
-log "[5/9] Face recognition models (issue #52, ~10MB total, only downloaded once)"
+log "[6/10] Face recognition models (issue #52, ~10MB total, only downloaded once)"
 if [ ! -f "$FACE_DETECTOR_ONNX" ]; then
     curl -fL --retry 5 --retry-delay 2 -o "$FACE_DETECTOR_ONNX" "$OPENCV_ZOO_RAW/face_detection_yunet/face_detection_yunet_2023mar.onnx"
 fi
@@ -128,9 +205,9 @@ fi
 chown -R otc:otc "$MODEL_DIR"
 
 # ---------------------------------------------------------------------------
-# 3. Fetch source, build the binary, install the web bundle
+# 4. Fetch source, build the binary, install the web bundle
 # ---------------------------------------------------------------------------
-log "[6/9] Fetch source + build the otc binary"
+log "[7/10] Fetch source"
 if [ -d "$SRC_DIR/.git" ]; then
     git -C "$SRC_DIR" fetch --depth 1 origin main
     git -C "$SRC_DIR" reset --hard origin/main
@@ -138,12 +215,40 @@ else
     git clone --depth 1 "$REPO_URL" "$SRC_DIR"
 fi
 
-# proto/generated/*.go is `make pb`'s protoc output, gitignored (not hand-
-# edited, not committed) — fetch the prebuilt package rather than requiring
-# a full protoc + plugin toolchain just to build this one Go package here.
+log "[8/10] Generate proto/generated (protoc + protoc-gen-go)"
+# proto/generated/*.go is `make pb`'s protoc output, gitignored (not
+# hand-edited, not committed). Generated here from the exact
+# proto/messages.proto just cloned above, rather than fetching a separately
+# published release tarball - a manually-cut release can only ever be as
+# fresh as the last time someone remembered to cut one, so it silently fell
+# behind main's own proto changes (undefined: pb.X build failures the
+# moment a field/message was added or changed since that last release).
+# Generating locally removes that whole class of bug. Only the Go bindings
+# are needed here (proto/messages.proto defines no `service`, so there's
+# nothing for --go-grpc_out/ts-proto/swift to generate that this build
+# would use anyway - those other outputs are for web/iOS/macOS, built
+# elsewhere from a dev machine via `make pb`).
+if ! command -v protoc >/dev/null 2>&1 || ! protoc --version | grep -q " ${PROTOC_VERSION}$"; then
+    tmp=$(mktemp -d)
+    curl -fsSL -o "$tmp/protoc.zip" "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip"
+    rm -rf /opt/protoc
+    mkdir -p /opt/protoc
+    (cd /opt/protoc && unzip -q "$tmp/protoc.zip")
+    ln -sf /opt/protoc/bin/protoc /usr/local/bin/protoc
+    rm -rf "$tmp"
+fi
+# Pin protoc-gen-go to the same version as go.mod's protobuf runtime
+# (google.golang.org/protobuf) so the plugin and the runtime library the
+# generated code links against stay compatible.
+PROTOC_GEN_GO_VERSION=$(awk '/google.golang.org\/protobuf /{print $2}' "$SRC_DIR/go.mod")
+[ -n "$PROTOC_GEN_GO_VERSION" ] || die "couldn't find google.golang.org/protobuf's version in $SRC_DIR/go.mod"
+GOBIN=/usr/local/bin PATH="/usr/local/go/bin:$PATH" /usr/local/go/bin/go install "google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}"
 mkdir -p "$SRC_DIR/proto/generated"
-curl -fsSL "https://github.com/alonsovidales/otc/releases/latest/download/otc-proto-generated.tar.gz" \
-    | tar -xzf - -C "$SRC_DIR/proto/generated"
+PATH="/usr/local/bin:$PATH" protoc -I="$SRC_DIR/proto" \
+    --go_out="$SRC_DIR/proto/generated" --go_opt=paths=source_relative \
+    "$SRC_DIR/proto/messages.proto"
+
+log "[8/10] Build the otc binary"
 (
     cd "$SRC_DIR"
     export CGO_ENABLED=1
@@ -152,7 +257,7 @@ curl -fsSL "https://github.com/alonsovidales/otc/releases/latest/download/otc-pr
     /usr/local/go/bin/go build -o /usr/bin/otc ./bin/otc.go
 )
 
-log "[7/9] Web app (prebuilt bundle — no Node.js needed on this machine)"
+log "[9/10] Web app (prebuilt bundle — no Node.js needed on this machine)"
 mkdir -p /var/www
 tmp=$(mktemp -d)
 if curl -fsSL -o "$tmp/web-dist.tar.gz" "https://github.com/alonsovidales/otc/releases/latest/download/otc-web-dist.tar.gz"; then
@@ -166,15 +271,35 @@ fi
 rm -rf "$tmp"
 chown -R otc:otc /var/www
 
-log "[8/9] Runtime directories"
+log "[9/10] Runtime directories"
 mkdir -p /var/log/otc /etc/otc /var/lib/otc "$STORAGE_PATH" "$UNENC_PATH"
 chown otc:otc /var/log/otc /var/www /var/lib/otc "$STORAGE_PATH" "$UNENC_PATH"
 chmod 755 /var/log/otc
 
 # ---------------------------------------------------------------------------
-# 4. Database + config (device identity generated once, first run only)
+# 5. Database + config (device identity generated once, first run only)
 # ---------------------------------------------------------------------------
-log "[9/9] Database, config, and the systemd service"
+log "[10/10] Database, config, and the systemd service"
+# Point MariaDB's datadir at the RAID array (mirrors Makefile.pi's `mariadb`
+# target) before touching it any further below - a recovered array already
+# holding a previous device's /mysql/mysql is used as-is (the rsync is
+# skipped); a fresh/empty array is seeded from the package's own
+# just-initialized datadir instead. Skipped entirely under OTC_SKIP_RAID=1,
+# where MariaDB just keeps using its normal default datadir.
+if [ "$SKIP_RAID" != "1" ]; then
+    log "Pointing MariaDB's datadir at $MOUNT_POINT..."
+    systemctl stop mariadb || true
+    mkdir -p "$MOUNT_POINT/mysql"
+    if [ ! -d "$MOUNT_POINT/mysql/mysql" ]; then
+        rsync -aHAX --numeric-ids /var/lib/mysql/ "$MOUNT_POINT/mysql/"
+    fi
+    chown -R mysql:mysql "$MOUNT_POINT/mysql"
+    if grep -q "^datadir" /etc/mysql/mariadb.conf.d/50-server.cnf; then
+        sed -i "s#^datadir.*#datadir = $MOUNT_POINT/mysql#" /etc/mysql/mariadb.conf.d/50-server.cnf
+    else
+        echo "datadir = $MOUNT_POINT/mysql" >> /etc/mysql/mariadb.conf.d/50-server.cnf
+    fi
+fi
 systemctl enable --now mariadb
 for i in $(seq 1 60); do
     mysqladmin ping >/dev/null 2>&1 && break
@@ -182,6 +307,15 @@ for i in $(seq 1 60); do
     sleep 1
 done
 
+# DEVICE_UUID/BRIDGE_SECRET/OTC_DB_PASS below are only ever generated once
+# per boot disk. On a disaster-recovery re-image, $ENV_FILE is gone (it
+# lives on the boot disk/SD card, not the RAID array) even though the
+# database on the array is the real, previous one - that's fine: every
+# statement below is ALTER USER / INSERT ... WHERE NOT EXISTS, so a fresh
+# password here just gets (re)applied to the recovered otc@localhost user
+# and written into this device's own ini, and a pre-existing `settings` row
+# (device_uuid/subdomain/bridge_secret) is left completely untouched rather
+# than overwritten with these newly generated values.
 if [ -f "$ENV_FILE" ]; then
     # shellcheck disable=SC1090
     source "$ENV_FILE"
@@ -371,8 +505,5 @@ echo " Local web UI: http://${IP:-<this-machine>}:$HTTP_PORT/"
 echo " Bridge address: ${SUBDOMAIN}.${BRIDGE_ADDR}"
 echo " First 'Sign In' sets your password permanently — see README.md."
 echo " Device identity/secrets: $ENV_FILE (never share or commit it)."
-echo ""
-echo " No RAID/multi-disk storage or WiFi-AP setup here — single disk,"
-echo " already-networked machines only. For a RAID1 array across two"
-echo " disks, see Makefile.pi's 'raid'/'raid-watch' targets instead."
+echo " Storage: $([ "$SKIP_RAID" = "1" ] && echo "$MOUNT_POINT (single disk, OTC_SKIP_RAID=1)" || echo "RAID1 on $DISK1 + $DISK2, mounted at $MOUNT_POINT")"
 echo "=========================================================="

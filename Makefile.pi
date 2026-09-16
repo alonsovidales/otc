@@ -205,8 +205,8 @@ raid: packages ## DESTRUCTIVE: wipe DISK1/DISK2 and build+mount a RAID1 array (a
 	fi
 	@echo "Disks currently visible on $(TARGET):"
 	-$(SSH) 'lsblk $(DISK1) $(DISK2) 2>&1' < /dev/null
-	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -e $(RAID_DEV)' < /dev/null; then
-		echo "$(RAID_DEV) already exists on $(TARGET) - assuming RAID1 is already built, skipping wipe."
+	@if [ "$(FORCE)" != "1" ] && $(SSH) 'test -e $(RAID_DEV) || sudo mdadm --assemble --scan >/dev/null 2>&1; test -e $(RAID_DEV)' < /dev/null; then
+		echo "$(RAID_DEV) already exists on $(TARGET) (assembled from an existing array if it wasn't already) - skipping wipe."
 		echo "Pass FORCE=1 to rebuild it from scratch (DESTROYS the array's data)."
 	else
 		echo ""
@@ -417,6 +417,14 @@ models: packages secrets ## Download the quantized RAM++ ONNX model + per-tag th
 		$(SCP) models/tag_list_4585.txt $(PI_USER)@$(TARGET):$(MODEL_TAGS)
 		echo "Models installed at $(MODEL_DIR) on $(TARGET)."
 	fi
+	@echo "Face recognition models (issue #52, ~10MB total, only downloaded once)..."
+	$(SSH) '
+		set -e
+		sudo mkdir -p $(MODEL_DIR)
+		[ -f $(MODEL_DIR)/face_detection_yunet_2023mar.onnx ] || sudo curl -fL --retry 5 --retry-delay 2 -o $(MODEL_DIR)/face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+		[ -f $(MODEL_DIR)/face_recognition_sface_2021dec_int8.onnx ] || sudo curl -fL --retry 5 --retry-delay 2 -o $(MODEL_DIR)/face_recognition_sface_2021dec_int8.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx
+		sudo chown -R $(PI_USER):$(PI_USER) $(MODEL_DIR)
+	' < /dev/null
 
 # =============================================================================
 # Fallback: export the original fp32 RAM++ ONNX model from scratch, directly
@@ -539,6 +547,10 @@ config: secrets ## Render and install /etc/otc_$(ENVIRONMENT).ini on the device
 	thresholds-path=$(MODEL_THRESHOLDS)
 	tags-per-image=$(TAGS_PER_IMAGE)
 	max-images-search=$(MAX_IMAGES_SEARCH)
+
+	[faces]
+	detector-model-path=$(MODEL_DIR)/face_detection_yunet_2023mar.onnx
+	recognizer-model-path=$(MODEL_DIR)/face_recognition_sface_2021dec_int8.onnx
 	EOF
 
 .PHONY: service
