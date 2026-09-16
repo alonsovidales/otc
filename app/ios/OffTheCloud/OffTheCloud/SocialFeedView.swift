@@ -367,6 +367,26 @@ struct SocialFeedView: View {
     // select + a single Publish action) — not the Images tab reused.
     @State private var showingPicker = false
 
+    // Issue #81: the nav bar had nothing on the leading side (no title, no
+    // button), just the trailing "+" - reading as empty space instead of a
+    // masthead. Rather than pin a logo into that fixed toolbar, it lives as
+    // ordinary scrollable content at the very top of the feed instead, so
+    // it scrolls away with everything else once the user starts reading -
+    // same "collapses as you engage" feel as Instagram/Twitter's own
+    // wordmark header.
+    private var logoHeader: some View {
+        HStack {
+            Image("OTCLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 28)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 2)
+        .padding(.bottom, 2)
+    }
+
     var body: some View {
         NavigationView {
             Group {
@@ -376,12 +396,18 @@ struct SocialFeedView: View {
                 // posts".
                 if vm.posts.isEmpty && vm.loading {
                     VStack(spacing: 12) {
+                        logoHeader
+                        Spacer()
                         ProgressView()
                         Text("Loading…").foregroundColor(.secondary)
+                        Spacer()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if vm.posts.isEmpty {
-                    ContentUnavailableView("No posts yet", systemImage: "photo.on.rectangle.angled")
+                    VStack(spacing: 0) {
+                        logoHeader
+                        ContentUnavailableView("No posts yet", systemImage: "photo.on.rectangle.angled")
+                    }
                 } else {
                     // Issue #78: wrapped in ScrollViewReader (new to this
                     // file) purely so a tapped notification can scroll to
@@ -394,6 +420,23 @@ struct SocialFeedView: View {
                             // would margin the images too, and this app already
                             // separates posts with a Divider instead of gaps.
                             LazyVStack(spacing: 0) {
+                                // Issue #81 follow-up: still misaligned
+                                // with zero/positive top padding -
+                                // .refreshable below reserves its own
+                                // vertical space for the pull-to-refresh
+                                // control above scroll content, even at
+                                // rest, which is what actually pushed the
+                                // logo down past where the "+" button
+                                // sits (the loading/empty states above
+                                // have no .refreshable, hence no matching
+                                // offset needed there). This negative
+                                // offset is a best estimate compensating
+                                // for that reserved space, not a value
+                                // read from a real measurement - needs a
+                                // screenshot to confirm it actually lines
+                                // up now.
+                                logoHeader
+                                    .padding(.top, -44)
                                 ForEach(vm.posts, id: \.uuid) { post in
                                     PostCard(
                                         post: post,
@@ -435,7 +478,13 @@ struct SocialFeedView: View {
             }
             // No nav title here (issue #12): the tab bar already labels this
             // screen "Social", repeating it as a large title above the feed
-            // was redundant chrome.
+            // was redundant chrome. Issue #81: an *empty* title (rather
+            // than none at all) still matters though - without any title
+            // at all, .inline here left a tall gap of dead space reserved
+            // for the large-title-to-inline collapse transition above the
+            // scroll content, pushing the logo header well below the "+"
+            // button instead of level with it.
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

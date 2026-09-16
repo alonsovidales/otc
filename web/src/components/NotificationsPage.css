@@ -1,0 +1,56 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+.np-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.np-empty { padding: 32px 12px; color: var(--mist-dim); font-size: 14px; text-align: center; }
+.np-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.np-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--mist);
+}
+.np-item:last-child { border-bottom: 0; }
+.np-item:hover { background: var(--panel); }
+.np-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+}
+.np-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  font-size: 18px;
+}
+.np-item-text { font-size: 14px; flex: 1; }
+.np-item-when { font-size: 12px; color: var(--mist-dim); white-space: nowrap; }
+.np-thumb {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+/* Still-unread-as-of-this-open rows read slightly brighter than ones that
+   were already acknowledged before this page loaded this time - a fading
+   distinction, not a persistent one, since opening this page marks
+   everything read a moment after it renders. */
+.np-item.np-unacknowledged { background: rgba(255, 200, 87, 0.08); }
