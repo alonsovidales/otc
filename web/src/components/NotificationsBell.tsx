@@ -126,7 +126,13 @@ export default function NotificationsBell({
         title="Notifications"
         aria-label="Notifications"
       >
-        🔔
+        <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 3a5 5 0 0 0-5 5v2.7c0 1.15-.45 2.25-1.26 3.06L4.5 15h15l-1.24-1.24A4.33 4.33 0 0 1 17 10.7V8a5 5 0 0 0-5-5Z"
+            stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"
+          />
+          <path d="M9.5 18a2.5 2.5 0 0 0 5 0" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        </svg>
         {unacknowledgedCount > 0 && (
           <span className="nb-badge">{unacknowledgedCount > 99 ? "99+" : unacknowledgedCount}</span>
         )}

@@ -1,28 +1,26 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 
-.nb-root { position: relative; align-self: center; margin-left: 8px; }
+.nb-root { position: relative; align-self: center; margin-left: 8px; margin-right: 20px; }
 .nb-bell {
   position: relative;
+  display: flex;
   border: 0;
   background: transparent;
-  font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 6px;
+  padding: 8px;
   border-radius: 8px;
   color: var(--mist-dim);
-  filter: grayscale(1);
   opacity: 0.75;
 }
 .nb-bell:hover { background: var(--ink-2); }
 /* Issue #78: "if there are unacknowledged notifications the bell will be
-   highlighted" - full color plus a warm glow, vs. the muted/greyscale
-   resting state above. */
+   highlighted" - full color plus a soft glow, vs. the muted resting state
+   above. */
 .nb-bell-active {
-  filter: none;
   opacity: 1;
   color: var(--gold);
-  text-shadow: 0 0 8px rgba(255, 200, 87, 0.6);
+  filter: drop-shadow(0 0 4px rgba(255, 200, 87, 0.6));
 }
 .nb-badge {
   position: absolute;
