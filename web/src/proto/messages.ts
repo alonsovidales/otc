@@ -1126,6 +1126,20 @@ export interface Notification {
    */
   commentUuid: string;
   acknowledged: boolean;
+  /**
+   * actor_image is the acting friend's cached avatar (social_friendship.
+   * image), shown at the left of the row - unset if that friend has no
+   * avatar cached.
+   */
+  actorImage?:
+    | Uint8Array
+    | undefined;
+  /**
+   * thumbnail is a small preview of the post/comment this notification
+   * points to (pub_uuid's first file), shown at the right of the row -
+   * unset for FriendRequest/FriendAccepted, which point at no post.
+   */
+  thumbnail?: Uint8Array | undefined;
 }
 
 export interface ReqListNotifications {
@@ -8531,6 +8545,8 @@ function createBaseNotification(): Notification {
     pubUuid: "",
     commentUuid: "",
     acknowledged: false,
+    actorImage: undefined,
+    thumbnail: undefined,
   };
 }
 
@@ -8559,6 +8575,12 @@ export const Notification: MessageFns<Notification> = {
     }
     if (message.acknowledged !== false) {
       writer.uint32(64).bool(message.acknowledged);
+    }
+    if (message.actorImage !== undefined) {
+      writer.uint32(74).bytes(message.actorImage);
+    }
+    if (message.thumbnail !== undefined) {
+      writer.uint32(82).bytes(message.thumbnail);
     }
     return writer;
   },
@@ -8634,6 +8656,22 @@ export const Notification: MessageFns<Notification> = {
           message.acknowledged = reader.bool();
           continue;
         }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          message.actorImage = reader.bytes();
+          continue;
+        }
+        case 10: {
+          if (tag !== 82) {
+            break;
+          }
+
+          message.thumbnail = reader.bytes();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8653,6 +8691,8 @@ export const Notification: MessageFns<Notification> = {
       pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
       commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "",
       acknowledged: isSet(object.acknowledged) ? globalThis.Boolean(object.acknowledged) : false,
+      actorImage: isSet(object.actorImage) ? bytesFromBase64(object.actorImage) : undefined,
+      thumbnail: isSet(object.thumbnail) ? bytesFromBase64(object.thumbnail) : undefined,
     };
   },
 
@@ -8682,6 +8722,12 @@ export const Notification: MessageFns<Notification> = {
     if (message.acknowledged !== false) {
       obj.acknowledged = message.acknowledged;
     }
+    if (message.actorImage !== undefined) {
+      obj.actorImage = base64FromBytes(message.actorImage);
+    }
+    if (message.thumbnail !== undefined) {
+      obj.thumbnail = base64FromBytes(message.thumbnail);
+    }
     return obj;
   },
 
@@ -8698,6 +8744,8 @@ export const Notification: MessageFns<Notification> = {
     message.pubUuid = object.pubUuid ?? "";
     message.commentUuid = object.commentUuid ?? "";
     message.acknowledged = object.acknowledged ?? false;
+    message.actorImage = object.actorImage ?? undefined;
+    message.thumbnail = object.thumbnail ?? undefined;
     return message;
   },
 };

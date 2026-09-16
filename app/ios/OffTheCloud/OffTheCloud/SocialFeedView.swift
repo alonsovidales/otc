@@ -31,6 +31,12 @@ private func formatPostDate(_ date: Date) -> String {
 
 @MainActor
 final class SocialFeedViewModel: ObservableObject {
+    // Issue #79: lifted from SocialFeedView's own private @StateObject to a
+    // shared singleton (same wiring as NotificationsModel/UploadModel) so
+    // MainView can inspect `posts`/`hasLoadedOnce` too, to decide whether
+    // to default-launch on Social or fall back to Images.
+    static let shared = SocialFeedViewModel()
+
     private let ws = OTCConnection.shared
 
     /// How many publications to fetch per page (issue #15) — loading 50 at
@@ -42,6 +48,11 @@ final class SocialFeedViewModel: ObservableObject {
     @Published var posts: [Msg_SocialPublication] = []
     @Published var loading = false
     @Published var loadingMore = false
+    // Issue #79: true once the server has answered at least one loadFeed
+    // call (regardless of how many posts came back) - MainView waits for
+    // this before deciding "genuinely nothing in social, fall back to
+    // Images" instead of racing a launch-time snapshot of an empty cache.
+    @Published private(set) var hasLoadedOnce = false
     private var endReached = false
 
     private var pollTask: Task<Void, Never>?
@@ -94,7 +105,10 @@ final class SocialFeedViewModel: ObservableObject {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while let self, !Task.isCancelled {
-                if await self.loadFeed() { break }
+                if await self.loadFeed() {
+                    self.hasLoadedOnce = true
+                    break
+                }
                 try? await Task.sleep(nanoseconds: 4_000_000_000)
             }
             self?.pollTask = nil
@@ -338,7 +352,11 @@ final class SocialFeedViewModel: ObservableObject {
 }
 
 struct SocialFeedView: View {
-    @StateObject private var vm = SocialFeedViewModel()
+    // Issue #79: shared with MainView (environmentObject-injected from
+    // RootView, same wiring as UploadModel/NotificationsModel) instead of
+    // owned privately here, so MainView can decide whether to default-
+    // launch on this tab or fall back to Images when it's empty.
+    @EnvironmentObject var vm: SocialFeedViewModel
     // Issue #78: a tapped notification lands here via this shared model
     // (environmentObject-injected from RootView, same wiring as
     // UploadModel) rather than a prop, since the bell that sets it lives

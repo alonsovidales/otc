@@ -350,6 +350,34 @@ func (sc *Social) GetPublication(pr *profile.Profile, pubUuid string) (pub *pb.S
 	return pub, nil
 }
 
+// ListNotifications (issue #78 follow-up: avatar + post/comment thumbnail
+// on each row) wraps dao.ListNotifications the same way GetPublications
+// wraps dao.GetSocialPublications - ActorImage is already a plain DB blob
+// by the time it gets here (dao's own job), but a thumbnail lives on disk
+// under a hash, not in the DB, so resolving thumbHashes into actual bytes
+// is filesystem I/O and belongs at this layer instead. A missing/corrupted
+// thumbnail is skipped (Thumbnail just stays unset), same "don't fail the
+// whole list over one bad file" reasoning as GetPublications' own files.
+func (sc *Social) ListNotifications(limit int) ([]*pb.Notification, error) {
+	notifications, thumbHashes, err := sc.dao.ListNotifications(limit)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range notifications {
+		hash, ok := thumbHashes[n.Uuid]
+		if !ok || hash == "" {
+			continue
+		}
+		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), hash))
+		if readErr != nil {
+			log.Error("skipping missing/corrupted thumbnail for notification", n.Uuid, "hash", hash, ":", readErr)
+			continue
+		}
+		n.Thumbnail = content
+	}
+	return notifications, nil
+}
+
 // cDefaultFriendTLD is used when [otc] friend-domain-tld isn't set in
 // config, so existing installs keep working unchanged.
 const cDefaultFriendTLD = "off-the.cloud"

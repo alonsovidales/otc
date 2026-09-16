@@ -6,34 +6,47 @@ struct MainView: View {
     @EnvironmentObject var secrets: SecretsStore
     @EnvironmentObject var upload: UploadModel
     @EnvironmentObject var notifications: NotificationsModel
+    @EnvironmentObject var social: SocialFeedViewModel
     // Issue #78: bare-TabView-with-no-selection couldn't be switched
     // programmatically at all - a tapped notification needs to be able to
     // jump to Social or Profile on its own, not just rely on the user
-    // already being there.
-    @State private var selectedTab = 0
+    // already being there. Issue #79: Social (not Notifications) is the
+    // default landing tab - see routeInitialTabIfNeeded below for the
+    // "fall back to Images if Social is empty" part.
+    @State private var selectedTab = 1
+    @State private var didRouteInitialTab = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
+                // Issue #78 follow-up: notifications became a section of
+                // its own (was a header/toolbar bell+sheet) - leftmost tab,
+                // per the user's explicit ask ("in the ios app, it should
+                // be at the left").
+                NotificationsListView(model: notifications)
+                    .tabItem { Label("Alerts", systemImage: "bell.fill") }
+                    .badge(notifications.unacknowledgedCount)
+                    .tag(0)
+
                 SocialFeedView()
                     .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
-                    .tag(0)
+                    .tag(1)
 
                 FriendshipsView()
                     .tabItem { Label("Profile", systemImage: "person.crop.circle") }
-                    .tag(1)
+                    .tag(2)
 
                 FilesExplorerView(initialPath: "/")
                     .tabItem { Label("Files", systemImage: "folder") }
-                    .tag(2)
+                    .tag(3)
 
                 PhotoGalleryView(deviceID: secrets.deviceId, localPhotosFolder: nil)
                     .tabItem { Label("Images", systemImage: "photo.on.rectangle") }
-                    .tag(3)
+                    .tag(4)
 
                 SettingsView()
                     .tabItem { Label("Settings", systemImage: "gearshape") }
-                    .tag(4)
+                    .tag(5)
             }
 
             if (upload.totalPending > 0 || upload.isUploading) && !upload.suppressed {
@@ -46,20 +59,6 @@ struct MainView: View {
                 UploadBar()
                     .padding(.bottom, 56) // sit right above the tab bar
             }
-
-            // Issue #78: top-leading overlay, mirroring how UploadBar above
-            // is already a top-level overlay on this same ZStack (just
-            // anchored opposite) - none of the 5 tabs share a nav bar this
-            // could live in as a single toolbar item instead.
-            VStack {
-                HStack {
-                    NotificationsBellButton(model: notifications)
-                    Spacer()
-                }
-                Spacer()
-            }
-            .padding(.top, 4)
-            .padding(.leading, 8)
         }
         // A like/comment notification is handled by SocialFeedView itself
         // (it observes `notifications.pendingDeepLink` directly); this
@@ -68,13 +67,40 @@ struct MainView: View {
         .onChange(of: notifications.pendingDeepLink) { _, link in
             switch link {
             case .post:
-                selectedTab = 0
-            case .friendRequests:
                 selectedTab = 1
+            case .friendRequests:
+                selectedTab = 2
                 notifications.pendingDeepLink = nil
             case nil:
                 break
             }
         }
+        // Issue #79: "if there is nothing in the social timeline, open the
+        // images section by default instead" - a one-time launch decision,
+        // not a standing redirect (didRouteInitialTab guards it so it never
+        // fires again once the user has actually navigated). Checked both
+        // on appear (covers the cache already having posts, so no need to
+        // wait on the network) and whenever hasLoadedOnce flips true
+        // (covers a cold launch with an empty/no cache, where the very
+        // first server round-trip is what actually settles the question).
+        .onAppear { routeInitialTabIfNeeded() }
+        .onChange(of: social.hasLoadedOnce) { _, _ in routeInitialTabIfNeeded() }
+        // Also cancels the pending routing decision if the user manually
+        // taps a tab before the network resolves (this fires for our own
+        // programmatic selectedTab=4 above too, but didRouteInitialTab is
+        // already true by then, so it's a no-op in that case).
+        .onChange(of: selectedTab) { _, _ in didRouteInitialTab = true }
+    }
+
+    private func routeInitialTabIfNeeded() {
+        guard !didRouteInitialTab else { return }
+        if !social.posts.isEmpty {
+            didRouteInitialTab = true // Social already has content - stay put.
+        } else if social.hasLoadedOnce {
+            selectedTab = 4 // Images
+            didRouteInitialTab = true
+        }
+        // Otherwise: cache was empty and the network hasn't answered yet -
+        // stay on Social (already the default) and re-check once it does.
     }
 }

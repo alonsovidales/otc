@@ -1202,7 +1202,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		if limit <= 0 {
 			limit = 50
 		}
-		notifications, err := ch.mg.dao.ListNotifications(limit)
+		notifications, err := ch.mg.social.ListNotifications(limit)
 		if err != nil {
 			log.Error("error listing notifications:", err)
 			resp.Error = true

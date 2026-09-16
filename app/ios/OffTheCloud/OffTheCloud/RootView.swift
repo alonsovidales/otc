@@ -14,6 +14,9 @@ struct RootView: View {
     @StateObject private var secrets = SecretsStore.loadOrCreate()
     @StateObject private var upload = UploadModel.shared
     @StateObject private var notifications = NotificationsModel.shared
+    // Issue #79: shared with MainView, which needs to know whether Social
+    // is empty to decide the app's default launch tab.
+    @StateObject private var social = SocialFeedViewModel.shared
     // Issue #70: "send the app to background, take a photo and open it
     // again, there is no upload, I have to kill and restart it" -
     // OTCApp.init() only ever runs once per cold launch, so returning
@@ -28,6 +31,7 @@ struct RootView: View {
                     .environmentObject(secrets)
                     .environmentObject(upload)
                     .environmentObject(notifications)
+                    .environmentObject(social)
                     .onAppear {
                         SyncScheduler.scheduleNext() // schedule background sync
                         notifications.startPolling()

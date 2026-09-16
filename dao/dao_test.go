@@ -811,13 +811,17 @@ func TestListNotificationsOrdersByDateDesc(t *testing.T) {
 	defer db.Close()
 
 	now := time.Now()
-	mock.ExpectQuery("select `uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `pub_uuid`, `comment_uuid`, `acknowledged` from `notifications` order by `dt` desc limit \\?").
+	mock.ExpectQuery("select n\\.uuid, n\\.dt, n\\.type, n\\.actor_name, n\\.actor_domain, n\\.pub_uuid, n\\.comment_uuid, n\\.acknowledged, f\\.image, pf\\.hash "+
+		"from `notifications` n "+
+		"left join `social_friendship` f on f\\.domain = n\\.actor_domain "+
+		"left join `social_publications_files` pf on pf\\.uuid = n\\.pub_uuid and pf\\.pos = 0 "+
+		"order by n\\.dt desc limit \\?").
 		WithArgs(50).
-		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged"}).
-			AddRow("n1", now, "LikePublication", "Alice", "alice.off-the.cloud", "pub-1", nil, false))
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged", "image", "hash"}).
+			AddRow("n1", now, "LikePublication", "Alice", "alice.off-the.cloud", "pub-1", nil, false, []byte("avatar-bytes"), "thumb-hash-1"))
 
 	d := NewWithDB(db)
-	notifications, err := d.ListNotifications(50)
+	notifications, thumbHashes, err := d.ListNotifications(50)
 	if err != nil {
 		t.Fatalf("ListNotifications: %v", err)
 	}
@@ -826,6 +830,12 @@ func TestListNotificationsOrdersByDateDesc(t *testing.T) {
 	}
 	if notifications[0].Type != pb.NotificationType_NotificationLikePublication {
 		t.Errorf("unexpected type: %v", notifications[0].Type)
+	}
+	if string(notifications[0].ActorImage) != "avatar-bytes" {
+		t.Errorf("unexpected actor image: %q", notifications[0].ActorImage)
+	}
+	if thumbHashes["n1"] != "thumb-hash-1" {
+		t.Errorf("unexpected thumb hash: %+v", thumbHashes)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)

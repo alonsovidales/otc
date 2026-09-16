@@ -5,6 +5,10 @@
 }
 
 .top-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   appearance: none;
   border: 0;
   padding: 5px 5px;
@@ -14,6 +18,21 @@
   background: var(--panel);
   cursor: pointer;
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.top-tab-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--ember-ink);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
 .top-tab:hover { background: var(--line); color: var(--mist); }
 .top-tab.is-active {

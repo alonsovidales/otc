@@ -4,53 +4,15 @@
 //  NotificationsBellView.swift
 //  OffTheCloud
 //
-//  Issue #78: the bell button (top-leading overlay on MainView's ZStack,
-//  mirroring how UploadBar is already a top-level overlay there, just
-//  anchored opposite) and the sheet it presents.
+//  Issue #78: originally a bell button + sheet; issue #78 follow-up made
+//  notifications a section of its own (leftmost tab, per the user's ask),
+//  so this is now that tab's full-page content instead.
 //
 
 import SwiftUI
 
-struct NotificationsBellButton: View {
+struct NotificationsListView: View {
     @ObservedObject var model: NotificationsModel
-    @State private var sheetOpen = false
-
-    var body: some View {
-        Button {
-            sheetOpen = true
-            Task { await model.openPanel() }
-        } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "bell.fill")
-                    .font(.system(size: 18))
-                    // Issue #78: "if there are unacknowledged notifications
-                    // the bell will be highlighted" - full accent color
-                    // plus a glow, vs. muted grey at rest, same language
-                    // as the web bell.
-                    .foregroundStyle(model.unacknowledgedCount > 0 ? Color.yellow : Color.secondary)
-                    .shadow(color: model.unacknowledgedCount > 0 ? .yellow.opacity(0.6) : .clear, radius: 6)
-                    .padding(8)
-                if model.unacknowledgedCount > 0 {
-                    Text(model.unacknowledgedCount > 99 ? "99+" : "\(model.unacknowledgedCount)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 4)
-                        .frame(minWidth: 16, minHeight: 16)
-                        .background(Color.red, in: Capsule())
-                        .offset(x: -2, y: 2)
-                }
-            }
-        }
-        .background(.ultraThinMaterial, in: Circle())
-        .sheet(isPresented: $sheetOpen) {
-            NotificationsSheet(model: model, dismiss: { sheetOpen = false })
-        }
-    }
-}
-
-private struct NotificationsSheet: View {
-    @ObservedObject var model: NotificationsModel
-    let dismiss: () -> Void
 
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
@@ -80,40 +42,50 @@ private struct NotificationsSheet: View {
                     List(model.notifications, id: \.uuid) { n in
                         Button {
                             model.handleTap(n)
-                            dismiss()
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
+                                // Issue #78 follow-up: who did this, at the
+                                // left - same avatar convention as the
+                                // Social feed/likers list.
+                                avatarView(data: n.hasActorImage ? n.actorImage : nil, size: 40)
                                 VStack(alignment: .leading, spacing: 2) {
                                     (Text(n.actorName.isEmpty ? n.actorDomain : n.actorName).bold()
                                         + Text(" " + Self.describe(n)))
                                         .foregroundStyle(.primary)
                                         .font(.subheadline)
+                                    if n.hasDt {
+                                        Text(Self.relativeFormatter.localizedString(for: n.dt.date, relativeTo: Date()))
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                                 Spacer()
-                                if n.hasDt {
-                                    Text(Self.relativeFormatter.localizedString(for: n.dt.date, relativeTo: Date()))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                // What it's about, at the right - unset for
+                                // FriendRequest/FriendAccepted, which point
+                                // at no post.
+                                if n.hasThumbnail, let ui = UIImage(data: n.thumbnail) {
+                                    Image(uiImage: ui)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 44, height: 44)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
                                 }
                             }
                             // Still-unread-as-of-this-open rows read
                             // slightly highlighted - a fading distinction,
-                            // not persistent, since opening this sheet
-                            // marks everything read a moment after it loads.
+                            // not persistent, since opening this tab marks
+                            // everything read a moment after it loads.
                             .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
                         }
                         .buttonStyle(.plain)
                     }
                     .listStyle(.plain)
+                    .refreshable { await model.openPanel() }
                 }
             }
             .navigationTitle("Notifications")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
         }
+        .navigationViewStyle(.stack)
+        .task { await model.openPanel() }
     }
 }

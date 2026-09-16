@@ -1065,33 +1065,52 @@ func (dao *Dao) NewNotification(notifType pb.NotificationType, actorName, actorD
 	return err
 }
 
-// ListNotifications returns the most recent notifications, newest first.
-func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, err error) {
+// ListNotifications returns the most recent notifications, newest first,
+// with each row's ActorImage already filled in (a plain DB blob - social_
+// friendship.image, keyed by the same actor_domain every notification
+// already carries). thumbHashes maps notification uuid -> the hash of
+// pub_uuid's first file, for callers (social.ListNotifications) to resolve
+// into actual thumbnail bytes by reading the on-disk *_thumbnail file -
+// that's filesystem I/O, which belongs above this package, not in it (see
+// social.GetPublications' identical split for feed posts' own thumbnails).
+func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, thumbHashes map[string]string, err error) {
 	rows, err := dao.db.Query(
-		"select `uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `pub_uuid`, `comment_uuid`, `acknowledged` from `notifications` order by `dt` desc limit ?",
+		"select n.uuid, n.dt, n.type, n.actor_name, n.actor_domain, n.pub_uuid, n.comment_uuid, n.acknowledged, f.image, pf.hash "+
+			"from `notifications` n "+
+			"left join `social_friendship` f on f.domain = n.actor_domain "+
+			"left join `social_publications_files` pf on pf.uuid = n.pub_uuid and pf.pos = 0 "+
+			"order by n.dt desc limit ?",
 		limit,
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
 	notifications = []*pb.Notification{}
+	thumbHashes = map[string]string{}
 	for rows.Next() {
 		n := new(pb.Notification)
 		var dt time.Time
 		var typeStr string
-		var pubUuid, commentUuid sql.NullString
-		if err := rows.Scan(&n.Uuid, &dt, &typeStr, &n.ActorName, &n.ActorDomain, &pubUuid, &commentUuid, &n.Acknowledged); err != nil {
-			return nil, err
+		var pubUuid, commentUuid, thumbHash sql.NullString
+		var actorImage []byte
+		if err := rows.Scan(&n.Uuid, &dt, &typeStr, &n.ActorName, &n.ActorDomain, &pubUuid, &commentUuid, &n.Acknowledged, &actorImage, &thumbHash); err != nil {
+			return nil, nil, err
 		}
 		n.Dt = timestamppb.New(dt)
 		n.Type = dao.strToNotificationType(typeStr)
 		n.PubUuid = pubUuid.String
 		n.CommentUuid = commentUuid.String
+		if len(actorImage) > 0 {
+			n.ActorImage = actorImage
+		}
+		if thumbHash.Valid {
+			thumbHashes[n.Uuid] = thumbHash.String
+		}
 		notifications = append(notifications, n)
 	}
-	return notifications, rows.Err()
+	return notifications, thumbHashes, rows.Err()
 }
 
 // UnacknowledgedNotificationCount backs the bell icon's badge/highlight.

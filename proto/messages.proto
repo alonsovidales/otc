@@ -747,6 +747,14 @@ message Notification {
   // scroll to/highlight the specific comment once the post is open.
   string comment_uuid = 7;
   bool acknowledged = 8;
+  // actor_image is the acting friend's cached avatar (social_friendship.
+  // image), shown at the left of the row - unset if that friend has no
+  // avatar cached.
+  optional bytes actor_image = 9;
+  // thumbnail is a small preview of the post/comment this notification
+  // points to (pub_uuid's first file), shown at the right of the row -
+  // unset for FriendRequest/FriendAccepted, which point at no post.
+  optional bytes thumbnail = 10;
 }
 
 message ReqListNotifications {

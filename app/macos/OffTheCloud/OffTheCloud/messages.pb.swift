@@ -2007,11 +2007,37 @@ public struct Msg_Notification: Sendable {
 
   public var acknowledged: Bool = false
 
+  /// actor_image is the acting friend's cached avatar (social_friendship.
+  /// image), shown at the left of the row - unset if that friend has no
+  /// avatar cached.
+  public var actorImage: Data {
+    get {return _actorImage ?? Data()}
+    set {_actorImage = newValue}
+  }
+  /// Returns true if `actorImage` has been explicitly set.
+  public var hasActorImage: Bool {return self._actorImage != nil}
+  /// Clears the value of `actorImage`. Subsequent reads from it will return its default value.
+  public mutating func clearActorImage() {self._actorImage = nil}
+
+  /// thumbnail is a small preview of the post/comment this notification
+  /// points to (pub_uuid's first file), shown at the right of the row -
+  /// unset for FriendRequest/FriendAccepted, which point at no post.
+  public var thumbnail: Data {
+    get {return _thumbnail ?? Data()}
+    set {_thumbnail = newValue}
+  }
+  /// Returns true if `thumbnail` has been explicitly set.
+  public var hasThumbnail: Bool {return self._thumbnail != nil}
+  /// Clears the value of `thumbnail`. Subsequent reads from it will return its default value.
+  public mutating func clearThumbnail() {self._thumbnail = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _dt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _actorImage: Data? = nil
+  fileprivate var _thumbnail: Data? = nil
 }
 
 public struct Msg_ReqListNotifications: Sendable {
@@ -6361,7 +6387,7 @@ extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
 
 extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0\u{3}actor_image\0\u{1}thumbnail\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -6377,6 +6403,8 @@ extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case 6: try { try decoder.decodeSingularStringField(value: &self.pubUuid) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.commentUuid) }()
       case 8: try { try decoder.decodeSingularBoolField(value: &self.acknowledged) }()
+      case 9: try { try decoder.decodeSingularBytesField(value: &self._actorImage) }()
+      case 10: try { try decoder.decodeSingularBytesField(value: &self._thumbnail) }()
       default: break
       }
     }
@@ -6411,6 +6439,12 @@ extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     if self.acknowledged != false {
       try visitor.visitSingularBoolField(value: self.acknowledged, fieldNumber: 8)
     }
+    try { if let v = self._actorImage {
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 9)
+    } }()
+    try { if let v = self._thumbnail {
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 10)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -6423,6 +6457,8 @@ extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     if lhs.pubUuid != rhs.pubUuid {return false}
     if lhs.commentUuid != rhs.commentUuid {return false}
     if lhs.acknowledged != rhs.acknowledged {return false}
+    if lhs._actorImage != rhs._actorImage {return false}
+    if lhs._thumbnail != rhs._thumbnail {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

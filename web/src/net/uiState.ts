@@ -9,7 +9,7 @@ import type { TabKey } from "../components/TopTabs";
 // same mechanism issue #46 already uses to persist the login itself.
 const cTabStorageKey = "otc_last_tab";
 
-const cValidTabs: readonly TabKey[] = ["Profile", "Social", "SignIn", "AdminPannel", "PhotoGallery", "Settings"];
+const cValidTabs: readonly TabKey[] = ["Profile", "Social", "SignIn", "AdminPannel", "PhotoGallery", "Settings", "Notifications"];
 
 export function saveLastTab(tab: TabKey) {
   try {

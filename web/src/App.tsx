@@ -14,7 +14,7 @@ import ProfileCard from "./components/ProfileCard";
 import FriendshipsManager from "./components/FriendshipsManager";
 import TopTabs from "./components/TopTabs";
 import type { TabKey } from "./components/TopTabs";
-import NotificationsBell from "./components/NotificationsBell";
+import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
 import "./components/StatusWidget.css";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
@@ -42,6 +42,7 @@ function App() {
   // outside any single tab's own view.
   const [openPubUuid, setOpenPubUuid] = useState<string | null>(null);
   const [openCommentUuid, setOpenCommentUuid] = useState<string | null>(null);
+  const [notificationCount, clearNotificationCount] = useNotificationCount(authenticated);
 
   let protoWs = 'ws://';
   if (window.location.protocol === 'https:') {
@@ -190,22 +191,11 @@ function App() {
           // of floating centered partway down it.
           <div style={{ flex: 1, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-              <TopTabs value={tab} onChange={setTab} />
+              <TopTabs value={tab} onChange={setTab} notificationCount={notificationCount} />
             </div>
             <StatusWidget />
           </div>
         }
-        {authenticated && (
-          <NotificationsBell
-            authenticated={authenticated}
-            onOpenPost={(pubUuid, commentUuid) => {
-              setOpenPubUuid(pubUuid);
-              setOpenCommentUuid(commentUuid);
-              setTab("Social");
-            }}
-            onOpenFriendRequests={() => setTab("Profile")}
-          />
-        )}
         {!authenticated &&
           <button className="top_sign_in" onClick={() => setTab("SignIn")}>
             Sign In
@@ -238,6 +228,17 @@ function App() {
         {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : <p>Signing in…</p>)}
         {tab === "PhotoGallery" && (authenticated ? <PhotoGallery /> : <p>Signing in…</p>)}
         {tab === "Settings" && (authenticated ? <SettingsForm /> : <p>Signing in…</p>)}
+        {tab === "Notifications" && (authenticated ? (
+          <NotificationsPage
+            onOpenPost={(pubUuid, commentUuid) => {
+              setOpenPubUuid(pubUuid);
+              setOpenCommentUuid(commentUuid);
+              setTab("Social");
+            }}
+            onOpenFriendRequests={() => setTab("Profile")}
+            onAcknowledged={clearNotificationCount}
+          />
+        ) : <p>Signing in…</p>)}
       </main>
     </>
   )
