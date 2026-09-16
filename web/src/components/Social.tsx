@@ -42,7 +42,14 @@ function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
 // end, mirroring the native iOS app's pagination.
 const PAGE_SIZE = 4;
 
-export default function Social({ authenticated }: { authenticated: boolean }) {
+export default function Social({ authenticated, openPubUuid, openCommentUuid, onOpened }: {
+  authenticated: boolean;
+  // Issue #78: set by a tapped notification to open/scroll to a specific
+  // post (and, for a comment-related notification, that comment too).
+  openPubUuid?: string | null;
+  openCommentUuid?: string | null;
+  onOpened?: () => void;
+}) {
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -50,6 +57,12 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
   const loadingMoreRef = useRef(false);
   const feedRef = useRef<PbSocialPublication[]>([]);
   useEffect(() => { feedRef.current = feed; }, [feed]);
+
+  // Issue #78: opening a post from a notification. Briefly highlighted
+  // (highlightPub/highlightComment) rather than a persistent style, so it
+  // reads as "here's what you tapped" without permanently marking the post.
+  const [highlightPub, setHighlightPub] = useState<string | null>(null);
+  const [highlightComment, setHighlightComment] = useState<string | null>(null);
 
   const fetchPage = useCallback(async (total: number, excludeUuids: string[], replacing: boolean) => {
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -100,6 +113,43 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
       await loadFeed();
     })();
   }, [loadFeed]);
+
+  // Issue #78: a tapped notification names a post (and maybe a comment on
+  // it) to open. Fetches it directly via reqGetPublication if it isn't
+  // already among whatever page of the feed happens to be loaded, rather
+  // than paging through everything since it, then scrolls to it.
+  useEffect(() => {
+    if (!openPubUuid) return;
+    let cancelled = false;
+    (async () => {
+      if (!feedRef.current.some(p => p.uuid === openPubUuid)) {
+        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+          (e as any).payload = { $case: "reqGetPublication", reqGetPublication: { pubUuid: openPubUuid } };
+        });
+        if (cancelled) return;
+        if (resp.payload?.$case === "respPublication" && resp.payload.respPublication.publication) {
+          const pub = resp.payload.respPublication.publication;
+          setFeed(prev => prev.some(p => p.uuid === pub.uuid) ? prev : [pub, ...prev]);
+        }
+      }
+      // Double rAF: give React a chance to actually commit the (possibly
+      // just-added) post to the DOM before trying to scroll to it - a
+      // single rAF after an awaited setFeed isn't reliably post-paint.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (cancelled) return;
+        document.getElementById(`post-${openPubUuid}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightPub(openPubUuid);
+        if (openCommentUuid) {
+          setHighlightComment(openCommentUuid);
+          document.getElementById(`comment-${openCommentUuid}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        setTimeout(() => { setHighlightPub(null); setHighlightComment(null); }, 2500);
+        onOpened?.();
+      }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPubUuid, openCommentUuid]);
 
   // Issue #17: flip the UI the instant the user taps/sends, instead of
   // waiting for the round-trip. The server's Ack for these three requests
@@ -441,7 +491,11 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
     useEffect(() => () => { if (lowURL) URL.revokeObjectURL(lowURL); }, [lowURL]);
 
     return (
-      <article className="sv-post" ref={rootRef as React.RefObject<HTMLElement>}>
+      <article
+        id={`post-${p.uuid}`}
+        className={`sv-post${p.uuid === highlightPub ? " sv-highlight" : ""}`}
+        ref={rootRef as React.RefObject<HTMLElement>}
+      >
         <header className="sv-post-hdr">
           {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
           <div className="sv-pub-meta">
@@ -525,7 +579,11 @@ export default function Social({ authenticated }: { authenticated: boolean }) {
         {/* Comments */}
         <div className="sv-comments">
           {p.comments?.map(c => (
-            <div className="sv-comment" key={c.commentUuid}>
+            <div
+              id={`comment-${c.commentUuid}`}
+              className={`sv-comment${c.commentUuid === highlightComment ? " sv-highlight" : ""}`}
+              key={c.commentUuid}
+            >
               <div className="sv-cmeta">
                 <span className="sv-cname">{c.publisher || "User"}:</span>
                 <span className="sv-ctext">{c.comment}</span>

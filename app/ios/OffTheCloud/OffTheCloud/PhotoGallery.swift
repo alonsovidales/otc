@@ -61,6 +61,51 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var pendingMerge: PendingMerge? = nil
     struct PendingMerge { let target: Msg_Person; let source: Msg_Person }
 
+    // Issue #77: the date scrubber. Only meaningful against date order - a
+    // tag search sorts by relevance (dao.SearchMedia switches to "order by
+    // score desc" whenever tags are given) - so showScrubber below hides
+    // it outright rather than showing ticks against an order it doesn't
+    // reflect. A person filter alone is fine, that keeps created-desc.
+    struct DateBucket: Identifiable { let month: String; let count: Int; let start: Int; let end: Int; var id: String { month } }
+    @Published var dateBuckets: [DateBucket] = []
+    // scrubFrac is the live drag position (0=newest/top, 1=oldest/bottom),
+    // nil whenever the user isn't actively dragging. placeholderCount
+    // outlives the drag itself: it stays set (showing black squares in
+    // place of the real grid) from the moment a drag starts until the
+    // jump-to-date fetch it triggers actually resolves, so releasing the
+    // thumb doesn't flash an empty grid while the real thumbnails are
+    // still in flight.
+    @Published var scrubFrac: Double? = nil
+    @Published var placeholderCount: Int? = nil
+
+    var totalPhotos: Int { dateBuckets.last?.end ?? 0 }
+    var showScrubber: Bool { chips.isEmpty && !dateBuckets.isEmpty }
+
+    // Ticks: one per year, positioned by cumulative photo count rather
+    // than calendar-uniform spacing, so a drag fraction actually
+    // corresponds to "how far into the library" that year sits (matches
+    // Google Photos' own timeline, where a sparse year takes less track
+    // space than a busy one). Mirrors web's PhotoGallery.tsx.
+    var yearTicks: [(year: String, pct: Double)] {
+        guard totalPhotos > 0 else { return [] }
+        var ticks: [(String, Double)] = []
+        var lastYear = ""
+        for b in dateBuckets {
+            let year = String(b.month.prefix(4))
+            if year != lastYear {
+                ticks.append((year, Double(b.start) / Double(totalPhotos)))
+                lastYear = year
+            }
+        }
+        return ticks
+    }
+
+    var scrubTarget: DateBucket? {
+        guard let frac = scrubFrac, totalPhotos > 0 else { return nil }
+        let idx = Int(frac * Double(totalPhotos))
+        return dateBuckets.first(where: { idx >= $0.start && idx < $0.end }) ?? dateBuckets.last
+    }
+
     @Published var items: [Item] = []
     @Published var loading = false
     @Published var endReached = false
@@ -153,6 +198,65 @@ final class PhotoGalleryVM: ObservableObject {
                 self.tags = tl.tags
             }
         } catch { /* ignore */ }
+    }
+
+    // MARK: Date scrubber (issue #77)
+    private func loadDateBuckets() async {
+        guard chips.isEmpty else { dateBuckets = []; return }
+        let people = selectedPeople // snapshot - see fetchPage's own doc comment on why
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            var b = Msg_ReqPhotoDateBuckets()
+            b.personIds = people
+            b.includeVideos = false
+            req.payload = .reqPhotoDateBuckets(b)
+            e = req
+        }) else { return }
+        if case .respPhotoDateBuckets(let r) = resp.payload {
+            var cum = 0
+            dateBuckets = r.buckets.map { pb in
+                let start = cum
+                cum += Int(pb.count)
+                return DateBucket(month: pb.month, count: Int(pb.count), start: start, end: cum)
+            }
+        }
+    }
+
+    // Mirrors web's jumpToDate in PhotoGallery.tsx: a reset exactly like
+    // resetAndLoadFirstPage does for a fresh filter, plus a `before`
+    // cutoff anchoring the fresh search to the target month's own last
+    // instant (so it starts at that month's newest photo and reads
+    // backward, same as scrolling there normally would).
+    func jumpToDate(_ month: String) {
+        searchTask?.cancel()
+        searchTask = Task { await performJump(month) }
+    }
+
+    private func performJump(_ month: String) async {
+        let parts = month.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 2 else { return }
+        var comps = DateComponents()
+        comps.year = parts[0]
+        comps.month = parts[1]
+        comps.day = 1
+        let cal = Calendar.current
+        guard let firstOfMonth = cal.date(from: comps),
+              let firstOfNextMonth = cal.date(byAdding: .month, value: 1, to: firstOfMonth) else { return }
+        let before = firstOfNextMonth.addingTimeInterval(-1) // last instant of `month`
+
+        searchGeneration += 1
+        let myGeneration = searchGeneration
+        loading = false
+        endReached = false
+        token = ""
+        items = []
+        selected.removeAll()
+        await fetchPage(overrideToken: "", before: before)
+        // placeholderCount is left showing until this resolves (or is
+        // superseded) - cleared here rather than by the caller so a jump
+        // that gets superseded by a *newer* jump/filter change doesn't
+        // clear placeholders that newer request is still relying on.
+        if myGeneration == searchGeneration { placeholderCount = nil }
     }
 
     // MARK: People (issue #52 follow-up)
@@ -250,7 +354,15 @@ final class PhotoGalleryVM: ObservableObject {
         token = ""
         items = []
         selected.removeAll()
+        // A filter change makes any scrub in progress meaningless (its
+        // target bucket was computed against the *previous* filter's
+        // counts) - drop it rather than leave stale placeholders or a
+        // thumb positioned against numbers that no longer apply.
+        scrubFrac = nil
+        placeholderCount = nil
+        async let buckets: Void = loadDateBuckets()
         await fetchPage(overrideToken: "")
+        await buckets
         mergeLocalIfAny()
     }
 
@@ -262,7 +374,7 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
-    private func fetchPage(overrideToken: String? = nil) async {
+    private func fetchPage(overrideToken: String? = nil, before: Date? = nil) async {
         guard !loading, !endReached else { return }
         let myGeneration = searchGeneration
         loading = true
@@ -296,6 +408,13 @@ final class PhotoGalleryVM: ObservableObject {
                 sp.tags  = tags
                 sp.personIds = people
                 sp.token = requestToken
+                // Issue #77: the date scrubber's "jump to date" - set only
+                // by performJump above, which also resets loading/
+                // endReached/token so this always starts a fresh,
+                // cutoff-filtered search.
+                if let before {
+                    sp.before = SwiftProtobuf.Google_Protobuf_Timestamp(date: before)
+                }
                 req.payload = .reqSearchPhotos(sp)
                 e = req
             }
@@ -736,7 +855,12 @@ struct PhotoGalleryView: View {
 
     @State private var showSuggest = false
     @State private var personPendingDelete: String? = nil
-    private let cols = Array(repeating: GridItem(.flexible(minimum: 120, maximum: 160), spacing: 10), count: 3)
+    // Back to a fixed 3 columns (issue #77 briefly tried .adaptive here to
+    // fix an overflow caused by reserving dedicated layout space for the
+    // scrubber - reverted along with that reservation itself, which
+    // turned out to be the actual thing worth removing; the scrubber now
+    // overlays the grid's own edge instead of pushing it inward).
+    private let cols = Array(repeating: GridItem(.flexible(minimum: 120, maximum: 160), spacing: 1), count: 3)
 
     init(deviceID: String, localPhotosFolder: URL?) {
         _vm = StateObject(wrappedValue: PhotoGalleryVM(deviceID: deviceID, localPhotosFolder: localPhotosFolder))
@@ -794,8 +918,16 @@ struct PhotoGalleryView: View {
                     // person's avatar below merges instead of toggling the
                     // search filter - see mergeTargetID's own doc comment.
                     if let targetID = vm.mergeTargetID {
+                        // Precomputed rather than inlined into the Text -
+                        // an unrelated type-check timeout elsewhere in
+                        // this same body started tripping once enough
+                        // other view code was added nearby, and pulling
+                        // this particular double-lookup-plus-ternary out
+                        // of the ViewBuilder expression is what resolved it.
+                        let targetName = vm.allPeople.first(where: { $0.id == targetID })?.name
+                        let displayName = (targetName?.isEmpty == false) ? targetName! : "Unnamed"
                         HStack(spacing: 4) {
-                            Text("Merging into \(vm.allPeople.first(where: { $0.id == targetID })?.name.isEmpty == false ? vm.allPeople.first(where: { $0.id == targetID })!.name : "Unnamed") — tap another person to merge them in.")
+                            Text("Merging into \(displayName) — tap another person to merge them in.")
                             Button("Cancel") { vm.mergeTargetID = nil }
                         }
                         .font(.caption2)
@@ -834,24 +966,69 @@ struct PhotoGalleryView: View {
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
 
-            // Grid
-            ScrollView {
-                LazyVGrid(columns: cols, spacing: 10) {
-                    ForEach(vm.items) { it in
-                        PhotoTile(
-                            item: it,
-                            isSelected: vm.selected.contains(it.path),
-                            hasSelection: !vm.selected.isEmpty,
-                            onTap: { openPath(it.path) },
-                            onLongPress: { vm.toggleSelect(it.path) }
-                        )
-                        .task { await vm.loadMoreIfNeeded(current: it) }
+            // Grid - while the date scrubber has a target bucket (dragging,
+            // or the jump it triggered still in flight), placeholder
+            // squares stand in for the real grid rather than showing
+            // whatever was scrolled to before the jump started. Capped at
+            // 300 - a month with thousands of photos doesn't need that
+            // many real views just to convey "this is a lot of squares".
+            // Wrapped in ScrollViewReader (issue #77) purely to reset
+            // scroll position to the top once a jump starts - the page
+            // doesn't otherwise know to, since `items` being reset
+            // doesn't itself move an already-scrolled ScrollView.
+            ScrollViewReader { proxy in
+                // The scroll-to-top anchor used to be the LazyVGrid's own
+                // first child - which made it a real grid cell (row 1,
+                // column 1), not just an invisible marker, pushing every
+                // photo over by one slot and rendering as a black square
+                // where the first real thumbnail should be. It's now a
+                // plain (zero-height) sibling of the grid inside the same
+                // ScrollView instead - a VStack wrapping the *ScrollView*
+                // itself (tried briefly) made the grid's very first load
+                // render blank until a scroll gesture forced SwiftUI to
+                // lay it out, so the ScrollView itself stays exactly as
+                // it was, with the anchor moved one level in instead.
+                ScrollView {
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: 0).id("photoGridTop")
+                        LazyVGrid(columns: cols, spacing: 1) {
+                            if let placeholderCount = vm.placeholderCount {
+                                ForEach(0..<min(placeholderCount, 300), id: \.self) { _ in
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.black)
+                                        .aspectRatio(1, contentMode: .fit)
+                                }
+                            } else {
+                                ForEach(vm.items) { it in
+                                    PhotoTile(
+                                        item: it,
+                                        isSelected: vm.selected.contains(it.path),
+                                        hasSelection: !vm.selected.isEmpty,
+                                        onTap: { openPath(it.path) },
+                                        onLongPress: { vm.toggleSelect(it.path) }
+                                    )
+                                    .task { await vm.loadMoreIfNeeded(current: it) }
+                                }
+                                if vm.loading {
+                                    ProgressView().frame(height: 60).gridCellColumns(cols.count)
+                                }
+                            }
+                        }
                     }
-                    if vm.loading {
-                        ProgressView().frame(height: 60).gridCellColumns(cols.count)
+                    .padding(10)
+                }
+                .overlay(alignment: .trailing) {
+                    // Issue #77: Google-Photos-style date scrubber -
+                    // overlaid directly on the grid's own right edge
+                    // (like Google Photos' own does) rather than
+                    // reserving dedicated layout space for it, so it
+                    // can't push a fixed 3-column grid past the screen's
+                    // actual width. Ticks/tooltip only show while
+                    // actively dragging - see PhotoDateScrubber.
+                    if vm.showScrubber {
+                        PhotoDateScrubber(vm: vm, scrollProxy: proxy)
                     }
                 }
-                .padding(10)
             }
             .overlay(alignment: .bottom) {
                 if !vm.selected.isEmpty {
@@ -1286,6 +1463,144 @@ private struct FileInfoView: View {
             Spacer()
             Text(value)
         }
+    }
+}
+
+// Issue #77: Google-Photos-style date scrubber. A DragGesture over a thin
+// trailing-edge track, matching the style already used for ImageModal's
+// swipe-to-page gesture elsewhere in this file - year ticks positioned by
+// cumulative photo count (see PhotoGalleryVM.yearTicks), a floating
+// month/year tooltip only while the drag is active. Mirrors web's
+// PhotoScrubber bit of PhotoGallery.tsx.
+private struct PhotoDateScrubber: View {
+    @ObservedObject var vm: PhotoGalleryVM
+    let scrollProxy: ScrollViewProxy
+
+    private static let monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    private static func label(for month: String) -> String {
+        let parts = month.split(separator: "-")
+        guard parts.count == 2, let m = Int(parts[1]), (1...12).contains(m) else { return month }
+        return "\(monthNames[m - 1]) \(parts[0])"
+    }
+
+    // A run of sparse years can land closer together than a label is
+    // tall - reproduced live (both here and on web) as several years'
+    // labels rendering stacked on top of each other, unreadable - so this
+    // drops any tick that would land within minGap of the last one
+    // actually kept, once the track's real height is known. Mirrors
+    // web's identical thinning in PhotoGallery.tsx's yearTicks.
+    private static func thinnedTicks(_ ticks: [(year: String, pct: Double)], height: CGFloat, minGap: CGFloat = 14) -> [(year: String, pct: Double)] {
+        guard height > 0 else { return [] }
+        var kept: [(year: String, pct: Double)] = []
+        var lastPx: CGFloat = -.infinity
+        for t in ticks {
+            let px = height * t.pct
+            if px - lastPx < minGap { continue }
+            kept.append(t)
+            lastPx = px
+        }
+        return kept
+    }
+
+    var body: some View {
+        // The 64pt width has to constrain the GeometryReader itself, not
+        // a view inside it - GeometryReader always expands to fill
+        // whatever space its parent (here, the .overlay) offers it, which
+        // is the *whole* grid's width, not a trailing sliver. A
+        // .frame(width:) applied to a child further down only shrinks
+        // that child's own reported size; it doesn't reposition the
+        // child within its parent, so the child (and this scrubber along
+        // with it) ended up pinned to the *leading* edge of that full-
+        // width GeometryReader instead of the trailing one - reproduced
+        // live as the whole timeline rendering down the left edge of the
+        // screen, half off-screen, instead of the right. Constraining the
+        // GeometryReader from the outside makes geo.size.width correctly
+        // report 64 on the inside, and lets .overlay(alignment: .trailing)
+        // in PhotoGalleryView do the actual right-edge placement.
+        GeometryReader { geo in
+            ZStack(alignment: .topTrailing) {
+                // A persistent thin rail - the only thing visible at
+                // rest, so there's still some indication a draggable
+                // timeline exists there even though the year labels
+                // themselves only appear once you actually touch it.
+                Capsule()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 3)
+                    .padding(.trailing, 6)
+                // Year labels only show up while actively dragging, same
+                // as the month/year tooltip below - a permanently-visible
+                // column of labels was cluttering the grid at rest;
+                // Google Photos' own only appears once you touch the bar.
+                if vm.scrubFrac != nil {
+                    ForEach(Self.thinnedTicks(vm.yearTicks, height: geo.size.height), id: \.year) { tick in
+                        Text(tick.year)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.trailing, 16)
+                            .offset(y: geo.size.height * tick.pct - 6)
+                    }
+                }
+                if let target = vm.scrubTarget, let frac = vm.scrubFrac {
+                    Text(Self.label(for: target.month))
+                        .font(.caption.bold())
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, 16)
+                        .offset(y: geo.size.height * frac - 12)
+                    Circle()
+                        .fill(Color.yellow)
+                        .frame(width: 10, height: 10)
+                        .offset(y: geo.size.height * frac - 5)
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topTrailing)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if vm.scrubFrac == nil {
+                            // First move of a new drag (a plain tap counts
+                            // too, since onChanged fires once even without
+                            // movement) - scroll away immediately rather
+                            // than waiting for the jump to resolve, so the
+                            // current cards visibly start moving out of
+                            // the way the moment you touch the scrubber.
+                            scrollProxy.scrollTo("photoGridTop", anchor: .top)
+                        }
+                        let frac = min(1, max(0, value.location.y / geo.size.height))
+                        vm.scrubFrac = frac
+                        // No network call here at all - the placeholder
+                        // count comes straight out of the already-fetched
+                        // bucket counts, which is the whole point:
+                        // dragging fast across years costs nothing but
+                        // re-renders.
+                        if vm.totalPhotos > 0 {
+                            let idx = Int(frac * Double(vm.totalPhotos))
+                            let bucket = vm.dateBuckets.first(where: { idx >= $0.start && idx < $0.end }) ?? vm.dateBuckets.last
+                            if let bucket { vm.placeholderCount = bucket.count }
+                        }
+                    }
+                    .onEnded { _ in
+                        let target = vm.scrubTarget // capture before clearing scrubFrac below
+                        vm.scrubFrac = nil
+                        if let target {
+                            vm.jumpToDate(target.month)
+                        } else {
+                            vm.placeholderCount = nil
+                        }
+                    }
+            )
+        }
+        // Wide enough to hold the year labels *inside* the interactive
+        // strip, not off to its side - reproduced live as tapping
+        // directly on a visible year label doing nothing, because the
+        // actual hit area used to be a narrow edge-only sliver the labels
+        // floated outside of. Now the whole box (labels included) is one
+        // tap/drag target. See the GeometryReader comment above for why
+        // this has to sit out here rather than on a view inside it.
+        .frame(width: 64)
     }
 }
 

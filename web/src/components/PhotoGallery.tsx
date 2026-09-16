@@ -185,6 +185,107 @@ export default function PhotoGallery() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  // -------- date scrubber (issue #77) ----------------------------------------
+  // Per-month counts drive both the scrubber's year ticks and how many
+  // placeholder squares to draw for a month that hasn't loaded yet. Only
+  // meaningful against date order - a tag search sorts by relevance
+  // (dao.SearchMedia switches to "order by score desc" whenever tags are
+  // given), so the scrubber is hidden outright rather than showing ticks
+  // against an order it doesn't actually reflect. A person filter alone is
+  // fine - that keeps the default created-desc order.
+  const [dateBuckets, setDateBuckets] = useState<{ month: string; count: number }[]>([]);
+  // scrubFrac is the live drag position (0=newest/top, 1=oldest/bottom),
+  // null whenever the user isn't actively dragging - drives the thumb/
+  // tooltip only. placeholderCount is separate and outlives the drag: it
+  // stays set (showing black squares in place of the real grid) from the
+  // moment a drag starts until the jump-to-date fetch it triggers actually
+  // resolves, so releasing the thumb doesn't flash an empty grid while the
+  // real thumbnails are still in flight.
+  const [scrubFrac, setScrubFrac] = useState<number | null>(null);
+  const [placeholderCount, setPlaceholderCount] = useState<number | null>(null);
+  const scrubTrackRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+
+  const bucketIndex = useMemo(() => {
+    let cum = 0;
+    return dateBuckets.map(b => {
+      const start = cum;
+      cum += b.count;
+      return { month: b.month, count: b.count, start, end: cum };
+    });
+  }, [dateBuckets]);
+  const totalPhotos = bucketIndex.length ? bucketIndex[bucketIndex.length - 1].end : 0;
+  const showScrubber = chips.length === 0 && bucketIndex.length > 0;
+
+  // Needed to thin out year ticks that would otherwise overlap (see
+  // yearTicks below) - the track's height only exists as a CSS percentage
+  // until measured, and thinning has to happen in real pixels. The
+  // scrubber div only exists once showScrubber is true, so this re-runs
+  // when that flips rather than finding a null ref on first render
+  // (before any buckets have loaded).
+  const [trackHeight, setTrackHeight] = useState(0);
+  useEffect(() => {
+    const el = scrubTrackRef.current;
+    if (!el) return;
+    const measure = () => setTrackHeight(el.clientHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showScrubber]);
+
+  // Ticks: one per year, positioned by cumulative photo count rather than
+  // calendar-uniform spacing, so a drag fraction actually corresponds to
+  // "how far into the library" that year sits (matches Google Photos'
+  // own timeline, where a sparse year takes less track space than a busy
+  // one). A run of sparse years can still land closer together than a
+  // label is tall though - reproduced live as several years' labels
+  // rendering stacked on top of each other, unreadable - so this also
+  // drops any tick that would land within MIN_TICK_GAP_PX of the last
+  // one actually kept, once the track's real height is known.
+  const MIN_TICK_GAP_PX = 14;
+  const yearTicks = useMemo(() => {
+    if (!totalPhotos || !trackHeight) return [];
+    const ticks: { year: string; pct: number }[] = [];
+    let lastYear = "";
+    let lastKeptPx = -Infinity;
+    bucketIndex.forEach(b => {
+      const year = b.month.slice(0, 4);
+      if (year === lastYear) return;
+      lastYear = year;
+      const px = (b.start / totalPhotos) * trackHeight;
+      if (px - lastKeptPx < MIN_TICK_GAP_PX) return;
+      ticks.push({ year, pct: (b.start / totalPhotos) * 100 });
+      lastKeptPx = px;
+    });
+    return ticks;
+  }, [bucketIndex, totalPhotos, trackHeight]);
+
+  const scrubTarget = useMemo(() => {
+    if (scrubFrac == null || !totalPhotos) return null;
+    const idx = scrubFrac * totalPhotos;
+    return bucketIndex.find(b => idx >= b.start && idx < b.end) ?? bucketIndex[bucketIndex.length - 1] ?? null;
+  }, [scrubFrac, bucketIndex, totalPhotos]);
+
+  const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const formatMonthLabel = (month: string) => {
+    const [y, m] = month.split("-").map(Number);
+    return `${MONTH_NAMES[(m || 1) - 1]} ${y}`;
+  };
+
+  const loadDateBuckets = useCallback(async () => {
+    if (chips.length > 0) { setDateBuckets([]); return; }
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = {
+        $case: "reqPhotoDateBuckets",
+        reqPhotoDateBuckets: { tags: [], personIds: selectedPeople, includeVideos: false },
+      };
+    });
+    if (resp.payload?.$case === "respPhotoDateBuckets") {
+      setDateBuckets(resp.payload.respPhotoDateBuckets.buckets ?? []);
+    }
+  }, [chips.length, selectedPeople]);
+
   // -------- modal (hi-res) --------------------------------------------------
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [hiURL, setHiURL] = useState<string | null>(null);
@@ -217,7 +318,7 @@ export default function PhotoGallery() {
   const searchGenRef = useRef(0);
 
   const fetchPage = useCallback(
-    async (overrideToken?: Token, force = false) => {
+    async (overrideToken?: Token, force = false, before?: Date) => {
       // force skips the loading/endReached guard: a deliberate fresh
       // search (chips just changed) always resets those to false right
       // before calling this, but that reset and this call happen in the
@@ -237,6 +338,10 @@ export default function PhotoGallery() {
               tags: chips,
               personIds: selectedPeople,
               token: overrideToken ?? token ?? "",
+              // Issue #77: the date scrubber's "jump to date" - set only
+              // by jumpToDate below, which also forces overrideToken/force
+              // so this always starts a fresh, cutoff-filtered search.
+              before,
             },
           };
         });
@@ -272,6 +377,68 @@ export default function PhotoGallery() {
     },
     [chips, selectedPeople, token, loading, endReached]
   );
+
+  // Issue #77: the date scrubber's "jump to date" - a reset exactly like
+  // the chips/selectedPeople effect below does for a fresh filter, plus
+  // the `before` cutoff that anchors the fresh search to the target
+  // month's own last instant (so it starts at that month's newest photo
+  // and reads backward from there, same as scrolling there normally
+  // would). placeholderCount is left showing until this resolves (or is
+  // superseded) - cleared here rather than by the caller so a jump that
+  // gets superseded by a *newer* jump/filter change doesn't clear
+  // placeholders that newer request is still relying on.
+  const jumpToDate = useCallback(async (month: string) => {
+    const [y, m] = month.split("-").map(Number);
+    const before = new Date(y, m, 0, 23, 59, 59, 999); // last instant of `month`
+    searchGenRef.current += 1;
+    const myGen = searchGenRef.current;
+    setItems([]);
+    mapRef.current = new Map();
+    setToken(null);
+    setEndReached(false);
+    // Scrolling to the top already happened in handleScrubMove, the
+    // moment the drag/click started - see its own comment.
+    try {
+      await fetchPage("", true, before);
+    } finally {
+      if (myGen === searchGenRef.current) setPlaceholderCount(null);
+    }
+  }, [fetchPage]);
+
+  const handleScrubMove = (clientY: number) => {
+    const el = scrubTrackRef.current;
+    if (!el || !totalPhotos) return;
+    if (scrubFrac == null) {
+      // First move of a new drag (a plain click/tap counts too, since
+      // pointerdown itself calls this once) - scroll away immediately
+      // rather than waiting for the jump to actually resolve, so the
+      // current cards visibly start moving out of the way the moment you
+      // touch the scrubber, the way Google Photos' own does.
+      gridRef.current?.scrollIntoView({ block: "start" });
+    }
+    const rect = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    setScrubFrac(frac);
+    // No network call here at all - the placeholder count comes straight
+    // out of the already-fetched bucket counts, which is the whole point:
+    // dragging fast across years costs nothing but re-renders.
+    const idx = frac * totalPhotos;
+    const bucket = bucketIndex.find(b => idx >= b.start && idx < b.end) ?? bucketIndex[bucketIndex.length - 1];
+    if (bucket) setPlaceholderCount(bucket.count);
+  };
+  const onScrubPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    handleScrubMove(e.clientY);
+  };
+  const onScrubPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (scrubFrac != null) handleScrubMove(e.clientY);
+  };
+  const onScrubPointerUp = () => {
+    const target = scrubTarget; // capture before clearing scrubFrac below
+    setScrubFrac(null);
+    if (target) void jumpToDate(target.month);
+    else setPlaceholderCount(null);
+  };
 
   // open modal and fetch hi-res for current index
   const openAt = useCallback(
@@ -346,6 +513,13 @@ export default function PhotoGallery() {
       await fetchPage("", true);
     })();
     savePhotoSearchTags(chips);
+    // A filter change makes any scrub in progress meaningless (its target
+    // bucket was computed against the *previous* filter's counts) - drop
+    // it rather than leave stale placeholders or a thumb positioned
+    // against numbers that no longer apply.
+    setScrubFrac(null);
+    setPlaceholderCount(null);
+    loadDateBuckets();
   }, [chips, selectedPeople]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------- infinite scroll: one call at a time -----------------------------
@@ -653,28 +827,72 @@ export default function PhotoGallery() {
         </div>
       )}
 
-      {/* grid */}
-      <div className="pg-grid">
-        {items.map((f, i) => {
-          const key = fileKey(f, i); // unique key (fixes React warnings)
-          const thumb = bytesToURL(f.content, f.mime || "image/jpeg");
-          const selIdx = selOrder.indexOf(f.path);
-          return (
-            <div key={key} className="pg-cell">
-              <label className="pg-check">
-                <input type="checkbox" checked={selIdx >= 0} onChange={() => toggleSel(f.path)} />
-              </label>
-              {/* Issue #48: a numbered badge instead of just a checkmark
-                  shows the post order directly in the grid. */}
-              {selIdx >= 0 && <span className="pg-order-badge">{selIdx + 1}</span>}
-              <button className="pg-thumb" title={f.path} onClick={() => openAt(i)}>
-                <img src={thumb} alt={f.path} loading="lazy" />
-              </button>
-            </div>
-          );
-        })}
-        <div ref={sentinelRef} style={{ height: 1 }} />
+      {/* grid - while the date scrubber has a target bucket (dragging, or
+          the jump it triggered still in flight), placeholder squares
+          stand in for the real grid rather than showing whatever was
+          scrolled to before the jump started. Capped at 300 - a month
+          with thousands of photos doesn't need that many real DOM nodes
+          just to convey "this is a lot of squares". */}
+      <div className="pg-grid" ref={gridRef}>
+        {placeholderCount != null ? (
+          Array.from({ length: Math.min(placeholderCount, 300) }, (_, i) => (
+            <div key={`ph-${i}`} className="pg-cell pg-cell-placeholder" />
+          ))
+        ) : (
+          <>
+            {items.map((f, i) => {
+              const key = fileKey(f, i); // unique key (fixes React warnings)
+              const thumb = bytesToURL(f.content, f.mime || "image/jpeg");
+              const selIdx = selOrder.indexOf(f.path);
+              return (
+                <div key={key} className="pg-cell">
+                  <label className="pg-check">
+                    <input type="checkbox" checked={selIdx >= 0} onChange={() => toggleSel(f.path)} />
+                  </label>
+                  {/* Issue #48: a numbered badge instead of just a checkmark
+                      shows the post order directly in the grid. */}
+                  {selIdx >= 0 && <span className="pg-order-badge">{selIdx + 1}</span>}
+                  <button className="pg-thumb" title={f.path} onClick={() => openAt(i)}>
+                    <img src={thumb} alt={f.path} loading="lazy" />
+                  </button>
+                </div>
+              );
+            })}
+            <div ref={sentinelRef} style={{ height: 1 }} />
+          </>
+        )}
       </div>
+
+      {/* Issue #77: Google-Photos-style date scrubber - year ticks always
+          visible, a floating month/year tooltip only while dragging. Fixed
+          to the viewport rather than sized to the grid's own (ever-
+          growing, as pages load) content height, since it represents the
+          whole library's timeline, not just what's currently mounted.
+          (iOS hides its ticks until you touch the scrubber instead - web's
+          own screen is roomier and this read fine always-on, so it stays
+          as it was.) */}
+      {showScrubber && (
+        <div
+          className="pg-scrubber"
+          ref={scrubTrackRef}
+          onPointerDown={onScrubPointerDown}
+          onPointerMove={onScrubPointerMove}
+          onPointerUp={onScrubPointerUp}
+          onPointerCancel={onScrubPointerUp}
+        >
+          {yearTicks.map(t => (
+            <span key={t.year} className="pg-scrubber-tick" style={{ top: `${t.pct}%` }}>{t.year}</span>
+          ))}
+          {scrubTarget && (
+            <>
+              <div className="pg-scrubber-thumb" style={{ top: `${(scrubFrac ?? 0) * 100}%` }} />
+              <div className="pg-scrubber-tooltip" style={{ top: `${(scrubFrac ?? 0) * 100}%` }}>
+                {formatMonthLabel(scrubTarget.month)}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Issue #48: the grid's own order isn't necessarily post order (it's
           whatever the search/feed returned) - this strip shows the actual

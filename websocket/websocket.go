@@ -1157,7 +1157,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqSearchPhotos:
 		log.Info("Search by text:", p.ReqSearchPhotos.Tags)
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds)
+		// Issue #77: the date scrubber's "jump to date" - Before is only
+		// set while dragging the scrubber, nil the rest of the time.
+		var before *time.Time
+		if p.ReqSearchPhotos.Before != nil {
+			t := p.ReqSearchPhotos.Before.AsTime()
+			before = &t
+		}
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, before)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -1170,6 +1177,72 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 					Files: files,
 					Token: token,
 				},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqPhotoDateBuckets:
+		buckets, err := ch.mg.filesManager.PhotoDateBuckets(p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.IncludeVideos)
+		if err != nil {
+			log.Error("error trying to compute photo date buckets:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			pbBuckets := make([]*pb.PhotoDateBucket, len(buckets))
+			for i, b := range buckets {
+				pbBuckets[i] = &pb.PhotoDateBucket{Month: b.Month, Count: int32(b.Count)}
+			}
+			resp.Payload = &pb.RespEnvelope_RespPhotoDateBuckets{
+				RespPhotoDateBuckets: &pb.RespPhotoDateBuckets{Buckets: pbBuckets},
+			}
+		}
+
+	// Issue #78: notifications.
+	case *pb.ReqEnvelope_ReqListNotifications:
+		limit := int(p.ReqListNotifications.Limit)
+		if limit <= 0 {
+			limit = 50
+		}
+		notifications, err := ch.mg.dao.ListNotifications(limit)
+		if err != nil {
+			log.Error("error listing notifications:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespNotifications{
+				RespNotifications: &pb.RespNotifications{Notifications: notifications},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetNotificationCount:
+		count, err := ch.mg.dao.UnacknowledgedNotificationCount()
+		if err != nil {
+			log.Error("error counting unacknowledged notifications:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespNotificationCount{
+				RespNotificationCount: &pb.RespNotificationCount{UnacknowledgedCount: int32(count)},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqMarkNotificationsAcknowledged:
+		if err := ch.mg.dao.MarkAllNotificationsAcknowledged(); err != nil {
+			log.Error("error acknowledging notifications:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqGetPublication:
+		pub, err := ch.mg.social.GetPublication(ch.mg.profile, p.ReqGetPublication.PubUuid)
+		if err != nil {
+			log.Error("error fetching publication:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespPublication{
+				RespPublication: &pb.RespPublication{Publication: pub},
 			}
 		}
 

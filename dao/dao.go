@@ -768,6 +768,57 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 	return
 }
 
+// GetSocialPublicationByUUID is GetSocialPublications' single-row
+// equivalent (issue #78): tapping a notification for a post that isn't
+// among whatever page of the feed happens to be loaded needs to fetch just
+// that one post directly, rather than paging through everything since it.
+// Mirrors that function's own row-to-proto mapping exactly, just against
+// one row instead of a result set.
+func (dao *Dao) GetSocialPublicationByUUID(pubUuid, prName, prText string, prImage []byte, viewerDomain string) (sp *pb.SocialPublication, err error) {
+	sp = new(pb.SocialPublication)
+	var dt time.Time
+	var friendDomain string
+	var ownPub bool
+	err = dao.db.QueryRow(
+		"select `friend_domain`, `uuid`, `dt`, `text`, `own_publication`, `likes` from `social_publications` where `uuid` = ?",
+		pubUuid,
+	).Scan(&friendDomain, &sp.Uuid, &dt, &sp.Text, &ownPub, &sp.Likes)
+	if err != nil {
+		return nil, err
+	}
+
+	sp.Own = ownPub
+	sp.DateTime = timestamppb.New(dt)
+
+	if ownPub {
+		sp.Publisher = &pb.Profile{
+			Name:  prName,
+			Image: prImage,
+			Text:  prText,
+		}
+	} else {
+		_, name, text, image, _, err := dao.getFriendshipByDomain(friendDomain)
+		if err != nil {
+			return nil, err
+		}
+		sp.Publisher = &pb.Profile{
+			Domain: friendDomain,
+			Name:   name,
+			Image:  image,
+			Text:   text,
+		}
+	}
+
+	if sp.Files, err = dao.GetSocialPublicationFiles(sp.Uuid); err != nil {
+		return nil, err
+	}
+	if sp.Liked, err = dao.HasLikedPublication(sp.Uuid, viewerDomain); err != nil {
+		return nil, err
+	}
+
+	return sp, nil
+}
+
 func (dao *Dao) NewFriendship(domain, secret, name, text string, image []byte, sent bool) (err error) {
 	log.Debug("Creating new friendship")
 	_, err = dao.db.Exec("insert into `social_friendship` (`domain`, `status`, `name`, `image`, `text`, `secret`, `sent`) values (?, 'pending', ?, ?, ?, ?, ?)", domain, name, image, text, secret, sent)
@@ -961,6 +1012,104 @@ func (dao *Dao) NewEvent(eventType string, data []byte) (err error) {
 	return err
 }
 
+// notificationTypeToStr/strToNotificationType mirror pbToStatus/
+// statusToPb's own explicit-switch style above, rather than relying on the
+// generated enum's String() (whose output isn't a contract this table's
+// stored values should be tied to).
+func (dao *Dao) notificationTypeToStr(t pb.NotificationType) string {
+	switch t {
+	case pb.NotificationType_NotificationLikePublication:
+		return "LikePublication"
+	case pb.NotificationType_NotificationLikeComment:
+		return "LikeComment"
+	case pb.NotificationType_NotificationNewComment:
+		return "NewComment"
+	case pb.NotificationType_NotificationFriendRequest:
+		return "FriendRequest"
+	case pb.NotificationType_NotificationFriendAccepted:
+		return "FriendAccepted"
+	}
+	return ""
+}
+
+func (dao *Dao) strToNotificationType(s string) pb.NotificationType {
+	switch s {
+	case "LikePublication":
+		return pb.NotificationType_NotificationLikePublication
+	case "LikeComment":
+		return pb.NotificationType_NotificationLikeComment
+	case "NewComment":
+		return pb.NotificationType_NotificationNewComment
+	case "FriendRequest":
+		return pb.NotificationType_NotificationFriendRequest
+	case "FriendAccepted":
+		return pb.NotificationType_NotificationFriendAccepted
+	}
+	return pb.NotificationType_NotificationLikePublication
+}
+
+// NewNotification (issue #78) records one row in the owner-facing
+// notification timeline - see notifications' own doc comment in db.sql for
+// why this is a distinct thing from NewEvent's write-log above. pubUuid/
+// commentUuid are passed through as-is (empty string when not applicable
+// to notifType) rather than as *string, matching this file's existing
+// convention of plain strings for optional-but-usually-present columns
+// (e.g. GetCommentPubUuid's own pubUuid return).
+func (dao *Dao) NewNotification(notifType pb.NotificationType, actorName, actorDomain, pubUuid, commentUuid string) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `pub_uuid`, `comment_uuid`) values (?, now(), ?, ?, ?, ?, ?)",
+		uuid.New(), dao.notificationTypeToStr(notifType), actorName, actorDomain,
+		sql.NullString{String: pubUuid, Valid: pubUuid != ""},
+		sql.NullString{String: commentUuid, Valid: commentUuid != ""},
+	)
+	return err
+}
+
+// ListNotifications returns the most recent notifications, newest first.
+func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, err error) {
+	rows, err := dao.db.Query(
+		"select `uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `pub_uuid`, `comment_uuid`, `acknowledged` from `notifications` order by `dt` desc limit ?",
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	notifications = []*pb.Notification{}
+	for rows.Next() {
+		n := new(pb.Notification)
+		var dt time.Time
+		var typeStr string
+		var pubUuid, commentUuid sql.NullString
+		if err := rows.Scan(&n.Uuid, &dt, &typeStr, &n.ActorName, &n.ActorDomain, &pubUuid, &commentUuid, &n.Acknowledged); err != nil {
+			return nil, err
+		}
+		n.Dt = timestamppb.New(dt)
+		n.Type = dao.strToNotificationType(typeStr)
+		n.PubUuid = pubUuid.String
+		n.CommentUuid = commentUuid.String
+		notifications = append(notifications, n)
+	}
+	return notifications, rows.Err()
+}
+
+// UnacknowledgedNotificationCount backs the bell icon's badge/highlight.
+func (dao *Dao) UnacknowledgedNotificationCount() (count int, err error) {
+	err = dao.db.QueryRow("select count(*) from `notifications` where `acknowledged` = 0").Scan(&count)
+	return
+}
+
+// MarkAllNotificationsAcknowledged is called the moment the owner opens the
+// notifications panel/sheet (issue #78: "when the user opens the section
+// all the notifications will change to acknowledged") - a single bulk
+// update rather than acknowledging one at a time, since the whole list is
+// always shown at once.
+func (dao *Dao) MarkAllNotificationsAcknowledged() (err error) {
+	_, err = dao.db.Exec("update `notifications` set `acknowledged` = 1 where `acknowledged` = 0")
+	return
+}
+
 // GetFaceRecognitionEnabled/SetFaceRecognitionEnabled back issue #52's
 // settings toggle - see db.sql's own doc comment on `settings.face_
 // recognition_enabled` for why enabling it never retroactively processes
@@ -1106,9 +1255,9 @@ func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
 // full mechanics.
 func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err error) {
 	rows, err := dao.db.Query(
-		"select `p`.`id`, `p`.`name`, count(`f`.`id`) as `face_count`, `p`.`cover_face_id` " +
-			"from `people` as `p` left join `faces` as `f` on `f`.`person_id` = `p`.`id` " +
-			"group by `p`.`id`, `p`.`name`, `p`.`cover_face_id`, `p`.`cohesion` " +
+		"select `p`.`id`, `p`.`name`, count(`f`.`id`) as `face_count`, `p`.`cover_face_id` "+
+			"from `people` as `p` left join `faces` as `f` on `f`.`person_id` = `p`.`id` "+
+			"group by `p`.`id`, `p`.`name`, `p`.`cover_face_id`, `p`.`cohesion` "+
 			"order by (`p`.`cohesion` is null or `p`.`cohesion` >= ?) desc, `face_count` desc, `p`.`created` desc",
 		cohesionThreshold)
 	if err != nil {
@@ -1229,13 +1378,15 @@ func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 // personIDs are given, same as the old SearchByTags/SearchByPerson never
 // filtered by mime either - it only applies to the plain "browse
 // everything, no filters" case, matching GetFilesByPath's own contract.
-func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, imagesOnly bool) (files []*pb.File, err error) {
-	from := "from `files` as `f`"
-	var args []any
-	selectExtra := ""
-	groupBy := ""
-	having := ""
-	orderBy := " order by `f`.`created` desc"
+// searchMediaClauses builds the FROM/WHERE/GROUP BY/HAVING/ORDER BY shared
+// by SearchMedia and SearchMediaDateBuckets - both filter the same `files`
+// rows by tags/personIDs/imagesOnly (and, for SearchMedia's "jump to date"
+// use, an optional created-before cutoff), they just select something
+// different off the result. Kept as one function so the two queries can't
+// silently drift apart on what counts as a match.
+func searchMediaClauses(path string, tags []string, personIDs []string, imagesOnly bool, before *time.Time) (from, where, groupBy, having, orderBy, selectExtra string, args []any) {
+	from = "from `files` as `f`"
+	orderBy = " order by `f`.`created` desc"
 
 	if len(tags) > 0 {
 		ph := strings.Repeat("?,", len(tags))
@@ -1260,7 +1411,6 @@ func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, imag
 		having = fmt.Sprintf(" having count(distinct `fc`.`person_id`) = %d", len(personIDs))
 	}
 
-	var where string
 	var whereParts []string
 	if path != "" {
 		whereParts = append(whereParts, "`f`.`path` regexp ?")
@@ -1273,9 +1423,21 @@ func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, imag
 	if len(tags) == 0 && len(personIDs) == 0 && imagesOnly {
 		whereParts = append(whereParts, "`f`.`mime` like 'image%'")
 	}
+	// Issue #77: the date scrubber's "jump to date" - same left-to-right
+	// arg-ordering rule as above, this is the last WHERE part so its arg
+	// goes last regardless of which of the filters above are also active.
+	if before != nil {
+		whereParts = append(whereParts, "`f`.`created` <= ?")
+		args = append(args, *before)
+	}
 	if len(whereParts) > 0 {
 		where = " where " + strings.Join(whereParts, " and ")
 	}
+	return
+}
+
+func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, imagesOnly bool, before *time.Time) (files []*pb.File, err error) {
+	from, where, groupBy, having, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, imagesOnly, before)
 
 	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
 		from + where + groupBy + having + orderBy
@@ -1302,6 +1464,54 @@ func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, imag
 		files = append(files, file)
 	}
 	return files, rows.Err()
+}
+
+// DateBucket is one month's photo count (issue #77's date scrubber) -
+// internal bookkeeping like ReprocessState below, translated to a pb type
+// only at the websocket layer.
+type DateBucket struct {
+	Month string // "2022-06"
+	Count int
+}
+
+// SearchMediaDateBuckets answers "how many photos per month" for the same
+// filters SearchMedia would use (minus imagesOnly's path-browsing case,
+// which the scrubber never needs) - used to size/position the date
+// scrubber and to know how many placeholder squares to draw for a month
+// that hasn't been paged in yet. Shares searchMediaClauses with SearchMedia
+// so the two can't drift on what counts as a match; ignores whatever
+// SearchMedia's own orderBy would be (tag search's relevance order) since
+// buckets are always reported newest-month-first regardless of chip state -
+// callers are expected to hide the scrubber entirely when tags are active,
+// per its own doc comment on the ReqPhotoDateBuckets proto message.
+func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, imagesOnly bool) (buckets []DateBucket, err error) {
+	from, where, groupBy, having, _, _, args := searchMediaClauses("", tags, personIDs, imagesOnly, nil)
+
+	// groupBy/having (by `f`.`hash`, when personIDs are given) enforce the
+	// "matches every requested person on the SAME file" AND semantics -
+	// that has to resolve to one row per matching file *before* bucketing
+	// by month, or a month with two files each matching only one of two
+	// requested people would wrongly get counted as if both had matched a
+	// single file. Hence the subquery: settle "which files match" first,
+	// exactly like SearchMedia does, then bucket that file set by month.
+	query := "select date_format(`month_src`.`created`, '%Y-%m') as `bucket`, count(*) from (" +
+		"select `f`.`hash`, `f`.`created` " + from + where + groupBy + having +
+		") as `month_src` group by `bucket` order by `bucket` desc"
+
+	rows, err := dao.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var b DateBucket
+		if err := rows.Scan(&b.Month, &b.Count); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
 }
 
 // ReprocessState mirrors the `reprocess_state` singleton row (issue #73) -

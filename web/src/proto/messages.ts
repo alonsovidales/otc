@@ -283,6 +283,78 @@ export function bridgeOnboardErrorTypeToJSON(object: BridgeOnboardErrorType): st
   }
 }
 
+/**
+ * Issue #78: the owner-facing notification timeline (bell icon) - distinct
+ * from Event/Events above, which is an outbound write-log friends pull
+ * from to sync their own cached copy of this device's activity, not
+ * something the owner reads directly. This device has exactly one owner
+ * (see Profile), so there's no recipient to filter by - every row here is
+ * already "for" the one person who'll ever see it. Deliberately excludes
+ * "a friend posted something new" - Instagram's own activity tab treats
+ * that as ordinary feed content too, not a notification.
+ */
+export const NotificationType = {
+  NotificationLikePublication: 0,
+  NotificationLikeComment: 1,
+  NotificationNewComment: 2,
+  NotificationFriendRequest: 3,
+  NotificationFriendAccepted: 4,
+  UNRECOGNIZED: -1,
+} as const;
+
+export type NotificationType = typeof NotificationType[keyof typeof NotificationType];
+
+export namespace NotificationType {
+  export type NotificationLikePublication = typeof NotificationType.NotificationLikePublication;
+  export type NotificationLikeComment = typeof NotificationType.NotificationLikeComment;
+  export type NotificationNewComment = typeof NotificationType.NotificationNewComment;
+  export type NotificationFriendRequest = typeof NotificationType.NotificationFriendRequest;
+  export type NotificationFriendAccepted = typeof NotificationType.NotificationFriendAccepted;
+  export type UNRECOGNIZED = typeof NotificationType.UNRECOGNIZED;
+}
+
+export function notificationTypeFromJSON(object: any): NotificationType {
+  switch (object) {
+    case 0:
+    case "NotificationLikePublication":
+      return NotificationType.NotificationLikePublication;
+    case 1:
+    case "NotificationLikeComment":
+      return NotificationType.NotificationLikeComment;
+    case 2:
+    case "NotificationNewComment":
+      return NotificationType.NotificationNewComment;
+    case 3:
+    case "NotificationFriendRequest":
+      return NotificationType.NotificationFriendRequest;
+    case 4:
+    case "NotificationFriendAccepted":
+      return NotificationType.NotificationFriendAccepted;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return NotificationType.UNRECOGNIZED;
+  }
+}
+
+export function notificationTypeToJSON(object: NotificationType): string {
+  switch (object) {
+    case NotificationType.NotificationLikePublication:
+      return "NotificationLikePublication";
+    case NotificationType.NotificationLikeComment:
+      return "NotificationLikeComment";
+    case NotificationType.NotificationNewComment:
+      return "NotificationNewComment";
+    case NotificationType.NotificationFriendRequest:
+      return "NotificationFriendRequest";
+    case NotificationType.NotificationFriendAccepted:
+      return "NotificationFriendAccepted";
+    case NotificationType.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface StatusErrors {
   StatusErrorCode: StatusErrorCode;
   Message: string;
@@ -414,11 +486,44 @@ export interface SearchPhotos {
    * now, not a separate People screen.
    */
   personIds: string[];
+  /**
+   * Issue #77: the date scrubber's "jump to date". When set, the server
+   * always starts a *fresh* search filtered to created <= before and
+   * hands back a new token (any existing token is ignored) - rather than
+   * a real seekable SQL cursor, this piggybacks the existing token
+   * mechanism (files_manager.ImageSearch already computes the whole
+   * filtered/sorted result set once per token) by treating a jump exactly
+   * like a brand new search.
+   */
+  before?: Date | undefined;
 }
 
 export interface ListOfFiles {
   files: File[];
   token: string;
+}
+
+/**
+ * Issue #77: per-month photo counts, used to size/position the gallery's
+ * date scrubber and to know how many placeholder squares to draw while
+ * dragging to a month that hasn't loaded yet. Same filter shape as
+ * SearchPhotos minus token/before - a scrubber query, not a page fetch.
+ */
+export interface ReqPhotoDateBuckets {
+  tags: string[];
+  personIds: string[];
+  includeVideos: boolean;
+}
+
+export interface PhotoDateBucket {
+  /** "2022-06" */
+  month: string;
+  count: number;
+}
+
+export interface RespPhotoDateBuckets {
+  /** ordered desc, newest first */
+  buckets: PhotoDateBucket[];
 }
 
 export interface File {
@@ -1001,6 +1106,60 @@ export interface Events {
   since?: Date | undefined;
 }
 
+export interface Notification {
+  uuid: string;
+  dt?: Date | undefined;
+  type: NotificationType;
+  actorName: string;
+  actorDomain: string;
+  /**
+   * pub_uuid is set for LikePublication/NewComment/LikeComment - even
+   * LikeComment's own comment_uuid resolves to a pub_uuid (dao.
+   * GetCommentPubUuid), so a click can always land on "the post" no
+   * matter which of the three it is. Unset for FriendRequest/
+   * FriendAccepted.
+   */
+  pubUuid: string;
+  /**
+   * comment_uuid is set only for LikeComment/NewComment, to additionally
+   * scroll to/highlight the specific comment once the post is open.
+   */
+  commentUuid: string;
+  acknowledged: boolean;
+}
+
+export interface ReqListNotifications {
+  limit: number;
+}
+
+export interface RespNotifications {
+  notifications: Notification[];
+}
+
+export interface ReqGetNotificationCount {
+}
+
+export interface RespNotificationCount {
+  unacknowledgedCount: number;
+}
+
+/** Answers with the generic Ack. */
+export interface ReqMarkNotificationsAcknowledged {
+}
+
+/**
+ * A single-post fetch, new for issue #78: tapping a notification for a
+ * post that isn't among whatever page of the feed happens to be loaded
+ * needs to be able to pull just that one post to open/scroll to.
+ */
+export interface ReqGetPublication {
+  pubUuid: string;
+}
+
+export interface RespPublication {
+  publication?: SocialPublication | undefined;
+}
+
 export interface GetFriendshipStatus {
   domain: string;
   secret: string;
@@ -1084,6 +1243,15 @@ export interface ReqEnvelope {
     { $case: "reqStartReprocess"; reqStartReprocess: StartReprocess }
     | { $case: "reqGetReprocessStatus"; reqGetReprocessStatus: GetReprocessStatus }
     | { $case: "reqStopReprocess"; reqStopReprocess: StopReprocess }
+    | //
+    /** Issue #77: date scrubber. */
+    { $case: "reqPhotoDateBuckets"; reqPhotoDateBuckets: ReqPhotoDateBuckets }
+    | //
+    /** Issue #78: notifications. */
+    { $case: "reqListNotifications"; reqListNotifications: ReqListNotifications }
+    | { $case: "reqGetNotificationCount"; reqGetNotificationCount: ReqGetNotificationCount }
+    | { $case: "reqMarkNotificationsAcknowledged"; reqMarkNotificationsAcknowledged: ReqMarkNotificationsAcknowledged }
+    | { $case: "reqGetPublication"; reqGetPublication: ReqGetPublication }
     | undefined;
 }
 
@@ -1127,6 +1295,17 @@ export interface RespEnvelope {
     | //
     /** Issue #73. */
     { $case: "respReprocessStatus"; respReprocessStatus: ReprocessStatus }
+    | //
+    /** Issue #77: date scrubber. */
+    { $case: "respPhotoDateBuckets"; respPhotoDateBuckets: RespPhotoDateBuckets }
+    | //
+    /**
+     * Issue #78: notifications. ReqMarkNotificationsAcknowledged answers
+     * with the generic Ack above.
+     */
+    { $case: "respNotifications"; respNotifications: RespNotifications }
+    | { $case: "respNotificationCount"; respNotificationCount: RespNotificationCount }
+    | { $case: "respPublication"; respPublication: RespPublication }
     | undefined;
 }
 
@@ -2268,7 +2447,7 @@ export const ListFiles: MessageFns<ListFiles> = {
 };
 
 function createBaseSearchPhotos(): SearchPhotos {
-  return { tags: [], token: "", includeVideos: false, personIds: [] };
+  return { tags: [], token: "", includeVideos: false, personIds: [], before: undefined };
 }
 
 export const SearchPhotos: MessageFns<SearchPhotos> = {
@@ -2284,6 +2463,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     for (const v of message.personIds) {
       writer.uint32(34).string(v!);
+    }
+    if (message.before !== undefined) {
+      Timestamp.encode(toTimestamp(message.before), writer.uint32(42).fork()).join();
     }
     return writer;
   },
@@ -2327,6 +2509,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.personIds.push(reader.string());
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.before = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2344,6 +2534,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
       personIds: globalThis.Array.isArray(object?.personIds)
         ? object.personIds.map((e: any) => globalThis.String(e))
         : [],
+      before: isSet(object.before) ? fromJsonTimestamp(object.before) : undefined,
     };
   },
 
@@ -2361,6 +2552,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     if (message.personIds?.length) {
       obj.personIds = message.personIds;
     }
+    if (message.before !== undefined) {
+      obj.before = message.before.toISOString();
+    }
     return obj;
   },
 
@@ -2373,6 +2567,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.token = object.token ?? "";
     message.includeVideos = object.includeVideos ?? false;
     message.personIds = object.personIds?.map((e) => e) || [];
+    message.before = object.before ?? undefined;
     return message;
   },
 };
@@ -2449,6 +2644,238 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     const message = createBaseListOfFiles();
     message.files = object.files?.map((e) => File.fromPartial(e)) || [];
     message.token = object.token ?? "";
+    return message;
+  },
+};
+
+function createBaseReqPhotoDateBuckets(): ReqPhotoDateBuckets {
+  return { tags: [], personIds: [], includeVideos: false };
+}
+
+export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
+  encode(message: ReqPhotoDateBuckets, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.tags) {
+      writer.uint32(10).string(v!);
+    }
+    for (const v of message.personIds) {
+      writer.uint32(18).string(v!);
+    }
+    if (message.includeVideos !== false) {
+      writer.uint32(24).bool(message.includeVideos);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqPhotoDateBuckets {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqPhotoDateBuckets();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.tags.push(reader.string());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.personIds.push(reader.string());
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.includeVideos = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqPhotoDateBuckets {
+    return {
+      tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
+      personIds: globalThis.Array.isArray(object?.personIds)
+        ? object.personIds.map((e: any) => globalThis.String(e))
+        : [],
+      includeVideos: isSet(object.includeVideos) ? globalThis.Boolean(object.includeVideos) : false,
+    };
+  },
+
+  toJSON(message: ReqPhotoDateBuckets): unknown {
+    const obj: any = {};
+    if (message.tags?.length) {
+      obj.tags = message.tags;
+    }
+    if (message.personIds?.length) {
+      obj.personIds = message.personIds;
+    }
+    if (message.includeVideos !== false) {
+      obj.includeVideos = message.includeVideos;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqPhotoDateBuckets>, I>>(base?: I): ReqPhotoDateBuckets {
+    return ReqPhotoDateBuckets.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqPhotoDateBuckets>, I>>(object: I): ReqPhotoDateBuckets {
+    const message = createBaseReqPhotoDateBuckets();
+    message.tags = object.tags?.map((e) => e) || [];
+    message.personIds = object.personIds?.map((e) => e) || [];
+    message.includeVideos = object.includeVideos ?? false;
+    return message;
+  },
+};
+
+function createBasePhotoDateBucket(): PhotoDateBucket {
+  return { month: "", count: 0 };
+}
+
+export const PhotoDateBucket: MessageFns<PhotoDateBucket> = {
+  encode(message: PhotoDateBucket, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.month !== "") {
+      writer.uint32(10).string(message.month);
+    }
+    if (message.count !== 0) {
+      writer.uint32(16).int32(message.count);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PhotoDateBucket {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePhotoDateBucket();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.month = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.count = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PhotoDateBucket {
+    return {
+      month: isSet(object.month) ? globalThis.String(object.month) : "",
+      count: isSet(object.count) ? globalThis.Number(object.count) : 0,
+    };
+  },
+
+  toJSON(message: PhotoDateBucket): unknown {
+    const obj: any = {};
+    if (message.month !== "") {
+      obj.month = message.month;
+    }
+    if (message.count !== 0) {
+      obj.count = Math.round(message.count);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PhotoDateBucket>, I>>(base?: I): PhotoDateBucket {
+    return PhotoDateBucket.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PhotoDateBucket>, I>>(object: I): PhotoDateBucket {
+    const message = createBasePhotoDateBucket();
+    message.month = object.month ?? "";
+    message.count = object.count ?? 0;
+    return message;
+  },
+};
+
+function createBaseRespPhotoDateBuckets(): RespPhotoDateBuckets {
+  return { buckets: [] };
+}
+
+export const RespPhotoDateBuckets: MessageFns<RespPhotoDateBuckets> = {
+  encode(message: RespPhotoDateBuckets, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.buckets) {
+      PhotoDateBucket.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespPhotoDateBuckets {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespPhotoDateBuckets();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.buckets.push(PhotoDateBucket.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespPhotoDateBuckets {
+    return {
+      buckets: globalThis.Array.isArray(object?.buckets)
+        ? object.buckets.map((e: any) => PhotoDateBucket.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: RespPhotoDateBuckets): unknown {
+    const obj: any = {};
+    if (message.buckets?.length) {
+      obj.buckets = message.buckets.map((e) => PhotoDateBucket.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespPhotoDateBuckets>, I>>(base?: I): RespPhotoDateBuckets {
+    return RespPhotoDateBuckets.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespPhotoDateBuckets>, I>>(object: I): RespPhotoDateBuckets {
+    const message = createBaseRespPhotoDateBuckets();
+    message.buckets = object.buckets?.map((e) => PhotoDateBucket.fromPartial(e)) || [];
     return message;
   },
 };
@@ -8094,6 +8521,575 @@ export const Events: MessageFns<Events> = {
   },
 };
 
+function createBaseNotification(): Notification {
+  return {
+    uuid: "",
+    dt: undefined,
+    type: 0,
+    actorName: "",
+    actorDomain: "",
+    pubUuid: "",
+    commentUuid: "",
+    acknowledged: false,
+  };
+}
+
+export const Notification: MessageFns<Notification> = {
+  encode(message: Notification, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.dt !== undefined) {
+      Timestamp.encode(toTimestamp(message.dt), writer.uint32(18).fork()).join();
+    }
+    if (message.type !== 0) {
+      writer.uint32(24).int32(message.type);
+    }
+    if (message.actorName !== "") {
+      writer.uint32(34).string(message.actorName);
+    }
+    if (message.actorDomain !== "") {
+      writer.uint32(42).string(message.actorDomain);
+    }
+    if (message.pubUuid !== "") {
+      writer.uint32(50).string(message.pubUuid);
+    }
+    if (message.commentUuid !== "") {
+      writer.uint32(58).string(message.commentUuid);
+    }
+    if (message.acknowledged !== false) {
+      writer.uint32(64).bool(message.acknowledged);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Notification {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseNotification();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.dt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.type = reader.int32() as any;
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.actorName = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.actorDomain = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.pubUuid = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.commentUuid = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.acknowledged = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Notification {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      dt: isSet(object.dt) ? fromJsonTimestamp(object.dt) : undefined,
+      type: isSet(object.type) ? notificationTypeFromJSON(object.type) : 0,
+      actorName: isSet(object.actorName) ? globalThis.String(object.actorName) : "",
+      actorDomain: isSet(object.actorDomain) ? globalThis.String(object.actorDomain) : "",
+      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
+      commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "",
+      acknowledged: isSet(object.acknowledged) ? globalThis.Boolean(object.acknowledged) : false,
+    };
+  },
+
+  toJSON(message: Notification): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.dt !== undefined) {
+      obj.dt = message.dt.toISOString();
+    }
+    if (message.type !== 0) {
+      obj.type = notificationTypeToJSON(message.type);
+    }
+    if (message.actorName !== "") {
+      obj.actorName = message.actorName;
+    }
+    if (message.actorDomain !== "") {
+      obj.actorDomain = message.actorDomain;
+    }
+    if (message.pubUuid !== "") {
+      obj.pubUuid = message.pubUuid;
+    }
+    if (message.commentUuid !== "") {
+      obj.commentUuid = message.commentUuid;
+    }
+    if (message.acknowledged !== false) {
+      obj.acknowledged = message.acknowledged;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Notification>, I>>(base?: I): Notification {
+    return Notification.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Notification>, I>>(object: I): Notification {
+    const message = createBaseNotification();
+    message.uuid = object.uuid ?? "";
+    message.dt = object.dt ?? undefined;
+    message.type = object.type ?? 0;
+    message.actorName = object.actorName ?? "";
+    message.actorDomain = object.actorDomain ?? "";
+    message.pubUuid = object.pubUuid ?? "";
+    message.commentUuid = object.commentUuid ?? "";
+    message.acknowledged = object.acknowledged ?? false;
+    return message;
+  },
+};
+
+function createBaseReqListNotifications(): ReqListNotifications {
+  return { limit: 0 };
+}
+
+export const ReqListNotifications: MessageFns<ReqListNotifications> = {
+  encode(message: ReqListNotifications, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.limit !== 0) {
+      writer.uint32(8).int32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqListNotifications {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqListNotifications();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.limit = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqListNotifications {
+    return { limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0 };
+  },
+
+  toJSON(message: ReqListNotifications): unknown {
+    const obj: any = {};
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqListNotifications>, I>>(base?: I): ReqListNotifications {
+    return ReqListNotifications.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqListNotifications>, I>>(object: I): ReqListNotifications {
+    const message = createBaseReqListNotifications();
+    message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseRespNotifications(): RespNotifications {
+  return { notifications: [] };
+}
+
+export const RespNotifications: MessageFns<RespNotifications> = {
+  encode(message: RespNotifications, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.notifications) {
+      Notification.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespNotifications {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespNotifications();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.notifications.push(Notification.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespNotifications {
+    return {
+      notifications: globalThis.Array.isArray(object?.notifications)
+        ? object.notifications.map((e: any) => Notification.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: RespNotifications): unknown {
+    const obj: any = {};
+    if (message.notifications?.length) {
+      obj.notifications = message.notifications.map((e) => Notification.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespNotifications>, I>>(base?: I): RespNotifications {
+    return RespNotifications.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespNotifications>, I>>(object: I): RespNotifications {
+    const message = createBaseRespNotifications();
+    message.notifications = object.notifications?.map((e) => Notification.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseReqGetNotificationCount(): ReqGetNotificationCount {
+  return {};
+}
+
+export const ReqGetNotificationCount: MessageFns<ReqGetNotificationCount> = {
+  encode(_: ReqGetNotificationCount, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetNotificationCount {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetNotificationCount();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqGetNotificationCount {
+    return {};
+  },
+
+  toJSON(_: ReqGetNotificationCount): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetNotificationCount>, I>>(base?: I): ReqGetNotificationCount {
+    return ReqGetNotificationCount.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetNotificationCount>, I>>(_: I): ReqGetNotificationCount {
+    const message = createBaseReqGetNotificationCount();
+    return message;
+  },
+};
+
+function createBaseRespNotificationCount(): RespNotificationCount {
+  return { unacknowledgedCount: 0 };
+}
+
+export const RespNotificationCount: MessageFns<RespNotificationCount> = {
+  encode(message: RespNotificationCount, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.unacknowledgedCount !== 0) {
+      writer.uint32(8).int32(message.unacknowledgedCount);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespNotificationCount {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespNotificationCount();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.unacknowledgedCount = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespNotificationCount {
+    return {
+      unacknowledgedCount: isSet(object.unacknowledgedCount) ? globalThis.Number(object.unacknowledgedCount) : 0,
+    };
+  },
+
+  toJSON(message: RespNotificationCount): unknown {
+    const obj: any = {};
+    if (message.unacknowledgedCount !== 0) {
+      obj.unacknowledgedCount = Math.round(message.unacknowledgedCount);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespNotificationCount>, I>>(base?: I): RespNotificationCount {
+    return RespNotificationCount.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespNotificationCount>, I>>(object: I): RespNotificationCount {
+    const message = createBaseRespNotificationCount();
+    message.unacknowledgedCount = object.unacknowledgedCount ?? 0;
+    return message;
+  },
+};
+
+function createBaseReqMarkNotificationsAcknowledged(): ReqMarkNotificationsAcknowledged {
+  return {};
+}
+
+export const ReqMarkNotificationsAcknowledged: MessageFns<ReqMarkNotificationsAcknowledged> = {
+  encode(_: ReqMarkNotificationsAcknowledged, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqMarkNotificationsAcknowledged {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqMarkNotificationsAcknowledged();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqMarkNotificationsAcknowledged {
+    return {};
+  },
+
+  toJSON(_: ReqMarkNotificationsAcknowledged): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqMarkNotificationsAcknowledged>, I>>(
+    base?: I,
+  ): ReqMarkNotificationsAcknowledged {
+    return ReqMarkNotificationsAcknowledged.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqMarkNotificationsAcknowledged>, I>>(
+    _: I,
+  ): ReqMarkNotificationsAcknowledged {
+    const message = createBaseReqMarkNotificationsAcknowledged();
+    return message;
+  },
+};
+
+function createBaseReqGetPublication(): ReqGetPublication {
+  return { pubUuid: "" };
+}
+
+export const ReqGetPublication: MessageFns<ReqGetPublication> = {
+  encode(message: ReqGetPublication, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.pubUuid !== "") {
+      writer.uint32(10).string(message.pubUuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetPublication {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetPublication();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.pubUuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqGetPublication {
+    return { pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "" };
+  },
+
+  toJSON(message: ReqGetPublication): unknown {
+    const obj: any = {};
+    if (message.pubUuid !== "") {
+      obj.pubUuid = message.pubUuid;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetPublication>, I>>(base?: I): ReqGetPublication {
+    return ReqGetPublication.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetPublication>, I>>(object: I): ReqGetPublication {
+    const message = createBaseReqGetPublication();
+    message.pubUuid = object.pubUuid ?? "";
+    return message;
+  },
+};
+
+function createBaseRespPublication(): RespPublication {
+  return { publication: undefined };
+}
+
+export const RespPublication: MessageFns<RespPublication> = {
+  encode(message: RespPublication, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.publication !== undefined) {
+      SocialPublication.encode(message.publication, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespPublication {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespPublication();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.publication = SocialPublication.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespPublication {
+    return { publication: isSet(object.publication) ? SocialPublication.fromJSON(object.publication) : undefined };
+  },
+
+  toJSON(message: RespPublication): unknown {
+    const obj: any = {};
+    if (message.publication !== undefined) {
+      obj.publication = SocialPublication.toJSON(message.publication);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespPublication>, I>>(base?: I): RespPublication {
+    return RespPublication.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespPublication>, I>>(object: I): RespPublication {
+    const message = createBaseRespPublication();
+    message.publication = (object.publication !== undefined && object.publication !== null)
+      ? SocialPublication.fromPartial(object.publication)
+      : undefined;
+    return message;
+  },
+};
+
 function createBaseGetFriendshipStatus(): GetFriendshipStatus {
   return { domain: "", secret: "" };
 }
@@ -8486,6 +9482,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         break;
       case "reqStopReprocess":
         StopReprocess.encode(message.payload.reqStopReprocess, writer.uint32(546).fork()).join();
+        break;
+      case "reqPhotoDateBuckets":
+        ReqPhotoDateBuckets.encode(message.payload.reqPhotoDateBuckets, writer.uint32(554).fork()).join();
+        break;
+      case "reqListNotifications":
+        ReqListNotifications.encode(message.payload.reqListNotifications, writer.uint32(562).fork()).join();
+        break;
+      case "reqGetNotificationCount":
+        ReqGetNotificationCount.encode(message.payload.reqGetNotificationCount, writer.uint32(570).fork()).join();
+        break;
+      case "reqMarkNotificationsAcknowledged":
+        ReqMarkNotificationsAcknowledged.encode(
+          message.payload.reqMarkNotificationsAcknowledged,
+          writer.uint32(578).fork(),
+        ).join();
+        break;
+      case "reqGetPublication":
+        ReqGetPublication.encode(message.payload.reqGetPublication, writer.uint32(586).fork()).join();
         break;
     }
     return writer;
@@ -9055,6 +10069,61 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 69: {
+          if (tag !== 554) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqPhotoDateBuckets",
+            reqPhotoDateBuckets: ReqPhotoDateBuckets.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 70: {
+          if (tag !== 562) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListNotifications",
+            reqListNotifications: ReqListNotifications.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 71: {
+          if (tag !== 570) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetNotificationCount",
+            reqGetNotificationCount: ReqGetNotificationCount.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 72: {
+          if (tag !== 578) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqMarkNotificationsAcknowledged",
+            reqMarkNotificationsAcknowledged: ReqMarkNotificationsAcknowledged.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 73: {
+          if (tag !== 586) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetPublication",
+            reqGetPublication: ReqGetPublication.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9238,6 +10307,30 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         : isSet(object.reqStopReprocess)
         ? { $case: "reqStopReprocess", reqStopReprocess: StopReprocess.fromJSON(object.reqStopReprocess) }
+        : isSet(object.reqPhotoDateBuckets)
+        ? {
+          $case: "reqPhotoDateBuckets",
+          reqPhotoDateBuckets: ReqPhotoDateBuckets.fromJSON(object.reqPhotoDateBuckets),
+        }
+        : isSet(object.reqListNotifications)
+        ? {
+          $case: "reqListNotifications",
+          reqListNotifications: ReqListNotifications.fromJSON(object.reqListNotifications),
+        }
+        : isSet(object.reqGetNotificationCount)
+        ? {
+          $case: "reqGetNotificationCount",
+          reqGetNotificationCount: ReqGetNotificationCount.fromJSON(object.reqGetNotificationCount),
+        }
+        : isSet(object.reqMarkNotificationsAcknowledged)
+        ? {
+          $case: "reqMarkNotificationsAcknowledged",
+          reqMarkNotificationsAcknowledged: ReqMarkNotificationsAcknowledged.fromJSON(
+            object.reqMarkNotificationsAcknowledged,
+          ),
+        }
+        : isSet(object.reqGetPublication)
+        ? { $case: "reqGetPublication", reqGetPublication: ReqGetPublication.fromJSON(object.reqGetPublication) }
         : undefined,
     };
   },
@@ -9361,6 +10454,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetReprocessStatus = GetReprocessStatus.toJSON(message.payload.reqGetReprocessStatus);
     } else if (message.payload?.$case === "reqStopReprocess") {
       obj.reqStopReprocess = StopReprocess.toJSON(message.payload.reqStopReprocess);
+    } else if (message.payload?.$case === "reqPhotoDateBuckets") {
+      obj.reqPhotoDateBuckets = ReqPhotoDateBuckets.toJSON(message.payload.reqPhotoDateBuckets);
+    } else if (message.payload?.$case === "reqListNotifications") {
+      obj.reqListNotifications = ReqListNotifications.toJSON(message.payload.reqListNotifications);
+    } else if (message.payload?.$case === "reqGetNotificationCount") {
+      obj.reqGetNotificationCount = ReqGetNotificationCount.toJSON(message.payload.reqGetNotificationCount);
+    } else if (message.payload?.$case === "reqMarkNotificationsAcknowledged") {
+      obj.reqMarkNotificationsAcknowledged = ReqMarkNotificationsAcknowledged.toJSON(
+        message.payload.reqMarkNotificationsAcknowledged,
+      );
+    } else if (message.payload?.$case === "reqGetPublication") {
+      obj.reqGetPublication = ReqGetPublication.toJSON(message.payload.reqGetPublication);
     }
     return obj;
   },
@@ -9868,6 +10973,56 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqPhotoDateBuckets": {
+        if (object.payload?.reqPhotoDateBuckets !== undefined && object.payload?.reqPhotoDateBuckets !== null) {
+          message.payload = {
+            $case: "reqPhotoDateBuckets",
+            reqPhotoDateBuckets: ReqPhotoDateBuckets.fromPartial(object.payload.reqPhotoDateBuckets),
+          };
+        }
+        break;
+      }
+      case "reqListNotifications": {
+        if (object.payload?.reqListNotifications !== undefined && object.payload?.reqListNotifications !== null) {
+          message.payload = {
+            $case: "reqListNotifications",
+            reqListNotifications: ReqListNotifications.fromPartial(object.payload.reqListNotifications),
+          };
+        }
+        break;
+      }
+      case "reqGetNotificationCount": {
+        if (object.payload?.reqGetNotificationCount !== undefined && object.payload?.reqGetNotificationCount !== null) {
+          message.payload = {
+            $case: "reqGetNotificationCount",
+            reqGetNotificationCount: ReqGetNotificationCount.fromPartial(object.payload.reqGetNotificationCount),
+          };
+        }
+        break;
+      }
+      case "reqMarkNotificationsAcknowledged": {
+        if (
+          object.payload?.reqMarkNotificationsAcknowledged !== undefined &&
+          object.payload?.reqMarkNotificationsAcknowledged !== null
+        ) {
+          message.payload = {
+            $case: "reqMarkNotificationsAcknowledged",
+            reqMarkNotificationsAcknowledged: ReqMarkNotificationsAcknowledged.fromPartial(
+              object.payload.reqMarkNotificationsAcknowledged,
+            ),
+          };
+        }
+        break;
+      }
+      case "reqGetPublication": {
+        if (object.payload?.reqGetPublication !== undefined && object.payload?.reqGetPublication !== null) {
+          message.payload = {
+            $case: "reqGetPublication",
+            reqGetPublication: ReqGetPublication.fromPartial(object.payload.reqGetPublication),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -9970,6 +11125,18 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respReprocessStatus":
         ReprocessStatus.encode(message.payload.respReprocessStatus, writer.uint32(290).fork()).join();
+        break;
+      case "respPhotoDateBuckets":
+        RespPhotoDateBuckets.encode(message.payload.respPhotoDateBuckets, writer.uint32(298).fork()).join();
+        break;
+      case "respNotifications":
+        RespNotifications.encode(message.payload.respNotifications, writer.uint32(306).fork()).join();
+        break;
+      case "respNotificationCount":
+        RespNotificationCount.encode(message.payload.respNotificationCount, writer.uint32(314).fork()).join();
+        break;
+      case "respPublication":
+        RespPublication.encode(message.payload.respPublication, writer.uint32(322).fork()).join();
         break;
     }
     return writer;
@@ -10252,6 +11419,50 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 37: {
+          if (tag !== 298) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respPhotoDateBuckets",
+            respPhotoDateBuckets: RespPhotoDateBuckets.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 38: {
+          if (tag !== 306) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respNotifications",
+            respNotifications: RespNotifications.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 39: {
+          if (tag !== 314) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respNotificationCount",
+            respNotificationCount: RespNotificationCount.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 40: {
+          if (tag !== 322) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respPublication",
+            respPublication: RespPublication.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -10338,6 +11549,20 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respPeople", respPeople: People.fromJSON(object.respPeople) }
         : isSet(object.respReprocessStatus)
         ? { $case: "respReprocessStatus", respReprocessStatus: ReprocessStatus.fromJSON(object.respReprocessStatus) }
+        : isSet(object.respPhotoDateBuckets)
+        ? {
+          $case: "respPhotoDateBuckets",
+          respPhotoDateBuckets: RespPhotoDateBuckets.fromJSON(object.respPhotoDateBuckets),
+        }
+        : isSet(object.respNotifications)
+        ? { $case: "respNotifications", respNotifications: RespNotifications.fromJSON(object.respNotifications) }
+        : isSet(object.respNotificationCount)
+        ? {
+          $case: "respNotificationCount",
+          respNotificationCount: RespNotificationCount.fromJSON(object.respNotificationCount),
+        }
+        : isSet(object.respPublication)
+        ? { $case: "respPublication", respPublication: RespPublication.fromJSON(object.respPublication) }
         : undefined,
     };
   },
@@ -10409,6 +11634,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respPeople = People.toJSON(message.payload.respPeople);
     } else if (message.payload?.$case === "respReprocessStatus") {
       obj.respReprocessStatus = ReprocessStatus.toJSON(message.payload.respReprocessStatus);
+    } else if (message.payload?.$case === "respPhotoDateBuckets") {
+      obj.respPhotoDateBuckets = RespPhotoDateBuckets.toJSON(message.payload.respPhotoDateBuckets);
+    } else if (message.payload?.$case === "respNotifications") {
+      obj.respNotifications = RespNotifications.toJSON(message.payload.respNotifications);
+    } else if (message.payload?.$case === "respNotificationCount") {
+      obj.respNotificationCount = RespNotificationCount.toJSON(message.payload.respNotificationCount);
+    } else if (message.payload?.$case === "respPublication") {
+      obj.respPublication = RespPublication.toJSON(message.payload.respPublication);
     }
     return obj;
   },
@@ -10641,6 +11874,42 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respReprocessStatus",
             respReprocessStatus: ReprocessStatus.fromPartial(object.payload.respReprocessStatus),
+          };
+        }
+        break;
+      }
+      case "respPhotoDateBuckets": {
+        if (object.payload?.respPhotoDateBuckets !== undefined && object.payload?.respPhotoDateBuckets !== null) {
+          message.payload = {
+            $case: "respPhotoDateBuckets",
+            respPhotoDateBuckets: RespPhotoDateBuckets.fromPartial(object.payload.respPhotoDateBuckets),
+          };
+        }
+        break;
+      }
+      case "respNotifications": {
+        if (object.payload?.respNotifications !== undefined && object.payload?.respNotifications !== null) {
+          message.payload = {
+            $case: "respNotifications",
+            respNotifications: RespNotifications.fromPartial(object.payload.respNotifications),
+          };
+        }
+        break;
+      }
+      case "respNotificationCount": {
+        if (object.payload?.respNotificationCount !== undefined && object.payload?.respNotificationCount !== null) {
+          message.payload = {
+            $case: "respNotificationCount",
+            respNotificationCount: RespNotificationCount.fromPartial(object.payload.respNotificationCount),
+          };
+        }
+        break;
+      }
+      case "respPublication": {
+        if (object.payload?.respPublication !== undefined && object.payload?.respPublication !== null) {
+          message.payload = {
+            $case: "respPublication",
+            respPublication: RespPublication.fromPartial(object.payload.respPublication),
           };
         }
         break;

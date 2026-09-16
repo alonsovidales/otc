@@ -426,17 +426,24 @@ func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (conten
 // than a separate RPC, since the Photo Gallery's search bar combines
 // person and tag filters on one request - see dao.SearchMedia for the AND/
 // OR semantics of combining them.
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string) (files []*pb.File, token string, err error) {
+// before (issue #77, the date scrubber's "jump to date"): when non-nil,
+// always starts a fresh search filtered to created <= *before, exactly as
+// if oldToken had never been passed - there's no seekable SQL cursor to
+// jump within, but since a token's whole result set is already computed
+// once and cached (see the tokenFound branch below), treating a jump as a
+// brand new search targeting a narrower result set reuses that same
+// mechanism instead of needing one of its own.
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, before *time.Time) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	tokenFound := false
-	if oldToken != "" {
+	if oldToken != "" && before == nil {
 		var filesMap any
 		filesMap, tokenFound = mg.searchTokens.Load(oldToken)
 		files = filesMap.([]*pb.File)
 		token = oldToken
 	}
 	if !tokenFound {
-		files, err = mg.dao.SearchMedia(path, tags, personIDs, !includeVideos)
+		files, err = mg.dao.SearchMedia(path, tags, personIDs, !includeVideos, before)
 		if err != nil {
 			return
 		}
@@ -462,6 +469,13 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 	}
 
 	return
+}
+
+// PhotoDateBuckets (issue #77) answers "how many photos per month" for the
+// gallery's date scrubber - a thin passthrough, no thumbnails/encryption
+// involved since it's just counts, not files.
+func (mg *Manager) PhotoDateBuckets(tags []string, personIDs []string, includeVideos bool) ([]dao.DateBucket, error) {
+	return mg.dao.SearchMediaDateBuckets(tags, personIDs, !includeVideos)
 }
 
 func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File, err error) {

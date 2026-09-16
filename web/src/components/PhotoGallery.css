@@ -40,11 +40,81 @@
 .pg-people-toggle-chevron { transition: transform 0.15s ease; }
 .pg-people-toggle-chevron.expanded { transform: rotate(180deg); }
 
-.pg-grid { padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+/* Issue #77: the extra right padding leaves room for .pg-scrubber, which
+   sits fixed over the viewport's own right edge rather than inside this
+   grid's flow - reserved unconditionally (not just while it's shown) so
+   the grid's own column count doesn't shift width when a tag search hides
+   it. */
+/* Issue #77: plain 10px all round - the scrubber overlays the grid's own
+   right edge directly (like Google Photos' own does) rather than
+   reserving dedicated space that pushes columns inward. */
+.pg-grid { padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1px; }
 .pg-cell { position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ink-2); }
+.pg-cell-placeholder { background: var(--ink); }
 .pg-check { position: absolute; top: 0px; left: 0px; padding: 2px 6px; border-radius: 6px; }
 .pg-thumb { display: contents; }
 .pg-thumb img { max-width: 120px; max-height: 120px; object-fit: cover; }
+
+/* Date scrubber (issue #77) - fixed to the viewport's own right edge, not
+   sized to the grid's content height, since it represents the whole
+   library's timeline regardless of how much has actually loaded/scrolled
+   into the DOM so far. touch-action:none stops the browser's own
+   scroll/refresh gestures from fighting the drag on touch devices.
+   Wide enough to hold the year labels *inside* the interactive strip,
+   not off to its side - they used to sit outside a narrow edge-only
+   track (via pointer-events:none + right:100%), which looked like the
+   obvious thing to click but did nothing; the actual hit area was a
+   near-invisible sliver past them. Now the whole box is one click/drag
+   target and the labels are just what's drawn inside it. */
+.pg-scrubber {
+  position: fixed;
+  top: 84px;
+  bottom: 12px;
+  right: 0;
+  width: 64px;
+  touch-action: none;
+  cursor: grab;
+  z-index: 6;
+  /* Dragging over the year labels below otherwise triggers the browser's
+     own text-selection highlight, reproduced live as a blue-highlighted
+     label after a drag. */
+  user-select: none;
+}
+.pg-scrubber-tick {
+  position: absolute;
+  right: 14px;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--mist-dim);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pg-scrubber-thumb {
+  position: absolute;
+  right: 2px;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gold);
+  pointer-events: none;
+}
+.pg-scrubber-tooltip {
+  position: absolute;
+  right: 100%;
+  margin-right: 6px;
+  transform: translateY(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  color: var(--mist);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
 
 .pg-actions { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; align-items: center; padding: 10px; border-top: 1px solid var(--line); background: rgba(11,24,21,0.96); backdrop-filter: blur(8px); }
 .pg-actions button { padding: 6px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--mist); border-radius: 6px; }

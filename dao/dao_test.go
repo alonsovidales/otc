@@ -27,7 +27,7 @@ func TestSearchMediaNoFiltersImagesOnly(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, nil, true); err != nil {
+	if _, err := d.SearchMedia("", nil, nil, true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -47,7 +47,7 @@ func TestSearchMediaTagsOnlyOrdersByScore(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", []string{"dogs", "beach"}, nil, true); err != nil {
+	if _, err := d.SearchMedia("", []string{"dogs", "beach"}, nil, true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -69,7 +69,7 @@ func TestSearchMediaMultiplePeopleRequiresAllOfThem(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, []string{"alice-id", "bob-id"}, true); err != nil {
+	if _, err := d.SearchMedia("", nil, []string{"alice-id", "bob-id"}, true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -95,7 +95,7 @@ func TestSearchMediaCombinesTagsAndPerson(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", []string{"dogs"}, []string{"alice-id"}, true); err != nil {
+	if _, err := d.SearchMedia("", []string{"dogs"}, []string{"alice-id"}, true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -118,11 +118,95 @@ func TestSearchMediaImagesOnlyIgnoredWhenFiltersApplied(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, true); err != nil {
+	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran (imagesOnly should be ignored, no mime filter expected in the query): %v", err)
+	}
+}
+
+// Issue #77: the date scrubber's "jump to date" adds a created<=? cutoff
+// as the last WHERE part regardless of which other filters are active, so
+// its arg must land last too.
+func TestSearchMediaBeforeCutoffAddsWhereClause(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	before := time.Date(2022, 6, 30, 23, 59, 59, 0, time.UTC)
+	mock.ExpectQuery("where `f`\\.`mime` like 'image%' and `f`\\.`created` <= \\? order by `f`\\.`created` desc").
+		WithArgs(before).
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", nil, nil, true, &before); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// SearchMediaDateBuckets backs the date scrubber's tick marks/placeholder
+// counts (issue #77) - pins that it buckets by month via a subquery
+// (settling which files match first) rather than grouping the raw joined
+// rows directly, which would double-count/miscount whenever a join can
+// produce more than one row per file (tags, multi-person AND matches).
+func TestSearchMediaDateBucketsNoFilters(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select date_format\\(`month_src`\\.`created`, '%Y-%m'\\) as `bucket`, count\\(\\*\\) from \\(" +
+		"select `f`\\.`hash`, `f`\\.`created` from `files` as `f` where `f`\\.`mime` like 'image%'" +
+		"\\) as `month_src` group by `bucket` order by `bucket` desc").
+		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}).
+			AddRow("2022-06", 3).
+			AddRow("2022-05", 1))
+
+	d := NewWithDB(db)
+	buckets, err := d.SearchMediaDateBuckets(nil, nil, true)
+	if err != nil {
+		t.Fatalf("SearchMediaDateBuckets: %v", err)
+	}
+	if len(buckets) != 2 || buckets[0].Month != "2022-06" || buckets[0].Count != 3 {
+		t.Fatalf("unexpected buckets: %+v", buckets)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Two selected people must still AND within a single file even once
+// bucketed by month - the subquery's own group-by-hash/having (identical
+// to SearchMedia's) has to run before the outer month grouping, or a month
+// with two files each matching only one of two requested people would
+// wrongly count as a match.
+func TestSearchMediaDateBucketsMultiplePeopleRequiresAllOfThem(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `f`\\.`hash`, `f`\\.`created` from `files` as `f` "+
+		"join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?,\\?\\) "+
+		"group by `f`\\.`hash` having count\\(distinct `fc`\\.`person_id`\\) = 2"+
+		"\\) as `month_src` group by `bucket` order by `bucket` desc").
+		WithArgs("alice-id", "bob-id").
+		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMediaDateBuckets(nil, []string{"alice-id", "bob-id"}, true); err != nil {
+		t.Fatalf("SearchMediaDateBuckets: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
 	}
 }
 
@@ -674,5 +758,150 @@ func TestMarkStaleReprocessStopped(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran (must only touch status='running' rows): %v", err)
+	}
+}
+
+// Issue #78: notifications.
+
+func TestNotificationTypeToStrAndBack(t *testing.T) {
+	d := &Dao{}
+
+	cases := map[pb.NotificationType]string{
+		pb.NotificationType_NotificationLikePublication: "LikePublication",
+		pb.NotificationType_NotificationLikeComment:     "LikeComment",
+		pb.NotificationType_NotificationNewComment:      "NewComment",
+		pb.NotificationType_NotificationFriendRequest:   "FriendRequest",
+		pb.NotificationType_NotificationFriendAccepted:  "FriendAccepted",
+	}
+
+	for in, want := range cases {
+		if got := d.notificationTypeToStr(in); got != want {
+			t.Errorf("notificationTypeToStr(%v) = %q, want %q", in, got, want)
+		}
+		if got := d.strToNotificationType(want); got != in {
+			t.Errorf("strToNotificationType(%q) = %v, want %v", want, got, in)
+		}
+	}
+}
+
+func TestNewNotification(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("insert into `notifications` \\(`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `pub_uuid`, `comment_uuid`\\) values \\(\\?, now\\(\\), \\?, \\?, \\?, \\?, \\?\\)").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.NewNotification(pb.NotificationType_NotificationLikePublication, "Alice", "alice.off-the.cloud", "pub-1", ""); err != nil {
+		t.Fatalf("NewNotification: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestListNotificationsOrdersByDateDesc(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	now := time.Now()
+	mock.ExpectQuery("select `uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `pub_uuid`, `comment_uuid`, `acknowledged` from `notifications` order by `dt` desc limit \\?").
+		WithArgs(50).
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged"}).
+			AddRow("n1", now, "LikePublication", "Alice", "alice.off-the.cloud", "pub-1", nil, false))
+
+	d := NewWithDB(db)
+	notifications, err := d.ListNotifications(50)
+	if err != nil {
+		t.Fatalf("ListNotifications: %v", err)
+	}
+	if len(notifications) != 1 || notifications[0].Uuid != "n1" || notifications[0].PubUuid != "pub-1" || notifications[0].CommentUuid != "" {
+		t.Fatalf("unexpected notifications: %+v", notifications)
+	}
+	if notifications[0].Type != pb.NotificationType_NotificationLikePublication {
+		t.Errorf("unexpected type: %v", notifications[0].Type)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestUnacknowledgedNotificationCount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select count\\(\\*\\) from `notifications` where `acknowledged` = 0").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+
+	d := NewWithDB(db)
+	count, err := d.UnacknowledgedNotificationCount()
+	if err != nil {
+		t.Fatalf("UnacknowledgedNotificationCount: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("unexpected count: %d", count)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestMarkAllNotificationsAcknowledged(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `notifications` set `acknowledged` = 1 where `acknowledged` = 0").
+		WillReturnResult(sqlmock.NewResult(0, 3))
+
+	d := NewWithDB(db)
+	if err := d.MarkAllNotificationsAcknowledged(); err != nil {
+		t.Fatalf("MarkAllNotificationsAcknowledged: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestGetSocialPublicationByUUIDOwnPost(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	now := time.Now()
+	mock.ExpectQuery("select `friend_domain`, `uuid`, `dt`, `text`, `own_publication`, `likes` from `social_publications` where `uuid` = \\?").
+		WithArgs("pub-1").
+		WillReturnRows(sqlmock.NewRows([]string{"friend_domain", "uuid", "dt", "text", "own_publication", "likes"}).
+			AddRow("", "pub-1", now, "hello", true, 2))
+	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `size` from `social_publications_files` where `uuid` = \\? order by `pos`").
+		WithArgs("pub-1").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "size"}))
+	mock.ExpectQuery("select 1 from `social_publication_likes` where `pub_uuid` = \\? and `friend_domain` = \\? limit 1").
+		WithArgs("pub-1", "me.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}))
+
+	d := NewWithDB(db)
+	pub, err := d.GetSocialPublicationByUUID("pub-1", "Owner", "bio", nil, "me.off-the.cloud")
+	if err != nil {
+		t.Fatalf("GetSocialPublicationByUUID: %v", err)
+	}
+	if pub.Uuid != "pub-1" || !pub.Own || pub.Publisher.Name != "Owner" {
+		t.Fatalf("unexpected publication: %+v", pub)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
 	}
 }

@@ -320,6 +320,36 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 	return
 }
 
+// GetPublication (issue #78) is GetPublications' single-post equivalent -
+// tapping a notification for a post outside whatever page of the feed
+// happens to be loaded needs to fetch just that one directly. Populates
+// thumbnails/comments the same way GetPublications does for its list.
+func (sc *Social) GetPublication(pr *profile.Profile, pubUuid string) (pub *pb.SocialPublication, err error) {
+	pub, err = sc.dao.GetSocialPublicationByUUID(pubUuid, pr.Name, pr.Text, pr.Image, pr.Domain)
+	if err != nil {
+		return nil, err
+	}
+
+	goodFiles := make([]*pb.File, 0, len(pub.Files))
+	for _, file := range pub.Files {
+		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
+		if readErr != nil {
+			log.Error("skipping missing/corrupted thumbnail for publication", pub.Uuid, "hash", file.Hash, ":", readErr)
+			continue
+		}
+		file.Content = content
+		goodFiles = append(goodFiles, file)
+	}
+	pub.Files = goodFiles
+
+	pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain)
+	if err != nil {
+		return nil, err
+	}
+
+	return pub, nil
+}
+
 // cDefaultFriendTLD is used when [otc] friend-domain-tld isn't set in
 // config, so existing installs keep working unchanged.
 const cDefaultFriendTLD = "off-the.cloud"
@@ -482,18 +512,23 @@ func (fr *friendship) updateFriendshipStatus() (err error) {
 	status := resp.RespFriendshipStatus.Status
 	log.Debug("Remote friendship status:", fr.data.OriginProfile.Domain, status)
 
-	// Issue #43 follow-up: notify exactly on the Pending -> Accepted
-	// transition, comparing against fr.data.Status as loaded at the top of
-	// this sync cycle (before ChangeFriendStatus below updates it) - this
-	// runs on every sync for every friendship we sent the request for, so
-	// without this comparison an already-accepted friendship would renotify
-	// every ~2 minutes forever.
-	if fr.sc.push != nil && fr.data.Status == pb.FriendShipStatus_Pending && status == pb.FriendShipStatus_Accepted {
+	// Issue #43 follow-up (push) / #78 (in-app notification): notify exactly
+	// on the Pending -> Accepted transition, comparing against fr.data.
+	// Status as loaded at the top of this sync cycle (before ChangeFriendStatus
+	// below updates it) - this runs on every sync for every friendship we
+	// sent the request for, so without this comparison an already-accepted
+	// friendship would renotify every ~2 minutes forever.
+	if fr.data.Status == pb.FriendShipStatus_Pending && status == pb.FriendShipStatus_Accepted {
 		friendName := fr.data.OriginProfile.Name
 		if friendName == "" {
 			friendName = fr.data.OriginProfile.Domain
 		}
-		fr.sc.push.NotifyFriendshipAccepted(friendName)
+		if err := fr.dao.NewNotification(pb.NotificationType_NotificationFriendAccepted, friendName, fr.data.OriginProfile.Domain, "", ""); err != nil {
+			log.Error("could not record notification:", err)
+		}
+		if fr.sc.push != nil {
+			fr.sc.push.NotifyFriendshipAccepted(friendName)
+		}
 	}
 
 	return fr.dao.ChangeFriendStatus(fr.data.OriginProfile.Domain, status)
@@ -635,14 +670,16 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 // one of the device owner's own posts - like/comment events arriving here
 // can just as easily be about some other friend's post this device also
 // has a cached copy of, which isn't the owner's business to be notified
-// about.
-func (fr *friendship) notifyIfOwnPublication(pubUuid, action string) {
-	if fr.sc.push == nil {
-		return
-	}
+// about. Records a row in the in-app notification timeline (issue #78)
+// unconditionally once ownership is confirmed, then sends a push too if
+// one is configured - push is optional at runtime (see push.Push's own
+// doc comments), the in-app bell isn't. commentUuid is only set for a new-
+// comment notification (so the client can additionally highlight that
+// specific comment once the post is open); pass "" for a plain like.
+func (fr *friendship) notifyIfOwnPublication(pubUuid, commentUuid, action string, notifType pb.NotificationType) {
 	own, err := fr.dao.IsOwnPublication(pubUuid)
 	if err != nil {
-		log.Error("could not check publication ownership for a push notification:", err)
+		log.Error("could not check publication ownership for a notification:", err)
 		return
 	}
 	if !own {
@@ -652,19 +689,23 @@ func (fr *friendship) notifyIfOwnPublication(pubUuid, action string) {
 	if friendName == "" {
 		friendName = fr.data.OriginProfile.Domain
 	}
-	fr.sc.push.Notify(friendName, action)
+	if err := fr.dao.NewNotification(notifType, friendName, fr.data.OriginProfile.Domain, pubUuid, commentUuid); err != nil {
+		log.Error("could not record notification:", err)
+	}
+	if fr.sc.push != nil {
+		fr.sc.push.Notify(friendName, action)
+	}
 }
 
 // notifyIfOwnComment is notifyIfOwnPublication's counterpart for a like on
 // a comment - only the device owner's own comments are worth notifying
-// about.
-func (fr *friendship) notifyIfOwnComment(commentUuid, action string) {
-	if fr.sc.push == nil {
-		return
-	}
+// about. Resolves the comment's own publication too (dao.GetCommentPubUuid)
+// so a click on this notification can always land on "the post", not just
+// know which comment was liked.
+func (fr *friendship) notifyIfOwnComment(commentUuid, action string, notifType pb.NotificationType) {
 	own, err := fr.dao.IsOwnComment(commentUuid)
 	if err != nil {
-		log.Error("could not check comment ownership for a push notification:", err)
+		log.Error("could not check comment ownership for a notification:", err)
 		return
 	}
 	if !own {
@@ -674,7 +715,16 @@ func (fr *friendship) notifyIfOwnComment(commentUuid, action string) {
 	if friendName == "" {
 		friendName = fr.data.OriginProfile.Domain
 	}
-	fr.sc.push.Notify(friendName, action)
+	pubUuid, err := fr.dao.GetCommentPubUuid(commentUuid)
+	if err != nil {
+		log.Error("could not resolve comment's publication for a notification:", err)
+	}
+	if err := fr.dao.NewNotification(notifType, friendName, fr.data.OriginProfile.Domain, pubUuid, commentUuid); err != nil {
+		log.Error("could not record notification:", err)
+	}
+	if fr.sc.push != nil {
+		fr.sc.push.Notify(friendName, action)
+	}
 }
 
 func (fr *friendship) updateFriendEvents() (err error) {
@@ -763,14 +813,14 @@ event_loop:
 			var like LikePublication
 			json.Unmarshal([]byte(event.Content), &like)
 			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain); err == nil {
-				fr.notifyIfOwnPublication(like.PubUUID, "liked your post")
+				fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
 			}
 
 		case LikeCommentEvent:
 			var like LikePublicationComment
 			json.Unmarshal([]byte(event.Content), &like)
 			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain); err == nil {
-				fr.notifyIfOwnComment(like.CommentUUID, "liked your comment")
+				fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
 			}
 
 		case CommentEvent:
@@ -779,7 +829,7 @@ event_loop:
 			// false: this is a friend's comment, synced in - see
 			// NewSocialComment for the device owner's own-comment path.
 			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false); err == nil {
-				fr.notifyIfOwnPublication(comment.PubUUID, "commented on your post")
+				fr.notifyIfOwnPublication(comment.PubUUID, comment.Uuid, "commented on your post", pb.NotificationType_NotificationNewComment)
 			}
 
 		case DelPublicationEvent:
@@ -955,11 +1005,14 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		if err = sc.dao.NewFriendship(extDomain, secret, name, profileText, image, false); err != nil {
 			return err
 		}
+		notifyName := name
+		if notifyName == "" {
+			notifyName = extDomain
+		}
+		if err := sc.dao.NewNotification(pb.NotificationType_NotificationFriendRequest, notifyName, extDomain, "", ""); err != nil {
+			log.Error("could not record notification:", err)
+		}
 		if sc.push != nil {
-			notifyName := name
-			if notifyName == "" {
-				notifyName = extDomain
-			}
 			sc.push.NotifyFriendshipRequest(notifyName)
 		}
 		return nil

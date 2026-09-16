@@ -241,6 +241,60 @@ public enum Msg_BridgeOnboardErrorType: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
+/// Issue #78: the owner-facing notification timeline (bell icon) - distinct
+/// from Event/Events above, which is an outbound write-log friends pull
+/// from to sync their own cached copy of this device's activity, not
+/// something the owner reads directly. This device has exactly one owner
+/// (see Profile), so there's no recipient to filter by - every row here is
+/// already "for" the one person who'll ever see it. Deliberately excludes
+/// "a friend posted something new" - Instagram's own activity tab treats
+/// that as ordinary feed content too, not a notification.
+public enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case notificationLikePublication // = 0
+  case notificationLikeComment // = 1
+  case notificationNewComment // = 2
+  case notificationFriendRequest // = 3
+  case notificationFriendAccepted // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .notificationLikePublication
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .notificationLikePublication
+    case 1: self = .notificationLikeComment
+    case 2: self = .notificationNewComment
+    case 3: self = .notificationFriendRequest
+    case 4: self = .notificationFriendAccepted
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .notificationLikePublication: return 0
+    case .notificationLikeComment: return 1
+    case .notificationNewComment: return 2
+    case .notificationFriendRequest: return 3
+    case .notificationFriendAccepted: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Msg_NotificationType] = [
+    .notificationLikePublication,
+    .notificationLikeComment,
+    .notificationNewComment,
+    .notificationFriendRequest,
+    .notificationFriendAccepted,
+  ]
+
+}
+
 public struct Msg_StatusErrors: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -510,9 +564,27 @@ public struct Msg_SearchPhotos: Sendable {
   /// now, not a separate People screen.
   public var personIds: [String] = []
 
+  /// Issue #77: the date scrubber's "jump to date". When set, the server
+  /// always starts a *fresh* search filtered to created <= before and
+  /// hands back a new token (any existing token is ignored) - rather than
+  /// a real seekable SQL cursor, this piggybacks the existing token
+  /// mechanism (files_manager.ImageSearch already computes the whole
+  /// filtered/sorted result set once per token) by treating a jump exactly
+  /// like a brand new search.
+  public var before: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _before ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_before = newValue}
+  }
+  /// Returns true if `before` has been explicitly set.
+  public var hasBefore: Bool {return self._before != nil}
+  /// Clears the value of `before`. Subsequent reads from it will return its default value.
+  public mutating func clearBefore() {self._before = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _before: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public struct Msg_ListOfFiles: Sendable {
@@ -523,6 +595,54 @@ public struct Msg_ListOfFiles: Sendable {
   public var files: [Msg_File] = []
 
   public var token: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Issue #77: per-month photo counts, used to size/position the gallery's
+/// date scrubber and to know how many placeholder squares to draw while
+/// dragging to a month that hasn't loaded yet. Same filter shape as
+/// SearchPhotos minus token/before - a scrubber query, not a page fetch.
+public struct Msg_ReqPhotoDateBuckets: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var tags: [String] = []
+
+  public var personIds: [String] = []
+
+  public var includeVideos: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_PhotoDateBucket: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// "2022-06"
+  public var month: String = String()
+
+  public var count: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespPhotoDateBuckets: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// ordered desc, newest first
+  public var buckets: [Msg_PhotoDateBucket] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1852,6 +1972,141 @@ public struct Msg_Events: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
+public struct Msg_Notification: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uuid: String = String()
+
+  public var dt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _dt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_dt = newValue}
+  }
+  /// Returns true if `dt` has been explicitly set.
+  public var hasDt: Bool {return self._dt != nil}
+  /// Clears the value of `dt`. Subsequent reads from it will return its default value.
+  public mutating func clearDt() {self._dt = nil}
+
+  public var type: Msg_NotificationType = .notificationLikePublication
+
+  public var actorName: String = String()
+
+  public var actorDomain: String = String()
+
+  /// pub_uuid is set for LikePublication/NewComment/LikeComment - even
+  /// LikeComment's own comment_uuid resolves to a pub_uuid (dao.
+  /// GetCommentPubUuid), so a click can always land on "the post" no
+  /// matter which of the three it is. Unset for FriendRequest/
+  /// FriendAccepted.
+  public var pubUuid: String = String()
+
+  /// comment_uuid is set only for LikeComment/NewComment, to additionally
+  /// scroll to/highlight the specific comment once the post is open.
+  public var commentUuid: String = String()
+
+  public var acknowledged: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _dt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public struct Msg_ReqListNotifications: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var limit: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespNotifications: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var notifications: [Msg_Notification] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_ReqGetNotificationCount: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespNotificationCount: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unacknowledgedCount: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Answers with the generic Ack.
+public struct Msg_ReqMarkNotificationsAcknowledged: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A single-post fetch, new for issue #78: tapping a notification for a
+/// post that isn't among whatever page of the feed happens to be loaded
+/// needs to be able to pull just that one post to open/scroll to.
+public struct Msg_ReqGetPublication: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var pubUuid: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespPublication: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var publication: Msg_SocialPublication {
+    get {return _publication ?? Msg_SocialPublication()}
+    set {_publication = newValue}
+  }
+  /// Returns true if `publication` has been explicitly set.
+  public var hasPublication: Bool {return self._publication != nil}
+  /// Clears the value of `publication`. Subsequent reads from it will return its default value.
+  public mutating func clearPublication() {self._publication = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _publication: Msg_SocialPublication? = nil
+}
+
 public struct Msg_GetFriendshipStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2361,6 +2616,48 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqStopReprocess(newValue)}
   }
 
+  /// Issue #77: date scrubber.
+  public var reqPhotoDateBuckets: Msg_ReqPhotoDateBuckets {
+    get {
+      if case .reqPhotoDateBuckets(let v)? = payload {return v}
+      return Msg_ReqPhotoDateBuckets()
+    }
+    set {payload = .reqPhotoDateBuckets(newValue)}
+  }
+
+  /// Issue #78: notifications.
+  public var reqListNotifications: Msg_ReqListNotifications {
+    get {
+      if case .reqListNotifications(let v)? = payload {return v}
+      return Msg_ReqListNotifications()
+    }
+    set {payload = .reqListNotifications(newValue)}
+  }
+
+  public var reqGetNotificationCount: Msg_ReqGetNotificationCount {
+    get {
+      if case .reqGetNotificationCount(let v)? = payload {return v}
+      return Msg_ReqGetNotificationCount()
+    }
+    set {payload = .reqGetNotificationCount(newValue)}
+  }
+
+  public var reqMarkNotificationsAcknowledged: Msg_ReqMarkNotificationsAcknowledged {
+    get {
+      if case .reqMarkNotificationsAcknowledged(let v)? = payload {return v}
+      return Msg_ReqMarkNotificationsAcknowledged()
+    }
+    set {payload = .reqMarkNotificationsAcknowledged(newValue)}
+  }
+
+  public var reqGetPublication: Msg_ReqGetPublication {
+    get {
+      if case .reqGetPublication(let v)? = payload {return v}
+      return Msg_ReqGetPublication()
+    }
+    set {payload = .reqGetPublication(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2425,6 +2722,13 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqStartReprocess(Msg_StartReprocess)
     case reqGetReprocessStatus(Msg_GetReprocessStatus)
     case reqStopReprocess(Msg_StopReprocess)
+    /// Issue #77: date scrubber.
+    case reqPhotoDateBuckets(Msg_ReqPhotoDateBuckets)
+    /// Issue #78: notifications.
+    case reqListNotifications(Msg_ReqListNotifications)
+    case reqGetNotificationCount(Msg_ReqGetNotificationCount)
+    case reqMarkNotificationsAcknowledged(Msg_ReqMarkNotificationsAcknowledged)
+    case reqGetPublication(Msg_ReqGetPublication)
 
   }
 
@@ -2676,6 +2980,41 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respReprocessStatus(newValue)}
   }
 
+  /// Issue #77: date scrubber.
+  public var respPhotoDateBuckets: Msg_RespPhotoDateBuckets {
+    get {
+      if case .respPhotoDateBuckets(let v)? = _storage._payload {return v}
+      return Msg_RespPhotoDateBuckets()
+    }
+    set {_uniqueStorage()._payload = .respPhotoDateBuckets(newValue)}
+  }
+
+  /// Issue #78: notifications. ReqMarkNotificationsAcknowledged answers
+  /// with the generic Ack above.
+  public var respNotifications: Msg_RespNotifications {
+    get {
+      if case .respNotifications(let v)? = _storage._payload {return v}
+      return Msg_RespNotifications()
+    }
+    set {_uniqueStorage()._payload = .respNotifications(newValue)}
+  }
+
+  public var respNotificationCount: Msg_RespNotificationCount {
+    get {
+      if case .respNotificationCount(let v)? = _storage._payload {return v}
+      return Msg_RespNotificationCount()
+    }
+    set {_uniqueStorage()._payload = .respNotificationCount(newValue)}
+  }
+
+  public var respPublication: Msg_RespPublication {
+    get {
+      if case .respPublication(let v)? = _storage._payload {return v}
+      return Msg_RespPublication()
+    }
+    set {_uniqueStorage()._payload = .respPublication(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2710,6 +3049,13 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     case respPeople(Msg_People)
     /// Issue #73.
     case respReprocessStatus(Msg_ReprocessStatus)
+    /// Issue #77: date scrubber.
+    case respPhotoDateBuckets(Msg_RespPhotoDateBuckets)
+    /// Issue #78: notifications. ReqMarkNotificationsAcknowledged answers
+    /// with the generic Ack above.
+    case respNotifications(Msg_RespNotifications)
+    case respNotificationCount(Msg_RespNotificationCount)
+    case respPublication(Msg_RespPublication)
 
   }
 
@@ -2740,6 +3086,10 @@ extension Msg_ActionType: SwiftProtobuf._ProtoNameProviding {
 
 extension Msg_BridgeOnboardErrorType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0generic_error\0\u{1}taken_domain\0\u{1}secret_missmatch\0\u{1}unknown_owner\0\u{1}pending_approval\0")
+}
+
+extension Msg_NotificationType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0")
 }
 
 extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -3240,7 +3590,7 @@ extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
 extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3252,12 +3602,17 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case 2: try { try decoder.decodeSingularStringField(value: &self.token) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.includeVideos) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.personIds) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._before) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.tags.isEmpty {
       try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 1)
     }
@@ -3270,6 +3625,9 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     if !self.personIds.isEmpty {
       try visitor.visitRepeatedStringField(value: self.personIds, fieldNumber: 4)
     }
+    try { if let v = self._before {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3278,6 +3636,7 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
     if lhs.token != rhs.token {return false}
     if lhs.includeVideos != rhs.includeVideos {return false}
     if lhs.personIds != rhs.personIds {return false}
+    if lhs._before != rhs._before {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3313,6 +3672,111 @@ extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   public static func ==(lhs: Msg_ListOfFiles, rhs: Msg_ListOfFiles) -> Bool {
     if lhs.files != rhs.files {return false}
     if lhs.token != rhs.token {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqPhotoDateBuckets"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{3}person_ids\0\u{3}include_videos\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.tags) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.personIds) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.includeVideos) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.tags.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 1)
+    }
+    if !self.personIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.personIds, fieldNumber: 2)
+    }
+    if self.includeVideos != false {
+      try visitor.visitSingularBoolField(value: self.includeVideos, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqPhotoDateBuckets, rhs: Msg_ReqPhotoDateBuckets) -> Bool {
+    if lhs.tags != rhs.tags {return false}
+    if lhs.personIds != rhs.personIds {return false}
+    if lhs.includeVideos != rhs.includeVideos {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_PhotoDateBucket: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PhotoDateBucket"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}month\0\u{1}count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.month) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.count) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.month.isEmpty {
+      try visitor.visitSingularStringField(value: self.month, fieldNumber: 1)
+    }
+    if self.count != 0 {
+      try visitor.visitSingularInt32Field(value: self.count, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_PhotoDateBucket, rhs: Msg_PhotoDateBucket) -> Bool {
+    if lhs.month != rhs.month {return false}
+    if lhs.count != rhs.count {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespPhotoDateBuckets"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}buckets\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.buckets) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.buckets.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.buckets, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespPhotoDateBuckets, rhs: Msg_RespPhotoDateBuckets) -> Bool {
+    if lhs.buckets != rhs.buckets {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5895,6 +6359,267 @@ extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   }
 }
 
+extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Notification"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._dt) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.type) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.actorName) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.actorDomain) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.pubUuid) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.commentUuid) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.acknowledged) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.uuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.uuid, fieldNumber: 1)
+    }
+    try { if let v = self._dt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.type != .notificationLikePublication {
+      try visitor.visitSingularEnumField(value: self.type, fieldNumber: 3)
+    }
+    if !self.actorName.isEmpty {
+      try visitor.visitSingularStringField(value: self.actorName, fieldNumber: 4)
+    }
+    if !self.actorDomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.actorDomain, fieldNumber: 5)
+    }
+    if !self.pubUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.pubUuid, fieldNumber: 6)
+    }
+    if !self.commentUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.commentUuid, fieldNumber: 7)
+    }
+    if self.acknowledged != false {
+      try visitor.visitSingularBoolField(value: self.acknowledged, fieldNumber: 8)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_Notification, rhs: Msg_Notification) -> Bool {
+    if lhs.uuid != rhs.uuid {return false}
+    if lhs._dt != rhs._dt {return false}
+    if lhs.type != rhs.type {return false}
+    if lhs.actorName != rhs.actorName {return false}
+    if lhs.actorDomain != rhs.actorDomain {return false}
+    if lhs.pubUuid != rhs.pubUuid {return false}
+    if lhs.commentUuid != rhs.commentUuid {return false}
+    if lhs.acknowledged != rhs.acknowledged {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqListNotifications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqListNotifications"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.limit != 0 {
+      try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqListNotifications, rhs: Msg_ReqListNotifications) -> Bool {
+    if lhs.limit != rhs.limit {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespNotifications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespNotifications"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}notifications\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.notifications) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.notifications.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.notifications, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespNotifications, rhs: Msg_RespNotifications) -> Bool {
+    if lhs.notifications != rhs.notifications {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqGetNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqGetNotificationCount"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqGetNotificationCount, rhs: Msg_ReqGetNotificationCount) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespNotificationCount"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}unacknowledged_count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.unacknowledgedCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.unacknowledgedCount != 0 {
+      try visitor.visitSingularInt32Field(value: self.unacknowledgedCount, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespNotificationCount, rhs: Msg_RespNotificationCount) -> Bool {
+    if lhs.unacknowledgedCount != rhs.unacknowledgedCount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqMarkNotificationsAcknowledged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqMarkNotificationsAcknowledged"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqMarkNotificationsAcknowledged, rhs: Msg_ReqMarkNotificationsAcknowledged) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqGetPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqGetPublication"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.pubUuid) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.pubUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.pubUuid, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqGetPublication, rhs: Msg_ReqGetPublication) -> Bool {
+    if lhs.pubUuid != rhs.pubUuid {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespPublication"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}publication\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._publication) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._publication {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespPublication, rhs: Msg_RespPublication) -> Bool {
+    if lhs._publication != rhs._publication {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_GetFriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFriendshipStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0")
@@ -5997,7 +6722,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -6747,6 +7472,71 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqStopReprocess(v)
         }
       }()
+      case 69: try {
+        var v: Msg_ReqPhotoDateBuckets?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqPhotoDateBuckets(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqPhotoDateBuckets(v)
+        }
+      }()
+      case 70: try {
+        var v: Msg_ReqListNotifications?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListNotifications(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListNotifications(v)
+        }
+      }()
+      case 71: try {
+        var v: Msg_ReqGetNotificationCount?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetNotificationCount(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetNotificationCount(v)
+        }
+      }()
+      case 72: try {
+        var v: Msg_ReqMarkNotificationsAcknowledged?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqMarkNotificationsAcknowledged(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqMarkNotificationsAcknowledged(v)
+        }
+      }()
+      case 73: try {
+        var v: Msg_ReqGetPublication?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetPublication(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetPublication(v)
+        }
+      }()
       default: break
       }
     }
@@ -6989,6 +7779,26 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqStopReprocess(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 68)
     }()
+    case .reqPhotoDateBuckets?: try {
+      guard case .reqPhotoDateBuckets(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 69)
+    }()
+    case .reqListNotifications?: try {
+      guard case .reqListNotifications(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 70)
+    }()
+    case .reqGetNotificationCount?: try {
+      guard case .reqGetNotificationCount(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 71)
+    }()
+    case .reqMarkNotificationsAcknowledged?: try {
+      guard case .reqMarkNotificationsAcknowledged(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 72)
+    }()
+    case .reqGetPublication?: try {
+      guard case .reqGetPublication(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 73)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -7004,7 +7814,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -7397,6 +8207,58 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
             _storage._payload = .respReprocessStatus(v)
           }
         }()
+        case 37: try {
+          var v: Msg_RespPhotoDateBuckets?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respPhotoDateBuckets(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respPhotoDateBuckets(v)
+          }
+        }()
+        case 38: try {
+          var v: Msg_RespNotifications?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respNotifications(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respNotifications(v)
+          }
+        }()
+        case 39: try {
+          var v: Msg_RespNotificationCount?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respNotificationCount(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respNotificationCount(v)
+          }
+        }()
+        case 40: try {
+          var v: Msg_RespPublication?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respPublication(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respPublication(v)
+          }
+        }()
         default: break
         }
       }
@@ -7526,6 +8388,22 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case .respReprocessStatus?: try {
         guard case .respReprocessStatus(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 36)
+      }()
+      case .respPhotoDateBuckets?: try {
+        guard case .respPhotoDateBuckets(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 37)
+      }()
+      case .respNotifications?: try {
+        guard case .respNotifications(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 38)
+      }()
+      case .respNotificationCount?: try {
+        guard case .respNotificationCount(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 39)
+      }()
+      case .respPublication?: try {
+        guard case .respPublication(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 40)
       }()
       case nil: break
       }

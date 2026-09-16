@@ -144,11 +144,38 @@ message SearchPhotos {
   // not two separate searches. Lives on the Photo Gallery's own search bar
   // now, not a separate People screen.
   repeated string person_ids = 4;
+  // Issue #77: the date scrubber's "jump to date". When set, the server
+  // always starts a *fresh* search filtered to created <= before and
+  // hands back a new token (any existing token is ignored) - rather than
+  // a real seekable SQL cursor, this piggybacks the existing token
+  // mechanism (files_manager.ImageSearch already computes the whole
+  // filtered/sorted result set once per token) by treating a jump exactly
+  // like a brand new search.
+  google.protobuf.Timestamp before = 5;
 }
 
 message ListOfFiles {
   repeated File files = 1;
   string token = 2;
+}
+
+// Issue #77: per-month photo counts, used to size/position the gallery's
+// date scrubber and to know how many placeholder squares to draw while
+// dragging to a month that hasn't loaded yet. Same filter shape as
+// SearchPhotos minus token/before - a scrubber query, not a page fetch.
+message ReqPhotoDateBuckets {
+  repeated string tags = 1;
+  repeated string person_ids = 2;
+  bool include_videos = 3;
+}
+
+message PhotoDateBucket {
+  string month = 1; // "2022-06"
+  int32 count = 2;
+}
+
+message RespPhotoDateBuckets {
+  repeated PhotoDateBucket buckets = 1; // ordered desc, newest first
 }
 
 message File {
@@ -688,6 +715,70 @@ message Events {
   google.protobuf.Timestamp since = 2;
 }
 
+// Issue #78: the owner-facing notification timeline (bell icon) - distinct
+// from Event/Events above, which is an outbound write-log friends pull
+// from to sync their own cached copy of this device's activity, not
+// something the owner reads directly. This device has exactly one owner
+// (see Profile), so there's no recipient to filter by - every row here is
+// already "for" the one person who'll ever see it. Deliberately excludes
+// "a friend posted something new" - Instagram's own activity tab treats
+// that as ordinary feed content too, not a notification.
+enum NotificationType {
+  NotificationLikePublication = 0;
+  NotificationLikeComment = 1;
+  NotificationNewComment = 2;
+  NotificationFriendRequest = 3;
+  NotificationFriendAccepted = 4;
+}
+
+message Notification {
+  string uuid = 1;
+  google.protobuf.Timestamp dt = 2;
+  NotificationType type = 3;
+  string actor_name = 4;
+  string actor_domain = 5;
+  // pub_uuid is set for LikePublication/NewComment/LikeComment - even
+  // LikeComment's own comment_uuid resolves to a pub_uuid (dao.
+  // GetCommentPubUuid), so a click can always land on "the post" no
+  // matter which of the three it is. Unset for FriendRequest/
+  // FriendAccepted.
+  string pub_uuid = 6;
+  // comment_uuid is set only for LikeComment/NewComment, to additionally
+  // scroll to/highlight the specific comment once the post is open.
+  string comment_uuid = 7;
+  bool acknowledged = 8;
+}
+
+message ReqListNotifications {
+  int32 limit = 1;
+}
+
+message RespNotifications {
+  repeated Notification notifications = 1;
+}
+
+message ReqGetNotificationCount {
+}
+
+message RespNotificationCount {
+  int32 unacknowledged_count = 1;
+}
+
+// Answers with the generic Ack.
+message ReqMarkNotificationsAcknowledged {
+}
+
+// A single-post fetch, new for issue #78: tapping a notification for a
+// post that isn't among whatever page of the feed happens to be loaded
+// needs to be able to pull just that one post to open/scroll to.
+message ReqGetPublication {
+  string pub_uuid = 1;
+}
+
+message RespPublication {
+  SocialPublication publication = 1;
+}
+
 message GetFriendshipStatus {
   string domain = 1;
   string secret = 2;
@@ -769,6 +860,13 @@ message ReqEnvelope {
     StartReprocess req_start_reprocess = 66;
     GetReprocessStatus req_get_reprocess_status = 67;
     StopReprocess req_stop_reprocess = 68;
+    // Issue #77: date scrubber.
+    ReqPhotoDateBuckets req_photo_date_buckets = 69;
+    // Issue #78: notifications.
+    ReqListNotifications req_list_notifications = 70;
+    ReqGetNotificationCount req_get_notification_count = 71;
+    ReqMarkNotificationsAcknowledged req_mark_notifications_acknowledged = 72;
+    ReqGetPublication req_get_publication = 73;
   }
 }
 
@@ -809,5 +907,12 @@ message RespEnvelope {
     People resp_people = 35;
     // Issue #73.
     ReprocessStatus resp_reprocess_status = 36;
+    // Issue #77: date scrubber.
+    RespPhotoDateBuckets resp_photo_date_buckets = 37;
+    // Issue #78: notifications. ReqMarkNotificationsAcknowledged answers
+    // with the generic Ack above.
+    RespNotifications resp_notifications = 38;
+    RespNotificationCount resp_notification_count = 39;
+    RespPublication resp_publication = 40;
   }
 }

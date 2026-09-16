@@ -14,6 +14,7 @@ import ProfileCard from "./components/ProfileCard";
 import FriendshipsManager from "./components/FriendshipsManager";
 import TopTabs from "./components/TopTabs";
 import type { TabKey } from "./components/TopTabs";
+import NotificationsBell from "./components/NotificationsBell";
 import "./components/StatusWidget.css";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
@@ -34,6 +35,13 @@ function App() {
   const [tab, setTab] = useState<TabKey>(() => loadLastTab() ?? "Profile");
   const [authenticated, setAuthenticated] = useState(false);
   const [sp] = useSearchParams();
+
+  // Issue #78: a tapped notification names a post (and maybe a comment on
+  // it) for Social to open/scroll to. Lives here rather than inside
+  // Social itself since the bell that sets it is a header-level element,
+  // outside any single tab's own view.
+  const [openPubUuid, setOpenPubUuid] = useState<string | null>(null);
+  const [openCommentUuid, setOpenCommentUuid] = useState<string | null>(null);
 
   let protoWs = 'ws://';
   if (window.location.protocol === 'https:') {
@@ -187,7 +195,18 @@ function App() {
             <StatusWidget />
           </div>
         }
-        {!authenticated && 
+        {authenticated && (
+          <NotificationsBell
+            authenticated={authenticated}
+            onOpenPost={(pubUuid, commentUuid) => {
+              setOpenPubUuid(pubUuid);
+              setOpenCommentUuid(commentUuid);
+              setTab("Social");
+            }}
+            onOpenFriendRequests={() => setTab("Profile")}
+          />
+        )}
+        {!authenticated &&
           <button className="top_sign_in" onClick={() => setTab("SignIn")}>
             Sign In
           </button>
@@ -196,7 +215,14 @@ function App() {
       <main>
         {tab === "Profile" && authenticated && <FriendshipsManager />}
         {tab === "Profile" && !authenticated && <ProfileCard authenticated={authenticated} />}
-        {tab === "Social" && <Social authenticated={authenticated} />}
+        {tab === "Social" && (
+          <Social
+            authenticated={authenticated}
+            openPubUuid={openPubUuid}
+            openCommentUuid={openCommentUuid}
+            onOpened={() => { setOpenPubUuid(null); setOpenCommentUuid(null); }}
+          />
+        )}
         {tab === "SignIn" && <SignIn
           onAuth={async (key) => await useWS.sendAuth(key)}
           onDone={handleSignedIn}

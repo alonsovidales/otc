@@ -261,6 +261,22 @@ CREATE TABLE IF NOT EXISTS reprocess_state (
 ) ENGINE=InnoDB;
 INSERT INTO reprocess_state (id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM reprocess_state WHERE id = 1);
 "
+# Issue #78: owner-facing notification timeline (bell icon).
+mysql otc -e "
+CREATE TABLE IF NOT EXISTS notifications (
+  uuid VARCHAR(64) NOT NULL,
+  dt DATETIME NOT NULL,
+  type VARCHAR(32) NOT NULL,
+  actor_name VARCHAR(255) NOT NULL,
+  actor_domain VARCHAR(128) NOT NULL,
+  pub_uuid VARCHAR(64) DEFAULT NULL,
+  comment_uuid VARCHAR(64) DEFAULT NULL,
+  acknowledged TINYINT(1) NOT NULL DEFAULT 0,
+  UNIQUE (uuid),
+  INDEX USING BTREE (acknowledged),
+  INDEX USING BTREE (dt)
+) ENGINE=InnoDB;
+"
 mysql otc -e "
 INSERT INTO settings (device_uuid, subdomain, bridge_secret)
 SELECT '${DEVICE_UUID}', '${SUBDOMAIN}.${BRIDGE_ADDR}', '${BRIDGE_SECRET}'

@@ -212,6 +212,35 @@ create table events
   INDEX USING BTREE (`dt`)
 ) engine=InnoDB;
 
+-- Issue #78: the owner-facing notification timeline (bell icon) - distinct
+-- from `events` above, which is an outbound write-log friends pull from to
+-- sync their cached copy of this device's activity, not something the
+-- owner ever reads directly. This device has exactly one owner (see
+-- `profile`), so there's no recipient/user column to filter by - every row
+-- here is already "for" the one person who'll ever see it.
+create table notifications
+(
+  `uuid` varchar(64) not null,
+  `dt` datetime not null,
+  -- LikePublication|LikeComment|NewComment|FriendRequest|FriendAccepted
+  `type` varchar(32) not null,
+  `actor_name` varchar(255) not null,
+  `actor_domain` varchar(128) not null,
+  -- set for LikePublication/NewComment/LikeComment (LikeComment's own
+  -- comment_uuid resolves to a pub_uuid too, via dao.GetCommentPubUuid, so
+  -- a click can always land on "the post" regardless of which of these
+  -- three it is); null for FriendRequest/FriendAccepted.
+  `pub_uuid` varchar(64) default null,
+  -- set only for LikeComment/NewComment, to additionally scroll to/
+  -- highlight the specific comment once the post is open.
+  `comment_uuid` varchar(64) default null,
+  `acknowledged` tinyint(1) not null default 0,
+
+  unique(`uuid`),
+  INDEX USING BTREE (`acknowledged`),
+  INDEX USING BTREE (`dt`)
+) engine=InnoDB;
+
 -- Issue #43: push notifications when a friend posts.
 create table web_push_subscriptions
 (

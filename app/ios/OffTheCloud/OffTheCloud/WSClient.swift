@@ -109,13 +109,30 @@ actor WSClient {
             throw NSError(domain: "ws", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not connected"])
         }
         var env = Msg_ReqEnvelope()
-        env.id = nextId; nextId += 1
+        let id = nextId; nextId += 1
+        env.id = id
         build(&env)
+        // Re-assert the id after build() rather than trusting it survived:
+        // this is issue #77's actual "stuck loading" bug. Most call sites'
+        // closures do `var req = ReqEnvelope(); ...; e = req`, replacing
+        // the whole envelope - id included - with a fresh one whose id
+        // defaults to 0, instead of mutating the passed-in `e` in place.
+        // Every request built that way was silently going out on the wire
+        // as id=0, so any two of them in flight at once collided on the
+        // same waiters[0] slot: the second registration overwrote the
+        // first's, and when the first request's actual response
+        // eventually arrived, waiters[0] pointed at someone else's
+        // callback, leaving the first one's continuation waiting forever.
+        // Confirmed live via the Swift runtime's own "leaked its
+        // continuation" diagnostic and by literally logging "request
+        // id=0" for nearly every request. Restoring the real id here
+        // fixes every call site at once, rather than relying on dozens of
+        // them to each preserve it correctly on their own.
+        env.id = id
 
         //print("Sending request: \(env)")
 
         let data = try env.serializedData()
-        let id = env.id
         return try await withCheckedThrowingContinuation { cont in
             self.waiters[id] = { result in cont.resume(with: result) }
             self.task?.send(.data(data)) { error in

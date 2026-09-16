@@ -18,7 +18,12 @@
 
 .sv-feed { margin: auto; display: flex; flex-direction: column; gap: 16px; }
 .sv-loading-more { text-align: center; color: var(--mist-dim); padding: 12px 0; }
-.sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); margin: auto; }
+.sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); margin: auto; transition: border-color 0.4s ease, box-shadow 0.4s ease; }
+/* Issue #78: the brief "here's what you tapped" flash after opening a
+   post/comment from a notification - fades back out via the transition
+   above/below once Social.tsx clears the highlight state. */
+.sv-highlight { border-color: var(--gold) !important; box-shadow: 0 0 0 2px var(--gold); }
+.sv-comment.sv-highlight { border-radius: 6px; padding: 2px 4px; transition: background-color 0.4s ease; background: rgba(255, 200, 87, 0.15); }
 .sv-post-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
 .sv-avatar { width: 28px; height: 28px; display: grid; place-items: center; background: var(--ink-2); border-radius: 50%; }
 .sv-pub-meta { flex: 1; display: flex; flex-direction: column; }

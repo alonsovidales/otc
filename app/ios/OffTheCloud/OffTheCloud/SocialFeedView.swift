@@ -306,10 +306,44 @@ final class SocialFeedViewModel: ObservableObject {
         } catch { /* leave the comment in place; user can retry */ }
     }
 
+    // Issue #78: opening a post from a tapped notification. Fetches it
+    // directly via reqGetPublication if it isn't already among whatever
+    // page of the feed happens to be loaded, rather than paging through
+    // everything since it, then publishes scrollTargetPub for the view's
+    // ScrollViewReader to act on. highlightPub/highlightComment drive a
+    // brief "here's what you tapped" flash, cleared by the view after a
+    // couple of seconds.
+    @Published var scrollTargetPub: String?
+    @Published var highlightPub: String?
+    @Published var highlightComment: String?
+
+    func openPost(pubUuid: String, commentUuid: String?) async {
+        if !posts.contains(where: { $0.uuid == pubUuid }) {
+            var req = Msg_ReqGetPublication()
+            req.pubUuid = pubUuid
+            guard let resp = try? await ws.request({ e in
+                var env = ReqEnvelope()
+                env.payload = .reqGetPublication(req)
+                e = env
+            }) else { return }
+            if case .respPublication(let r) = resp.payload, r.hasPublication,
+               !posts.contains(where: { $0.uuid == r.publication.uuid }) {
+                posts.insert(r.publication, at: 0)
+            }
+        }
+        scrollTargetPub = pubUuid
+        highlightPub = pubUuid
+        highlightComment = commentUuid
+    }
 }
 
 struct SocialFeedView: View {
     @StateObject private var vm = SocialFeedViewModel()
+    // Issue #78: a tapped notification lands here via this shared model
+    // (environmentObject-injected from RootView, same wiring as
+    // UploadModel) rather than a prop, since the bell that sets it lives
+    // outside this tab's own view entirely.
+    @EnvironmentObject var notifications: NotificationsModel
 
     // Issue #32: "+" opens a dedicated compose screen (tag filter + tap to
     // select + a single Publish action) — not the Images tab reused.
@@ -331,34 +365,54 @@ struct SocialFeedView: View {
                 } else if vm.posts.isEmpty {
                     ContentUnavailableView("No posts yet", systemImage: "photo.on.rectangle.angled")
                 } else {
-                    ScrollView {
-                        // No outer padding and no per-post spacing (issue
-                        // #12/Instagram-style ask): a horizontal inset here
-                        // would margin the images too, and this app already
-                        // separates posts with a Divider instead of gaps.
-                        LazyVStack(spacing: 0) {
-                            ForEach(vm.posts, id: \.uuid) { post in
-                                PostCard(
-                                    post: post,
-                                    onLikePub: { Task { await vm.likePublication(post.uuid) } },
-                                    onLikeComment: { c in Task { await vm.likeComment(c) } },
-                                    onComment: { text in Task { await vm.addComment(pubUuid: post.uuid, text: text) } },
-                                    fetchPublicationLikers: { await vm.fetchPublicationLikers($0) },
-                                    fetchCommentLikers: { await vm.fetchCommentLikers($0) },
-                                    onDeletePub: { Task { await vm.deletePublication(post.uuid) } },
-                                    onDeleteComment: { c in Task { await vm.deleteComment(c) } }
-                                )
-                                .task { await vm.loadMoreIfNeeded(current: post) }
-                                Divider()
+                    // Issue #78: wrapped in ScrollViewReader (new to this
+                    // file) purely so a tapped notification can scroll to
+                    // the post it names - nothing here needed programmatic
+                    // scrolling before.
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            // No outer padding and no per-post spacing (issue
+                            // #12/Instagram-style ask): a horizontal inset here
+                            // would margin the images too, and this app already
+                            // separates posts with a Divider instead of gaps.
+                            LazyVStack(spacing: 0) {
+                                ForEach(vm.posts, id: \.uuid) { post in
+                                    PostCard(
+                                        post: post,
+                                        isHighlighted: post.uuid == vm.highlightPub,
+                                        highlightCommentUuid: post.uuid == vm.highlightPub ? vm.highlightComment : nil,
+                                        onLikePub: { Task { await vm.likePublication(post.uuid) } },
+                                        onLikeComment: { c in Task { await vm.likeComment(c) } },
+                                        onComment: { text in Task { await vm.addComment(pubUuid: post.uuid, text: text) } },
+                                        fetchPublicationLikers: { await vm.fetchPublicationLikers($0) },
+                                        fetchCommentLikers: { await vm.fetchCommentLikers($0) },
+                                        onDeletePub: { Task { await vm.deletePublication(post.uuid) } },
+                                        onDeleteComment: { c in Task { await vm.deleteComment(c) } }
+                                    )
+                                    .id(post.uuid)
+                                    .task { await vm.loadMoreIfNeeded(current: post) }
+                                    Divider()
+                                }
+                                if vm.loadingMore {
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 16)
+                                }
                             }
-                            if vm.loadingMore {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
+                        }
+                        .refreshable { await vm.loadFeed() }
+                        .onChange(of: vm.scrollTargetPub) { _, target in
+                            guard let target else { return }
+                            withAnimation { proxy.scrollTo(target, anchor: .top) }
+                            vm.scrollTargetPub = nil
+                            // Brief "here's what you tapped" flash, same
+                            // timing as the web version's own fade-out.
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                                vm.highlightPub = nil
+                                vm.highlightComment = nil
                             }
                         }
                     }
-                    .refreshable { await vm.loadFeed() }
                 }
             }
             // No nav title here (issue #12): the tab bar already labels this
@@ -379,11 +433,24 @@ struct SocialFeedView: View {
                 Task { await vm.loadFeed() }
             }
         }
+        // Issue #78: a tapped like/comment notification. Friend-request
+        // notifications are handled by MainView switching tabs directly -
+        // this view only cares about the .post case.
+        .onChange(of: notifications.pendingDeepLink) { _, link in
+            guard case .post(let pubUuid, let commentUuid) = link else { return }
+            Task { await vm.openPost(pubUuid: pubUuid, commentUuid: commentUuid) }
+            notifications.pendingDeepLink = nil
+        }
     }
 }
 
 private struct PostCard: View {
     let post: Msg_SocialPublication
+    // Issue #78: brief "here's what you tapped" flash after opening this
+    // post/comment from a notification - cleared by the parent view after
+    // a couple of seconds, same as the web version's own fade-out.
+    var isHighlighted: Bool = false
+    var highlightCommentUuid: String? = nil
     let onLikePub: () -> Void
     let onLikeComment: (String) -> Void
     let onComment: (String) -> Void
@@ -596,6 +663,11 @@ private struct PostCard: View {
                             }
                         }
                         .font(.caption)
+                        .padding(4)
+                        .background(
+                            c.commentUuid == highlightCommentUuid ? Color.yellow.opacity(0.18) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
                     }
                 }
                 .padding(.horizontal, sidePadding)
@@ -615,6 +687,10 @@ private struct PostCard: View {
             .padding(.horizontal, sidePadding)
             .padding(.bottom, 10)
         }
+        // Issue #78: the brief highlight after opening this post from a
+        // notification.
+        .background(isHighlighted ? Color.yellow.opacity(0.12) : Color.clear)
+        .animation(.easeInOut(duration: 0.4), value: isHighlighted)
         .sheet(item: $likersTarget) { target in
             LikersListView(target: target, fetchPublicationLikers: fetchPublicationLikers, fetchCommentLikers: fetchCommentLikers)
         }
