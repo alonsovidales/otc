@@ -152,6 +152,11 @@ create table social_friendship
   `secret` varchar(128),
   `sent` boolean,
   `latest_sync` datetime null,
+  -- Issue #92: false until this friend's entire pre-existing backlog has
+  -- been replayed once (see social.go's updateFriendEvents) - otherwise
+  -- accepting a long-time-active friend floods the owner with a
+  -- notification for every historical like/comment/post at once.
+  `notifications_started` tinyint(1) not null default 0,
 
   primary key (`domain`),
   key (`domain`)
@@ -239,6 +244,50 @@ create table notifications
   unique(`uuid`),
   INDEX USING BTREE (`acknowledged`),
   INDEX USING BTREE (`dt`)
+) engine=InnoDB;
+
+-- Issue #82: multiple OTC "users" on one device - each one a fully
+-- separate `otc` process (own port, own `otc_<uuid>` database, own
+-- storage directory), spawned/monitored by the primary process's
+-- supervisor (see supervisor/supervisor.go). This table only ever holds
+-- real rows in the PRIMARY database - a per-user database gets this same
+-- schema loaded too (see db/schema.go's embedded copy, used to provision
+-- a new user's database), but its own copy just sits empty/unused, since
+-- only the primary instance's Settings screen ever manages users (see
+-- ReqGetInstanceRole).
+create table users
+(
+  `uuid` varchar(64) not null,
+  `username` varchar(64) not null,
+  `port` int not null,
+  `db_name` varchar(64) not null,
+  -- Password for the dedicated MySQL user provisioned alongside db_name
+  -- (see dao.ProvisionUserDatabase) - re-read on every respawn to
+  -- re-render that user's own ini identically (supervisor.renderUserConfig),
+  -- since the MySQL user's actual password never changes after creation.
+  -- Plaintext, same convention this codebase already uses for
+  -- bridge_secret/social_friendship.secret below - protected by DB access
+  -- control, not app-level encryption.
+  `db_pass` varchar(128) not null,
+  `storage_path` varchar(255) not null,
+  `subdomain` varchar(128) not null,
+  `bridge_secret` varchar(128) not null,
+  -- Shared local secret for this user's own /internal/metrics endpoint -
+  -- only the supervisor ever sends it (see api's metrics handler), never
+  -- exposed to any client.
+  `supervisor_token` varchar(128) not null,
+  -- Issue #89: deliberately no is_admin/promote column here - the
+  -- original device owner (whoever is logged into the primary instance)
+  -- is the only admin there will ever be; every other user is just a user.
+  -- The supervisor re-checks this before every respawn - deactivating a
+  -- user stops its crash-loop-retry cleanly without deleting its data,
+  -- unlike a full delete (which also drops the database and storage).
+  `active` tinyint(1) not null default 1,
+  `created` datetime not null,
+
+  unique (`uuid`),
+  unique (`username`),
+  unique (`port`)
 ) engine=InnoDB;
 
 -- Issue #43: push notifications when a friend posts.

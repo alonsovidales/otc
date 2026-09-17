@@ -907,6 +907,14 @@ public struct Msg_Friendship: Sendable {
   /// Clears the value of `latestSync`. Subsequent reads from it will return its default value.
   public mutating func clearLatestSync() {self._latestSync = nil}
 
+  /// Issue #92: false until this friend's entire backlog of pre-existing
+  /// events has been fully replayed at least once (see social.go's
+  /// updateFriendEvents) - accepting a long-time-active friend otherwise
+  /// floods the owner with a notification for every historical like/
+  /// comment/post all at once. Real-time events from this point on notify
+  /// normally; the one-time backlog catch-up never does.
+  public var notificationsStarted: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2133,6 +2141,176 @@ public struct Msg_RespPublication: Sendable {
   fileprivate var _publication: Msg_SocialPublication? = nil
 }
 
+/// Issue #82: multiple OTC "users" on one device, each a fully separate
+/// process/port/database/storage-directory, managed from the PRIMARY
+/// instance's Settings screen only (see ReqGetInstanceRole) - see
+/// supervisor/supervisor.go's doc comment for the full design. Issue #89:
+/// there is deliberately no is_admin/promote concept here - the original
+/// device owner (whoever is logged into the primary instance) is the only
+/// admin there will ever be; every other user is just a user.
+public struct Msg_User: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uuid: String = String()
+
+  public var username: String = String()
+
+  public var port: Int32 = 0
+
+  public var subdomain: String = String()
+
+  /// 5 was is_admin (issue #82) - removed by issue #89, left unused
+  /// rather than renumbering active/created after it.
+  public var active: Bool = false
+
+  public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_created = newValue}
+  }
+  /// Returns true if `created` has been explicitly set.
+  public var hasCreated: Bool {return self._created != nil}
+  /// Clears the value of `created`. Subsequent reads from it will return its default value.
+  public mutating func clearCreated() {self._created = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public struct Msg_ReqListUsers: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespUsers: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var users: [Msg_User] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// port is optional - omit it (0) to let the primary pick the next free
+/// one itself.
+public struct Msg_ReqCreateUser: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var username: String = String()
+
+  public var port: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// confirm_username must match username exactly - checked server-side too,
+/// never trusted from the client alone, since this deletes a whole
+/// database and storage directory.
+public struct Msg_ReqDeleteUser: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uuid: String = String()
+
+  public var confirmUsername: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Issue #90: enable/disable a user's access without deleting their
+/// database or storage - unlike ReqDeleteUser this is fully reversible.
+/// Disabling actually stops that user's running process immediately
+/// (supervisor.Stop), not just a flag flip that only takes effect next
+/// time it happens to restart; enabling spawns it again right away.
+/// Answers with the generic Ack.
+public struct Msg_ReqSetUserActive: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uuid: String = String()
+
+  public var active: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_ReqGetUserMetrics: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uuid: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespUserMetrics: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var storageMb: Double = 0
+
+  public var storagePct: Double = 0
+
+  public var activeConnections: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Lets a Settings screen know whether it's talking to the primary
+/// instance (and should render the Users section) or one of the spawned
+/// per-user instances (which never expose user management, even if a
+/// request reaches it directly - see websocket.go's guard on every other
+/// RPC above).
+public struct Msg_ReqGetInstanceRole: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespInstanceRole: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var isPrimary: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Msg_GetFriendshipStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2684,6 +2862,58 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetPublication(newValue)}
   }
 
+  /// Issue #82: multiple users on one device.
+  public var reqListUsers: Msg_ReqListUsers {
+    get {
+      if case .reqListUsers(let v)? = payload {return v}
+      return Msg_ReqListUsers()
+    }
+    set {payload = .reqListUsers(newValue)}
+  }
+
+  public var reqCreateUser: Msg_ReqCreateUser {
+    get {
+      if case .reqCreateUser(let v)? = payload {return v}
+      return Msg_ReqCreateUser()
+    }
+    set {payload = .reqCreateUser(newValue)}
+  }
+
+  public var reqDeleteUser: Msg_ReqDeleteUser {
+    get {
+      if case .reqDeleteUser(let v)? = payload {return v}
+      return Msg_ReqDeleteUser()
+    }
+    set {payload = .reqDeleteUser(newValue)}
+  }
+
+  /// 77 was ReqSetUserAdmin (issue #82) - removed by issue #89, left
+  /// unused rather than renumbering everything after it.
+  public var reqGetUserMetrics: Msg_ReqGetUserMetrics {
+    get {
+      if case .reqGetUserMetrics(let v)? = payload {return v}
+      return Msg_ReqGetUserMetrics()
+    }
+    set {payload = .reqGetUserMetrics(newValue)}
+  }
+
+  public var reqGetInstanceRole: Msg_ReqGetInstanceRole {
+    get {
+      if case .reqGetInstanceRole(let v)? = payload {return v}
+      return Msg_ReqGetInstanceRole()
+    }
+    set {payload = .reqGetInstanceRole(newValue)}
+  }
+
+  /// Issue #90.
+  public var reqSetUserActive: Msg_ReqSetUserActive {
+    get {
+      if case .reqSetUserActive(let v)? = payload {return v}
+      return Msg_ReqSetUserActive()
+    }
+    set {payload = .reqSetUserActive(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -2755,6 +2985,16 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqGetNotificationCount(Msg_ReqGetNotificationCount)
     case reqMarkNotificationsAcknowledged(Msg_ReqMarkNotificationsAcknowledged)
     case reqGetPublication(Msg_ReqGetPublication)
+    /// Issue #82: multiple users on one device.
+    case reqListUsers(Msg_ReqListUsers)
+    case reqCreateUser(Msg_ReqCreateUser)
+    case reqDeleteUser(Msg_ReqDeleteUser)
+    /// 77 was ReqSetUserAdmin (issue #82) - removed by issue #89, left
+    /// unused rather than renumbering everything after it.
+    case reqGetUserMetrics(Msg_ReqGetUserMetrics)
+    case reqGetInstanceRole(Msg_ReqGetInstanceRole)
+    /// Issue #90.
+    case reqSetUserActive(Msg_ReqSetUserActive)
 
   }
 
@@ -3041,6 +3281,32 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respPublication(newValue)}
   }
 
+  /// Issue #82: multiple users on one device. ReqDeleteUser answers
+  /// with the generic Ack above.
+  public var respUsers: Msg_RespUsers {
+    get {
+      if case .respUsers(let v)? = _storage._payload {return v}
+      return Msg_RespUsers()
+    }
+    set {_uniqueStorage()._payload = .respUsers(newValue)}
+  }
+
+  public var respUserMetrics: Msg_RespUserMetrics {
+    get {
+      if case .respUserMetrics(let v)? = _storage._payload {return v}
+      return Msg_RespUserMetrics()
+    }
+    set {_uniqueStorage()._payload = .respUserMetrics(newValue)}
+  }
+
+  public var respInstanceRole: Msg_RespInstanceRole {
+    get {
+      if case .respInstanceRole(let v)? = _storage._payload {return v}
+      return Msg_RespInstanceRole()
+    }
+    set {_uniqueStorage()._payload = .respInstanceRole(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -3082,6 +3348,11 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     case respNotifications(Msg_RespNotifications)
     case respNotificationCount(Msg_RespNotificationCount)
     case respPublication(Msg_RespPublication)
+    /// Issue #82: multiple users on one device. ReqDeleteUser answers
+    /// with the generic Ack above.
+    case respUsers(Msg_RespUsers)
+    case respUserMetrics(Msg_RespUserMetrics)
+    case respInstanceRole(Msg_RespInstanceRole)
 
   }
 
@@ -4276,7 +4547,7 @@ extension Msg_DidSendFriendshipReq: SwiftProtobuf.Message, SwiftProtobuf._Messag
 
 extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Friendship"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}origin_profile\0\u{1}status\0\u{1}sent\0\u{1}secret\0\u{3}latest_sync\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}origin_profile\0\u{1}status\0\u{1}sent\0\u{1}secret\0\u{3}latest_sync\0\u{3}notifications_started\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4289,6 +4560,7 @@ extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
       case 4: try { try decoder.decodeSingularBoolField(value: &self.sent) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.secret) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._latestSync) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.notificationsStarted) }()
       default: break
       }
     }
@@ -4314,6 +4586,9 @@ extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
     try { if let v = self._latestSync {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     } }()
+    if self.notificationsStarted != false {
+      try visitor.visitSingularBoolField(value: self.notificationsStarted, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4323,6 +4598,7 @@ extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
     if lhs.sent != rhs.sent {return false}
     if lhs.secret != rhs.secret {return false}
     if lhs._latestSync != rhs._latestSync {return false}
+    if lhs.notificationsStarted != rhs.notificationsStarted {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -6656,6 +6932,338 @@ extension Msg_RespPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
+extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".User"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}username\0\u{1}port\0\u{1}subdomain\0\u{2}\u{2}active\0\u{1}created\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.port) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.subdomain) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.active) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._created) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.uuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.uuid, fieldNumber: 1)
+    }
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 2)
+    }
+    if self.port != 0 {
+      try visitor.visitSingularInt32Field(value: self.port, fieldNumber: 3)
+    }
+    if !self.subdomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.subdomain, fieldNumber: 4)
+    }
+    if self.active != false {
+      try visitor.visitSingularBoolField(value: self.active, fieldNumber: 6)
+    }
+    try { if let v = self._created {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_User, rhs: Msg_User) -> Bool {
+    if lhs.uuid != rhs.uuid {return false}
+    if lhs.username != rhs.username {return false}
+    if lhs.port != rhs.port {return false}
+    if lhs.subdomain != rhs.subdomain {return false}
+    if lhs.active != rhs.active {return false}
+    if lhs._created != rhs._created {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqListUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqListUsers"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqListUsers, rhs: Msg_ReqListUsers) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespUsers"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.users) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.users.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.users, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespUsers, rhs: Msg_RespUsers) -> Bool {
+    if lhs.users != rhs.users {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqCreateUser"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0\u{1}port\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.port) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 1)
+    }
+    if self.port != 0 {
+      try visitor.visitSingularInt32Field(value: self.port, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqCreateUser, rhs: Msg_ReqCreateUser) -> Bool {
+    if lhs.username != rhs.username {return false}
+    if lhs.port != rhs.port {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqDeleteUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqDeleteUser"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}confirm_username\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.confirmUsername) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.uuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.uuid, fieldNumber: 1)
+    }
+    if !self.confirmUsername.isEmpty {
+      try visitor.visitSingularStringField(value: self.confirmUsername, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqDeleteUser, rhs: Msg_ReqDeleteUser) -> Bool {
+    if lhs.uuid != rhs.uuid {return false}
+    if lhs.confirmUsername != rhs.confirmUsername {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqSetUserActive: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqSetUserActive"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}active\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.active) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.uuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.uuid, fieldNumber: 1)
+    }
+    if self.active != false {
+      try visitor.visitSingularBoolField(value: self.active, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqSetUserActive, rhs: Msg_ReqSetUserActive) -> Bool {
+    if lhs.uuid != rhs.uuid {return false}
+    if lhs.active != rhs.active {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqGetUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqGetUserMetrics"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.uuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.uuid, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqGetUserMetrics, rhs: Msg_ReqGetUserMetrics) -> Bool {
+    if lhs.uuid != rhs.uuid {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespUserMetrics"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}storage_mb\0\u{3}storage_pct\0\u{3}active_connections\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.storageMb) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.storagePct) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.activeConnections) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.storageMb.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.storageMb, fieldNumber: 1)
+    }
+    if self.storagePct.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.storagePct, fieldNumber: 2)
+    }
+    if self.activeConnections != 0 {
+      try visitor.visitSingularInt32Field(value: self.activeConnections, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespUserMetrics, rhs: Msg_RespUserMetrics) -> Bool {
+    if lhs.storageMb != rhs.storageMb {return false}
+    if lhs.storagePct != rhs.storagePct {return false}
+    if lhs.activeConnections != rhs.activeConnections {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqGetInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqGetInstanceRole"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqGetInstanceRole, rhs: Msg_ReqGetInstanceRole) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespInstanceRole"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_primary\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.isPrimary) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.isPrimary != false {
+      try visitor.visitSingularBoolField(value: self.isPrimary, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespInstanceRole, rhs: Msg_RespInstanceRole) -> Bool {
+    if lhs.isPrimary != rhs.isPrimary {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Msg_GetFriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFriendshipStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0")
@@ -6758,7 +7366,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7573,6 +8181,84 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqGetPublication(v)
         }
       }()
+      case 74: try {
+        var v: Msg_ReqListUsers?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListUsers(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListUsers(v)
+        }
+      }()
+      case 75: try {
+        var v: Msg_ReqCreateUser?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqCreateUser(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqCreateUser(v)
+        }
+      }()
+      case 76: try {
+        var v: Msg_ReqDeleteUser?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqDeleteUser(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqDeleteUser(v)
+        }
+      }()
+      case 78: try {
+        var v: Msg_ReqGetUserMetrics?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetUserMetrics(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetUserMetrics(v)
+        }
+      }()
+      case 79: try {
+        var v: Msg_ReqGetInstanceRole?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetInstanceRole(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetInstanceRole(v)
+        }
+      }()
+      case 80: try {
+        var v: Msg_ReqSetUserActive?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetUserActive(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetUserActive(v)
+        }
+      }()
       default: break
       }
     }
@@ -7835,6 +8521,30 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqGetPublication(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 73)
     }()
+    case .reqListUsers?: try {
+      guard case .reqListUsers(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 74)
+    }()
+    case .reqCreateUser?: try {
+      guard case .reqCreateUser(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 75)
+    }()
+    case .reqDeleteUser?: try {
+      guard case .reqDeleteUser(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 76)
+    }()
+    case .reqGetUserMetrics?: try {
+      guard case .reqGetUserMetrics(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 78)
+    }()
+    case .reqGetInstanceRole?: try {
+      guard case .reqGetInstanceRole(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 79)
+    }()
+    case .reqSetUserActive?: try {
+      guard case .reqSetUserActive(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 80)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -7850,7 +8560,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -8295,6 +9005,45 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
             _storage._payload = .respPublication(v)
           }
         }()
+        case 41: try {
+          var v: Msg_RespUsers?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respUsers(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respUsers(v)
+          }
+        }()
+        case 42: try {
+          var v: Msg_RespUserMetrics?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respUserMetrics(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respUserMetrics(v)
+          }
+        }()
+        case 43: try {
+          var v: Msg_RespInstanceRole?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respInstanceRole(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respInstanceRole(v)
+          }
+        }()
         default: break
         }
       }
@@ -8440,6 +9189,18 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case .respPublication?: try {
         guard case .respPublication(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 40)
+      }()
+      case .respUsers?: try {
+        guard case .respUsers(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 41)
+      }()
+      case .respUserMetrics?: try {
+        guard case .respUserMetrics(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 42)
+      }()
+      case .respInstanceRole?: try {
+        guard case .respInstanceRole(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 43)
       }()
       case nil: break
       }

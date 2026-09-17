@@ -599,7 +599,18 @@ export interface Friendship {
   status: FriendShipStatus;
   sent: boolean;
   secret: string;
-  latestSync?: Date | undefined;
+  latestSync?:
+    | Date
+    | undefined;
+  /**
+   * Issue #92: false until this friend's entire backlog of pre-existing
+   * events has been fully replayed at least once (see social.go's
+   * updateFriendEvents) - accepting a long-time-active friend otherwise
+   * floods the owner with a notification for every historical like/
+   * comment/post all at once. Real-time events from this point on notify
+   * normally; the one-time backlog catch-up never does.
+   */
+  notificationsStarted: boolean;
 }
 
 export interface Friendships {
@@ -1174,6 +1185,91 @@ export interface RespPublication {
   publication?: SocialPublication | undefined;
 }
 
+/**
+ * Issue #82: multiple OTC "users" on one device, each a fully separate
+ * process/port/database/storage-directory, managed from the PRIMARY
+ * instance's Settings screen only (see ReqGetInstanceRole) - see
+ * supervisor/supervisor.go's doc comment for the full design. Issue #89:
+ * there is deliberately no is_admin/promote concept here - the original
+ * device owner (whoever is logged into the primary instance) is the only
+ * admin there will ever be; every other user is just a user.
+ */
+export interface User {
+  uuid: string;
+  username: string;
+  port: number;
+  subdomain: string;
+  /**
+   * 5 was is_admin (issue #82) - removed by issue #89, left unused
+   * rather than renumbering active/created after it.
+   */
+  active: boolean;
+  created?: Date | undefined;
+}
+
+export interface ReqListUsers {
+}
+
+export interface RespUsers {
+  users: User[];
+}
+
+/**
+ * port is optional - omit it (0) to let the primary pick the next free
+ * one itself.
+ */
+export interface ReqCreateUser {
+  username: string;
+  port: number;
+}
+
+/**
+ * confirm_username must match username exactly - checked server-side too,
+ * never trusted from the client alone, since this deletes a whole
+ * database and storage directory.
+ */
+export interface ReqDeleteUser {
+  uuid: string;
+  confirmUsername: string;
+}
+
+/**
+ * Issue #90: enable/disable a user's access without deleting their
+ * database or storage - unlike ReqDeleteUser this is fully reversible.
+ * Disabling actually stops that user's running process immediately
+ * (supervisor.Stop), not just a flag flip that only takes effect next
+ * time it happens to restart; enabling spawns it again right away.
+ * Answers with the generic Ack.
+ */
+export interface ReqSetUserActive {
+  uuid: string;
+  active: boolean;
+}
+
+export interface ReqGetUserMetrics {
+  uuid: string;
+}
+
+export interface RespUserMetrics {
+  storageMb: number;
+  storagePct: number;
+  activeConnections: number;
+}
+
+/**
+ * Lets a Settings screen know whether it's talking to the primary
+ * instance (and should render the Users section) or one of the spawned
+ * per-user instances (which never expose user management, even if a
+ * request reaches it directly - see websocket.go's guard on every other
+ * RPC above).
+ */
+export interface ReqGetInstanceRole {
+}
+
+export interface RespInstanceRole {
+  isPrimary: boolean;
+}
+
 export interface GetFriendshipStatus {
   domain: string;
   secret: string;
@@ -1266,6 +1362,21 @@ export interface ReqEnvelope {
     | { $case: "reqGetNotificationCount"; reqGetNotificationCount: ReqGetNotificationCount }
     | { $case: "reqMarkNotificationsAcknowledged"; reqMarkNotificationsAcknowledged: ReqMarkNotificationsAcknowledged }
     | { $case: "reqGetPublication"; reqGetPublication: ReqGetPublication }
+    | //
+    /** Issue #82: multiple users on one device. */
+    { $case: "reqListUsers"; reqListUsers: ReqListUsers }
+    | { $case: "reqCreateUser"; reqCreateUser: ReqCreateUser }
+    | { $case: "reqDeleteUser"; reqDeleteUser: ReqDeleteUser }
+    | //
+    /**
+     * 77 was ReqSetUserAdmin (issue #82) - removed by issue #89, left
+     * unused rather than renumbering everything after it.
+     */
+    { $case: "reqGetUserMetrics"; reqGetUserMetrics: ReqGetUserMetrics }
+    | { $case: "reqGetInstanceRole"; reqGetInstanceRole: ReqGetInstanceRole }
+    | //
+    /** Issue #90. */
+    { $case: "reqSetUserActive"; reqSetUserActive: ReqSetUserActive }
     | undefined;
 }
 
@@ -1320,6 +1431,14 @@ export interface RespEnvelope {
     { $case: "respNotifications"; respNotifications: RespNotifications }
     | { $case: "respNotificationCount"; respNotificationCount: RespNotificationCount }
     | { $case: "respPublication"; respPublication: RespPublication }
+    | //
+    /**
+     * Issue #82: multiple users on one device. ReqDeleteUser answers
+     * with the generic Ack above.
+     */
+    { $case: "respUsers"; respUsers: RespUsers }
+    | { $case: "respUserMetrics"; respUserMetrics: RespUserMetrics }
+    | { $case: "respInstanceRole"; respInstanceRole: RespInstanceRole }
     | undefined;
 }
 
@@ -3892,7 +4011,14 @@ export const DidSendFriendshipReq: MessageFns<DidSendFriendshipReq> = {
 };
 
 function createBaseFriendship(): Friendship {
-  return { originProfile: undefined, status: 0, sent: false, secret: "", latestSync: undefined };
+  return {
+    originProfile: undefined,
+    status: 0,
+    sent: false,
+    secret: "",
+    latestSync: undefined,
+    notificationsStarted: false,
+  };
 }
 
 export const Friendship: MessageFns<Friendship> = {
@@ -3911,6 +4037,9 @@ export const Friendship: MessageFns<Friendship> = {
     }
     if (message.latestSync !== undefined) {
       Timestamp.encode(toTimestamp(message.latestSync), writer.uint32(50).fork()).join();
+    }
+    if (message.notificationsStarted !== false) {
+      writer.uint32(56).bool(message.notificationsStarted);
     }
     return writer;
   },
@@ -3962,6 +4091,14 @@ export const Friendship: MessageFns<Friendship> = {
           message.latestSync = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.notificationsStarted = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3978,6 +4115,9 @@ export const Friendship: MessageFns<Friendship> = {
       sent: isSet(object.sent) ? globalThis.Boolean(object.sent) : false,
       secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
       latestSync: isSet(object.latestSync) ? fromJsonTimestamp(object.latestSync) : undefined,
+      notificationsStarted: isSet(object.notificationsStarted)
+        ? globalThis.Boolean(object.notificationsStarted)
+        : false,
     };
   },
 
@@ -3998,6 +4138,9 @@ export const Friendship: MessageFns<Friendship> = {
     if (message.latestSync !== undefined) {
       obj.latestSync = message.latestSync.toISOString();
     }
+    if (message.notificationsStarted !== false) {
+      obj.notificationsStarted = message.notificationsStarted;
+    }
     return obj;
   },
 
@@ -4013,6 +4156,7 @@ export const Friendship: MessageFns<Friendship> = {
     message.sent = object.sent ?? false;
     message.secret = object.secret ?? "";
     message.latestSync = object.latestSync ?? undefined;
+    message.notificationsStarted = object.notificationsStarted ?? false;
     return message;
   },
 };
@@ -9138,6 +9282,726 @@ export const RespPublication: MessageFns<RespPublication> = {
   },
 };
 
+function createBaseUser(): User {
+  return { uuid: "", username: "", port: 0, subdomain: "", active: false, created: undefined };
+}
+
+export const User: MessageFns<User> = {
+  encode(message: User, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.username !== "") {
+      writer.uint32(18).string(message.username);
+    }
+    if (message.port !== 0) {
+      writer.uint32(24).int32(message.port);
+    }
+    if (message.subdomain !== "") {
+      writer.uint32(34).string(message.subdomain);
+    }
+    if (message.active !== false) {
+      writer.uint32(48).bool(message.active);
+    }
+    if (message.created !== undefined) {
+      Timestamp.encode(toTimestamp(message.created), writer.uint32(58).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): User {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUser();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.username = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.port = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.subdomain = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.active = reader.bool();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): User {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      username: isSet(object.username) ? globalThis.String(object.username) : "",
+      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      subdomain: isSet(object.subdomain) ? globalThis.String(object.subdomain) : "",
+      active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
+      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+    };
+  },
+
+  toJSON(message: User): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.username !== "") {
+      obj.username = message.username;
+    }
+    if (message.port !== 0) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.subdomain !== "") {
+      obj.subdomain = message.subdomain;
+    }
+    if (message.active !== false) {
+      obj.active = message.active;
+    }
+    if (message.created !== undefined) {
+      obj.created = message.created.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<User>, I>>(base?: I): User {
+    return User.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<User>, I>>(object: I): User {
+    const message = createBaseUser();
+    message.uuid = object.uuid ?? "";
+    message.username = object.username ?? "";
+    message.port = object.port ?? 0;
+    message.subdomain = object.subdomain ?? "";
+    message.active = object.active ?? false;
+    message.created = object.created ?? undefined;
+    return message;
+  },
+};
+
+function createBaseReqListUsers(): ReqListUsers {
+  return {};
+}
+
+export const ReqListUsers: MessageFns<ReqListUsers> = {
+  encode(_: ReqListUsers, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqListUsers {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqListUsers();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqListUsers {
+    return {};
+  },
+
+  toJSON(_: ReqListUsers): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqListUsers>, I>>(base?: I): ReqListUsers {
+    return ReqListUsers.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqListUsers>, I>>(_: I): ReqListUsers {
+    const message = createBaseReqListUsers();
+    return message;
+  },
+};
+
+function createBaseRespUsers(): RespUsers {
+  return { users: [] };
+}
+
+export const RespUsers: MessageFns<RespUsers> = {
+  encode(message: RespUsers, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.users) {
+      User.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespUsers {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespUsers();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.users.push(User.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespUsers {
+    return { users: globalThis.Array.isArray(object?.users) ? object.users.map((e: any) => User.fromJSON(e)) : [] };
+  },
+
+  toJSON(message: RespUsers): unknown {
+    const obj: any = {};
+    if (message.users?.length) {
+      obj.users = message.users.map((e) => User.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespUsers>, I>>(base?: I): RespUsers {
+    return RespUsers.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespUsers>, I>>(object: I): RespUsers {
+    const message = createBaseRespUsers();
+    message.users = object.users?.map((e) => User.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseReqCreateUser(): ReqCreateUser {
+  return { username: "", port: 0 };
+}
+
+export const ReqCreateUser: MessageFns<ReqCreateUser> = {
+  encode(message: ReqCreateUser, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.username !== "") {
+      writer.uint32(10).string(message.username);
+    }
+    if (message.port !== 0) {
+      writer.uint32(16).int32(message.port);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqCreateUser {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqCreateUser();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.username = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.port = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqCreateUser {
+    return {
+      username: isSet(object.username) ? globalThis.String(object.username) : "",
+      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+    };
+  },
+
+  toJSON(message: ReqCreateUser): unknown {
+    const obj: any = {};
+    if (message.username !== "") {
+      obj.username = message.username;
+    }
+    if (message.port !== 0) {
+      obj.port = Math.round(message.port);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqCreateUser>, I>>(base?: I): ReqCreateUser {
+    return ReqCreateUser.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqCreateUser>, I>>(object: I): ReqCreateUser {
+    const message = createBaseReqCreateUser();
+    message.username = object.username ?? "";
+    message.port = object.port ?? 0;
+    return message;
+  },
+};
+
+function createBaseReqDeleteUser(): ReqDeleteUser {
+  return { uuid: "", confirmUsername: "" };
+}
+
+export const ReqDeleteUser: MessageFns<ReqDeleteUser> = {
+  encode(message: ReqDeleteUser, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.confirmUsername !== "") {
+      writer.uint32(18).string(message.confirmUsername);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqDeleteUser {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqDeleteUser();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.confirmUsername = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqDeleteUser {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      confirmUsername: isSet(object.confirmUsername) ? globalThis.String(object.confirmUsername) : "",
+    };
+  },
+
+  toJSON(message: ReqDeleteUser): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.confirmUsername !== "") {
+      obj.confirmUsername = message.confirmUsername;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqDeleteUser>, I>>(base?: I): ReqDeleteUser {
+    return ReqDeleteUser.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqDeleteUser>, I>>(object: I): ReqDeleteUser {
+    const message = createBaseReqDeleteUser();
+    message.uuid = object.uuid ?? "";
+    message.confirmUsername = object.confirmUsername ?? "";
+    return message;
+  },
+};
+
+function createBaseReqSetUserActive(): ReqSetUserActive {
+  return { uuid: "", active: false };
+}
+
+export const ReqSetUserActive: MessageFns<ReqSetUserActive> = {
+  encode(message: ReqSetUserActive, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.active !== false) {
+      writer.uint32(16).bool(message.active);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqSetUserActive {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqSetUserActive();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.active = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqSetUserActive {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
+    };
+  },
+
+  toJSON(message: ReqSetUserActive): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.active !== false) {
+      obj.active = message.active;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqSetUserActive>, I>>(base?: I): ReqSetUserActive {
+    return ReqSetUserActive.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqSetUserActive>, I>>(object: I): ReqSetUserActive {
+    const message = createBaseReqSetUserActive();
+    message.uuid = object.uuid ?? "";
+    message.active = object.active ?? false;
+    return message;
+  },
+};
+
+function createBaseReqGetUserMetrics(): ReqGetUserMetrics {
+  return { uuid: "" };
+}
+
+export const ReqGetUserMetrics: MessageFns<ReqGetUserMetrics> = {
+  encode(message: ReqGetUserMetrics, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetUserMetrics {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetUserMetrics();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqGetUserMetrics {
+    return { uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "" };
+  },
+
+  toJSON(message: ReqGetUserMetrics): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetUserMetrics>, I>>(base?: I): ReqGetUserMetrics {
+    return ReqGetUserMetrics.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetUserMetrics>, I>>(object: I): ReqGetUserMetrics {
+    const message = createBaseReqGetUserMetrics();
+    message.uuid = object.uuid ?? "";
+    return message;
+  },
+};
+
+function createBaseRespUserMetrics(): RespUserMetrics {
+  return { storageMb: 0, storagePct: 0, activeConnections: 0 };
+}
+
+export const RespUserMetrics: MessageFns<RespUserMetrics> = {
+  encode(message: RespUserMetrics, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.storageMb !== 0) {
+      writer.uint32(9).double(message.storageMb);
+    }
+    if (message.storagePct !== 0) {
+      writer.uint32(17).double(message.storagePct);
+    }
+    if (message.activeConnections !== 0) {
+      writer.uint32(24).int32(message.activeConnections);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespUserMetrics {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespUserMetrics();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 9) {
+            break;
+          }
+
+          message.storageMb = reader.double();
+          continue;
+        }
+        case 2: {
+          if (tag !== 17) {
+            break;
+          }
+
+          message.storagePct = reader.double();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.activeConnections = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespUserMetrics {
+    return {
+      storageMb: isSet(object.storageMb) ? globalThis.Number(object.storageMb) : 0,
+      storagePct: isSet(object.storagePct) ? globalThis.Number(object.storagePct) : 0,
+      activeConnections: isSet(object.activeConnections) ? globalThis.Number(object.activeConnections) : 0,
+    };
+  },
+
+  toJSON(message: RespUserMetrics): unknown {
+    const obj: any = {};
+    if (message.storageMb !== 0) {
+      obj.storageMb = message.storageMb;
+    }
+    if (message.storagePct !== 0) {
+      obj.storagePct = message.storagePct;
+    }
+    if (message.activeConnections !== 0) {
+      obj.activeConnections = Math.round(message.activeConnections);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespUserMetrics>, I>>(base?: I): RespUserMetrics {
+    return RespUserMetrics.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespUserMetrics>, I>>(object: I): RespUserMetrics {
+    const message = createBaseRespUserMetrics();
+    message.storageMb = object.storageMb ?? 0;
+    message.storagePct = object.storagePct ?? 0;
+    message.activeConnections = object.activeConnections ?? 0;
+    return message;
+  },
+};
+
+function createBaseReqGetInstanceRole(): ReqGetInstanceRole {
+  return {};
+}
+
+export const ReqGetInstanceRole: MessageFns<ReqGetInstanceRole> = {
+  encode(_: ReqGetInstanceRole, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetInstanceRole {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetInstanceRole();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqGetInstanceRole {
+    return {};
+  },
+
+  toJSON(_: ReqGetInstanceRole): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetInstanceRole>, I>>(base?: I): ReqGetInstanceRole {
+    return ReqGetInstanceRole.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetInstanceRole>, I>>(_: I): ReqGetInstanceRole {
+    const message = createBaseReqGetInstanceRole();
+    return message;
+  },
+};
+
+function createBaseRespInstanceRole(): RespInstanceRole {
+  return { isPrimary: false };
+}
+
+export const RespInstanceRole: MessageFns<RespInstanceRole> = {
+  encode(message: RespInstanceRole, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.isPrimary !== false) {
+      writer.uint32(8).bool(message.isPrimary);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespInstanceRole {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespInstanceRole();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.isPrimary = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespInstanceRole {
+    return { isPrimary: isSet(object.isPrimary) ? globalThis.Boolean(object.isPrimary) : false };
+  },
+
+  toJSON(message: RespInstanceRole): unknown {
+    const obj: any = {};
+    if (message.isPrimary !== false) {
+      obj.isPrimary = message.isPrimary;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespInstanceRole>, I>>(base?: I): RespInstanceRole {
+    return RespInstanceRole.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespInstanceRole>, I>>(object: I): RespInstanceRole {
+    const message = createBaseRespInstanceRole();
+    message.isPrimary = object.isPrimary ?? false;
+    return message;
+  },
+};
+
 function createBaseGetFriendshipStatus(): GetFriendshipStatus {
   return { domain: "", secret: "" };
 }
@@ -9548,6 +10412,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         break;
       case "reqGetPublication":
         ReqGetPublication.encode(message.payload.reqGetPublication, writer.uint32(586).fork()).join();
+        break;
+      case "reqListUsers":
+        ReqListUsers.encode(message.payload.reqListUsers, writer.uint32(594).fork()).join();
+        break;
+      case "reqCreateUser":
+        ReqCreateUser.encode(message.payload.reqCreateUser, writer.uint32(602).fork()).join();
+        break;
+      case "reqDeleteUser":
+        ReqDeleteUser.encode(message.payload.reqDeleteUser, writer.uint32(610).fork()).join();
+        break;
+      case "reqGetUserMetrics":
+        ReqGetUserMetrics.encode(message.payload.reqGetUserMetrics, writer.uint32(626).fork()).join();
+        break;
+      case "reqGetInstanceRole":
+        ReqGetInstanceRole.encode(message.payload.reqGetInstanceRole, writer.uint32(634).fork()).join();
+        break;
+      case "reqSetUserActive":
+        ReqSetUserActive.encode(message.payload.reqSetUserActive, writer.uint32(642).fork()).join();
         break;
     }
     return writer;
@@ -10172,6 +11054,63 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 74: {
+          if (tag !== 594) {
+            break;
+          }
+
+          message.payload = { $case: "reqListUsers", reqListUsers: ReqListUsers.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 75: {
+          if (tag !== 602) {
+            break;
+          }
+
+          message.payload = { $case: "reqCreateUser", reqCreateUser: ReqCreateUser.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 76: {
+          if (tag !== 610) {
+            break;
+          }
+
+          message.payload = { $case: "reqDeleteUser", reqDeleteUser: ReqDeleteUser.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 78: {
+          if (tag !== 626) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetUserMetrics",
+            reqGetUserMetrics: ReqGetUserMetrics.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 79: {
+          if (tag !== 634) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetInstanceRole",
+            reqGetInstanceRole: ReqGetInstanceRole.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 80: {
+          if (tag !== 642) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetUserActive",
+            reqSetUserActive: ReqSetUserActive.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -10379,6 +11318,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         : isSet(object.reqGetPublication)
         ? { $case: "reqGetPublication", reqGetPublication: ReqGetPublication.fromJSON(object.reqGetPublication) }
+        : isSet(object.reqListUsers)
+        ? { $case: "reqListUsers", reqListUsers: ReqListUsers.fromJSON(object.reqListUsers) }
+        : isSet(object.reqCreateUser)
+        ? { $case: "reqCreateUser", reqCreateUser: ReqCreateUser.fromJSON(object.reqCreateUser) }
+        : isSet(object.reqDeleteUser)
+        ? { $case: "reqDeleteUser", reqDeleteUser: ReqDeleteUser.fromJSON(object.reqDeleteUser) }
+        : isSet(object.reqGetUserMetrics)
+        ? { $case: "reqGetUserMetrics", reqGetUserMetrics: ReqGetUserMetrics.fromJSON(object.reqGetUserMetrics) }
+        : isSet(object.reqGetInstanceRole)
+        ? { $case: "reqGetInstanceRole", reqGetInstanceRole: ReqGetInstanceRole.fromJSON(object.reqGetInstanceRole) }
+        : isSet(object.reqSetUserActive)
+        ? { $case: "reqSetUserActive", reqSetUserActive: ReqSetUserActive.fromJSON(object.reqSetUserActive) }
         : undefined,
     };
   },
@@ -10514,6 +11465,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       );
     } else if (message.payload?.$case === "reqGetPublication") {
       obj.reqGetPublication = ReqGetPublication.toJSON(message.payload.reqGetPublication);
+    } else if (message.payload?.$case === "reqListUsers") {
+      obj.reqListUsers = ReqListUsers.toJSON(message.payload.reqListUsers);
+    } else if (message.payload?.$case === "reqCreateUser") {
+      obj.reqCreateUser = ReqCreateUser.toJSON(message.payload.reqCreateUser);
+    } else if (message.payload?.$case === "reqDeleteUser") {
+      obj.reqDeleteUser = ReqDeleteUser.toJSON(message.payload.reqDeleteUser);
+    } else if (message.payload?.$case === "reqGetUserMetrics") {
+      obj.reqGetUserMetrics = ReqGetUserMetrics.toJSON(message.payload.reqGetUserMetrics);
+    } else if (message.payload?.$case === "reqGetInstanceRole") {
+      obj.reqGetInstanceRole = ReqGetInstanceRole.toJSON(message.payload.reqGetInstanceRole);
+    } else if (message.payload?.$case === "reqSetUserActive") {
+      obj.reqSetUserActive = ReqSetUserActive.toJSON(message.payload.reqSetUserActive);
     }
     return obj;
   },
@@ -11071,6 +12034,60 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqListUsers": {
+        if (object.payload?.reqListUsers !== undefined && object.payload?.reqListUsers !== null) {
+          message.payload = {
+            $case: "reqListUsers",
+            reqListUsers: ReqListUsers.fromPartial(object.payload.reqListUsers),
+          };
+        }
+        break;
+      }
+      case "reqCreateUser": {
+        if (object.payload?.reqCreateUser !== undefined && object.payload?.reqCreateUser !== null) {
+          message.payload = {
+            $case: "reqCreateUser",
+            reqCreateUser: ReqCreateUser.fromPartial(object.payload.reqCreateUser),
+          };
+        }
+        break;
+      }
+      case "reqDeleteUser": {
+        if (object.payload?.reqDeleteUser !== undefined && object.payload?.reqDeleteUser !== null) {
+          message.payload = {
+            $case: "reqDeleteUser",
+            reqDeleteUser: ReqDeleteUser.fromPartial(object.payload.reqDeleteUser),
+          };
+        }
+        break;
+      }
+      case "reqGetUserMetrics": {
+        if (object.payload?.reqGetUserMetrics !== undefined && object.payload?.reqGetUserMetrics !== null) {
+          message.payload = {
+            $case: "reqGetUserMetrics",
+            reqGetUserMetrics: ReqGetUserMetrics.fromPartial(object.payload.reqGetUserMetrics),
+          };
+        }
+        break;
+      }
+      case "reqGetInstanceRole": {
+        if (object.payload?.reqGetInstanceRole !== undefined && object.payload?.reqGetInstanceRole !== null) {
+          message.payload = {
+            $case: "reqGetInstanceRole",
+            reqGetInstanceRole: ReqGetInstanceRole.fromPartial(object.payload.reqGetInstanceRole),
+          };
+        }
+        break;
+      }
+      case "reqSetUserActive": {
+        if (object.payload?.reqSetUserActive !== undefined && object.payload?.reqSetUserActive !== null) {
+          message.payload = {
+            $case: "reqSetUserActive",
+            reqSetUserActive: ReqSetUserActive.fromPartial(object.payload.reqSetUserActive),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -11185,6 +12202,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respPublication":
         RespPublication.encode(message.payload.respPublication, writer.uint32(322).fork()).join();
+        break;
+      case "respUsers":
+        RespUsers.encode(message.payload.respUsers, writer.uint32(330).fork()).join();
+        break;
+      case "respUserMetrics":
+        RespUserMetrics.encode(message.payload.respUserMetrics, writer.uint32(338).fork()).join();
+        break;
+      case "respInstanceRole":
+        RespInstanceRole.encode(message.payload.respInstanceRole, writer.uint32(346).fork()).join();
         break;
     }
     return writer;
@@ -11511,6 +12537,36 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 41: {
+          if (tag !== 330) {
+            break;
+          }
+
+          message.payload = { $case: "respUsers", respUsers: RespUsers.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 42: {
+          if (tag !== 338) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respUserMetrics",
+            respUserMetrics: RespUserMetrics.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 43: {
+          if (tag !== 346) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respInstanceRole",
+            respInstanceRole: RespInstanceRole.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11611,6 +12667,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         }
         : isSet(object.respPublication)
         ? { $case: "respPublication", respPublication: RespPublication.fromJSON(object.respPublication) }
+        : isSet(object.respUsers)
+        ? { $case: "respUsers", respUsers: RespUsers.fromJSON(object.respUsers) }
+        : isSet(object.respUserMetrics)
+        ? { $case: "respUserMetrics", respUserMetrics: RespUserMetrics.fromJSON(object.respUserMetrics) }
+        : isSet(object.respInstanceRole)
+        ? { $case: "respInstanceRole", respInstanceRole: RespInstanceRole.fromJSON(object.respInstanceRole) }
         : undefined,
     };
   },
@@ -11690,6 +12752,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respNotificationCount = RespNotificationCount.toJSON(message.payload.respNotificationCount);
     } else if (message.payload?.$case === "respPublication") {
       obj.respPublication = RespPublication.toJSON(message.payload.respPublication);
+    } else if (message.payload?.$case === "respUsers") {
+      obj.respUsers = RespUsers.toJSON(message.payload.respUsers);
+    } else if (message.payload?.$case === "respUserMetrics") {
+      obj.respUserMetrics = RespUserMetrics.toJSON(message.payload.respUserMetrics);
+    } else if (message.payload?.$case === "respInstanceRole") {
+      obj.respInstanceRole = RespInstanceRole.toJSON(message.payload.respInstanceRole);
     }
     return obj;
   },
@@ -11958,6 +13026,30 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respPublication",
             respPublication: RespPublication.fromPartial(object.payload.respPublication),
+          };
+        }
+        break;
+      }
+      case "respUsers": {
+        if (object.payload?.respUsers !== undefined && object.payload?.respUsers !== null) {
+          message.payload = { $case: "respUsers", respUsers: RespUsers.fromPartial(object.payload.respUsers) };
+        }
+        break;
+      }
+      case "respUserMetrics": {
+        if (object.payload?.respUserMetrics !== undefined && object.payload?.respUserMetrics !== null) {
+          message.payload = {
+            $case: "respUserMetrics",
+            respUserMetrics: RespUserMetrics.fromPartial(object.payload.respUserMetrics),
+          };
+        }
+        break;
+      }
+      case "respInstanceRole": {
+        if (object.payload?.respInstanceRole !== undefined && object.payload?.respInstanceRole !== null) {
+          message.payload = {
+            $case: "respInstanceRole",
+            respInstanceRole: RespInstanceRole.fromPartial(object.payload.respInstanceRole),
           };
         }
         break;

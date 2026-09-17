@@ -473,6 +473,15 @@ func (dao *Dao) UpdateLatestSync(domain string, latestSync *timestamppb.Timestam
 	return
 }
 
+// MarkNotificationsStarted (issue #92) flips the one-time flag that ends a
+// friend's backlog "catch-up" period - see social.go's updateFriendEvents
+// for where this is called, once a sync returns fewer events than it
+// asked for (i.e. there's nothing older left queued behind them).
+func (dao *Dao) MarkNotificationsStarted(domain string) (err error) {
+	_, err = dao.db.Exec("update `social_friendship` set `notifications_started` = 1 where `domain` = ?", domain)
+	return
+}
+
 func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPublication bool, files []*pb.File) (err error) {
 	log.Debug("Creating SocialPublication")
 	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, now(), ?, ?, ?)", pubUuid, text, ownPublication, originDomain)
@@ -848,7 +857,7 @@ func (dao *Dao) GetFriendProfile(domain string) (name, text string, image []byte
 }
 
 func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
-	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret`, `latest_sync` from `social_friendship`")
+	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret`, `latest_sync`, `notifications_started` from `social_friendship`")
 	if err != nil {
 		return nil, err
 	}
@@ -859,7 +868,7 @@ func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 		}
 		var status string
 		var latestSync sql.NullTime
-		if err := rowFriendships.Scan(&status, &friendship.OriginProfile.Name, &friendship.OriginProfile.Image, &friendship.OriginProfile.Text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret, &latestSync); err != nil {
+		if err := rowFriendships.Scan(&status, &friendship.OriginProfile.Name, &friendship.OriginProfile.Image, &friendship.OriginProfile.Text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret, &latestSync, &friendship.NotificationsStarted); err != nil {
 			return nil, err
 		}
 		if latestSync.Valid {
@@ -1686,4 +1695,159 @@ func (dao *Dao) ListMediaForReprocess(afterHash string, limit int) (files []*pb.
 		files = append(files, file)
 	}
 	return files, rows.Err()
+}
+
+// Issue #82: multiple OTC "users" on one device. These functions only
+// ever operate on real rows on the PRIMARY instance's own database - see
+// the `users` table's doc comment in db.sql. The heavier cross-database
+// operations (provisioning/dropping a user's own separate database,
+// reading its storage usage) live in provisioning.go instead, since those
+// open additional short-lived connections rather than using dao.db.
+
+type User struct {
+	Uuid     string
+	Username string
+	Port     int
+	DbName   string
+	// DbPass is the dedicated MySQL user's password (see
+	// dao.ProvisionUserDatabase) - distinct from BridgeSecret (this user's
+	// own federation identity) and SupervisorToken (the /internal/metrics
+	// gate). Re-read on every respawn to re-render this user's own ini
+	// identically, since the MySQL user's real password never changes
+	// after creation.
+	DbPass          string
+	StoragePath     string
+	Subdomain       string
+	BridgeSecret    string
+	SupervisorToken string
+	Active          bool
+}
+
+func (dao *Dao) CreateUser(u User) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `users` (`uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`, `created`) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())",
+		u.Uuid, u.Username, u.Port, u.DbName, u.DbPass, u.StoragePath, u.Subdomain, u.BridgeSecret, u.SupervisorToken, u.Active,
+	)
+	return err
+}
+
+// ListUsers returns every user row (active or not) oldest-first (created
+// order) - the supervisor filters to `active` itself when deciding who to
+// spawn (see ListActiveUsersInternal).
+func (dao *Dao) ListUsers() (users []*pb.User, err error) {
+	rows, err := dao.db.Query(
+		"select `uuid`, `username`, `port`, `subdomain`, `active`, `created` from `users` order by `created` asc",
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users = []*pb.User{}
+	for rows.Next() {
+		u := new(pb.User)
+		var port int
+		var created time.Time
+		if err := rows.Scan(&u.Uuid, &u.Username, &port, &u.Subdomain, &u.Active, &created); err != nil {
+			return nil, err
+		}
+		u.Port = int32(port)
+		u.Created = timestamppb.New(created)
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+// UserInternal is the full internal row (db_name/storage_path/secrets)
+// the supervisor and the delete/metrics RPCs need - deliberately separate
+// from the pb.User the client ever sees, which never includes any of
+// that.
+type UserInternal struct {
+	User
+}
+
+const userInternalColumns = "`uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`"
+
+func scanUserInternal(row interface{ Scan(...any) error }, u *UserInternal) error {
+	return row.Scan(&u.Uuid, &u.Username, &u.Port, &u.DbName, &u.DbPass, &u.StoragePath, &u.Subdomain, &u.BridgeSecret, &u.SupervisorToken, &u.Active)
+}
+
+func (dao *Dao) GetUserInternal(uuid string) (u *UserInternal, err error) {
+	u = new(UserInternal)
+	if err = scanUserInternal(dao.db.QueryRow("select "+userInternalColumns+" from `users` where `uuid` = ?", uuid), u); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+// ListActiveUsersInternal is what the supervisor loads at startup to
+// decide who to spawn.
+func (dao *Dao) ListActiveUsersInternal() (users []*UserInternal, err error) {
+	rows, err := dao.db.Query("select " + userInternalColumns + " from `users` where `active` = 1")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		u := new(UserInternal)
+		if err := scanUserInternal(rows, u); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+func (dao *Dao) IsUserActive(uuid string) (active bool, err error) {
+	err = dao.db.QueryRow("select `active` from `users` where `uuid` = ?", uuid).Scan(&active)
+	return
+}
+
+func (dao *Dao) DeactivateUser(uuid string) (err error) {
+	_, err = dao.db.Exec("update `users` set `active` = 0 where `uuid` = ?", uuid)
+	return
+}
+
+// ReactivateUser is DeactivateUser's inverse (issue #90) - flips the flag
+// back on; the caller (websocket.go's setUserActive) is what actually
+// spawns the process again, since that's the supervisor's job, not dao's.
+func (dao *Dao) ReactivateUser(uuid string) (err error) {
+	_, err = dao.db.Exec("update `users` set `active` = 1 where `uuid` = ?", uuid)
+	return
+}
+
+func (dao *Dao) DeleteUserRow(uuid string) (err error) {
+	_, err = dao.db.Exec("delete from `users` where `uuid` = ?", uuid)
+	return
+}
+
+// IsUsernameTaken/IsPortInUse back ReqCreateUser's validation - checked
+// up front so provisioning fails fast with a clear message instead of
+// mid-way through creating a database.
+func (dao *Dao) IsUsernameTaken(username string) (taken bool, err error) {
+	var count int
+	err = dao.db.QueryRow("select count(*) from `users` where `username` = ?", username).Scan(&count)
+	return count > 0, err
+}
+
+func (dao *Dao) IsPortInUse(port int) (inUse bool, err error) {
+	var count int
+	err = dao.db.QueryRow("select count(*) from `users` where `port` = ?", port).Scan(&count)
+	return count > 0, err
+}
+
+// NextFreePort returns one past the highest port already assigned to a
+// user, starting from base if there are none yet - a simple default the
+// admin can always override in ReqCreateUser.
+func (dao *Dao) NextFreePort(base int) (port int, err error) {
+	var maxPort sql.NullInt64
+	if err = dao.db.QueryRow("select max(`port`) from `users`").Scan(&maxPort); err != nil {
+		return 0, err
+	}
+	if !maxPort.Valid || int(maxPort.Int64) < base-1 {
+		return base, nil
+	}
+	return int(maxPort.Int64) + 1, nil
 }

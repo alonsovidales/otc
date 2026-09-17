@@ -275,8 +275,19 @@ $ sudo mysql -u root
 > create database otc;
 > CREATE USER 'otc'@'localhost' IDENTIFIED BY '<your_pass_here>';
 > GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
+> GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
 > exit
 ```
+The second `GRANT` (issue #82, multiple users on one device) lets the
+`otc` account provision/drop a whole database + dedicated MySQL user per
+additional user at runtime (see `dao/provisioning.go`) — required even if
+you never add a second user, since `scripts/install.sh`/`Makefile.pi` both
+apply it unconditionally as part of the base setup. Skippable only if
+you're certain you'll never use the Settings → Users panel; without it,
+creating a user fails with `Access denied ... to database 'otc_<uuid>'`
+(a MySQL account can't `GRANT` a privilege it doesn't itself hold — the
+narrower `CREATE, DROP, CREATE USER, GRANT OPTION` set this project used
+before learning that the hard way isn't enough).
 
 9. Create the OTC config file in `/etc/otc_dev.ini` like:
 ```

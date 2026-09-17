@@ -333,6 +333,22 @@ db-schema: mariadb secrets ## Create the otc DB/user and load db/db.sql (idempot
 	CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
 	ALTER USER 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
 	GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
+	-- Issue #82: multiple users on one device - the primary instance
+	-- provisions/drops a whole database+MySQL user per additional user at
+	-- runtime (dao/provisioning.go). This needs ALL PRIVILEGES (not a
+	-- narrower CREATE/DROP/CREATE USER/GRANT OPTION set), because MySQL
+	-- requires a grantor to already hold whatever privileges it hands off:
+	-- GRANT OPTION only lets you re-delegate privileges you have, not
+	-- grant arbitrary ones. Provisioning a new user's database ends with
+	-- `GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost`,
+	-- which otc@localhost itself must hold on every database it might
+	-- ever create - i.e. globally - or that grant fails with "Access
+	-- denied ... to database 'otc_<uuid>'" (hit exactly this live during
+	-- testing before widening the grant to what's below). WITH GRANT
+	-- OPTION also covers the SELECT this account needs on every other
+	-- user's database for the Users panel's storage-usage metric
+	-- (dao.UserStorageUsageMB).
+	GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
 	FLUSH PRIVILEGES;
 	SQL
 	if $(SSH) 'sudo mysql otc -N -B' <<<'SHOW TABLES LIKE "files"' | grep -q files; then
@@ -342,6 +358,39 @@ db-schema: mariadb secrets ## Create the otc DB/user and load db/db.sql (idempot
 		echo "Loading schema from db/db.sql..."
 		tail -n +10 db/db.sql | $(SSH) 'sudo mysql otc'
 	fi
+	echo "Issue #82: ensuring the users table exists (idempotent upgrade, same reasoning as db-schema's own skip-if-present check above)..."
+	$(SSH) 'sudo mysql otc' <<-SQL
+	CREATE TABLE IF NOT EXISTS users (
+	  uuid VARCHAR(64) NOT NULL,
+	  username VARCHAR(64) NOT NULL,
+	  port INT NOT NULL,
+	  db_name VARCHAR(64) NOT NULL,
+	  db_pass VARCHAR(128) NOT NULL,
+	  storage_path VARCHAR(255) NOT NULL,
+	  subdomain VARCHAR(128) NOT NULL,
+	  bridge_secret VARCHAR(128) NOT NULL,
+	  supervisor_token VARCHAR(128) NOT NULL,
+	  active TINYINT(1) NOT NULL DEFAULT 1,
+	  created DATETIME NOT NULL,
+	  UNIQUE (uuid),
+	  UNIQUE (username),
+	  UNIQUE (port)
+	) ENGINE=InnoDB;
+	-- Issue #89: no is_admin/promote column - the original device owner
+	-- is the only admin there will ever be. Drops it for any device that
+	-- already ran an earlier version of this target before #89 removed
+	-- the concept.
+	ALTER TABLE users DROP COLUMN IF EXISTS is_admin;
+	SQL
+	echo "Issue #92: ensuring social_friendship has notifications_started..."
+	$(SSH) 'sudo mysql otc' <<-SQL
+	-- Ends a friend's notification catch-up suppression once their
+	-- pre-existing backlog is fully replayed (see social.go's
+	-- updateFriendEvents) - defaulting to 0 on an upgrade is fine even
+	-- for already-fully-synced friends, since the very next sync cycle
+	-- finds nothing pending and flips it back on within one 120s tick.
+	ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS notifications_started TINYINT(1) NOT NULL DEFAULT 0;
+	SQL
 	echo "Recording device identity (device_uuid/subdomain/bridge_secret)..."
 	$(SSH) 'sudo mysql otc' <<-SQL
 	INSERT INTO settings (device_uuid, subdomain, bridge_secret)
@@ -505,8 +554,8 @@ models-export: packages secrets swap ## Fallback: export the fp32 RAM++ ONNX mod
 dirs: ## Create runtime directories (log, static, storage) with correct ownership
 	@echo "Creating runtime directories on $(TARGET)..."
 	$(SSH) '
-		sudo mkdir -p /var/log/otc /etc/otc /var/www $(STORAGE_PATH) $(UNENC_PATH)
-		sudo chown $(PI_USER):$(PI_USER) /var/log/otc /var/www $(STORAGE_PATH) $(UNENC_PATH)
+		sudo mkdir -p /var/log/otc /etc/otc /var/www /var/lib/otc/users $(STORAGE_PATH) $(UNENC_PATH)
+		sudo chown $(PI_USER):$(PI_USER) /var/log/otc /var/www /var/lib/otc/users $(STORAGE_PATH) $(UNENC_PATH)
 		sudo chmod 755 /var/log/otc
 	' < /dev/null
 

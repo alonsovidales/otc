@@ -4,6 +4,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
@@ -15,6 +16,14 @@ import (
 
 const (
 	cHealtyPath = "/check_healty"
+	// Issue #82: read by the primary instance's own supervisor to report
+	// this user's live connection count for the Users management panel -
+	// never called from a browser/app. Gated on a shared local token
+	// (this instance's own [otc] supervisor-token, set only on a spawned
+	// child's ini - see supervisor/config.go), not a real authenticated
+	// RPC, the same "plain HTTP, no session" tier check_healty already
+	// uses above.
+	cInternalMetricsPath = "/internal/metrics"
 )
 
 // API Structure that manage the HTTP API
@@ -68,11 +77,29 @@ func (api *API) registerAPIs() {
 		w.Write([]byte("OK"))
 	})
 
+	api.muxHTTPServer.HandleFunc(cInternalMetricsPath, api.internalMetrics)
+
 	// WebSocket
 	api.muxHTTPServer.HandleFunc(websocket.CEndpoint, api.websocket.Listen)
 
 	// Static content server
 	api.muxHTTPServer.HandleFunc("/", api.serveStatic)
+}
+
+// internalMetrics answers the primary instance's supervisor with this
+// instance's own live usage - see cInternalMetricsPath's doc comment
+// above for why this is a plain-HTTP, token-gated endpoint rather than a
+// real websocket RPC (there is no authenticated session here at all: the
+// supervisor calling this doesn't know, and has no need to know, this
+// user's own sign-in password).
+func (api *API) internalMetrics(w http.ResponseWriter, r *http.Request) {
+	token := cfg.GetStr("otc", "supervisor-token")
+	if token == "" || r.Header.Get("X-Supervisor-Token") != token {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"active_connections": %d}`, api.websocket.ActiveConnections())
 }
 
 // serveStatic serves files from staticPath, appending ".html" to

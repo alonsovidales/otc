@@ -811,10 +811,10 @@ func TestListNotificationsOrdersByDateDesc(t *testing.T) {
 	defer db.Close()
 
 	now := time.Now()
-	mock.ExpectQuery("select n\\.uuid, n\\.dt, n\\.type, n\\.actor_name, n\\.actor_domain, n\\.pub_uuid, n\\.comment_uuid, n\\.acknowledged, f\\.image, pf\\.hash "+
-		"from `notifications` n "+
-		"left join `social_friendship` f on f\\.domain = n\\.actor_domain "+
-		"left join `social_publications_files` pf on pf\\.uuid = n\\.pub_uuid and pf\\.pos = 0 "+
+	mock.ExpectQuery("select n\\.uuid, n\\.dt, n\\.type, n\\.actor_name, n\\.actor_domain, n\\.pub_uuid, n\\.comment_uuid, n\\.acknowledged, f\\.image, pf\\.hash " +
+		"from `notifications` n " +
+		"left join `social_friendship` f on f\\.domain = n\\.actor_domain " +
+		"left join `social_publications_files` pf on pf\\.uuid = n\\.pub_uuid and pf\\.pos = 0 " +
 		"order by n\\.dt desc limit \\?").
 		WithArgs(50).
 		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged", "image", "hash"}).
@@ -910,6 +910,218 @@ func TestGetSocialPublicationByUUIDOwnPost(t *testing.T) {
 	}
 	if pub.Uuid != "pub-1" || !pub.Own || pub.Publisher.Name != "Owner" {
 		t.Fatalf("unexpected publication: %+v", pub)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Issue #82: multiple OTC "users" on one device - dao.go's own single-DB
+// functions (the cross-database provisioning/drop/storage-usage ones in
+// provisioning.go are integration-shaped, real CREATE DATABASE calls -
+// exercised manually against a real device instead, not here).
+
+func TestCreateUserAndListUsers(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("insert into `users`").
+		WithArgs("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	d := NewWithDB(db)
+	if err := d.CreateUser(User{
+		Uuid: "u1", Username: "alice", Port: 8081, DbName: "otc_u1", DbPass: "dbpass",
+		StoragePath: "/mnt/storage/user_u1", Subdomain: "alice.off-the.cloud",
+		BridgeSecret: "bsecret", SupervisorToken: "stoken", Active: true,
+	}); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	now := time.Now()
+	mock.ExpectQuery("select `uuid`, `username`, `port`, `subdomain`, `active`, `created` from `users` order by `created` asc").
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "subdomain", "active", "created"}).
+			AddRow("u1", "alice", 8081, "alice.off-the.cloud", true, now))
+
+	users, err := d.ListUsers()
+	if err != nil {
+		t.Fatalf("ListUsers: %v", err)
+	}
+	if len(users) != 1 || users[0].Username != "alice" || users[0].Port != 8081 || users[0].Active != true {
+		t.Fatalf("unexpected users: %+v", users)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestGetUserInternalIncludesSecrets(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active` from `users` where `uuid` = \\?").
+		WithArgs("u1").
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "db_name", "db_pass", "storage_path", "subdomain", "bridge_secret", "supervisor_token", "active"}).
+			AddRow("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true))
+
+	d := NewWithDB(db)
+	u, err := d.GetUserInternal("u1")
+	if err != nil {
+		t.Fatalf("GetUserInternal: %v", err)
+	}
+	if u.DbPass != "dbpass" || u.SupervisorToken != "stoken" || u.DbName != "otc_u1" {
+		t.Fatalf("unexpected internal user: %+v", u)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestListActiveUsersInternalFiltersInactive(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active` from `users` where `active` = 1").
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "db_name", "db_pass", "storage_path", "subdomain", "bridge_secret", "supervisor_token", "active"}).
+			AddRow("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true))
+
+	d := NewWithDB(db)
+	users, err := d.ListActiveUsersInternal()
+	if err != nil {
+		t.Fatalf("ListActiveUsersInternal: %v", err)
+	}
+	if len(users) != 1 || users[0].Username != "alice" {
+		t.Fatalf("unexpected users: %+v", users)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestDeactivateAndDeleteUserRow(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `users` set `active` = 0 where `uuid` = \\?").
+		WithArgs("u1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `users` where `uuid` = \\?").
+		WithArgs("u1").WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.DeactivateUser("u1"); err != nil {
+		t.Fatalf("DeactivateUser: %v", err)
+	}
+	if err := d.DeleteUserRow("u1"); err != nil {
+		t.Fatalf("DeleteUserRow: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestIsUsernameTakenAndIsPortInUse(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select count\\(\\*\\) from `users` where `username` = \\?").
+		WithArgs("alice").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery("select count\\(\\*\\) from `users` where `port` = \\?").
+		WithArgs(8081).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
+	d := NewWithDB(db)
+	taken, err := d.IsUsernameTaken("alice")
+	if err != nil || !taken {
+		t.Fatalf("IsUsernameTaken: taken=%v err=%v", taken, err)
+	}
+	inUse, err := d.IsPortInUse(8081)
+	if err != nil || inUse {
+		t.Fatalf("IsPortInUse: inUse=%v err=%v", inUse, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestNextFreePortDefaultsToBaseWhenNoUsers(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select max\\(`port`\\) from `users`").
+		WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(nil))
+
+	d := NewWithDB(db)
+	port, err := d.NextFreePort(8081)
+	if err != nil {
+		t.Fatalf("NextFreePort: %v", err)
+	}
+	if port != 8081 {
+		t.Fatalf("expected default base port 8081, got %d", port)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestNextFreePortIncrementsPastHighestExisting(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select max\\(`port`\\) from `users`").
+		WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(8083))
+
+	d := NewWithDB(db)
+	port, err := d.NextFreePort(8081)
+	if err != nil {
+		t.Fatalf("NextFreePort: %v", err)
+	}
+	if port != 8084 {
+		t.Fatalf("expected 8084 (one past the highest existing), got %d", port)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Issue #92: ends a friend's notification "catch-up" suppression once
+// their pre-existing backlog has been fully replayed - see social.go's
+// updateFriendEvents.
+func TestMarkNotificationsStarted(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `social_friendship` set `notifications_started` = 1 where `domain` = \\?").
+		WithArgs("alice.off-the.cloud").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.MarkNotificationsStarted("alice.off-the.cloud"); err != nil {
+		t.Fatalf("MarkNotificationsStarted: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)

@@ -7,14 +7,19 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -31,7 +36,10 @@ import (
 	"github.com/alonsovidales/otc/social"
 	"github.com/alonsovidales/otc/status"
 	"github.com/alonsovidales/otc/storage"
+	"github.com/alonsovidales/otc/supervisor"
+	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
+	"github.com/shirou/gopsutil/v4/disk"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -94,9 +102,27 @@ type Manager struct {
 	social       *social.Social
 	push         *push.Push
 	bridgePool   bridgeConnPool
+	// sup is nil on a spawned child (see supervisor.ChildEnvVar) - only
+	// the primary instance manages users, so every user-management RPC
+	// below checks this is non-nil before doing anything (see
+	// ReqGetInstanceRole's own doc comment for why that's not just a
+	// cosmetic UI-side check).
+	sup *supervisor.Supervisor
+	// activeConns counts real inbound client connections only (Listen,
+	// below) - NOT this device's own outbound bridge-pool relay
+	// connections (openBridgeConn), which use the same handleConnection
+	// but aren't "usage" in the sense issue #82's per-user metrics mean.
+	// Backs the primary's Users panel's "active connections" figure via
+	// api's /internal/metrics endpoint.
+	activeConns atomic.Int64
 }
 
-func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg *Manager) {
+// ActiveConnections is read by api's /internal/metrics handler.
+func (mg *Manager) ActiveConnections() int64 {
+	return mg.activeConns.Load()
+}
+
+func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup *supervisor.Supervisor) (mg *Manager) {
 	log.Debug("Init Websocket")
 	st, err := settings.Init(dao)
 	if err != nil {
@@ -114,6 +140,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager) (mg 
 		baseUrl:      baseUrl,
 		dao:          dao,
 		filesManager: filesManager,
+		sup:          sup,
 		upgrader: gorilla.Upgrader{
 			// In production, set a proper origin check!
 			CheckOrigin: func(r *http.Request) bool { return true },
@@ -511,6 +538,9 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer conn.Close()
+
+	mg.activeConns.Add(1)
+	defer mg.activeConns.Add(-1)
 
 	mg.handleConnection(conn, r)
 }
@@ -1246,6 +1276,89 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
+	// Issue #82: multiple users on one device - every case below except
+	// ReqGetInstanceRole refuses to act unless ch.mg.sup is set (this is
+	// the primary instance). See supervisor's own package doc for why a
+	// child never even attempts to run one of these itself.
+
+	case *pb.ReqEnvelope_ReqGetInstanceRole:
+		resp.Payload = &pb.RespEnvelope_RespInstanceRole{
+			RespInstanceRole: &pb.RespInstanceRole{IsPrimary: ch.mg.sup != nil},
+		}
+
+	case *pb.ReqEnvelope_ReqListUsers:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		users, err := ch.mg.dao.ListUsers()
+		if err != nil {
+			log.Error("error listing users:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users}}
+		}
+
+	case *pb.ReqEnvelope_ReqCreateUser:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		users, err := ch.createUser(p.ReqCreateUser)
+		if err != nil {
+			log.Error("error creating user:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users}}
+		}
+
+	case *pb.ReqEnvelope_ReqDeleteUser:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		if err := ch.deleteUser(p.ReqDeleteUser); err != nil {
+			log.Error("error deleting user:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqSetUserActive:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		if err := ch.setUserActive(p.ReqSetUserActive); err != nil {
+			log.Error("error setting user active flag:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqGetUserMetrics:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		metrics, err := ch.getUserMetrics(p.ReqGetUserMetrics.Uuid)
+		if err != nil {
+			log.Error("error fetching user metrics:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespUserMetrics{RespUserMetrics: metrics}
+		}
+
 	case *pb.ReqEnvelope_ReqGetStatus:
 		log.Info(fmt.Sprintf("Requested status %v", p))
 		st, err := status.GetStatus()
@@ -1624,6 +1737,186 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	}
 
 	return
+}
+
+// usernameRe matches scripts/install.sh's own subdomain validation
+// (^[a-z0-9-]+$) - a new user's username doubles as its bridge subdomain
+// prefix (see createUser), so it has to satisfy the same constraint.
+var usernameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+
+// createUser (issue #82) orchestrates provisioning a brand new user end
+// to end: validate, generate identity, create its database (dao.
+// ProvisionUserDatabase also seeds its settings row), create its storage
+// directory, record the row, and spawn it immediately (ch.mg.sup.SpawnNow)
+// so the admin sees it come up live rather than waiting for the next
+// restart. Returns the full updated user list on success, mirroring how
+// most "created a resource" RPCs in this file reply with the resource
+// itself rather than a bare Ack.
+func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
+	username := req.Username
+	if !usernameRe.MatchString(username) {
+		return nil, errors.New("username must be lowercase letters, digits, or hyphens")
+	}
+	if taken, err := ch.mg.dao.IsUsernameTaken(username); err != nil {
+		return nil, err
+	} else if taken {
+		return nil, errors.New("username already taken")
+	}
+
+	port := int(req.Port)
+	if port == 0 {
+		var err error
+		if port, err = ch.mg.dao.NextFreePort(8081); err != nil {
+			return nil, err
+		}
+	} else if inUse, err := ch.mg.dao.IsPortInUse(port); err != nil {
+		return nil, err
+	} else if inUse {
+		return nil, fmt.Errorf("port %d is already in use by another user", port)
+	}
+
+	id := uuid.New().String()
+	dbName := "otc_" + strings.ReplaceAll(id, "-", "")
+	dbPass, err := supervisor.GenerateSecret(24)
+	if err != nil {
+		return nil, err
+	}
+	bridgeSecret, err := supervisor.GenerateSecret(24)
+	if err != nil {
+		return nil, err
+	}
+	supervisorToken, err := supervisor.GenerateSecret(24)
+	if err != nil {
+		return nil, err
+	}
+	storagePath := "/mnt/storage/user_" + id
+	subdomain := username + "." + cfg.GetStr("otc", "bridge-addr")
+
+	if err := dao.ProvisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(storagePath+"/unencrypted", 0750); err != nil {
+		return nil, fmt.Errorf("creating storage directory: %w", err)
+	}
+
+	u := dao.User{
+		Uuid: id, Username: username, Port: port,
+		DbName: dbName, DbPass: dbPass,
+		StoragePath: storagePath, Subdomain: subdomain,
+		BridgeSecret: bridgeSecret, SupervisorToken: supervisorToken,
+		Active: true,
+	}
+	if err := ch.mg.dao.CreateUser(u); err != nil {
+		return nil, err
+	}
+
+	internal, err := ch.mg.dao.GetUserInternal(id)
+	if err != nil {
+		log.Error("created user", username, "but could not immediately spawn it:", err)
+	} else {
+		ch.mg.sup.SpawnNow(internal)
+	}
+
+	return ch.mg.dao.ListUsers()
+}
+
+// deleteUser (issue #82) requires confirm_username to match the target
+// user's actual username server-side too - never trusts the client-side
+// confirmation UI alone, since this deletes a whole database and storage
+// directory with no way back. Stops the process FIRST and waits for it to
+// actually exit (ch.mg.sup.Stop blocks) before touching its database or
+// files, so nothing is still holding either open mid-delete.
+func (ch *connHandler) deleteUser(req *pb.ReqDeleteUser) error {
+	u, err := ch.mg.dao.GetUserInternal(req.Uuid)
+	if err != nil {
+		return err
+	}
+	if req.ConfirmUsername != u.Username {
+		return errors.New("confirmation username does not match")
+	}
+
+	if err := ch.mg.sup.Stop(u.Uuid); err != nil {
+		return fmt.Errorf("could not stop %s's process: %w", u.Username, err)
+	}
+	if err := dao.DropUserDatabase(u.DbName, u.DbName); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(u.StoragePath); err != nil {
+		log.Error("could not remove storage directory for", u.Username, ":", err)
+	}
+	if err := os.RemoveAll(supervisor.UserHome(u.Uuid)); err != nil {
+		log.Error("could not remove config directory for", u.Username, ":", err)
+	}
+	return ch.mg.dao.DeleteUserRow(u.Uuid)
+}
+
+// setUserActive (issue #90) is deleteUser's reversible sibling - disabling
+// stops that user's process right away (same supervisor.Stop as delete
+// uses), rather than just flipping a flag the supervisor would only ever
+// notice next time that process happened to restart on its own. Enabling
+// spawns a fresh process for it immediately.
+func (ch *connHandler) setUserActive(req *pb.ReqSetUserActive) error {
+	if req.Active {
+		if err := ch.mg.dao.ReactivateUser(req.Uuid); err != nil {
+			return err
+		}
+		u, err := ch.mg.dao.GetUserInternal(req.Uuid)
+		if err != nil {
+			return err
+		}
+		ch.mg.sup.SpawnNow(u)
+		return nil
+	}
+
+	u, err := ch.mg.dao.GetUserInternal(req.Uuid)
+	if err != nil {
+		return err
+	}
+	if err := ch.mg.sup.Stop(u.Uuid); err != nil {
+		return fmt.Errorf("could not stop %s's process: %w", u.Username, err)
+	}
+	return ch.mg.dao.DeactivateUser(req.Uuid)
+}
+
+// getUserMetrics (issue #82) combines a direct DB read (storage - each
+// user's own files_manager already tracks file sizes, no filesystem walk
+// needed) with a local-only HTTP call to that user's own running process
+// (active connections - see api's /internal/metrics, gated on this user's
+// own supervisor_token). A user that isn't currently running just answers
+// with 0 active connections rather than an error - storage usage is still
+// meaningful for an inactive/stopped user.
+func (ch *connHandler) getUserMetrics(uuidStr string) (*pb.RespUserMetrics, error) {
+	u, err := ch.mg.dao.GetUserInternal(uuidStr)
+	if err != nil {
+		return nil, err
+	}
+
+	mb, err := dao.UserStorageUsageMB(u.DbName)
+	if err != nil {
+		return nil, err
+	}
+
+	total, err := disk.Usage(cfg.GetStr("otc", "storage-path"))
+	var pct float64
+	if err == nil && total.Total > 0 {
+		pct = (mb * 1024 * 1024) / float64(total.Total) * 100
+	}
+
+	active := int32(0)
+	client := http.Client{Timeout: 2 * time.Second}
+	httpReq, _ := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:%d/internal/metrics", u.Port), nil)
+	httpReq.Header.Set("X-Supervisor-Token", u.SupervisorToken)
+	if httpResp, err := client.Do(httpReq); err == nil {
+		defer httpResp.Body.Close()
+		var body struct {
+			ActiveConnections int32 `json:"active_connections"`
+		}
+		if json.NewDecoder(httpResp.Body).Decode(&body) == nil {
+			active = body.ActiveConnections
+		}
+	}
+
+	return &pb.RespUserMetrics{StorageMb: mb, StoragePct: pct, ActiveConnections: active}, nil
 }
 
 // processMessage dispatches one request to the pre-auth, friend-auth, or

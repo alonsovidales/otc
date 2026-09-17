@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection, clearPersistedKey, savePersistedKey } from "../net/pwCrypto";
 import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
+import UsersPanel from "./UsersPanel";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -514,6 +515,8 @@ export default function SettingsForm() {
           Sign Out
         </button>
       </section>
+
+      <UsersPanel />
     </div>
   );
 }

@@ -252,6 +252,13 @@ message Friendship {
   bool sent = 4;
   string secret = 5;
   google.protobuf.Timestamp latest_sync = 6;
+  // Issue #92: false until this friend's entire backlog of pre-existing
+  // events has been fully replayed at least once (see social.go's
+  // updateFriendEvents) - accepting a long-time-active friend otherwise
+  // floods the owner with a notification for every historical like/
+  // comment/post all at once. Real-time events from this point on notify
+  // normally; the one-time backlog catch-up never does.
+  bool notifications_started = 7;
 }
 
 message Friendships {
@@ -787,6 +794,77 @@ message RespPublication {
   SocialPublication publication = 1;
 }
 
+// Issue #82: multiple OTC "users" on one device, each a fully separate
+// process/port/database/storage-directory, managed from the PRIMARY
+// instance's Settings screen only (see ReqGetInstanceRole) - see
+// supervisor/supervisor.go's doc comment for the full design. Issue #89:
+// there is deliberately no is_admin/promote concept here - the original
+// device owner (whoever is logged into the primary instance) is the only
+// admin there will ever be; every other user is just a user.
+message User {
+  string uuid = 1;
+  string username = 2;
+  int32 port = 3;
+  string subdomain = 4;
+  // 5 was is_admin (issue #82) - removed by issue #89, left unused
+  // rather than renumbering active/created after it.
+  bool active = 6;
+  google.protobuf.Timestamp created = 7;
+}
+
+message ReqListUsers {}
+
+message RespUsers {
+  repeated User users = 1;
+}
+
+// port is optional - omit it (0) to let the primary pick the next free
+// one itself.
+message ReqCreateUser {
+  string username = 1;
+  int32 port = 2;
+}
+
+// confirm_username must match username exactly - checked server-side too,
+// never trusted from the client alone, since this deletes a whole
+// database and storage directory.
+message ReqDeleteUser {
+  string uuid = 1;
+  string confirm_username = 2;
+}
+
+// Issue #90: enable/disable a user's access without deleting their
+// database or storage - unlike ReqDeleteUser this is fully reversible.
+// Disabling actually stops that user's running process immediately
+// (supervisor.Stop), not just a flag flip that only takes effect next
+// time it happens to restart; enabling spawns it again right away.
+// Answers with the generic Ack.
+message ReqSetUserActive {
+  string uuid = 1;
+  bool active = 2;
+}
+
+message ReqGetUserMetrics {
+  string uuid = 1;
+}
+
+message RespUserMetrics {
+  double storage_mb = 1;
+  double storage_pct = 2;
+  int32 active_connections = 3;
+}
+
+// Lets a Settings screen know whether it's talking to the primary
+// instance (and should render the Users section) or one of the spawned
+// per-user instances (which never expose user management, even if a
+// request reaches it directly - see websocket.go's guard on every other
+// RPC above).
+message ReqGetInstanceRole {}
+
+message RespInstanceRole {
+  bool is_primary = 1;
+}
+
 message GetFriendshipStatus {
   string domain = 1;
   string secret = 2;
@@ -875,6 +953,16 @@ message ReqEnvelope {
     ReqGetNotificationCount req_get_notification_count = 71;
     ReqMarkNotificationsAcknowledged req_mark_notifications_acknowledged = 72;
     ReqGetPublication req_get_publication = 73;
+    // Issue #82: multiple users on one device.
+    ReqListUsers req_list_users = 74;
+    ReqCreateUser req_create_user = 75;
+    ReqDeleteUser req_delete_user = 76;
+    // 77 was ReqSetUserAdmin (issue #82) - removed by issue #89, left
+    // unused rather than renumbering everything after it.
+    ReqGetUserMetrics req_get_user_metrics = 78;
+    ReqGetInstanceRole req_get_instance_role = 79;
+    // Issue #90.
+    ReqSetUserActive req_set_user_active = 80;
   }
 }
 
@@ -922,5 +1010,10 @@ message RespEnvelope {
     RespNotifications resp_notifications = 38;
     RespNotificationCount resp_notification_count = 39;
     RespPublication resp_publication = 40;
+    // Issue #82: multiple users on one device. ReqDeleteUser answers
+    // with the generic Ack above.
+    RespUsers resp_users = 41;
+    RespUserMetrics resp_user_metrics = 42;
+    RespInstanceRole resp_instance_role = 43;
   }
 }

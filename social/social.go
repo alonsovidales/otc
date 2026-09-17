@@ -755,14 +755,30 @@ func (fr *friendship) notifyIfOwnComment(commentUuid, action string, notifType p
 	}
 }
 
+// cEventsSyncPageSize caps how many of a friend's events get replayed per
+// sync cycle (120s) - also doubles as the "have we drained the whole
+// backlog yet" signal updateFriendEvents uses below (issue #92): a page
+// that comes back shorter than this means there's nothing older left
+// queued behind it.
+const cEventsSyncPageSize = 20
+
 func (fr *friendship) updateFriendEvents() (err error) {
 	log.Debug("Updating events")
+	// Issue #92: "accepting an invite while doing the first sync" floods
+	// the owner with a notification for every one of that friend's
+	// pre-existing likes/comments/posts, all replayed at once, unless
+	// this is suppressed. catchingUp stays true across every sync cycle
+	// needed to drain a friend's whole backlog (not just the first one -
+	// a very active long-time friend can take several 120s cycles at
+	// cEventsSyncPageSize per cycle), until a cycle finally comes back
+	// with fewer events than it asked for.
+	catchingUp := !fr.data.NotificationsStarted
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqGetEvents{
 			ReqGetEvents: &pb.GetEvents{
 				Since: fr.data.LatestSync,
-				Total: 20, // Update only 20 to don't flood the other device
+				Total: cEventsSyncPageSize,
 			},
 		},
 	}
@@ -829,7 +845,10 @@ event_loop:
 			// ReqGetEvents{Since: LatestSync} never returns an
 			// already-processed event again - every PublicationEvent
 			// reaching this point is a genuinely new post, exactly once.
-			if fr.sc.push != nil {
+			// Issue #92: except during the one-time backlog catch-up,
+			// where "genuinely new to us" still means "years old to the
+			// friend who posted it" - not worth a push.
+			if fr.sc.push != nil && !catchingUp {
 				friendName := fr.data.OriginProfile.Name
 				if friendName == "" {
 					friendName = fr.data.OriginProfile.Domain
@@ -840,14 +859,14 @@ event_loop:
 		case LikeEvent:
 			var like LikePublication
 			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain); err == nil {
+			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain); err == nil && !catchingUp {
 				fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
 			}
 
 		case LikeCommentEvent:
 			var like LikePublicationComment
 			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain); err == nil {
+			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain); err == nil && !catchingUp {
 				fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
 			}
 
@@ -856,7 +875,7 @@ event_loop:
 			json.Unmarshal([]byte(event.Content), &comment)
 			// false: this is a friend's comment, synced in - see
 			// NewSocialComment for the device owner's own-comment path.
-			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false); err == nil {
+			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false); err == nil && !catchingUp {
 				fr.notifyIfOwnPublication(comment.PubUUID, comment.Uuid, "commented on your post", pb.NotificationType_NotificationNewComment)
 			}
 
@@ -876,6 +895,19 @@ event_loop:
 		}
 
 		err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt)
+	}
+
+	// Issue #92: a page shorter than what we asked for means there's
+	// nothing older left queued behind it - the backlog (if there ever
+	// was one) is now fully drained, so every event from the next sync
+	// cycle onward is genuinely new and safe to notify about normally.
+	// Checked here (once per cycle) rather than inside the loop, since a
+	// friend with zero pending events still needs to flip this the very
+	// first time they're ever synced.
+	if catchingUp && len(resp.RespEvents.Events) < cEventsSyncPageSize {
+		if err := fr.dao.MarkNotificationsStarted(fr.data.OriginProfile.Domain); err != nil {
+			log.Error("could not mark notifications as started for", fr.data.OriginProfile.Domain, ":", err)
+		}
 	}
 
 	return

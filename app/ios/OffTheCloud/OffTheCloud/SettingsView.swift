@@ -493,6 +493,8 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                UsersManagementSection()
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Settings". Still .inline so there's no big empty

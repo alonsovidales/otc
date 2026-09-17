@@ -145,3 +145,9 @@ Runtime config is INI, loaded via `cfg.Init(appName, env)`: it reads `etc/otc_<e
 the working directory, or `/etc/otc_<env>.ini` if that's missing. Dev config lives at
 `cfg/etc/config_dev.ini`; see `README.md` for the full annotated `[otc]`, `[otc-api]`, `[mysql]`,
 `[logger]`, `[tagger]`, `[faces]` sections used in production on the Pi.
+
+## VERY IMPORTANT NOTES
+- All the sensible content like photographies or files of any kind uploaded by the user should be encrypted at rest
+- No sensible communications should be shared over unsecure channels
+- Security is our main prioirty then reliability, durability and performance
+- Every time that a make is done, update the documentation, installation scripts, images and any other necessary parts

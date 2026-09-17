@@ -8,6 +8,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/websocket"
 	"os"
 	"os/signal"
@@ -16,8 +17,10 @@ import (
 )
 
 func main() {
+	env := "dev"
 	if len(os.Args) > 1 {
-		cfg.Init("otc", os.Args[1])
+		env = os.Args[1]
+		cfg.Init("otc", env)
 
 		log.SetLogger(
 			log.Levels[cfg.GetStr("logger", "level")],
@@ -32,7 +35,25 @@ func main() {
 	dao := dao.Init()
 
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"), dao)
-	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao, filesManager)
+
+	// Issue #82: multiple OTC "users" on one device. A spawned child has
+	// OTC_SUPERVISED_CHILD set in its own environment (see
+	// supervisor.ChildEnvVar) - only the primary instance (that var
+	// unset) ever starts a supervisor of its own, which is what actually
+	// caps the fork/exec recursion at one level. Built before
+	// websocket.Init since the Manager holds a reference to it (nil on a
+	// child), used to gate every user-management RPC.
+	var sup *supervisor.Supervisor
+	if os.Getenv(supervisor.ChildEnvVar) == "" {
+		exePath, err := os.Executable()
+		if err != nil {
+			log.Error("could not resolve own executable path, multi-user supervision disabled:", err)
+		} else {
+			sup = supervisor.Start(dao, exePath, env)
+		}
+	}
+
+	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao, filesManager, sup)
 
 	api.Init(
 		filesManager,
@@ -51,5 +72,8 @@ func main() {
 	<-c
 
 	log.Info("Stopping all the services")
+	if sup != nil {
+		sup.StopAll()
+	}
 	dao.Stop()
 }

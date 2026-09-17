@@ -12,8 +12,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
-	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/profile"
+	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 )
 

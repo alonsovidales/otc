@@ -272,8 +272,13 @@ rm -rf "$tmp"
 chown -R otc:otc /var/www
 
 log "[9/10] Runtime directories"
-mkdir -p /var/log/otc /etc/otc /var/lib/otc "$STORAGE_PATH" "$UNENC_PATH"
-chown otc:otc /var/log/otc /var/www /var/lib/otc "$STORAGE_PATH" "$UNENC_PATH"
+# /var/lib/otc/users: issue #82's per-user config/identity directories -
+# under StateDirectory=otc (still writable under ProtectSystem=full,
+# unlike /etc itself), one subdirectory per spawned user, created by the
+# supervisor itself on demand - this just makes sure the parent exists
+# with the right ownership up front.
+mkdir -p /var/log/otc /etc/otc /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
+chown otc:otc /var/log/otc /var/www /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
 chmod 755 /var/log/otc
 
 # ---------------------------------------------------------------------------
@@ -339,6 +344,22 @@ CREATE DATABASE IF NOT EXISTS otc;
 CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
 ALTER USER 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
 GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
+-- Issue #82: multiple users on one device - the primary instance
+-- provisions/drops a whole database+MySQL user per additional user at
+-- runtime (see dao/provisioning.go). This needs ALL PRIVILEGES (not a
+-- narrower CREATE/DROP/CREATE USER/GRANT OPTION set), because MySQL
+-- requires a grantor to already hold whatever privileges it hands off:
+-- GRANT OPTION only lets you re-delegate privileges you have, not grant
+-- arbitrary ones. Provisioning a new user's database ends with
+-- `GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost`, which
+-- otc@localhost itself must hold on every database it might ever create -
+-- i.e. globally - or that grant fails with "Access denied ... to database
+-- 'otc_<uuid>'" (hit exactly this live during testing before widening the
+-- grant to what's below). WITH GRANT OPTION also covers the SELECT this
+-- account needs on every other user's database for the Users panel's
+-- storage-usage metric (dao.UserStorageUsageMB), rather than separately
+-- storing/managing each user's own dedicated DB password just for that.
+GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 "
 if mysql otc -N -B -e 'SHOW TABLES LIKE "files"' 2>/dev/null | grep -q files; then
@@ -354,6 +375,12 @@ fi
 # install too (where db.sql just created them already).
 mysql otc -e "
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
+-- Issue #92: ends a friend's notification catch-up suppression once their
+-- pre-existing backlog is fully replayed (see social.go's
+-- updateFriendEvents) - defaulting to 0 on an upgrade is fine even for
+-- already-fully-synced friends, since the very next sync cycle finds
+-- nothing pending and flips it back on within one 120s tick.
+ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS notifications_started TINYINT(1) NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS people (
   id VARCHAR(36) NOT NULL,
   name VARCHAR(150) NOT NULL DEFAULT '',
@@ -410,6 +437,30 @@ CREATE TABLE IF NOT EXISTS notifications (
   INDEX USING BTREE (acknowledged),
   INDEX USING BTREE (dt)
 ) ENGINE=InnoDB;
+"
+# Issue #82: multiple OTC "users" on one device - only ever has real rows
+# on the primary instance (see supervisor/supervisor.go's package doc).
+mysql otc -e "
+CREATE TABLE IF NOT EXISTS users (
+  uuid VARCHAR(64) NOT NULL,
+  username VARCHAR(64) NOT NULL,
+  port INT NOT NULL,
+  db_name VARCHAR(64) NOT NULL,
+  db_pass VARCHAR(128) NOT NULL,
+  storage_path VARCHAR(255) NOT NULL,
+  subdomain VARCHAR(128) NOT NULL,
+  bridge_secret VARCHAR(128) NOT NULL,
+  supervisor_token VARCHAR(128) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  created DATETIME NOT NULL,
+  UNIQUE (uuid),
+  UNIQUE (username),
+  UNIQUE (port)
+) ENGINE=InnoDB;
+-- Issue #89: no is_admin/promote column - the original device owner is
+-- the only admin there will ever be. Drops it for any device that already
+-- ran an earlier version of this script before #89 removed the concept.
+ALTER TABLE users DROP COLUMN IF EXISTS is_admin;
 "
 mysql otc -e "
 INSERT INTO settings (device_uuid, subdomain, bridge_secret)
