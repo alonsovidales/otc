@@ -61,13 +61,6 @@ const (
 	// in Files/the gallery - only the *published* copy is the compressed
 	// one.
 	cSocialVideoSizeLimit = 10 * 1024 * 1024
-
-	// cSocialVideoPath is the fixed, dot-prefixed directory social-only
-	// video compressions are stored under - deliberately outside anywhere
-	// the owner would browse to in the Files section, since these aren't
-	// files they chose to keep: they exist purely so NewPublication has
-	// something smaller to actually distribute for an oversized video.
-	cSocialVideoPath = "/.otc-social-video-cache/"
 )
 
 type Social struct {
@@ -174,33 +167,26 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			return "", fmt.Errorf("error loading file %q: %w", path, err)
 		}
 
-		// Issue #60: an oversized video gets compressed and republished as
-		// a brand new file *before* anything below treats it as this
-		// post's file - every subsequent step (the unenc cache write, the
-		// thumbnail poll, the file actually stored on the publication)
-		// then operates on the compressed copy transparently, exactly as
-		// if the owner had picked it directly.
+		// Issue #60: an oversized video gets compressed into a brand new
+		// copy before anything below treats it as this post's file - every
+		// subsequent step (the unenc cache write, the thumbnail, the file
+		// actually stored on the publication) then operates on the
+		// compressed copy transparently, exactly as if the owner had
+		// picked it directly. That copy only exists to support this one
+		// post's distribution though - it's not something the owner chose
+		// to keep, so (mirroring how an image's own thumbnail never does
+		// either) it's never written as a real file: no `files` row, no
+		// entry in the Files section, no tag/face processing. See
+		// BuildTransientFile's doc comment.
+		isTransient := false
 		if shouldCompressForSocial(file.Mime, len(file.Content)) {
 			compressed, cErr := sc.filesmanager.CompressVideoForSocial(file.Content)
 			if cErr != nil {
 				log.Error("error compressing oversized video for publication, publishing the original instead:", path, cErr)
 			} else {
-				socialPath := fmt.Sprintf("%s%s.mp4", cSocialVideoPath, uuid.New().String())
-				compressedFile, upErr := sc.filesmanager.UploadFile(ses, socialPath, compressed, false, nil)
-				if upErr != nil {
-					log.Error("error storing compressed video for publication, publishing the original instead:", path, upErr)
-				} else {
-					log.Debug("Publishing compressed video instead of oversized original:", path, "->", socialPath, len(file.Content), "->", len(compressed))
-					file = compressedFile
-					// The compressed file is now what gets loaded below for
-					// the unenc cache/thumbnail - GetFile fills in Content,
-					// UploadFile's own return value doesn't.
-					file, err = sc.filesmanager.GetFile(ses, socialPath)
-					if err != nil {
-						log.Error("Error loading compressed video:", err)
-						return "", fmt.Errorf("error loading compressed video %q: %w", socialPath, err)
-					}
-				}
+				log.Debug("Publishing compressed video instead of oversized original:", path, len(file.Content), "->", len(compressed))
+				file = filesmanager.BuildTransientFile(compressed)
+				isTransient = true
 			}
 		}
 
@@ -211,24 +197,34 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			return "", err
 		}
 
-		// Issue #49: UploadFile writes the thumbnail from a background
-		// goroutine (see files_manager.UploadFile), not before returning -
-		// fine for the original flow (a post is always composed well
-		// after a prior, separate sync finished), but a client that
-		// uploads and immediately posts the same file (issue #49's
-		// Phone-source picker) can race that goroutine and find no
-		// thumbnail yet. Retried rather than failing the whole post over
-		// what's normally a sub-second delay.
 		var unEncThumb []byte
-		for attempt := 0; ; attempt++ {
-			unEncThumb, err = sc.filesmanager.GetThumbnail(ses, file)
-			if err == nil {
-				break
+		if isTransient {
+			// Nothing to poll for - there's no `files` row, so no
+			// background goroutine is ever going to write an encrypted
+			// thumbnail for this hash. Generate one directly instead.
+			unEncThumb, err = sc.filesmanager.GenerateVideoThumbnail(file.Content, int(cfg.GetInt("otc", "max-thumbnail-width-px")))
+			if err != nil {
+				return "", fmt.Errorf("generating thumbnail for compressed video %q: %w", path, err)
 			}
-			if attempt >= cThumbnailPollAttempts-1 {
-				return "", err
+		} else {
+			// Issue #49: UploadFile writes the thumbnail from a background
+			// goroutine (see files_manager.UploadFile), not before
+			// returning - fine for the original flow (a post is always
+			// composed well after a prior, separate sync finished), but a
+			// client that uploads and immediately posts the same file
+			// (issue #49's Phone-source picker) can race that goroutine
+			// and find no thumbnail yet. Retried rather than failing the
+			// whole post over what's normally a sub-second delay.
+			for attempt := 0; ; attempt++ {
+				unEncThumb, err = sc.filesmanager.GetThumbnail(ses, file)
+				if err == nil {
+					break
+				}
+				if attempt >= cThumbnailPollAttempts-1 {
+					return "", err
+				}
+				time.Sleep(cThumbnailPollInterval)
 			}
-			time.Sleep(cThumbnailPollInterval)
 		}
 		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
 		err = os.WriteFile(unencPathThumb, unEncThumb, 0644) // perms: rw-r--r--

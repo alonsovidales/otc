@@ -3,6 +3,10 @@
 package filesmanager
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"image/jpeg"
 	"os"
 	"os/exec"
 	"strconv"
@@ -123,5 +127,75 @@ func TestCompressVideoForSocialRejectsGarbageInput(t *testing.T) {
 	mg := &Manager{}
 	if _, err := mg.CompressVideoForSocial([]byte("not a real video")); err == nil {
 		t.Error("expected an error for non-video input, got nil")
+	}
+}
+
+// BuildTransientFile must never insert anything into the `files` table (no
+// DB dependency in its signature at all) while still computing the exact
+// same Hash/Mime/Size metadata UploadFile would - this is the whole point
+// of the issue this covers: NewPublication's compressed video-for-social
+// copy stopped going through UploadFile so it wouldn't show up in the
+// Files section, but it still needs correct file metadata for
+// social_publications_files.
+func TestBuildTransientFile(t *testing.T) {
+	content := []byte("fake mp4 bytes for hashing purposes")
+	f := BuildTransientFile(content)
+
+	sum := sha256.Sum256(content)
+	wantHash := hex.EncodeToString(sum[:])
+	if f.Hash != wantHash {
+		t.Errorf("Hash = %q, want %q", f.Hash, wantHash)
+	}
+	if f.Size != int32(len(content)) {
+		t.Errorf("Size = %d, want %d", f.Size, len(content))
+	}
+	if !bytes.Equal(f.Content, content) {
+		t.Error("Content does not match the input bytes")
+	}
+	if f.Created == nil || f.Modified == nil {
+		t.Error("Created/Modified should both be set")
+	}
+	// Deliberately not asserting Path here — it's left unset, since
+	// social_publications_files never stores or reads one (see
+	// dao.NewSocialPublication/GetSocialPublicationFiles).
+}
+
+func TestGenerateVideoThumbnail(t *testing.T) {
+	requireFFmpeg(t)
+	content := makeTestVideoSized(t, 2, 1280, 720)
+
+	mg := &Manager{}
+	thumb, err := mg.GenerateVideoThumbnail(content, 1000)
+	if err != nil {
+		t.Fatalf("GenerateVideoThumbnail: %v", err)
+	}
+	img, err := jpeg.Decode(bytes.NewReader(thumb))
+	if err != nil {
+		t.Fatalf("decoding thumbnail as JPEG: %v", err)
+	}
+	if img.Bounds().Dx() <= 0 || img.Bounds().Dy() <= 0 {
+		t.Error("expected a non-empty thumbnail image")
+	}
+}
+
+// A narrow video must still get a thumbnail (unconditionally, not just
+// when downscaling was needed) - processMediaContent's own inline version
+// of this had exactly this gap once for images (see its own comment on
+// that fix), and would have reproduced it for video here too if this
+// hadn't encoded unconditionally from the start.
+func TestGenerateVideoThumbnailNeverSkipsNarrowVideo(t *testing.T) {
+	requireFFmpeg(t)
+	content := makeTestVideoSized(t, 2, 320, 240)
+
+	mg := &Manager{}
+	thumb, err := mg.GenerateVideoThumbnail(content, 1000)
+	if err != nil {
+		t.Fatalf("GenerateVideoThumbnail: %v", err)
+	}
+	if len(thumb) == 0 {
+		t.Fatal("expected a thumbnail to be produced for a narrow video too")
+	}
+	if _, err := jpeg.Decode(bytes.NewReader(thumb)); err != nil {
+		t.Fatalf("decoding thumbnail as JPEG: %v", err)
 	}
 }

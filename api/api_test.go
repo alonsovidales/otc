@@ -121,13 +121,11 @@ func TestServeStaticRejectsPathTraversal(t *testing.T) {
 	if got := rec.Body.String(); got == "do not leak me" {
 		t.Fatal("path traversal was not blocked: secret file content was served")
 	}
-	if rec.Code != http.StatusOK {
-		// The handler returns early without writing a status, which the
-		// ResponseWriter reports as 200; documenting the current behavior
-		// here so a change to it is a deliberate, visible one.
-		t.Errorf("expected the default 200 with empty body for a rejected path, got %d", rec.Code)
-	}
-	if rec.Body.Len() != 0 {
-		t.Errorf("expected an empty body for a rejected path, got %q", rec.Body.String())
+	// Issue #95: serveStatic's own path resolution moved into
+	// staticassets.Resolve (shared with the bridge's ReqGetStaticAsset
+	// RPC) - a rejected path now answers with a real 404 rather than a
+	// silent empty 200.
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for a rejected path, got %d", rec.Code)
 	}
 }

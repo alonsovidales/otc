@@ -11,9 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -34,6 +36,7 @@ import (
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
 	"github.com/alonsovidales/otc/social"
+	"github.com/alonsovidales/otc/staticassets"
 	"github.com/alonsovidales/otc/status"
 	"github.com/alonsovidales/otc/storage"
 	"github.com/alonsovidales/otc/supervisor"
@@ -108,6 +111,13 @@ type Manager struct {
 	// ReqGetInstanceRole's own doc comment for why that's not just a
 	// cosmetic UI-side check).
 	sup *supervisor.Supervisor
+	// staticPath (issue #95) is this instance's own built web assets
+	// directory - the same one api.API serves directly over plain HTTP,
+	// now also reachable over this connection via ReqGetStaticAsset so the
+	// bridge can fetch a device's current assets on a browser's behalf
+	// instead of keeping its own separate, driftable copy. See
+	// staticassets.Resolve for the actual path-safety guarantee.
+	staticPath string
 	// activeConns counts real inbound client connections only (Listen,
 	// below) - NOT this device's own outbound bridge-pool relay
 	// connections (openBridgeConn), which use the same handleConnection
@@ -122,7 +132,7 @@ func (mg *Manager) ActiveConnections() int64 {
 	return mg.activeConns.Load()
 }
 
-func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup *supervisor.Supervisor) (mg *Manager) {
+func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup *supervisor.Supervisor, staticPath string) (mg *Manager) {
 	log.Debug("Init Websocket")
 	st, err := settings.Init(dao)
 	if err != nil {
@@ -141,6 +151,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 		dao:          dao,
 		filesManager: filesManager,
 		sup:          sup,
+		staticPath:   staticPath,
 		upgrader: gorilla.Upgrader{
 			// In production, set a proper origin check!
 			CheckOrigin: func(r *http.Request) bool { return true },
@@ -639,6 +650,40 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	}
 
 	switch p := env.Payload.(type) {
+	// Issue #95: the bridge fetches this device's own static web assets
+	// through here now (over the same tunnel any other request already
+	// uses) instead of keeping its own separate, driftable copy - see
+	// staticassets.Resolve for the actual security guarantee. Answers
+	// with the exact same generic "not found" either way (a genuinely
+	// missing file or a rejected path), never anything path- or
+	// filesystem-shaped, to a request that - reached through the bridge -
+	// could be coming from anyone on the internet, not just this device's
+	// own signed-in owner.
+	case *pb.ReqEnvelope_ReqGetStaticAsset:
+		path, rErr := staticassets.Resolve(ch.mg.staticPath, p.ReqGetStaticAsset.Path)
+		if rErr != nil {
+			resp.Error = true
+			resp.ErrorMessage = "asset not found"
+			break
+		}
+		content, rErr := os.ReadFile(path)
+		if rErr != nil {
+			log.Error("error reading resolved static asset:", rErr)
+			resp.Error = true
+			resp.ErrorMessage = "asset not found"
+			break
+		}
+		contentType := mime.TypeByExtension(filepath.Ext(path))
+		if contentType == "" {
+			contentType = http.DetectContentType(content)
+		}
+		resp.Payload = &pb.RespEnvelope_RespStaticAsset{
+			RespStaticAsset: &pb.RespStaticAsset{
+				Content:     content,
+				ContentType: contentType,
+			},
+		}
+
 	case *pb.ReqEnvelope_ReqGetPubKey:
 		privKey, err := ch.getOrCreatePrivKey()
 		if err != nil {

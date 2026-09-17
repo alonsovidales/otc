@@ -879,6 +879,25 @@ message AuthAsFriend {
   string secret = 2;
 }
 
+// Issue #95: the bridge fetches a device's static web assets (the SPA
+// bundle, index.html, favicons, etc.) through this RPC now, over the same
+// tunnel every other request already uses, instead of keeping its own
+// separate copy that had to be redeployed by hand every time a device's
+// own build changed. path is a URL path exactly as a browser requested it
+// (e.g. "/assets/index-abc123.js", "/", "/social") - the device resolves
+// it the same way its own HTTP static handler does (see
+// staticassets.Resolve), and only ever answers with a file that already
+// exists inside its own static assets directory: nothing else on the
+// device is reachable through this, regardless of what path asks for.
+message ReqGetStaticAsset {
+  string path = 1;
+}
+
+message RespStaticAsset {
+  bytes content = 1;
+  string content_type = 2;
+}
+
 message ReqEnvelope {
   int32 id = 1;
   oneof payload {
@@ -963,6 +982,8 @@ message ReqEnvelope {
     ReqGetInstanceRole req_get_instance_role = 79;
     // Issue #90.
     ReqSetUserActive req_set_user_active = 80;
+    // Issue #95.
+    ReqGetStaticAsset req_get_static_asset = 81;
   }
 }
 
@@ -1015,5 +1036,7 @@ message RespEnvelope {
     RespUsers resp_users = 41;
     RespUserMetrics resp_user_metrics = 42;
     RespInstanceRole resp_instance_role = 43;
+    // Issue #95.
+    RespStaticAsset resp_static_asset = 44;
   }
 }

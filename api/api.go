@@ -8,10 +8,9 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/staticassets"
 	"github.com/alonsovidales/otc/websocket"
 	"net/http"
-	"os"
-	"strings"
 )
 
 const (
@@ -104,42 +103,21 @@ func (api *API) internalMetrics(w http.ResponseWriter, r *http.Request) {
 
 // serveStatic serves files from staticPath, appending ".html" to
 // extension-less paths so client-side routes (e.g. "/social") resolve to
-// their matching page. Requests containing ".." are refused outright.
+// their matching page, and falling back to the SPA's index.html for
+// anything that still doesn't resolve to a real file (issue #38: a
+// client-side route the ".html" guess didn't match, or a captive-portal
+// probe path like /generate_204, which was never going to be a real file
+// either - either way, showing the SPA shell beats a bare 404). Requests
+// containing ".." are refused outright. Issue #95: this resolution is
+// shared with ReqGetStaticAsset (see staticassets.Resolve's own doc
+// comment) - the bridge now reaches this same lookup remotely on a
+// browser's behalf instead of keeping its own separate, driftable copy of
+// these files.
 func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
-	filePath := r.URL.Path[1:]
-
-	if strings.Contains(filePath, "..") {
+	path, err := staticassets.Resolve(api.staticPath, r.URL.Path[1:])
+	if err != nil {
+		http.NotFound(w, r)
 		return
-	}
-
-	path := api.staticPath + filePath
-	lastPosSlash := -1
-	lastPosDot := -1
-
-	for i := 0; i < len(path); i++ {
-		switch path[i] {
-		case '/':
-			lastPosSlash = i
-		case '.':
-			lastPosDot = i
-		}
-	}
-
-	if filePath != "" && lastPosDot < lastPosSlash {
-		path += ".html"
-	}
-
-	// Issue #38: anything that still doesn't resolve to a real file falls
-	// back to the SPA's index.html instead of a bare 404 — a client-side
-	// route the ".html" guess above didn't match (unchanged behavior), but
-	// also now a captive-portal probe path like /generate_204 or
-	// /hotspot-detect.html, which was never going to be a real file. Those
-	// already made every OS's captive-portal check correctly detect "this
-	// isn't real internet" from the 404 alone; this just means whatever
-	// page it then shows the person is the actual setup wizard instead of
-	// a dead end.
-	if info, err := os.Stat(path); err != nil || info.IsDir() {
-		path = api.staticPath + "index.html"
 	}
 
 	log.Debug("Serving static:", path)

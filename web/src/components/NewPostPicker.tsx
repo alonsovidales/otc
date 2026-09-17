@@ -215,7 +215,11 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
 
   const publish = async () => {
     const hasSelection = source === "local" ? localFiles.length > 0 : sel.size > 0;
-    if (!hasSelection || publishing) return;
+    // Issue #96: a post always needs its own caption - the button below
+    // already disables on this same check, this just guards the actual
+    // publish call too rather than trusting the button's disabled state
+    // alone (same defense-in-depth as the hasSelection check right above).
+    if (!hasSelection || !caption.trim() || publishing) return;
     setPublishing(true);
     setError(null);
     try {
@@ -401,7 +405,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         />
         <button
           className="np-publish"
-          disabled={(source === "local" ? !localFiles.length : !sel.size) || publishing}
+          disabled={(source === "local" ? !localFiles.length : !sel.size) || !caption.trim() || publishing}
           onClick={publish}
         >
           {publishing

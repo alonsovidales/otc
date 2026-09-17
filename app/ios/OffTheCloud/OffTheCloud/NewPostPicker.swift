@@ -297,7 +297,12 @@ final class NewPostPickerVM: ObservableObject {
     }
 
     func publish(onPosted: @escaping () -> Void) {
-        guard !selectedOrder.isEmpty, !publishing else { return }
+        // Issue #96: a post always needs its own caption - the Publish
+        // button below already disables on this same check, this just
+        // guards the actual publish call too rather than trusting the
+        // button's disabled state alone (same defense-in-depth as the
+        // selectedOrder check right next to it).
+        guard !selectedOrder.isEmpty, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !publishing else { return }
         publishing = true
         Task {
             defer { publishing = false; publishStatus = "" }
@@ -551,7 +556,7 @@ struct NewPostPickerView: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(vm.selectedOrder.isEmpty || vm.publishing)
+                    .disabled(vm.selectedOrder.isEmpty || vm.caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.publishing)
                 }
                 .padding(10)
                 .background(.ultraThinMaterial)

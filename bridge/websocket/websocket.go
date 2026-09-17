@@ -272,6 +272,22 @@ func (d *deviceRelay) failAll() {
 // response frame, correlated by envelope id — safe to call concurrently
 // for several requests in flight on the same relay at once.
 func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
+	return d.forwardWithTimeout(frame, cForwardTimeout)
+}
+
+// forwardWithTimeout is forward with an explicit timeout - factored out
+// for ForwardOneOff (issue #95), whose candidates are popped off a pool
+// that a device's own past process restarts can leave holding connections
+// nothing will ever answer on again (see ForwardOneOff's own doc comment).
+// cForwardTimeout's 90s is tuned for a real GetFile of a large photo/video
+// over a slow connection; waiting anywhere near that long per bad
+// candidate before trying the next one turned a handful of stale pool
+// entries into a multi-minute stall for what should be a near-instant
+// static asset fetch - reproduced live the first time this path actually
+// ran against a device whose pool had accumulated any (issue #95's own
+// testing, against a device redeployed and restarted many times over one
+// long session).
+func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, error) {
 	var env pb.ReqEnvelope
 	if err := proto.Unmarshal(frame, &env); err != nil {
 		return nil, fmt.Errorf("bad proto: %w", err)
@@ -306,7 +322,7 @@ func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 			return nil, errors.New("device connection closed")
 		}
 		return resp, nil
-	case <-time.After(cForwardTimeout):
+	case <-time.After(timeout):
 		d.mu.Lock()
 		delete(d.waiters, env.Id)
 		d.mu.Unlock()
@@ -476,6 +492,63 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 	}
 	conn.Close()
 
+}
+
+// cOneOffForwardTimeout bounds each candidate connection's forward() call
+// in ForwardOneOff - deliberately much shorter than cForwardTimeout (90s,
+// tuned for a real GetFile of a large photo/video). A static asset fetch
+// is small and should answer almost immediately; a candidate that doesn't
+// is almost certainly a stale pool entry (see ForwardOneOff's own doc
+// comment), and 90s of that per candidate is what turned a handful of
+// them into a multi-minute stall, reproduced live. Var, not const, so
+// tests can shrink it instead of waiting on real seconds.
+var cOneOffForwardTimeout = 5 * time.Second
+
+// ForwardOneOff sends frame to one connection from domain's pool and
+// returns the raw response frame, always closing that connection
+// afterward - unlike Listen's own default pass-through case below, which
+// keeps a picked connection paired for the rest of a browser's WS session,
+// this has no session of its own to keep it for: issue #95's static-asset
+// proxy is a plain HTTP handler with a fresh, independent request every
+// time, so each call here gets its own connection and gives it straight
+// back. Same pool-pick loop as that default case (skip a candidate that
+// fails to forward, try the next one) - see deviceRelay.forward's own doc
+// comment for why a single bad connection shouldn't fail the whole
+// request when another one might still work - except each candidate here
+// gets cOneOffForwardTimeout, not cForwardTimeout: popping candidates one
+// at a time and only holding pool.lock long enough to pop each one (not
+// for the whole loop, unlike the default case) means a slow/stale
+// candidate here blocks this one caller, not every other request trying
+// to reach the same device concurrently.
+func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte, err error) {
+	mg.bridgesMu.RLock()
+	pool, ok := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	if !ok {
+		return nil, errors.New("device is offline")
+	}
+
+	for {
+		pool.lock.Lock()
+		if len(pool.availableConns) == 0 {
+			pool.lock.Unlock()
+			return nil, errors.New("no available connections in the pool for this device")
+		}
+		candidate := pool.availableConns[0]
+		pool.availableConns = pool.availableConns[1:]
+		pool.lock.Unlock()
+
+		respFrame, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
+		candidate.Close()
+		if err != nil {
+			log.Error("error forwarding one-off request, trying the next available connection:", err)
+			continue
+		}
+		if dbErr := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); dbErr != nil {
+			log.Error("error recording device activity:", dbErr)
+		}
+		return respFrame, nil
+	}
 }
 
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {

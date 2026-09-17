@@ -24,7 +24,14 @@ sync:
 pi:
 	@echo "$(OK_COLOR)==> Building for pi...$(NO_COLOR)"
 	ssh otc@$(TARGET) sudo systemctl stop otc
-	ssh -tt otc@$(TARGET) 'bash -lc "cd otc; CGO_ENABLED=1 go build -o otc ./bin/otc.go && sudo mv otc /usr/bin/"'
+	# PATH gets /usr/local/go/bin appended (not prepended) just for the
+	# build command itself, on top of whatever this login shell's own
+	# PATH already resolves - a device where `go` is already reachable is
+	# unaffected either way. Needed on Cala specifically: `go` is
+	# installed there but its login shell's own PATH never picks it up,
+	# which used to fail this whole target outright with a plain
+	# "go: command not found".
+	ssh -tt otc@$(TARGET) 'bash -lc "cd otc && PATH=$$PATH:/usr/local/go/bin CGO_ENABLED=1 go build -o otc ./bin/otc.go && sudo mv otc /usr/bin/"'
 	ssh otc@$(TARGET) sudo systemctl start otc
 
 .PHONY: pi
@@ -61,8 +68,13 @@ web:
 	@echo "$(OK_COLOR)==> Copying static content...$(NO_COLOR)"
 	mkdir -p app/ios/OffTheCloud/web-dist
 	cp -a web/dist/* app/ios/OffTheCloud/web-dist/
-	cp -a web/dist/* bridge/static/
 	scp -r web/dist/* otc@$(TARGET):/var/www/
+	# Issue #95: the bridge fetches a device's own web assets straight from
+	# it now (see staticassets.Resolve / ReqGetStaticAsset) instead of
+	# serving a separate copy of its own - no reason left to also push one
+	# to bridge/static/ here. bridge/static/ still holds the bridge's own
+	# pages (landing.html, the admin panel) - those are deployed by
+	# bridge/makefile's own target, unrelated to a device's web build.
 
 .PHONY: web
 

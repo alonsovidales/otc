@@ -4,11 +4,20 @@ package filesmanager
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"os"
 	"os/exec"
 
 	"github.com/alonsovidales/otc/log"
+	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/gabriel-vasile/mimetype"
+	"golang.org/x/image/draw"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -80,4 +89,66 @@ func (mg *Manager) CompressVideoForSocial(content []byte) ([]byte, error) {
 	}
 	log.Debug("Compressed video for social:", len(content), "->", len(out), "bytes")
 	return out, nil
+}
+
+// BuildTransientFile computes the same Hash/Mime/Size metadata UploadFile
+// does, but does none of UploadFile's persistence: no `files` DB row, no
+// write to the encrypted storage path, no tag/thumbnail/face background
+// processing. For content that exists purely to support something else -
+// today, only NewPublication's compressed video-for-social copy - rather
+// than something the owner chose to keep: the same "never shows up in
+// Files, never gets tagged" treatment a photo's own thumbnail already
+// gets, just for a case that needs the full pb.File shape (Content
+// included), not a bare hash.
+func BuildTransientFile(content []byte) *pb.File {
+	mimeType := mimetype.Detect(content)
+	sum := sha256.Sum256(content)
+	hash := hex.EncodeToString(sum[:])
+	now := timestamppb.Now()
+	return &pb.File{
+		Created:  now,
+		Modified: now,
+		Mime:     mimeType.String(),
+		Hash:     hash,
+		Size:     int32(len(content)),
+		Content:  content,
+	}
+}
+
+// GenerateVideoThumbnail extracts a representative frame from raw video
+// bytes and returns it JPEG-encoded, downscaled to maxWidth the same way a
+// regular upload's own video thumbnail is (see processMediaContent's video
+// branch, which passes cfg's "max-thumbnail-width-px" - kept as a plain
+// parameter here rather than read from cfg directly, same convention as
+// thumbnailSource, so this stays unit-testable without a config file).
+// Factored out so a transient file (see BuildTransientFile above) can get
+// a thumbnail without going through the whole UploadFile pipeline. Unlike
+// processMediaContent's own version, this always encodes a thumbnail
+// regardless of the frame's width (that unconditional part already had to
+// be fixed once for the image side - see processMediaContent's own
+// comment on it - no reason to reproduce the same gap here in new code).
+func (mg *Manager) GenerateVideoThumbnail(content []byte, maxWidth int) ([]byte, error) {
+	frames, err := extractVideoFrames(content, cVideoSampleFrames)
+	if err != nil {
+		return nil, fmt.Errorf("extracting video frames: %w", err)
+	}
+	if len(frames) == 0 {
+		return nil, errors.New("no frames extracted from video")
+	}
+
+	thumbSrc := frames[0]
+	b := thumbSrc.Bounds()
+	var thumbImg image.Image = thumbSrc
+	if b.Dx() > maxWidth {
+		newH := int(float64(b.Dy()) * float64(maxWidth) / float64(b.Dx()))
+		dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
+		draw.CatmullRom.Scale(dst, dst.Bounds(), thumbSrc, thumbSrc.Bounds(), draw.Over, nil)
+		thumbImg = dst
+	}
+
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
+		return nil, fmt.Errorf("encoding thumbnail: %w", err)
+	}
+	return buf.Bytes(), nil
 }

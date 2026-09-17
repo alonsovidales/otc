@@ -1284,6 +1284,27 @@ export interface AuthAsFriend {
   secret: string;
 }
 
+/**
+ * Issue #95: the bridge fetches a device's static web assets (the SPA
+ * bundle, index.html, favicons, etc.) through this RPC now, over the same
+ * tunnel every other request already uses, instead of keeping its own
+ * separate copy that had to be redeployed by hand every time a device's
+ * own build changed. path is a URL path exactly as a browser requested it
+ * (e.g. "/assets/index-abc123.js", "/", "/social") - the device resolves
+ * it the same way its own HTTP static handler does (see
+ * staticassets.Resolve), and only ever answers with a file that already
+ * exists inside its own static assets directory: nothing else on the
+ * device is reachable through this, regardless of what path asks for.
+ */
+export interface ReqGetStaticAsset {
+  path: string;
+}
+
+export interface RespStaticAsset {
+  content: Uint8Array;
+  contentType: string;
+}
+
 export interface ReqEnvelope {
   id: number;
   payload?:
@@ -1377,6 +1398,9 @@ export interface ReqEnvelope {
     | //
     /** Issue #90. */
     { $case: "reqSetUserActive"; reqSetUserActive: ReqSetUserActive }
+    | //
+    /** Issue #95. */
+    { $case: "reqGetStaticAsset"; reqGetStaticAsset: ReqGetStaticAsset }
     | undefined;
 }
 
@@ -1439,6 +1463,9 @@ export interface RespEnvelope {
     { $case: "respUsers"; respUsers: RespUsers }
     | { $case: "respUserMetrics"; respUserMetrics: RespUserMetrics }
     | { $case: "respInstanceRole"; respInstanceRole: RespInstanceRole }
+    | //
+    /** Issue #95. */
+    { $case: "respStaticAsset"; respStaticAsset: RespStaticAsset }
     | undefined;
 }
 
@@ -10212,6 +10239,140 @@ export const AuthAsFriend: MessageFns<AuthAsFriend> = {
   },
 };
 
+function createBaseReqGetStaticAsset(): ReqGetStaticAsset {
+  return { path: "" };
+}
+
+export const ReqGetStaticAsset: MessageFns<ReqGetStaticAsset> = {
+  encode(message: ReqGetStaticAsset, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetStaticAsset {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetStaticAsset();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqGetStaticAsset {
+    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
+  },
+
+  toJSON(message: ReqGetStaticAsset): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetStaticAsset>, I>>(base?: I): ReqGetStaticAsset {
+    return ReqGetStaticAsset.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetStaticAsset>, I>>(object: I): ReqGetStaticAsset {
+    const message = createBaseReqGetStaticAsset();
+    message.path = object.path ?? "";
+    return message;
+  },
+};
+
+function createBaseRespStaticAsset(): RespStaticAsset {
+  return { content: new Uint8Array(0), contentType: "" };
+}
+
+export const RespStaticAsset: MessageFns<RespStaticAsset> = {
+  encode(message: RespStaticAsset, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.content.length !== 0) {
+      writer.uint32(10).bytes(message.content);
+    }
+    if (message.contentType !== "") {
+      writer.uint32(18).string(message.contentType);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespStaticAsset {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespStaticAsset();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.content = reader.bytes();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.contentType = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespStaticAsset {
+    return {
+      content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
+      contentType: isSet(object.contentType) ? globalThis.String(object.contentType) : "",
+    };
+  },
+
+  toJSON(message: RespStaticAsset): unknown {
+    const obj: any = {};
+    if (message.content.length !== 0) {
+      obj.content = base64FromBytes(message.content);
+    }
+    if (message.contentType !== "") {
+      obj.contentType = message.contentType;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespStaticAsset>, I>>(base?: I): RespStaticAsset {
+    return RespStaticAsset.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespStaticAsset>, I>>(object: I): RespStaticAsset {
+    const message = createBaseRespStaticAsset();
+    message.content = object.content ?? new Uint8Array(0);
+    message.contentType = object.contentType ?? "";
+    return message;
+  },
+};
+
 function createBaseReqEnvelope(): ReqEnvelope {
   return { id: 0, payload: undefined };
 }
@@ -10430,6 +10591,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         break;
       case "reqSetUserActive":
         ReqSetUserActive.encode(message.payload.reqSetUserActive, writer.uint32(642).fork()).join();
+        break;
+      case "reqGetStaticAsset":
+        ReqGetStaticAsset.encode(message.payload.reqGetStaticAsset, writer.uint32(650).fork()).join();
         break;
     }
     return writer;
@@ -11111,6 +11275,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 81: {
+          if (tag !== 650) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetStaticAsset",
+            reqGetStaticAsset: ReqGetStaticAsset.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11330,6 +11505,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqGetInstanceRole", reqGetInstanceRole: ReqGetInstanceRole.fromJSON(object.reqGetInstanceRole) }
         : isSet(object.reqSetUserActive)
         ? { $case: "reqSetUserActive", reqSetUserActive: ReqSetUserActive.fromJSON(object.reqSetUserActive) }
+        : isSet(object.reqGetStaticAsset)
+        ? { $case: "reqGetStaticAsset", reqGetStaticAsset: ReqGetStaticAsset.fromJSON(object.reqGetStaticAsset) }
         : undefined,
     };
   },
@@ -11477,6 +11654,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetInstanceRole = ReqGetInstanceRole.toJSON(message.payload.reqGetInstanceRole);
     } else if (message.payload?.$case === "reqSetUserActive") {
       obj.reqSetUserActive = ReqSetUserActive.toJSON(message.payload.reqSetUserActive);
+    } else if (message.payload?.$case === "reqGetStaticAsset") {
+      obj.reqGetStaticAsset = ReqGetStaticAsset.toJSON(message.payload.reqGetStaticAsset);
     }
     return obj;
   },
@@ -12088,6 +12267,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetStaticAsset": {
+        if (object.payload?.reqGetStaticAsset !== undefined && object.payload?.reqGetStaticAsset !== null) {
+          message.payload = {
+            $case: "reqGetStaticAsset",
+            reqGetStaticAsset: ReqGetStaticAsset.fromPartial(object.payload.reqGetStaticAsset),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -12211,6 +12399,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respInstanceRole":
         RespInstanceRole.encode(message.payload.respInstanceRole, writer.uint32(346).fork()).join();
+        break;
+      case "respStaticAsset":
+        RespStaticAsset.encode(message.payload.respStaticAsset, writer.uint32(354).fork()).join();
         break;
     }
     return writer;
@@ -12567,6 +12758,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 44: {
+          if (tag !== 354) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respStaticAsset",
+            respStaticAsset: RespStaticAsset.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12673,6 +12875,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respUserMetrics", respUserMetrics: RespUserMetrics.fromJSON(object.respUserMetrics) }
         : isSet(object.respInstanceRole)
         ? { $case: "respInstanceRole", respInstanceRole: RespInstanceRole.fromJSON(object.respInstanceRole) }
+        : isSet(object.respStaticAsset)
+        ? { $case: "respStaticAsset", respStaticAsset: RespStaticAsset.fromJSON(object.respStaticAsset) }
         : undefined,
     };
   },
@@ -12758,6 +12962,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respUserMetrics = RespUserMetrics.toJSON(message.payload.respUserMetrics);
     } else if (message.payload?.$case === "respInstanceRole") {
       obj.respInstanceRole = RespInstanceRole.toJSON(message.payload.respInstanceRole);
+    } else if (message.payload?.$case === "respStaticAsset") {
+      obj.respStaticAsset = RespStaticAsset.toJSON(message.payload.respStaticAsset);
     }
     return obj;
   },
@@ -13050,6 +13256,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respInstanceRole",
             respInstanceRole: RespInstanceRole.fromPartial(object.payload.respInstanceRole),
+          };
+        }
+        break;
+      }
+      case "respStaticAsset": {
+        if (object.payload?.respStaticAsset !== undefined && object.payload?.respStaticAsset !== null) {
+          message.payload = {
+            $case: "respStaticAsset",
+            respStaticAsset: RespStaticAsset.fromPartial(object.payload.respStaticAsset),
           };
         }
         break;

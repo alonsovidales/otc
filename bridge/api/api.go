@@ -10,6 +10,9 @@ import (
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
+	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/staticassets"
+	"google.golang.org/protobuf/proto"
 	"net/http"
 	"strings"
 	"sync"
@@ -117,40 +120,85 @@ func (api *API) registerAdminAPIs() {
 	api.muxHTTPServer.HandleFunc("POST /admin/api/contact-requests/{id}/read", api.admin.RequireAuth(api.admin.SetContactRequestRead))
 }
 
-// serveStatic serves files from staticPath: the bare domain (matching the
-// [otc-api] tld config) gets landing.html, extension-less paths get
-// ".html" appended so client-side routes resolve to their matching page,
-// and requests containing ".." are refused outright.
+// serveStatic serves the bridge's own site (the bare domain matching
+// [otc-api] tld - the public landing page and the admin panel) from
+// staticPath, same as always. Anything else is a device's own subdomain,
+// and (issue #95) is no longer served from a local copy at all: the
+// bridge has never rebuilt its own web app, only redeployed the same
+// build that goes to every device, and keeping a separate copy of that
+// here meant a device running an older (or newer) build than whatever
+// the bridge happened to have could be served assets that didn't match
+// its own backend. Proxied to the device instead, via proxyStaticAsset.
 func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
-	filePath := r.URL.Path[1:]
-
-	if strings.Contains(filePath, "..") {
+	if r.Host != cfg.GetStr("otc-api", "tld") {
+		api.proxyStaticAsset(w, r)
 		return
 	}
 
-	path := api.staticPath + filePath
-	lastPosSlash := -1
-	lastPosDot := -1
-
-	for i := 0; i < len(path); i++ {
-		switch path[i] {
-		case '/':
-			lastPosSlash = i
-		case '.':
-			lastPosDot = i
-		}
+	filePath := r.URL.Path[1:]
+	if filePath == "" {
+		filePath = "landing.html"
 	}
 
-	if filePath == "" && r.Host == cfg.GetStr("otc-api", "tld") {
-		path += "landing.html"
-	}
-	if filePath != "" && lastPosDot < lastPosSlash {
-		path += ".html"
+	path, err := staticassets.Resolve(api.staticPath, filePath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
 	}
 
 	log.Debug("Serving static:", path, "FilePath:", filePath, "HostName:", r.Host)
-
 	http.ServeFile(w, r, path)
+}
+
+// proxyStaticAsset (issue #95) fetches r.URL.Path from r.Host's own
+// device over the same bridge tunnel every other request already uses,
+// rather than a local copy - see serveStatic's own doc comment for why.
+// Security-relevant boundary, not just an implementation detail: nothing
+// about this path is trusted beyond "ask this one device for it and
+// relay back whatever it says" - the device itself (staticassets.Resolve,
+// reached via ReqGetStaticAsset) is the one and only place that decides
+// whether the path names a real file inside its own assets directory.
+// This function never touches the filesystem, never inspects the path
+// beyond handing it to that RPC, and never falls back to any locally-held
+// copy of anything if the device can't answer.
+func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
+	log.Debug("proxying static asset:", r.Host, r.URL.Path)
+	req := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqGetStaticAsset{
+			ReqGetStaticAsset: &pb.ReqGetStaticAsset{Path: r.URL.Path},
+		},
+	}
+	frame, err := proto.Marshal(req)
+	if err != nil {
+		log.Error("error marshaling static asset request:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	respFrame, err := api.websocket.ForwardOneOff(r.Host, frame)
+	if err != nil {
+		log.Debug("error proxying static asset from device:", r.Host, r.URL.Path, err)
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(respFrame, &resp); err != nil {
+		log.Error("bad proto from device while proxying static asset:", err)
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+	asset, ok := resp.Payload.(*pb.RespEnvelope_RespStaticAsset)
+	if resp.Error || !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	if asset.RespStaticAsset.ContentType != "" {
+		w.Header().Set("Content-Type", asset.RespStaticAsset.ContentType)
+	}
+	w.Write(asset.RespStaticAsset.Content)
 }
 
 // submitContact handles the public landing page's contact form (issue

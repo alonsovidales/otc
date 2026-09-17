@@ -411,3 +411,142 @@ func TestOnDeviceConnectionRegisteredCancelsPendingOfflineCountdown(t *testing.T
 	// timer a chance to fire (and panic, per the doc comment above).
 	time.Sleep(150 * time.Millisecond)
 }
+
+// Issue #95: ForwardOneOff is what proxyStaticAsset (bridge/api) calls for
+// every static asset request - this is its own one-shot round trip to a
+// registered device, distinct from Listen's default pass-through case
+// (which keeps a picked connection paired for a whole browser session).
+func TestForwardOneOffReturnsDeviceResponse(t *testing.T) {
+	srv, wsURL := newEchoDeviceServer(t, func(int32) time.Duration { return 0 })
+	defer srv.Close()
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectExec("insert into `device_metrics`").
+		WithArgs("cala.otc", sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	relay := dialRelay(t, wsURL)
+	mg := &Manager{
+		dao:     dao.NewWithDB(db),
+		bridges: map[string]*bridgePool{"cala.otc": {lock: new(sync.Mutex), availableConns: []*deviceRelay{relay}}},
+	}
+
+	respFrame, err := mg.ForwardOneOff("cala.otc", envelopeFrame(t, 7))
+	if err != nil {
+		t.Fatalf("ForwardOneOff: %v", err)
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(respFrame, &resp); err != nil {
+		t.Fatalf("unmarshaling response: %v", err)
+	}
+	if resp.ErrorMessage != "reply-to-7" {
+		t.Errorf("expected the echoed device response, got %q", resp.ErrorMessage)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expected device activity to be recorded: %v", err)
+	}
+}
+
+func TestForwardOneOffFailsWhenDomainNotRegistered(t *testing.T) {
+	mg := &Manager{bridges: map[string]*bridgePool{}}
+
+	if _, err := mg.ForwardOneOff("unknown.otc", envelopeFrame(t, 1)); err == nil {
+		t.Fatal("expected an error for a domain with no registered device")
+	}
+}
+
+func TestForwardOneOffFailsWhenPoolIsEmpty(t *testing.T) {
+	mg := &Manager{bridges: map[string]*bridgePool{
+		"cala.otc": {lock: new(sync.Mutex)}, // registered, but nothing available right now
+	}}
+
+	if _, err := mg.ForwardOneOff("cala.otc", envelopeFrame(t, 1)); err == nil {
+		t.Fatal("expected an error when the pool has no available connections")
+	}
+}
+
+// A connection ForwardOneOff picks is always spent afterward - unlike
+// Listen's default case, nothing keeps it around for a follow-up request,
+// since a plain HTTP handler (proxyStaticAsset) has no persistent session
+// of its own to keep it for.
+func TestForwardOneOffConsumesTheConnectionItUses(t *testing.T) {
+	srv, wsURL := newEchoDeviceServer(t, func(int32) time.Duration { return 0 })
+	defer srv.Close()
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectExec("insert into `device_metrics`").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	relay := dialRelay(t, wsURL)
+	pool := &bridgePool{lock: new(sync.Mutex), availableConns: []*deviceRelay{relay}}
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{"cala.otc": pool}}
+
+	if _, err := mg.ForwardOneOff("cala.otc", envelopeFrame(t, 1)); err != nil {
+		t.Fatalf("ForwardOneOff: %v", err)
+	}
+
+	pool.lock.Lock()
+	remaining := len(pool.availableConns)
+	pool.lock.Unlock()
+	if remaining != 0 {
+		t.Errorf("expected the used connection to be removed from the pool, %d still available", remaining)
+	}
+}
+
+// Issue #95: reproduced live against a device whose pool had accumulated
+// stale entries (past process restarts over one long session never got
+// cleaned out of availableConns) - the first candidate ForwardOneOff
+// tries never answers at all, and it must give up on it and try the next
+// one quickly rather than waiting anywhere near cForwardTimeout's 90s.
+func TestForwardOneOffSkipsAStaleCandidateQuickly(t *testing.T) {
+	origTimeout := cOneOffForwardTimeout
+	cOneOffForwardTimeout = 100 * time.Millisecond
+	defer func() { cOneOffForwardTimeout = origTimeout }()
+
+	staleSrv, staleURL, _ := newSilentAfterFirstDeviceServer(t)
+	defer staleSrv.Close()
+	goodSrv, goodURL := newEchoDeviceServer(t, func(int32) time.Duration { return 0 })
+	defer goodSrv.Close()
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectExec("insert into `device_metrics`").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	pool := &bridgePool{
+		lock: new(sync.Mutex),
+		availableConns: []*deviceRelay{
+			dialRelay(t, staleURL), // never answers - must be skipped
+			dialRelay(t, goodURL),  // answers immediately
+		},
+	}
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{"cala.otc": pool}}
+
+	start := time.Now()
+	respFrame, err := mg.ForwardOneOff("cala.otc", envelopeFrame(t, 3))
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("ForwardOneOff: %v", err)
+	}
+	if elapsed > time.Second {
+		t.Errorf("expected the stale candidate to be skipped in well under a second, took %v", elapsed)
+	}
+
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(respFrame, &resp); err != nil {
+		t.Fatalf("unmarshaling response: %v", err)
+	}
+	if resp.ErrorMessage != "reply-to-3" {
+		t.Errorf("expected the good candidate's echoed response, got %q", resp.ErrorMessage)
+	}
+}

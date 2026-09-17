@@ -25,7 +25,7 @@ hostname/IP, e.g. `pit.otc`) over SSH as user `otc`.
 make all      # clean + regenerate protobuf + sync source + build web + build & restart device binary
 make otc      # cross-compile the device binary for linux/arm64 (see toolchain note below) and scp it to TARGET
 make pi       # build ON the device itself over SSH (stop otc, go build, restart otc)
-make web      # npm run build (web/) then copy dist/ into ios app, bridge static, and scp to TARGET
+make web      # npm run build (web/) then copy dist/ into ios app and scp to TARGET (not the bridge - see issue #95)
 make pb       # regenerate proto/generated/*.go, web/src/proto/*.ts, and app/*/OffTheCloud/*.pb.swift from proto/messages.proto
 make sync     # rsync the whole repo to the device (excludes handled by rsync flags)
 make clean    # remove generated protobuf, the otc binary, and ios web-dist
@@ -130,8 +130,14 @@ React 19 + TypeScript + Vite, routed with `react-router-dom`. `web/src/net/` hol
 client; `web/src/views/` are top-level routed pages (`SignIn`, `Social`); `web/src/components/` are the
 feature widgets (files explorer, photo gallery, friendships, settings, status, profile, social feed —
 each with a co-located `.css`). Built output (`vite build`) is copied by `make web` into the device's
-static dir, the bridge's static landing dir, and the iOS app's bundled web assets — the same web build
-is reused across device, bridge, and iOS embedded web view.
+own static dir and the iOS app's bundled web assets. The bridge does **not** get its own copy (issue
+#95): a browser hitting `<device>.off-the.cloud` for a static asset is proxied straight through to that
+device over the same bridge tunnel every other request uses (`ReqGetStaticAsset` /
+`staticassets.Resolve`, shared with the device's own direct HTTP static handler) rather than served from
+a separate bundle the bridge would otherwise need redeployed by hand on every web change — this is what
+lets a device running an older build still work correctly through the bridge. `bridge/static/` still
+holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
+independently of a device's web build.
 
 ### Native apps (`app/ios`, `app/macos`)
 

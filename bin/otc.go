@@ -53,7 +53,7 @@ func main() {
 		}
 	}
 
-	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao, filesManager, sup)
+	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao, filesManager, sup, cfg.GetStr("otc-api", "static"))
 
 	api.Init(
 		filesManager,
