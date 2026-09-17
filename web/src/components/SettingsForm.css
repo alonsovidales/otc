@@ -39,3 +39,10 @@
 .sf-modal-inner p { color: var(--mist); margin: 0 0 12px; }
 .sf-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .sf-danger { background: var(--danger-bg); color: var(--danger); }
+
+/* Issue #84: ProfileCard's own .pc-card styles itself as a standalone card
+   (border/background/max-width) for its other use - the read-only page an
+   anonymous visitor lands on. Nested in an .sf-section here, that doubled
+   up into a card-inside-a-card look; this section already provides the
+   border/background, so strip pc-card's own. */
+.sf-section .pc-card { border: 0; background: transparent; padding: 0; margin: 0; max-width: none; }

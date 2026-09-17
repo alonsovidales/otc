@@ -5,6 +5,7 @@ import { useWS } from "../net/useWS";
 import { encryptForConnection, clearPersistedKey, savePersistedKey } from "../net/pwCrypto";
 import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
 import UsersPanel from "./UsersPanel";
+import ProfileCard from "./ProfileCard";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -328,6 +329,18 @@ export default function SettingsForm() {
           {status.text}
         </div>
       )}
+
+      {/* Issue #84: first thing in Settings, not tucked away behind a
+          top-level "Profile" tab (which used to show this only while
+          signed out - an authenticated owner had no way at all to reach
+          the editable form, since that tab showed FriendshipsManager
+          instead whenever authenticated=true). SettingsForm only ever
+          renders once authenticated (see App.tsx), so this is always the
+          editable branch, never ProfileCard's own read-only visitor view. */}
+      <section className="sf-section">
+        <h3>Profile</h3>
+        <ProfileCard authenticated={true} />
+      </section>
 
       <section className="sf-section">
         <h3>Update Domain</h3>

@@ -151,3 +151,4 @@ the working directory, or `/etc/otc_<env>.ini` if that's missing. Dev config liv
 - No sensible communications should be shared over unsecure channels
 - Security is our main prioirty then reliability, durability and performance
 - Every time that a make is done, update the documentation, installation scripts, images and any other necessary parts
+- Test as much as possible in the browser or the iOS and Android simulators

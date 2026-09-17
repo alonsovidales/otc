@@ -333,6 +333,11 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                // Issue #84: first thing in Settings, not bundled in with
+                // friend management on its own tab (which used to be the
+                // only place this was reachable at all).
+                ProfileEditorSection()
+
                 Section(header: Text("Device")) {
                     HStack {
                         TextField("Domain", text: $device.domain)

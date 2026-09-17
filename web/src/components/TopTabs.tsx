@@ -3,7 +3,13 @@
 import React, { useCallback, useMemo } from "react";
 import "./TopTabs.css";
 
-export type TabKey = "Profile" | "Social" | "SignIn" | "AdminPannel" | "PhotoGallery" | "Settings" | "Notifications";
+// "Profile" still routes an anonymous visitor to the read-only ProfileCard
+// (App.tsx's default landing tab when signed out) - it just isn't one of
+// the authenticated owner's own tabs below any more (issue #84: the
+// editable form moved into Settings). "Friends" is deliberately not in
+// ALL_TABS either - it's reached from a button in the Social header
+// instead (see App.tsx), not a top-level tab of its own.
+export type TabKey = "Profile" | "Social" | "SignIn" | "AdminPannel" | "PhotoGallery" | "Settings" | "Notifications" | "Friends";
 
 export type TopTabsProps = {
   value: TabKey;                    // currently selected tab
@@ -15,9 +21,11 @@ export type TopTabsProps = {
   notificationCount?: number;
 };
 
+// Issue #84: "Profile" removed from here - its editable form lives at the
+// top of Settings now, and Friendships (what this tab used to show once
+// signed in) is reached from the Social header's own button instead.
 const ALL_TABS: { key: TabKey; label: string }[] = [
   { key: "Social",   label: "Social" },
-  { key: "Profile",   label: "Profile" },
   { key: "AdminPannel",    label: "Files" },
   { key: "PhotoGallery",   label: "Images" },
   { key: "Settings", label: "Settings" },

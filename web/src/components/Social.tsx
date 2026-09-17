@@ -42,13 +42,18 @@ function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
 // end, mirroring the native iOS app's pagination.
 const PAGE_SIZE = 4;
 
-export default function Social({ authenticated, openPubUuid, openCommentUuid, onOpened }: {
+export default function Social({ authenticated, openPubUuid, openCommentUuid, onOpened, onRegisterOpenComposer }: {
   authenticated: boolean;
   // Issue #78: set by a tapped notification to open/scroll to a specific
   // post (and, for a comment-related notification, that comment too).
   openPubUuid?: string | null;
   openCommentUuid?: string | null;
   onOpened?: () => void;
+  // The "+" compose button lives in the shared top header now (so it can
+  // sit next to the bell instead of floating over the feed) - App.tsx
+  // owns that button but has no reason to know about pickerOpen, so this
+  // just hands it a function to call instead.
+  onRegisterOpenComposer?: (open: () => void) => void;
 }) {
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
@@ -263,9 +268,14 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   }, []);
 
   // ---------------- New post picker (issue #32) ----------------
-  // "+" button opens the photo gallery (tag search included) so the user
-  // can pick photos and post them, without leaving the social tab.
+  // "+" button (now in the shared header, see onRegisterOpenComposer)
+  // opens the photo gallery (tag search included) so the user can pick
+  // photos and post them, without leaving the social tab.
   const [pickerOpen, setPickerOpen] = useState(false);
+  useEffect(() => {
+    onRegisterOpenComposer?.(() => setPickerOpen(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---------------- Likers modal (issue #29) ----------------
   const [likersOpen, setLikersOpen] = useState(false);
@@ -629,13 +639,12 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       </div>
 
       {/* Issue #32: new post — a dedicated picker (tag filter + tap to
-          select + single Publish action), not the full photo gallery.
-          Signed-out visitors have nothing to post with, so the button (and
-          the picker itself, which needs an authenticated connection for
-          every request it makes) only shows once signed in. */}
-      {authenticated && (
-        <button className="sv-fab" onClick={() => setPickerOpen(true)} aria-label="New post">+</button>
-      )}
+          select + single Publish action), not the full photo gallery. The
+          "+" that opens it now lives in the shared header (see
+          onRegisterOpenComposer above) rather than floating over the feed
+          - signed-out visitors have nothing to post with, so App.tsx only
+          ever wires that button up once authenticated. */}
+
       {authenticated && pickerOpen && (
         <NewPostPicker
           onCancel={() => setPickerOpen(false)}

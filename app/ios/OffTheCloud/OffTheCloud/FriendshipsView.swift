@@ -4,21 +4,19 @@
 //  FriendshipsView.swift
 //  OffTheCloud
 //
-//  Native port of the web app's Profile tab (web/src/components/FriendshipsManager.tsx):
-//  edit your own profile, send a friend request by domain, and manage
-//  incoming/outgoing friendships.
+//  Native port of the web app's Friends screen (web/src/components/
+//  FriendshipsManager.tsx): send a friend request by domain and manage
+//  incoming/outgoing friendships. Issue #84: "Your Profile" editing used to
+//  live here too (this was the only place it was reachable at all) - moved
+//  to the top of Settings instead (see ProfileEditor.swift), so this is
+//  just friend management now, presented from a button in SocialFeedView's
+//  own toolbar rather than a top-level tab of its own.
 
 import SwiftUI
-import PhotosUI
 
 @MainActor
 final class FriendshipsViewModel: ObservableObject {
     private let ws = OTCConnection.shared
-
-    @Published var name = ""
-    @Published var bio = ""
-    @Published var imageData: Data?
-    @Published var savingProfile = false
 
     @Published var targetDomain = ""
     @Published var sendingRequest = false
@@ -27,25 +25,6 @@ final class FriendshipsViewModel: ObservableObject {
     @Published var loadingFriendships = false
 
     @Published var toast: String?
-
-    func loadAll() async {
-        async let profile: Void = loadProfile()
-        async let friends: Void = reloadFriendships()
-        _ = await (profile, friends)
-    }
-
-    func loadProfile() async {
-        do {
-            let resp = try await ws.request { $0.payload = .reqGetProfile(Msg_GetProfile()) }
-            if case .respProfile(let p) = resp.payload {
-                name = p.name
-                bio = p.text
-                imageData = p.hasImage ? p.image : nil
-            }
-        } catch {
-            // keep whatever was loaded before; the toolbar will still allow retry
-        }
-    }
 
     func reloadFriendships() async {
         loadingFriendships = true
@@ -57,25 +36,6 @@ final class FriendshipsViewModel: ObservableObject {
             }
         } catch {
             showToast("Could not load friendships")
-        }
-    }
-
-    func saveProfile() async {
-        savingProfile = true
-        defer { savingProfile = false }
-        var p = Msg_Profile()
-        p.name = name
-        p.text = bio
-        if let imageData { p.image = imageData }
-        do {
-            let resp = try await ws.request { $0.payload = .reqSetProfile(p) }
-            if case .respAck(let ack) = resp.payload {
-                showToast(ack.ok ? "Profile updated ✅" : (ack.errorMsg.isEmpty ? "Profile update failed" : ack.errorMsg))
-            } else {
-                showToast("Unexpected response while saving profile")
-            }
-        } catch {
-            showToast("Error saving profile")
         }
     }
 
@@ -132,37 +92,13 @@ final class FriendshipsViewModel: ObservableObject {
 
 struct FriendshipsView: View {
     @StateObject private var vm = FriendshipsViewModel()
-    @State private var photoItem: PhotosPickerItem?
+    // Issue #84: this is a sheet presented from Social now, not a tab of
+    // its own - it needs its own way to close, same as NewPostPickerView.
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationView {
             List {
-                Section("Your Profile") {
-                    // Issue #23: photo + "Change photo" as a centered block
-                    // of their own, with name/description stacked below at
-                    // full section width instead of squeezed into a narrow
-                    // column beside a small avatar.
-                    VStack(spacing: 8) {
-                        avatarView(data: vm.imageData, size: 96)
-                        PhotosPicker("Change photo", selection: $photoItem, matching: .images)
-                            .font(.footnote)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    TextField("Name", text: $vm.name)
-                        .textFieldStyle(.roundedBorder)
-                    TextEditor(text: $vm.bio)
-                        .frame(height: 90)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.25)))
-
-                    Button {
-                        Task { await vm.saveProfile() }
-                    } label: {
-                        if vm.savingProfile { ProgressView() } else { Text("Save Profile") }
-                    }
-                    .disabled(vm.savingProfile)
-                }
-
                 Section("Add a friend") {
                     HStack {
                         TextField("friend-domain.example", text: $vm.targetDomain)
@@ -195,10 +131,16 @@ struct FriendshipsView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            // No nav title (issue #19): the tab bar already labels this
-            // screen "Profile". Still .inline (not the default .large) so
-            // there's no big empty title bar left behind.
+            // Issue #84: now a sheet (see SocialFeedView's own toolbar
+            // button), so it needs a real title of its own - the tab bar
+            // used to supply "Profile" for free.
+            .navigationTitle("Friends")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .overlay(alignment: .top) {
                 if let toast = vm.toast {
                     Text(toast)
@@ -209,14 +151,7 @@ struct FriendshipsView: View {
                 }
             }
         }
-        .task { await vm.loadAll() }
-        .onChange(of: photoItem) { _, newItem in
-            Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                    vm.imageData = data
-                }
-            }
-        }
+        .task { await vm.reloadFriendships() }
     }
 }
 

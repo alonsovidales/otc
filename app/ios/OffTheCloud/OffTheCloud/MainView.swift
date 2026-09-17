@@ -32,10 +32,10 @@ struct MainView: View {
                     .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
                     .tag(1)
 
-                FriendshipsView()
-                    .tabItem { Label("Profile", systemImage: "person.crop.circle") }
-                    .tag(2)
-
+                // Issue #84: Friendships moved from here into a sheet
+                // presented by SocialFeedView's own toolbar (tag 2 left
+                // unused rather than renumbering everything after it -
+                // same convention as a removed proto field).
                 FilesExplorerView(initialPath: "/")
                     .tabItem { Label("Files", systemImage: "folder") }
                     .tag(3)
@@ -60,17 +60,16 @@ struct MainView: View {
                     .padding(.bottom, 56) // sit right above the tab bar
             }
         }
-        // A like/comment notification is handled by SocialFeedView itself
-        // (it observes `notifications.pendingDeepLink` directly); this
-        // just handles the tab switch itself, plus the .friendRequests
-        // case, which has no view-local state of its own to act on.
+        // A like/comment or friend-request notification is handled by
+        // SocialFeedView itself now (it observes
+        // `notifications.pendingDeepLink` directly, presenting its own
+        // Friendships sheet for the latter since issue #84 removed that
+        // tab) - this just switches to Social either way, so that view is
+        // actually on screen to react to it.
         .onChange(of: notifications.pendingDeepLink) { _, link in
             switch link {
-            case .post:
+            case .post, .friendRequests:
                 selectedTab = 1
-            case .friendRequests:
-                selectedTab = 2
-                notifications.pendingDeepLink = nil
             case nil:
                 break
             }

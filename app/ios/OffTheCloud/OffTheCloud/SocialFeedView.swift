@@ -366,6 +366,11 @@ struct SocialFeedView: View {
     // Issue #32: "+" opens a dedicated compose screen (tag filter + tap to
     // select + a single Publish action) — not the Images tab reused.
     @State private var showingPicker = false
+    // Issue #84: Friendships used to be its own top-level tab - now a
+    // sheet presented from here instead, left of "+" (same arrangement as
+    // the web app's own header button), so it isn't reachable when there's
+    // nothing to actually apply a friendship to yet.
+    @State private var showingFriendships = false
 
     // Issue #81: the nav bar had nothing on the leading side (no title, no
     // button), just the trailing "+" - reading as empty space instead of a
@@ -487,10 +492,24 @@ struct SocialFeedView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Issue #84: left of "+", matching the web header's own
+                // arrangement (button, then "+").
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showingPicker = true } label: {
-                        Image(systemName: "plus.circle.fill")
+                    Button { showingFriendships = true } label: {
+                        Image(systemName: "person.2")
                     }
+                    .accessibilityLabel("Friends")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    // Outline circle + orange tint, matching the web
+                    // composer's own button (an outline ring rather than a
+                    // filled disc reads lighter sitting right in the nav
+                    // bar next to the feed, instead of like a floating
+                    // action button that wandered up from a corner).
+                    Button { showingPicker = true } label: {
+                        Image(systemName: "plus.circle")
+                    }
+                    .tint(Color(red: 1.0, green: 0.42, blue: 0.29)) // matches web's --ember (#ff6b4a)
                     .accessibilityLabel("New post")
                 }
             }
@@ -500,13 +519,24 @@ struct SocialFeedView: View {
                 Task { await vm.loadFeed() }
             }
         }
-        // Issue #78: a tapped like/comment notification. Friend-request
-        // notifications are handled by MainView switching tabs directly -
-        // this view only cares about the .post case.
+        .sheet(isPresented: $showingFriendships) {
+            FriendshipsView()
+        }
+        // Issue #78/#84: a tapped like/comment notification opens that post
+        // directly; a friend-request notification opens the Friendships
+        // sheet from here now instead of MainView switching to a tab that
+        // no longer exists.
         .onChange(of: notifications.pendingDeepLink) { _, link in
-            guard case .post(let pubUuid, let commentUuid) = link else { return }
-            Task { await vm.openPost(pubUuid: pubUuid, commentUuid: commentUuid) }
-            notifications.pendingDeepLink = nil
+            switch link {
+            case .post(let pubUuid, let commentUuid):
+                Task { await vm.openPost(pubUuid: pubUuid, commentUuid: commentUuid) }
+                notifications.pendingDeepLink = nil
+            case .friendRequests:
+                showingFriendships = true
+                notifications.pendingDeepLink = nil
+            case nil:
+                break
+            }
         }
     }
 }

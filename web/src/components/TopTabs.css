@@ -41,3 +41,16 @@
   box-shadow: 0 0 0 2px rgba(255,200,87,0.35) inset;
 }
 .top-tab:focus { outline: none; box-shadow: 0 0 0 2px var(--ember) inset; }
+
+/* Issue #32 follow-up: the Social feed's "+" compose button, moved out of
+   the feed itself and into the header row, sized to match the bell tab
+   right next to it (27x27 - that tab's 17px icon plus its own 5px
+   padding) rather than the much larger floating button it used to be. */
+.top-new-post-btn {
+  box-sizing: border-box; padding: 0;
+  width: 27px; height: 27px; border-radius: 50%; flex: none;
+  border: 2px solid var(--ember); background: transparent; color: var(--ember);
+  font-size: 14px; line-height: 1; cursor: pointer; display: grid; place-items: center;
+  transition: background-color 0.15s ease;
+}
+.top-new-post-btn:hover { background: rgba(255,107,74,0.12); }

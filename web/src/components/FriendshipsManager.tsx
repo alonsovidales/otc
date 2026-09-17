@@ -1,23 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 // Import your generated types (adjust paths/names if needed)
 import type {
-  Profile as MsgProfile,
   Friendships as MsgFriendships,
   Friendship as MsgFriendship,
 } from "../proto/messages";
 import "./FriendshipsManager.css";
 import { FriendShipStatus } from "../proto/messages";
 import { useWS } from "../net/useWS";
-
-const emptyProfile: MsgProfile = {
-  name: "",
-  text: "",
-  domain: "",
-  image: undefined,
-};
 
 function bytesToObjectURL(bytes?: Uint8Array, mime = "image/png"): string | undefined {
   if (!bytes || bytes.length === 0) return undefined;
@@ -92,11 +84,6 @@ function ActionButtons({
 }
 
 export default function FriendshipsManager() {
-  // Profile
-  const [profile, setProfile] = useState<MsgProfile>(emptyProfile);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const imgURL = useMemo(() => bytesToObjectURL(profile.image), [profile.image]);
-
   // Friendship request (by domain)
   const [targetDomain, setTargetDomain] = useState("");
   const [sendingReq, setSendingReq] = useState(false);
@@ -114,22 +101,7 @@ export default function FriendshipsManager() {
 
   // Initial load
   useEffect(() => {
-    (async () => {
-      try {
-        // Load profile
-        const resp = await useWS.request((e) => {
-          (e as any).payload = { $case: "reqGetProfile", reqGetProfile: {} };
-        });
-        if (resp.payload?.$case === "respProfile") {
-          setProfile(resp.payload.respProfile);
-        }
-
-        // Load friendships
-        await reloadFriendships();
-      } catch (err) {
-        console.error("Initial load error:", err);
-      }
-    })();
+    void reloadFriendships();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -146,39 +118,6 @@ export default function FriendshipsManager() {
       console.error("Friendships load error:", err);
     } finally {
       setLoadingFriends(false);
-    }
-  };
-
-  const handleProfileChange = (field: keyof MsgProfile, value: string | Uint8Array | undefined) => {
-    setProfile((p) => ({ ...p, [field]: value as any }));
-  };
-
-  const handleImageFile = async (file: File) => {
-    const arr = new Uint8Array(await file.arrayBuffer());
-    handleProfileChange("image", arr);
-  };
-
-  const saveProfile = async () => {
-    setSavingProfile(true);
-    try {
-      // In this proto, req_set_profile is a Profile payload directly.
-      const resp = await useWS.request((e) => {
-        (e as any).payload = { $case: "reqSetProfile", reqSetProfile: profile };
-      });
-      if (resp.payload?.$case === "respAck") {
-        if (resp.payload.respAck.ok) {
-          showMsg("Profile updated ✅");
-        } else {
-          showMsg(resp.payload.respAck.errorMsg || "Profile update failed");
-        }
-      } else {
-        showMsg("Unexpected response while saving profile");
-      }
-    } catch (err) {
-      console.error("saveProfile error:", err);
-      showMsg("Error saving profile");
-    } finally {
-      setSavingProfile(false);
     }
   };
 
@@ -240,59 +179,11 @@ export default function FriendshipsManager() {
     <div className="friends-wrap">
       {message && <div className="toast">{message}</div>}
 
-      {/* Profile editor/view */}
-      <section className="card profile-card">
-        <h2>Your Profile</h2>
-        <div className="profile-row">
-          <div className="profile-photo">
-            {imgURL ? (
-              <img src={imgURL} alt="profile" />
-            ) : (
-              <div className="ph">No image</div>
-            )}
-            <label className={`upload`}>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void handleImageFile(f);
-                  e.currentTarget.value = "";
-                }}
-              />
-              Change photo
-            </label>
-          </div>
-
-          <div className="profile-form">
-            <label>
-              Name
-              <input
-                type="text"
-                value={profile.name}
-                onChange={(e) => handleProfileChange("name", e.target.value)}
-              />
-            </label>
-            <label>
-              Bio
-              <textarea
-                rows={3}
-                value={profile.text}
-                onChange={(e) => handleProfileChange("text", e.target.value)}
-              />
-            </label>
-
-            <div className="profile-actions">
-              <button
-                onClick={saveProfile}
-                disabled={savingProfile}
-              >
-                {savingProfile ? "Saving…" : "Save Profile"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Issue #84: "Your Profile" editing used to live here (this was the
+          only place an authenticated owner could actually reach it, since
+          ProfileCard's own editable form never got rendered with
+          authenticated=true anywhere) - moved to the top of Settings
+          instead, so this screen is just friend management now. */}
 
       {/* New friendship request */}
       <section className="card">

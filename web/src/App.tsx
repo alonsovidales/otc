@@ -44,6 +44,12 @@ function App() {
   const [openCommentUuid, setOpenCommentUuid] = useState<string | null>(null);
   const [notificationCount, clearNotificationCount] = useNotificationCount(authenticated);
 
+  // Issue #32 follow-up: the Social feed's own "+" compose button moved up
+  // into this shared header (next to the notifications bell) instead of
+  // floating over the feed - Social registers its own opener here rather
+  // than this component needing to know anything about the picker itself.
+  const [openComposer, setOpenComposer] = useState<(() => void) | null>(null);
+
   let protoWs = 'ws://';
   if (window.location.protocol === 'https:') {
     protoWs = 'wss://';
@@ -189,9 +195,35 @@ function App() {
           // that's what lets justifyContent:space-between push the usage
           // bar all the way down to the header's own bottom edge instead
           // of floating centered partway down it.
-          <div style={{ flex: 1, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ flex: 1, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "space-between", paddingRight: 210 }}>
+            {/* paddingRight (on this whole column, so it covers the nav row
+                AND the status bar below it the same way) matches the
+                logo's own footprint (200px width + 10px left margin) on
+                this row's *other* side, so both center on the header's
+                full width - the same reference the timeline below centers
+                itself in - rather than only on the leftover space after
+                the logo, which used to land them visibly off-center from
+                the feed underneath. */}
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-              <TopTabs value={tab} onChange={setTab} notificationCount={notificationCount} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <TopTabs value={tab} onChange={setTab} notificationCount={notificationCount} />
+                {/* Issue #84: Friendships is no longer its own top-level
+                    tab - reached from here instead, left of "+", only
+                    while actually looking at the feed they both act on. */}
+                {tab === "Social" && (
+                  <button className="top-tab" onClick={() => setTab("Friends")} aria-label="Friends">
+                    <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                      <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                      <circle cx="17" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                      <path d="M15.5 14.2c2.4.3 4 2 4 4.8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
+                {tab === "Social" && openComposer && (
+                  <button className="top-new-post-btn" onClick={() => openComposer()} aria-label="New post">+</button>
+                )}
+              </div>
             </div>
             <StatusWidget />
           </div>
@@ -203,14 +235,19 @@ function App() {
         }
       </div>
       <main>
-        {tab === "Profile" && authenticated && <FriendshipsManager />}
+        {/* Issue #84: "Profile" is only ever the anonymous-visitor landing
+            page now - the editable form moved into Settings, and
+            Friendships (what this used to show once signed in) has its
+            own tab below, reached from the Social header's button. */}
         {tab === "Profile" && !authenticated && <ProfileCard authenticated={authenticated} />}
+        {tab === "Friends" && authenticated && <FriendshipsManager />}
         {tab === "Social" && (
           <Social
             authenticated={authenticated}
             openPubUuid={openPubUuid}
             openCommentUuid={openCommentUuid}
             onOpened={() => { setOpenPubUuid(null); setOpenCommentUuid(null); }}
+            onRegisterOpenComposer={(open) => setOpenComposer(() => open)}
           />
         )}
         {tab === "SignIn" && <SignIn
@@ -235,7 +272,7 @@ function App() {
               setOpenCommentUuid(commentUuid);
               setTab("Social");
             }}
-            onOpenFriendRequests={() => setTab("Profile")}
+            onOpenFriendRequests={() => setTab("Friends")}
             onAcknowledged={clearNotificationCount}
           />
         ) : <p>Signing in…</p>)}

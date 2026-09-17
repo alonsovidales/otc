@@ -96,9 +96,9 @@
 
 .sv-newcomment { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 
-/* Issue #32: floating "+" button to compose a new post from the feed. */
-.sv-fab { position: fixed; right: 20px; bottom: 24px; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--ember); color: var(--ember-ink); font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); z-index: 40; display: grid; place-items: center; }
-.sv-fab:hover { filter: brightness(1.08); }
+/* Issue #32's "+" compose button now lives in the shared header next to
+   the notifications bell (see TopTabs.css's .top-new-post-btn and
+   App.tsx) rather than floating over the feed. */
 
 .sv-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 1000; }
 .sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
