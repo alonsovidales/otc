@@ -761,11 +761,24 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			p.ReqDidSendFriendshipReq.Domain,
 			p.ReqDidSendFriendshipReq.Secret)
 
-		if err != nil && friendship == nil {
+		// Issue #102: this is the anti-spoofing check behind
+		// ExternalFriendshipRequest - a friend's device calls back here to
+		// confirm we actually hold a friendship record for its domain+secret
+		// before it accepts a request claiming to be from us. The previous
+		// `&&` only rejected when BOTH err was set and friendship was nil;
+		// GetFriendship never actually returns any other combination today,
+		// but that made the check accidentally rely on that implementation
+		// detail rather than being correct on its own terms. Use `||` like
+		// the equivalent ReqAuthAsFriend check above.
+		if err != nil || friendship == nil {
+			errMsg := "Friendship not found"
+			if err != nil {
+				errMsg = fmt.Sprintf("Error: %s", err)
+			}
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok:       false,
-					ErrorMsg: fmt.Sprintf("Error: %s", err),
+					ErrorMsg: errMsg,
 				},
 			}
 			return resp, true
@@ -835,6 +848,42 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		// plaintext rows (a no-op most logins) and must never delay the
 		// auth response.
 		go ch.mg.filesManager.MigrateLegacyFaceEncryption(ch.getSession())
+
+		resp.Payload = &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{
+				Ok: true,
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqAuthWithToken:
+		// Issue #101: the token-redemption counterpart to ReqAuth above -
+		// see session/tokens.go's doc comment for why a browser holds one
+		// of these instead of the real password. RedeemToken hands back
+		// the exact *Session a real password login already built, so
+		// there's no vault/Argon2id work to redo here at all.
+		ses, ok := session.RedeemToken(p.ReqAuthWithToken.Token)
+		if !ok {
+			// Deliberately does NOT close the connection, unlike ReqAuth's
+			// own failure path above: an expired token is the completely
+			// ordinary case here (every tab that sits untouched for an
+			// hour), and the client's very next move is to fall back to
+			// the sign-in form - which needs this connection to ask
+			// GetPubKey/IsNewDevice over. Closing it out from under those
+			// left them waiting on a response that could never arrive, and
+			// the app rendered an empty page instead of the sign-in form
+			// (caught live on pit). There's nothing to throttle here
+			// either: unlike a guessable password, these are 256 random
+			// bits.
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok:       false,
+					ErrorMsg: "Session expired or invalid, please sign in again.",
+				},
+			}
+			break
+		}
+		ch.setSession(ses)
+		log.Info("Authenticated session via token")
 
 		resp.Payload = &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
@@ -1443,6 +1492,38 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqIssueSessionToken:
+		// Issue #101: called right after a password-based Auth, after a
+		// ChangeKey (ses itself is unaffected by a password change - it
+		// re-wraps the same vault secret, see Session.ChangeKey - so the
+		// existing token remains just as valid, but the client mints a
+		// fresh one anyway since ChangeKey is exactly when the old
+		// savePersistedKey(newKey) used to run), and after redeeming a
+		// token, to keep rotating a fresh one into the client's storage.
+		token, expiresAt, err := session.IssueToken(ses)
+		if err != nil {
+			log.Error("error issuing session token:", err)
+			resp.Error = true
+			resp.ErrorMessage = "error issuing session token"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespSessionToken{
+			RespSessionToken: &pb.RespSessionToken{
+				SessionToken: &pb.SessionToken{
+					Token:           token,
+					ExpiresAtUnixMs: expiresAt.UnixMilli(),
+				},
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqRevokeSessionToken:
+		session.RevokeAllTokensFor(ses)
+		resp.Payload = &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{
+				Ok: true,
+			},
+		}
+
 	case *pb.ReqEnvelope_ReqSetSettings:
 		log.Info("Set settings")
 		err := ch.mg.settings.SetSettings(p.ReqSetSettings.Domain)
@@ -1910,6 +1991,7 @@ func (ch *connHandler) setUserActive(req *pb.ReqSetUserActive) error {
 			return err
 		}
 		ch.mg.sup.SpawnNow(u)
+		notifyBridgeDisabled(u, false)
 		return nil
 	}
 
@@ -1920,7 +2002,68 @@ func (ch *connHandler) setUserActive(req *pb.ReqSetUserActive) error {
 	if err := ch.mg.sup.Stop(u.Uuid); err != nil {
 		return fmt.Errorf("could not stop %s's process: %w", u.Username, err)
 	}
-	return ch.mg.dao.DeactivateUser(req.Uuid)
+	if err := ch.mg.dao.DeactivateUser(req.Uuid); err != nil {
+		return err
+	}
+	notifyBridgeDisabled(u, true)
+	return nil
+}
+
+// notifyBridgeDisabled (issue #93) tells the bridge whether u's own domain
+// should be treated as disabled - a one-off dial using u's own identity
+// (owner_uuid/domain/secret - what u's own process would use to register
+// with the bridge itself), not this primary's, same shape as
+// regenerateBridgeSecret/syncPushRegistrationsToBridge above. Best-effort:
+// logged, never returned to the Settings caller - the enable/disable
+// itself already fully succeeded locally (the process really is stopped/
+// started) by the time this runs, and failing the whole request over a
+// bridge notification alone would be worse than a stale bridge-side flag,
+// which self-corrects the next time this is called either way.
+func notifyBridgeDisabled(u *dao.UserInternal, disabled bool) {
+	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
+	h := http.Header{}
+	h.Set("Sec-WebSocket-Protocol", "protobuf")
+	c, _, err := gorilla.DefaultDialer.Dial(addr.String(), h)
+	if err != nil {
+		log.Error("error dialing bridge to update disabled state for", u.Subdomain, ":", err)
+		return
+	}
+	defer c.Close()
+
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqSetDeviceDisabled{
+			ReqSetDeviceDisabled: &pb.ReqSetDeviceDisabled{
+				OwnerUuid: u.Uuid,
+				Domain:    u.Subdomain,
+				Secret:    u.BridgeSecret,
+				Disabled:  disabled,
+			},
+		},
+	}
+	b, err := proto.Marshal(msg)
+	if err != nil {
+		log.Error("error marshaling disabled-state update:", err)
+		return
+	}
+	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		log.Error("error writing disabled-state update to bridge:", err)
+		return
+	}
+
+	_, data, err := c.ReadMessage()
+	if err != nil {
+		log.Error("error reading disabled-state update response:", err)
+		return
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		log.Error("bad proto from bridge for disabled-state update:", err)
+		return
+	}
+	if resp.Error {
+		log.Error("bridge rejected disabled-state update for", u.Subdomain, ":", resp.ErrorMessage)
+	}
 }
 
 // getUserMetrics (issue #82) combines a direct DB read (storage - each

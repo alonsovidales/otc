@@ -18,7 +18,7 @@ import NotificationsPage, { useNotificationCount } from "./components/Notificati
 import "./components/StatusWidget.css";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
-import { isNewDevice, loadPersistedKey } from "./net/pwCrypto";
+import { isNewDevice, loadPersistedToken } from "./net/pwCrypto";
 import { promptForPushIfNeverAsked } from "./net/webPush";
 import { loadLastTab, saveLastTab } from "./net/uiState";
 
@@ -111,13 +111,16 @@ function App() {
     // Issue #46: a plain browser tab has no native container replaying a
     // Keychain-stored password on every launch — reuse whatever this
     // origin persisted from the last successful sign-in instead, so a
-    // reload doesn't drop back to the sign-in form.
+    // reload doesn't drop back to the sign-in form. Issue #101: what's
+    // persisted is a single-use session token the device issued, not the
+    // password — redeeming it establishes this connection's session and
+    // rotates a fresh token into storage (see useWS.authWithToken).
     useEffect(() => {
-      const key = loadPersistedKey();
-      if (!key) return;
+      const token = loadPersistedToken();
+      if (!token) return;
       (async () => {
         try {
-          const ok = await useWS.sendAuth(key);
+          const ok = await useWS.authWithToken(token);
           // Issue #53: unlike a fresh manual sign-in (handleSignedIn,
           // which jumps to Social), this is a reload — `tab` was already
           // initialized from the last-open view, and clobbering that back

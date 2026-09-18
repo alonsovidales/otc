@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
-import { encryptForConnection, clearPersistedKey, savePersistedKey } from "../net/pwCrypto";
+import { encryptForConnection, clearPersistedToken } from "../net/pwCrypto";
 import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
@@ -303,10 +303,14 @@ export default function SettingsForm() {
       });
 
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        // Issue #46: otherwise the persisted-session key goes stale the
-        // moment the password changes, and the next reload silently signs
-        // the user back out.
-        savePersistedKey(newKey);
+        // Issue #46/#101: this connection's session survives a password
+        // change untouched (ChangeKey only re-wraps the same vault secret
+        // under the new password — see session.ChangeKey), so rather than
+        // stashing the new password the way this used to, just rotate a
+        // fresh token in, which is what the old savePersistedKey(newKey)
+        // was really trying to achieve: don't leave the next reload
+        // holding something stale.
+        await useWS.refreshSessionToken();
         setOldKey(""); setNewKey(""); setConfirmKey("");
         setStatus({ kind: "success", text: "Password changed." });
       } else if (resp.payload?.$case === "respAck") {
@@ -520,8 +524,20 @@ export default function SettingsForm() {
         </p>
         <button
           className="sf-btn"
-          onClick={() => {
-            clearPersistedKey();
+          onClick={async () => {
+            // Issue #101: tell the device to drop every token descending
+            // from this login first, so a copy of one sitting in another
+            // tab's storage stops working right now rather than whenever
+            // its TTL happens to run out. Best-effort — clearing this
+            // browser's own storage and reloading happens either way.
+            try {
+              await useWS.request((e: Partial<ReqEnvelope>) => {
+                (e as any).payload = { $case: "reqRevokeSessionToken", reqRevokeSessionToken: {} };
+              });
+            } catch (err) {
+              console.error("Could not revoke session tokens on sign out:", err);
+            }
+            clearPersistedToken();
             window.location.reload();
           }}
         >

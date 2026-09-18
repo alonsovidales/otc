@@ -65,6 +65,45 @@ message Auth {
   bool create = 3;
 }
 
+// Issue #101: a browser has no Keychain/vault of its own to replay a real
+// password from on reload the way the native apps do, so it used to keep
+// the actual account password sitting in plain localStorage instead (see
+// web/src/net/pwCrypto.ts) - anything that could read that origin's
+// storage got the real password, not just a way back into one session.
+// IssueSessionToken mints a random opaque token for the connection's
+// *already established* session (so this is authenticated-only, unlike
+// Auth itself) that AuthWithToken can redeem on some later connection in
+// place of the password - see session/tokens.go for the server-side
+// store, and its own doc comment for why every redemption mints a fresh
+// token rather than counting down from the original login.
+message ReqIssueSessionToken {
+}
+
+message SessionToken {
+  string token = 1;
+  int64 expires_at_unix_ms = 2;
+}
+
+message RespSessionToken {
+  SessionToken session_token = 1;
+}
+
+// Pre-auth, like Auth itself - answers with the same generic Ack shape
+// Auth does (Ok, or ErrorMsg on an expired/unknown/already-redeemed
+// token). A client that gets Ok back still needs its own follow-up
+// IssueSessionToken call to keep a fresh token in storage, since redeeming
+// one consumes it (see RedeemToken).
+message ReqAuthWithToken {
+  string token = 1;
+}
+
+// Sent when the owner explicitly signs out (see SettingsForm's Sign Out
+// button) so a token that's already sitting in some other tab's storage
+// stops working immediately, rather than just quietly expiring on its own
+// TTL. Answers with the generic Ack.
+message ReqRevokeSessionToken {
+}
+
 // GetPubKey requests the ephemeral RSA public key generated for this
 // WebSocket connection. Clients must call this before sending Auth or
 // ChangeKey, and use it to encrypt the key material client-side so that
@@ -570,6 +609,25 @@ message RotateBridgeSecretAck {
   string new_secret = 1;
 }
 
+// Issue #93: sent by the primary instance to the bridge whenever it
+// disables/re-enables one of its own additional users (issue #90) - that
+// user's own process is actually stopped when disabled, so nothing on the
+// device itself is left running to explain why a visitor to its subdomain
+// suddenly can't reach anything. The bridge records this against the
+// domain (see bridge/dao's own devices table) so it can show a clear
+// "this account has been disabled" message instead of a generic
+// connection failure, whether or not that user's process ever manages to
+// reconnect. owner_uuid/domain/secret identify the *user being disabled*,
+// not the primary sending this - the same identity that user's own
+// process would use to register with the bridge itself. Answers with the
+// generic Ack.
+message ReqSetDeviceDisabled {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+  bool disabled = 4;
+}
+
 // RegenerateBridgeSecret is the client-facing (device /ws, authenticated)
 // request behind the Settings page's "Regenerate" button: the device looks
 // up its own owner_uuid/domain/current secret and does the
@@ -984,6 +1042,13 @@ message ReqEnvelope {
     ReqSetUserActive req_set_user_active = 80;
     // Issue #95.
     ReqGetStaticAsset req_get_static_asset = 81;
+    // Issue #93. Answers with the generic Ack.
+    ReqSetDeviceDisabled req_set_device_disabled = 82;
+    // Issue #101: session tokens in place of a password in localStorage.
+    ReqIssueSessionToken req_issue_session_token = 83;
+    ReqAuthWithToken req_auth_with_token = 84;
+    // Answers with the generic Ack.
+    ReqRevokeSessionToken req_revoke_session_token = 85;
   }
 }
 
@@ -1038,5 +1103,7 @@ message RespEnvelope {
     RespInstanceRole resp_instance_role = 43;
     // Issue #95.
     RespStaticAsset resp_static_asset = 44;
+    // Issue #101. AuthWithToken answers with the generic Ack above.
+    RespSessionToken resp_session_token = 45;
   }
 }

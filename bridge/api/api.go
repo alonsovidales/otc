@@ -14,6 +14,7 @@ import (
 	"github.com/alonsovidales/otc/staticassets"
 	"google.golang.org/protobuf/proto"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -131,6 +132,29 @@ func (api *API) registerAdminAPIs() {
 // its own backend. Proxied to the device instead, via proxyStaticAsset.
 func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 	if r.Host != cfg.GetStr("otc-api", "tld") {
+		// Issue #93: a disabled additional user (issue #90) has its own
+		// process actually stopped - nothing on the device is left running
+		// to explain that, so this is checked before ever attempting to
+		// proxy anything (which would otherwise just look like the device
+		// being offline, indistinguishable from any other outage).
+		if disabled, err := api.dao.IsDeviceDisabled(r.Host); err != nil {
+			log.Error("error checking disabled state for", r.Host, ":", err)
+		} else if disabled {
+			// Not http.ServeFile: it sets its own 200 (or writes a header
+			// on the range/conditional-request path) before this ever
+			// gets a chance to - reading the file directly keeps the 503
+			// the one and only status written.
+			content, ferr := os.ReadFile(api.staticPath + "disabled.html")
+			if ferr != nil {
+				log.Error("error reading disabled.html:", ferr)
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write(content)
+			return
+		}
 		api.proxyStaticAsset(w, r)
 		return
 	}

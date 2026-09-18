@@ -7,14 +7,17 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"database/sql"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
+	"github.com/alonsovidales/otc/social"
 )
 
 // handleConnection dispatches every incoming envelope through up to three
@@ -279,5 +282,242 @@ func TestSessionAndFriendProfileAccessorsAreRaceSafe(t *testing.T) {
 	}
 	if ch.getFriendProfile() != prof {
 		t.Error("expected getFriendProfile to return the profile that was set")
+	}
+}
+
+// Issue #102: ReqDidSendFriendshipReq is the anti-spoofing check behind
+// ExternalFriendshipRequest - a friend's device calls this back to confirm
+// we actually hold a friendship record for its domain+secret before it
+// accepts a request claiming to come from us. GetFriendship only ever
+// returns (nil, err) or (non-nil, nil), never any other combination, so the
+// old `err != nil && friendship == nil` rejection happened to work in
+// practice - but only by accident of that implementation detail, not
+// because the check was correct on its own terms (see ReqAuthAsFriend's
+// sibling check just above, which correctly uses `||`). These pin down the
+// two cases directly.
+func TestDidSendFriendshipReqRejectsWhenNoFriendshipRecordExists(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `status`, `name`, `image`, `text`, `sent` from `social_friendship`").
+		WithArgs("stranger.otc", "bad-secret").
+		WillReturnError(sql.ErrNoRows)
+
+	ch := &connHandler{mg: &Manager{social: social.Init(dao.NewWithDB(db), nil, nil, nil, nil)}}
+	env := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqDidSendFriendshipReq{
+			ReqDidSendFriendshipReq: &pb.DidSendFriendshipReq{Domain: "stranger.otc", Secret: "bad-secret"},
+		},
+	}
+
+	resp, closeConn := ch.processNonAuthRequest(env)
+
+	if resp == nil {
+		t.Fatal("expected a non-nil response")
+	}
+	if !closeConn {
+		t.Error("expected the connection to be closed after rejecting")
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload, got %T", resp.Payload)
+	}
+	if ack.RespAck.Ok {
+		t.Error("expected Ok=false when no friendship record exists for the domain+secret")
+	}
+}
+
+func TestDidSendFriendshipReqAcceptsWhenFriendshipRecordExists(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	rows := sqlmock.NewRows([]string{"status", "name", "image", "text", "sent"}).
+		AddRow("pending", "Friend Name", []byte(nil), "bio", true)
+	mock.ExpectQuery("select `status`, `name`, `image`, `text`, `sent` from `social_friendship`").
+		WithArgs("friend.otc", "real-secret").
+		WillReturnRows(rows)
+
+	ch := &connHandler{mg: &Manager{social: social.Init(dao.NewWithDB(db), nil, nil, nil, nil)}}
+	env := &pb.ReqEnvelope{
+		Id: 2,
+		Payload: &pb.ReqEnvelope_ReqDidSendFriendshipReq{
+			ReqDidSendFriendshipReq: &pb.DidSendFriendshipReq{Domain: "friend.otc", Secret: "real-secret"},
+		},
+	}
+
+	resp, closeConn := ch.processNonAuthRequest(env)
+
+	if resp == nil {
+		t.Fatal("expected a non-nil response")
+	}
+	if closeConn {
+		t.Error("expected the connection to stay open on success")
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload, got %T", resp.Payload)
+	}
+	if !ack.RespAck.Ok {
+		t.Errorf("expected Ok=true when a friendship record exists, got error: %s", ack.RespAck.ErrorMsg)
+	}
+}
+
+// newTestAuthenticatedSession builds a real *session.Session the same way
+// a successful ReqAuth would (vault creation, Argon2id, the lot) via a
+// mocked "brand new device" vault, so issue #101's token handlers below
+// are exercised against the exact object type setSession actually stores,
+// not a stand-in.
+func newTestAuthenticatedSession(t *testing.T) *session.Session {
+	t.Helper()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+	mock.ExpectExec("insert into `vault`").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	ses, err := session.New("owner-uuid", "test-password", true, dao.NewWithDB(db))
+	if err != nil {
+		t.Fatalf("session.New: %v", err)
+	}
+	return ses
+}
+
+// Issue #101: a browser now persists an opaque, server-issued token
+// instead of the actual account password (see session/tokens.go). These
+// exercise the three RPCs around it end to end, the same way a real
+// login -> reload -> sign-out sequence would use them.
+func TestIssueSessionTokenMintsATokenRedeemableOnAnotherConnection(t *testing.T) {
+	ses := newTestAuthenticatedSession(t)
+	ch := &connHandler{mg: &Manager{}}
+	ch.setSession(ses)
+
+	resp, closeConn := ch.processAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqIssueSessionToken{ReqIssueSessionToken: &pb.ReqIssueSessionToken{}},
+	})
+	if closeConn {
+		t.Error("expected closeConn to be false")
+	}
+	tokenResp, ok := resp.Payload.(*pb.RespEnvelope_RespSessionToken)
+	if !ok {
+		t.Fatalf("expected a RespSessionToken payload, got %T", resp.Payload)
+	}
+	token := tokenResp.RespSessionToken.SessionToken.Token
+	if token == "" {
+		t.Fatal("expected a non-empty token")
+	}
+	if tokenResp.RespSessionToken.SessionToken.ExpiresAtUnixMs <= time.Now().UnixMilli() {
+		t.Error("expected expiresAtUnixMs to be in the future")
+	}
+
+	// A separate connHandler stands in for the next page reload's own
+	// fresh WebSocket connection.
+	ch2 := &connHandler{mg: &Manager{}}
+	authResp, closeConn2 := ch2.processNonAuthRequest(&pb.ReqEnvelope{
+		Id:      2,
+		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
+	})
+	if closeConn2 {
+		t.Error("expected closeConn to be false on a successful token redemption")
+	}
+	ack, ok := authResp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok || !ack.RespAck.Ok {
+		t.Fatalf("expected a successful RespAck, got %+v", authResp.Payload)
+	}
+	if ch2.getSession() != ses {
+		t.Error("expected AuthWithToken to bind the exact original Session, not a new one")
+	}
+}
+
+// An expired token is the ordinary case, not an attack, and the client's
+// very next move is to fall back to the sign-in form over this same
+// connection - so unlike a failed password Auth, this must leave the
+// connection open. Closing it stranded the sign-in form's own
+// GetPubKey/IsNewDevice requests waiting on a response that never came,
+// and the app rendered an empty page (caught live on pit).
+func TestAuthWithTokenRejectsUnknownTokenWithoutClosingTheConnection(t *testing.T) {
+	ch := &connHandler{mg: &Manager{}}
+	resp, closeConn := ch.processNonAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: "not-a-real-token"}},
+	})
+	if closeConn {
+		t.Error("expected the connection to stay open so the client can fall back to signing in")
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok || ack.RespAck.Ok {
+		t.Fatal("expected Ok=false for an unknown token")
+	}
+	if ch.getSession() != nil {
+		t.Error("expected no session to be set after a failed token redemption")
+	}
+}
+
+// A leaked token that's already been redeemed once must be worthless to
+// whoever else might have a copy of it.
+func TestAuthWithTokenIsSingleUse(t *testing.T) {
+	ses := newTestAuthenticatedSession(t)
+	token, _, err := session.IssueToken(ses)
+	if err != nil {
+		t.Fatalf("session.IssueToken: %v", err)
+	}
+
+	ch1 := &connHandler{mg: &Manager{}}
+	resp1, _ := ch1.processNonAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
+	})
+	if ack := resp1.Payload.(*pb.RespEnvelope_RespAck); !ack.RespAck.Ok {
+		t.Fatalf("expected the first redemption to succeed, got: %s", ack.RespAck.ErrorMsg)
+	}
+
+	ch2 := &connHandler{mg: &Manager{}}
+	resp2, _ := ch2.processNonAuthRequest(&pb.ReqEnvelope{
+		Id:      2,
+		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
+	})
+	if ack := resp2.Payload.(*pb.RespEnvelope_RespAck); ack.RespAck.Ok {
+		t.Error("expected Ok=false on a repeated redemption of an already-used token")
+	}
+	if ch2.getSession() != nil {
+		t.Error("expected no session to be set after redeeming an already-used token")
+	}
+}
+
+func TestRevokeSessionTokenInvalidatesOutstandingTokens(t *testing.T) {
+	ses := newTestAuthenticatedSession(t)
+	token, _, err := session.IssueToken(ses)
+	if err != nil {
+		t.Fatalf("session.IssueToken: %v", err)
+	}
+
+	ch := &connHandler{mg: &Manager{}}
+	ch.setSession(ses)
+	resp, closeConn := ch.processAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqRevokeSessionToken{ReqRevokeSessionToken: &pb.ReqRevokeSessionToken{}},
+	})
+	if closeConn {
+		t.Error("expected closeConn to be false")
+	}
+	if ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck); !ok || !ack.RespAck.Ok {
+		t.Fatalf("expected a successful RespAck, got %+v", resp.Payload)
+	}
+
+	ch2 := &connHandler{mg: &Manager{}}
+	resp2, _ := ch2.processNonAuthRequest(&pb.ReqEnvelope{
+		Id:      2,
+		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
+	})
+	if ack := resp2.Payload.(*pb.RespEnvelope_RespAck); ack.RespAck.Ok {
+		t.Error("expected a revoked token to no longer redeem successfully")
 	}
 }

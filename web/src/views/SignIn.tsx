@@ -58,7 +58,23 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
   if (step === "login") {
     return (
       <section className="sf-section" style={{ width: 400, margin: "auto" }}>
-        <form onSubmit={async (e) => { e.preventDefault(); if (await onAuth(key)) onDone(); }}>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setError("");
+          try {
+            if (await onAuth(key)) onDone();
+            else setError("Incorrect password.");
+          } catch (err: any) {
+            // Issue #93: a disabled account's own auth attempt throws
+            // here (see encryptForConnection - the bridge answers its
+            // reqGetPubKey with a RespAck error instead of a real key)
+            // rather than resolving false like a plain wrong password
+            // does above - this used to just vanish as an unhandled
+            // rejection, leaving the form looking like it had done
+            // nothing at all.
+            setError(err?.message || "Could not sign in.");
+          }
+        }}>
           <div className="sf-row">
           <h3>Password</h3>
             <input id="sf-old" className="sf-input" type="password" onChange={(e)=>setKey(e.target.value)} />
@@ -66,6 +82,7 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
           <button className="sf-btn">
             Log In
           </button>
+          {error && <p className="sf-note error">{error}</p>}
         </form>
       </section>
     )

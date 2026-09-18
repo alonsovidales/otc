@@ -24,59 +24,73 @@ type Requester = (build: (e: Partial<ReqEnvelope>) => void) => Promise<RespEnvel
 // Issue #46: a plain browser tab has nothing else keeping the user signed
 // in across a reload — the mobile app already gets the same effect for
 // free by re-sending the Keychain-stored password on every launch (see
-// App.tsx's `mobile` auto-auth effect), since there's no session-token
-// concept in the protocol, only per-connection password auth (see Auth in
-// messages.proto). This mirrors that for the browser: the password is kept
-// in localStorage (scoped to this device's own origin) and replayed the
-// same way on mount.
-const cSessionKeyStorageKey = "otc_session_key";
+// App.tsx's `mobile` auto-auth effect). This mirrors that for the browser
+// by persisting *something* across a reload and replaying it the same way
+// on mount.
+//
+// Issue #101: that something used to be the actual account password,
+// sitting in localStorage in plain text — anything that could read this
+// origin's storage (an XSS, a shared/synced browser profile, a forensic
+// grab of the profile directory) got the real password outright, not just
+// a way back into one browser tab. It's now a random opaque token minted
+// by the device itself (ReqIssueSessionToken/ReqAuthWithToken in
+// messages.proto) that's good for nothing but resuming a session that was
+// already established with the real password — see session/tokens.go for
+// the server-side store this redeems against.
+const cSessionTokenStorageKey = "otc_session_token";
 
-// The password doesn't get to sit in localStorage forever just because the
-// tab does — an hour, then it's treated the same as never having been
-// saved (the app falls back to its normal sign-in prompt). Limits how long
-// a stolen/left-open device keeps the account (and, per session.go, the
-// actual data-encryption key) usable without the password being re-entered.
-const cPersistedKeyTTLMs = 60 * 60 * 1000;
+// The token doesn't get to sit in localStorage forever just because the
+// tab does — matches the old cPersistedKeyTTLMs window, and, like that
+// one, keeps getting refreshed to a fresh hour on every successful
+// redemption (see useWS.ts's authWithToken), so a tab reloaded regularly
+// effectively never has to fall back to the password prompt.
+const cPersistedTokenTTLMs = 60 * 60 * 1000;
 
-interface PersistedKey {
-  key: string;
-  savedAt: number;
+interface PersistedToken {
+  token: string;
+  expiresAtMs: number;
 }
 
-export function savePersistedKey(key: string) {
+export function savePersistedToken(token: string, expiresAtMs: number) {
   try {
-    const entry: PersistedKey = { key, savedAt: Date.now() };
-    localStorage.setItem(cSessionKeyStorageKey, JSON.stringify(entry));
+    const entry: PersistedToken = { token, expiresAtMs };
+    localStorage.setItem(cSessionTokenStorageKey, JSON.stringify(entry));
   } catch {
     // Storage can be unavailable (private browsing, quota) — session just
     // won't survive a reload in that case, not worth surfacing an error for.
   }
 }
 
-export function loadPersistedKey(): string | null {
+export function loadPersistedToken(): string | null {
   try {
-    const raw = localStorage.getItem(cSessionKeyStorageKey);
+    const raw = localStorage.getItem(cSessionTokenStorageKey);
     if (!raw) {
       return null;
     }
-    const entry = JSON.parse(raw) as Partial<PersistedKey>;
-    if (typeof entry.key !== "string" || typeof entry.savedAt !== "number") {
-      localStorage.removeItem(cSessionKeyStorageKey);
+    const entry = JSON.parse(raw) as Partial<PersistedToken>;
+    if (typeof entry.token !== "string" || typeof entry.expiresAtMs !== "number") {
+      localStorage.removeItem(cSessionTokenStorageKey);
       return null;
     }
-    if (Date.now() - entry.savedAt > cPersistedKeyTTLMs) {
-      localStorage.removeItem(cSessionKeyStorageKey);
+    // The server is the real authority on expiry (see session/tokens.go) —
+    // this only skips a doomed round trip for a token that's already stale,
+    // and distrusts an expiry claiming to sit further out than any token
+    // the server would ever actually issue (a tampered or corrupted entry),
+    // since a client-side check can only ever make this stricter, never
+    // extend anything.
+    if (Date.now() > entry.expiresAtMs || entry.expiresAtMs - Date.now() > cPersistedTokenTTLMs) {
+      localStorage.removeItem(cSessionTokenStorageKey);
       return null;
     }
-    return entry.key;
+    return entry.token;
   } catch {
     return null;
   }
 }
 
-export function clearPersistedKey() {
+export function clearPersistedToken() {
   try {
-    localStorage.removeItem(cSessionKeyStorageKey);
+    localStorage.removeItem(cSessionTokenStorageKey);
   } catch {
     // Nothing to clean up if storage isn't available in the first place.
   }

@@ -111,7 +111,12 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   dialed once at startup — see `ensureBridgePool`'s doc comment.
 - `social`, `session`, `settings`, `profile`, `status` — feature-specific logic (social feed/friend
   sync, auth sessions, device settings, owner profile, RAID/disk/CPU status) sitting between
-  `websocket` and `dao`.
+  `websocket` and `dao`. `session` also owns issue #101's in-memory session-token store
+  (`session/tokens.go`): a browser can't keep the account password around the way the native apps
+  keep theirs in the Keychain, so after a password `ReqAuth` it holds a single-use, TTL'd opaque
+  token (`ReqIssueSessionToken` / `ReqAuthWithToken` / `ReqRevokeSessionToken`) that redeems back
+  into the same already-derived `*Session`. Process-local and deliberately not persisted — exactly
+  like the `*Session` objects it points at, tokens don't survive a restart.
 - `api` — the small HTTP layer: healthcheck, the `/ws` upgrade, and static file serving (serves
   `web/dist` copied to the device's static path; appends `.html` to extensionless paths for
   client-side routing).

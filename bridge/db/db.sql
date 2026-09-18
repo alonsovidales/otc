@@ -12,6 +12,12 @@ create table devices
   `owner_uuid` varchar(64) not null,
   `domain` varchar(150) not null,
   `secret` varchar(150) not null,
+  -- Issue #93: set by the primary instance whenever it disables/re-enables
+  -- one of its own additional users (issue #90) - that user's own process
+  -- is actually stopped while disabled, so the bridge is the only place
+  -- left that can tell a visitor *why* the domain suddenly can't be
+  -- reached, rather than a generic connection failure.
+  `disabled` tinyint(1) not null default 0,
 
   key (`owner_uuid`),
   unique (`domain`),

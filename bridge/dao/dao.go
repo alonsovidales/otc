@@ -138,6 +138,32 @@ func (dao *Dao) RegistreDevice(owner, uuid, secret string) (err error) {
 	return
 }
 
+// SetDeviceDisabled records whether domain's owning process is currently
+// disabled (issue #93) - see ReqSetDeviceDisabled's own doc comment for
+// why the bridge, not the device, ends up being the source of truth for
+// this while that process is stopped. A no-op (not an error) if domain
+// isn't registered at all: this is called reactively from the primary
+// disabling/re-enabling one of its own users, and racing that against the
+// user's own first-ever ReqBridgeRegister isn't worth failing over -
+// RegistreDevice's own default (disabled=0) is correct either way for a
+// user being enabled, and one being created is never disabled on arrival.
+func (dao *Dao) SetDeviceDisabled(domain string, disabled bool) (err error) {
+	_, err = dao.db.Exec("update `devices` set `disabled` = ? where `domain` = ?", disabled, domain)
+	return
+}
+
+// IsDeviceDisabled reports whether domain has been marked disabled - false
+// for a domain not registered at all (its own connection attempt will
+// already fail for that reason, without needing an "account disabled"
+// message that would be actively misleading).
+func (dao *Dao) IsDeviceDisabled(domain string) (disabled bool, err error) {
+	err = dao.db.QueryRow("select `disabled` from `devices` where `domain` = ?", domain).Scan(&disabled)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return disabled, err
+}
+
 // RotateSecret replaces a device's secret with newSecret, but only if
 // oldSecret is exactly what's currently on record for owner+domain — an
 // atomic compare-and-swap in the WHERE clause rather than a separate

@@ -396,6 +396,51 @@ export interface Auth {
 }
 
 /**
+ * Issue #101: a browser has no Keychain/vault of its own to replay a real
+ * password from on reload the way the native apps do, so it used to keep
+ * the actual account password sitting in plain localStorage instead (see
+ * web/src/net/pwCrypto.ts) - anything that could read that origin's
+ * storage got the real password, not just a way back into one session.
+ * IssueSessionToken mints a random opaque token for the connection's
+ * *already established* session (so this is authenticated-only, unlike
+ * Auth itself) that AuthWithToken can redeem on some later connection in
+ * place of the password - see session/tokens.go for the server-side
+ * store, and its own doc comment for why every redemption mints a fresh
+ * token rather than counting down from the original login.
+ */
+export interface ReqIssueSessionToken {
+}
+
+export interface SessionToken {
+  token: string;
+  expiresAtUnixMs: bigint;
+}
+
+export interface RespSessionToken {
+  sessionToken?: SessionToken | undefined;
+}
+
+/**
+ * Pre-auth, like Auth itself - answers with the same generic Ack shape
+ * Auth does (Ok, or ErrorMsg on an expired/unknown/already-redeemed
+ * token). A client that gets Ok back still needs its own follow-up
+ * IssueSessionToken call to keep a fresh token in storage, since redeeming
+ * one consumes it (see RedeemToken).
+ */
+export interface ReqAuthWithToken {
+  token: string;
+}
+
+/**
+ * Sent when the owner explicitly signs out (see SettingsForm's Sign Out
+ * button) so a token that's already sitting in some other tab's storage
+ * stops working immediately, rather than just quietly expiring on its own
+ * TTL. Answers with the generic Ack.
+ */
+export interface ReqRevokeSessionToken {
+}
+
+/**
  * GetPubKey requests the ephemeral RSA public key generated for this
  * WebSocket connection. Clients must call this before sending Auth or
  * ChangeKey, and use it to encrypt the key material client-side so that
@@ -946,6 +991,27 @@ export interface RotateBridgeSecretAck {
 }
 
 /**
+ * Issue #93: sent by the primary instance to the bridge whenever it
+ * disables/re-enables one of its own additional users (issue #90) - that
+ * user's own process is actually stopped when disabled, so nothing on the
+ * device itself is left running to explain why a visitor to its subdomain
+ * suddenly can't reach anything. The bridge records this against the
+ * domain (see bridge/dao's own devices table) so it can show a clear
+ * "this account has been disabled" message instead of a generic
+ * connection failure, whether or not that user's process ever manages to
+ * reconnect. owner_uuid/domain/secret identify the *user being disabled*,
+ * not the primary sending this - the same identity that user's own
+ * process would use to register with the bridge itself. Answers with the
+ * generic Ack.
+ */
+export interface ReqSetDeviceDisabled {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+  disabled: boolean;
+}
+
+/**
  * RegenerateBridgeSecret is the client-facing (device /ws, authenticated)
  * request behind the Settings page's "Regenerate" button: the device looks
  * up its own owner_uuid/domain/current secret and does the
@@ -1401,6 +1467,16 @@ export interface ReqEnvelope {
     | //
     /** Issue #95. */
     { $case: "reqGetStaticAsset"; reqGetStaticAsset: ReqGetStaticAsset }
+    | //
+    /** Issue #93. Answers with the generic Ack. */
+    { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
+    | //
+    /** Issue #101: session tokens in place of a password in localStorage. */
+    { $case: "reqIssueSessionToken"; reqIssueSessionToken: ReqIssueSessionToken }
+    | { $case: "reqAuthWithToken"; reqAuthWithToken: ReqAuthWithToken }
+    | //
+    /** Answers with the generic Ack. */
+    { $case: "reqRevokeSessionToken"; reqRevokeSessionToken: ReqRevokeSessionToken }
     | undefined;
 }
 
@@ -1466,6 +1542,9 @@ export interface RespEnvelope {
     | //
     /** Issue #95. */
     { $case: "respStaticAsset"; respStaticAsset: RespStaticAsset }
+    | //
+    /** Issue #101. AuthWithToken answers with the generic Ack above. */
+    { $case: "respSessionToken"; respSessionToken: RespSessionToken }
     | undefined;
 }
 
@@ -1959,6 +2038,289 @@ export const Auth: MessageFns<Auth> = {
     message.uuid = object.uuid ?? "";
     message.key = object.key ?? new Uint8Array(0);
     message.create = object.create ?? false;
+    return message;
+  },
+};
+
+function createBaseReqIssueSessionToken(): ReqIssueSessionToken {
+  return {};
+}
+
+export const ReqIssueSessionToken: MessageFns<ReqIssueSessionToken> = {
+  encode(_: ReqIssueSessionToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqIssueSessionToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqIssueSessionToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqIssueSessionToken {
+    return {};
+  },
+
+  toJSON(_: ReqIssueSessionToken): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqIssueSessionToken>, I>>(base?: I): ReqIssueSessionToken {
+    return ReqIssueSessionToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqIssueSessionToken>, I>>(_: I): ReqIssueSessionToken {
+    const message = createBaseReqIssueSessionToken();
+    return message;
+  },
+};
+
+function createBaseSessionToken(): SessionToken {
+  return { token: "", expiresAtUnixMs: 0n };
+}
+
+export const SessionToken: MessageFns<SessionToken> = {
+  encode(message: SessionToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    if (message.expiresAtUnixMs !== 0n) {
+      if (BigInt.asIntN(64, message.expiresAtUnixMs) !== message.expiresAtUnixMs) {
+        throw new globalThis.Error("value provided for field message.expiresAtUnixMs of type int64 too large");
+      }
+      writer.uint32(16).int64(message.expiresAtUnixMs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SessionToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSessionToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.expiresAtUnixMs = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SessionToken {
+    return {
+      token: isSet(object.token) ? globalThis.String(object.token) : "",
+      expiresAtUnixMs: isSet(object.expiresAtUnixMs) ? BigInt(object.expiresAtUnixMs) : 0n,
+    };
+  },
+
+  toJSON(message: SessionToken): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    if (message.expiresAtUnixMs !== 0n) {
+      obj.expiresAtUnixMs = message.expiresAtUnixMs.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SessionToken>, I>>(base?: I): SessionToken {
+    return SessionToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SessionToken>, I>>(object: I): SessionToken {
+    const message = createBaseSessionToken();
+    message.token = object.token ?? "";
+    message.expiresAtUnixMs = object.expiresAtUnixMs ?? 0n;
+    return message;
+  },
+};
+
+function createBaseRespSessionToken(): RespSessionToken {
+  return { sessionToken: undefined };
+}
+
+export const RespSessionToken: MessageFns<RespSessionToken> = {
+  encode(message: RespSessionToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.sessionToken !== undefined) {
+      SessionToken.encode(message.sessionToken, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespSessionToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespSessionToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.sessionToken = SessionToken.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespSessionToken {
+    return { sessionToken: isSet(object.sessionToken) ? SessionToken.fromJSON(object.sessionToken) : undefined };
+  },
+
+  toJSON(message: RespSessionToken): unknown {
+    const obj: any = {};
+    if (message.sessionToken !== undefined) {
+      obj.sessionToken = SessionToken.toJSON(message.sessionToken);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespSessionToken>, I>>(base?: I): RespSessionToken {
+    return RespSessionToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespSessionToken>, I>>(object: I): RespSessionToken {
+    const message = createBaseRespSessionToken();
+    message.sessionToken = (object.sessionToken !== undefined && object.sessionToken !== null)
+      ? SessionToken.fromPartial(object.sessionToken)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseReqAuthWithToken(): ReqAuthWithToken {
+  return { token: "" };
+}
+
+export const ReqAuthWithToken: MessageFns<ReqAuthWithToken> = {
+  encode(message: ReqAuthWithToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqAuthWithToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqAuthWithToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqAuthWithToken {
+    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
+  },
+
+  toJSON(message: ReqAuthWithToken): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqAuthWithToken>, I>>(base?: I): ReqAuthWithToken {
+    return ReqAuthWithToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqAuthWithToken>, I>>(object: I): ReqAuthWithToken {
+    const message = createBaseReqAuthWithToken();
+    message.token = object.token ?? "";
+    return message;
+  },
+};
+
+function createBaseReqRevokeSessionToken(): ReqRevokeSessionToken {
+  return {};
+}
+
+export const ReqRevokeSessionToken: MessageFns<ReqRevokeSessionToken> = {
+  encode(_: ReqRevokeSessionToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqRevokeSessionToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqRevokeSessionToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqRevokeSessionToken {
+    return {};
+  },
+
+  toJSON(_: ReqRevokeSessionToken): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqRevokeSessionToken>, I>>(base?: I): ReqRevokeSessionToken {
+    return ReqRevokeSessionToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqRevokeSessionToken>, I>>(_: I): ReqRevokeSessionToken {
+    const message = createBaseReqRevokeSessionToken();
     return message;
   },
 };
@@ -6869,6 +7231,114 @@ export const RotateBridgeSecretAck: MessageFns<RotateBridgeSecretAck> = {
   },
 };
 
+function createBaseReqSetDeviceDisabled(): ReqSetDeviceDisabled {
+  return { ownerUuid: "", domain: "", secret: "", disabled: false };
+}
+
+export const ReqSetDeviceDisabled: MessageFns<ReqSetDeviceDisabled> = {
+  encode(message: ReqSetDeviceDisabled, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    if (message.disabled !== false) {
+      writer.uint32(32).bool(message.disabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqSetDeviceDisabled {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqSetDeviceDisabled();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.disabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqSetDeviceDisabled {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      disabled: isSet(object.disabled) ? globalThis.Boolean(object.disabled) : false,
+    };
+  },
+
+  toJSON(message: ReqSetDeviceDisabled): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.disabled !== false) {
+      obj.disabled = message.disabled;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqSetDeviceDisabled>, I>>(base?: I): ReqSetDeviceDisabled {
+    return ReqSetDeviceDisabled.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqSetDeviceDisabled>, I>>(object: I): ReqSetDeviceDisabled {
+    const message = createBaseReqSetDeviceDisabled();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    message.disabled = object.disabled ?? false;
+    return message;
+  },
+};
+
 function createBaseRegenerateBridgeSecret(): RegenerateBridgeSecret {
   return {};
 }
@@ -10595,6 +11065,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetStaticAsset":
         ReqGetStaticAsset.encode(message.payload.reqGetStaticAsset, writer.uint32(650).fork()).join();
         break;
+      case "reqSetDeviceDisabled":
+        ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
+        break;
+      case "reqIssueSessionToken":
+        ReqIssueSessionToken.encode(message.payload.reqIssueSessionToken, writer.uint32(666).fork()).join();
+        break;
+      case "reqAuthWithToken":
+        ReqAuthWithToken.encode(message.payload.reqAuthWithToken, writer.uint32(674).fork()).join();
+        break;
+      case "reqRevokeSessionToken":
+        ReqRevokeSessionToken.encode(message.payload.reqRevokeSessionToken, writer.uint32(682).fork()).join();
+        break;
     }
     return writer;
   },
@@ -11286,6 +11768,50 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 82: {
+          if (tag !== 658) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetDeviceDisabled",
+            reqSetDeviceDisabled: ReqSetDeviceDisabled.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 83: {
+          if (tag !== 666) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqIssueSessionToken",
+            reqIssueSessionToken: ReqIssueSessionToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 84: {
+          if (tag !== 674) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqAuthWithToken",
+            reqAuthWithToken: ReqAuthWithToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 85: {
+          if (tag !== 682) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRevokeSessionToken",
+            reqRevokeSessionToken: ReqRevokeSessionToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11507,6 +12033,23 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqSetUserActive", reqSetUserActive: ReqSetUserActive.fromJSON(object.reqSetUserActive) }
         : isSet(object.reqGetStaticAsset)
         ? { $case: "reqGetStaticAsset", reqGetStaticAsset: ReqGetStaticAsset.fromJSON(object.reqGetStaticAsset) }
+        : isSet(object.reqSetDeviceDisabled)
+        ? {
+          $case: "reqSetDeviceDisabled",
+          reqSetDeviceDisabled: ReqSetDeviceDisabled.fromJSON(object.reqSetDeviceDisabled),
+        }
+        : isSet(object.reqIssueSessionToken)
+        ? {
+          $case: "reqIssueSessionToken",
+          reqIssueSessionToken: ReqIssueSessionToken.fromJSON(object.reqIssueSessionToken),
+        }
+        : isSet(object.reqAuthWithToken)
+        ? { $case: "reqAuthWithToken", reqAuthWithToken: ReqAuthWithToken.fromJSON(object.reqAuthWithToken) }
+        : isSet(object.reqRevokeSessionToken)
+        ? {
+          $case: "reqRevokeSessionToken",
+          reqRevokeSessionToken: ReqRevokeSessionToken.fromJSON(object.reqRevokeSessionToken),
+        }
         : undefined,
     };
   },
@@ -11656,6 +12199,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqSetUserActive = ReqSetUserActive.toJSON(message.payload.reqSetUserActive);
     } else if (message.payload?.$case === "reqGetStaticAsset") {
       obj.reqGetStaticAsset = ReqGetStaticAsset.toJSON(message.payload.reqGetStaticAsset);
+    } else if (message.payload?.$case === "reqSetDeviceDisabled") {
+      obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
+    } else if (message.payload?.$case === "reqIssueSessionToken") {
+      obj.reqIssueSessionToken = ReqIssueSessionToken.toJSON(message.payload.reqIssueSessionToken);
+    } else if (message.payload?.$case === "reqAuthWithToken") {
+      obj.reqAuthWithToken = ReqAuthWithToken.toJSON(message.payload.reqAuthWithToken);
+    } else if (message.payload?.$case === "reqRevokeSessionToken") {
+      obj.reqRevokeSessionToken = ReqRevokeSessionToken.toJSON(message.payload.reqRevokeSessionToken);
     }
     return obj;
   },
@@ -12276,6 +12827,42 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqSetDeviceDisabled": {
+        if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
+          message.payload = {
+            $case: "reqSetDeviceDisabled",
+            reqSetDeviceDisabled: ReqSetDeviceDisabled.fromPartial(object.payload.reqSetDeviceDisabled),
+          };
+        }
+        break;
+      }
+      case "reqIssueSessionToken": {
+        if (object.payload?.reqIssueSessionToken !== undefined && object.payload?.reqIssueSessionToken !== null) {
+          message.payload = {
+            $case: "reqIssueSessionToken",
+            reqIssueSessionToken: ReqIssueSessionToken.fromPartial(object.payload.reqIssueSessionToken),
+          };
+        }
+        break;
+      }
+      case "reqAuthWithToken": {
+        if (object.payload?.reqAuthWithToken !== undefined && object.payload?.reqAuthWithToken !== null) {
+          message.payload = {
+            $case: "reqAuthWithToken",
+            reqAuthWithToken: ReqAuthWithToken.fromPartial(object.payload.reqAuthWithToken),
+          };
+        }
+        break;
+      }
+      case "reqRevokeSessionToken": {
+        if (object.payload?.reqRevokeSessionToken !== undefined && object.payload?.reqRevokeSessionToken !== null) {
+          message.payload = {
+            $case: "reqRevokeSessionToken",
+            reqRevokeSessionToken: ReqRevokeSessionToken.fromPartial(object.payload.reqRevokeSessionToken),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -12402,6 +12989,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respStaticAsset":
         RespStaticAsset.encode(message.payload.respStaticAsset, writer.uint32(354).fork()).join();
+        break;
+      case "respSessionToken":
+        RespSessionToken.encode(message.payload.respSessionToken, writer.uint32(362).fork()).join();
         break;
     }
     return writer;
@@ -12769,6 +13359,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 45: {
+          if (tag !== 362) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respSessionToken",
+            respSessionToken: RespSessionToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12877,6 +13478,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respInstanceRole", respInstanceRole: RespInstanceRole.fromJSON(object.respInstanceRole) }
         : isSet(object.respStaticAsset)
         ? { $case: "respStaticAsset", respStaticAsset: RespStaticAsset.fromJSON(object.respStaticAsset) }
+        : isSet(object.respSessionToken)
+        ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
         : undefined,
     };
   },
@@ -12964,6 +13567,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respInstanceRole = RespInstanceRole.toJSON(message.payload.respInstanceRole);
     } else if (message.payload?.$case === "respStaticAsset") {
       obj.respStaticAsset = RespStaticAsset.toJSON(message.payload.respStaticAsset);
+    } else if (message.payload?.$case === "respSessionToken") {
+      obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
     }
     return obj;
   },
@@ -13265,6 +13870,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respStaticAsset",
             respStaticAsset: RespStaticAsset.fromPartial(object.payload.respStaticAsset),
+          };
+        }
+        break;
+      }
+      case "respSessionToken": {
+        if (object.payload?.respSessionToken !== undefined && object.payload?.respSessionToken !== null) {
+          message.payload = {
+            $case: "respSessionToken",
+            respSessionToken: RespSessionToken.fromPartial(object.payload.respSessionToken),
           };
         }
         break;

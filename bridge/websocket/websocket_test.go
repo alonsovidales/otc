@@ -550,3 +550,55 @@ func TestForwardOneOffSkipsAStaleCandidateQuickly(t *testing.T) {
 		t.Errorf("expected the good candidate's echoed response, got %q", resp.ErrorMessage)
 	}
 }
+
+// Issue #93: a disabled domain's own request must get a clear explanation
+// - checked before the pool lookup even runs, so this holds regardless of
+// whether that domain happens to have connections available (a disabled
+// user's process is normally stopped and wouldn't, but a stale entry
+// lingering in the pool - see issue #95's own testing - must not let a
+// disabled account slip through anyway).
+func TestClientRequestToDisabledDomainGetsAClearError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(true))
+
+	mg := &Manager{
+		dao:      dao.NewWithDB(db),
+		bridges:  map[string]*bridgePool{},
+		upgrader: gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(mg.Listen))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	conn, _, err := gorilla.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dialing bridge: %v", err)
+	}
+	defer conn.Close()
+
+	// Any non-registration request - the disabled check runs in the
+	// default pass-through case, before any pool lookup.
+	if err := conn.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, 1)); err != nil {
+		t.Fatalf("writing request: %v", err)
+	}
+	_, data, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("reading response: %v", err)
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("unmarshaling response: %v", err)
+	}
+	if !resp.Error || resp.ErrorMessage != "This account has been disabled." {
+		t.Errorf("expected a clear disabled-account error, got Error=%v ErrorMessage=%q", resp.Error, resp.ErrorMessage)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}

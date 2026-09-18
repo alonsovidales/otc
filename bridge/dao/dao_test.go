@@ -154,3 +154,72 @@ func TestListWebPushSubscriptionsForDomainScopesToOneDomain(t *testing.T) {
 		t.Errorf("unexpected subs: %+v", subs)
 	}
 }
+
+// Issue #93: SetDeviceDisabled/IsDeviceDisabled are the bridge's own
+// record of a domain's disabled state - the one thing left standing once
+// that domain's own device process is actually stopped (see #90).
+func TestSetDeviceDisabledUpdatesTheDevicesRow(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("update `devices` set `disabled` = \\? where `domain` = \\?").
+		WithArgs(true, "someone.off-the.cloud").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.SetDeviceDisabled("someone.off-the.cloud", true); err != nil {
+		t.Fatalf("SetDeviceDisabled returned an error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestIsDeviceDisabledReturnsTheStoredFlag(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WithArgs("someone.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(true))
+
+	d := NewWithDB(db)
+	disabled, err := d.IsDeviceDisabled("someone.off-the.cloud")
+	if err != nil {
+		t.Fatalf("IsDeviceDisabled returned an error: %v", err)
+	}
+	if !disabled {
+		t.Error("expected disabled=true")
+	}
+}
+
+// A domain that isn't registered at all must read as "not disabled", not
+// as an error - see IsDeviceDisabled's own doc comment on why an unknown
+// domain shouldn't get an "account disabled" message (its connection
+// attempt already fails for an unrelated reason).
+func TestIsDeviceDisabledReturnsFalseForUnknownDomain(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WithArgs("nobody.off-the.cloud").
+		WillReturnError(sql.ErrNoRows)
+
+	d := NewWithDB(db)
+	disabled, err := d.IsDeviceDisabled("nobody.off-the.cloud")
+	if err != nil {
+		t.Fatalf("IsDeviceDisabled returned an error: %v", err)
+	}
+	if disabled {
+		t.Error("expected disabled=false for an unregistered domain")
+	}
+}

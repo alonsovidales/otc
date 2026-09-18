@@ -2,7 +2,7 @@
 
 import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { encryptForConnection, savePersistedKey, clearPersistedKey } from "./pwCrypto";
+import { encryptForConnection, savePersistedToken, clearPersistedToken } from "./pwCrypto";
 
 export function UseWS() {
   let isConnected = false;
@@ -74,6 +74,28 @@ export function UseWS() {
     return rawRequest(req);
   });
 
+  // Issue #101: mints a fresh session token for the connection's
+  // now-authenticated session and persists it in place of what used to be
+  // the password itself. Best-effort on purpose: failing to get a token
+  // only costs this browser its next reload (it falls back to the sign-in
+  // form), so it must never turn an otherwise successful sign-in into a
+  // failed one.
+  const refreshSessionToken = async () => {
+    try {
+      const resp: RespEnvelope = await rawRequest(e => {
+        (e as any).payload = { $case: "reqIssueSessionToken", reqIssueSessionToken: {} };
+      });
+      if (resp.payload?.$case === "respSessionToken" && resp.payload.respSessionToken.sessionToken) {
+        const { token, expiresAtUnixMs } = resp.payload.respSessionToken.sessionToken;
+        savePersistedToken(token, Number(expiresAtUnixMs));
+      } else {
+        console.error("Device did not return a session token:", resp.errorMessage);
+      }
+    } catch (e) {
+      console.error("Could not obtain a session token:", e);
+    }
+  };
+
   const sendAuth = (key: string): Promise<boolean> => {
     lastAuthRef = key;
     if (authPromise) return authPromise;
@@ -89,10 +111,10 @@ export function UseWS() {
           (e as any).payload = { $case: "reqAuth", reqAuth: { key: encryptedKey, create: true } };
         });
         if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-          // Issue #46: keep the browser signed in across reloads — see
-          // pwCrypto.ts for why this replays the password rather than a
-          // session token (the protocol doesn't have one).
-          savePersistedKey(key);
+          // Issue #46/#101: keep the browser signed in across reloads —
+          // with a token the device issues for this session, never the
+          // password that was just used to establish it.
+          await refreshSessionToken();
           if (setAuth) {
             await setAuth(true);
           }
@@ -103,7 +125,7 @@ export function UseWS() {
         // Wrong/stale password (e.g. it was changed elsewhere, or a
         // leftover key from a previous device) — don't keep retrying it on
         // every future reload.
-        clearPersistedKey();
+        clearPersistedToken();
 
         if (window.__OTC_CONFIG!) {
           // Open the settings on error when we are in the mobile app
@@ -112,6 +134,49 @@ export function UseWS() {
           });
         }
 
+        return false;
+      } finally {
+        authPromise = null;
+      }
+    })();
+
+    return authPromise;
+  };
+
+  // Issue #101: the reload path's counterpart to sendAuth — same contract
+  // (resolves true once this connection is authenticated), but redeems a
+  // stored session token instead of a password nobody kept. Sets
+  // authPromise for exactly the same reason sendAuth does: every other
+  // component's first request has to wait behind it rather than racing an
+  // unauthenticated connection (see authPromise's own comment above).
+  const authWithToken = (token: string): Promise<boolean> => {
+    if (authPromise) return authPromise;
+
+    authPromise = (async () => {
+      try {
+        if (!isConnected || !wsClient.connected) {
+          await connect();
+        }
+
+        const resp: RespEnvelope = await rawRequest(e => {
+          (e as any).payload = { $case: "reqAuthWithToken", reqAuthWithToken: { token } };
+        });
+        if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+          // Redeeming consumes the token (see session.RedeemToken), so the
+          // one in storage is spent the moment this succeeds — replace it
+          // with a fresh one, which also slides the TTL forward another
+          // hour for a tab that keeps getting reloaded.
+          await refreshSessionToken();
+          if (setAuth) {
+            await setAuth(true);
+          }
+
+          return true;
+        }
+
+        // Expired, unknown, or already-redeemed — fall back to the normal
+        // sign-in form rather than retrying it on every future reload.
+        clearPersistedToken();
         return false;
       } finally {
         authPromise = null;
@@ -130,7 +195,7 @@ export function UseWS() {
     return wsClient.connected;
   };
 
-  return { connected, request, sendAuth, init, ws: wsClient };
+  return { connected, request, sendAuth, authWithToken, refreshSessionToken, init, ws: wsClient };
 }
 
 export const useWS = UseWS();

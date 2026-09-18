@@ -769,6 +769,42 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 				return
 
+			case *pb.ReqEnvelope_ReqSetDeviceDisabled:
+				// Issue #93: the primary telling the bridge one of its own
+				// additional users (issue #90) just got disabled/re-enabled -
+				// see ReqSetDeviceDisabled's own doc comment for why. One-off
+				// request/response, same shape as ReqRotateBridgeSecret above.
+				defer conn.Close()
+				req := p.ReqSetDeviceDisabled
+				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
+				if err != nil && err != sql.ErrNoRows {
+					log.Error("error validating device for disabled-state update:", err)
+					resp.Error = true
+					resp.ErrorMessage = err.Error()
+				} else if !defined || !validSecret {
+					log.Error("disabled-state update rejected: invalid device/secret for", req.Domain)
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+						log.Error("error logging auth event:", logErr)
+					}
+					resp.Error = true
+					resp.ErrorMessage = "Invalid Secret"
+				} else if err := mg.dao.SetDeviceDisabled(req.Domain, req.Disabled); err != nil {
+					log.Error("error storing disabled-state update:", err)
+					resp.Error = true
+					resp.ErrorMessage = err.Error()
+				} else {
+					log.Info("Set device disabled:", req.Domain, req.Disabled)
+					resp.Payload = &pb.RespEnvelope_RespAck{
+						RespAck: &pb.Ack{Ok: true},
+					}
+				}
+
+				respBin, _ := proto.Marshal(resp)
+				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
+
 			case *pb.ReqEnvelope_ReqUpdatePushRegistrations:
 				// One-off request/response, not a pooled relay connection -
 				// same shape as ReqRotateBridgeSecret above (issue #62): the
@@ -816,6 +852,37 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 			default:
 				defer conn.Close()
+				// Issue #93: a disabled additional user (issue #90) has its
+				// own process actually stopped, so its pool would just look
+				// like any other offline device below - checked first so a
+				// login attempt (or any other direct WS request - a native
+				// app, say, which never goes through serveStatic's own
+				// disabled-page check at all) gets a real explanation
+				// instead of a generic connection failure indistinguishable
+				// from "temporarily unreachable".
+				if disabled, err := mg.dao.IsDeviceDisabled(r.Host); err != nil {
+					log.Error("error checking disabled state for", r.Host, ":", err)
+				} else if disabled {
+					resp.Error = true
+					resp.ErrorMessage = "This account has been disabled."
+					// Both clients' handshake code (web's encryptForConnection,
+					// iOS's connectAndAuth) only ever surfaces an error message
+					// out of a non-respPubKey reply when that reply's payload
+					// is specifically a RespAck - the top-level Error/
+					// ErrorMessage fields alone (set above) get silently
+					// dropped in favor of a generic "couldn't fetch public
+					// key" otherwise, which would defeat the entire point of
+					// this message existing.
+					resp.Payload = &pb.RespEnvelope_RespAck{
+						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage},
+					}
+					respBin, _ := proto.Marshal(resp)
+					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+						log.Error("error responding, closing the connection:", err)
+					}
+					return
+				}
+
 				// This may be a direct request to a device: pick one off
 				// the pool and pair with it for the rest of this
 				// connection's life (see deviceRelay/the relay != nil
