@@ -6,6 +6,7 @@ import { useWS } from "../net/useWS";
 import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo, Person } from "../proto/messages";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import './PhotoGallery.css';
+import Spinner from "./Spinner";
 
 type Chip = string;
 type Token = string | null;
@@ -596,17 +597,30 @@ export default function PhotoGallery() {
     setOpenIdx(null);
   };
 
+  // Which of the two share actions is currently working, so the button
+  // that was clicked shows the spinner (and both are disabled) rather
+  // than the whole bar going ambiguous.
+  const [preparing, setPreparing] = useState<null | "link" | "zip">(null);
+
   const shareOrDownload = async (openAfter: boolean) => {
-    if (!selectedPaths.length) return;
-    const r1 = await useWS.request(e => {
-      (e as any).payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths: selectedPaths } };
-    });
-    if (r1.payload?.$case !== "respShareLink") { alert("Could not create link"); return; }
-    const link = r1.payload.respShareLink.link;
-    if (openAfter) window.open(link, "_blank");
-    else {
-      await navigator.clipboard?.writeText?.(link);
-      alert("Link copied");
+    if (!selectedPaths.length || preparing) return;
+    // The device has to read every selected file and build an archive
+    // before there's a link to hand back - seconds for a handful of
+    // photos, during which this button used to look completely inert.
+    setPreparing(openAfter ? "zip" : "link");
+    try {
+      const r1 = await useWS.request(e => {
+        (e as any).payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths: selectedPaths } };
+      });
+      if (r1.payload?.$case !== "respShareLink") { alert("Could not create link"); return; }
+      const link = r1.payload.respShareLink.link;
+      if (openAfter) window.open(link, "_blank");
+      else {
+        await navigator.clipboard?.writeText?.(link);
+        alert("Link copied");
+      }
+    } finally {
+      setPreparing(null);
     }
   };
 
@@ -924,8 +938,12 @@ export default function PhotoGallery() {
           <button onClick={shareInSocial}>Share in social</button>
           <button onClick={() => alert("Create group (not implemented)")}>Create group</button>
           <button onClick={() => alert("Add to existing group (not implemented)")}>Add to group</button>
-          <button onClick={() => shareOrDownload(false)}>Share link</button>
-          <button onClick={() => shareOrDownload(true)}>Download as ZIP</button>
+          <button onClick={() => shareOrDownload(false)} disabled={!!preparing}>
+            {preparing === "link" ? <Spinner label="Preparing…" /> : "Share link"}
+          </button>
+          <button onClick={() => shareOrDownload(true)} disabled={!!preparing}>
+            {preparing === "zip" ? <Spinner label="Preparing ZIP…" /> : "Download as ZIP"}
+          </button>
           <button className="pg-danger" onClick={() => void deleteSelected()}>Delete</button>
           <span className="pg-count">{selOrder.length} selected</span>
         </div>

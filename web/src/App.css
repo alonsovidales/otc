@@ -8,3 +8,13 @@ main {
   height: 100%;
   overflow-y: auto;
 }
+
+/* Issue #104 follow-up: the shared-link download is a page of its own with
+   nothing else on it, so centre the indicator rather than leaving it in
+   the top-left corner looking like a stray line of text. */
+.download-view {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  color: var(--mist-dim);
+}

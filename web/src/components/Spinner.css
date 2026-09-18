@@ -1,0 +1,41 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+.spinner-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Sized in em so it matches whatever text it sits next to - inside a
+   button it takes the button's font size, in a page heading it grows with
+   it, without needing a variant per context. */
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  /* One transparent side is what makes the rotation visible; the rest
+     inherits the surrounding text colour, so it works on a button, on the
+     page background, and in both themes without further styling. */
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spinner-rotate 0.7s linear infinite;
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Someone who has asked for less motion still needs to know work is in
+   progress - keep the indicator, drop the spin for a gentle pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: spinner-pulse 1.4s ease-in-out infinite;
+    border-top-color: currentColor;
+    opacity: 0.6;
+  }
+  @keyframes spinner-pulse {
+    50% { opacity: 0.15; }
+  }
+}

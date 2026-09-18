@@ -450,7 +450,7 @@ func (mg *Manager) onDeviceConnectionRegistered(domain string, pool *bridgePool)
 // device connections goes from > 1 to 0 then start a go routine with a
 // count down that will send the notification if it takes more than 1 min
 // to go back to 1".
-func (mg *Manager) onDeviceConnectionDied(domain string) {
+func (mg *Manager) onDeviceConnectionDied(domain string, dead *deviceRelay) {
 	mg.bridgesMu.RLock()
 	pool, ok := mg.bridges[domain]
 	mg.bridgesMu.RUnlock()
@@ -460,6 +460,33 @@ func (mg *Manager) onDeviceConnectionDied(domain string) {
 
 	pool.lock.Lock()
 	defer pool.lock.Unlock()
+
+	// Drop it from the idle list as well as the count. Without this the
+	// entry stayed in availableConns forever once its connection died -
+	// a device restart, a network blip, a ping/pong timeout - and the
+	// consequences compounded:
+	//
+	//   - every client request popped corpses first, each costing a full
+	//     cForwardTimeout (90s) before moving on, so a page load could
+	//     hang for minutes;
+	//   - ForwardOneOff hit the same, which is what surfaced as "no
+	//     available connections in the pool" while the device itself was
+	//     perfectly healthy;
+	//   - and because the registration cap counts len(availableConns),
+	//     100 accumulated corpses meant every *new* registration was
+	//     rejected ("device at its connection cap"), leaving the device
+	//     permanently unreachable until the bridge process restarted.
+	//
+	// All three were live on cala/tobi: tobi was being refused 2264 times
+	// in three minutes against a pool that was entirely dead.
+	if dead != nil {
+		for i, c := range pool.availableConns {
+			if c == dead {
+				pool.availableConns = append(pool.availableConns[:i], pool.availableConns[i+1:]...)
+				break
+			}
+		}
+	}
 
 	if pool.liveCount > 0 {
 		pool.liveCount--
@@ -787,7 +814,13 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// at registration time, rather than lazily once picked -
 					// see newDeviceRelay's doc comment for why that matters
 					// to issue #62's offline detection.
-					relay := newDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain) })
+					// The closure captures `relay` by reference and only
+					// ever runs later (onDeath fires from failAll), by
+					// which point the assignment below has completed - so
+					// the handler always has the relay it belongs to, and
+					// can evict that exact entry from the pool.
+					var relay *deviceRelay
+					relay = newDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain, relay) })
 
 					// Re-check under the write lock (rather than trusting
 					// the ok/pool snapshot read above) so two connections

@@ -96,6 +96,45 @@ type bridgeConnPool struct {
 	mu        sync.Mutex
 	available int
 	pending   int
+	// consecutiveFailures drives the retry backoff below. Reset to zero
+	// by every successful registration, so a device that is simply
+	// reconnecting after a blip pays no penalty.
+	consecutiveFailures int
+}
+
+// Retry backoff for failed bridge dials/registrations (see
+// failedBridgeDial). This used to be a flat 0-3s retry, forever, with no
+// regard for *why* the attempt failed - and some failures are permanent:
+// a subdomain claimed by another registration answers "Invalid Secret"
+// every time, and a device already at the bridge's per-device connection
+// cap is refused every time. Retrying those ~1.5 times a second achieves
+// nothing and actively hurts: one device in that state produced 2167
+// rejected registrations in three minutes, which is what kept the bridge
+// pinned at its cap and starved every other device - cala among them,
+// which is how this was found.
+//
+// Exponential with jitter instead, so a transient failure still recovers
+// in about a second while a permanent one settles into a background poke
+// every few minutes.
+var (
+	cBridgeRetryBase = time.Second
+	cBridgeRetryMax  = 5 * time.Minute
+)
+
+// bridgeRetryDelay is the wait before the nth consecutive retry, capped
+// and jittered (jitter matters here because a device opens its whole pool
+// at once - without it, 20 connections would fail and retry in lockstep
+// forever).
+func bridgeRetryDelay(consecutiveFailures int) time.Duration {
+	delay := cBridgeRetryBase
+	for i := 0; i < consecutiveFailures && delay < cBridgeRetryMax; i++ {
+		delay *= 2
+	}
+	if delay > cBridgeRetryMax {
+		delay = cBridgeRetryMax
+	}
+	// Full jitter over the computed window.
+	return time.Duration(rand.Float64() * float64(delay))
 }
 
 // Manager Structure that provides HTTP access to manage all the different
@@ -391,6 +430,10 @@ func (mg *Manager) openBridgeConn() {
 	mg.bridgePool.mu.Lock()
 	mg.bridgePool.pending--
 	mg.bridgePool.available++
+	// A working registration clears the backoff, so the next transient
+	// failure starts from a one-second retry again rather than inheriting
+	// whatever penalty an earlier outage built up.
+	mg.bridgePool.consecutiveFailures = 0
 	mg.bridgePool.mu.Unlock()
 
 	// Blocks for this connection's entire lifetime in the pool - returns
@@ -419,11 +462,17 @@ func (mg *Manager) openBridgeConn() {
 func (mg *Manager) failedBridgeDial() {
 	mg.bridgePool.mu.Lock()
 	mg.bridgePool.pending--
+	mg.bridgePool.consecutiveFailures++
+	delay := bridgeRetryDelay(mg.bridgePool.consecutiveFailures)
+	failures := mg.bridgePool.consecutiveFailures
 	mg.bridgePool.mu.Unlock()
 
+	if failures == 1 || failures%20 == 0 {
+		log.Info("bridge dial failed (", failures, "in a row ), next retry in", delay.Round(time.Second))
+	}
+
 	go func() {
-		d := (3 * rand.Float64()) * float64(time.Second)
-		time.Sleep(time.Duration(d))
+		time.Sleep(delay)
 		mg.bridgePool.mu.Lock()
 		mg.bridgePool.pending++
 		mg.bridgePool.mu.Unlock()

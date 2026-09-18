@@ -356,7 +356,7 @@ func TestOfflineCountdownFiresAlertWhenStillDownAfterGrace(t *testing.T) {
 	mg.onDeviceConnectionRegistered("pit.otc", pool) // liveCount 0 -> 1
 	pool.lock.Unlock()
 
-	mg.onDeviceConnectionDied("pit.otc") // liveCount 1 -> 0, starts the countdown
+	mg.onDeviceConnectionDied("pit.otc", nil) // liveCount 1 -> 0, starts the countdown
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
@@ -390,7 +390,7 @@ func TestOnDeviceConnectionRegisteredCancelsPendingOfflineCountdown(t *testing.T
 	mg.onDeviceConnectionRegistered("pit.otc", pool)
 	pool.lock.Unlock()
 
-	mg.onDeviceConnectionDied("pit.otc")
+	mg.onDeviceConnectionDied("pit.otc", nil)
 
 	pool.lock.Lock()
 	hasPendingTimer := pool.offlineTimer != nil
@@ -765,5 +765,59 @@ func TestForwardOneOffCannotDrainThePool(t *testing.T) {
 	if left != poolSize-cOneOffMaxAttempts {
 		t.Errorf("pool has %d connections left, want %d - one request must not be able to drain it",
 			left, poolSize-cOneOffMaxAttempts)
+	}
+}
+
+// The leak that took cala and tobi off the air: a pooled connection that
+// died stayed in availableConns forever. Every client request then popped
+// corpses first (90s each), ForwardOneOff reported "no available
+// connections" against a healthy device, and - because the registration
+// cap counts len(availableConns) - 100 accumulated corpses made the bridge
+// refuse every new registration, so the device could never come back
+// without restarting the bridge. tobi was being refused 2264 times in
+// three minutes against a pool that was entirely dead.
+func TestDeadConnectionIsEvictedFromThePool(t *testing.T) {
+	srvA, urlA := newEchoDeviceServer(t, func(int32) time.Duration { return 0 })
+	defer srvA.Close()
+	srvB, urlB := newEchoDeviceServer(t, func(int32) time.Duration { return 0 })
+	defer srvB.Close()
+
+	pool := &bridgePool{lock: new(sync.Mutex)}
+	mg := &Manager{bridges: map[string]*bridgePool{"pit.otc": pool}}
+
+	doomed := dialRelayWithOnDeath(t, urlA, func() { mg.onDeviceConnectionDied("pit.otc", nil) })
+	survivor := dialRelay(t, urlB)
+
+	pool.lock.Lock()
+	pool.availableConns = []*deviceRelay{doomed, survivor}
+	pool.liveCount = 2
+	pool.lock.Unlock()
+
+	// Rewire the doomed relay's death handler to the real one now that we
+	// have the pointer, then kill it the way a network failure would.
+	doomed.onDeath = func() { mg.onDeviceConnectionDied("pit.otc", doomed) }
+	doomed.Close()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		pool.lock.Lock()
+		n := len(pool.availableConns)
+		pool.lock.Unlock()
+		if n == 1 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	if len(pool.availableConns) != 1 {
+		t.Fatalf("pool still holds %d connections, want 1 - the dead one must be evicted", len(pool.availableConns))
+	}
+	if pool.availableConns[0] != survivor {
+		t.Error("the wrong connection was evicted")
+	}
+	if pool.liveCount != 1 {
+		t.Errorf("liveCount = %d, want 1", pool.liveCount)
 	}
 }

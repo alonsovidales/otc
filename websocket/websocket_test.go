@@ -638,3 +638,57 @@ func TestUnauthenticatedRequestGetsAnActionableCode(t *testing.T) {
 		t.Error("expected Ok=false")
 	}
 }
+
+// The retry storm behind cala going unreachable: failedBridgeDial used to
+// retry every 0-3s forever, regardless of why the attempt failed. Some
+// failures are permanent - a subdomain claimed by someone else always
+// answers "Invalid Secret", a device at the bridge's per-device cap is
+// always refused - and hammering those pinned the bridge at its cap and
+// starved every other device.
+func TestBridgeRetryDelayBacksOffAndIsCapped(t *testing.T) {
+	// Jitter makes each call random within its window, so assert on the
+	// window rather than the exact value: the nth delay must never exceed
+	// base*2^n, and must never exceed the cap.
+	for _, failures := range []int{1, 2, 5, 10, 50} {
+		window := cBridgeRetryBase
+		for i := 0; i < failures && window < cBridgeRetryMax; i++ {
+			window *= 2
+		}
+		if window > cBridgeRetryMax {
+			window = cBridgeRetryMax
+		}
+		for i := 0; i < 50; i++ {
+			d := bridgeRetryDelay(failures)
+			if d < 0 || d > window {
+				t.Fatalf("%d failures: delay %s outside [0, %s]", failures, d, window)
+			}
+			if d > cBridgeRetryMax {
+				t.Fatalf("%d failures: delay %s exceeds the cap %s", failures, d, cBridgeRetryMax)
+			}
+		}
+	}
+}
+
+// A device stuck failing must settle into an occasional poke, not a flood
+// - that is the whole point. Averaged over many draws (the delay is
+// jittered), a long streak has to be far slower than the old flat retry.
+func TestBridgeRetryDelayGrowsWithConsecutiveFailures(t *testing.T) {
+	avg := func(failures, n int) time.Duration {
+		var total time.Duration
+		for i := 0; i < n; i++ {
+			total += bridgeRetryDelay(failures)
+		}
+		return total / time.Duration(n)
+	}
+
+	early := avg(1, 500)
+	late := avg(12, 500)
+	if late <= early*10 {
+		t.Errorf("average delay after 12 failures (%s) should be far above after 1 (%s)", late, early)
+	}
+	// The old behaviour was ~1.5s average forever; anything near that
+	// after a long streak would still be a flood.
+	if late < 30*time.Second {
+		t.Errorf("average delay after a long streak = %s, want tens of seconds at least", late)
+	}
+}

@@ -21,6 +21,7 @@ import { useSearchParams } from "react-router-dom";
 import { getDeviceSetupInfo, loadPersistedToken } from "./net/pwCrypto";
 import { promptForPushIfNeverAsked } from "./net/webPush";
 import DeviceUnreachable from "./components/DeviceUnreachable";
+import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
@@ -251,9 +252,18 @@ function App() {
     })();
   }, [downloadLink]);
 
-  // If this is a download, just download and don't render anything else.
+  // If this is a download, that's the whole page. The wait here is the
+  // longest of the lot - the device builds the archive and sends it over
+  // the relay before the browser sees a byte - so it gets a spinner
+  // rather than a line of static text that could equally mean "stuck".
   if (!!downloadLink) {
-    return <>{downloadError ?? "Downloading... please wait"}</>;
+    return (
+      <div className="download-view">
+        {downloadError
+          ? <p className="sf-note error">{downloadError}</p>
+          : <Spinner label="Preparing your download…" />}
+      </div>
+    );
   }
 
   if (tab === "Settings") {

@@ -10,6 +10,7 @@ import type {
 } from "../proto/messages";
 import { loadFilesPath, saveFilesPath } from "../net/uiState";
 import "./FilesExplorer.css";
+import Spinner from "./Spinner";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -294,19 +295,29 @@ export default function FilesExplorer({
     await loadList(path);
   };
 
+  // Same reasoning as the Photo Gallery's own share actions: the device
+  // reads every selected file and builds an archive before a link exists,
+  // which is seconds of apparent nothing without an indicator.
+  const [preparing, setPreparing] = useState<null | "share" | "zip">(null);
+
   const shareOrZip = async (openZip: boolean) => {
-    if (!selected.length) return;
-    const paths = selected.map(f => f.path.includes("/") ? f.path : joinPath(path, f.path));
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths } };
-    });
-    if (resp.payload?.$case === "respShareLink" && resp.payload.respShareLink.link) {
-      const link = resp.payload.respShareLink.link;
-      if (openZip) window.open(link, "_blank");
-      else {
-        try { await navigator.clipboard.writeText(link); alert("Share link copied to clipboard"); }
-        catch { window.open(link, "_blank"); }
+    if (!selected.length || preparing) return;
+    setPreparing(openZip ? "zip" : "share");
+    try {
+      const paths = selected.map(f => f.path.includes("/") ? f.path : joinPath(path, f.path));
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths } };
+      });
+      if (resp.payload?.$case === "respShareLink" && resp.payload.respShareLink.link) {
+        const link = resp.payload.respShareLink.link;
+        if (openZip) window.open(link, "_blank");
+        else {
+          try { await navigator.clipboard.writeText(link); alert("Share link copied to clipboard"); }
+          catch { window.open(link, "_blank"); }
+        }
       }
+    } finally {
+      setPreparing(null);
     }
   };
 
@@ -360,8 +371,12 @@ export default function FilesExplorer({
             <div><strong>{selected.length}</strong> selected</div>
             <div className="grow" />
             <button className="btn danger" onClick={() => void delSelected()}>Delete</button>
-            <button className="btn" onClick={() => void shareOrZip(false)}>Share</button>
-            <button className="btn" onClick={() => void shareOrZip(true)}>Download ZIP</button>
+            <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
+              {preparing === "share" ? <Spinner label="Preparing…" /> : "Share"}
+            </button>
+            <button className="btn" onClick={() => void shareOrZip(true)} disabled={!!preparing}>
+              {preparing === "zip" ? <Spinner label="Preparing ZIP…" /> : "Download ZIP"}
+            </button>
           </div>
         </div>
       )}
