@@ -121,6 +121,17 @@ message PubKey {
   // without a dedicated round trip. Clients should show a first-run setup
   // flow (device password + owner name) instead of a plain sign-in form.
   bool is_new_device = 2;
+  // Issue #85: false on an additional user's own instance (issue #82's
+  // per-user child process), true on the device's primary one. Rides
+  // along here for the same reason is_new_device does - the first-run
+  // wizard has to decide what to show *before* anyone is authenticated,
+  // so it can't use the authenticated ReqGetInstanceRole the Settings
+  // screen uses for the same question. What it decides: a child instance
+  // is asked only for an owner name and password, never the storage or
+  // WiFi steps, because those configure the shared physical machine and
+  // belong solely to the primary (which is also enforced server-side -
+  // see the guards on ReqSetupStorage/ReqSetWifi).
+  bool is_primary = 3;
 }
 
 message UploadFile {

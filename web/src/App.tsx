@@ -18,7 +18,7 @@ import NotificationsPage, { useNotificationCount } from "./components/Notificati
 import "./components/StatusWidget.css";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
-import { isNewDevice, loadPersistedToken } from "./net/pwCrypto";
+import { getDeviceSetupInfo, loadPersistedToken } from "./net/pwCrypto";
 import { promptForPushIfNeverAsked } from "./net/webPush";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
@@ -98,7 +98,7 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        if (await isNewDevice(useWS.request)) setTab("SignIn");
+        if ((await getDeviceSetupInfo(useWS.request)).isNewDevice) setTab("SignIn");
       } catch (e) {
         console.error("Could not check device state:", e);
       }

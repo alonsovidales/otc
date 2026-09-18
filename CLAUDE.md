@@ -163,3 +163,4 @@ the working directory, or `/etc/otc_<env>.ini` if that's missing. Dev config liv
 - Security is our main prioirty then reliability, durability and performance
 - Every time that a make is done, update the documentation, installation scripts, images and any other necessary parts
 - Test as much as possible in the browser or the iOS and Android simulators
+- I'm working on other machine, so before working on something, do a `git pull` to update from what we have in the repo

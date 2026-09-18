@@ -96,22 +96,39 @@ export function clearPersistedToken() {
   }
 }
 
+export interface DeviceSetupInfo {
+  /** No owner secret set yet - show first-run setup, not a sign-in form. */
+  isNewDevice: boolean;
+  /**
+   * Issue #85: false on an additional user's own instance (issue #82), so
+   * the wizard can skip the storage/WiFi steps - those configure the
+   * shared physical machine, which is the primary's alone.
+   */
+  isPrimary: boolean;
+}
+
 /**
  * Issue #39: every client calls GetPubKey before Auth anyway, and the
- * server rides along a `is_new_device` flag on that same response (true
- * when no owner secret has been set yet) — so this is a free way to tell
- * a fresh device apart from a normal login before showing a sign-in form.
+ * server rides along the flags below on that same response — so this is a
+ * free way to tell a fresh device apart from a normal login, and a child
+ * instance apart from the primary, before anyone is authenticated (which
+ * is exactly when the setup wizard has to decide what to show).
  */
-export async function isNewDevice(request: Requester): Promise<boolean> {
+export async function getDeviceSetupInfo(request: Requester): Promise<DeviceSetupInfo> {
   const resp = await request((e) => {
     (e as any).payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
   });
 
   if (resp.payload?.$case !== "respPubKey") {
-    return false;
+    // Assume the safest shape: a normal sign-in on a primary, i.e. never
+    // silently skip setup steps over a response we couldn't read.
+    return { isNewDevice: false, isPrimary: true };
   }
 
-  return resp.payload.respPubKey.isNewDevice;
+  return {
+    isNewDevice: resp.payload.respPubKey.isNewDevice,
+    isPrimary: resp.payload.respPubKey.isPrimary,
+  };
 }
 
 /** Fetches this connection's public key and RSA-OAEP(SHA-256) encrypts `plaintext` with it. */

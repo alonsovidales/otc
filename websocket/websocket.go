@@ -713,6 +713,10 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			RespPubKey: &pb.PubKey{
 				PublicKey:   pubDER,
 				IsNewDevice: !secretDefined,
+				// Issue #85: lets the pre-auth setup wizard skip the
+				// storage/WiFi steps on an additional user's instance -
+				// see the field's own comment in messages.proto.
+				IsPrimary: ch.mg.sup != nil,
 			},
 		}
 
@@ -1730,6 +1734,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqListStorageDevices:
+		// Issue #85: primary-only, like the setup RPCs it feeds - a
+		// child instance has no business enumerating the machine's
+		// hardware, and its wizard never asks.
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
 		// Issue #38/#39: read-only disk enumeration, safe to run directly —
 		// see storage.ListDevices's doc comment for why the actual
 		// (destructive) setup step isn't wired up here yet.
@@ -1756,6 +1768,21 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqSetupStorage:
+		// Issue #85: machine-level, so primary-only. An additional user
+		// (issue #82) is a separate process sharing this one physical
+		// machine - its disks, its network - none of which is that user's
+		// to touch. The wizard that calls these is hidden on a child
+		// instance now, but hiding UI is not a control: these are
+		// authenticated RPCs any signed-in sub-user could send directly.
+		// ReqSetupStorage wipes and reformats the selected disks, and
+		// ReqSetWifi drops whatever connection the machine currently has -
+		// so an unguarded pair let any account the owner handed out
+		// destroy the owner's storage or take the device off the network.
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
 		// DESTRUCTIVE on anything selected (wipes/formats those disks) once
 		// applied — but this service can't do that itself (see storage
 		// package doc comment on why it's unprivileged), so this just hands
@@ -1776,6 +1803,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqListWifiNetworks:
+		// Issue #85: primary-only, like the setup RPCs it feeds - a
+		// child instance has no business enumerating the machine's
+		// hardware, and its wizard never asks.
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
 		// Issue #38: safe, read-only scan — see network.ListNetworks's
 		// doc comment for why joining is handled differently.
 		networks, err := network.ListNetworks()
@@ -1800,6 +1835,21 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqSetWifi:
+		// Issue #85: machine-level, so primary-only. An additional user
+		// (issue #82) is a separate process sharing this one physical
+		// machine - its disks, its network - none of which is that user's
+		// to touch. The wizard that calls these is hidden on a child
+		// instance now, but hiding UI is not a control: these are
+		// authenticated RPCs any signed-in sub-user could send directly.
+		// ReqSetupStorage wipes and reformats the selected disks, and
+		// ReqSetWifi drops whatever connection the machine currently has -
+		// so an unguarded pair let any account the owner handed out
+		// destroy the owner's storage or take the device off the network.
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
 		// DESTRUCTIVE to whatever network connection this device currently
 		// has — joining a new WiFi network drops any existing one. Handed
 		// off to network_setup.py the same way storage setup is; see

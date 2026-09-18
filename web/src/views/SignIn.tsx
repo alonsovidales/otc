@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 import './SignIn.css'
 import { useWS } from "../net/useWS";
-import { isNewDevice } from "../net/pwCrypto";
+import { getDeviceSetupInfo } from "../net/pwCrypto";
 import type { StorageDevice, WifiNetwork } from "../proto/messages";
 
 type Step = "checking" | "login" | "credentials" | "storage" | "wifi";
@@ -21,6 +21,12 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
   // owner name or storage set up at all), walk through a short setup
   // instead: owner name + password, then how to use any attached disks.
   const [step, setStep] = useState<Step>("checking");
+  // Issue #85: an additional user's instance (issue #82) shares the
+  // primary's physical machine, so its storage and WiFi are already set up
+  // and are not this user's to change - their setup is just a name and a
+  // password. Defaults to true so a device that somehow can't answer gets
+  // the full wizard rather than silently skipping real setup steps.
+  const [isPrimary, setIsPrimary] = useState(true);
 
   const [key, setKey] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -41,7 +47,9 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
   useEffect(() => {
     (async () => {
       try {
-        setStep(await isNewDevice(useWS.request) ? "credentials" : "login");
+        const info = await getDeviceSetupInfo(useWS.request);
+        setIsPrimary(info.isPrimary);
+        setStep(info.isNewDevice ? "credentials" : "login");
       } catch (e) {
         console.error("Could not check device state:", e);
         // Fall back to the normal sign-in form rather than ever blocking
@@ -122,6 +130,17 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
           // worth blocking on, just worth surfacing.
           console.error("Could not save owner name:", resp.payload.respAck.errorMsg);
         }
+      }
+
+      // Issue #85: that's the whole of setup for an additional user - the
+      // disks and the network belong to the machine, which the primary
+      // already configured (and which the device refuses to let a child
+      // instance touch anyway - see the guards on ReqSetupStorage/
+      // ReqSetWifi). Asking would be offering a choice that isn't theirs
+      // to make and wouldn't be honoured.
+      if (!isPrimary) {
+        onDone();
+        return;
       }
 
       const devResp = await useWS.request((e) => {
@@ -275,10 +294,14 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
   return (
     <section className="sf-section setup-section" style={{ width: 420, margin: "auto" }}>
       <h3>Welcome to Off The Cloud</h3>
+      {/* Issue #85: an additional user isn't setting up a device - the
+          machine is already running, someone else set it up, and saying
+          otherwise invites them to go looking for disks and WiFi that
+          aren't theirs. */}
       <p className="sf-hint">
-        This device isn't set up yet. Choose an owner name and a password —
-        this password protects your files and social profile, so keep it
-        somewhere safe.
+        {isPrimary
+          ? "This device isn't set up yet. Choose an owner name and a password — this password protects your files and social profile, so keep it somewhere safe."
+          : "This account isn't set up yet. Choose your name and a password — this password protects your files and social profile, so keep it somewhere safe."}
       </p>
       <form onSubmit={submitCredentials}>
         <div className="sf-row">
@@ -311,7 +334,7 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
         </div>
         {error && <p className="sf-note error">{error}</p>}
         <button className="sf-btn" disabled={submitting}>
-          {submitting ? "Setting up…" : "Next: Storage"}
+          {submitting ? "Setting up…" : isPrimary ? "Next: Storage" : "Finish setup"}
         </button>
       </form>
     </section>

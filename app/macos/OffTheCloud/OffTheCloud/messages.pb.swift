@@ -497,6 +497,18 @@ public struct Msg_PubKey: Sendable {
   /// flow (device password + owner name) instead of a plain sign-in form.
   public var isNewDevice: Bool = false
 
+  /// Issue #85: false on an additional user's own instance (issue #82's
+  /// per-user child process), true on the device's primary one. Rides
+  /// along here for the same reason is_new_device does - the first-run
+  /// wizard has to decide what to show *before* anyone is authenticated,
+  /// so it can't use the authenticated ReqGetInstanceRole the Settings
+  /// screen uses for the same question. What it decides: a child instance
+  /// is asked only for an owner name and password, never the storage or
+  /// WiFi steps, because those configure the shared physical machine and
+  /// belong solely to the primary (which is also enforced server-side -
+  /// see the guards on ReqSetupStorage/ReqSetWifi).
+  public var isPrimary: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -3976,7 +3988,7 @@ extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
 extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PubKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0\u{3}is_primary\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3986,6 +3998,7 @@ extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBytesField(value: &self.publicKey) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.isNewDevice) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.isPrimary) }()
       default: break
       }
     }
@@ -3998,12 +4011,16 @@ extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
     if self.isNewDevice != false {
       try visitor.visitSingularBoolField(value: self.isNewDevice, fieldNumber: 2)
     }
+    if self.isPrimary != false {
+      try visitor.visitSingularBoolField(value: self.isPrimary, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_PubKey, rhs: Msg_PubKey) -> Bool {
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.isNewDevice != rhs.isNewDevice {return false}
+    if lhs.isPrimary != rhs.isPrimary {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

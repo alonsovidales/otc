@@ -461,6 +461,19 @@ export interface PubKey {
    * flow (device password + owner name) instead of a plain sign-in form.
    */
   isNewDevice: boolean;
+  /**
+   * Issue #85: false on an additional user's own instance (issue #82's
+   * per-user child process), true on the device's primary one. Rides
+   * along here for the same reason is_new_device does - the first-run
+   * wizard has to decide what to show *before* anyone is authenticated,
+   * so it can't use the authenticated ReqGetInstanceRole the Settings
+   * screen uses for the same question. What it decides: a child instance
+   * is asked only for an owner name and password, never the storage or
+   * WiFi steps, because those configure the shared physical machine and
+   * belong solely to the primary (which is also enforced server-side -
+   * see the guards on ReqSetupStorage/ReqSetWifi).
+   */
+  isPrimary: boolean;
 }
 
 export interface UploadFile {
@@ -2382,7 +2395,7 @@ export const GetPubKey: MessageFns<GetPubKey> = {
 };
 
 function createBasePubKey(): PubKey {
-  return { publicKey: new Uint8Array(0), isNewDevice: false };
+  return { publicKey: new Uint8Array(0), isNewDevice: false, isPrimary: false };
 }
 
 export const PubKey: MessageFns<PubKey> = {
@@ -2392,6 +2405,9 @@ export const PubKey: MessageFns<PubKey> = {
     }
     if (message.isNewDevice !== false) {
       writer.uint32(16).bool(message.isNewDevice);
+    }
+    if (message.isPrimary !== false) {
+      writer.uint32(24).bool(message.isPrimary);
     }
     return writer;
   },
@@ -2419,6 +2435,14 @@ export const PubKey: MessageFns<PubKey> = {
           message.isNewDevice = reader.bool();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.isPrimary = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2432,6 +2456,7 @@ export const PubKey: MessageFns<PubKey> = {
     return {
       publicKey: isSet(object.publicKey) ? bytesFromBase64(object.publicKey) : new Uint8Array(0),
       isNewDevice: isSet(object.isNewDevice) ? globalThis.Boolean(object.isNewDevice) : false,
+      isPrimary: isSet(object.isPrimary) ? globalThis.Boolean(object.isPrimary) : false,
     };
   },
 
@@ -2443,6 +2468,9 @@ export const PubKey: MessageFns<PubKey> = {
     if (message.isNewDevice !== false) {
       obj.isNewDevice = message.isNewDevice;
     }
+    if (message.isPrimary !== false) {
+      obj.isPrimary = message.isPrimary;
+    }
     return obj;
   },
 
@@ -2453,6 +2481,7 @@ export const PubKey: MessageFns<PubKey> = {
     const message = createBasePubKey();
     message.publicKey = object.publicKey ?? new Uint8Array(0);
     message.isNewDevice = object.isNewDevice ?? false;
+    message.isPrimary = object.isPrimary ?? false;
     return message;
   },
 };

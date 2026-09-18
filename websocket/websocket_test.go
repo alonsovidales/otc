@@ -18,6 +18,7 @@ import (
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/social"
+	"github.com/alonsovidales/otc/supervisor"
 )
 
 // handleConnection dispatches every incoming envelope through up to three
@@ -519,5 +520,63 @@ func TestRevokeSessionTokenInvalidatesOutstandingTokens(t *testing.T) {
 	})
 	if ack := resp2.Payload.(*pb.RespEnvelope_RespAck); ack.RespAck.Ok {
 		t.Error("expected a revoked token to no longer redeem successfully")
+	}
+}
+
+// Issue #85: the setup wizard's storage/WiFi steps configure the shared
+// physical machine, so they belong to the primary instance alone. Hiding
+// them from an additional user's wizard is the visible half of that; this
+// is the half that actually holds, since these are ordinary authenticated
+// RPCs any signed-in sub-user could send directly - and ReqSetupStorage
+// wipes the selected disks while ReqSetWifi drops the machine's network.
+func TestMachineLevelRPCsAreRefusedOnAChildInstance(t *testing.T) {
+	cases := []struct {
+		name string
+		env  *pb.ReqEnvelope
+	}{
+		{"setup storage", &pb.ReqEnvelope{Id: 1, Payload: &pb.ReqEnvelope_ReqSetupStorage{
+			ReqSetupStorage: &pb.SetupStorage{DevicePaths: []string{"/dev/sda"}}}}},
+		{"set wifi", &pb.ReqEnvelope{Id: 2, Payload: &pb.ReqEnvelope_ReqSetWifi{
+			ReqSetWifi: &pb.SetWifi{Ssid: "somewhere", Password: "hunter2"}}}},
+		{"list storage devices", &pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqListStorageDevices{
+			ReqListStorageDevices: &pb.ListStorageDevices{}}}},
+		{"list wifi networks", &pb.ReqEnvelope{Id: 4, Payload: &pb.ReqEnvelope_ReqListWifiNetworks{
+			ReqListWifiNetworks: &pb.ListWifiNetworks{}}}},
+	}
+
+	for _, c := range cases {
+		// sup == nil is what makes this a child instance (see the
+		// supervisor package's doc comment).
+		ch := &connHandler{mg: &Manager{}}
+
+		resp, _ := ch.processAuthRequest(c.env)
+
+		if resp == nil {
+			t.Fatalf("%s: expected a response", c.name)
+		}
+		if !resp.Error {
+			t.Errorf("%s: expected the request to be refused on a child instance", c.name)
+		}
+		if resp.ErrorMessage != "not available on this instance" {
+			t.Errorf("%s: ErrorMessage = %q, want the not-available message", c.name, resp.ErrorMessage)
+		}
+	}
+}
+
+// The same requests must still work on the primary - the guard is about
+// which instance is asking, not about disabling setup altogether. A nil
+// supervisor is the only thing that marks a child, so a non-nil one has
+// to get past the guard (it fails later, on the real hardware calls this
+// test has no business making - all that matters here is that it is not
+// refused with the child-instance message).
+func TestMachineLevelRPCsAreNotRefusedOnThePrimary(t *testing.T) {
+	ch := &connHandler{mg: &Manager{sup: &supervisor.Supervisor{}}}
+	env := &pb.ReqEnvelope{Id: 1, Payload: &pb.ReqEnvelope_ReqListStorageDevices{
+		ReqListStorageDevices: &pb.ListStorageDevices{}}}
+
+	resp, _ := ch.processAuthRequest(env)
+
+	if resp != nil && resp.ErrorMessage == "not available on this instance" {
+		t.Error("the primary instance must not be refused its own storage/WiFi setup")
 	}
 }
