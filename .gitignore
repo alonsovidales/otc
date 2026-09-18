@@ -1,3 +1,5 @@
 otc
 .DS_Store
 .env.pi
+.ssh_run.py
+.scp_run.py

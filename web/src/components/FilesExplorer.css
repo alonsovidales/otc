@@ -42,6 +42,24 @@
 .fb-full { max-width: 90vw; max-height: 80vh; display: block; }
 .fb-cap { color: var(--mist); margin-top: 6px; text-align: center; }
 
+/* Issue #86: upload progress panel. Shown while dropped files are being
+   read/sent so the drop doesn't look like it did nothing. */
+.fb-uploads { margin: 8px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 10px 12px; }
+.fb-uploads-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.fb-uploads-title { color: var(--mist); font-weight: 600; }
+.fb-uploads-pct { color: var(--mist-dim); font-size: 13px; }
+.fb-uploads-bar { height: 6px; border-radius: 4px; background: var(--ink-2); overflow: hidden; }
+.fb-uploads-fill { height: 100%; background: var(--ember); border-radius: 4px; transition: width .25s ease; }
+.fb-uploads-list { list-style: none; margin: 10px 0 0; padding: 0; max-height: 200px; overflow-y: auto; }
+.fb-uploads-item { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; }
+.fb-uploads-name { color: var(--mist); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-uploads-size { color: var(--mist-dim); min-width: 70px; text-align: right; }
+.fb-uploads-status { color: var(--mist-dim); min-width: 96px; text-align: right; }
+.fb-uploads-item.done .fb-uploads-status { color: var(--ember); }
+.fb-uploads-item.failed .fb-uploads-status { color: var(--danger); }
+.fb-spinner { display: inline-block; width: 11px; height: 11px; margin-right: 4px; border: 2px solid var(--line); border-top-color: var(--ember); border-radius: 50%; animation: fb-spin .7s linear infinite; vertical-align: -1px; }
+@keyframes fb-spin { to { transform: rotate(360deg); } }
+
 /* (6) responsive: under 800px show only checkbox, name, size */
 @media (max-width: 800px) {
   .fb-head, .fb-row { grid-template-columns: 26px 1fr 140px; }
