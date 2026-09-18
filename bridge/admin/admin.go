@@ -40,6 +40,8 @@ const (
 type Admin struct {
 	dao           *dao.Dao
 	sessionSecret []byte
+	// Issue #99: per-IP login throttling, see ratelimit.go.
+	loginLimiter *loginLimiter
 }
 
 // Init builds the admin manager. sessionSecret signs session tokens, so it
@@ -47,7 +49,7 @@ type Admin struct {
 // everyone out; it does not need to be secret from the DB, only from
 // clients.
 func Init(d *dao.Dao, sessionSecret []byte) *Admin {
-	return &Admin{dao: d, sessionSecret: sessionSecret}
+	return &Admin{dao: d, sessionSecret: sessionSecret, loginLimiter: newLoginLimiter()}
 }
 
 // ---------------------------------------------------------------------
@@ -147,7 +149,21 @@ func (a *Admin) sessionCookie(token string, now time.Time, secure bool) *http.Co
 }
 
 // Login checks username/password and, on success, sets a session cookie.
+// Issue #99: throttled per source IP (see ratelimit.go) - bcrypt alone
+// slows a guesser down but never actually stops one.
 func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	ip := clientIP(r)
+
+	// Checked before the body is even decoded, so a locked-out caller
+	// can't keep the bridge doing bcrypt work on its behalf.
+	if ok, retryAfter := a.loginLimiter.allow(ip, now); !ok {
+		log.Error("admin login attempt from a rate-limited address:", ip, "- retry in", retryAfter.Round(time.Second))
+		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
+		writeError(w, http.StatusTooManyRequests, "too many failed attempts, try again later")
+		return
+	}
+
 	var body struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -169,11 +185,16 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 		hash = "$2a$10$invalidinvalidinvaliduinvalidinvalidinvalidinvalidin"
 	}
 	if !checkPassword(hash, body.Password) || !found {
+		// Counted against the IP, not the username: a guesser picks the
+		// username, so counting per account would let them sidestep this
+		// by rotating it (and would hand anyone a way to lock the real
+		// operator out of their own panel).
+		a.loginLimiter.recordFailure(ip, now)
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 
-	now := time.Now()
+	a.loginLimiter.recordSuccess(ip)
 	token := newSessionToken(a.sessionSecret, body.Username, now)
 	http.SetCookie(w, a.sessionCookie(token, now, r.TLS != nil))
 	writeJSON(w, http.StatusOK, map[string]string{"username": body.Username})
@@ -213,10 +234,26 @@ func (a *Admin) ListDevices(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, devices)
 }
 
-// AddDevice registers a new device. If ownerUuid/secret are omitted, ones
-// are generated - the common case is an operator pre-provisioning a
-// domain before handing the owner_uuid/secret pair to whoever is setting
-// up the physical device.
+// cMinRelaySecretLen is the shortest secret AddDevice will accept. The
+// admin panel generates 32 random bytes (64 hex chars) and install.sh's
+// own `secrets` step uses `openssl rand -hex 24` (48), so this only ever
+// rejects something typed by hand - which is exactly the point, since
+// this secret is the whole of what gates a domain onto the relay.
+const cMinRelaySecretLen = 32
+
+// AddDevice registers a new device: an operator pre-provisioning a domain
+// before the physical device that will claim it exists. ownerUuid is
+// generated when omitted (it's an identifier, not a credential), but the
+// secret must be supplied by the caller.
+//
+// Issue #100: this used to generate the secret here and echo it back in
+// the 201 body, which put a long-lived relay credential into a response
+// body - somewhere it lands in far more places than the one operator who
+// needed it (proxy/access logs that capture bodies, browser memory and
+// devtools history, any intermediary between here and them). The caller
+// generating it instead (see admin.html's crypto.getRandomValues) means
+// whoever needs the secret already has it, so the bridge never has to
+// hand one back and this endpoint has no secret to leak at all.
 func (a *Admin) AddDevice(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Domain    string `json:"domain"`
@@ -232,11 +269,13 @@ func (a *Admin) AddDevice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "domain is required")
 		return
 	}
+	body.Secret = strings.TrimSpace(body.Secret)
+	if len(body.Secret) < cMinRelaySecretLen {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("secret is required and must be at least %d characters", cMinRelaySecretLen))
+		return
+	}
 	if body.OwnerUuid == "" {
 		body.OwnerUuid = uuid.New().String()
-	}
-	if body.Secret == "" {
-		body.Secret = uuid.New().String() + uuid.New().String()
 	}
 
 	if err := a.dao.RegistreDevice(body.OwnerUuid, body.Domain, body.Secret); err != nil {
@@ -249,10 +288,10 @@ func (a *Admin) AddDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Deliberately no secret in the response - see the doc comment above.
 	writeJSON(w, http.StatusCreated, map[string]string{
 		"domain":    body.Domain,
 		"ownerUuid": body.OwnerUuid,
-		"secret":    body.Secret,
 	})
 }
 

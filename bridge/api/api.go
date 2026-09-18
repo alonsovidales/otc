@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/admin"
+	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
@@ -274,13 +275,15 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 		reason = "general"
 	}
 
-	// r.RemoteAddr only, deliberately: the bridge terminates TLS itself and
-	// isn't behind a reverse proxy that would set X-Forwarded-For
-	// legitimately (see [otc-api] ssl-cert/ssl-key), so trusting a
-	// client-supplied one let anyone bypass this cooldown outright just by
-	// sending a different fake value on every request - and grow the map
-	// below with an entry per fake value, forever.
-	remoteAddr := r.RemoteAddr
+	// Issue #99: this used to key on r.RemoteAddr *including the port*,
+	// which left the cooldown below bypassable by exactly the senders it
+	// was meant to stop - a script opening a fresh connection per request
+	// draws a fresh ephemeral port each time, so every submission landed
+	// in its own bucket and the map grew an entry per port, the very thing
+	// its own comment said it was avoiding. clientaddr.Of strips the port
+	// (and still never trusts a forwarded-for header - see its doc
+	// comment for why that matters here).
+	remoteAddr := clientaddr.Of(r)
 
 	api.contactMu.Lock()
 	now := time.Now()
