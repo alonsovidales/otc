@@ -453,6 +453,47 @@ public struct Msg_ReqAuthWithToken: Sendable {
   public init() {}
 }
 
+/// Issue #103: asked by a device before it provisions an additional user,
+/// so a subdomain that is already spoken for is caught up front instead of
+/// becoming an unreachable account. Answers with RespDomainAvailable.
+///
+/// Authenticated as an existing registered device (owner_uuid/domain/secret
+/// - the asking device's own, verified the same way ReqSetDeviceDisabled
+/// and ReqRotateBridgeSecret verify theirs) rather than being open to
+/// anyone. Without that this would be an anonymous "does <name> exist?"
+/// oracle on a public relay, letting anybody enumerate which subdomains -
+/// and therefore which people - are registered here.
+public struct Msg_ReqIsDomainAvailable: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ownerUuid: String = String()
+
+  public var domain: String = String()
+
+  public var secret: String = String()
+
+  /// The subdomain being considered, e.g. "pepe.off-the.cloud".
+  public var candidateDomain: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Msg_RespDomainAvailable: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var available: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// Sent when the owner explicitly signs out (see SettingsForm's Sign Out
 /// button) so a token that's already sitting in some other tab's storage
 /// stops working immediately, rather than just quietly expiring on its own
@@ -2315,6 +2356,11 @@ public struct Msg_User: Sendable {
   /// Clears the value of `created`. Subsequent reads from it will return its default value.
   public mutating func clearCreated() {self._created = nil}
 
+  /// Issue #103: false for a local-only user (one created without
+  /// requesting bridge access) - it has no registration on the bridge and
+  /// is reachable only on this machine's own network.
+  public var bridgeAccess: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2354,6 +2400,18 @@ public struct Msg_ReqCreateUser: Sendable {
   public var username: String = String()
 
   public var port: Int32 = 0
+
+  /// Issue #103: whether this user should be reachable from outside the
+  /// house, i.e. registered on the bridge as <username>.<bridge-addr>.
+  /// When set, the device asks the bridge whether that subdomain is free
+  /// *before* provisioning anything (see ReqIsDomainAvailable) and refuses
+  /// to create the user if it isn't - a subdomain already claimed by some
+  /// other registration can never be claimed by this one, so creating the
+  /// user anyway produces an account that looks fine in the panel and is
+  /// silently unreachable forever, with the only evidence buried in that
+  /// user's own log ("bridge rejected registration: Invalid Secret").
+  /// Hit exactly that way on a live device before this existed.
+  public var requestBridgeAccess: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -3135,6 +3193,15 @@ public struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqRevokeSessionToken(newValue)}
   }
 
+  /// Issue #103.
+  public var reqIsDomainAvailable: Msg_ReqIsDomainAvailable {
+    get {
+      if case .reqIsDomainAvailable(let v)? = payload {return v}
+      return Msg_ReqIsDomainAvailable()
+    }
+    set {payload = .reqIsDomainAvailable(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -3225,6 +3292,8 @@ public struct Msg_ReqEnvelope: Sendable {
     case reqAuthWithToken(Msg_ReqAuthWithToken)
     /// Answers with the generic Ack.
     case reqRevokeSessionToken(Msg_ReqRevokeSessionToken)
+    /// Issue #103.
+    case reqIsDomainAvailable(Msg_ReqIsDomainAvailable)
 
   }
 
@@ -3555,6 +3624,15 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respSessionToken(newValue)}
   }
 
+  /// Issue #103.
+  public var respDomainAvailable: Msg_RespDomainAvailable {
+    get {
+      if case .respDomainAvailable(let v)? = _storage._payload {return v}
+      return Msg_RespDomainAvailable()
+    }
+    set {_uniqueStorage()._payload = .respDomainAvailable(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Payload: Equatable, Sendable {
@@ -3605,6 +3683,8 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
     case respStaticAsset(Msg_RespStaticAsset)
     /// Issue #101. AuthWithToken answers with the generic Ack above.
     case respSessionToken(Msg_RespSessionToken)
+    /// Issue #103.
+    case respDomainAvailable(Msg_RespDomainAvailable)
 
   }
 
@@ -3943,6 +4023,81 @@ extension Msg_ReqAuthWithToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 
   public static func ==(lhs: Msg_ReqAuthWithToken, rhs: Msg_ReqAuthWithToken) -> Bool {
     if lhs.token != rhs.token {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_ReqIsDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReqIsDomainAvailable"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{3}candidate_domain\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ownerUuid) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.domain) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.secret) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.candidateDomain) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ownerUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ownerUuid, fieldNumber: 1)
+    }
+    if !self.domain.isEmpty {
+      try visitor.visitSingularStringField(value: self.domain, fieldNumber: 2)
+    }
+    if !self.secret.isEmpty {
+      try visitor.visitSingularStringField(value: self.secret, fieldNumber: 3)
+    }
+    if !self.candidateDomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.candidateDomain, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReqIsDomainAvailable, rhs: Msg_ReqIsDomainAvailable) -> Bool {
+    if lhs.ownerUuid != rhs.ownerUuid {return false}
+    if lhs.domain != rhs.domain {return false}
+    if lhs.secret != rhs.secret {return false}
+    if lhs.candidateDomain != rhs.candidateDomain {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Msg_RespDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RespDomainAvailable"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}available\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.available) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.available != false {
+      try visitor.visitSingularBoolField(value: self.available, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_RespDomainAvailable, rhs: Msg_RespDomainAvailable) -> Bool {
+    if lhs.available != rhs.available {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7378,7 +7533,7 @@ extension Msg_RespPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
 
 extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".User"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}username\0\u{1}port\0\u{1}subdomain\0\u{2}\u{2}active\0\u{1}created\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}username\0\u{1}port\0\u{1}subdomain\0\u{2}\u{2}active\0\u{1}created\0\u{3}bridge_access\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7392,6 +7547,7 @@ extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
       case 4: try { try decoder.decodeSingularStringField(value: &self.subdomain) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.active) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._created) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.bridgeAccess) }()
       default: break
       }
     }
@@ -7420,6 +7576,9 @@ extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
     try { if let v = self._created {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     } }()
+    if self.bridgeAccess != false {
+      try visitor.visitSingularBoolField(value: self.bridgeAccess, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7430,6 +7589,7 @@ extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
     if lhs.subdomain != rhs.subdomain {return false}
     if lhs.active != rhs.active {return false}
     if lhs._created != rhs._created {return false}
+    if lhs.bridgeAccess != rhs.bridgeAccess {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7486,7 +7646,7 @@ extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
 extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqCreateUser"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0\u{1}port\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0\u{1}port\0\u{3}request_bridge_access\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7496,6 +7656,7 @@ extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.username) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.port) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.requestBridgeAccess) }()
       default: break
       }
     }
@@ -7508,12 +7669,16 @@ extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
     if self.port != 0 {
       try visitor.visitSingularInt32Field(value: self.port, fieldNumber: 2)
     }
+    if self.requestBridgeAccess != false {
+      try visitor.visitSingularBoolField(value: self.requestBridgeAccess, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ReqCreateUser, rhs: Msg_ReqCreateUser) -> Bool {
     if lhs.username != rhs.username {return false}
     if lhs.port != rhs.port {return false}
+    if lhs.requestBridgeAccess != rhs.requestBridgeAccess {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7875,7 +8040,7 @@ extension Msg_RespStaticAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
 
 extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -8833,6 +8998,19 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
           self.payload = .reqRevokeSessionToken(v)
         }
       }()
+      case 86: try {
+        var v: Msg_ReqIsDomainAvailable?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqIsDomainAvailable(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqIsDomainAvailable(v)
+        }
+      }()
       default: break
       }
     }
@@ -9139,6 +9317,10 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       guard case .reqRevokeSessionToken(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 85)
     }()
+    case .reqIsDomainAvailable?: try {
+      guard case .reqIsDomainAvailable(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 86)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -9154,7 +9336,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -9664,6 +9846,19 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
             _storage._payload = .respSessionToken(v)
           }
         }()
+        case 46: try {
+          var v: Msg_RespDomainAvailable?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respDomainAvailable(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respDomainAvailable(v)
+          }
+        }()
         default: break
         }
       }
@@ -9829,6 +10024,10 @@ extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
       case .respSessionToken?: try {
         guard case .respSessionToken(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 45)
+      }()
+      case .respDomainAvailable?: try {
+        guard case .respDomainAvailable(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 46)
       }()
       case nil: break
       }

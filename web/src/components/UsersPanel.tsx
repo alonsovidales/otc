@@ -20,6 +20,21 @@ export default function UsersPanel() {
 
   const [newUsername, setNewUsername] = useState("");
   const [newPort, setNewPort] = useState("");
+  // Issue #103: on by default - a user who can't be reached from outside
+  // the house is the unusual case, not the normal one. When set, the
+  // device checks the subdomain is actually free on the bridge before
+  // creating anything, and refuses rather than handing back an account
+  // that looks fine and is silently unreachable.
+  const [requestBridgeAccess, setRequestBridgeAccess] = useState(true);
+
+  // The bridge's own domain, taken from a user that already has a
+  // subdomain - the only place the client already knows it, and worth
+  // showing so "request bridge access" names the actual address the new
+  // user would get. Falls back to generic wording on a device with no
+  // bridge-backed users yet.
+  const bridgeDomain = users?.find(u => u.bridgeAccess && u.subdomain)
+    ?.subdomain.split(".").slice(1).join(".") ?? "";
+
   const [creating, setCreating] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<PbUser | null>(null);
@@ -68,7 +83,11 @@ export default function UsersPanel() {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = {
           $case: "reqCreateUser",
-          reqCreateUser: { username: newUsername.trim(), port: newPort ? parseInt(newPort, 10) : 0 },
+          reqCreateUser: {
+            username: newUsername.trim(),
+            port: newPort ? parseInt(newPort, 10) : 0,
+            requestBridgeAccess,
+          },
         };
       });
       if (resp.payload?.$case === "respUsers") {
@@ -157,7 +176,9 @@ export default function UsersPanel() {
                     {u.username}
                     {!u.active && <span className="up-badge up-badge-muted">inactive</span>}
                   </div>
-                  <div className="up-item-sub">port {u.port} · {u.subdomain}</div>
+                  <div className="up-item-sub">
+                    port {u.port} · {u.bridgeAccess ? u.subdomain : "local only (no bridge access)"}
+                  </div>
                 </div>
                 <div className="up-item-metrics">
                   {m ? (
@@ -211,6 +232,25 @@ export default function UsersPanel() {
           {creating ? "Creating…" : "Add User"}
         </button>
       </div>
+
+      {/* Issue #103 */}
+      <label className="up-bridge-opt">
+        <input
+          type="checkbox"
+          checked={requestBridgeAccess}
+          onChange={(e) => setRequestBridgeAccess(e.target.checked)}
+        />
+        <span>
+          Request bridge access
+          <span className="sf-hint">
+            {newUsername.trim() && bridgeDomain
+              ? `Reachable from anywhere at ${newUsername.trim()}.${bridgeDomain}. `
+              : "Reachable from anywhere at their own subdomain. "}
+            Uncheck to keep this account on your own network only — no remote access, and
+            no friends outside your home.
+          </span>
+        </span>
+      </label>
 
       {deleteTarget && (
         <div className="sf-modal" onClick={() => setDeleteTarget(null)}>

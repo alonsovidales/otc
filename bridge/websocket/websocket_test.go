@@ -723,3 +723,47 @@ func TestDeviceUnreachableFrameRejectsAnUndecodableRequest(t *testing.T) {
 		t.Error("expected an error rather than a response with a meaningless id")
 	}
 }
+
+// A request that keeps failing must not be able to walk the whole pool,
+// closing every connection as it goes - that turned one slow asset fetch
+// into a device-wide outage (see cOneOffForwardTimeout's doc comment for
+// the live incident). It gives up after cOneOffMaxAttempts with
+// connections still in the pool for everyone else.
+func TestForwardOneOffCannotDrainThePool(t *testing.T) {
+	// Six connections that never answer; a request may spend at most
+	// cOneOffMaxAttempts of them.
+	const poolSize = 6
+	// A device that takes an hour to answer is, from here, one that never
+	// does - every candidate blows the (shortened) deadline below.
+	neverAnswers := func(int32) time.Duration { return time.Hour }
+	var servers []*httptest.Server
+	pool := &bridgePool{lock: new(sync.Mutex)}
+	for i := 0; i < poolSize; i++ {
+		srv, wsURL := newEchoDeviceServer(t, neverAnswers)
+		servers = append(servers, srv)
+		pool.availableConns = append(pool.availableConns, dialRelay(t, wsURL))
+	}
+	defer func() {
+		for _, srv := range servers {
+			srv.Close()
+		}
+	}()
+
+	mg := &Manager{bridges: map[string]*bridgePool{"pit.otc": pool}}
+
+	restore := cOneOffForwardTimeout
+	cOneOffForwardTimeout = 50 * time.Millisecond
+	defer func() { cOneOffForwardTimeout = restore }()
+
+	if _, err := mg.ForwardOneOff("pit.otc", envelopeFrame(t, 1)); err == nil {
+		t.Fatal("expected an error when no candidate answers")
+	}
+
+	pool.lock.Lock()
+	left := len(pool.availableConns)
+	pool.lock.Unlock()
+	if left != poolSize-cOneOffMaxAttempts {
+		t.Errorf("pool has %d connections left, want %d - one request must not be able to drain it",
+			left, poolSize-cOneOffMaxAttempts)
+	}
+}

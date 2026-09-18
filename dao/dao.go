@@ -1721,13 +1721,18 @@ type User struct {
 	BridgeSecret    string
 	SupervisorToken string
 	Active          bool
+	// BridgeAccess (issue #103) is false for a local-only user: no
+	// registration on the bridge, and no bridge-addr in its own config, so
+	// its instance never dials out. Persisted rather than decided at
+	// creation time because renderUserConfig re-reads it on every respawn.
+	BridgeAccess bool
 }
 
 func (dao *Dao) CreateUser(u User) (err error) {
 	_, err = dao.db.Exec(
-		"insert into `users` (`uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`, `created`) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())",
-		u.Uuid, u.Username, u.Port, u.DbName, u.DbPass, u.StoragePath, u.Subdomain, u.BridgeSecret, u.SupervisorToken, u.Active,
+		"insert into `users` (`uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`, `bridge_access`, `created`) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())",
+		u.Uuid, u.Username, u.Port, u.DbName, u.DbPass, u.StoragePath, u.Subdomain, u.BridgeSecret, u.SupervisorToken, u.Active, u.BridgeAccess,
 	)
 	return err
 }
@@ -1737,7 +1742,7 @@ func (dao *Dao) CreateUser(u User) (err error) {
 // spawn (see ListActiveUsersInternal).
 func (dao *Dao) ListUsers() (users []*pb.User, err error) {
 	rows, err := dao.db.Query(
-		"select `uuid`, `username`, `port`, `subdomain`, `active`, `created` from `users` order by `created` asc",
+		"select `uuid`, `username`, `port`, `subdomain`, `active`, `bridge_access`, `created` from `users` order by `created` asc",
 	)
 	if err != nil {
 		return nil, err
@@ -1749,7 +1754,7 @@ func (dao *Dao) ListUsers() (users []*pb.User, err error) {
 		u := new(pb.User)
 		var port int
 		var created time.Time
-		if err := rows.Scan(&u.Uuid, &u.Username, &port, &u.Subdomain, &u.Active, &created); err != nil {
+		if err := rows.Scan(&u.Uuid, &u.Username, &port, &u.Subdomain, &u.Active, &u.BridgeAccess, &created); err != nil {
 			return nil, err
 		}
 		u.Port = int32(port)
@@ -1767,10 +1772,10 @@ type UserInternal struct {
 	User
 }
 
-const userInternalColumns = "`uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`"
+const userInternalColumns = "`uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`, `bridge_access`"
 
 func scanUserInternal(row interface{ Scan(...any) error }, u *UserInternal) error {
-	return row.Scan(&u.Uuid, &u.Username, &u.Port, &u.DbName, &u.DbPass, &u.StoragePath, &u.Subdomain, &u.BridgeSecret, &u.SupervisorToken, &u.Active)
+	return row.Scan(&u.Uuid, &u.Username, &u.Port, &u.DbName, &u.DbPass, &u.StoragePath, &u.Subdomain, &u.BridgeSecret, &u.SupervisorToken, &u.Active, &u.BridgeAccess)
 }
 
 func (dao *Dao) GetUserInternal(uuid string) (u *UserInternal, err error) {

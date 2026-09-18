@@ -511,6 +511,10 @@ CREATE TABLE IF NOT EXISTS users (
 -- the only admin there will ever be. Drops it for any device that already
 -- ran an earlier version of this script before #89 removed the concept.
 ALTER TABLE users DROP COLUMN IF EXISTS is_admin;
+-- Issue #103: local-only users (created without requesting bridge access).
+-- Defaults to 1 so every user that predates this keeps the bridge access
+-- it already has.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bridge_access TINYINT(1) NOT NULL DEFAULT 1;
 "
 # Issue #82 follow-up: bring every additional user's own database up to
 # the same schema. Done here rather than beside the primary's own call

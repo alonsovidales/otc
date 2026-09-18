@@ -283,6 +283,12 @@ create table users
   -- user stops its crash-loop-retry cleanly without deleting its data,
   -- unlike a full delete (which also drops the database and storage).
   `active` tinyint(1) not null default 1,
+  -- Issue #103: whether this user asked for bridge access at creation.
+  -- 0 means local-only - nothing registered on the bridge, and no
+  -- bridge-addr rendered into its own config, so its instance never dials
+  -- out. Defaults to 1 because every user created before this existed did
+  -- get a bridge registration.
+  `bridge_access` tinyint(1) not null default 1,
   `created` datetime not null,
 
   unique (`uuid`),

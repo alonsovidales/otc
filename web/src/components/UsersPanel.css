@@ -35,3 +35,11 @@
 .up-add-row { display: flex; gap: 8px; align-items: center; }
 .up-add-row .sf-input { flex: 1; }
 .up-port-input { max-width: 140px; flex: none !important; }
+
+/* Issue #103: the "request bridge access" opt-out sits under the add row,
+   not inline with it - the explanation of what unchecking costs you (no
+   remote access, no outside friends) is the point, and it doesn't fit on
+   one line beside three controls. */
+.up-bridge-opt { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; cursor: pointer; }
+.up-bridge-opt input { margin-top: 3px; flex: 0 0 auto; }
+.up-bridge-opt > span { display: flex; flex-direction: column; gap: 2px; }

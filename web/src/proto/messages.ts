@@ -432,6 +432,30 @@ export interface ReqAuthWithToken {
 }
 
 /**
+ * Issue #103: asked by a device before it provisions an additional user,
+ * so a subdomain that is already spoken for is caught up front instead of
+ * becoming an unreachable account. Answers with RespDomainAvailable.
+ *
+ * Authenticated as an existing registered device (owner_uuid/domain/secret
+ * - the asking device's own, verified the same way ReqSetDeviceDisabled
+ * and ReqRotateBridgeSecret verify theirs) rather than being open to
+ * anyone. Without that this would be an anonymous "does <name> exist?"
+ * oracle on a public relay, letting anybody enumerate which subdomains -
+ * and therefore which people - are registered here.
+ */
+export interface ReqIsDomainAvailable {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+  /** The subdomain being considered, e.g. "pepe.off-the.cloud". */
+  candidateDomain: string;
+}
+
+export interface RespDomainAvailable {
+  available: boolean;
+}
+
+/**
  * Sent when the owner explicitly signs out (see SettingsForm's Sign Out
  * button) so a token that's already sitting in some other tab's storage
  * stops working immediately, rather than just quietly expiring on its own
@@ -1296,7 +1320,15 @@ export interface User {
    * rather than renumbering active/created after it.
    */
   active: boolean;
-  created?: Date | undefined;
+  created?:
+    | Date
+    | undefined;
+  /**
+   * Issue #103: false for a local-only user (one created without
+   * requesting bridge access) - it has no registration on the bridge and
+   * is reachable only on this machine's own network.
+   */
+  bridgeAccess: boolean;
 }
 
 export interface ReqListUsers {
@@ -1313,6 +1345,19 @@ export interface RespUsers {
 export interface ReqCreateUser {
   username: string;
   port: number;
+  /**
+   * Issue #103: whether this user should be reachable from outside the
+   * house, i.e. registered on the bridge as <username>.<bridge-addr>.
+   * When set, the device asks the bridge whether that subdomain is free
+   * *before* provisioning anything (see ReqIsDomainAvailable) and refuses
+   * to create the user if it isn't - a subdomain already claimed by some
+   * other registration can never be claimed by this one, so creating the
+   * user anyway produces an account that looks fine in the panel and is
+   * silently unreachable forever, with the only evidence buried in that
+   * user's own log ("bridge rejected registration: Invalid Secret").
+   * Hit exactly that way on a live device before this existed.
+   */
+  requestBridgeAccess: boolean;
 }
 
 /**
@@ -1503,6 +1548,9 @@ export interface ReqEnvelope {
     | //
     /** Answers with the generic Ack. */
     { $case: "reqRevokeSessionToken"; reqRevokeSessionToken: ReqRevokeSessionToken }
+    | //
+    /** Issue #103. */
+    { $case: "reqIsDomainAvailable"; reqIsDomainAvailable: ReqIsDomainAvailable }
     | undefined;
 }
 
@@ -1571,6 +1619,9 @@ export interface RespEnvelope {
     | //
     /** Issue #101. AuthWithToken answers with the generic Ack above. */
     { $case: "respSessionToken"; respSessionToken: RespSessionToken }
+    | //
+    /** Issue #103. */
+    { $case: "respDomainAvailable"; respDomainAvailable: RespDomainAvailable }
     | undefined;
 }
 
@@ -2304,6 +2355,172 @@ export const ReqAuthWithToken: MessageFns<ReqAuthWithToken> = {
   fromPartial<I extends Exact<DeepPartial<ReqAuthWithToken>, I>>(object: I): ReqAuthWithToken {
     const message = createBaseReqAuthWithToken();
     message.token = object.token ?? "";
+    return message;
+  },
+};
+
+function createBaseReqIsDomainAvailable(): ReqIsDomainAvailable {
+  return { ownerUuid: "", domain: "", secret: "", candidateDomain: "" };
+}
+
+export const ReqIsDomainAvailable: MessageFns<ReqIsDomainAvailable> = {
+  encode(message: ReqIsDomainAvailable, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    if (message.candidateDomain !== "") {
+      writer.uint32(34).string(message.candidateDomain);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqIsDomainAvailable {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqIsDomainAvailable();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.candidateDomain = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqIsDomainAvailable {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      candidateDomain: isSet(object.candidateDomain) ? globalThis.String(object.candidateDomain) : "",
+    };
+  },
+
+  toJSON(message: ReqIsDomainAvailable): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.candidateDomain !== "") {
+      obj.candidateDomain = message.candidateDomain;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqIsDomainAvailable>, I>>(base?: I): ReqIsDomainAvailable {
+    return ReqIsDomainAvailable.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqIsDomainAvailable>, I>>(object: I): ReqIsDomainAvailable {
+    const message = createBaseReqIsDomainAvailable();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    message.candidateDomain = object.candidateDomain ?? "";
+    return message;
+  },
+};
+
+function createBaseRespDomainAvailable(): RespDomainAvailable {
+  return { available: false };
+}
+
+export const RespDomainAvailable: MessageFns<RespDomainAvailable> = {
+  encode(message: RespDomainAvailable, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.available !== false) {
+      writer.uint32(8).bool(message.available);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespDomainAvailable {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespDomainAvailable();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.available = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespDomainAvailable {
+    return { available: isSet(object.available) ? globalThis.Boolean(object.available) : false };
+  },
+
+  toJSON(message: RespDomainAvailable): unknown {
+    const obj: any = {};
+    if (message.available !== false) {
+      obj.available = message.available;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespDomainAvailable>, I>>(base?: I): RespDomainAvailable {
+    return RespDomainAvailable.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespDomainAvailable>, I>>(object: I): RespDomainAvailable {
+    const message = createBaseRespDomainAvailable();
+    message.available = object.available ?? false;
     return message;
   },
 };
@@ -9838,7 +10055,7 @@ export const RespPublication: MessageFns<RespPublication> = {
 };
 
 function createBaseUser(): User {
-  return { uuid: "", username: "", port: 0, subdomain: "", active: false, created: undefined };
+  return { uuid: "", username: "", port: 0, subdomain: "", active: false, created: undefined, bridgeAccess: false };
 }
 
 export const User: MessageFns<User> = {
@@ -9860,6 +10077,9 @@ export const User: MessageFns<User> = {
     }
     if (message.created !== undefined) {
       Timestamp.encode(toTimestamp(message.created), writer.uint32(58).fork()).join();
+    }
+    if (message.bridgeAccess !== false) {
+      writer.uint32(64).bool(message.bridgeAccess);
     }
     return writer;
   },
@@ -9919,6 +10139,14 @@ export const User: MessageFns<User> = {
           message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.bridgeAccess = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9936,6 +10164,7 @@ export const User: MessageFns<User> = {
       subdomain: isSet(object.subdomain) ? globalThis.String(object.subdomain) : "",
       active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
       created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+      bridgeAccess: isSet(object.bridgeAccess) ? globalThis.Boolean(object.bridgeAccess) : false,
     };
   },
 
@@ -9959,6 +10188,9 @@ export const User: MessageFns<User> = {
     if (message.created !== undefined) {
       obj.created = message.created.toISOString();
     }
+    if (message.bridgeAccess !== false) {
+      obj.bridgeAccess = message.bridgeAccess;
+    }
     return obj;
   },
 
@@ -9973,6 +10205,7 @@ export const User: MessageFns<User> = {
     message.subdomain = object.subdomain ?? "";
     message.active = object.active ?? false;
     message.created = object.created ?? undefined;
+    message.bridgeAccess = object.bridgeAccess ?? false;
     return message;
   },
 };
@@ -10079,7 +10312,7 @@ export const RespUsers: MessageFns<RespUsers> = {
 };
 
 function createBaseReqCreateUser(): ReqCreateUser {
-  return { username: "", port: 0 };
+  return { username: "", port: 0, requestBridgeAccess: false };
 }
 
 export const ReqCreateUser: MessageFns<ReqCreateUser> = {
@@ -10089,6 +10322,9 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     }
     if (message.port !== 0) {
       writer.uint32(16).int32(message.port);
+    }
+    if (message.requestBridgeAccess !== false) {
+      writer.uint32(24).bool(message.requestBridgeAccess);
     }
     return writer;
   },
@@ -10116,6 +10352,14 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
           message.port = reader.int32();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.requestBridgeAccess = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -10129,6 +10373,7 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     return {
       username: isSet(object.username) ? globalThis.String(object.username) : "",
       port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      requestBridgeAccess: isSet(object.requestBridgeAccess) ? globalThis.Boolean(object.requestBridgeAccess) : false,
     };
   },
 
@@ -10140,6 +10385,9 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     if (message.port !== 0) {
       obj.port = Math.round(message.port);
     }
+    if (message.requestBridgeAccess !== false) {
+      obj.requestBridgeAccess = message.requestBridgeAccess;
+    }
     return obj;
   },
 
@@ -10150,6 +10398,7 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     const message = createBaseReqCreateUser();
     message.username = object.username ?? "";
     message.port = object.port ?? 0;
+    message.requestBridgeAccess = object.requestBridgeAccess ?? false;
     return message;
   },
 };
@@ -11135,6 +11384,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqRevokeSessionToken":
         ReqRevokeSessionToken.encode(message.payload.reqRevokeSessionToken, writer.uint32(682).fork()).join();
         break;
+      case "reqIsDomainAvailable":
+        ReqIsDomainAvailable.encode(message.payload.reqIsDomainAvailable, writer.uint32(690).fork()).join();
+        break;
     }
     return writer;
   },
@@ -11870,6 +12122,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 86: {
+          if (tag !== 690) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqIsDomainAvailable",
+            reqIsDomainAvailable: ReqIsDomainAvailable.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12108,6 +12371,11 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqRevokeSessionToken",
           reqRevokeSessionToken: ReqRevokeSessionToken.fromJSON(object.reqRevokeSessionToken),
         }
+        : isSet(object.reqIsDomainAvailable)
+        ? {
+          $case: "reqIsDomainAvailable",
+          reqIsDomainAvailable: ReqIsDomainAvailable.fromJSON(object.reqIsDomainAvailable),
+        }
         : undefined,
     };
   },
@@ -12265,6 +12533,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqAuthWithToken = ReqAuthWithToken.toJSON(message.payload.reqAuthWithToken);
     } else if (message.payload?.$case === "reqRevokeSessionToken") {
       obj.reqRevokeSessionToken = ReqRevokeSessionToken.toJSON(message.payload.reqRevokeSessionToken);
+    } else if (message.payload?.$case === "reqIsDomainAvailable") {
+      obj.reqIsDomainAvailable = ReqIsDomainAvailable.toJSON(message.payload.reqIsDomainAvailable);
     }
     return obj;
   },
@@ -12921,6 +13191,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqIsDomainAvailable": {
+        if (object.payload?.reqIsDomainAvailable !== undefined && object.payload?.reqIsDomainAvailable !== null) {
+          message.payload = {
+            $case: "reqIsDomainAvailable",
+            reqIsDomainAvailable: ReqIsDomainAvailable.fromPartial(object.payload.reqIsDomainAvailable),
+          };
+        }
+        break;
+      }
     }
     return message;
   },
@@ -13050,6 +13329,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respSessionToken":
         RespSessionToken.encode(message.payload.respSessionToken, writer.uint32(362).fork()).join();
+        break;
+      case "respDomainAvailable":
+        RespDomainAvailable.encode(message.payload.respDomainAvailable, writer.uint32(370).fork()).join();
         break;
     }
     return writer;
@@ -13428,6 +13710,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 46: {
+          if (tag !== 370) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respDomainAvailable",
+            respDomainAvailable: RespDomainAvailable.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13538,6 +13831,11 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respStaticAsset", respStaticAsset: RespStaticAsset.fromJSON(object.respStaticAsset) }
         : isSet(object.respSessionToken)
         ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
+        : isSet(object.respDomainAvailable)
+        ? {
+          $case: "respDomainAvailable",
+          respDomainAvailable: RespDomainAvailable.fromJSON(object.respDomainAvailable),
+        }
         : undefined,
     };
   },
@@ -13627,6 +13925,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respStaticAsset = RespStaticAsset.toJSON(message.payload.respStaticAsset);
     } else if (message.payload?.$case === "respSessionToken") {
       obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
+    } else if (message.payload?.$case === "respDomainAvailable") {
+      obj.respDomainAvailable = RespDomainAvailable.toJSON(message.payload.respDomainAvailable);
     }
     return obj;
   },
@@ -13937,6 +14237,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respSessionToken",
             respSessionToken: RespSessionToken.fromPartial(object.payload.respSessionToken),
+          };
+        }
+        break;
+      }
+      case "respDomainAvailable": {
+        if (object.payload?.respDomainAvailable !== undefined && object.payload?.respDomainAvailable !== null) {
+          message.payload = {
+            $case: "respDomainAvailable",
+            respDomainAvailable: RespDomainAvailable.fromPartial(object.payload.respDomainAvailable),
           };
         }
         break;

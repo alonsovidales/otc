@@ -17,6 +17,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/exifinfo"
+	imagestagger "github.com/alonsovidales/otc/images_tagger"
 )
 
 func TestCosineSimilarityIdenticalVectors(t *testing.T) {
@@ -555,4 +556,37 @@ func zipEntryNamesOf(t *testing.T, data []byte) []string {
 		names[i] = f.Name
 	}
 	return names
+}
+
+// Issue #105 follow-up: the tagging model loads in the background so the
+// device can register with the bridge immediately instead of being
+// unreachable for the ~15s it takes (see Init). The gate is what keeps
+// that safe - an upload arriving before the model is ready must wait for
+// it, never read a half-initialized manager.
+func TestWaitForTaggerBlocksUntilTheModelIsReady(t *testing.T) {
+	mg := &Manager{taggerReady: make(chan struct{})}
+
+	done := make(chan *imagestagger.RAMTagger, 1)
+	go func() { done <- mg.waitForTagger() }()
+
+	select {
+	case <-done:
+		t.Fatal("waitForTagger returned before the model was ready - an upload could dereference a nil tagger")
+	case <-time.After(50 * time.Millisecond):
+		// Still waiting, as it must be.
+	}
+
+	// Whatever Init's goroutine publishes is what callers get.
+	sentinel := new(imagestagger.RAMTagger)
+	mg.tagger = sentinel
+	close(mg.taggerReady)
+
+	select {
+	case got := <-done:
+		if got != sentinel {
+			t.Error("waitForTagger returned something other than the loaded tagger")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("waitForTagger never returned after the model became ready")
+	}
 }

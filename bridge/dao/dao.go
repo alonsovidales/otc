@@ -138,6 +138,25 @@ func (dao *Dao) RegistreDevice(owner, uuid, secret string) (err error) {
 	return
 }
 
+// IsDomainRegistered reports whether domain is already claimed here
+// (issue #103). "Claimed" means a row exists at all, regardless of which
+// owner or whether it's disabled: any existing registration is enough to
+// stop a different device from ever registering that subdomain (see
+// IsValidDevice - a domain that's defined with a different owner/secret is
+// rejected, not adopted), so for "can a new user take this name?" the
+// answer is simply whether anything is here.
+func (dao *Dao) IsDomainRegistered(domain string) (registered bool, err error) {
+	var one int
+	err = dao.db.QueryRow("select 1 from `devices` where `domain` = ?", domain).Scan(&one)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // SetDeviceDisabled records whether domain's owning process is currently
 // disabled (issue #93) - see ReqSetDeviceDisabled's own doc comment for
 // why the bridge, not the device, ends up being the source of truth for

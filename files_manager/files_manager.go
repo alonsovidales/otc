@@ -61,10 +61,14 @@ const (
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
 type Manager struct {
-	baseUrl        string
-	dao            *dao.Dao
-	maxUploads     chan bool
+	baseUrl    string
+	dao        *dao.Dao
+	maxUploads chan bool
+	// tagger is loaded in the background (see Init) - read it through
+	// waitForTagger, never directly, or an upload arriving in the first
+	// seconds of a boot dereferences a nil.
 	tagger         *imagestagger.RAMTagger
+	taggerReady    chan struct{}
 	searchTokens   *sync.Map
 	tokensToExpire *sync.Map
 	sharedLinkTTL  time.Duration
@@ -91,6 +95,15 @@ type Manager struct {
 	reprocessCancel context.CancelFunc
 }
 
+// waitForTagger blocks until the model loaded by Init is usable. Callers
+// are all on the upload path, which is both rare in the first seconds of a
+// boot and already slow enough that waiting here is invisible - unlike
+// making the whole device unreachable while it loads (see Init).
+func (mg *Manager) waitForTagger() *imagestagger.RAMTagger {
+	<-mg.taggerReady
+	return mg.tagger
+}
+
 func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
 		searchTokens:   new(sync.Map),
@@ -102,19 +115,40 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	}
 
 	var err error
+
+	// Issue #105 follow-up: loading the RAM++ model is ~870MB of work and
+	// takes well over ten seconds on a Pi. It used to happen right here,
+	// synchronously, before bin/otc.go ever reached websocket.Init - so
+	// the device spent that whole time invisible to the bridge, and every
+	// client got "device unreachable" until it finished. Measured at 15s
+	// of downtime on every restart, which is also what made a `make pi`
+	// deploy look like an outage.
+	//
+	// Loaded in the background instead: nothing else in startup depends on
+	// it, and the only two things that actually use it (photo and video
+	// tagging, both on the upload path) wait for it via waitForTagger.
+	// A failure is still fatal - a device that can't tag is misconfigured
+	// - just fatal a few seconds later than it used to be.
+	//
 	// thresholds-path is optional (issue #33): a per-tag calibration file
 	// alongside the model, more accurate than one flat cutoff for every
 	// tag. Leave it unset in config to keep the old flat-threshold behavior.
-	mg.tagger, err = imagestagger.NewRAMTagger(
-		cfg.GetStr("tagger", "model-path"),
-		cfg.GetStr("tagger", "tags-path"),
-		cfg.GetStr("tagger", "thresholds-path"),
-		imagestagger.DefaultRAMOptions(),
-	)
-
-	if err != nil {
-		log.Fatal("Error loading image encoders:", err)
-	}
+	mg.taggerReady = make(chan struct{})
+	go func() {
+		started := time.Now()
+		tagger, err := imagestagger.NewRAMTagger(
+			cfg.GetStr("tagger", "model-path"),
+			cfg.GetStr("tagger", "tags-path"),
+			cfg.GetStr("tagger", "thresholds-path"),
+			imagestagger.DefaultRAMOptions(),
+		)
+		if err != nil {
+			log.Fatal("Error loading image encoders:", err)
+		}
+		mg.tagger = tagger
+		close(mg.taggerReady)
+		log.Info("image tagger ready after", time.Since(started).Round(time.Millisecond))
+	}()
 
 	// Issue #52: unlike the tagger above, a missing/misconfigured [faces]
 	// section is not fatal - the feature is opt-in (off by default, see
@@ -813,7 +847,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			img = applyOrientation(img, exif.Orientation)
 		}
 
-		tags, err := mg.tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
+		tags, err := mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
 		if err != nil {
 			log.Error("Error processing tags:", err)
 		}
@@ -878,7 +912,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			exif = nil
 		}
 
-		tags := tagVideoFrames(ctx, mg.tagger, frames)
+		tags := tagVideoFrames(ctx, mg.waitForTagger(), frames)
 		tags = append(tags, locationTags(exif)...)
 		log.Debug("Tags:", tags)
 

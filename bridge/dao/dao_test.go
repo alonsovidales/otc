@@ -223,3 +223,73 @@ func TestIsDeviceDisabledReturnsFalseForUnknownDomain(t *testing.T) {
 		t.Error("expected disabled=false for an unregistered domain")
 	}
 }
+
+// Issue #103: IsDomainRegistered is what stops a device provisioning an
+// additional user onto a subdomain that is already spoken for - a name
+// registered by anything else can never be claimed by a different
+// owner/secret (see IsValidDevice), so "is a row here at all?" is exactly
+// the right question.
+func TestIsDomainRegisteredReportsAnExistingClaim(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+		WithArgs("pepe.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+
+	d := NewWithDB(db)
+	registered, err := d.IsDomainRegistered("pepe.off-the.cloud")
+	if err != nil {
+		t.Fatalf("IsDomainRegistered returned an error: %v", err)
+	}
+	if !registered {
+		t.Error("expected an existing row to count as registered")
+	}
+}
+
+func TestIsDomainRegisteredReportsAFreeDomain(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+		WithArgs("brand-new.off-the.cloud").
+		WillReturnError(sql.ErrNoRows)
+
+	d := NewWithDB(db)
+	registered, err := d.IsDomainRegistered("brand-new.off-the.cloud")
+	if err != nil {
+		t.Fatalf("expected no error for an unregistered domain, got: %v", err)
+	}
+	if registered {
+		t.Error("expected an unregistered domain to be free")
+	}
+}
+
+// A disabled registration still occupies the name - the row is what blocks
+// a new claim, not its state.
+func TestIsDomainRegisteredCountsADisabledRegistration(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+		WithArgs("flus.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+
+	d := NewWithDB(db)
+	registered, err := d.IsDomainRegistered("flus.off-the.cloud")
+	if err != nil {
+		t.Fatalf("IsDomainRegistered returned an error: %v", err)
+	}
+	if !registered {
+		t.Error("expected a disabled device's domain to still count as taken")
+	}
+}

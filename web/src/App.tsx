@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
 import { useWS } from "./net/useWS";
@@ -53,6 +53,15 @@ function App() {
   // than this component needing to know anything about the picker itself.
   const [openComposer, setOpenComposer] = useState<(() => void) | null>(null);
 
+  // Issue #105: whether a session restore is actually in flight right now.
+  // The authenticated-only views below used to show "Signing in…" purely
+  // because `authenticated` was false, with no idea whether anything was
+  // still trying - so once a stored token turned out to be expired (or the
+  // device had restarted and dropped every token, see issue #101) the
+  // placeholder simply stayed there forever, with no way forward and no
+  // explanation. Starts true only when there's actually a token to redeem.
+  const [restoringSession, setRestoringSession] = useState(() => !cfg && !!loadPersistedToken());
+
   // Issue #56: the bridge's verdict on whether this device is reachable at
   // all, reported from ws.ts's socket callbacks (outside the component
   // tree) via deviceStatus's little store.
@@ -75,11 +84,40 @@ function App() {
   }
   useWS.init(endpoint, setAuthenticated);
 
+  // Issue #105: a session that dies mid-use (the device restarting is the
+  // ordinary cause - see session/tokens.go) flips this back to false from
+  // useWS's own message listener. Land the viewer somewhere usable rather
+  // than leaving them on a view that will now never load its data. Skips
+  // the very first render, when nobody was signed in to begin with.
+  const wasAuthenticated = useRef(false);
+  useEffect(() => {
+    if (wasAuthenticated.current && !authenticated) landIfSignedOut();
+    wasAuthenticated.current = authenticated;
+  }, [authenticated]);
+
   // Issue #53: keep localStorage's "last tab" in sync with whatever's
   // actually showing, so the *next* reload restores it.
   useEffect(() => {
     saveLastTab(tab);
   }, [tab]);
+
+  // Issue #105: the tabs that have nothing to show without a session. The
+  // rest (Profile, Social, SignIn) render something meaningful signed out,
+  // which is exactly why Profile is where a failed restore lands - it's
+  // this device's public face, reachable with no session at all, and it
+  // carries the Sign In button to try again from.
+  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "Settings", "Notifications", "Friends"];
+  const cLandingTab: TabKey = "Profile";
+
+  // Sends the viewer somewhere usable when a session couldn't be restored,
+  // rather than leaving them on a view that can only ever say "Signing in…".
+  // Deliberately only moves *off* an authenticated-only tab: someone whose
+  // token expired while reading a public profile shouldn't be bounced
+  // anywhere at all.
+  const landIfSignedOut = () => {
+    setRestoringSession(false);
+    setTab((current) => (cAuthOnlyTabs.includes(current) ? cLandingTab : current));
+  };
 
   // Issue #43: nudge for browser push permission right after sign-in,
   // rather than requiring the user to go find "Enable Notifications" in
@@ -126,7 +164,12 @@ function App() {
     // rotates a fresh token into storage (see useWS.authWithToken).
     useEffect(() => {
       const token = loadPersistedToken();
-      if (!token) return;
+      if (!token) {
+        // Nothing to restore: whatever tab was last open, if it needs a
+        // session we have no way to get one without the password.
+        landIfSignedOut();
+        return;
+      }
       (async () => {
         try {
           const ok = await useWS.authWithToken(token);
@@ -137,52 +180,80 @@ function App() {
           // about. Only step in if the restored tab is "SignIn" itself,
           // which isn't a sensible place to land now that this succeeded.
           if (ok && tab === "SignIn") setTab("Social");
+          // Issue #105: an expired or already-spent token is the ordinary
+          // end of a session, not an error state to sit in.
+          if (!ok) landIfSignedOut();
         } catch (e) {
           console.error("Auto-auth from stored session failed:", e);
+          landIfSignedOut();
+        } finally {
+          setRestoringSession(false);
         }
       })();
     }, []);
   }
 
-  // If this is a download, just download and don't render anything
+  // Issue #104: a shared link (?download=<uuid>_<secret>) fetches the zip
+  // and saves it. This used to run as a bare async IIFE in the render body
+  // - so every re-render of App while that parameter was in the URL kicked
+  // off *another* download, and App re-renders several times on any normal
+  // load as auth, device status and the notification count each settle.
+  // Selecting three photos and downloading them produced three copies of
+  // the same zip.
+  //
+  // An effect keyed on the link runs it once per link instead, and the ref
+  // makes that hold even when React deliberately double-invokes effects
+  // (StrictMode in development), where a dependency array alone wouldn't.
   const downloadLink = sp.get("download");
-  if (!!downloadLink) {
+  const startedDownloadRef = useRef<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!downloadLink) return;
+    if (startedDownloadRef.current === downloadLink) return;
+    startedDownloadRef.current = downloadLink;
+
     (async () => {
       const parts = downloadLink.split("_").filter(Boolean);
-      if (parts.length >= 2) {
-        const [first, second] = parts;
-        console.log(`first: ${first}\nsecond: ${second}`);
-
+      if (parts.length < 2) {
+        setDownloadError("That download link is malformed.");
+        return;
+      }
+      const [uuid, secret] = parts;
+      try {
         const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqDownloadSharedLink", reqDownloadSharedLink: {
-            uuid: first,
-            secret: second,
-          } };
+          (e as any).payload = { $case: "reqDownloadSharedLink", reqDownloadSharedLink: { uuid, secret } };
         });
 
-        console.log('Response:', resp);
-
-        if (resp.payload?.$case === "respSharedFiles") {
-          const bytes: Uint8Array | undefined = resp.payload.respSharedFiles.content;
-          if (!bytes || bytes.length === 0) {
-            alert("Server did not return content; implement chunked download or ensure resp_file.content is set.");
-            return;
-          }
-          const blob = new Blob([bytes], { type: "application/zip" });
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = 'shared.zip';
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(a.href);
-        } else {
-          alert('Error:' + resp.errorMessage);
+        if (resp.payload?.$case !== "respSharedFiles") {
+          setDownloadError(resp.errorMessage || "That link is no longer valid.");
+          return;
         }
+        const bytes: Uint8Array | undefined = resp.payload.respSharedFiles.content;
+        if (!bytes || bytes.length === 0) {
+          setDownloadError("The device returned an empty file.");
+          return;
+        }
+
+        const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "shared.zip";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err: any) {
+        // Reported inline rather than through alert(), which blocks the
+        // whole tab until someone dismisses it - and this view has nothing
+        // else to show, so the message is the page.
+        setDownloadError(err?.message || "Could not download that link.");
       }
     })();
+  }, [downloadLink]);
 
-    return (<>Downloading... please wait</>);
+  // If this is a download, just download and don't render anything else.
+  if (!!downloadLink) {
+    return <>{downloadError ?? "Downloading... please wait"}</>;
   }
 
   if (tab === "Settings") {
@@ -190,6 +261,16 @@ function App() {
       action: "openSettings"
     });
   }
+
+  // Issue #105: "Signing in…" only while something is genuinely in
+  // flight. Once a restore has failed there's nothing left running, so
+  // saying it again would be a lie that never resolves - and the viewer
+  // is about to be moved to the landing tab anyway (landIfSignedOut),
+  // making this the briefest of intermediate states rather than a
+  // dead end.
+  const signedOutPlaceholder = restoringSession
+    ? <p>Signing in…</p>
+    : <p className="sf-hint">Your session has ended — sign in again to continue.</p>;
 
   // Issue #56: nothing behind this is usable while the device is
   // unreachable - every view's data comes from it - so this stands in
@@ -282,9 +363,9 @@ function App() {
             persistence): the component would mount and fire its data
             request before the auto-auth from #46 had resolved, surfacing
             as a bare "not authenticated" error instead of just waiting. */}
-        {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : <p>Signing in…</p>)}
-        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery /> : <p>Signing in…</p>)}
-        {tab === "Settings" && (authenticated ? <SettingsForm /> : <p>Signing in…</p>)}
+        {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : signedOutPlaceholder)}
+        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery /> : signedOutPlaceholder)}
+        {tab === "Settings" && (authenticated ? <SettingsForm /> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (
           <NotificationsPage
             onOpenPost={(pubUuid, commentUuid) => {
@@ -295,7 +376,7 @@ function App() {
             onOpenFriendRequests={() => setTab("Friends")}
             onAcknowledged={clearNotificationCount}
           />
-        ) : <p>Signing in…</p>)}
+        ) : signedOutPlaceholder)}
       </main>
     </>
   )

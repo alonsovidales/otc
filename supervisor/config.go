@@ -28,6 +28,24 @@ func UserHome(uuid string) string {
 // template scripts/install.sh and Makefile.pi's `config` target already
 // render by hand for the very first device - kept in sync manually since
 // there's no single shared source for either today.
+// bridgeAddrFor is the primary's own bridge address for a user that asked
+// for bridge access, and empty for a local-only one (issue #103) - an
+// empty value is what websocket.Init reads as "this instance has no
+// relay", so it never dials and never tries to register.
+func bridgeAddrFor(u renderParams) string {
+	if !u.BridgeAccess {
+		return ""
+	}
+	return cfgBridgeAddr()
+}
+
+// cfgBridgeAddr is the primary's own configured relay address, wrapped so
+// a test can name the same value bridgeAddrFor would use without
+// duplicating the section/key strings.
+func cfgBridgeAddr() string {
+	return cfg.GetStr("otc", "bridge-addr")
+}
+
 func renderUserConfig(u renderParams) error {
 	dir := filepath.Join(UserHome(u.Uuid), "etc")
 	if err := os.MkdirAll(dir, 0750); err != nil {
@@ -68,7 +86,7 @@ thresholds-path=%s
 tags-per-image=%s
 max-images-search=%s
 `,
-		cfg.GetStr("otc", "bridge-addr"),
+		bridgeAddrFor(u),
 		u.StoragePath,
 		u.UnencStoragePath,
 		cfg.GetStr("otc", "max-thumbnail-width-px"),
@@ -131,4 +149,8 @@ type renderParams struct {
 	StoragePath      string
 	UnencStoragePath string
 	SupervisorToken  string
+	// BridgeAccess (issue #103) false leaves bridge-addr empty in the
+	// rendered config, which is what stops this user's instance from ever
+	// dialing out to the relay (see websocket.Init's own check).
+	BridgeAccess bool
 }

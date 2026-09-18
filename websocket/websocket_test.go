@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -578,5 +579,62 @@ func TestMachineLevelRPCsAreNotRefusedOnThePrimary(t *testing.T) {
 
 	if resp != nil && resp.ErrorMessage == "not available on this instance" {
 		t.Error("the primary instance must not be refused its own storage/WiFi setup")
+	}
+}
+
+// Issue #103: a local-only user's instance has no relay address at all, and
+// every path that dials out has to notice - the connection pool, the
+// push-registration sync, secret regeneration. Missing one doesn't fail
+// loudly, it just logs a refused dial to "wss:///ws" forever (which is
+// exactly how the push-sync case was found, on a live local-only user).
+//
+// cfg is never initialized in this test binary, so GetStr returns empty -
+// the same thing a local-only instance's own config produces.
+func TestBridgeConfiguredIsFalseWithoutABridgeAddress(t *testing.T) {
+	if bridgeConfigured() {
+		t.Error("expected bridgeConfigured() to be false when no bridge-addr is set")
+	}
+}
+
+// The visible consequence of the above: nothing that needs a relay tries.
+func TestRegenerateBridgeSecretRefusesOnALocalOnlyInstance(t *testing.T) {
+	mg := &Manager{}
+
+	_, err := mg.regenerateBridgeSecret()
+
+	if err == nil {
+		t.Fatal("expected an error rather than a dial against an empty address")
+	}
+	if !strings.Contains(err.Error(), "no bridge access") {
+		t.Errorf("error = %q, want it to explain there is no bridge access", err)
+	}
+}
+
+// Issue #105: a request that reaches no handler because the connection has
+// no session gets a real error rather than an empty frame - and, since
+// issue #56's lesson, one a client can act on rather than only print. The
+// code is what tells a browser its session is gone (the device restarted
+// and discarded every token, say) so it can stop showing views whose data
+// will now never load.
+func TestUnauthenticatedRequestGetsAnActionableCode(t *testing.T) {
+	// This is what handleConnection sends when nothing in the handler
+	// chain took the request - see its `resp == nil` branch.
+	resp := notAuthenticatedResponse(7)
+
+	if resp.Id != 7 {
+		t.Errorf("Id = %d, want the request's own 7", resp.Id)
+	}
+	if !resp.Error {
+		t.Error("expected Error=true")
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload (a bare top-level error is dropped by both clients), got %T", resp.Payload)
+	}
+	if ack.RespAck.Code != cCodeNotAuthenticated {
+		t.Errorf("Ack.Code = %q, want %q", ack.RespAck.Code, cCodeNotAuthenticated)
+	}
+	if ack.RespAck.Ok {
+		t.Error("expected Ok=false")
 	}
 }

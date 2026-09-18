@@ -34,8 +34,27 @@ export function UseWS() {
   // polls status every couple seconds) was enough to lock up the tab's
   // main thread - reproduced live as an unresponsive composer after a
   // Publish click during issue #87's testing.
-  wsClient.onMessage(() => {
-    // handle push notifications if you need
+  wsClient.onMessage((env) => {
+    // Issue #105: the device says "not authenticated" (with this code -
+    // see cCodeNotAuthenticated) when a request arrives on a connection
+    // that has no session. Mid-session that means the session is simply
+    // gone: the usual cause is the device restarting, which discards
+    // every session token it was holding (see session/tokens.go).
+    //
+    // Only acted on when there's nothing left to recover with. A browser
+    // that signed in with a password keeps it in memory for exactly this
+    // (lastAuthRef, replayed by request() on reconnect), so that session
+    // heals itself and must not be torn down here. One restored from a
+    // stored token has no such credential - the token was single-use and
+    // is already spent - so there is genuinely no way back without the
+    // password, and leaving the app "signed in" over a dead session just
+    // produces views whose data never loads.
+    if (env.payload?.$case !== "respAck") return;
+    if (env.payload.respAck.code !== "not_authenticated") return;
+    if (lastAuthRef !== "") return;
+
+    clearPersistedToken();
+    if (setAuth) void setAuth(false);
   });
 
   const connect = async () => {

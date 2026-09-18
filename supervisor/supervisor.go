@@ -273,6 +273,7 @@ func paramsFor(u *dao.UserInternal, env string) renderParams {
 		StoragePath:      u.StoragePath + "/",
 		UnencStoragePath: u.StoragePath + "/unencrypted/",
 		SupervisorToken:  u.SupervisorToken,
+		BridgeAccess:     u.BridgeAccess,
 	}
 }
 

@@ -97,6 +97,28 @@ message ReqAuthWithToken {
   string token = 1;
 }
 
+// Issue #103: asked by a device before it provisions an additional user,
+// so a subdomain that is already spoken for is caught up front instead of
+// becoming an unreachable account. Answers with RespDomainAvailable.
+//
+// Authenticated as an existing registered device (owner_uuid/domain/secret
+// - the asking device's own, verified the same way ReqSetDeviceDisabled
+// and ReqRotateBridgeSecret verify theirs) rather than being open to
+// anyone. Without that this would be an anonymous "does <name> exist?"
+// oracle on a public relay, letting anybody enumerate which subdomains -
+// and therefore which people - are registered here.
+message ReqIsDomainAvailable {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+  // The subdomain being considered, e.g. "pepe.off-the.cloud".
+  string candidate_domain = 4;
+}
+
+message RespDomainAvailable {
+  bool available = 1;
+}
+
 // Sent when the owner explicitly signs out (see SettingsForm's Sign Out
 // button) so a token that's already sitting in some other tab's storage
 // stops working immediately, rather than just quietly expiring on its own
@@ -890,6 +912,10 @@ message User {
   // rather than renumbering active/created after it.
   bool active = 6;
   google.protobuf.Timestamp created = 7;
+  // Issue #103: false for a local-only user (one created without
+  // requesting bridge access) - it has no registration on the bridge and
+  // is reachable only on this machine's own network.
+  bool bridge_access = 8;
 }
 
 message ReqListUsers {}
@@ -903,6 +929,17 @@ message RespUsers {
 message ReqCreateUser {
   string username = 1;
   int32 port = 2;
+  // Issue #103: whether this user should be reachable from outside the
+  // house, i.e. registered on the bridge as <username>.<bridge-addr>.
+  // When set, the device asks the bridge whether that subdomain is free
+  // *before* provisioning anything (see ReqIsDomainAvailable) and refuses
+  // to create the user if it isn't - a subdomain already claimed by some
+  // other registration can never be claimed by this one, so creating the
+  // user anyway produces an account that looks fine in the panel and is
+  // silently unreachable forever, with the only evidence buried in that
+  // user's own log ("bridge rejected registration: Invalid Secret").
+  // Hit exactly that way on a live device before this existed.
+  bool request_bridge_access = 3;
 }
 
 // confirm_username must match username exactly - checked server-side too,
@@ -1071,6 +1108,8 @@ message ReqEnvelope {
     ReqAuthWithToken req_auth_with_token = 84;
     // Answers with the generic Ack.
     ReqRevokeSessionToken req_revoke_session_token = 85;
+    // Issue #103.
+    ReqIsDomainAvailable req_is_domain_available = 86;
   }
 }
 
@@ -1127,5 +1166,7 @@ message RespEnvelope {
     RespStaticAsset resp_static_asset = 44;
     // Issue #101. AuthWithToken answers with the generic Ack above.
     RespSessionToken resp_session_token = 45;
+    // Issue #103.
+    RespDomainAvailable resp_domain_available = 46;
   }
 }

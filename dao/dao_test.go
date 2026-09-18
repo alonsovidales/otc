@@ -929,7 +929,7 @@ func TestCreateUserAndListUsers(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectExec("insert into `users`").
-		WithArgs("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true).
+		WithArgs("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true, true).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	d := NewWithDB(db)
@@ -937,14 +937,15 @@ func TestCreateUserAndListUsers(t *testing.T) {
 		Uuid: "u1", Username: "alice", Port: 8081, DbName: "otc_u1", DbPass: "dbpass",
 		StoragePath: "/mnt/storage/user_u1", Subdomain: "alice.off-the.cloud",
 		BridgeSecret: "bsecret", SupervisorToken: "stoken", Active: true,
+		BridgeAccess: true,
 	}); err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
 
 	now := time.Now()
-	mock.ExpectQuery("select `uuid`, `username`, `port`, `subdomain`, `active`, `created` from `users` order by `created` asc").
-		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "subdomain", "active", "created"}).
-			AddRow("u1", "alice", 8081, "alice.off-the.cloud", true, now))
+	mock.ExpectQuery("select `uuid`, `username`, `port`, `subdomain`, `active`, `bridge_access`, `created` from `users` order by `created` asc").
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "subdomain", "active", "bridge_access", "created"}).
+			AddRow("u1", "alice", 8081, "alice.off-the.cloud", true, true, now))
 
 	users, err := d.ListUsers()
 	if err != nil {
@@ -952,6 +953,11 @@ func TestCreateUserAndListUsers(t *testing.T) {
 	}
 	if len(users) != 1 || users[0].Username != "alice" || users[0].Port != 8081 || users[0].Active != true {
 		t.Fatalf("unexpected users: %+v", users)
+	}
+	// Issue #103: the panel shows "local only" off this, so it has to
+	// survive the round trip rather than defaulting to false.
+	if !users[0].BridgeAccess {
+		t.Error("expected BridgeAccess to be reported back")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
@@ -965,10 +971,10 @@ func TestGetUserInternalIncludesSecrets(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select `uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active` from `users` where `uuid` = \\?").
+	mock.ExpectQuery("select `uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`, `bridge_access` from `users` where `uuid` = \\?").
 		WithArgs("u1").
-		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "db_name", "db_pass", "storage_path", "subdomain", "bridge_secret", "supervisor_token", "active"}).
-			AddRow("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true))
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "db_name", "db_pass", "storage_path", "subdomain", "bridge_secret", "supervisor_token", "active", "bridge_access"}).
+			AddRow("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true, true))
 
 	d := NewWithDB(db)
 	u, err := d.GetUserInternal("u1")
@@ -990,9 +996,9 @@ func TestListActiveUsersInternalFiltersInactive(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select `uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active` from `users` where `active` = 1").
-		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "db_name", "db_pass", "storage_path", "subdomain", "bridge_secret", "supervisor_token", "active"}).
-			AddRow("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true))
+	mock.ExpectQuery("select `uuid`, `username`, `port`, `db_name`, `db_pass`, `storage_path`, `subdomain`, `bridge_secret`, `supervisor_token`, `active`, `bridge_access` from `users` where `active` = 1").
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "username", "port", "db_name", "db_pass", "storage_path", "subdomain", "bridge_secret", "supervisor_token", "active", "bridge_access"}).
+			AddRow("u1", "alice", 8081, "otc_u1", "dbpass", "/mnt/storage/user_u1", "alice.off-the.cloud", "bsecret", "stoken", true, true))
 
 	d := NewWithDB(db)
 	users, err := d.ListActiveUsersInternal()

@@ -50,6 +50,11 @@ const (
 	CEndpoint        = "/ws"
 	cWorkerSleepSecs = 120
 
+	// cCodeNotAuthenticated is Ack.code on the "you have no session here"
+	// reply (issue #105). Clients key their sign-out handling off this
+	// rather than the prose beside it.
+	cCodeNotAuthenticated = "not_authenticated"
+
 	// Bridge connection pool. A connection is consumed for as long as the
 	// bridge-side client that picked it up keeps its socket open — see
 	// bridge/websocket/websocket.go's default case, which pins one pool
@@ -170,7 +175,15 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// bridge round-trip.
 	ps.OnChange = func() { go mg.syncPushRegistrationsToBridge() }
 
-	mg.ensureBridgePool()
+	// Issue #103: a local-only user's instance has no bridge-addr at all
+	// (see supervisor.bridgeAddrFor), and dialing "wss:///ws" forever
+	// would just be a hot retry loop against nothing. No relay configured
+	// means no relay - the instance still serves normally on its own port.
+	if !bridgeConfigured() {
+		log.Info("no bridge-addr configured - this instance stays local-only")
+	} else {
+		mg.ensureBridgePool()
+	}
 
 	// Issue #62: re-sync on every startup too, not just on the next
 	// register - the bridge's own copy of this device's push registrations
@@ -287,6 +300,23 @@ func (mg *Manager) ensureBridgePool() {
 // it — this function's job is just to move that accounting forward
 // correctly as the attempt succeeds, fails, or the connection is
 // eventually consumed.
+// bridgeConfigured reports whether this instance has a relay to talk to at
+// all (issue #103). Empty for a local-only additional user - see
+// supervisor.bridgeAddrFor - and every path that dials out has to check
+// it, not just the connection pool: without this they each fail forever
+// against "wss:///ws" ("dial tcp :443: connect: connection refused"),
+// which is noise at best and a hot retry loop at worst.
+func bridgeConfigured() bool {
+	// HasSection first because cfg.GetStr is fatal when the config isn't
+	// loaded at all - this predicate gets called from enough places
+	// (including one that runs during Init) that it should answer "no
+	// relay" rather than take the process down.
+	if !cfg.HasSection("otc") {
+		return false
+	}
+	return cfg.GetStr("otc", "bridge-addr") != ""
+}
+
 func (mg *Manager) openBridgeConn() {
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	log.Debug("Connecting to bridge:", cfg.GetStr("otc", "bridge-addr"), u)
@@ -408,6 +438,9 @@ func (mg *Manager) failedBridgeDial() {
 // only replaces it if the current one still matches its own record — see
 // RotateSecret's compare-and-swap on the bridge side.
 func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
+	if !bridgeConfigured() {
+		return "", errors.New("this instance has no bridge access, so there is no bridge secret to regenerate")
+	}
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
@@ -469,6 +502,12 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 // register, or this device's own next restart) naturally catches the
 // bridge back up.
 func (mg *Manager) syncPushRegistrationsToBridge() {
+	// Nothing to sync push registrations *to* on a local-only instance,
+	// and this runs on every push-subscription change - so without this it
+	// logs a failed dial every time (caught live on a local-only user).
+	if !bridgeConfigured() {
+		return
+	}
 	apnsTokens, err := mg.dao.ListApnsTokens()
 	if err != nil {
 		log.Error("error listing APNs tokens for bridge push-registrations sync:", err)
@@ -1968,6 +2007,31 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 	storagePath := "/mnt/storage/user_" + id
 	subdomain := username + "." + cfg.GetStr("otc", "bridge-addr")
 
+	// Issue #103: ask the bridge whether this subdomain is actually
+	// claimable *before* provisioning a database, a storage directory and
+	// a process for it. A name already registered by anything else can
+	// never be taken by this user (the bridge rejects a mismatched
+	// owner/secret rather than adopting it), so without this the panel
+	// reports a cheerful "user created" for an account that is silently
+	// unreachable forever - which is exactly how this was found on a live
+	// device. Refusing up front also leaves nothing to clean up.
+	if req.RequestBridgeAccess {
+		free, err := isSubdomainFreeOnBridge(ch.mg.dao, subdomain)
+		if err != nil {
+			return nil, fmt.Errorf("could not reach the bridge to check %s, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: %w", subdomain, err)
+		}
+		if !free {
+			// Both suggestions have to be things the person reading this
+			// can actually do. "Free that subdomain first" was neither:
+			// releasing a registration needs access to the bridge's own
+			// admin panel, which a device owner doesn't have - so it read
+			// as "your fault, unfixable". Choosing another name, or
+			// creating the account without bridge access, are both
+			// entirely in their hands.
+			return nil, fmt.Errorf("%s is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only", subdomain)
+		}
+	}
+
 	if err := dao.ProvisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
 		return nil, err
 	}
@@ -1981,6 +2045,10 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 		StoragePath: storagePath, Subdomain: subdomain,
 		BridgeSecret: bridgeSecret, SupervisorToken: supervisorToken,
 		Active: true,
+		// Issue #103: persisted, because it decides whether this user's
+		// own config gets a bridge-addr on every respawn - not just once
+		// at creation (see supervisor.renderUserConfig).
+		BridgeAccess: req.RequestBridgeAccess,
 	}
 	if err := ch.mg.dao.CreateUser(u); err != nil {
 		return nil, err
@@ -2069,6 +2137,68 @@ func (ch *connHandler) setUserActive(req *pb.ReqSetUserActive) error {
 // started) by the time this runs, and failing the whole request over a
 // bridge notification alone would be worse than a stale bridge-side flag,
 // which self-corrects the next time this is called either way.
+// isSubdomainFreeOnBridge asks the bridge whether candidate is still
+// unclaimed (issue #103), authenticating as *this* device with its own
+// registration - the only credentials the primary has, and the reason the
+// bridge will answer at all (see ReqIsDomainAvailable's doc comment).
+//
+// Returns an error rather than a bare false whenever the answer isn't
+// known - the bridge being unreachable, a malformed reply, a rejected
+// secret. The caller refuses to create the user in that case: the entire
+// point is never to hand someone an account that looks fine and silently
+// isn't, and "I could not check" is not "it is free".
+func isSubdomainFreeOnBridge(d *dao.Dao, candidate string) (bool, error) {
+	subDomain, deviceUuid, bridgeSecret, err := d.GetSettings()
+	if err != nil {
+		return false, fmt.Errorf("reading this device's own bridge identity: %w", err)
+	}
+
+	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
+	h := http.Header{}
+	h.Set("Sec-WebSocket-Protocol", "protobuf")
+	c, _, err := gorilla.DefaultDialer.Dial(addr.String(), h)
+	if err != nil {
+		return false, fmt.Errorf("could not reach the bridge: %w", err)
+	}
+	defer c.Close()
+
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqIsDomainAvailable{
+			ReqIsDomainAvailable: &pb.ReqIsDomainAvailable{
+				OwnerUuid:       deviceUuid,
+				Domain:          subDomain,
+				Secret:          bridgeSecret,
+				CandidateDomain: candidate,
+			},
+		},
+	}
+	b, err := proto.Marshal(msg)
+	if err != nil {
+		return false, err
+	}
+	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		return false, fmt.Errorf("asking the bridge: %w", err)
+	}
+
+	_, data, err := c.ReadMessage()
+	if err != nil {
+		return false, fmt.Errorf("reading the bridge's answer: %w", err)
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		return false, fmt.Errorf("unreadable answer from the bridge: %w", err)
+	}
+	if resp.Error {
+		return false, errors.New(resp.ErrorMessage)
+	}
+	avail, ok := resp.Payload.(*pb.RespEnvelope_RespDomainAvailable)
+	if !ok {
+		return false, errors.New("unexpected answer from the bridge")
+	}
+	return avail.RespDomainAvailable.Available, nil
+}
+
 func notifyBridgeDisabled(u *dao.UserInternal, disabled bool) {
 	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
@@ -2165,6 +2295,27 @@ func (ch *connHandler) getUserMetrics(uuidStr string) (*pb.RespUserMetrics, erro
 // client, not just this one. Recovering here contains that to "this one
 // connection gets closed", regardless of what request type or handler bug
 // causes it in the future.
+// notAuthenticatedResponse is what a request gets when no handler in the
+// chain would take it because this connection has no session.
+//
+// The Ack payload carries the same weight as issue #56's
+// unreachable/disabled answers: a bare top-level error is dropped by both
+// clients' handshake handling, and this one has to be *acted on* rather
+// than printed - it's how a browser finds out mid-session that its session
+// is gone (the device restarted, discarding every session token - see
+// session/tokens.go). Without it the app sits on a view whose data will
+// now never load, saying nothing at all (issue #105).
+func notAuthenticatedResponse(id int32) *pb.RespEnvelope {
+	return &pb.RespEnvelope{
+		Id:           id,
+		Error:        true,
+		ErrorMessage: "not authenticated",
+		Payload: &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{Ok: false, ErrorMsg: "not authenticated", Code: cCodeNotAuthenticated},
+		},
+	}
+}
+
 func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2271,11 +2422,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			// they're awaiting just hangs forever instead of failing. Send
 			// a real error instead.
 			if resp == nil {
-				resp = &pb.RespEnvelope{
-					Id:           env.Id,
-					Error:        true,
-					ErrorMessage: "not authenticated",
-				}
+				resp = notAuthenticatedResponse(env.Id)
 			}
 
 			respBin, _ := proto.Marshal(resp)

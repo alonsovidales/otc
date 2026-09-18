@@ -513,14 +513,35 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 }
 
 // cOneOffForwardTimeout bounds each candidate connection's forward() call
-// in ForwardOneOff - deliberately much shorter than cForwardTimeout (90s,
-// tuned for a real GetFile of a large photo/video). A static asset fetch
-// is small and should answer almost immediately; a candidate that doesn't
-// is almost certainly a stale pool entry (see ForwardOneOff's own doc
-// comment), and 90s of that per candidate is what turned a handful of
-// them into a multi-minute stall, reproduced live. Var, not const, so
-// tests can shrink it instead of waiting on real seconds.
-var cOneOffForwardTimeout = 5 * time.Second
+// in ForwardOneOff - shorter than cForwardTimeout (90s, tuned for a real
+// GetFile of a large photo/video), because a candidate that never answers
+// is usually a stale pool entry and 90s of that per candidate is what
+// turned a handful of them into a multi-minute stall, reproduced live.
+//
+// But "static assets are small and answer almost immediately" - the
+// reasoning behind the original 5s - was simply wrong, and 5s turned out
+// to be actively harmful: the web app's own JS bundle is ~800KB and takes
+// around 3s through the relay on a *good* run, so any slower moment blew
+// the deadline. Each expiry then burned another pool connection (this
+// closes every candidate it gives up on) and moved to the next, so one
+// slow bundle fetch could empty a 20-connection pool in seconds and leave
+// the whole device answering "no available connections" - to every
+// request, not just the big one - until the device refilled. Caught live:
+// a page load that fetched its CSS fine and timed out on its JS, then
+// took the site down for everything.
+//
+// 45s instead: still far short of the 90s stall this exists to prevent,
+// but comfortably above what a genuinely working transfer needs over a
+// home uplink. Var, not const, so tests can shrink it.
+var cOneOffForwardTimeout = 45 * time.Second
+
+// cOneOffMaxAttempts caps how many pool connections one request may spend
+// before giving up. Without a cap, ForwardOneOff walks the *entire* pool
+// on any repeated failure - closing each connection as it goes - so a
+// single bad request could take a healthy device offline for everyone
+// until it refilled. Three is enough to step past a couple of genuinely
+// stale entries without ever being able to drain the pool.
+const cOneOffMaxAttempts = 3
 
 // ForwardOneOff sends frame to one connection from domain's pool and
 // returns the raw response frame, always closing that connection
@@ -546,7 +567,7 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 		return nil, errors.New("device is offline")
 	}
 
-	for {
+	for attempt := 0; attempt < cOneOffMaxAttempts; attempt++ {
 		pool.lock.Lock()
 		if len(pool.availableConns) == 0 {
 			pool.lock.Unlock()
@@ -567,6 +588,7 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 		}
 		return respFrame, nil
 	}
+	return nil, fmt.Errorf("device did not answer after %d attempts", cOneOffMaxAttempts)
 }
 
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
@@ -845,6 +867,45 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				respBin, _ := proto.Marshal(resp)
 				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
 					log.Error("error responding:", err)
+				}
+				return
+
+			case *pb.ReqEnvelope_ReqIsDomainAvailable:
+				// Issue #103: answers "could a new user take this
+				// subdomain?" for a device about to provision one. A
+				// one-off request/response like the two cases below, so
+				// the connection closes rather than becoming a relay.
+				//
+				// Authenticated as an existing registered device, not open
+				// to all comers - see the message's own doc comment for
+				// why an anonymous version of this would be a subdomain
+				// enumeration oracle. The answer is deliberately the same
+				// shape either way (available true/false), never "taken by
+				// <owner>": a caller learns only whether the name it
+				// wants is free, which is all it needs to decide.
+				defer conn.Close()
+				req := p.ReqIsDomainAvailable
+				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
+				if err != nil && err != sql.ErrNoRows {
+					log.Error("error validating device for domain availability check:", err)
+					resp.Error = true
+					resp.ErrorMessage = "error checking domain"
+				} else if !defined || !validSecret {
+					resp.Error = true
+					resp.ErrorMessage = "Invalid Secret"
+				} else if registered, err := mg.dao.IsDomainRegistered(req.CandidateDomain); err != nil {
+					log.Error("error checking whether", req.CandidateDomain, "is registered:", err)
+					resp.Error = true
+					resp.ErrorMessage = "error checking domain"
+				} else {
+					resp.Payload = &pb.RespEnvelope_RespDomainAvailable{
+						RespDomainAvailable: &pb.RespDomainAvailable{Available: !registered},
+					}
+				}
+
+				respBin, _ := proto.Marshal(resp)
+				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					log.Error("error responding, closing the connection:", err)
 				}
 				return
 
