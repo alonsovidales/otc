@@ -328,6 +328,10 @@ mariadb: raid packages ## Point MariaDB's datadir at the RAID array
 db-schema: mariadb secrets ## Create the otc DB/user and load db/db.sql (idempotent)
 	@echo "Configuring the otc database and application user on $(TARGET)..."
 	source $(ENV_FILE)
+	# Unquoted heredoc (expansion is needed for $$OTC_DB_PASS below), so
+	# no backticks in the SQL comments: the shell would run them here
+	# before mysql ever saw them. scripts/install.sh had exactly that and
+	# it broke a fresh Raspberry Pi install outright.
 	$(SSH) 'sudo mysql' <<-SQL
 	CREATE DATABASE IF NOT EXISTS otc;
 	CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
@@ -340,7 +344,7 @@ db-schema: mariadb secrets ## Create the otc DB/user and load db/db.sql (idempot
 	-- requires a grantor to already hold whatever privileges it hands off:
 	-- GRANT OPTION only lets you re-delegate privileges you have, not
 	-- grant arbitrary ones. Provisioning a new user's database ends with
-	-- `GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost`,
+	-- GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost,
 	-- which otc@localhost itself must hold on every database it might
 	-- ever create - i.e. globally - or that grant fails with "Access
 	-- denied ... to database 'otc_<uuid>'" (hit exactly this live during

@@ -365,7 +365,20 @@ else
     chmod 600 "$ENV_FILE"
 fi
 
-mysql -e "
+# A heredoc, not `mysql -e "..."`, because this SQL carries prose comments
+# and a double-quoted shell string is a minefield for those: bash runs
+# anything in backticks and lets a stray double quote end the string
+# early. Both bit a fresh Raspberry Pi install - a backticked phrase made
+# bash execute an SQL comment ("uuid: No such file or directory", from
+# otc_<uuid> reading as a redirect), and a quoted phrase inside another
+# comment split the rest into words, leaving mysql to print its usage
+# instead of running anything.
+#
+# Unquoted on purpose: ${OTC_DB_PASS} below still has to expand. Inside a
+# heredoc quotes are literal, so the only rule left is no backticks and no
+# $(...) in the SQL. Blocks that need no expansion at all use <<'"'"'SQL'"'"'
+# (quoted) instead, which forbids even that.
+mysql <<SQL
 CREATE DATABASE IF NOT EXISTS otc;
 CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
 ALTER USER 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
@@ -377,7 +390,7 @@ GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
 -- requires a grantor to already hold whatever privileges it hands off:
 -- GRANT OPTION only lets you re-delegate privileges you have, not grant
 -- arbitrary ones. Provisioning a new user's database ends with
--- `GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost`, which
+-- GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost, which
 -- otc@localhost itself must hold on every database it might ever create -
 -- i.e. globally - or that grant fails with "Access denied ... to database
 -- 'otc_<uuid>'" (hit exactly this live during testing before widening the
@@ -387,7 +400,7 @@ GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
 -- storing/managing each user's own dedicated DB password just for that.
 GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
-"
+SQL
 if mysql otc -N -B -e 'SHOW TABLES LIKE "files"' 2>/dev/null | grep -q files; then
     log "schema already present, applying any new tables/columns since your last update"
 else
@@ -419,7 +432,7 @@ apply_schema_migrations() {
     # db.sql run only happens once, on this device's very first install. Every
     # statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
     # install too (where db.sql just created them already).
-    mysql "$db" -e "
+    mysql "$db" <<'SQL'
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
     -- Issue #92: ends a friend's notification catch-up suppression once their
     -- pre-existing backlog is fully replayed (see social.go's
@@ -452,10 +465,10 @@ apply_schema_migrations() {
       KEY (hash),
       KEY (person_id)
     ) ENGINE=InnoDB;
-    "
+SQL
     # Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
     # the face recognition block above.
-    mysql "$db" -e "
+    mysql "$db" <<'SQL'
     CREATE TABLE IF NOT EXISTS reprocess_state (
       id TINYINT NOT NULL DEFAULT 1,
       status VARCHAR(20) NOT NULL DEFAULT 'idle',
@@ -467,9 +480,9 @@ apply_schema_migrations() {
       PRIMARY KEY (id)
     ) ENGINE=InnoDB;
     INSERT INTO reprocess_state (id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM reprocess_state WHERE id = 1);
-    "
+SQL
     # Issue #78: owner-facing notification timeline (bell icon).
-    mysql "$db" -e "
+    mysql "$db" <<'SQL'
     CREATE TABLE IF NOT EXISTS notifications (
       uuid VARCHAR(64) NOT NULL,
       dt DATETIME NOT NULL,
@@ -483,14 +496,14 @@ apply_schema_migrations() {
       INDEX USING BTREE (acknowledged),
       INDEX USING BTREE (dt)
     ) ENGINE=InnoDB;
-    "
+SQL
 }
 
 apply_schema_migrations otc
 
 # Issue #82: multiple OTC "users" on one device - only ever has real rows
 # on the primary instance (see supervisor/supervisor.go's package doc).
-mysql otc -e "
+mysql otc <<'SQL'
 CREATE TABLE IF NOT EXISTS users (
   uuid VARCHAR(64) NOT NULL,
   username VARCHAR(64) NOT NULL,
@@ -515,7 +528,7 @@ ALTER TABLE users DROP COLUMN IF EXISTS is_admin;
 -- Defaults to 1 so every user that predates this keeps the bridge access
 -- it already has.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS bridge_access TINYINT(1) NOT NULL DEFAULT 1;
-"
+SQL
 # Issue #82 follow-up: bring every additional user's own database up to
 # the same schema. Done here rather than beside the primary's own call
 # above because the `users` table this reads is only created just above.
@@ -534,11 +547,11 @@ if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; th
     done
 fi
 
-mysql otc -e "
+mysql otc <<SQL
 INSERT INTO settings (device_uuid, subdomain, bridge_secret)
 SELECT '${DEVICE_UUID}', '${SUBDOMAIN}.${BRIDGE_ADDR}', '${BRIDGE_SECRET}'
 WHERE NOT EXISTS (SELECT 1 FROM settings);
-"
+SQL
 
 cat > "/etc/otc_${ENVIRONMENT}.ini" <<EOF
 [otc]
