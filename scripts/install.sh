@@ -60,6 +60,25 @@ die() { echo "[otc-install] ERROR: $*" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || die "needs root — re-run as: curl ... | sudo bash -s -- [subdomain]"
 command -v apt-get >/dev/null 2>&1 || die "only Debian/Ubuntu-family distros are supported (no apt-get found)"
 
+# If a previous run got partway through and then died (a killed `curl | bash`,
+# a failed step, a reboot mid-install, ...) there will be pieces of OTC on this
+# box — the binary, the database, the models — but NO /etc/otc/.install-complete
+# marker, because that's only written at the very end. The script is fully
+# idempotent so re-running it is the right fix, but warn loudly first so nobody
+# is surprised by a box that already has an `otc` binary and a MariaDB schema.
+# A box is "partially installed" if it has OTC artifacts (the source tree,
+# the binary, or the config dir) but the /etc/otc/.install-complete marker
+# the script writes only when a run reaches the very end is absent. A fully
+# completed install always has the marker, so this only fires on a box where
+# a previous run died mid-way (or one that was hand-assembled).
+if { [ -d /opt/otc-src ] || [ -e /usr/bin/otc ] || [ -d /etc/otc ]; } && [ ! -e /etc/otc/.install-complete ]; then
+    echo "[otc-install] NOTE: this machine already has OTC artifacts but no /etc/otc/.install-complete marker,"
+    echo "[otc-install]       which means a previous install run did not finish. Re-running now to complete/repair it"
+    echo "[otc-install]       (this is safe — every step is idempotent). If you're SURE you want a from-scratch"
+    echo "[otc-install]       install instead, stop and wipe the box first."
+    echo ""
+fi
+
 case "$(uname -m)" in
     aarch64) ARCH=arm64; ORT_ARCH=aarch64; PROTOC_ARCH=aarch_64 ;;
     x86_64)  ARCH=amd64; ORT_ARCH=x64; PROTOC_ARCH=x86_64 ;;
@@ -558,3 +577,13 @@ echo " First 'Sign In' sets your password permanently — see README.md."
 echo " Device identity/secrets: $ENV_FILE (never share or commit it)."
 echo " Storage: $([ "$SKIP_RAID" = "1" ] && echo "$MOUNT_POINT (single disk, OTC_SKIP_RAID=1)" || echo "RAID1 on $DISK1 + $DISK2, mounted at $MOUNT_POINT")"
 echo "=========================================================="
+
+# Write the completion marker only after EVERY step (including the systemd
+# enable + restart) has succeeded. A run that died mid-install (a killed
+# `curl | bash`, a failed step, ...) never gets this marker, which the
+# preflight check at the top of the script uses to warn you that you're
+# re-running against a half-installed box. The marker is NOT load-bearing
+# for correctness — the script is idempotent either way — it's purely a
+# "did the last run get all the way to the end?" signal.
+touch /etc/otc/.install-complete
+echo "[otc-install] Done. Marker at /etc/otc/.install-complete (remove it if you want the next run to treat this as a fresh install)."
