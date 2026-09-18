@@ -88,6 +88,23 @@ export default function FilesExplorer({
   // other click a no-op until it's done.
   const [openingPath, setOpeningPath] = useState<string | null>(null);
 
+  // Issue #86: dropping files used to give ZERO visual feedback - the
+  // per-file upload is a single WebSocket send (the whole file goes out as
+  // one protobuf message) so there is no byte-level progress to report,
+  // and for a batch it looked like nothing was happening. This tracks each
+  // dropped file through its phases (reading -> sending -> done/failed) and
+  // renders a progress panel: an overall bar plus one row per file, so the
+  // user always sees what is being uploaded and when it finishes. The list
+  // auto-clears a couple seconds after the last upload settles.
+  type UploadItem = { name: string; size: number; status: "reading" | "sending" | "done" | "failed" };
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const uploadsTimer = useRef<number | null>(null);
+  const clearUploadsAfter = (delay = 2500) => {
+    if (uploadsTimer.current !== null) window.clearTimeout(uploadsTimer.current);
+    uploadsTimer.current = window.setTimeout(() => setUploads([]), delay);
+  };
+  useEffect(() => () => { if (uploadsTimer.current !== null) window.clearTimeout(uploadsTimer.current); }, []);
+
   // -------- load list (1, 3, 4) ----------
   const loadList = useCallback(async (p: string) => {
     setLoading(true); setError(null);
@@ -131,29 +148,54 @@ export default function FilesExplorer({
   useEffect(() => { saveFilesPath(path); }, [path]);
 
   // -------- drag & drop upload (2) ----------
+  // Issue #86: each dropped file is tracked through its phases so the UI can
+  // show an upload progress panel instead of a blank screen. The per-file
+  // "sending" phase is a single WebSocket send (the whole file as one
+  // protobuf message), so it cannot report byte-level progress - but seeing
+  // which file is in flight and the overall "N/M done" is what was missing.
   const onDrop: React.DragEventHandler<HTMLDivElement> = async (ev) => {
     ev.preventDefault(); ev.stopPropagation(); setDragOver(false);
     const files = Array.from(ev.dataTransfer.files ?? []);
     if (!files.length) return;
 
-    for (const f of files) {
-      const ab = await f.arrayBuffer();
-      const bytes = new Uint8Array(ab);
-      //const created = { seconds: Math.floor(f.lastModified/1000), nanos: 0 };
+    // Seed the tracker with one row per dropped file up front, so the panel
+    // appears immediately even before the first read/send finishes.
+    setUploads(files.map((f) => ({ name: f.name, size: f.size, status: "reading" as const })));
+    clearUploadsAfter(4000);
 
-      await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = {
-          $case: "reqUploadFile",
-          reqUploadFile: {
-            path: joinPath(path, f.name),
-            content: bytes,
-            forceOverride: false,
-            //created,
-          },
-        };
-      });
+    let failed = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "sending" } : u)));
+      try {
+        const ab = await f.arrayBuffer();
+        const bytes = new Uint8Array(ab);
+
+        await useWS.request((e: Partial<ReqEnvelope>) => {
+          (e as any).payload = {
+            $case: "reqUploadFile",
+            reqUploadFile: {
+              path: joinPath(path, f.name),
+              content: bytes,
+              forceOverride: false,
+            },
+          };
+        });
+
+        setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "done" } : u)));
+      } catch (err) {
+        failed++;
+        setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "failed" } : u)));
+        console.error("Upload failed for", f.name, err);
+      }
     }
+
     await loadList(path);
+    if (failed === 0) {
+      clearUploadsAfter(1500);
+    } else {
+      clearUploadsAfter(6000);
+    }
   };
   const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => { e.preventDefault(); setDragOver(true); };
   const onDragLeave: React.DragEventHandler<HTMLDivElement> = () => setDragOver(false);
@@ -277,6 +319,12 @@ export default function FilesExplorer({
     }
   };
 
+  // ---- Issue #86: overall upload progress ----
+  const uploadsDone = uploads.filter((u) => u.status === "done").length;
+  const uploadsFailed = uploads.filter((u) => u.status === "failed").length;
+  const uploadsActive = uploads.length > 0 && uploads.some((u) => u.status === "reading" || u.status === "sending");
+  const uploadsPct = uploads.length ? Math.round((uploadsDone / uploads.length) * 100) : 0;
+
   // ---- rows prepared for display ----
   const rows = useMemo(() => listing.map((f) => ({
     k: rowKey(f),
@@ -322,6 +370,40 @@ export default function FilesExplorer({
       </div>
 
       {error && <div className="fb-error">{error}</div>}
+
+      {/* Issue #86: upload progress panel - shown while any dropped file is
+          still reading/sending, or briefly after the batch settles. */}
+      {uploads.length > 0 && (
+        <div className="fb-uploads">
+          <div className="fb-uploads-head">
+            <span className="fb-uploads-title">
+              {uploadsActive
+                ? `Uploading ${uploadsDone}/${uploads.length}…`
+                : uploadsFailed
+                  ? `Uploads finished (${uploadsDone} ok, ${uploadsFailed} failed)`
+                  : `Uploaded ${uploadsDone} file${uploadsDone === 1 ? "" : "s"}`}
+            </span>
+            <span className="fb-uploads-pct">{uploadsPct}%</span>
+          </div>
+          <div className="fb-uploads-bar">
+            <div className="fb-uploads-fill" style={{ width: `${uploadsPct}%` }} />
+          </div>
+          <ul className="fb-uploads-list">
+            {uploads.map((u, i) => (
+              <li key={i} className={`fb-uploads-item ${u.status}`}>
+                <span className="fb-uploads-name">{u.name}</span>
+                <span className="fb-uploads-size">{fmtBytes(u.size)}</span>
+                <span className="fb-uploads-status">
+                  {u.status === "reading" && "Reading…"}
+                  {u.status === "sending" && <span className="fb-spinner" />} Uploading…
+                  {u.status === "done" && "✓ Done"}
+                  {u.status === "failed" && "✕ Failed"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="fb-table">
         <div className="fb-head">
