@@ -1,0 +1,32 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Issue #56: covers the app rather than sitting inside it - while the
+   device is unreachable there is nothing behind this worth interacting
+   with (every view's data comes from that device), and a banner over a
+   half-empty app reads as "something glitched" rather than "the device is
+   off". */
+.du-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(22, 24, 28, 0.92);
+  backdrop-filter: blur(2px);
+}
+
+.du-card {
+  max-width: 420px;
+  margin: 24px;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--ink-2);
+  text-align: center;
+}
+
+.du-icon { display: block; margin: 0 auto 16px; color: var(--ember); }
+
+.du-card h2 { margin: 0 0 8px; font-size: 1.25rem; }
+.du-card p { margin: 0; color: var(--mist-dim); line-height: 1.5; }
+.du-note { margin-top: 12px !important; font-size: 0.9rem; }

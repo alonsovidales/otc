@@ -170,12 +170,96 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   }, [fetchPage, loading, endReached]);
 
   // -------- selection (tap a tile, no separate checkbox/viewer) ---------
-  const [sel, setSel] = useState<Set<string>>(new Set());
-  const toggleSel = (p: string) => setSel(prev => {
-    const n = new Set(prev);
-    n.has(p) ? n.delete(p) : n.add(p);
-    return n;
+  // Issue #98: an ordered list, not a Set - the post's own order is the
+  // order of the paths sent to reqNewSocialPublication (the device writes
+  // them to social_publications_files.pos and reads them back `order by
+  // pos`), so this is what actually decides how a post reads. A Set kept
+  // insertion order too, but there was no way to *see* that order or fix
+  // it up short of deselecting everything and starting again. Mirrors what
+  // the iOS composer has had since issue #48 (selectedOrder/moveSelected).
+  const [selected, setSelected] = useState<string[]>([]);
+  // Keeps the MsgFile for everything currently selected, so the order
+  // strip can still render a thumbnail for a pick whose tile has since
+  // left `items` - changing the tag filter resets the grid but
+  // deliberately keeps the selection.
+  const selectedFilesRef = useRef<Map<string, MsgFile>>(new Map());
+
+  const toggleSel = (f: MsgFile) => {
+    const p = f.path;
+    setSelected(prev => {
+      if (prev.includes(p)) return prev.filter(x => x !== p);
+      selectedFilesRef.current.set(p, f);
+      return [...prev, p];
+    });
+  };
+
+  // Issue #98: explicit reordering, so fixing one photo's position doesn't
+  // mean redoing the whole selection.
+  const moveSelected = (p: string, offset: number) => setSelected(prev => {
+    const idx = prev.indexOf(p);
+    const next = idx + offset;
+    if (idx < 0 || next < 0 || next >= prev.length) return prev;
+    const copy = [...prev];
+    [copy[idx], copy[next]] = [copy[next], copy[idx]];
+    return copy;
   });
+
+  // Drag & drop reordering for the strip - the natural gesture with a
+  // mouse, alongside the move buttons (which are what works on a touch
+  // screen and with a keyboard).
+  //
+  // The index being dragged lives in a ref, not just state: the drop
+  // handler needs the value the *dragstart* set, and reading that from
+  // state means depending on a re-render having happened in between. A
+  // real drag takes long enough that it always has, but that's a timing
+  // assumption rather than a guarantee - a drop handled in the same tick
+  // as its dragstart reads a stale null and silently does nothing. The
+  // state copy alongside it exists only to drive the dragging style.
+  const dragIdxRef = useRef<number | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const startDrag = (i: number) => { dragIdxRef.current = i; setDragIdx(i); };
+  const endDrag = () => { dragIdxRef.current = null; setDragIdx(null); };
+  const reorder = <T,>(list: T[], from: number, to: number): T[] => {
+    if (from === to || from < 0 || from >= list.length || to < 0 || to >= list.length) return list;
+    const copy = [...list];
+    const [moved] = copy.splice(from, 1);
+    copy.splice(to, 0, moved);
+    return copy;
+  };
+  const dropOnIdx = (to: number) => {
+    const from = dragIdxRef.current;
+    if (from !== null) setSelected(prev => reorder(prev, from, to));
+    endDrag();
+  };
+
+  const moveLocalFile = (from: number, offset: number) => setLocalFiles(prev => {
+    const to = from + offset;
+    if (to < 0 || to >= prev.length) return prev;
+    const copy = [...prev];
+    [copy[from], copy[to]] = [copy[to], copy[from]];
+    return copy;
+  });
+  const dropLocalOnIdx = (to: number) => {
+    const from = dragIdxRef.current;
+    if (from !== null) setLocalFiles(prev => reorder(prev, from, to));
+    endDrag();
+  };
+
+  // Thumbnails for the strip, cached per path: bytesToURL mints a fresh
+  // object URL on every call, so building them inline during render would
+  // leak one per render for as long as the composer is open.
+  const stripUrlsRef = useRef<Map<string, string>>(new Map());
+  const stripUrlFor = (f: MsgFile) => {
+    let url = stripUrlsRef.current.get(f.path);
+    if (!url) {
+      url = bytesToURL(f.content, "image/jpeg");
+      stripUrlsRef.current.set(f.path, url);
+    }
+    return url;
+  };
+  useEffect(() => () => {
+    stripUrlsRef.current.forEach(u => { if (u) URL.revokeObjectURL(u); });
+  }, []);
 
   // -------- publish --------------------------------------------------------
   const [caption, setCaption] = useState("");
@@ -214,7 +298,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   };
 
   const publish = async () => {
-    const hasSelection = source === "local" ? localFiles.length > 0 : sel.size > 0;
+    const hasSelection = source === "local" ? localFiles.length > 0 : selected.length > 0;
     // Issue #96: a post always needs its own caption - the button below
     // already disables on this same check, this just guards the actual
     // publish call too rather than trusting the button's disabled state
@@ -225,6 +309,9 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     try {
       let paths: string[];
       if (source === "local") {
+        // Issue #98: Promise.all resolves in the order it was given, so
+        // the uploads land in the strip's own order - the post reads the
+        // way the composer showed it.
         const uploaded = await Promise.all(
           localFiles.map(f => uploadLocalFile(f).catch(() => null))
         );
@@ -237,7 +324,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           setError(`${localFiles.length - paths.length} file(s) failed to upload - publishing the rest.`);
         }
       } else {
-        paths = Array.from(sel);
+        paths = selected;
       }
 
       const resp: RespEnvelope = await useWS.request(e => {
@@ -329,17 +416,21 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               // as an <img>.
               const thumb = bytesToURL(f.content, "image/jpeg");
               const isVideo = (f.mime || "").startsWith("video/");
-              const checked = sel.has(f.path);
+              // Issue #98: the badge is the tile's position in the post,
+              // not a plain checkmark - so the order is visible from the
+              // grid itself, same as the iOS composer.
+              const position = selected.indexOf(f.path);
+              const checked = position >= 0;
               return (
                 <button
                   key={key}
                   className={`np-cell${checked ? " selected" : ""}`}
-                  onClick={() => toggleSel(f.path)}
+                  onClick={() => toggleSel(f)}
                   title={f.path}
                 >
                   <img src={thumb} alt={f.path} loading="lazy" />
                   {isVideo && <span className="np-video-badge">▶</span>}
-                  {checked && <span className="np-check">✓</span>}
+                  {checked && <span className="np-check">{position + 1}</span>}
                 </button>
               );
             })}
@@ -380,6 +471,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                     <img src={localUrlFor(f)} alt={f.name} />
                   )}
                   {isVideo && <span className="np-video-badge">▶</span>}
+                  <span className="np-check">{i + 1}</span>
                   <button
                     className="np-remove"
                     onClick={() => removeLocalFile(f)}
@@ -394,6 +486,97 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         </>
       )}
 
+      {/* Issue #98: the grid's own layout (newest first, or whatever the
+          tag filter turned up) isn't necessarily the order the photos
+          should read in - this strip shows the actual post order and lets
+          it be rearranged directly, rather than requiring a
+          deselect-and-start-over. Same affordance the iOS composer has had
+          since issue #48, plus drag & drop for a mouse. */}
+      {(source === "server" ? selected.length > 0 : localFiles.length > 0) && (
+        <div className="np-strip">
+          <div className="np-strip-title">Order in post — drag, or use ‹ ›</div>
+          <div className="np-strip-items">
+            {source === "server"
+              ? selected.map((p, i) => {
+                  const f = selectedFilesRef.current.get(p);
+                  const isVideo = (f?.mime || "").startsWith("video/");
+                  return (
+                    <div
+                      key={`sel-${p}`}
+                      className={`np-strip-item${dragIdx === i ? " dragging" : ""}`}
+                      draggable
+                      onDragStart={() => startDrag(i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => dropOnIdx(i)}
+                      onDragEnd={endDrag}
+                      title={p}
+                    >
+                      <div className="np-strip-thumb">
+                        {f && <img src={stripUrlFor(f)} alt={p} />}
+                        <span className="np-strip-pos">{i + 1}</span>
+                        {isVideo && <span className="np-strip-video">▶</span>}
+                        <button
+                          className="np-remove"
+                          onClick={() => f && toggleSel(f)}
+                          aria-label={`Remove ${p} from the post`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="np-strip-moves">
+                        <button
+                          onClick={() => moveSelected(p, -1)}
+                          disabled={i === 0}
+                          aria-label={`Move ${p} earlier`}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          onClick={() => moveSelected(p, 1)}
+                          disabled={i === selected.length - 1}
+                          aria-label={`Move ${p} later`}
+                        >
+                          ›
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              : localFiles.map((f, i) => (
+                  <div
+                    key={`loc-${f.name}-${f.lastModified}-${i}`}
+                    className={`np-strip-item${dragIdx === i ? " dragging" : ""}`}
+                    draggable
+                    onDragStart={() => startDrag(i)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => dropLocalOnIdx(i)}
+                    onDragEnd={endDrag}
+                    title={f.name}
+                  >
+                    <div className="np-strip-thumb">
+                      {f.type.startsWith("video/")
+                        ? <video src={localUrlFor(f)} muted />
+                        : <img src={localUrlFor(f)} alt={f.name} />}
+                      <span className="np-strip-pos">{i + 1}</span>
+                      {f.type.startsWith("video/") && <span className="np-strip-video">▶</span>}
+                      <button
+                        className="np-remove"
+                        onClick={() => removeLocalFile(f)}
+                        aria-label={`Remove ${f.name} from the post`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="np-strip-moves">
+                      <button onClick={() => moveLocalFile(i, -1)} disabled={i === 0} aria-label={`Move ${f.name} earlier`}>‹</button>
+                      <button onClick={() => moveLocalFile(i, 1)} disabled={i === localFiles.length - 1} aria-label={`Move ${f.name} later`}>›</button>
+                    </div>
+                  </div>
+                ))}
+          </div>
+        </div>
+      )}
+
       {error && <div className="np-error">{error}</div>}
 
       <div className="np-composer">
@@ -405,12 +588,12 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         />
         <button
           className="np-publish"
-          disabled={(source === "local" ? !localFiles.length : !sel.size) || !caption.trim() || publishing}
+          disabled={(source === "local" ? !localFiles.length : !selected.length) || !caption.trim() || publishing}
           onClick={publish}
         >
           {publishing
             ? "Publishing…"
-            : `Publish${(source === "local" ? localFiles.length : sel.size) ? ` (${source === "local" ? localFiles.length : sel.size})` : ""}`}
+            : `Publish${(source === "local" ? localFiles.length : selected.length) ? ` (${source === "local" ? localFiles.length : selected.length})` : ""}`}
         </button>
       </div>
     </div>

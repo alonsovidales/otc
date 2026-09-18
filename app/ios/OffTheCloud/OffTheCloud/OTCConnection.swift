@@ -18,6 +18,14 @@ final class OTCConnection: ObservableObject {
 
     @Published private(set) var authenticated = false
     @Published private(set) var lastError: String?
+    /// Issue #56: the bridge's machine-readable verdict when it couldn't
+    /// hand this request to a device at all - "device_unreachable" (the
+    /// domain is registered but nothing is connected) or
+    /// "account_disabled" (issue #93). Matches Ack.code; see the field's
+    /// own comment in proto/messages.proto. nil whenever the device is
+    /// answering normally, which is what lets the UI built on it clear
+    /// itself the moment things recover.
+    @Published private(set) var statusCode: String?
 
     private let ws = WSClient()
     private var connectTask: Task<Void, Error>?
@@ -102,7 +110,21 @@ final class OTCConnection: ObservableObject {
                 req.payload = .reqGetPubKey(Msg_GetPubKey())
             }
             guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
-                throw NSError(domain: "OTCConnection", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch the connection's public key"])
+                // Issue #56: this is where the bridge's "I can't reach that
+                // device" answer actually lands - it can't return a public
+                // key, because the device that would generate one isn't
+                // there. The reply's own RespAck carries both the reason
+                // and a stable code; throwing a blanket "Unable to fetch
+                // the connection's public key" here (as this used to) threw
+                // that explanation away and made an offline device look
+                // identical to a genuinely broken one.
+                var msg = "Unable to fetch the connection's public key"
+                if case .respAck(let ack) = pubKeyResp.payload {
+                    if !ack.errorMsg.isEmpty { msg = ack.errorMsg }
+                    statusCode = ack.code.isEmpty ? nil : ack.code
+                }
+                lastError = msg
+                throw NSError(domain: "OTCConnection", code: 2, userInfo: [NSLocalizedDescriptionKey: msg])
             }
             let encryptedKey = try PwCrypto.encryptPassword(secrets.password, pubKeyDER: pubKey.publicKey)
 
@@ -116,8 +138,10 @@ final class OTCConnection: ObservableObject {
             }
             guard case .respAck(let ack) = resp.payload, ack.ok else {
                 let msg: String
-                if case .respAck(let ack) = resp.payload { msg = ack.errorMsg }
-                else { msg = "Authentication failed" }
+                if case .respAck(let ack) = resp.payload {
+                    msg = ack.errorMsg
+                    statusCode = ack.code.isEmpty ? nil : ack.code
+                } else { msg = "Authentication failed" }
                 lastError = msg
                 throw NSError(domain: "OTCConnection", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
             }
@@ -127,6 +151,7 @@ final class OTCConnection: ObservableObject {
         }
 
         lastError = nil
+        statusCode = nil
         backoffSeconds = 1
         authenticated = true
     }

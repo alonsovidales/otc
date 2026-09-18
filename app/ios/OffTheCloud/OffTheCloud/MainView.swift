@@ -15,6 +15,10 @@ struct MainView: View {
     // "fall back to Images if Social is empty" part.
     @State private var selectedTab = 1
     @State private var didRouteInitialTab = false
+    // Issue #56: the bridge's verdict on whether this device is reachable
+    // at all. Observed rather than stored so this clears itself as soon as
+    // OTCConnection's own reconnect succeeds.
+    @ObservedObject private var connection = OTCConnection.shared
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -89,6 +93,21 @@ struct MainView: View {
         // programmatic selectedTab=4 above too, but didRouteInitialTab is
         // already true by then, so it's a no-op in that case).
         .onChange(of: selectedTab) { _, _ in didRouteInitialTab = true }
+        // Issue #56: covers the tabs rather than sitting inside one of
+        // them - while the device can't be reached there is nothing behind
+        // this worth interacting with, since every tab's content comes
+        // from that device. Only for the two verdicts the bridge gives us
+        // explicitly; an ordinary dropped connection stays silent and
+        // reconnects in the background as it always did, because that
+        // recovers in a second or two and is not worth a full-screen
+        // interruption.
+        .overlay {
+            if let code = connection.statusCode {
+                DeviceUnreachableView(message: connection.lastError ?? "", code: code)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.default, value: connection.statusCode)
     }
 
     private func routeInitialTabIfNeeded() {

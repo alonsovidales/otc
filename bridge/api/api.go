@@ -141,19 +141,7 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 		if disabled, err := api.dao.IsDeviceDisabled(r.Host); err != nil {
 			log.Error("error checking disabled state for", r.Host, ":", err)
 		} else if disabled {
-			// Not http.ServeFile: it sets its own 200 (or writes a header
-			// on the range/conditional-request path) before this ever
-			// gets a chance to - reading the file directly keeps the 503
-			// the one and only status written.
-			content, ferr := os.ReadFile(api.staticPath + "disabled.html")
-			if ferr != nil {
-				log.Error("error reading disabled.html:", ferr)
-				w.WriteHeader(http.StatusServiceUnavailable)
-				return
-			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write(content)
+			api.serveOwnPage(w, r, "disabled.html", http.StatusServiceUnavailable)
 			return
 		}
 		api.proxyStaticAsset(w, r)
@@ -173,6 +161,37 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug("Serving static:", path, "FilePath:", filePath, "HostName:", r.Host)
 	http.ServeFile(w, r, path)
+}
+
+// serveOwnPage writes one of the bridge's own static pages (disabled.html,
+// unavailable.html) with a status of this handler's choosing, for a
+// request aimed at a device subdomain that the bridge is answering itself
+// rather than proxying.
+//
+// Not http.ServeFile: that sets its own 200 (or writes a header on the
+// range/conditional-request path) before the caller ever gets a chance to,
+// so reading the file directly is what keeps the intended status the one
+// and only status written.
+//
+// Only pages a person is meant to read get the HTML body. Everything else
+// the browser asks for while the page is failing - a stylesheet, a script,
+// a favicon - gets the bare status instead, so an HTML error page never
+// arrives claiming to be a .js file (which a browser would refuse, noisily
+// and confusingly, on top of whatever actually went wrong).
+func (api *API) serveOwnPage(w http.ResponseWriter, r *http.Request, page string, status int) {
+	if !strings.Contains(r.Header.Get("Accept"), "text/html") {
+		w.WriteHeader(status)
+		return
+	}
+	content, err := os.ReadFile(api.staticPath + page)
+	if err != nil {
+		log.Error("error reading", page, ":", err)
+		w.WriteHeader(status)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	w.Write(content)
 }
 
 // proxyStaticAsset (issue #95) fetches r.URL.Path from r.Host's own
@@ -203,13 +222,30 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 
 	respFrame, err := api.websocket.ForwardOneOff(r.Host, frame)
 	if err != nil {
-		log.Debug("error proxying static asset from device:", r.Host, r.URL.Path, err)
-		w.WriteHeader(http.StatusBadGateway)
+		// Issue #97: a device that's switched off, offline, or still
+		// booting used to surface as a bare 502 with an empty body -
+		// nothing telling whoever opened the link what had happened or
+		// whether it was worth trying again. It gets the bridge's own
+		// "not available right now" page instead.
+		//
+		// 503, not 502: the device isn't a broken upstream, it's a
+		// temporarily absent one, and that's the difference between
+		// "something is wrong with this service" and "try again shortly"
+		// - for a person reading the page, and for anything machine-read
+		// (a crawler, an uptime check) that acts on the status alone.
+		// Retry-After says the same thing in the terms those clients use,
+		// and matches the page's own countdown.
+		log.Debug("device unreachable while proxying static asset:", r.Host, r.URL.Path, err)
+		w.Header().Set("Retry-After", "30")
+		api.serveOwnPage(w, r, "unavailable.html", http.StatusServiceUnavailable)
 		return
 	}
 
 	var resp pb.RespEnvelope
 	if err := proto.Unmarshal(respFrame, &resp); err != nil {
+		// A device that answered, but with something unintelligible, is a
+		// genuinely broken upstream - 502 is the honest status for that,
+		// unlike the unreachable case above.
 		log.Error("bad proto from device while proxying static asset:", err)
 		w.WriteHeader(http.StatusBadGateway)
 		return

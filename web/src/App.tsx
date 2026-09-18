@@ -20,6 +20,9 @@ import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
 import { isNewDevice, loadPersistedToken } from "./net/pwCrypto";
 import { promptForPushIfNeverAsked } from "./net/webPush";
+import DeviceUnreachable from "./components/DeviceUnreachable";
+import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
+import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
@@ -49,6 +52,12 @@ function App() {
   // floating over the feed - Social registers its own opener here rather
   // than this component needing to know anything about the picker itself.
   const [openComposer, setOpenComposer] = useState<(() => void) | null>(null);
+
+  // Issue #56: the bridge's verdict on whether this device is reachable at
+  // all, reported from ws.ts's socket callbacks (outside the component
+  // tree) via deviceStatus's little store.
+  const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | null>(getDeviceStatus());
+  useEffect(() => subscribeDeviceStatus(setDeviceStatus), []);
 
   let protoWs = 'ws://';
   if (window.location.protocol === 'https:') {
@@ -180,6 +189,14 @@ function App() {
     (window as any).webkit?.messageHandlers?.native?.postMessage({
       action: "openSettings"
     });
+  }
+
+  // Issue #56: nothing behind this is usable while the device is
+  // unreachable - every view's data comes from it - so this stands in
+  // front of the whole app rather than alongside it, and clears itself
+  // the moment a request succeeds again (see deviceStatus.noteResponse).
+  if (deviceStatus) {
+    return <DeviceUnreachable status={deviceStatus} />;
   }
 
   return (

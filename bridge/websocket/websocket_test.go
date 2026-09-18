@@ -597,8 +597,129 @@ func TestClientRequestToDisabledDomainGetsAClearError(t *testing.T) {
 	if !resp.Error || resp.ErrorMessage != "This account has been disabled." {
 		t.Errorf("expected a clear disabled-account error, got Error=%v ErrorMessage=%q", resp.Error, resp.ErrorMessage)
 	}
+	// Issue #56: the payload has to be a RespAck carrying the code, or
+	// both clients drop the message on the floor - see the handler.
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload, got %T", resp.Payload)
+	}
+	if ack.RespAck.Code != cCodeAccountDisabled {
+		t.Errorf("Ack.Code = %q, want %q", ack.RespAck.Code, cCodeAccountDisabled)
+	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Issue #56: a registered domain whose device simply has no live
+// connection is the case the HTTP side answers with unavailable.html
+// (issue #97) - but a native app, or a browser tab that was already open
+// when the device went away, only ever reaches here. It used to get
+// "No available connections in the pool for this device" as a bare
+// top-level error with no payload, which both clients then replaced with
+// a generic "Unable to fetch the connection's public key": an offline
+// device was indistinguishable from a broken one.
+func TestClientRequestToUnreachableDeviceGetsAClearError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	// Registered (so not the disabled path) but with an empty pool.
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(false))
+
+	mg := &Manager{
+		dao:      dao.NewWithDB(db),
+		bridges:  map[string]*bridgePool{},
+		upgrader: gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(mg.Listen))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	conn, _, err := gorilla.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dialing bridge: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, 1)); err != nil {
+		t.Fatalf("writing request: %v", err)
+	}
+	_, data, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("reading response: %v", err)
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("unmarshaling response: %v", err)
+	}
+
+	if !resp.Error {
+		t.Error("expected Error=true for an unreachable device")
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload (a bare top-level error gets swallowed by both clients), got %T", resp.Payload)
+	}
+	if ack.RespAck.Ok {
+		t.Error("expected Ok=false")
+	}
+	if ack.RespAck.Code != cCodeDeviceUnreachable {
+		t.Errorf("Ack.Code = %q, want %q", ack.RespAck.Code, cCodeDeviceUnreachable)
+	}
+	if ack.RespAck.ErrorMsg != cDeviceUnreachableMsg {
+		t.Errorf("ErrorMsg = %q, want the human-readable unreachable message", ack.RespAck.ErrorMsg)
+	}
+	// The message is for a person to read, so it must not leak the
+	// bridge's internal pool vocabulary the way the old one did.
+	if strings.Contains(strings.ToLower(ack.RespAck.ErrorMsg), "pool") {
+		t.Errorf("ErrorMsg = %q, want wording aimed at a reader, not the bridge's bookkeeping", ack.RespAck.ErrorMsg)
+	}
+}
+
+// Issue #56: a client already paired with a device whose connection then
+// dies (switched off, network gone, restarting for a deploy) used to get
+// nothing at all back - the bridge logged the failed forward and
+// returned, leaving the request promise on the client side to never
+// settle. The app just sat there looking like it was still loading,
+// silently, forever. deviceUnreachableFrame is what it answers with
+// instead; the echoed id is the part that actually lets the waiting
+// caller resolve.
+func TestDeviceUnreachableFrameEchoesTheRequestId(t *testing.T) {
+	reqFrame := envelopeFrame(t, 4242)
+
+	out, err := deviceUnreachableFrame(reqFrame)
+	if err != nil {
+		t.Fatalf("deviceUnreachableFrame: %v", err)
+	}
+
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(out, &resp); err != nil {
+		t.Fatalf("unmarshaling: %v", err)
+	}
+	if resp.Id != 4242 {
+		t.Errorf("Id = %d, want the request's own 4242 - a client correlating by id ignores anything else", resp.Id)
+	}
+	if !resp.Error {
+		t.Error("expected Error=true")
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload, got %T", resp.Payload)
+	}
+	if ack.RespAck.Code != cCodeDeviceUnreachable {
+		t.Errorf("Ack.Code = %q, want %q", ack.RespAck.Code, cCodeDeviceUnreachable)
+	}
+	if ack.RespAck.Ok {
+		t.Error("expected Ok=false")
+	}
+}
+
+func TestDeviceUnreachableFrameRejectsAnUndecodableRequest(t *testing.T) {
+	if _, err := deviceUnreachableFrame([]byte{0xff, 0xff, 0xff}); err == nil {
+		t.Error("expected an error rather than a response with a meaningless id")
 	}
 }

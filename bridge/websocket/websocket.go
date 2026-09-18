@@ -29,6 +29,24 @@ const (
 	// that growth if [bridge] is left unconfigured, so one device can't
 	// accumulate an unbounded number of idle connections here.
 	cDefaultMaxConnectionsPerDevice = 100
+
+	// cDeviceUnreachableMsg is what a client is told when a domain is
+	// registered here but its device currently has no connection to relay
+	// through (issue #56). Written for whoever is actually reading it -
+	// the old text was "No available connections in the pool for this
+	// device", which describes the bridge's internal bookkeeping rather
+	// than the only thing the reader can act on: the device is off or
+	// offline, and this is worth retrying. Clients key their "not
+	// reachable" UI off Ack.code (cCodeDeviceUnreachable below) rather
+	// than this prose, so the wording is free to change without breaking
+	// them.
+	cDeviceUnreachableMsg = "This device isn't reachable right now. It may be switched off or offline - please try again later."
+
+	// Ack.code values (issue #56) - the stable tags a client reacts to,
+	// as opposed to the human-readable text alongside them. See the
+	// `code` field's own comment in proto/messages.proto.
+	cCodeDeviceUnreachable = "device_unreachable"
+	cCodeAccountDisabled   = "account_disabled"
 )
 
 // cOfflineAlertGrace is how long a device can have zero live bridge
@@ -565,6 +583,27 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	mg.handleConnection(conn, r)
 }
 
+// deviceUnreachableFrame builds the "this device isn't reachable" reply
+// for a client request the bridge couldn't deliver (issue #56), echoing
+// that request's own envelope id so the caller waiting on it actually
+// settles - a response with the wrong id would be just as good as no
+// response at all to a client that correlates by id (see WSClient's
+// waiters map on the web side, and OTCConnection's on iOS).
+func deviceUnreachableFrame(reqFrame []byte) ([]byte, error) {
+	var req pb.ReqEnvelope
+	if err := proto.Unmarshal(reqFrame, &req); err != nil {
+		return nil, err
+	}
+	return proto.Marshal(&pb.RespEnvelope{
+		Id:           req.Id,
+		Error:        true,
+		ErrorMessage: cDeviceUnreachableMsg,
+		Payload: &pb.RespEnvelope_RespAck{
+			RespAck: &pb.Ack{Ok: false, ErrorMsg: cDeviceUnreachableMsg, Code: cCodeDeviceUnreachable},
+		},
+	})
+}
+
 func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	// This serves every device and client connection the bridge relays, so
 	// a bug triggered by any single one of them (a malformed message, an
@@ -615,7 +654,47 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 				respFrame, err := relay.forward(frame)
 				if err != nil {
-					log.Error("Error fordwading message:", err)
+					// Issue #56: this is the mid-session half of "the
+					// device isn't reachable" - the client was already
+					// paired and working when the device went away (it was
+					// switched off, lost its network, or is restarting for
+					// a deploy). Logging and returning, as this used to,
+					// left the client waiting on a reply that was never
+					// coming: its request promise simply never settled, so
+					// the app sat there looking like it was still loading,
+					// indefinitely and silently. Answering with the same
+					// RespAck a fresh connection gets means both routes
+					// into this situation end up telling the client the
+					// same thing.
+					log.Error("error forwarding message, device unreachable:", err)
+					unreachableFrame, mErr := deviceUnreachableFrame(frame)
+					if mErr != nil {
+						log.Error("error building unreachable response:", mErr)
+						return
+					}
+					writeMu.Lock()
+					wErr := conn.WriteMessage(gorilla.BinaryMessage, unreachableFrame)
+					writeMu.Unlock()
+					if wErr != nil {
+						log.Error("error sending unreachable response:", wErr)
+					}
+					// Then hang up, because this client is pinned to this
+					// one dead relay for as long as its connection lives
+					// (see the relay != nil branch this sits in - a relay
+					// is picked once, at first request, and never
+					// re-picked). Leaving the connection open would mean
+					// every subsequent request on it failing the same way
+					// forever, even long after the device came back: the
+					// client would sit on "not reachable" until someone
+					// reloaded it by hand. Caught exactly that way in
+					// testing - the device returned and the page kept
+					// insisting it hadn't. Closing hands the client over
+					// to its own reconnect (web: request() reconnects when
+					// the socket isn't open; iOS: handleDisconnect's
+					// backoff), and the fresh connection picks a live
+					// relay - or gets the pool-empty answer above while
+					// the device is still away.
+					conn.Close()
 					return
 				}
 
@@ -874,7 +953,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// key" otherwise, which would defeat the entire point of
 					// this message existing.
 					resp.Payload = &pb.RespEnvelope_RespAck{
-						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage},
+						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage, Code: cCodeAccountDisabled},
 					}
 					respBin, _ := proto.Marshal(resp)
 					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
@@ -931,9 +1010,27 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				if picked == nil {
-					log.Error("No available connections in the pool for this device")
+					// Issue #56: this is the one thing standing between a
+					// visitor and an explanation when a registered domain's
+					// device isn't connected - the HTTP side has its own
+					// page for this (issue #97's unavailable.html), but a
+					// native app, or a browser tab that was already open
+					// when the device went away, only ever reaches here.
+					log.Error("no available connections in the pool for", r.Host)
 					resp.Error = true
-					resp.ErrorMessage = "No available connections in the pool for this device"
+					resp.ErrorMessage = cDeviceUnreachableMsg
+					// Wrapped in a RespAck for the same reason the disabled
+					// check above is: both clients' handshake code only
+					// surfaces an error out of a non-respPubKey reply when
+					// the payload is specifically a RespAck, so the
+					// top-level Error/ErrorMessage set just above would
+					// otherwise be dropped in favour of a generic "couldn't
+					// fetch public key" - which is exactly how this used to
+					// present, and why an offline device was
+					// indistinguishable from a broken one.
+					resp.Payload = &pb.RespEnvelope_RespAck{
+						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage, Code: cCodeDeviceUnreachable},
+					}
 					respBin, _ := proto.Marshal(resp)
 					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
 						log.Error("error responding, closing the connection:", err)

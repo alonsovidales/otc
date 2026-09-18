@@ -794,6 +794,18 @@ public struct Msg_Ack: Sendable {
 
   public var errorMsg: String = String()
 
+  /// Issue #56: a stable, machine-readable tag for the cases a client has
+  /// to *react* to rather than just print - currently the two the bridge
+  /// itself answers with when it can't hand a request to a device at all:
+  /// "device_unreachable" (registered domain, no live connection - see
+  /// cDeviceUnreachableMsg) and "account_disabled" (issue #93). Empty for
+  /// every other Ack, which stays exactly as it was.
+  ///
+  /// error_msg remains the thing to show a person; this only exists so a
+  /// client can tell these apart without matching on English prose that
+  /// three codebases would then have to keep in step.
+  public var code: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -4510,7 +4522,7 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
 
 extension Msg_Ack: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Ack"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{3}error_msg\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{3}error_msg\0\u{1}code\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4520,6 +4532,7 @@ extension Msg_Ack: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBa
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.ok) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.errorMsg) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.code) }()
       default: break
       }
     }
@@ -4532,12 +4545,16 @@ extension Msg_Ack: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBa
     if !self.errorMsg.isEmpty {
       try visitor.visitSingularStringField(value: self.errorMsg, fieldNumber: 2)
     }
+    if !self.code.isEmpty {
+      try visitor.visitSingularStringField(value: self.code, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_Ack, rhs: Msg_Ack) -> Bool {
     if lhs.ok != rhs.ok {return false}
     if lhs.errorMsg != rhs.errorMsg {return false}
+    if lhs.code != rhs.code {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

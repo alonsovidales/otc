@@ -230,6 +230,17 @@ message File {
 message Ack {
   bool ok = 1;
   string error_msg = 2;
+  // Issue #56: a stable, machine-readable tag for the cases a client has
+  // to *react* to rather than just print - currently the two the bridge
+  // itself answers with when it can't hand a request to a device at all:
+  // "device_unreachable" (registered domain, no live connection - see
+  // cDeviceUnreachableMsg) and "account_disabled" (issue #93). Empty for
+  // every other Ack, which stays exactly as it was.
+  //
+  // error_msg remains the thing to show a person; this only exists so a
+  // client can tell these apart without matching on English prose that
+  // three codebases would then have to keep in step.
+  string code = 3;
 }
 
 message GetTags {

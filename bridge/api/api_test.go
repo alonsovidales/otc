@@ -5,12 +5,14 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/websocket"
 )
 
 func TestHealthcheck(t *testing.T) {
@@ -81,5 +83,91 @@ func TestContactCooldownIgnoresTheSourcePort(t *testing.T) {
 	// The throttled submission must not have reached the DB.
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// Issue #97: a device that's switched off, offline, or still booting used
+// to surface as a bare 502 with an empty body - see the screenshot on the
+// issue. It gets the bridge's own "not available right now" page now, with
+// a 503 (temporarily absent, try again) rather than a 502 (broken
+// upstream), so both a person and anything machine-read gets told the same
+// thing.
+func TestUnreachableDeviceGetsTheUnavailablePageNotABareGateway(t *testing.T) {
+	staticDir := t.TempDir() + "/"
+	const body = "<h1>This device isn't available right now</h1>"
+	if err := os.WriteFile(staticDir+"unavailable.html", []byte(body), 0644); err != nil {
+		t.Fatalf("writing unavailable.html: %v", err)
+	}
+
+	// A Manager with no device registered for this domain is exactly what
+	// an offline device looks like from here: ForwardOneOff finds no
+	// connection to hand the request to.
+	api := &API{
+		muxHTTPServer: http.NewServeMux(),
+		websocket:     websocket.Init("", nil),
+		staticPath:    staticDir,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Host = "someone.off-the.cloud"
+	req.Header.Set("Accept", "text/html,application/xhtml+xml")
+	rec := httptest.NewRecorder()
+	api.proxyStaticAsset(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
+	}
+	if got := rec.Body.String(); got != body {
+		t.Errorf("body = %q, want the unavailable page", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want text/html", ct)
+	}
+	if rec.Header().Get("Retry-After") == "" {
+		t.Error("expected a Retry-After header so machine clients know to come back")
+	}
+}
+
+// The same failure while the browser is fetching a script or stylesheet
+// must not answer with an HTML page - a browser refuses that, noisily,
+// on top of whatever actually went wrong.
+func TestUnreachableDeviceSendsNoHTMLBodyForNonPageRequests(t *testing.T) {
+	staticDir := t.TempDir() + "/"
+	if err := os.WriteFile(staticDir+"unavailable.html", []byte("<h1>nope</h1>"), 0644); err != nil {
+		t.Fatalf("writing unavailable.html: %v", err)
+	}
+
+	api := &API{
+		muxHTTPServer: http.NewServeMux(),
+		websocket:     websocket.Init("", nil),
+		staticPath:    staticDir,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/index.js", nil)
+	req.Host = "someone.off-the.cloud"
+	req.Header.Set("Accept", "*/*")
+	rec := httptest.NewRecorder()
+	api.proxyStaticAsset(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
+	}
+	if rec.Body.Len() != 0 {
+		t.Errorf("body = %q, want it empty for a non-page request", rec.Body.String())
+	}
+}
+
+// A missing page file must still produce the right status rather than a
+// 200 with nothing in it.
+func TestServeOwnPageFallsBackToTheStatusWhenTheFileIsMissing(t *testing.T) {
+	api := &API{muxHTTPServer: http.NewServeMux(), staticPath: t.TempDir() + "/"}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	api.serveOwnPage(rec, req, "does-not-exist.html", http.StatusServiceUnavailable)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
 }

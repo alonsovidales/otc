@@ -2,10 +2,17 @@
 # OTC one-line installer (issue #38) — turns a fresh Debian/Ubuntu-family
 # machine into a running OTC device: RAID1 storage, MariaDB, a native Go
 # toolchain, ONNX Runtime, the RAM++ tagging model, the database schema, app
-# config, a systemd service, and the otc binary itself — built from source,
-# live, on this machine, using the exact same versions/URLs Makefile.pi
-# already automates over SSH from a dev machine (see that file for the
-# authoritative, more granular version, e.g. to re-run just one step).
+# config, the RAID status-LED watcher, a systemd service, and the otc binary
+# itself — built from source, live, on this machine, using the exact same
+# versions/URLs Makefile.pi already automates over SSH from a dev machine
+# (see that file for the authoritative, more granular version, e.g. to
+# re-run just one step).
+#
+# Deliberately NOT installed here: network-setup.service (the first-boot
+# WiFi/AP watcher, scripts/network_setup.py). It can take down the very
+# network connection this script is most likely being run over - see the
+# warning on Makefile.pi's `network-setup` target - so it stays an explicit,
+# deliberate step rather than something a one-line installer does to you.
 #
 # Usage: log into any Debian/Ubuntu box (Raspberry Pi OS included) and run
 #
@@ -116,7 +123,7 @@ apt-get update
 # gocv, which needs OpenCV's real headers/libs at compile time, found via
 # pkg-config - not just a runtime .so like ONNX Runtime below. mdadm: RAID1
 # storage. unzip: extracting the protoc release archive below.
-apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg libopencv-dev pkg-config mdadm unzip
+apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg libopencv-dev pkg-config mdadm unzip python3
 
 log "[2/10] otc service account"
 id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin otc
@@ -367,77 +374,101 @@ if mysql otc -N -B -e 'SHOW TABLES LIKE "files"' 2>/dev/null | grep -q files; th
 else
     tail -n +10 "$SRC_DIR/db/db.sql" | mysql otc
 fi
-# Issue #52: face recognition tables/column, added after the schema-or-skip
-# check above - an existing install re-running this script (this script's
-# normal upgrade path) needs these applied explicitly, since a fresh
-# db.sql run only happens once, on this device's very first install. Every
-# statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
-# install too (where db.sql just created them already).
-mysql otc -e "
-ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
--- Issue #92: ends a friend's notification catch-up suppression once their
--- pre-existing backlog is fully replayed (see social.go's
--- updateFriendEvents) - defaulting to 0 on an upgrade is fine even for
--- already-fully-synced friends, since the very next sync cycle finds
--- nothing pending and flips it back on within one 120s tick.
-ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS notifications_started TINYINT(1) NOT NULL DEFAULT 0;
-CREATE TABLE IF NOT EXISTS people (
-  id VARCHAR(36) NOT NULL,
-  name VARCHAR(150) NOT NULL DEFAULT '',
-  created DATETIME NOT NULL,
-  cover_face_id VARCHAR(36) DEFAULT NULL,
-  cohesion FLOAT DEFAULT NULL,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB;
-ALTER TABLE people ADD COLUMN IF NOT EXISTS cover_face_id VARCHAR(36) DEFAULT NULL;
-ALTER TABLE people ADD COLUMN IF NOT EXISTS cohesion FLOAT DEFAULT NULL;
-CREATE TABLE IF NOT EXISTS faces (
-  id VARCHAR(36) NOT NULL,
-  hash VARCHAR(64) NOT NULL,
-  person_id VARCHAR(36) NOT NULL,
-  bbox_x INT NOT NULL,
-  bbox_y INT NOT NULL,
-  bbox_w INT NOT NULL,
-  bbox_h INT NOT NULL,
-  embedding BLOB NOT NULL,
-  thumbnail MEDIUMBLOB NOT NULL,
-  created DATETIME NOT NULL,
-  PRIMARY KEY (id),
-  KEY (hash),
-  KEY (person_id)
-) ENGINE=InnoDB;
-"
-# Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
-# the face recognition block above.
-mysql otc -e "
-CREATE TABLE IF NOT EXISTS reprocess_state (
-  id TINYINT NOT NULL DEFAULT 1,
-  status VARCHAR(20) NOT NULL DEFAULT 'idle',
-  total INT NOT NULL DEFAULT 0,
-  processed INT NOT NULL DEFAULT 0,
-  last_hash VARCHAR(64) NOT NULL DEFAULT '',
-  started DATETIME DEFAULT NULL,
-  updated DATETIME DEFAULT NULL,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB;
-INSERT INTO reprocess_state (id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM reprocess_state WHERE id = 1);
-"
-# Issue #78: owner-facing notification timeline (bell icon).
-mysql otc -e "
-CREATE TABLE IF NOT EXISTS notifications (
-  uuid VARCHAR(64) NOT NULL,
-  dt DATETIME NOT NULL,
-  type VARCHAR(32) NOT NULL,
-  actor_name VARCHAR(255) NOT NULL,
-  actor_domain VARCHAR(128) NOT NULL,
-  pub_uuid VARCHAR(64) DEFAULT NULL,
-  comment_uuid VARCHAR(64) DEFAULT NULL,
-  acknowledged TINYINT(1) NOT NULL DEFAULT 0,
-  UNIQUE (uuid),
-  INDEX USING BTREE (acknowledged),
-  INDEX USING BTREE (dt)
-) ENGINE=InnoDB;
-"
+# ---------------------------------------------------------------------------
+# Schema migrations, applied to one database.
+#
+# Every statement in here is IF-NOT-EXISTS/idempotent so it can run against
+# a brand-new database (where db.sql already created everything) and against
+# one being upgraded, which is this script's normal path - a fresh db.sql
+# load only ever happens once, on a device's very first install.
+#
+# A function taking the database name, rather than a straight run of
+# `mysql otc`, because the primary database is no longer the only one:
+# issue #82's additional users each get their own otc_<uuid> database,
+# created from the schema embedded in whichever binary provisioned them
+# (see dao.ProvisionUserDatabase). Those databases were never migrated by
+# anything - so an additional user created before a column was added stayed
+# broken forever, and every future migration would have skipped them too.
+# Found exactly that way on a live device: a sub-user logging
+# "Unknown column 'notifications_started' in 'SELECT'" once a minute,
+# its friend sync broken, with the primary instance perfectly healthy.
+apply_schema_migrations() {
+    local db="$1"
+    # Issue #52: face recognition tables/column, added after the schema-or-skip
+    # check above - an existing install re-running this script (this script's
+    # normal upgrade path) needs these applied explicitly, since a fresh
+    # db.sql run only happens once, on this device's very first install. Every
+    # statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
+    # install too (where db.sql just created them already).
+    mysql "$db" -e "
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
+    -- Issue #92: ends a friend's notification catch-up suppression once their
+    -- pre-existing backlog is fully replayed (see social.go's
+    -- updateFriendEvents) - defaulting to 0 on an upgrade is fine even for
+    -- already-fully-synced friends, since the very next sync cycle finds
+    -- nothing pending and flips it back on within one 120s tick.
+    ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS notifications_started TINYINT(1) NOT NULL DEFAULT 0;
+    CREATE TABLE IF NOT EXISTS people (
+      id VARCHAR(36) NOT NULL,
+      name VARCHAR(150) NOT NULL DEFAULT '',
+      created DATETIME NOT NULL,
+      cover_face_id VARCHAR(36) DEFAULT NULL,
+      cohesion FLOAT DEFAULT NULL,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB;
+    ALTER TABLE people ADD COLUMN IF NOT EXISTS cover_face_id VARCHAR(36) DEFAULT NULL;
+    ALTER TABLE people ADD COLUMN IF NOT EXISTS cohesion FLOAT DEFAULT NULL;
+    CREATE TABLE IF NOT EXISTS faces (
+      id VARCHAR(36) NOT NULL,
+      hash VARCHAR(64) NOT NULL,
+      person_id VARCHAR(36) NOT NULL,
+      bbox_x INT NOT NULL,
+      bbox_y INT NOT NULL,
+      bbox_w INT NOT NULL,
+      bbox_h INT NOT NULL,
+      embedding BLOB NOT NULL,
+      thumbnail MEDIUMBLOB NOT NULL,
+      created DATETIME NOT NULL,
+      PRIMARY KEY (id),
+      KEY (hash),
+      KEY (person_id)
+    ) ENGINE=InnoDB;
+    "
+    # Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
+    # the face recognition block above.
+    mysql "$db" -e "
+    CREATE TABLE IF NOT EXISTS reprocess_state (
+      id TINYINT NOT NULL DEFAULT 1,
+      status VARCHAR(20) NOT NULL DEFAULT 'idle',
+      total INT NOT NULL DEFAULT 0,
+      processed INT NOT NULL DEFAULT 0,
+      last_hash VARCHAR(64) NOT NULL DEFAULT '',
+      started DATETIME DEFAULT NULL,
+      updated DATETIME DEFAULT NULL,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB;
+    INSERT INTO reprocess_state (id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM reprocess_state WHERE id = 1);
+    "
+    # Issue #78: owner-facing notification timeline (bell icon).
+    mysql "$db" -e "
+    CREATE TABLE IF NOT EXISTS notifications (
+      uuid VARCHAR(64) NOT NULL,
+      dt DATETIME NOT NULL,
+      type VARCHAR(32) NOT NULL,
+      actor_name VARCHAR(255) NOT NULL,
+      actor_domain VARCHAR(128) NOT NULL,
+      pub_uuid VARCHAR(64) DEFAULT NULL,
+      comment_uuid VARCHAR(64) DEFAULT NULL,
+      acknowledged TINYINT(1) NOT NULL DEFAULT 0,
+      UNIQUE (uuid),
+      INDEX USING BTREE (acknowledged),
+      INDEX USING BTREE (dt)
+    ) ENGINE=InnoDB;
+    "
+}
+
+apply_schema_migrations otc
+
 # Issue #82: multiple OTC "users" on one device - only ever has real rows
 # on the primary instance (see supervisor/supervisor.go's package doc).
 mysql otc -e "
@@ -462,6 +493,24 @@ CREATE TABLE IF NOT EXISTS users (
 -- ran an earlier version of this script before #89 removed the concept.
 ALTER TABLE users DROP COLUMN IF EXISTS is_admin;
 "
+# Issue #82 follow-up: bring every additional user's own database up to
+# the same schema. Done here rather than beside the primary's own call
+# above because the `users` table this reads is only created just above.
+# A user whose database has gone missing entirely is skipped with a
+# warning rather than failing the whole install - the rest of the device
+# is fine, and failing here would block the upgrade for everyone else on
+# it.
+if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; then
+    for user_db in $(mysql otc -N -B -e 'SELECT db_name FROM users' 2>/dev/null); do
+        if mysql -N -B -e "SHOW DATABASES LIKE '$user_db'" 2>/dev/null | grep -q "$user_db"; then
+            log "  migrating additional user database $user_db"
+            apply_schema_migrations "$user_db"
+        else
+            log "  WARNING: user database $user_db is in the users table but doesn't exist - skipping"
+        fi
+    done
+fi
+
 mysql otc -e "
 INSERT INTO settings (device_uuid, subdomain, bridge_secret)
 SELECT '${DEVICE_UUID}', '${SUBDOMAIN}.${BRIDGE_ADDR}', '${BRIDGE_SECRET}'
@@ -510,6 +559,52 @@ max-images-search=5
 detector-model-path=$FACE_DETECTOR_ONNX
 recognizer-model-path=$FACE_RECOGNIZER_ONNX
 EOF
+
+# Issue #97 follow-up: the RAID status LEDs (scripts/raid_watch.py, driven
+# over GPIO) are installed by Makefile.pi's `raid-watch` target and baked
+# into the prebuilt image by build_image.sh - but this installer, the path
+# most devices are actually set up through, never installed them at all.
+# A device brought up with `curl | bash` had a perfectly healthy array and
+# two dark LEDs, with nothing on the device even hinting why (no service,
+# no script, no log). Same unit the other two paths install, so all three
+# agree.
+log "Status LEDs (raid-watch.service)"
+# The GPIO binding is genuinely optional: raid_watch.py degrades to a
+# dry-run when it can't import one (see its RPi.GPIO import), which is the
+# right behaviour on any non-Pi box - so a missing package must never fail
+# the whole install. Package name differs across Raspberry Pi OS releases.
+apt-get install -y python3-rpi-lgpio 2>/dev/null \
+    || apt-get install -y python3-rpi.gpio 2>/dev/null \
+    || log "  (no RPi GPIO package available - raid-watch will run in dry-run mode)"
+
+if [ -f "$SRC_DIR/scripts/raid_watch.py" ]; then
+    install -m 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
+
+    cat > /etc/systemd/system/raid-watch.service <<'EOF'
+[Unit]
+Description=RAID1 watcher + LED driver
+After=multi-user.target mdadm.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/raid_watch.py
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable raid-watch.service
+    # Installed (and restarted on an upgrade) even with OTC_SKIP_RAID=1 or
+    # no array yet: it polls mdadm and simply reports no members until one
+    # exists, so it costs nothing to have running and means the LEDs light
+    # up on their own whenever disks do get attached.
+    systemctl restart raid-watch.service
+else
+    log "  WARNING: $SRC_DIR/scripts/raid_watch.py missing - skipping the status LEDs"
+fi
 
 cat > /etc/systemd/system/otc.service <<EOF
 [Unit]

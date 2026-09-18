@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
+import { noteResponse } from "./deviceStatus";
 
 type RespListener = (env: RespEnvelope) => void;
 
@@ -59,6 +60,16 @@ export class WSClient {
       ws.onmessage = (ev) => {
         try {
           const env = RespEnvelope.decode(new Uint8Array(ev.data as ArrayBuffer));
+          // Issue #56: every response passes through here, which makes
+          // this the one place that sees the bridge's "I couldn't reach
+          // the device" verdict no matter which part of the app asked -
+          // and equally, sees the first successful reply that means it's
+          // back.
+          noteResponse(
+            env.payload?.$case === "respAck" ? env.payload.respAck.code : undefined,
+            env.payload?.$case === "respAck" ? env.payload.respAck.errorMsg : env.errorMessage,
+            env.error,
+          );
           const cont = this.waiters.get(env.id);
           if (cont) { this.waiters.delete(env.id); cont.resolve(env); }
           this.listeners.forEach(fn => fn(env));

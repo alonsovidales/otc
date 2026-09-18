@@ -584,6 +584,19 @@ export interface File {
 export interface Ack {
   ok: boolean;
   errorMsg: string;
+  /**
+   * Issue #56: a stable, machine-readable tag for the cases a client has
+   * to *react* to rather than just print - currently the two the bridge
+   * itself answers with when it can't hand a request to a device at all:
+   * "device_unreachable" (registered domain, no live connection - see
+   * cDeviceUnreachableMsg) and "account_disabled" (issue #93). Empty for
+   * every other Ack, which stays exactly as it was.
+   *
+   * error_msg remains the thing to show a person; this only exists so a
+   * client can tell these apart without matching on English prose that
+   * three codebases would then have to keep in step.
+   */
+  code: string;
 }
 
 export interface GetTags {
@@ -3559,7 +3572,7 @@ export const File: MessageFns<File> = {
 };
 
 function createBaseAck(): Ack {
-  return { ok: false, errorMsg: "" };
+  return { ok: false, errorMsg: "", code: "" };
 }
 
 export const Ack: MessageFns<Ack> = {
@@ -3569,6 +3582,9 @@ export const Ack: MessageFns<Ack> = {
     }
     if (message.errorMsg !== "") {
       writer.uint32(18).string(message.errorMsg);
+    }
+    if (message.code !== "") {
+      writer.uint32(26).string(message.code);
     }
     return writer;
   },
@@ -3596,6 +3612,14 @@ export const Ack: MessageFns<Ack> = {
           message.errorMsg = reader.string();
           continue;
         }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.code = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3609,6 +3633,7 @@ export const Ack: MessageFns<Ack> = {
     return {
       ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false,
       errorMsg: isSet(object.errorMsg) ? globalThis.String(object.errorMsg) : "",
+      code: isSet(object.code) ? globalThis.String(object.code) : "",
     };
   },
 
@@ -3620,6 +3645,9 @@ export const Ack: MessageFns<Ack> = {
     if (message.errorMsg !== "") {
       obj.errorMsg = message.errorMsg;
     }
+    if (message.code !== "") {
+      obj.code = message.code;
+    }
     return obj;
   },
 
@@ -3630,6 +3658,7 @@ export const Ack: MessageFns<Ack> = {
     const message = createBaseAck();
     message.ok = object.ok ?? false;
     message.errorMsg = object.errorMsg ?? "";
+    message.code = object.code ?? "";
     return message;
   },
 };
