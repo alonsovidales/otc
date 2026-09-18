@@ -276,18 +276,18 @@ log "[8/10] Build the otc binary"
     /usr/local/go/bin/go build -o /usr/bin/otc ./bin/otc.go
 )
 
-log "[9/10] Web app (prebuilt bundle — no Node.js needed on this machine)"
+log "[9/10] Web app (built from source — always current with the cloned repo)"
 mkdir -p /var/www
-tmp=$(mktemp -d)
-if curl -fsSL -o "$tmp/web-dist.tar.gz" "https://github.com/alonsovidales/otc/releases/latest/download/otc-web-dist.tar.gz"; then
-    tar -xzf "$tmp/web-dist.tar.gz" -C /var/www
-else
-    log "no published web bundle found, falling back to Node.js build from source"
-    command -v npm >/dev/null 2>&1 || die "npm not found and no prebuilt web bundle is available — install Node.js/npm and re-run"
-    ( cd "$SRC_DIR/web" && npm ci && npm run build )
-    cp -a "$SRC_DIR/web/dist/." /var/www/
+# Build from the cloned source so the web bundle always matches the Go binary
+# (a prebuilt release tarball can lag main by days/weeks — the "stale UI"
+# problem this replaced). Install Node.js 22 if it isn't already present.
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)" -lt 20 ] 2>/dev/null; then
+    log "installing Node.js 22 (needed to build the web app)..."
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    apt-get install -y nodejs
 fi
-rm -rf "$tmp"
+( cd "$SRC_DIR/web" && npm ci && npm run build )
+cp -a "$SRC_DIR/web/dist/." /var/www/
 chown -R otc:otc /var/www
 
 log "[9/10] Runtime directories"
