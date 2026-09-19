@@ -675,6 +675,27 @@ func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comm
 	return
 }
 
+// PublicationFileMime looks up one file of a publication by hash,
+// returning its mime and whether that pairing exists at all (issue #107).
+//
+// The existence check is the security part: it's what stops
+// ReqGetPublicationMedia from serving arbitrary hashes to anyone who can
+// see the feed. A caller can only ever read bytes that genuinely belong
+// to a publication it named.
+func (dao *Dao) PublicationFileMime(pubUuid, hash string) (mime string, found bool, err error) {
+	err = dao.db.QueryRow(
+		"select `mime` from `social_publications_files` where `uuid` = ? and `hash` = ?",
+		pubUuid, hash,
+	).Scan(&mime)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return mime, true, nil
+}
+
 func (dao *Dao) GetSocialPublicationFiles(uuid string) (files []*pb.File, err error) {
 	// TODO: Populate owner and other stuff
 	rowFiles, err := dao.db.Query("select `hash`, `mime`, `created`, `modified`, `size` from `social_publications_files` where `uuid` = ? order by `pos`", uuid)

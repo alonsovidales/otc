@@ -5,6 +5,7 @@ import SwiftProtobuf
 import Photos
 import MapKit
 import CryptoKit
+import AVKit
 
 // MARK: - Proto typealiases (rename if your generated names differ)
 typealias ReqEnvelope       = Msg_ReqEnvelope
@@ -141,6 +142,11 @@ final class PhotoGalleryVM: ObservableObject {
     // Modal
     @Published var openIndex: Int? = nil
     @Published var hiResImage: UIImage? = nil
+    // Issue #106: non-nil while a video is open in the viewer. Held rather
+    // than rebuilt in the view body - a player constructed inline is
+    // recreated on every SwiftUI update, which tears playback down and
+    // restarts it (see the same fix in the social feed, issue #107).
+    @Published var videoPlayer: AVPlayer? = nil
     @Published var showAlert = false
     @Published var alertMessage = ""
     // Issue #9: the system share sheet for the currently-open photo. A file
@@ -208,7 +214,7 @@ final class PhotoGalleryVM: ObservableObject {
             var req = ReqEnvelope()
             var b = Msg_ReqPhotoDateBuckets()
             b.personIds = people
-            b.includeVideos = false
+            b.includeVideos = true // issue #106: same set the grid shows
             req.payload = .reqPhotoDateBuckets(b)
             e = req
         }) else { return }
@@ -368,14 +374,76 @@ final class PhotoGalleryVM: ObservableObject {
 
     func loadMoreIfNeeded(current item: Item?) async {
         guard let item else { return }
-        guard !loading, !endReached else { return }
-        if let idx = items.firstIndex(of: item), idx >= items.count - 12 {
-            await fetchPage()
+        guard !endReached else { return }
+        // Near the end is the only thing worth acting on - checked before
+        // the in-flight case below so a tile appearing at the top of the
+        // grid can't queue up a page nobody needs yet.
+        guard let idx = items.firstIndex(of: item), idx >= items.count - 12 else { return }
+        // A tile that appears while a fetch is already running used to
+        // just return. Nothing then asked again: the only thing that can
+        // trigger the next page is a tile appearing for the first time
+        // (.task runs once per tile), so a page that produced no new
+        // tiles left the grid permanently stuck. Remember the ask instead
+        // and let the in-flight fetch pick it up when it lands.
+        guard !loading else {
+            morePending = true
+            return
+        }
+
+        await fetchUntilProgress()
+    }
+
+    /// Fetches pages until one actually adds something, the end is
+    /// reached, or we give up.
+    ///
+    /// A page can legitimately add nothing and still not be the end: when
+    /// the device no longer recognises the search token (it expires after
+    /// a few minutes of not scrolling, and a device restart drops all of
+    /// them), it starts the search again from the beginning and hands
+    /// back photos this grid already has. Stopping there is what made the
+    /// gallery look like it had run out of photos partway down.
+    private func fetchUntilProgress() async {
+        var failures = 0
+        for _ in 0..<cMaxPagesWithoutProgress {
+            let before = items.count
+            if await fetchPage() {
+                failures = 0
+                if endReached || items.count > before { return }
+                continue
+            }
+
+            // The request itself failed - a dropped connection, a device
+            // that went away mid-scroll. endReached is deliberately left
+            // alone (this is not the end of the library), but something
+            // has to try again: no new tiles appeared, so nothing else
+            // will ask. Back off a little between attempts, since the
+            // usual cause is a connection that needs a moment.
+            failures += 1
+            if failures > cMaxFetchRetries { return }
+            try? await Task.sleep(nanoseconds: UInt64(failures) * 1_500_000_000)
+            if Task.isCancelled { return }
         }
     }
 
-    private func fetchPage(overrideToken: String? = nil, before: Date? = nil) async {
-        guard !loading, !endReached else { return }
+    /// Set when a tile asked for more while a fetch was already running,
+    /// so the fetch that lands can honour it (see loadMoreIfNeeded).
+    private var morePending = false
+
+    /// How many consecutive pages that add nothing to tolerate before
+    /// giving up, so a device that keeps restarting the same search can
+    /// never spin here forever.
+    private let cMaxPagesWithoutProgress = 12
+
+    /// How many times to retry a page whose request failed outright
+    /// before leaving it to the next tile that scrolls into view.
+    private let cMaxFetchRetries = 2
+
+    /// Returns whether the request completed (not whether it added
+    /// anything) - a caller needs to tell "no more photos" apart from
+    /// "that didn't work", because only one of those means stop asking.
+    @discardableResult
+    private func fetchPage(overrideToken: String? = nil, before: Date? = nil) async -> Bool {
+        guard !loading, !endReached else { return false }
         let myGeneration = searchGeneration
         loading = true
         defer {
@@ -383,7 +451,15 @@ final class PhotoGalleryVM: ObservableObject {
             // stale one finishing after a newer search started must not
             // report "done" for a fetch that isn't actually the current
             // one.
-            if myGeneration == searchGeneration { loading = false }
+            if myGeneration == searchGeneration {
+                loading = false
+                if morePending, !endReached {
+                    morePending = false
+                    // Detached from this call so the defer isn't waiting
+                    // on another round trip.
+                    Task { await self.fetchUntilProgress() }
+                }
+            }
         }
 
         // Snapshot the filter right now, not inside the request-building
@@ -407,7 +483,15 @@ final class PhotoGalleryVM: ObservableObject {
                 var sp  = SearchPhotosMsg()
                 sp.tags  = tags
                 sp.personIds = people
+                // Issue #106: videos belong in the Images section. They
+                // were excluded when this flag arrived (issue #60, where
+                // only the composer opted in), which left a device's
+                // videos unbrowsable from the app entirely.
+                sp.includeVideos = true
                 sp.token = requestToken
+                // Lets the device resume where this grid actually is if
+                // it no longer holds the token (see SearchPhotos.have).
+                sp.have = Int32(self.items.count)
                 // Issue #77: the date scrubber's "jump to date" - set only
                 // by performJump above, which also resets loading/
                 // endReached/token so this always starts a fresh,
@@ -424,8 +508,11 @@ final class PhotoGalleryVM: ObservableObject {
             // (restartSearch cancels this call's Task the moment a newer
             // one starts) - belt and suspenders, since either alone
             // catches the same case here.
-            guard myGeneration == searchGeneration, !Task.isCancelled else { return }
-            guard case .respListOfFiles(let lof) = resp.payload else { return }
+            guard myGeneration == searchGeneration, !Task.isCancelled else { return false }
+            // An error reply (the device answering "internal error", say)
+            // lands here too - it's not a page, and it must not be read
+            // as the end of the library.
+            guard case .respListOfFiles(let lof) = resp.payload else { return false }
 
             var newItems: [Item] = []
             for f in lof.files {
@@ -446,7 +533,15 @@ final class PhotoGalleryVM: ObservableObject {
 
             self.token = lof.token.isEmpty ? nil : lof.token
             self.endReached = (self.token == nil)
-        } catch { /* ignore for now */ }
+
+            return true
+        } catch {
+            // Swallowed silently before, which meant one failed page
+            // stopped the grid loading anything ever again - nothing
+            // retries on its own here (see loadMoreIfNeeded).
+            print("[PhotoGallery] page fetch failed: \(error)")
+            return false
+        }
     }
 
     // MARK: Local merge
@@ -511,11 +606,18 @@ final class PhotoGalleryVM: ObservableObject {
         guard items.indices.contains(index) else { return }
         openIndex = index
         hiResImage = nil
+        videoPlayer?.pause()
+        videoPlayer = nil
         infoOpen = false
         infoData = nil
         Task { await fetchHiRes(index: index) }
     }
-    func closeModal() { openIndex = nil; hiResImage = nil }
+    func closeModal() {
+        openIndex = nil
+        hiResImage = nil
+        videoPlayer?.pause()
+        videoPlayer = nil
+    }
 
     // Issue #41: fetch and show the currently-open photo/video's
     // camera/EXIF metadata.
@@ -640,10 +742,29 @@ final class PhotoGalleryVM: ObservableObject {
 
     private func fetchHiRes(index: Int) async {
         let it = items[index]
+
+        // Issue #106: a video can't be decoded into a UIImage - it gets
+        // written out and played instead. Its own thumbnail already stands
+        // in on screen while this runs, so there is no blank frame.
+        if it.mime.hasPrefix("video/") {
+            await fetchVideo(it)
+            return
+        }
+
         if let u = it.localURL, let img = UIImage(contentsOfFile: u.path) {
             self.hiResImage = img
             return
         }
+        // Issue #110: stream it if the device offers a URL, so playback
+        // starts on the first chunk instead of after the whole file has
+        // come down the socket and been written to a temp file. A clip
+        // small enough that streaming wouldn't pay for itself is declined
+        // by the device, and falls through to the fetch below.
+        if let streamURL = await MediaStream.url(forPath: it.path) {
+            self.videoPlayer = AVPlayer(url: streamURL)
+            return
+        }
+
         do {
             let resp = try await ws.request { e in
                 var req = ReqEnvelope()
@@ -656,6 +777,44 @@ final class PhotoGalleryVM: ObservableObject {
                 self.hiResImage = img
             }
         } catch { /* ignore */ }
+    }
+
+    /// Issue #106/#107: fetches a video and hands back a player.
+    ///
+    /// The extension is load-bearing: AVFoundation works out how to demux a
+    /// file:// URL from its path extension, so writing everything as .mp4
+    /// (as the social feed used to) leaves a QuickTime recording - what an
+    /// iPhone actually produces - mislabelled and silently unplayable.
+    private func fetchVideo(_ it: Item) async {
+        if let u = it.localURL {
+            self.videoPlayer = AVPlayer(url: u)
+            return
+        }
+        do {
+            let resp = try await ws.request { e in
+                var req = ReqEnvelope()
+                var gf  = GetFileMsg()
+                gf.path = it.path
+                req.payload = .reqGetFile(gf)
+                e = req
+            }
+            guard case .respFile(let f) = resp.payload, f.hasContent else { return }
+            let ext: String
+            switch f.mime.lowercased() {
+            case "video/quicktime": ext = "mov"
+            case "video/mp4", "video/x-m4v": ext = "mp4"
+            case "video/x-matroska": ext = "mkv"
+            case "video/3gpp": ext = "3gp"
+            default:
+                let own = (it.path as NSString).pathExtension
+                ext = own.isEmpty ? "mp4" : own.lowercased()
+            }
+            let tmp = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension(ext)
+            try f.content.write(to: tmp)
+            self.videoPlayer = AVPlayer(url: tmp)
+        } catch { /* leave the poster in place */ }
     }
 
     // MARK: Selection (no checkbox; long-press toggles)
@@ -1085,6 +1244,7 @@ struct PhotoGalleryView: View {
         )) { _ in
             ImageModal(
                 image: vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) }),
+                videoPlayer: vm.videoPlayer,
                 showPrev: (vm.openIndex ?? 0) > 0,
                 showNext: (vm.openIndex ?? 0) < vm.items.count - 1,
                 prev: vm.prev,
@@ -1264,6 +1424,17 @@ private struct PhotoTile: View {
             }
         }
         .clipped()
+        // Issue #106: a video's thumbData is a JPEG poster exactly like a
+        // photo's, so without this there is nothing to tell them apart.
+        .overlay(alignment: .bottomLeading) {
+            if item.mime.hasPrefix("video/") {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 2)
+                    .padding(4)
+            }
+        }
     }
 
     private var selectionOverlay: some View {
@@ -1287,6 +1458,9 @@ private struct PhotoTile: View {
 /// actions along the bottom, again matching the system Photos app.
 private struct ImageModal: View {
     let image: UIImage?
+    /// Issue #106: non-nil when the open item is a video, in which case it
+    /// plays here instead of `image` being shown.
+    let videoPlayer: AVPlayer?
     let showPrev: Bool
     let showNext: Bool
     let prev: () -> Void
@@ -1327,7 +1501,16 @@ private struct ImageModal: View {
                     }
                 }.padding()
 
-                if let image {
+                if let player = videoPlayer {
+                    // Issue #106: plays in the viewer, filling it the same
+                    // way a photo does. Tapping the cell is the play
+                    // gesture, so it starts on its own rather than landing
+                    // on a paused player needing a second tap.
+                    VideoPlayer(player: player)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onAppear { player.play() }
+                        .onDisappear { player.pause() }
+                } else if let image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()

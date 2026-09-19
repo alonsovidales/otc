@@ -23,6 +23,9 @@ const (
 	// RPC, the same "plain HTTP, no session" tier check_healty already
 	// uses above.
 	cInternalMetricsPath = "/internal/metrics"
+	// Issue #110: streams one media file, addressed by a short-lived
+	// token minted over the authenticated socket. See serveMedia.
+	cMediaPath = "GET /media/{token}"
 )
 
 // API Structure that manage the HTTP API
@@ -77,6 +80,8 @@ func (api *API) registerAPIs() {
 	})
 
 	api.muxHTTPServer.HandleFunc(cInternalMetricsPath, api.internalMetrics)
+
+	api.muxHTTPServer.HandleFunc(cMediaPath, api.serveMedia)
 
 	// WebSocket
 	api.muxHTTPServer.HandleFunc(websocket.CEndpoint, api.websocket.Listen)

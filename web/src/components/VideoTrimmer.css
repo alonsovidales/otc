@@ -1,0 +1,104 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Issue #108. Sits above the composer (.np-root is z-index 2000), since
+   it's opened from it and has to cover it. */
+.vt-backdrop {
+  position: fixed; inset: 0; z-index: 2100;
+  background: rgba(0, 0, 0, 0.72);
+  display: grid; place-items: center; padding: 16px;
+}
+
+.vt-panel {
+  width: min(680px, 100%);
+  max-height: 92vh; overflow-y: auto;
+  background: var(--ink-2); color: var(--mist);
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.vt-header { display: flex; align-items: center; }
+.vt-title { flex: 1; font-weight: 600; }
+.vt-close {
+  width: 30px; height: 30px; border-radius: 50%; border: 0;
+  background: var(--panel); color: var(--mist); cursor: pointer;
+}
+
+/* Bounded by the viewport, not the source's own pixel height - a portrait
+   phone clip is taller than the screen otherwise, which is exactly the
+   bug issue #106 hit in the gallery. */
+.vt-video {
+  width: 100%; max-height: 46vh; object-fit: contain;
+  background: #000; border-radius: 8px; display: block;
+}
+
+.vt-loading { color: var(--mist-dim); text-align: center; padding: 12px; }
+
+/* Issue #108: start and end on one line, a handle at each side of a
+   single track. Both inputs sit on top of the same rail; the rail and the
+   selected span are drawn underneath them, since a range input's own
+   track can't show a span that starts anywhere but zero. */
+.vt-range-row { display: flex; align-items: center; gap: 10px; }
+
+.vt-dual { position: relative; flex: 1; height: 28px; display: flex; align-items: center; }
+.vt-dual-rail {
+  position: absolute; left: 0; right: 0; height: 6px;
+  border-radius: 999px; background: var(--panel);
+}
+.vt-dual-sel { position: absolute; height: 6px; border-radius: 999px; background: var(--gold); }
+
+/* pointer-events: none on the input, auto on its thumb - without this the
+   input on top would swallow every click, making the other handle
+   unreachable wherever the two overlap. */
+.vt-dual-input {
+  position: absolute; left: 0; right: 0; width: 100%; height: 28px; margin: 0;
+  -webkit-appearance: none; appearance: none;
+  background: transparent; pointer-events: none;
+}
+.vt-dual-input::-webkit-slider-runnable-track { height: 6px; background: transparent; }
+.vt-dual-input::-moz-range-track { height: 6px; background: transparent; }
+.vt-dual-input::-webkit-slider-thumb {
+  -webkit-appearance: none; pointer-events: auto;
+  width: 18px; height: 18px; margin-top: -6px;
+  border-radius: 50%; background: var(--gold);
+  border: 2px solid var(--ink); cursor: grab;
+}
+.vt-dual-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px; height: 18px; border: 2px solid var(--ink);
+  border-radius: 50%; background: var(--gold); cursor: grab;
+}
+/* Keyboard users need to see which handle they're moving. */
+.vt-dual-input:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--mist); outline-offset: 2px; }
+.vt-dual-input:focus-visible::-moz-range-thumb { outline: 2px solid var(--mist); outline-offset: 2px; }
+.vt-dual-input:focus { outline: none; }
+
+/* Tabular figures so the timecodes don't jitter the layout as they count. */
+.vt-time {
+  min-width: 56px; font-variant-numeric: tabular-nums;
+  font-size: 13px; color: var(--mist);
+}
+.vt-range-row .vt-time:last-child { text-align: right; }
+
+.vt-summary { font-size: 13px; color: var(--mist-dim); }
+.vt-summary strong { color: var(--mist); font-variant-numeric: tabular-nums; }
+
+.vt-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vt-actions-spacer { flex: 1; }
+.vt-btn {
+  padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--mist); cursor: pointer; font-weight: 600;
+}
+.vt-btn:disabled { opacity: 0.45; cursor: default; }
+.vt-btn-primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+
+/* The composer's own "Trim" affordance on a selected video in the order
+   strip. Lives here rather than in NewPostPicker.css so everything this
+   feature adds is in one place. */
+.np-trim-btn {
+  position: absolute; left: 4px; bottom: 4px;
+  padding: 1px 6px; border-radius: 999px; border: 0;
+  background: rgba(0, 0, 0, 0.66); color: #fff;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.np-trim-btn.trimmed { background: var(--gold); color: var(--gold-ink); }

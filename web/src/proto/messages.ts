@@ -577,7 +577,24 @@ export interface SearchPhotos {
    * filtered/sorted result set once per token) by treating a jump exactly
    * like a brand new search.
    */
-  before?: Date | undefined;
+  before?:
+    | Date
+    | undefined;
+  /**
+   * How many results the client already holds, sent so a search can be
+   * resumed when the device no longer recognises the token.
+   *
+   * Tokens are an in-memory cache of the whole result set: they expire
+   * after a few minutes of not scrolling, and a device restart drops all
+   * of them. Without this the device can only start the search over and
+   * hand back page one again - photos the client already has, which it
+   * discards, so the grid appears to have run out partway down. With it,
+   * a resumed search skips straight to where the client actually was.
+   *
+   * Only meaningful alongside a token (i.e. when resuming); a search
+   * starting from scratch sends nothing and is never skipped forward.
+   */
+  have: number;
 }
 
 export interface ListOfFiles {
@@ -649,9 +666,34 @@ export interface ChangeKey {
   newKey: Uint8Array;
 }
 
+/**
+ * Issue #108: optionally trims one of the videos being published, cutting
+ * it down to [start_secs, end_secs) before it's compressed and posted.
+ * The original file in the owner's library is never touched - only the
+ * copy that goes into the post, exactly like the size-driven compression
+ * in issue #60.
+ */
+export interface VideoTrim {
+  /** Matches one entry in NewSocialPublication.paths. */
+  path: string;
+  startSecs: number;
+  /**
+   * Exclusive end. Zero (or anything <= start) means "to the end of the
+   * clip", so a caller that only wants to cut an intro can send just a
+   * start.
+   */
+  endSecs: number;
+}
+
 export interface NewSocialPublication {
   text: string;
   paths: string[];
+  /**
+   * Issue #108: at most one entry per path, and only for videos. Paths
+   * with no entry here are published whole, so this is purely additive -
+   * a client that knows nothing about trimming behaves exactly as before.
+   */
+  trims: VideoTrim[];
 }
 
 export interface GetEvents {
@@ -661,6 +703,77 @@ export interface GetEvents {
 
 export interface GetSocialPublicationFiles {
   uuid: string;
+}
+
+/**
+ * Issue #107: fetches the *full* bytes of one file in a publication -
+ * GetSocialPublicationFiles above only ever returns thumbnails, which is
+ * right for rendering a feed but leaves no way to actually play a video
+ * in it.
+ *
+ * Addressed by hash rather than path because a publication's files simply
+ * have no path: social_publications_files stores (pos, uuid, hash, mime,
+ * size), and the bytes live in unenc-storage-path keyed by that hash. The
+ * clients were asking GetFile for an empty path, which could never work -
+ * so a video in the timeline has never played on any platform.
+ *
+ * pub_uuid is not redundant: the device only serves a hash that actually
+ * belongs to that publication, which keeps this from becoming a
+ * read-any-file-by-hash oracle for anyone who can reach the feed.
+ */
+export interface GetPublicationMedia {
+  pubUuid: string;
+  hash: string;
+}
+
+/**
+ * Issue #110: streaming instead of downloading a whole video before it
+ * can start playing. The client asks for a URL it can hand straight to a
+ * <video> element or AVPlayer, which then fetch it with ordinary HTTP
+ * range requests - the player starts on the first chunk and only ever
+ * pulls the parts it actually plays.
+ */
+export interface ReqGetMediaURL {
+  /**
+   * Exactly one of: a library path (the owner's own file), or a
+   * publication's media, addressed the same way GetPublicationMedia does.
+   */
+  path: string;
+  pubUuid: string;
+  hash: string;
+}
+
+export interface RespMediaURL {
+  /**
+   * Empty when streaming this file wouldn't pay for itself - a small clip
+   * arrives in one socket round trip, where streaming would cost an extra
+   * one for this very call before a single byte moved. The client falls
+   * back to fetching the whole thing, exactly as it did before.
+   */
+  url: string;
+  totalSize: bigint;
+  mime: string;
+  expiresAtUnixMs: bigint;
+}
+
+/**
+ * Issue #110: how the bridge serves a range of a device's media over the
+ * relay tunnel. Never called by a browser or app directly - they talk
+ * plain HTTP to /media/<token>, and the bridge translates. The token is
+ * the only credential: it was minted for one specific file, for one
+ * already-authenticated session, and expires (see mediatokens).
+ */
+export interface ReqGetMediaRange {
+  token: string;
+  offset: bigint;
+  length: bigint;
+}
+
+export interface RespMediaRange {
+  content: Uint8Array;
+  offset: bigint;
+  totalSize: bigint;
+  mime: string;
 }
 
 export interface GetSocialPublications {
@@ -1538,6 +1651,8 @@ export interface ReqEnvelope {
     | //
     /** Issue #95. */
     { $case: "reqGetStaticAsset"; reqGetStaticAsset: ReqGetStaticAsset }
+    | { $case: "reqGetMediaUrl"; reqGetMediaUrl: ReqGetMediaURL }
+    | { $case: "reqGetMediaRange"; reqGetMediaRange: ReqGetMediaRange }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -1551,6 +1666,9 @@ export interface ReqEnvelope {
     | //
     /** Issue #103. */
     { $case: "reqIsDomainAvailable"; reqIsDomainAvailable: ReqIsDomainAvailable }
+    | //
+    /** Issue #107. Answers with the File (resp_file) above. */
+    { $case: "reqGetPublicationMedia"; reqGetPublicationMedia: GetPublicationMedia }
     | undefined;
 }
 
@@ -1616,6 +1734,8 @@ export interface RespEnvelope {
     | //
     /** Issue #95. */
     { $case: "respStaticAsset"; respStaticAsset: RespStaticAsset }
+    | { $case: "respMediaUrl"; respMediaUrl: RespMediaURL }
+    | { $case: "respMediaRange"; respMediaRange: RespMediaRange }
     | //
     /** Issue #101. AuthWithToken answers with the generic Ack above. */
     { $case: "respSessionToken"; respSessionToken: RespSessionToken }
@@ -3228,7 +3348,7 @@ export const ListFiles: MessageFns<ListFiles> = {
 };
 
 function createBaseSearchPhotos(): SearchPhotos {
-  return { tags: [], token: "", includeVideos: false, personIds: [], before: undefined };
+  return { tags: [], token: "", includeVideos: false, personIds: [], before: undefined, have: 0 };
 }
 
 export const SearchPhotos: MessageFns<SearchPhotos> = {
@@ -3247,6 +3367,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.before !== undefined) {
       Timestamp.encode(toTimestamp(message.before), writer.uint32(42).fork()).join();
+    }
+    if (message.have !== 0) {
+      writer.uint32(48).int32(message.have);
     }
     return writer;
   },
@@ -3298,6 +3421,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.before = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.have = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3316,6 +3447,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
         ? object.personIds.map((e: any) => globalThis.String(e))
         : [],
       before: isSet(object.before) ? fromJsonTimestamp(object.before) : undefined,
+      have: isSet(object.have) ? globalThis.Number(object.have) : 0,
     };
   },
 
@@ -3336,6 +3468,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     if (message.before !== undefined) {
       obj.before = message.before.toISOString();
     }
+    if (message.have !== 0) {
+      obj.have = Math.round(message.have);
+    }
     return obj;
   },
 
@@ -3349,6 +3484,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.includeVideos = object.includeVideos ?? false;
     message.personIds = object.personIds?.map((e) => e) || [];
     message.before = object.before ?? undefined;
+    message.have = object.have ?? 0;
     return message;
   },
 };
@@ -4086,8 +4222,100 @@ export const ChangeKey: MessageFns<ChangeKey> = {
   },
 };
 
+function createBaseVideoTrim(): VideoTrim {
+  return { path: "", startSecs: 0, endSecs: 0 };
+}
+
+export const VideoTrim: MessageFns<VideoTrim> = {
+  encode(message: VideoTrim, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.startSecs !== 0) {
+      writer.uint32(17).double(message.startSecs);
+    }
+    if (message.endSecs !== 0) {
+      writer.uint32(25).double(message.endSecs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VideoTrim {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseVideoTrim();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 17) {
+            break;
+          }
+
+          message.startSecs = reader.double();
+          continue;
+        }
+        case 3: {
+          if (tag !== 25) {
+            break;
+          }
+
+          message.endSecs = reader.double();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): VideoTrim {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      startSecs: isSet(object.startSecs) ? globalThis.Number(object.startSecs) : 0,
+      endSecs: isSet(object.endSecs) ? globalThis.Number(object.endSecs) : 0,
+    };
+  },
+
+  toJSON(message: VideoTrim): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.startSecs !== 0) {
+      obj.startSecs = message.startSecs;
+    }
+    if (message.endSecs !== 0) {
+      obj.endSecs = message.endSecs;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<VideoTrim>, I>>(base?: I): VideoTrim {
+    return VideoTrim.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<VideoTrim>, I>>(object: I): VideoTrim {
+    const message = createBaseVideoTrim();
+    message.path = object.path ?? "";
+    message.startSecs = object.startSecs ?? 0;
+    message.endSecs = object.endSecs ?? 0;
+    return message;
+  },
+};
+
 function createBaseNewSocialPublication(): NewSocialPublication {
-  return { text: "", paths: [] };
+  return { text: "", paths: [], trims: [] };
 }
 
 export const NewSocialPublication: MessageFns<NewSocialPublication> = {
@@ -4097,6 +4325,9 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
     }
     for (const v of message.paths) {
       writer.uint32(18).string(v!);
+    }
+    for (const v of message.trims) {
+      VideoTrim.encode(v!, writer.uint32(26).fork()).join();
     }
     return writer;
   },
@@ -4124,6 +4355,14 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
           message.paths.push(reader.string());
           continue;
         }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.trims.push(VideoTrim.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4137,6 +4376,7 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
     return {
       text: isSet(object.text) ? globalThis.String(object.text) : "",
       paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
+      trims: globalThis.Array.isArray(object?.trims) ? object.trims.map((e: any) => VideoTrim.fromJSON(e)) : [],
     };
   },
 
@@ -4148,6 +4388,9 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
     if (message.paths?.length) {
       obj.paths = message.paths;
     }
+    if (message.trims?.length) {
+      obj.trims = message.trims.map((e) => VideoTrim.toJSON(e));
+    }
     return obj;
   },
 
@@ -4158,6 +4401,7 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
     const message = createBaseNewSocialPublication();
     message.text = object.text ?? "";
     message.paths = object.paths?.map((e) => e) || [];
+    message.trims = object.trims?.map((e) => VideoTrim.fromPartial(e)) || [];
     return message;
   },
 };
@@ -4292,6 +4536,500 @@ export const GetSocialPublicationFiles: MessageFns<GetSocialPublicationFiles> = 
   fromPartial<I extends Exact<DeepPartial<GetSocialPublicationFiles>, I>>(object: I): GetSocialPublicationFiles {
     const message = createBaseGetSocialPublicationFiles();
     message.uuid = object.uuid ?? "";
+    return message;
+  },
+};
+
+function createBaseGetPublicationMedia(): GetPublicationMedia {
+  return { pubUuid: "", hash: "" };
+}
+
+export const GetPublicationMedia: MessageFns<GetPublicationMedia> = {
+  encode(message: GetPublicationMedia, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.pubUuid !== "") {
+      writer.uint32(10).string(message.pubUuid);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetPublicationMedia {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetPublicationMedia();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.pubUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetPublicationMedia {
+    return {
+      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+    };
+  },
+
+  toJSON(message: GetPublicationMedia): unknown {
+    const obj: any = {};
+    if (message.pubUuid !== "") {
+      obj.pubUuid = message.pubUuid;
+    }
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetPublicationMedia>, I>>(base?: I): GetPublicationMedia {
+    return GetPublicationMedia.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetPublicationMedia>, I>>(object: I): GetPublicationMedia {
+    const message = createBaseGetPublicationMedia();
+    message.pubUuid = object.pubUuid ?? "";
+    message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
+function createBaseReqGetMediaURL(): ReqGetMediaURL {
+  return { path: "", pubUuid: "", hash: "" };
+}
+
+export const ReqGetMediaURL: MessageFns<ReqGetMediaURL> = {
+  encode(message: ReqGetMediaURL, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.pubUuid !== "") {
+      writer.uint32(18).string(message.pubUuid);
+    }
+    if (message.hash !== "") {
+      writer.uint32(26).string(message.hash);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetMediaURL {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetMediaURL();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.pubUuid = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqGetMediaURL {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+    };
+  },
+
+  toJSON(message: ReqGetMediaURL): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.pubUuid !== "") {
+      obj.pubUuid = message.pubUuid;
+    }
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetMediaURL>, I>>(base?: I): ReqGetMediaURL {
+    return ReqGetMediaURL.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetMediaURL>, I>>(object: I): ReqGetMediaURL {
+    const message = createBaseReqGetMediaURL();
+    message.path = object.path ?? "";
+    message.pubUuid = object.pubUuid ?? "";
+    message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
+function createBaseRespMediaURL(): RespMediaURL {
+  return { url: "", totalSize: 0n, mime: "", expiresAtUnixMs: 0n };
+}
+
+export const RespMediaURL: MessageFns<RespMediaURL> = {
+  encode(message: RespMediaURL, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.url !== "") {
+      writer.uint32(10).string(message.url);
+    }
+    if (message.totalSize !== 0n) {
+      if (BigInt.asIntN(64, message.totalSize) !== message.totalSize) {
+        throw new globalThis.Error("value provided for field message.totalSize of type int64 too large");
+      }
+      writer.uint32(16).int64(message.totalSize);
+    }
+    if (message.mime !== "") {
+      writer.uint32(26).string(message.mime);
+    }
+    if (message.expiresAtUnixMs !== 0n) {
+      if (BigInt.asIntN(64, message.expiresAtUnixMs) !== message.expiresAtUnixMs) {
+        throw new globalThis.Error("value provided for field message.expiresAtUnixMs of type int64 too large");
+      }
+      writer.uint32(32).int64(message.expiresAtUnixMs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespMediaURL {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespMediaURL();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.url = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.totalSize = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.mime = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.expiresAtUnixMs = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespMediaURL {
+    return {
+      url: isSet(object.url) ? globalThis.String(object.url) : "",
+      totalSize: isSet(object.totalSize) ? BigInt(object.totalSize) : 0n,
+      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
+      expiresAtUnixMs: isSet(object.expiresAtUnixMs) ? BigInt(object.expiresAtUnixMs) : 0n,
+    };
+  },
+
+  toJSON(message: RespMediaURL): unknown {
+    const obj: any = {};
+    if (message.url !== "") {
+      obj.url = message.url;
+    }
+    if (message.totalSize !== 0n) {
+      obj.totalSize = message.totalSize.toString();
+    }
+    if (message.mime !== "") {
+      obj.mime = message.mime;
+    }
+    if (message.expiresAtUnixMs !== 0n) {
+      obj.expiresAtUnixMs = message.expiresAtUnixMs.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespMediaURL>, I>>(base?: I): RespMediaURL {
+    return RespMediaURL.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespMediaURL>, I>>(object: I): RespMediaURL {
+    const message = createBaseRespMediaURL();
+    message.url = object.url ?? "";
+    message.totalSize = object.totalSize ?? 0n;
+    message.mime = object.mime ?? "";
+    message.expiresAtUnixMs = object.expiresAtUnixMs ?? 0n;
+    return message;
+  },
+};
+
+function createBaseReqGetMediaRange(): ReqGetMediaRange {
+  return { token: "", offset: 0n, length: 0n };
+}
+
+export const ReqGetMediaRange: MessageFns<ReqGetMediaRange> = {
+  encode(message: ReqGetMediaRange, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(16).int64(message.offset);
+    }
+    if (message.length !== 0n) {
+      if (BigInt.asIntN(64, message.length) !== message.length) {
+        throw new globalThis.Error("value provided for field message.length of type int64 too large");
+      }
+      writer.uint32(24).int64(message.length);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetMediaRange {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetMediaRange();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.length = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqGetMediaRange {
+    return {
+      token: isSet(object.token) ? globalThis.String(object.token) : "",
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      length: isSet(object.length) ? BigInt(object.length) : 0n,
+    };
+  },
+
+  toJSON(message: ReqGetMediaRange): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.length !== 0n) {
+      obj.length = message.length.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetMediaRange>, I>>(base?: I): ReqGetMediaRange {
+    return ReqGetMediaRange.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetMediaRange>, I>>(object: I): ReqGetMediaRange {
+    const message = createBaseReqGetMediaRange();
+    message.token = object.token ?? "";
+    message.offset = object.offset ?? 0n;
+    message.length = object.length ?? 0n;
+    return message;
+  },
+};
+
+function createBaseRespMediaRange(): RespMediaRange {
+  return { content: new Uint8Array(0), offset: 0n, totalSize: 0n, mime: "" };
+}
+
+export const RespMediaRange: MessageFns<RespMediaRange> = {
+  encode(message: RespMediaRange, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.content.length !== 0) {
+      writer.uint32(10).bytes(message.content);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(16).int64(message.offset);
+    }
+    if (message.totalSize !== 0n) {
+      if (BigInt.asIntN(64, message.totalSize) !== message.totalSize) {
+        throw new globalThis.Error("value provided for field message.totalSize of type int64 too large");
+      }
+      writer.uint32(24).int64(message.totalSize);
+    }
+    if (message.mime !== "") {
+      writer.uint32(34).string(message.mime);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespMediaRange {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespMediaRange();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.content = reader.bytes();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.totalSize = reader.int64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.mime = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespMediaRange {
+    return {
+      content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      totalSize: isSet(object.totalSize) ? BigInt(object.totalSize) : 0n,
+      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
+    };
+  },
+
+  toJSON(message: RespMediaRange): unknown {
+    const obj: any = {};
+    if (message.content.length !== 0) {
+      obj.content = base64FromBytes(message.content);
+    }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.totalSize !== 0n) {
+      obj.totalSize = message.totalSize.toString();
+    }
+    if (message.mime !== "") {
+      obj.mime = message.mime;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespMediaRange>, I>>(base?: I): RespMediaRange {
+    return RespMediaRange.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespMediaRange>, I>>(object: I): RespMediaRange {
+    const message = createBaseRespMediaRange();
+    message.content = object.content ?? new Uint8Array(0);
+    message.offset = object.offset ?? 0n;
+    message.totalSize = object.totalSize ?? 0n;
+    message.mime = object.mime ?? "";
     return message;
   },
 };
@@ -11372,6 +12110,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetStaticAsset":
         ReqGetStaticAsset.encode(message.payload.reqGetStaticAsset, writer.uint32(650).fork()).join();
         break;
+      case "reqGetMediaUrl":
+        ReqGetMediaURL.encode(message.payload.reqGetMediaUrl, writer.uint32(706).fork()).join();
+        break;
+      case "reqGetMediaRange":
+        ReqGetMediaRange.encode(message.payload.reqGetMediaRange, writer.uint32(714).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -11386,6 +12130,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         break;
       case "reqIsDomainAvailable":
         ReqIsDomainAvailable.encode(message.payload.reqIsDomainAvailable, writer.uint32(690).fork()).join();
+        break;
+      case "reqGetPublicationMedia":
+        GetPublicationMedia.encode(message.payload.reqGetPublicationMedia, writer.uint32(698).fork()).join();
         break;
     }
     return writer;
@@ -12078,6 +12825,25 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 88: {
+          if (tag !== 706) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetMediaUrl", reqGetMediaUrl: ReqGetMediaURL.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 89: {
+          if (tag !== 714) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetMediaRange",
+            reqGetMediaRange: ReqGetMediaRange.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -12130,6 +12896,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqIsDomainAvailable",
             reqIsDomainAvailable: ReqIsDomainAvailable.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 87: {
+          if (tag !== 698) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetPublicationMedia",
+            reqGetPublicationMedia: GetPublicationMedia.decode(reader, reader.uint32()),
           };
           continue;
         }
@@ -12354,6 +13131,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqSetUserActive", reqSetUserActive: ReqSetUserActive.fromJSON(object.reqSetUserActive) }
         : isSet(object.reqGetStaticAsset)
         ? { $case: "reqGetStaticAsset", reqGetStaticAsset: ReqGetStaticAsset.fromJSON(object.reqGetStaticAsset) }
+        : isSet(object.reqGetMediaUrl)
+        ? { $case: "reqGetMediaUrl", reqGetMediaUrl: ReqGetMediaURL.fromJSON(object.reqGetMediaUrl) }
+        : isSet(object.reqGetMediaRange)
+        ? { $case: "reqGetMediaRange", reqGetMediaRange: ReqGetMediaRange.fromJSON(object.reqGetMediaRange) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -12375,6 +13156,11 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? {
           $case: "reqIsDomainAvailable",
           reqIsDomainAvailable: ReqIsDomainAvailable.fromJSON(object.reqIsDomainAvailable),
+        }
+        : isSet(object.reqGetPublicationMedia)
+        ? {
+          $case: "reqGetPublicationMedia",
+          reqGetPublicationMedia: GetPublicationMedia.fromJSON(object.reqGetPublicationMedia),
         }
         : undefined,
     };
@@ -12525,6 +13311,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqSetUserActive = ReqSetUserActive.toJSON(message.payload.reqSetUserActive);
     } else if (message.payload?.$case === "reqGetStaticAsset") {
       obj.reqGetStaticAsset = ReqGetStaticAsset.toJSON(message.payload.reqGetStaticAsset);
+    } else if (message.payload?.$case === "reqGetMediaUrl") {
+      obj.reqGetMediaUrl = ReqGetMediaURL.toJSON(message.payload.reqGetMediaUrl);
+    } else if (message.payload?.$case === "reqGetMediaRange") {
+      obj.reqGetMediaRange = ReqGetMediaRange.toJSON(message.payload.reqGetMediaRange);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -12535,6 +13325,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqRevokeSessionToken = ReqRevokeSessionToken.toJSON(message.payload.reqRevokeSessionToken);
     } else if (message.payload?.$case === "reqIsDomainAvailable") {
       obj.reqIsDomainAvailable = ReqIsDomainAvailable.toJSON(message.payload.reqIsDomainAvailable);
+    } else if (message.payload?.$case === "reqGetPublicationMedia") {
+      obj.reqGetPublicationMedia = GetPublicationMedia.toJSON(message.payload.reqGetPublicationMedia);
     }
     return obj;
   },
@@ -13155,6 +13947,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetMediaUrl": {
+        if (object.payload?.reqGetMediaUrl !== undefined && object.payload?.reqGetMediaUrl !== null) {
+          message.payload = {
+            $case: "reqGetMediaUrl",
+            reqGetMediaUrl: ReqGetMediaURL.fromPartial(object.payload.reqGetMediaUrl),
+          };
+        }
+        break;
+      }
+      case "reqGetMediaRange": {
+        if (object.payload?.reqGetMediaRange !== undefined && object.payload?.reqGetMediaRange !== null) {
+          message.payload = {
+            $case: "reqGetMediaRange",
+            reqGetMediaRange: ReqGetMediaRange.fromPartial(object.payload.reqGetMediaRange),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -13196,6 +14006,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqIsDomainAvailable",
             reqIsDomainAvailable: ReqIsDomainAvailable.fromPartial(object.payload.reqIsDomainAvailable),
+          };
+        }
+        break;
+      }
+      case "reqGetPublicationMedia": {
+        if (object.payload?.reqGetPublicationMedia !== undefined && object.payload?.reqGetPublicationMedia !== null) {
+          message.payload = {
+            $case: "reqGetPublicationMedia",
+            reqGetPublicationMedia: GetPublicationMedia.fromPartial(object.payload.reqGetPublicationMedia),
           };
         }
         break;
@@ -13326,6 +14145,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respStaticAsset":
         RespStaticAsset.encode(message.payload.respStaticAsset, writer.uint32(354).fork()).join();
+        break;
+      case "respMediaUrl":
+        RespMediaURL.encode(message.payload.respMediaUrl, writer.uint32(378).fork()).join();
+        break;
+      case "respMediaRange":
+        RespMediaRange.encode(message.payload.respMediaRange, writer.uint32(386).fork()).join();
         break;
       case "respSessionToken":
         RespSessionToken.encode(message.payload.respSessionToken, writer.uint32(362).fork()).join();
@@ -13699,6 +14524,22 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 47: {
+          if (tag !== 378) {
+            break;
+          }
+
+          message.payload = { $case: "respMediaUrl", respMediaUrl: RespMediaURL.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 48: {
+          if (tag !== 386) {
+            break;
+          }
+
+          message.payload = { $case: "respMediaRange", respMediaRange: RespMediaRange.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 45: {
           if (tag !== 362) {
             break;
@@ -13829,6 +14670,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respInstanceRole", respInstanceRole: RespInstanceRole.fromJSON(object.respInstanceRole) }
         : isSet(object.respStaticAsset)
         ? { $case: "respStaticAsset", respStaticAsset: RespStaticAsset.fromJSON(object.respStaticAsset) }
+        : isSet(object.respMediaUrl)
+        ? { $case: "respMediaUrl", respMediaUrl: RespMediaURL.fromJSON(object.respMediaUrl) }
+        : isSet(object.respMediaRange)
+        ? { $case: "respMediaRange", respMediaRange: RespMediaRange.fromJSON(object.respMediaRange) }
         : isSet(object.respSessionToken)
         ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
         : isSet(object.respDomainAvailable)
@@ -13923,6 +14768,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respInstanceRole = RespInstanceRole.toJSON(message.payload.respInstanceRole);
     } else if (message.payload?.$case === "respStaticAsset") {
       obj.respStaticAsset = RespStaticAsset.toJSON(message.payload.respStaticAsset);
+    } else if (message.payload?.$case === "respMediaUrl") {
+      obj.respMediaUrl = RespMediaURL.toJSON(message.payload.respMediaUrl);
+    } else if (message.payload?.$case === "respMediaRange") {
+      obj.respMediaRange = RespMediaRange.toJSON(message.payload.respMediaRange);
     } else if (message.payload?.$case === "respSessionToken") {
       obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
     } else if (message.payload?.$case === "respDomainAvailable") {
@@ -14228,6 +15077,24 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respStaticAsset",
             respStaticAsset: RespStaticAsset.fromPartial(object.payload.respStaticAsset),
+          };
+        }
+        break;
+      }
+      case "respMediaUrl": {
+        if (object.payload?.respMediaUrl !== undefined && object.payload?.respMediaUrl !== null) {
+          message.payload = {
+            $case: "respMediaUrl",
+            respMediaUrl: RespMediaURL.fromPartial(object.payload.respMediaUrl),
+          };
+        }
+        break;
+      }
+      case "respMediaRange": {
+        if (object.payload?.respMediaRange !== undefined && object.payload?.respMediaRange !== null) {
+          message.payload = {
+            $case: "respMediaRange",
+            respMediaRange: RespMediaRange.fromPartial(object.payload.respMediaRange),
           };
         }
         break;

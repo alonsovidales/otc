@@ -111,3 +111,14 @@
 .sv-likers-title { margin: 0 0 12px; color: var(--mist); font-size: 1rem; }
 .sv-likers-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
 .sv-likers-list li { display: flex; align-items: center; gap: 10px; color: var(--mist); }
+
+/* Issue #107: a video playing inline in the feed occupies exactly the
+   space its poster did, so starting playback never shifts the timeline
+   under the reader's thumb. */
+.sv-inline-video {
+  width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}

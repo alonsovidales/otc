@@ -583,6 +583,13 @@ private struct PostCard: View {
     // doesn't leave its player state applying to the next file.
     @State private var videoPlaybackURL: URL?
     @State private var loadingVideo = false
+    // Issue #107: the player is held, not constructed inline in the body.
+    // `VideoPlayer(player: AVPlayer(url:))` builds a brand new player
+    // every time SwiftUI re-evaluates this view - and a feed re-evaluates
+    // constantly (paging, likes, the relative-time labels ticking) - so
+    // playback was torn down and restarted from zero each time, which is
+    // exactly the reported "spinner shows, video never plays".
+    @State private var videoPlayer: AVPlayer?
 
     // Instagram-style, edge-to-edge feed (issue #12): no card background or
     // rounded frame around the whole post, and the image spans the full
@@ -633,6 +640,8 @@ private struct PostCard: View {
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
                         .zIndex(pinchScale > 1 ? 1 : 0)
                         .onChange(of: currentImage) { _, _ in
+                            videoPlayer?.pause()
+                            videoPlayer = nil
                             videoPlaybackURL = nil
                             loadingVideo = false
                         }
@@ -840,10 +849,16 @@ private struct PostCard: View {
     /// plays it in place once the bytes arrive.
     @ViewBuilder
     private func videoContent(for file: Msg_File) -> some View {
-        if let url = videoPlaybackURL {
-            VideoPlayer(player: AVPlayer(url: url))
+        if let player = videoPlayer {
+            VideoPlayer(player: player)
                 .frame(maxWidth: .infinity, maxHeight: carouselHeight)
                 .frame(height: carouselHeight ?? 320)
+                // Tapping the poster is the play gesture - starting
+                // playback here means that tap does what it looks like it
+                // does, instead of landing on a paused player that needs a
+                // second tap on its own control.
+                .onAppear { player.play() }
+                .onDisappear { player.pause() }
         } else {
             ZStack {
                 if file.hasContent, let ui = UIImage(data: file.content) {
@@ -876,21 +891,68 @@ private struct PostCard: View {
         loadingVideo = true
         Task {
             defer { loadingVideo = false }
+
+            // Issue #110: stream it when the device offers a URL -
+            // playback starts on the first chunk instead of waiting for
+            // the whole clip, and nothing is written to the phone. Small
+            // clips the device declines fall through unchanged.
+            if let streamURL = await MediaStream.url(forPublication: post.uuid, hash: file.hash) {
+                // Same handoff as the downloaded case below - the player
+                // view owns starting playback, so this must not differ.
+                videoPlaybackURL = streamURL
+                videoPlayer = AVPlayer(url: streamURL)
+                return
+            }
+
             do {
+                // Issue #107: by hash, through the publication. A feed
+                // file has no path - social_publications_files stores
+                // (pos, uuid, hash, mime, size) and nothing else - so the
+                // GetFile(path:) this used to send was always asking for
+                // an empty path. That is the whole reason tapping a video
+                // here span the spinner and never played anything.
                 let resp = try await OTCConnection.shared.request { e in
-                    var gf = Msg_GetFile()
-                    gf.path = file.path
-                    e.payload = .reqGetFile(gf)
+                    var gm = Msg_GetPublicationMedia()
+                    gm.pubUuid = post.uuid
+                    gm.hash = file.hash
+                    e.payload = .reqGetPublicationMedia(gm)
                 }
                 guard case .respFile(let rf) = resp.payload, rf.hasContent else { return }
-                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
+                // Issue #107: the extension matters. AVFoundation decides
+                // how to demux a file:// URL from its path extension, and
+                // this always wrote ".mp4" regardless of what the bytes
+                // were - so a QuickTime recording (video/quicktime, which
+                // is what an iPhone produces and what this library is full
+                // of) was handed to the player mislabelled and silently
+                // refused to load.
+                let ext = Self.fileExtension(forMime: rf.mime, path: file.path)
+                let tmp = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension(ext)
                 try rf.content.write(to: tmp)
                 videoPlaybackURL = tmp
+                videoPlayer = AVPlayer(url: tmp)
             } catch {
                 // Leave the poster + play button in place - tapping again
                 // retries, same as the rest of this app's best-effort
                 // network calls.
             }
+        }
+    }
+
+    /// Maps a video's mime to the file extension AVFoundation needs to
+    /// recognise it, falling back to the original file's own extension
+    /// (the device stores what the phone recorded, so that is usually
+    /// right) and finally to mp4.
+    private static func fileExtension(forMime mime: String, path: String) -> String {
+        switch mime.lowercased() {
+        case "video/quicktime": return "mov"
+        case "video/mp4", "video/x-m4v": return "mp4"
+        case "video/x-matroska": return "mkv"
+        case "video/3gpp": return "3gp"
+        default:
+            let own = (path as NSString).pathExtension
+            return own.isEmpty ? "mp4" : own.lowercased()
         }
     }
 

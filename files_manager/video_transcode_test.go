@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"image"
 	"image/jpeg"
 	"os"
 	"os/exec"
@@ -197,5 +198,123 @@ func TestGenerateVideoThumbnailNeverSkipsNarrowVideo(t *testing.T) {
 	}
 	if _, err := jpeg.Decode(bytes.NewReader(thumb)); err != nil {
 		t.Fatalf("decoding thumbnail as JPEG: %v", err)
+	}
+}
+
+// probeEncodedDuration reports the length of an in-memory clip, reusing
+// the package's own ffprobe wrapper rather than a second copy of it.
+func probeEncodedDuration(t *testing.T, content []byte) float64 {
+	t.Helper()
+	tmp, err := os.CreateTemp("", "otc-probe-dur-*.mp4")
+	if err != nil {
+		t.Fatalf("temp file: %v", err)
+	}
+	path := tmp.Name()
+	defer os.Remove(path)
+	if _, err := tmp.Write(content); err != nil {
+		t.Fatalf("writing temp file: %v", err)
+	}
+	tmp.Close()
+
+	d, err := probeVideoDuration(path)
+	if err != nil {
+		t.Fatalf("probeVideoDuration: %v", err)
+	}
+	return d
+}
+
+// Issue #108: the cut has to actually land where it was asked to - a
+// keyframe-aligned stream copy would silently return whole seconds more
+// than requested, which is exactly what someone trimming to a moment would
+// see as the feature not working.
+func TestTrimVideoForSocialCutsToTheRequestedRange(t *testing.T) {
+	requireFFmpeg(t)
+	content := makeTestVideoSized(t, 6, 640, 480)
+
+	mg := &Manager{}
+	out, err := mg.TrimVideoForSocial(content, TrimRange{Start: 1.5, End: 3.5}, false)
+	if err != nil {
+		t.Fatalf("TrimVideoForSocial: %v", err)
+	}
+
+	if d := probeEncodedDuration(t, out); d < 1.8 || d > 2.2 {
+		t.Errorf("expected a ~2s cut, got %.2fs", d)
+	}
+	// Trimming alone must not touch the picture - that's what separates it
+	// from issue #60's compression.
+	if w, h := probeVideoDimensions(t, out); w != 640 || h != 480 {
+		t.Errorf("expected the original 640x480 to be kept, got %dx%d", w, h)
+	}
+}
+
+// An open-ended trim keeps everything after the start, rather than
+// producing an empty clip from a zero duration.
+func TestTrimVideoForSocialWithNoEndRunsToTheEnd(t *testing.T) {
+	requireFFmpeg(t)
+	content := makeTestVideoSized(t, 6, 640, 480)
+
+	mg := &Manager{}
+	out, err := mg.TrimVideoForSocial(content, TrimRange{Start: 4}, false)
+	if err != nil {
+		t.Fatalf("TrimVideoForSocial: %v", err)
+	}
+
+	if d := probeEncodedDuration(t, out); d < 1.7 || d > 2.3 {
+		t.Errorf("expected the remaining ~2s, got %.2fs", d)
+	}
+}
+
+// Trim and issue #60's downscale in one pass, for an oversized source.
+func TestTrimVideoForSocialDownscalesWhenAsked(t *testing.T) {
+	requireFFmpeg(t)
+	content := makeTestVideoSized(t, 6, 1280, 720)
+
+	mg := &Manager{}
+	out, err := mg.TrimVideoForSocial(content, TrimRange{Start: 1, End: 3}, true)
+	if err != nil {
+		t.Fatalf("TrimVideoForSocial: %v", err)
+	}
+
+	if w, _ := probeVideoDimensions(t, out); w != cSocialVideoMaxWidth {
+		t.Errorf("expected output width %d, got %d", cSocialVideoMaxWidth, w)
+	}
+	if d := probeEncodedDuration(t, out); d < 1.8 || d > 2.2 {
+		t.Errorf("expected a ~2s cut, got %.2fs", d)
+	}
+}
+
+// Issue #108: an open-ended trim has to reach ffmpeg as "no -t at all"
+// rather than a zero or negative duration, which would produce an empty
+// clip instead of one that runs to the end.
+func TestTrimRangeDuration(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		trim TrimRange
+		want float64
+	}{
+		{"a closed range is its own length", TrimRange{Start: 2, End: 5}, 3},
+		{"no end means run to the end of the clip", TrimRange{Start: 2}, 0},
+		{"an end before the start is not a duration", TrimRange{Start: 5, End: 2}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.trim.Duration(); got != tc.want {
+				t.Errorf("TrimRange%+v.Duration() = %v, want %v", tc.trim, got, tc.want)
+			}
+		})
+	}
+}
+
+// A video narrower than the thumbnail cap still needs a thumbnail: a
+// publication reads one back unconditionally, so "no resize needed" used
+// to mean "no thumbnail at all", and posting such a video failed outright
+// (see the video branch of UploadFile's background processing).
+func TestThumbnailSourceKeepsANarrowFrameInsteadOfSkippingIt(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 480, 270))
+	got := thumbnailSource(src, 1000)
+	if got == nil {
+		t.Fatal("thumbnailSource returned nothing for a frame narrower than the cap")
+	}
+	if b := got.Bounds(); b.Dx() != 480 || b.Dy() != 270 {
+		t.Errorf("got %dx%d, want the original 480x270 kept as-is", b.Dx(), b.Dy())
 	}
 }

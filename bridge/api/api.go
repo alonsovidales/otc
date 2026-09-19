@@ -95,6 +95,12 @@ func (api *API) registerAPIs() {
 
 	api.muxHTTPServer.HandleFunc("POST /api/contact", api.submitContact)
 
+	// Issue #110: video streaming. Registered ahead of the "/" catch-all
+	// so it doesn't fall through to proxyStaticAsset, which would fetch
+	// the whole file in one piece - the exact thing this replaces.
+	api.muxHTTPServer.HandleFunc("GET /media/{token}", api.proxyMedia)
+	api.muxHTTPServer.HandleFunc("HEAD /media/{token}", api.proxyMedia)
+
 	api.registerAdminAPIs()
 
 	api.muxHTTPServer.HandleFunc("/", api.serveStatic)

@@ -10,6 +10,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
+import VideoTrimmer from "./VideoTrimmer";
+import { formatTimecode, type TrimRange } from "./videoTrim";
 import "./NewPostPicker.css";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -89,6 +91,10 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   const [loading, setLoading] = useState(false);
   const [endReached, setEndReached] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // The grid is its own scroll container here (unlike the Images tab,
+  // where the page itself scrolls), so it - not the viewport - is what the
+  // sentinel has to be measured against.
+  const gridRef = useRef<HTMLDivElement | null>(null);
 
   const fetchPage = useCallback(
     async (overrideToken?: string | null) => {
@@ -163,7 +169,10 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       (entries) => {
         if (entries[0]?.isIntersecting && !loading && !endReached) fetchPage();
       },
-      { root: null, rootMargin: "600px 0px 0px 0px" }
+      // Bottom margin: the point is to start the next page while the
+      // sentinel is still below the fold, so scrolling doesn't stall on
+      // an empty grid.
+      { root: gridRef.current, rootMargin: "0px 0px 600px 0px" }
     );
     obs.observe(node);
     return () => obs.disconnect();
@@ -261,6 +270,79 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     stripUrlsRef.current.forEach(u => { if (u) URL.revokeObjectURL(u); });
   }, []);
 
+  // -------- trimming (issue #108) ---------------------------------------
+  // Keyed by server path for library picks and by the File object itself
+  // for local ones, because a local file has no path until it's uploaded
+  // (which only happens at publish time) - both are resolved back to real
+  // paths in publish() below.
+  const [serverTrims, setServerTrims] = useState<Record<string, TrimRange>>({});
+  const [localTrims, setLocalTrims] = useState<Map<File, TrimRange>>(new Map());
+  // What the trimmer is currently open on: a source URL to preview plus
+  // where to write the result back to.
+  const [trimming, setTrimming] = useState<
+    { kind: "server"; path: string; url: string } | { kind: "local"; file: File; url: string } | null
+  >(null);
+  const [trimLoading, setTrimLoading] = useState<string | null>(null);
+  // Object URLs for library videos pulled down to be trimmed - cached so
+  // reopening the trimmer on the same clip doesn't refetch it, revoked
+  // together when the composer closes.
+  const trimUrlsRef = useRef<Map<string, string>>(new Map());
+  useEffect(() => () => {
+    trimUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
+  }, []);
+
+  // Trimming needs the real video, not the thumbnail the strip shows, so
+  // a library pick has to be fetched in full first (same reqGetFile the
+  // gallery's own viewer uses). That can be a few seconds on a large clip
+  // - hence the per-item spinner rather than a button that looks inert.
+  const openServerTrimmer = async (path: string) => {
+    const cached = trimUrlsRef.current.get(path);
+    if (cached) { setTrimming({ kind: "server", path, url: cached }); return; }
+    setTrimLoading(path);
+    setError(null);
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        (e as any).payload = { $case: "reqGetFile", reqGetFile: { path } };
+      });
+      if (resp.payload?.$case === "respFile" && resp.payload.respFile) {
+        const full = resp.payload.respFile;
+        const url = bytesToURL(full.content, full.mime || "video/mp4");
+        trimUrlsRef.current.set(path, url);
+        setTrimming({ kind: "server", path, url });
+      } else {
+        setError(resp.errorMessage || "Could not load that video to trim it.");
+      }
+    } catch (err: any) {
+      setError(err?.message ?? String(err));
+    } finally {
+      setTrimLoading(null);
+    }
+  };
+
+  const applyTrim = (range: TrimRange | null) => {
+    if (!trimming) return;
+    if (trimming.kind === "server") {
+      setServerTrims(prev => {
+        const next = { ...prev };
+        if (range) next[trimming.path] = range; else delete next[trimming.path];
+        return next;
+      });
+    } else {
+      setLocalTrims(prev => {
+        const next = new Map(prev);
+        if (range) next.set(trimming.file, range); else next.delete(trimming.file);
+        return next;
+      });
+    }
+    setTrimming(null);
+  };
+
+  // The strip's own label for a trimmed clip - "Trim" until there is one,
+  // then the length that survives, so the strip shows the decision without
+  // having to reopen the editor.
+  const trimBadge = (range: TrimRange | undefined) =>
+    range ? `✂ ${formatTimecode(range.end - range.start)}` : "✂ Trim";
+
   // -------- publish --------------------------------------------------------
   const [caption, setCaption] = useState("");
   const [publishing, setPublishing] = useState(false);
@@ -308,14 +390,19 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     setError(null);
     try {
       let paths: string[];
+      // Index-aligned with localFiles (null where an upload failed) - kept
+      // around past the filter below so a local file's trim can still find
+      // the path its own upload landed at (see the trims block further
+      // down).
+      let uploadedPaths: (string | null)[] = [];
       if (source === "local") {
         // Issue #98: Promise.all resolves in the order it was given, so
         // the uploads land in the strip's own order - the post reads the
         // way the composer showed it.
-        const uploaded = await Promise.all(
+        uploadedPaths = await Promise.all(
           localFiles.map(f => uploadLocalFile(f).catch(() => null))
         );
-        paths = uploaded.filter((p): p is string => p !== null);
+        paths = uploadedPaths.filter((p): p is string => p !== null);
         if (paths.length === 0) {
           setError("Could not upload any of the selected files.");
           return;
@@ -327,10 +414,29 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         paths = selected;
       }
 
+      // Issue #108: the trims are keyed by whatever identified the file in
+      // the composer; the device only knows paths, so resolve them here.
+      // For local files that means pairing each upload back up with the
+      // File it came from - uploaded[] is index-aligned with localFiles
+      // (Promise.all preserves order) before the nulls are filtered out.
+      let trims: { path: string; startSecs: number; endSecs: number }[];
+      if (source === "local") {
+        trims = localFiles.flatMap((f, i) => {
+          const range = localTrims.get(f);
+          const path = uploadedPaths[i];
+          if (!range || !path) return [];
+          return [{ path, startSecs: range.start, endSecs: range.end }];
+        });
+      } else {
+        trims = Object.entries(serverTrims)
+          .filter(([path]) => paths.includes(path))
+          .map(([path, range]) => ({ path, startSecs: range.start, endSecs: range.end }));
+      }
+
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = {
           $case: "reqNewSocialPublication",
-          reqNewSocialPublication: { text: caption, paths },
+          reqNewSocialPublication: { text: caption, paths, trims },
         };
       });
       if (resp.payload?.$case === "respNewSocial" && resp.payload.respNewSocial.uuid) {
@@ -405,7 +511,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             )}
           </div>
 
-          <div className="np-grid">
+          <div className="np-grid" ref={gridRef}>
             {items.map((f, i) => {
               const key = fileKey(f, i);
               // The tile's content is always a server-generated JPEG
@@ -515,6 +621,16 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                         {f && <img src={stripUrlFor(f)} alt={p} />}
                         <span className="np-strip-pos">{i + 1}</span>
                         {isVideo && <span className="np-strip-video">▶</span>}
+                        {isVideo && (
+                          <button
+                            className={`np-trim-btn${serverTrims[p] ? " trimmed" : ""}`}
+                            onClick={() => void openServerTrimmer(p)}
+                            disabled={trimLoading === p}
+                            aria-label={`Trim ${p}`}
+                          >
+                            {trimLoading === p ? "…" : trimBadge(serverTrims[p])}
+                          </button>
+                        )}
                         <button
                           className="np-remove"
                           onClick={() => f && toggleSel(f)}
@@ -559,6 +675,15 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                         : <img src={localUrlFor(f)} alt={f.name} />}
                       <span className="np-strip-pos">{i + 1}</span>
                       {f.type.startsWith("video/") && <span className="np-strip-video">▶</span>}
+                      {f.type.startsWith("video/") && (
+                        <button
+                          className={`np-trim-btn${localTrims.get(f) ? " trimmed" : ""}`}
+                          onClick={() => setTrimming({ kind: "local", file: f, url: localUrlFor(f) })}
+                          aria-label={`Trim ${f.name}`}
+                        >
+                          {trimBadge(localTrims.get(f))}
+                        </button>
+                      )}
                       <button
                         className="np-remove"
                         onClick={() => removeLocalFile(f)}
@@ -575,6 +700,19 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                 ))}
           </div>
         </div>
+      )}
+
+      {trimming && (
+        <VideoTrimmer
+          src={trimming.url}
+          value={
+            trimming.kind === "server"
+              ? serverTrims[trimming.path] ?? null
+              : localTrims.get(trimming.file) ?? null
+          }
+          onApply={applyTrim}
+          onCancel={() => setTrimming(null)}
+        />
       )}
 
       {error && <div className="np-error">{error}</div>}

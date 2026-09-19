@@ -3,6 +3,7 @@
 // src/components/PhotoGallery.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import { requestStreamURL, canStream } from "../net/media";
 import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo, Person } from "../proto/messages";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import './PhotoGallery.css';
@@ -12,6 +13,14 @@ type Chip = string;
 type Token = string | null;
 
 // ---- helpers ---------------------------------------------------------------
+// Issue #106: a search result's `content` is always a server-generated
+// JPEG thumbnail (files_manager.GetThumbnail), for a video exactly as for
+// a photo - so a thumbnail must never be tagged with the file's own mime.
+// Doing that hands the browser a Blob claiming to be video/mp4 over
+// genuinely-JPEG bytes, and it refuses to render it in an <img> at all.
+// The composer hit precisely this when it started offering videos.
+const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
+
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
   if (!content) return "";
   const u8 = content instanceof Uint8Array ? content : new Uint8Array(content);
@@ -279,7 +288,7 @@ export default function PhotoGallery() {
     const resp: RespEnvelope = await useWS.request(e => {
       (e as any).payload = {
         $case: "reqPhotoDateBuckets",
-        reqPhotoDateBuckets: { tags: [], personIds: selectedPeople, includeVideos: false },
+        reqPhotoDateBuckets: { tags: [], personIds: selectedPeople, includeVideos: true },
       };
     });
     if (resp.payload?.$case === "respPhotoDateBuckets") {
@@ -290,6 +299,14 @@ export default function PhotoGallery() {
   // -------- modal (hi-res) --------------------------------------------------
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [hiURL, setHiURL] = useState<string | null>(null);
+  // Issue #106: set when the browser can't decode the opened video.
+  // iPhones record HEVC (hvc1) in a QuickTime container by default, which
+  // Safari plays and Chrome cannot decode at all - no amount of
+  // relabelling the blob helps, since it's the codec rather than the
+  // container it objects to (verified against a real IMG_*.MOV from this
+  // library). Rather than leave a player that sits at readyState 0
+  // forever looking broken, say so and offer the file itself.
+  const [videoUnplayable, setVideoUnplayable] = useState(false);
 
   // -------- "More info" panel (issue #41) ------------------------------------
   const [infoOpen, setInfoOpen] = useState(false);
@@ -338,7 +355,18 @@ export default function PhotoGallery() {
             reqSearchPhotos: {
               tags: chips,
               personIds: selectedPeople,
+              // Issue #106: videos belong in the Images section too. They
+              // were excluded when the flag was introduced (issue #60,
+              // where only the social composer opted in), which left a
+              // device's videos with nowhere to be browsed at all.
+              includeVideos: true,
               token: overrideToken ?? token ?? "",
+              // Lets the device resume where this grid actually is if it
+              // no longer holds the token (see SearchPhotos.have) -
+              // otherwise it starts the search over and hands back
+              // photos already on screen, which get discarded as
+              // duplicates and look like the library ending early.
+              have: mapRef.current.size,
               // Issue #77: the date scrubber's "jump to date" - set only
               // by jumpToDate below, which also forces overrideToken/force
               // so this always starts a fresh, cutoff-filtered search.
@@ -446,11 +474,24 @@ export default function PhotoGallery() {
     async (idx: number) => {
       setOpenIdx(idx);
       setHiURL(null);
+      setVideoUnplayable(false);
       setInfoOpen(false);
       setInfoData(null);
       setZoomScale(1);
       const f = items[idx];
       try {
+        // Issue #110: a video streams from a URL rather than arriving in
+        // one piece - the player starts on the first chunk and only
+        // fetches what it plays. The device declines small clips (they
+        // were already a single round trip), and anything it declines
+        // falls straight through to the fetch below.
+        if (canStream(f.mime)) {
+          const streamURL = await requestStreamURL({ path: f.path });
+          if (streamURL) {
+            setHiURL(streamURL);
+            return;
+          }
+        }
         const resp = await useWS.request(e => {
           (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: f.path } };
         });
@@ -856,7 +897,7 @@ export default function PhotoGallery() {
           <>
             {items.map((f, i) => {
               const key = fileKey(f, i); // unique key (fixes React warnings)
-              const thumb = bytesToURL(f.content, f.mime || "image/jpeg");
+              const thumb = bytesToURL(f.content); // always a JPEG thumbnail - see isVideoFile
               const selIdx = selOrder.indexOf(f.path);
               return (
                 <div key={key} className="pg-cell">
@@ -868,6 +909,7 @@ export default function PhotoGallery() {
                   {selIdx >= 0 && <span className="pg-order-badge">{selIdx + 1}</span>}
                   <button className="pg-thumb" title={f.path} onClick={() => openAt(i)}>
                     <img src={thumb} alt={f.path} loading="lazy" />
+                    {isVideoFile(f) && <span className="pg-video-badge">▶</span>}
                   </button>
                 </div>
               );
@@ -916,7 +958,7 @@ export default function PhotoGallery() {
           <span className="pg-order-strip-label">Order in post:</span>
           {selOrder.map((path, idx) => {
             const item = items.find(it => it.path === path);
-            const thumb = item ? bytesToURL(item.content, item.mime || "image/jpeg") : "";
+            const thumb = item ? bytesToURL(item.content) : "";
             return (
               <div key={path} className="pg-order-thumb">
                 <img src={thumb} alt={path} />
@@ -967,7 +1009,52 @@ export default function PhotoGallery() {
             >
               {(() => {
                 const f = items[openIdx];
-                const thumb = bytesToURL(f.content, f.mime || "image/jpeg");
+                const thumb = bytesToURL(f.content); // always a JPEG thumbnail
+                // Issue #106: a video opens as something you can actually
+                // play. Until the full file arrives (hiURL), its own
+                // thumbnail stands in - the same still the grid shows -
+                // rather than an empty black box.
+                if (isVideoFile(f)) {
+                  if (!hiURL) return <img src={thumb} alt={f.path} />;
+                  if (videoUnplayable) {
+                    return (
+                      <div className="pg-video-unplayable">
+                        <img src={thumb} alt={f.path} />
+                        <p>This browser can't play this video.</p>
+                        <p className="pg-video-unplayable-hint">
+                          It's recorded in HEVC, which not every browser can decode - Safari
+                          handles it, and recent Chrome does on hardware that supports it.
+                        </p>
+                        <a className="pg-video-download" href={hiURL} download={f.path.split("/").pop()}>
+                          Download it
+                        </a>
+                      </div>
+                    );
+                  }
+                  return (
+                    <video
+                      src={hiURL}
+                      controls
+                      autoPlay
+                      playsInline
+                      // onError covers a codec the browser rejects
+                      // outright; the timeout covers the worse case seen
+                      // with HEVC, where it simply never reaches
+                      // loadedmetadata and never errors either.
+                      onError={() => setVideoUnplayable(true)}
+                      onLoadedMetadata={(e) => {
+                        if ((e.currentTarget as HTMLVideoElement).videoWidth === 0) setVideoUnplayable(true);
+                      }}
+                      ref={(el) => {
+                        if (!el) return;
+                        const timer = setTimeout(() => {
+                          if (el.readyState === 0) setVideoUnplayable(true);
+                        }, 8000);
+                        el.addEventListener("loadedmetadata", () => clearTimeout(timer), { once: true });
+                      }}
+                    />
+                  );
+                }
                 return (
                   <img
                     src={hiURL || thumb}

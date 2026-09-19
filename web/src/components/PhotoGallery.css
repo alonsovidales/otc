@@ -152,3 +152,49 @@
 .pg-modal-imgwrap { display: flex; align-items: center; justify-content: center; max-width: 90vw; max-height: 90vh; touch-action: none; }
 .pg-modal-imgwrap img { width: 90vw; height: 90vh; object-fit: contain; background: var(--ink); }
 .pg-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Issue #106: marks a video in the grid. Bottom-left so it never collides
+   with the selection checkbox (top-left) or the post-order badge
+   (top-right); mirrors the composer's own badge. */
+.pg-video-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+/* The viewer sizes a playing video the same way it sizes a photo - see
+   the img rule above. max-height:100% was the bug: a percentage resolves
+   against .pg-modal-imgwrap, which has no definite height of its own
+   (only a max-height), so it constrained nothing and a portrait video ran
+   off the bottom of the screen with just its top visible.
+   Viewport units instead, and a little shorter than the photo rule so the
+   playback controls along the video's bottom edge stay inside the
+   modal's padding rather than being clipped off. */
+.pg-modal-imgwrap video {
+  width: 90vw;
+  max-height: 84vh;
+  object-fit: contain;
+  display: block;
+  background: var(--ink);
+}
+
+/* Issue #106: a video this browser can't decode (HEVC in Chrome/Firefox)
+   shows its own still plus a way out, rather than a black player that
+   never starts. */
+.pg-video-unplayable { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; text-align: center; }
+.pg-video-unplayable img { max-width: 60vw; max-height: 50vh; border-radius: 8px; opacity: 0.8; }
+.pg-video-unplayable p { margin: 0; }
+.pg-video-unplayable-hint { color: var(--mist-dim); font-size: 0.9rem; }
+.pg-video-download {
+  margin-top: 4px; padding: 8px 14px; border-radius: 8px;
+  background: var(--ember); color: var(--ember-ink); font-weight: 600; text-decoration: none;
+}

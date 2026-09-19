@@ -224,6 +224,19 @@ message SearchPhotos {
   // filtered/sorted result set once per token) by treating a jump exactly
   // like a brand new search.
   google.protobuf.Timestamp before = 5;
+  // How many results the client already holds, sent so a search can be
+  // resumed when the device no longer recognises the token.
+  //
+  // Tokens are an in-memory cache of the whole result set: they expire
+  // after a few minutes of not scrolling, and a device restart drops all
+  // of them. Without this the device can only start the search over and
+  // hand back page one again - photos the client already has, which it
+  // discards, so the grid appears to have run out partway down. With it,
+  // a resumed search skips straight to where the client actually was.
+  //
+  // Only meaningful alongside a token (i.e. when resuming); a search
+  // starting from scratch sends nothing and is never skipped forward.
+  int32 have = 6;
 }
 
 message ListOfFiles {
@@ -289,9 +302,28 @@ message ChangeKey {
   bytes new_key = 2;
 }
 
+// Issue #108: optionally trims one of the videos being published, cutting
+// it down to [start_secs, end_secs) before it's compressed and posted.
+// The original file in the owner's library is never touched - only the
+// copy that goes into the post, exactly like the size-driven compression
+// in issue #60.
+message VideoTrim {
+  // Matches one entry in NewSocialPublication.paths.
+  string path = 1;
+  double start_secs = 2;
+  // Exclusive end. Zero (or anything <= start) means "to the end of the
+  // clip", so a caller that only wants to cut an intro can send just a
+  // start.
+  double end_secs = 3;
+}
+
 message NewSocialPublication {
   string text = 1;
   repeated string paths = 2;
+  // Issue #108: at most one entry per path, and only for videos. Paths
+  // with no entry here are published whole, so this is purely additive -
+  // a client that knows nothing about trimming behaves exactly as before.
+  repeated VideoTrim trims = 3;
 }
 
 message GetEvents {
@@ -301,6 +333,67 @@ message GetEvents {
 
 message GetSocialPublicationFiles {
   string uuid = 1;
+}
+
+// Issue #107: fetches the *full* bytes of one file in a publication -
+// GetSocialPublicationFiles above only ever returns thumbnails, which is
+// right for rendering a feed but leaves no way to actually play a video
+// in it.
+//
+// Addressed by hash rather than path because a publication's files simply
+// have no path: social_publications_files stores (pos, uuid, hash, mime,
+// size), and the bytes live in unenc-storage-path keyed by that hash. The
+// clients were asking GetFile for an empty path, which could never work -
+// so a video in the timeline has never played on any platform.
+//
+// pub_uuid is not redundant: the device only serves a hash that actually
+// belongs to that publication, which keeps this from becoming a
+// read-any-file-by-hash oracle for anyone who can reach the feed.
+message GetPublicationMedia {
+  string pub_uuid = 1;
+  string hash = 2;
+}
+
+// Issue #110: streaming instead of downloading a whole video before it
+// can start playing. The client asks for a URL it can hand straight to a
+// <video> element or AVPlayer, which then fetch it with ordinary HTTP
+// range requests - the player starts on the first chunk and only ever
+// pulls the parts it actually plays.
+message ReqGetMediaURL {
+  // Exactly one of: a library path (the owner's own file), or a
+  // publication's media, addressed the same way GetPublicationMedia does.
+  string path = 1;
+  string pub_uuid = 2;
+  string hash = 3;
+}
+
+message RespMediaURL {
+  // Empty when streaming this file wouldn't pay for itself - a small clip
+  // arrives in one socket round trip, where streaming would cost an extra
+  // one for this very call before a single byte moved. The client falls
+  // back to fetching the whole thing, exactly as it did before.
+  string url = 1;
+  int64 total_size = 2;
+  string mime = 3;
+  int64 expires_at_unix_ms = 4;
+}
+
+// Issue #110: how the bridge serves a range of a device's media over the
+// relay tunnel. Never called by a browser or app directly - they talk
+// plain HTTP to /media/<token>, and the bridge translates. The token is
+// the only credential: it was minted for one specific file, for one
+// already-authenticated session, and expires (see mediatokens).
+message ReqGetMediaRange {
+  string token = 1;
+  int64 offset = 2;
+  int64 length = 3;
+}
+
+message RespMediaRange {
+  bytes content = 1;
+  int64 offset = 2;
+  int64 total_size = 3;
+  string mime = 4;
 }
 
 message GetSocialPublications {
@@ -1101,6 +1194,8 @@ message ReqEnvelope {
     ReqSetUserActive req_set_user_active = 80;
     // Issue #95.
     ReqGetStaticAsset req_get_static_asset = 81;
+    ReqGetMediaURL req_get_media_url = 88;
+    ReqGetMediaRange req_get_media_range = 89;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1110,6 +1205,8 @@ message ReqEnvelope {
     ReqRevokeSessionToken req_revoke_session_token = 85;
     // Issue #103.
     ReqIsDomainAvailable req_is_domain_available = 86;
+    // Issue #107. Answers with the File (resp_file) above.
+    GetPublicationMedia req_get_publication_media = 87;
   }
 }
 
@@ -1164,6 +1261,8 @@ message RespEnvelope {
     RespInstanceRole resp_instance_role = 43;
     // Issue #95.
     RespStaticAsset resp_static_asset = 44;
+    RespMediaURL resp_media_url = 47;
+    RespMediaRange resp_media_range = 48;
     // Issue #101. AuthWithToken answers with the generic Ack above.
     RespSessionToken resp_session_token = 45;
     // Issue #103.

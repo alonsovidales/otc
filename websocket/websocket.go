@@ -29,6 +29,7 @@ import (
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/mediastream"
 	"github.com/alonsovidales/otc/network"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -169,7 +170,25 @@ type Manager struct {
 	// Backs the primary's Users panel's "active connections" figure via
 	// api's /internal/metrics endpoint.
 	activeConns atomic.Int64
+	// Issue #110: mints and serves the short-lived tokens behind
+	// /media/<token>, the URL a video player streams from.
+	media *mediastream.Server
+	// Guards the one-shot thumbnail backfill (startBackfillOnce).
+	backfillOnce sync.Once
 }
+
+// startBackfillOnce kicks off the missing-thumbnail repair the first
+// time anyone signs in on this process. It needs the owner's key, so it
+// can't run at startup, and it only ever needs to run once per process -
+// see BackfillMissingThumbnails for what it repairs and why it exists.
+func (mg *Manager) startBackfillOnce(ses *session.Session) {
+	mg.backfillOnce.Do(func() {
+		go mg.filesManager.BackfillMissingThumbnails(ses)
+	})
+}
+
+// Media is read by api's /media/{token} handler.
+func (mg *Manager) Media() *mediastream.Server { return mg.media }
 
 // ActiveConnections is read by api's /internal/metrics handler.
 func (mg *Manager) ActiveConnections() int64 {
@@ -196,6 +215,11 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 		filesManager: filesManager,
 		sup:          sup,
 		staticPath:   staticPath,
+		media: mediastream.NewServer(
+			mediastream.NewStore(),
+			cfg.GetStr("otc", "storage-path"),
+			cfg.GetStr("otc", "unenc-storage-path"),
+		),
 		upgrader: gorilla.Upgrader{
 			// In production, set a proper origin check!
 			CheckOrigin: func(r *http.Request) bool { return true },
@@ -732,6 +756,83 @@ func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
 	return string(plain), nil
 }
 
+// issueMediaURL backs issue #110's ReqGetMediaURL: it authorizes the
+// request against this connection, then mints a short-lived token for
+// exactly the file that was asked for.
+//
+// An empty url is a real answer, not a failure: it means "this one isn't
+// worth streaming, fetch it the old way". Below MinStreamableSize the old
+// way is genuinely faster - the whole file already arrives in one socket
+// round trip, where streaming would spend this call as an extra round
+// trip before a single byte moved.
+func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size int64, mime string, expiresAtMs int64, err error) {
+	res := mediastream.Resource{}
+
+	switch {
+	case req.PubUuid != "" && req.Hash != "":
+		// Authorized the same way ReqGetPublicationMedia is: the
+		// publication has to actually carry this hash. Without that
+		// check a token could be minted for any file on the device by
+		// naming its hash next to a publication the caller can see.
+		pubMime, found, mErr := ch.mg.dao.PublicationFileMime(req.PubUuid, req.Hash)
+		if mErr != nil || !found {
+			return "", 0, "", 0, fmt.Errorf("media not found")
+		}
+		info, sErr := os.Stat(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), req.Hash))
+		if sErr != nil {
+			return "", 0, "", 0, fmt.Errorf("media not found")
+		}
+		res = mediastream.Resource{
+			Kind:    mediastream.KindPublicationMedia,
+			PubUuid: req.PubUuid,
+			Hash:    req.Hash,
+			Mime:    pubMime,
+			Size:    info.Size(),
+		}
+
+	case req.Path != "":
+		// A library path is the owner's own file - a friend reading the
+		// feed has no business reaching one, and only a real session can
+		// decrypt it anyway.
+		ses := ch.getSession()
+		if ses == nil {
+			return "", 0, "", 0, fmt.Errorf("not authenticated")
+		}
+		file, fErr := ch.mg.dao.GetFileByPath(req.Path)
+		if fErr != nil {
+			return "", 0, "", 0, fmt.Errorf("file not found")
+		}
+		res = mediastream.Resource{
+			Kind:    mediastream.KindLibraryFile,
+			Path:    req.Path,
+			Hash:    file.Hash,
+			Mime:    file.Mime,
+			Size:    int64(file.Size),
+			Decrypt: ses.Decrypt,
+		}
+
+	default:
+		return "", 0, "", 0, fmt.Errorf("nothing to stream")
+	}
+
+	if res.Size < mediastream.MinStreamableSize {
+		return "", res.Size, res.Mime, 0, nil
+	}
+
+	token, expiresAt, tErr := ch.mg.media.Store().Issue(res)
+	if tErr != nil {
+		log.Error("error issuing a media token:", tErr)
+		return "", 0, "", 0, fmt.Errorf("could not prepare the stream")
+	}
+
+	// Relative on purpose: the browser is already on the device's own
+	// origin (directly on the LAN, or the device's subdomain through the
+	// bridge), and a relative URL is correct in both without this code
+	// having to know which one it's talking to. The native apps resolve
+	// it against the address they're already connected to.
+	return "/media/" + token, res.Size, res.Mime, expiresAt.UnixMilli(), nil
+}
+
 func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
@@ -747,6 +848,36 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	// filesystem-shaped, to a request that - reached through the bridge -
 	// could be coming from anyone on the internet, not just this device's
 	// own signed-in owner.
+	case *pb.ReqEnvelope_ReqGetMediaRange:
+		// Issue #110: how the bridge reads a span of a device's media on
+		// a browser's behalf. Unauthenticated at this tier on purpose,
+		// exactly like ReqGetStaticAsset below - the token in the
+		// request IS the credential, minted over an authenticated socket
+		// for one specific file and expiring on its own (see
+		// mediastream). Nothing here can name a file: a caller can only
+		// present a token and get back what that token was minted for.
+		req := p.ReqGetMediaRange
+		content, total, mime, rErr := ch.mg.media.Range(req.Token, req.Offset, req.Length)
+		if rErr != nil {
+			// Same flat answer for an expired token and a bad offset -
+			// there's nothing an unauthenticated caller should learn
+			// from the difference.
+			if !errors.Is(rErr, mediastream.ErrUnknownToken) {
+				log.Error("error reading media range:", rErr)
+			}
+			resp.Error = true
+			resp.ErrorMessage = "media not found"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespMediaRange{
+			RespMediaRange: &pb.RespMediaRange{
+				Content:   content,
+				Offset:    req.Offset,
+				TotalSize: total,
+				Mime:      mime,
+			},
+		}
+
 	case *pb.ReqEnvelope_ReqGetStaticAsset:
 		path, rErr := staticassets.Resolve(ch.mg.staticPath, p.ReqGetStaticAsset.Path)
 		if rErr != nil {
@@ -916,6 +1047,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			ses, err = session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
 			if err == nil {
 				ch.setSession(ses)
+				ch.mg.startBackfillOnce(ses)
 			}
 		}
 
@@ -975,6 +1107,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			break
 		}
 		ch.setSession(ses)
+		ch.mg.startBackfillOnce(ses)
 		log.Info("Authenticated session via token")
 
 		resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1038,6 +1171,45 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqGetMediaUrl:
+		// Issue #110: hands back a URL a video player can stream from,
+		// instead of the whole file. Same tier as ReqGetPublicationMedia
+		// below, because a friend watching a video in the feed needs
+		// this exactly as much as the owner does - but a library path is
+		// the owner's own file, so that half is session-only (checked
+		// inside).
+		url, size, mime, expiresAt, err := ch.issueMediaURL(p.ReqGetMediaUrl)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespMediaUrl{
+			RespMediaUrl: &pb.RespMediaURL{
+				Url:             url,
+				TotalSize:       size,
+				Mime:            mime,
+				ExpiresAtUnixMs: expiresAt,
+			},
+		}
+
+	case *pb.ReqEnvelope_ReqGetPublicationMedia:
+		// Issue #107: the bytes a feed client needs to actually play a
+		// video (or show a full-size image) from the timeline. Same tier
+		// as ReqGetSocialPublicationFiles below - a friend reading the
+		// feed needs this exactly as much as the owner does.
+		req := p.ReqGetPublicationMedia
+		content, mime, err := ch.mg.social.GetPublicationMedia(req.PubUuid, req.Hash)
+		if err != nil {
+			log.Error("error reading publication media:", err)
+			resp.Error = true
+			resp.ErrorMessage = "media not available"
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFile{
+				RespFile: &pb.File{Hash: req.Hash, Mime: mime, Content: content, Size: int32(len(content))},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqGetSocialPublicationFiles:
 		log.Info("Getting social publication")
 		files, err := ch.mg.social.GetPublicationFiles(p.ReqGetSocialPublicationFiles.Uuid)
@@ -1087,7 +1259,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	case *pb.ReqEnvelope_ReqNewSocialPublication:
 		log.Info("New social publication")
 
-		uuid, err := ch.mg.social.NewPublication(ses, p.ReqNewSocialPublication.Text, p.ReqNewSocialPublication.Paths)
+		uuid, err := ch.mg.social.NewPublication(ses, p.ReqNewSocialPublication.Text, p.ReqNewSocialPublication.Paths, p.ReqNewSocialPublication.Trims)
 
 		if err != nil {
 			resp.Error = true
@@ -1380,7 +1552,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			t := p.ReqSearchPhotos.Before.AsTime()
 			before = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, before)
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, before, p.ReqSearchPhotos.Have)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true

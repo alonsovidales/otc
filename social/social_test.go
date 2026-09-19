@@ -101,3 +101,33 @@ func TestShouldCompressForSocial(t *testing.T) {
 		})
 	}
 }
+
+// Issue #108: trimming is a re-encode, so the predicate that decides
+// whether to do one at all is what keeps an untrimmed post lossless.
+func TestShouldTrimForSocial(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mime string
+		trim *pb.VideoTrim
+		want bool
+	}{
+		{"no trim sent at all", "video/mp4", nil, false},
+		{"a trim that keeps the whole clip is not a cut", "video/mp4", &pb.VideoTrim{}, false},
+		{"start only means drop the intro", "video/mp4", &pb.VideoTrim{StartSecs: 2}, true},
+		{"end only means drop the tail", "video/mp4", &pb.VideoTrim{EndSecs: 5}, true},
+		{"both ends", "video/mp4", &pb.VideoTrim{StartSecs: 2, EndSecs: 5}, true},
+		// An end that isn't past the start means "to the end of the clip"
+		// (see the proto), so this is still a real cut - it drops the
+		// first 5 seconds and keeps everything after them.
+		{"an end before the start still drops the intro", "video/mp4", &pb.VideoTrim{StartSecs: 5, EndSecs: 2}, true},
+		// A trim aimed at an image would otherwise put a still through
+		// ffmpeg's video pipeline and publish whatever came out.
+		{"images are never trimmed", "image/jpeg", &pb.VideoTrim{StartSecs: 2, EndSecs: 5}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldTrimForSocial(tc.mime, tc.trim); got != tc.want {
+				t.Errorf("shouldTrimForSocial(%q, %+v) = %v, want %v", tc.mime, tc.trim, got, tc.want)
+			}
+		})
+	}
+}

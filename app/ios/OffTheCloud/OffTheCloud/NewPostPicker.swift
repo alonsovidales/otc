@@ -21,6 +21,7 @@
 //  waiting on the background sync queue.
 
 import SwiftUI
+import AVFoundation
 import Photos
 import CryptoKit
 import SwiftProtobuf
@@ -88,6 +89,27 @@ final class NewPostPickerVM: ObservableObject {
     // selection order (last tapped = last in the post), and can be
     // explicitly rearranged via moveSelected below.
     @Published var selectedOrder: [String] = []
+    // Issue #108: keyed by Item.id, because a phone pick has no server
+    // path until it's uploaded at publish time - both are resolved back to
+    // real paths in publish() below.
+    @Published var trims: [String: TrimRange] = [:]
+    // The item the trimmer sheet is open on, paired with a local file URL
+    // to preview.
+    @Published var trimming: (id: String, url: URL)?
+    @Published var trimLoadingId: String?
+    /// Preview files already fetched/resolved for trimming, so reopening
+    /// the trimmer on the same clip doesn't pull it down again. Temporary
+    /// files, cleaned up when the composer closes.
+    private var trimPreviewURLs: [String: URL] = [:]
+
+    /// Removes the temp files downloadForTrimming wrote. A PHAsset's own
+    /// URL belongs to the photo library and is deliberately left alone.
+    func cleanUpTrimPreviews() {
+        for url in trimPreviewURLs.values where url.path.contains("otc-trim-") {
+            try? FileManager.default.removeItem(at: url)
+        }
+        trimPreviewURLs.removeAll()
+    }
     @Published var caption: String = ""
     @Published var publishing = false
     @Published var publishStatus: String = ""
@@ -296,6 +318,81 @@ final class NewPostPickerVM: ObservableObject {
         selectedOrder.swapAt(idx, newIdx)
     }
 
+    // Issue #108: trimming needs the real video, not the thumbnail the
+    // strip shows. A phone pick is already on this device (PHImageManager
+    // hands back a file URL, fetching from iCloud if that's where it
+    // lives); a synced one has to come down from the device first, which
+    // is why the strip shows a spinner on the button rather than looking
+    // inert for a few seconds.
+    func openTrimmer(for item: Item) {
+        if let cached = trimPreviewURLs[item.id] {
+            trimming = (item.id, cached)
+            return
+        }
+        trimLoadingId = item.id
+        Task {
+            defer { trimLoadingId = nil }
+            do {
+                let url: URL
+                if let asset = item.asset {
+                    url = try await Self.localURL(for: asset)
+                } else {
+                    url = try await Self.downloadForTrimming(path: item.path)
+                }
+                trimPreviewURLs[item.id] = url
+                trimming = (item.id, url)
+            } catch {
+                alertMessage = "Could not load that video to trim it: \(error.localizedDescription)"
+                showAlert = true
+            }
+        }
+    }
+
+    func applyTrim(_ range: TrimRange?) {
+        guard let trimming else { return }
+        if let range { trims[trimming.id] = range } else { trims.removeValue(forKey: trimming.id) }
+        self.trimming = nil
+    }
+
+    private static func localURL(for asset: PHAsset) async throws -> URL {
+        let opts = PHVideoRequestOptions()
+        // Same reasoning as uploadIfNeeded's own allowNetwork: this is
+        // someone explicitly waiting on *this* video right now, not a
+        // background bulk sync.
+        opts.isNetworkAccessAllowed = true
+        opts.deliveryMode = .highQualityFormat
+        return try await withCheckedThrowingContinuation { cont in
+            PHImageManager.default().requestAVAsset(forVideo: asset, options: opts) { avAsset, _, info in
+                if let urlAsset = avAsset as? AVURLAsset {
+                    cont.resume(returning: urlAsset.url)
+                } else {
+                    let err = info?[PHImageErrorKey] as? Error
+                        ?? NSError(domain: "NewPostPicker", code: -3, userInfo: [NSLocalizedDescriptionKey: "This video is not available on the phone"])
+                    cont.resume(throwing: err)
+                }
+            }
+        }
+    }
+
+    private static func downloadForTrimming(path: String) async throws -> URL {
+        let resp = try await OTCConnection.shared.request { e in
+            var gf = Msg_GetFile()
+            gf.path = path
+            e.payload = .reqGetFile(gf)
+        }
+        guard case .respFile(let f) = resp.payload, !f.content.isEmpty else {
+            throw NSError(domain: "NewPostPicker", code: -4, userInfo: [NSLocalizedDescriptionKey: resp.error ? resp.errorMessage : "Empty response"])
+        }
+        // AVURLAsset picks its demuxer from the extension, so a temp file
+        // without one plays as nothing at all.
+        let ext = (path as NSString).pathExtension.isEmpty ? "mp4" : (path as NSString).pathExtension
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("otc-trim-\(UUID().uuidString)")
+            .appendingPathExtension(ext)
+        try f.content.write(to: url)
+        return url
+    }
+
     func publish(onPosted: @escaping () -> Void) {
         // Issue #96: a post always needs its own caption - the Publish
         // button below already disables on this same check, this just
@@ -324,11 +421,27 @@ final class NewPostPickerVM: ObservableObject {
                 }
                 publishStatus = "Publishing…"
 
+                // Issue #108: the trims are keyed by Item.id; the device
+                // only knows paths. resolvedPaths is index-aligned with
+                // selectedItems, which is what pairs the two back up -
+                // including for a phone pick, whose path only came into
+                // existence during the upload loop just above.
+                var pbTrims: [Msg_VideoTrim] = []
+                for (i, item) in selectedItems.enumerated() {
+                    guard let range = trims[item.id], i < resolvedPaths.count else { continue }
+                    var t = Msg_VideoTrim()
+                    t.path = resolvedPaths[i]
+                    t.startSecs = range.start
+                    t.endSecs = range.end
+                    pbTrims.append(t)
+                }
+
                 let resp = try await ws.request { [self] e in
                     var req = Msg_ReqEnvelope()
                     var pub = Msg_NewSocialPublication()
                     pub.text = caption
                     pub.paths = resolvedPaths
+                    pub.trims = pbTrims
                     req.payload = .reqNewSocialPublication(pub)
                     e = req
                 }
@@ -571,7 +684,25 @@ struct NewPostPickerView: View {
             }
         }
         .onAppear { vm.onAppearInitial() }
+        .onDisappear { vm.cleanUpTrimPreviews() }
         .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
+        // Issue #108. Bound to an optional identified by the item's own id,
+        // so reopening the trimmer on a different clip rebuilds the sheet
+        // rather than reusing the previous video's player.
+        .sheet(isPresented: Binding(
+            get: { vm.trimming != nil },
+            set: { if !$0 { vm.trimming = nil } }
+        )) {
+            if let trimming = vm.trimming {
+                VideoTrimmerView(
+                    url: trimming.url,
+                    existing: vm.trims[trimming.id],
+                    onApply: { vm.applyTrim($0) },
+                    onCancel: { vm.trimming = nil }
+                )
+                .id(trimming.id)
+            }
+        }
     }
 
     private var suggestions: [String] {
@@ -673,7 +804,10 @@ private struct SelectedOrderStrip: View {
                                 canMoveRight: index < vm.selectedOrder.count - 1,
                                 moveLeft: { vm.moveSelected(id: id, offset: -1) },
                                 moveRight: { vm.moveSelected(id: id, offset: 1) },
-                                remove: { vm.toggleSelect(id) }
+                                remove: { vm.toggleSelect(id) },
+                                trim: item.isVideo ? { vm.openTrimmer(for: item) } : nil,
+                                trimRange: vm.trims[id],
+                                trimLoading: vm.trimLoadingId == id
                             )
                         }
                     }
@@ -695,6 +829,10 @@ private struct SelectedThumb: View {
     let moveLeft: () -> Void
     let moveRight: () -> Void
     let remove: () -> Void
+    // Issue #108: nil for anything that isn't a video.
+    let trim: (() -> Void)?
+    let trimRange: TrimRange?
+    let trimLoading: Bool
 
     var body: some View {
         VStack(spacing: 2) {
@@ -716,6 +854,33 @@ private struct SelectedThumb: View {
                         .foregroundStyle(.white, .black.opacity(0.6))
                 }
                 .offset(x: 6, y: -6)
+
+                // Issue #108: shows the length that survives once a trim
+                // is set, so the strip carries the decision without
+                // having to reopen the editor.
+                if let trim {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Button(action: trim) {
+                                if trimLoading {
+                                    ProgressView().controlSize(.mini).tint(.white)
+                                } else {
+                                    Text(trimRange.map { "\u{2702} \(formatTimecode($0.length))" } ?? "\u{2702}")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(trimRange == nil ? .white : Color.black)
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(trimRange == nil ? AnyShapeStyle(.black.opacity(0.6)) : AnyShapeStyle(Color.accentColor), in: Capsule())
+                            .disabled(trimLoading)
+                            Spacer()
+                        }
+                    }
+                    .frame(width: 60, height: 60)
+                    .padding(2)
+                }
             }
             HStack(spacing: 2) {
                 Button(action: moveLeft) {

@@ -158,7 +158,31 @@ func shouldCompressForSocial(mime string, size int) bool {
 	return strings.HasPrefix(mime, "video/") && size > cSocialVideoSizeLimit
 }
 
-func (sc *Social) NewPublication(ses *session.Session, text string, paths []string) (pubUuID string, err error) {
+// shouldTrimForSocial reports whether trim actually asks for a cut of this
+// file (issue #108). A nil trim, a non-video, and a trim that would return
+// the whole clip anyway (starts at zero and has no end) all mean "publish
+// it whole" - which matters beyond tidiness, because trimming is a
+// re-encode, and re-encoding a video to change nothing about it is pure
+// quality and CPU lost for free.
+func shouldTrimForSocial(mime string, trim *pb.VideoTrim) bool {
+	if trim == nil || !strings.HasPrefix(mime, "video/") {
+		return false
+	}
+	return trim.StartSecs > 0 || trim.EndSecs > trim.StartSecs
+}
+
+func (sc *Social) NewPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (pubUuID string, err error) {
+	// Issue #108: at most one trim per path, and a path with no entry is
+	// published whole - so an older client that sends no trims at all
+	// (and a post with no video in it) takes exactly the path it always
+	// did.
+	trimByPath := make(map[string]*pb.VideoTrim, len(trims))
+	for _, t := range trims {
+		if t != nil {
+			trimByPath[t.Path] = t
+		}
+	}
+
 	files := make([]*pb.File, len(paths))
 	for i, path := range paths {
 		file, err := sc.filesmanager.GetFile(ses, path)
@@ -179,7 +203,31 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		// entry in the Files section, no tag/face processing. See
 		// BuildTransientFile's doc comment.
 		isTransient := false
-		if shouldCompressForSocial(file.Mime, len(file.Content)) {
+		needsCompression := shouldCompressForSocial(file.Mime, len(file.Content))
+		if trim := trimByPath[path]; shouldTrimForSocial(file.Mime, trim) {
+			// Issue #108: the cut and issue #60's downscale are handed to
+			// ffmpeg together, so an oversized video is only ever encoded
+			// once - see TrimVideoForSocial. Whether to downscale is still
+			// decided from the *original* size: a trim can obviously only
+			// make the result smaller, and a source big enough to need
+			// compressing is one this device wants distributed at social
+			// resolution regardless of how much of it survives the cut.
+			trimmed, tErr := sc.filesmanager.TrimVideoForSocial(file.Content, filesmanager.TrimRange{
+				Start: trim.StartSecs,
+				End:   trim.EndSecs,
+			}, needsCompression)
+			if tErr != nil {
+				log.Error("error trimming video for publication, publishing it whole instead:", path, tErr)
+			} else {
+				log.Debug("Publishing trimmed video:", path, trim.StartSecs, "->", trim.EndSecs, len(file.Content), "->", len(trimmed))
+				file = filesmanager.BuildTransientFile(trimmed)
+				isTransient = true
+				// The cut already went through ffmpeg with the same
+				// downscale settings compression would have applied.
+				needsCompression = false
+			}
+		}
+		if needsCompression {
 			compressed, cErr := sc.filesmanager.CompressVideoForSocial(file.Content)
 			if cErr != nil {
 				log.Error("error compressing oversized video for publication, publishing the original instead:", path, cErr)
@@ -256,6 +304,28 @@ func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32) (
 		log.Debug("error retriving events", err)
 	}
 	return
+}
+
+// GetPublicationMedia returns the full bytes of one file in a publication
+// (issue #107), as opposed to GetPublicationFiles' thumbnails.
+//
+// Every publication file is written to unenc-storage-path under its own
+// hash when the post is created (see NewPublication), which is what makes
+// this possible without a path - publication files have none.
+func (sc *Social) GetPublicationMedia(pubUuid, hash string) (content []byte, mime string, err error) {
+	mime, found, err := sc.dao.PublicationFileMime(pubUuid, hash)
+	if err != nil {
+		return nil, "", err
+	}
+	if !found {
+		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid)
+	}
+
+	content, err = os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), hash))
+	if err != nil {
+		return nil, "", err
+	}
+	return content, mime, nil
 }
 
 func (sc *Social) GetPublicationFiles(uuid string) (files []*pb.File, err error) {
@@ -653,6 +723,51 @@ func (fr *friendship) refreshProfile() (err error) {
 	return nil
 }
 
+// getPublicationMedia fetches the full bytes of one file in a friend's
+// publication (issue #107), using the same RPC this device serves to its
+// own friends.
+//
+// Pulled at sync time rather than when someone presses play, per the
+// owner's call: a friend's device is frequently asleep, behind a dropped
+// bridge connection, or simply off - fetching on demand would mean a
+// video that plays only when its author happens to be online, which is
+// not what a timeline should do.
+func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte, err error) {
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqGetPublicationMedia{
+			ReqGetPublicationMedia: &pb.GetPublicationMedia{
+				PubUuid: pubUuid,
+				Hash:    hash,
+			},
+		},
+	}
+	b, _ := proto.Marshal(msg)
+	if err = fr.conn.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		log.Error("write error trying to get publication media from friend:", fr.data.OriginProfile.Domain, err)
+		return nil, err
+	}
+
+	_, data, err := fr.conn.ReadMessage()
+	if err != nil {
+		log.Error("read error trying to get publication media from friend:", fr.data.OriginProfile.Domain, err)
+		return nil, err
+	}
+
+	var resp pb.RespEnvelope
+	if err = proto.Unmarshal(data, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Error {
+		return nil, errors.New(resp.ErrorMessage)
+	}
+	rf, err := expectPayload[*pb.RespEnvelope_RespFile]("get publication media", fr.data.OriginProfile.Domain, resp.Payload)
+	if err != nil {
+		return nil, err
+	}
+	return rf.RespFile.Content, nil
+}
+
 func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err error) {
 	msg := &pb.ReqEnvelope{
 		Id: 1,
@@ -819,8 +934,20 @@ event_loop:
 
 			// Store the files in the local drive first
 			for _, file := range files {
-				sum := sha256.Sum256(file.Content)
-				file.Hash = hex.EncodeToString(sum[:])
+				// Issue #107: the friend's own hash is kept, not replaced
+				// with a hash of the thumbnail bytes as this used to do.
+				// That hash is how the friend addresses the file, so
+				// overwriting it left no way to ask them for the actual
+				// media - and it's also what our own rows store, so the
+				// two now agree and GetPublicationMedia can find what it
+				// serves.
+				if file.Hash == "" {
+					// Defensive: a friend on an older build might not send
+					// one. Falling back to the old behaviour keeps the
+					// thumbnail working; only the media is lost.
+					sum := sha256.Sum256(file.Content)
+					file.Hash = hex.EncodeToString(sum[:])
+				}
 
 				unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
 				log.Debug("Storing file thumbnail in path:", unencPathThumb)
@@ -828,6 +955,26 @@ event_loop:
 				if err != nil {
 					log.Error("Error trying to write file from an external event")
 					continue event_loop
+				}
+
+				// Then the full media, so the post is playable/viewable
+				// later whether or not its author is reachable. Failing
+				// here is not fatal to the post: the thumbnail above is
+				// already stored, so the timeline still renders and only
+				// full-size playback is missing - better than dropping
+				// the publication entirely over one large file.
+				unencPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
+				if _, statErr := os.Stat(unencPath); statErr == nil {
+					continue // already have it (a re-sync, or shared with another post)
+				}
+				media, mediaErr := fr.getPublicationMedia(pubData.Uuid, file.Hash)
+				if mediaErr != nil {
+					log.Error("could not fetch media", file.Hash, "for publication", pubData.Uuid, "from",
+						fr.data.OriginProfile.Domain, ":", mediaErr)
+					continue
+				}
+				if err := os.WriteFile(unencPath, media, 0644); err != nil { // perms: rw-r--r--
+					log.Error("error storing friend publication media:", err)
 				}
 			}
 

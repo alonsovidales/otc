@@ -3,6 +3,7 @@
 package dao
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -1131,5 +1132,54 @@ func TestMarkNotificationsStarted(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Issue #107: PublicationFileMime is the guard on ReqGetPublicationMedia -
+// it's what stops a caller who can reach the feed from reading arbitrary
+// bytes by hash. It answers only for a (publication, hash) pair that
+// genuinely exists.
+func TestPublicationFileMimeFindsAFileOfThatPublication(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `mime` from `social_publications_files` where `uuid` = \\? and `hash` = \\?").
+		WithArgs("pub-1", "hash-1").
+		WillReturnRows(sqlmock.NewRows([]string{"mime"}).AddRow("video/mp4"))
+
+	d := NewWithDB(db)
+	mime, found, err := d.PublicationFileMime("pub-1", "hash-1")
+	if err != nil {
+		t.Fatalf("PublicationFileMime: %v", err)
+	}
+	if !found || mime != "video/mp4" {
+		t.Errorf("mime=%q found=%v, want video/mp4 / true", mime, found)
+	}
+}
+
+// A hash that exists, but belongs to some *other* publication, must not
+// resolve - otherwise naming any publication would be enough to read any
+// file on the device.
+func TestPublicationFileMimeRejectsAHashFromAnotherPublication(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select `mime` from `social_publications_files` where `uuid` = \\? and `hash` = \\?").
+		WithArgs("pub-1", "someone-elses-hash").
+		WillReturnError(sql.ErrNoRows)
+
+	d := NewWithDB(db)
+	mime, found, err := d.PublicationFileMime("pub-1", "someone-elses-hash")
+	if err != nil {
+		t.Fatalf("expected no error for a non-matching pair, got: %v", err)
+	}
+	if found || mime != "" {
+		t.Errorf("mime=%q found=%v, want empty / false", mime, found)
 	}
 }

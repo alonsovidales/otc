@@ -12,6 +12,7 @@ import (
 	"image/jpeg"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -33,9 +34,33 @@ const (
 	// phone-shot clip well under the size that triggered compression in
 	// the first place. Re-encoding again just to hit an exact byte count
 	// wasn't worth the added complexity here.
-	cSocialVideoBitrate      = "1500k"
+	cSocialVideoBitrate = "1500k"
+	// cSocialTrimCRF is used when a video is only being trimmed, not
+	// compressed (issue #108) - the source is already small enough to
+	// distribute, so the re-encode a frame-accurate cut requires should
+	// give back something visually indistinguishable rather than hitting
+	// a size target. 20 is a common "looks like the source" x264 setting.
+	cSocialTrimCRF           = "20"
 	cSocialVideoAudioBitrate = "128k"
 )
+
+// TrimRange is a [Start, End) cut of a video, in seconds from the start of
+// the clip (issue #108). An End at or below Start means "run to the end of
+// the clip", so a caller that only wants to drop an intro sends just a
+// Start.
+type TrimRange struct {
+	Start float64
+	End   float64
+}
+
+// Duration reports the length of the cut, or 0 when the range is open-ended
+// (see TrimRange).
+func (t TrimRange) Duration() float64 {
+	if t.End <= t.Start {
+		return 0
+	}
+	return t.End - t.Start
+}
 
 // CompressVideoForSocial re-encodes content (any container ffmpeg
 // understands) into a lower-resolution/bitrate H.264/AAC MP4, for
@@ -47,6 +72,30 @@ const (
 // owner already has in Files/the gallery untouched. Requires ffmpeg on
 // PATH (already a runtime dependency - see video_frames.go).
 func (mg *Manager) CompressVideoForSocial(content []byte) ([]byte, error) {
+	return mg.transcodeForSocial(content, nil, true)
+}
+
+// TrimVideoForSocial cuts content down to trim (issue #108) without
+// touching its resolution - someone posting a 6-second highlight out of a
+// 30-second clip asked to lose the other 24 seconds, not the picture
+// quality. Same contract as CompressVideoForSocial otherwise: the original
+// file on disk is never modified, and the caller publishes the returned
+// bytes as a new file.
+//
+// downscale folds issue #60's compression into this same single ffmpeg
+// pass, for a source that was going to be re-encoded anyway. Doing the two
+// as separate passes would re-encode a 4K source at 4K first only to
+// immediately throw that away - a meaningful cost on a Raspberry Pi, and
+// a second generation of lossy encoding for nothing.
+func (mg *Manager) TrimVideoForSocial(content []byte, trim TrimRange, downscale bool) ([]byte, error) {
+	return mg.transcodeForSocial(content, &trim, downscale)
+}
+
+// transcodeForSocial is the one place that actually shells out to ffmpeg
+// for a publication's video. trim nil means "the whole clip"; downscale
+// false keeps the source resolution (and picks quality-targeted CRF over a
+// fixed bitrate, since there's no size problem to solve in that case).
+func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale bool) ([]byte, error) {
 	inTmp, err := os.CreateTemp("", "otc-video-social-in-*")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp input file: %w", err)
@@ -64,19 +113,44 @@ func (mg *Manager) CompressVideoForSocial(content []byte) ([]byte, error) {
 	outPath := inPath + "-out.mp4"
 	defer os.Remove(outPath)
 
-	// scale='if(gt(iw,W),W,iw)':-2 only downscales a video wider than
-	// cSocialVideoMaxWidth - a source already narrower keeps its own
-	// size, never gets upscaled. -2 keeps the computed height even
-	// (required by libx264) while preserving aspect ratio.
-	scaleFilter := fmt.Sprintf("scale='if(gt(iw,%d),%d,iw)':-2", cSocialVideoMaxWidth, cSocialVideoMaxWidth)
-	cmd := exec.Command(
-		"ffmpeg", "-y", "-i", inPath,
-		"-vf", scaleFilter,
-		"-c:v", "libx264", "-preset", "veryfast", "-b:v", cSocialVideoBitrate,
-		"-c:a", "aac", "-b:a", cSocialVideoAudioBitrate,
-		"-movflags", "+faststart",
-		outPath,
-	)
+	args := []string{"-y"}
+	if trim != nil && trim.Start > 0 {
+		// -ss ahead of -i seeks by index before decoding anything, which
+		// is what keeps trimming the tail off a long clip fast. Combined
+		// with a re-encode (never -c copy) the cut lands on the requested
+		// frame rather than the nearest preceding keyframe, which can be
+		// seconds away - visibly wrong when someone trimmed to a specific
+		// moment.
+		args = append(args, "-ss", strconv.FormatFloat(trim.Start, 'f', 3, 64))
+	}
+	args = append(args, "-i", inPath)
+	if d := trimDuration(trim); d > 0 {
+		// -t (a duration) rather than -to (an absolute timestamp): after
+		// an input -ss the output clock has already been rebased to the
+		// cut point, so a duration is what's unambiguous here.
+		args = append(args, "-t", strconv.FormatFloat(d, 'f', 3, 64))
+	}
+
+	if downscale {
+		// scale='if(gt(iw,W),W,iw)':-2 only downscales a video wider than
+		// cSocialVideoMaxWidth - a source already narrower keeps its own
+		// size, never gets upscaled. -2 keeps the computed height even
+		// (required by libx264) while preserving aspect ratio.
+		scaleFilter := fmt.Sprintf("scale='if(gt(iw,%d),%d,iw)':-2", cSocialVideoMaxWidth, cSocialVideoMaxWidth)
+		args = append(args,
+			"-vf", scaleFilter,
+			"-c:v", "libx264", "-preset", "veryfast", "-b:v", cSocialVideoBitrate,
+			"-c:a", "aac", "-b:a", cSocialVideoAudioBitrate,
+		)
+	} else {
+		args = append(args,
+			"-c:v", "libx264", "-preset", "veryfast", "-crf", cSocialTrimCRF,
+			"-c:a", "aac", "-b:a", cSocialVideoAudioBitrate,
+		)
+	}
+	args = append(args, "-movflags", "+faststart", outPath)
+
+	cmd := exec.Command("ffmpeg", args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -87,8 +161,15 @@ func (mg *Manager) CompressVideoForSocial(content []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading transcoded output: %w", err)
 	}
-	log.Debug("Compressed video for social:", len(content), "->", len(out), "bytes")
+	log.Debug("Transcoded video for social:", len(content), "->", len(out), "bytes, trimmed:", trim != nil, "downscaled:", downscale)
 	return out, nil
+}
+
+func trimDuration(trim *TrimRange) float64 {
+	if trim == nil {
+		return 0
+	}
+	return trim.Duration()
 }
 
 // BuildTransientFile computes the same Hash/Mime/Size metadata UploadFile

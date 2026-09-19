@@ -35,7 +35,21 @@
 .np-suggest-item { padding: 8px 10px; cursor: pointer; }
 .np-suggest-item:hover { background: var(--panel); }
 
-.np-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+/* grid-auto-rows: max-content is load-bearing, not tidying. This grid is
+   a scroll container with a definite height (flex: 1 inside .np-root), and
+   with implicitly-sized rows the browser squeezes every row to fit that
+   height instead of overflowing: a library of a few hundred photos
+   rendered as flat 20px slivers that never scrolled. The sentinel at the
+   end then stayed permanently on screen, so the infinite-scroll observer
+   fired again the moment each page landed and walked the entire library in
+   one go (reported against issue #108: "the library keeps on loading").
+   Pinning rows to their content height restores both the square tiles and
+   the overflow that makes loading scroll-driven. */
+.np-grid {
+  flex: 1; overflow-y: auto; padding: 10px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-auto-rows: max-content; align-content: start; gap: 8px;
+}
 .np-cell { position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; padding: 0; border: 2px solid transparent; cursor: pointer; background: var(--ink-2); }
 .np-cell img, .np-cell video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .np-cell.selected { border-color: var(--ember); }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import { requestStreamURL } from "../net/media";
 import NewPostPicker from "./NewPostPicker";
 import type {
   ReqEnvelope,
@@ -9,9 +10,10 @@ import type {
   SocialPublications as PbSocialPublications,
   SocialPublication as PbSocialPublication,
   Profile as PbProfile,
-  //File as PbFile,
+  File as PbFile,
 } from "../proto/messages";
 import "./Social.css";
+import Spinner from "./Spinner";
 
 // When the post was published, shown in the feed. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
@@ -345,8 +347,27 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     // the hi-res original for an image
     setViewerLoading(true);
     try {
+      // Issue #107: same correction as playInline - a publication's files
+      // are addressed by hash, never by path.
+      // Issue #110: same as the inline player - a video streams from a
+      // URL, everything else (and anything the device declines) comes
+      // down whole below.
+      if (isVideo) {
+        const streamURL = await requestStreamURL({ pubUuid: pub.uuid, hash: f.hash });
+        if (streamURL) {
+          setViewerVideoURL(prev => {
+            if (prev && prev.startsWith("blob:") && prev !== streamURL) URL.revokeObjectURL(prev);
+            return streamURL;
+          });
+          return;
+        }
+      }
+
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: f.path } };
+        (e as any).payload = {
+          $case: "reqGetPublicationMedia",
+          reqGetPublicationMedia: { pubUuid: pub.uuid, hash: f.hash },
+        };
       });
       if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
         const full = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
@@ -493,6 +514,69 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [p.uuid, idx]
     );
+    // Issue #107: a video in the feed plays where it is. It used to open
+    // the full-screen viewer instead - a modal covering the whole timeline
+    // to play something that was already on screen, which is not what
+    // tapping play should do in a feed. Images still open the viewer:
+    // wanting a photo bigger is a real thing to want, wanting a video
+    // somewhere else is not.
+    //
+    // Keyed to this file (path), so paging a multi-file post to a
+    // different video doesn't leave the previous one's bytes showing.
+    const [inlineVideo, setInlineVideo] = useState<{ path: string; url: string } | null>(null);
+    const [inlineLoading, setInlineLoading] = useState(false);
+    // Whatever object URL is on screen has to outlive the fetch that
+    // replaced it, hence revoking the previous one rather than the current.
+    useEffect(() => () => { if (inlineVideo) URL.revokeObjectURL(inlineVideo.url); },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      []);
+
+    const playInline = async (f: PbFile) => {
+      if (inlineLoading) return;
+      if (inlineVideo?.path === f.hash) return; // already playing this one
+      setInlineLoading(true);
+      try {
+        // Issue #110: stream it if the device offers a URL for it, so a
+        // long clip starts playing immediately instead of after the whole
+        // file has come down the socket. A small one it declines, and the
+        // whole-file fetch below runs exactly as it did.
+        const streamURL = await requestStreamURL({ pubUuid: p.uuid, hash: f.hash });
+        if (streamURL) {
+          setInlineVideo(prev => {
+            // Only a blob URL owns memory that has to be handed back; a
+            // streamed one is just an address.
+            if (prev?.url.startsWith("blob:")) URL.revokeObjectURL(prev.url);
+            return { path: f.hash, url: streamURL };
+          });
+          return;
+        }
+        // Issue #107: by hash, via the publication - a feed file has no
+        // path at all (social_publications_files stores pos/uuid/hash/
+        // mime/size), so the reqGetFile({path}) this used to send was
+        // always asking for "", which is why a timeline video never
+        // played on any platform.
+        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+          (e as any).payload = {
+            $case: "reqGetPublicationMedia",
+            reqGetPublicationMedia: { pubUuid: p.uuid, hash: f.hash },
+          };
+        });
+        if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
+          // The real file mime here, unlike the thumbnail above - these
+          // are the actual video bytes.
+          const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+          if (url) {
+            setInlineVideo(prev => {
+              if (prev?.url.startsWith("blob:")) URL.revokeObjectURL(prev.url);
+              return { path: f.hash, url };
+            });
+          }
+        }
+      } finally {
+        setInlineLoading(false);
+      }
+    };
+
     const profURL = useMemo(
       () => bytesToURL(p.publisher?.image as unknown as Uint8Array, "image/jpeg"),
       [p.uuid, idx]
@@ -528,7 +612,19 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
              style={carouselHeight ? { height: carouselHeight } : undefined}
              onTouchStart={swipe.onTouchStart}
              onTouchEnd={(e)=>swipe.onTouchEnd(e, goRight, goLeft)}>
-          {lowURL ? (
+          {isVideo && inlineVideo?.path === current.hash ? (
+            // Issue #107: plays right here, sized exactly like the poster
+            // it replaced so the card doesn't jump when it starts.
+            <video
+              className="sv-inline-video"
+              src={inlineVideo.url}
+              poster={lowURL ?? undefined}
+              controls
+              autoPlay
+              playsInline
+              style={carouselHeight ? { height: "100%", width: "100%", objectFit: "contain" } : undefined}
+            />
+          ) : lowURL ? (
             <img
               src={lowURL}
               alt={current.path}
@@ -545,13 +641,18 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   if (x < rect.width * 0.25) { goLeft(); return; }
                   if (x > rect.width * 0.75) { goRight(); return; }
                 }
+                if (isVideo) { void playInline(current); return; }
                 openViewer(p, idx);
               }}
             />
           ) : (
             <div className="sv-media-ph">🖼️</div>
           )}
-          {isVideo && <div className="sv-video-badge" aria-hidden="true">▶</div>}
+          {isVideo && inlineVideo?.path !== current.hash && (
+            <div className="sv-video-badge" aria-hidden={!inlineLoading}>
+              {inlineLoading ? <Spinner /> : "▶"}
+            </div>
+          )}
           {/* Issue #68: the iOS app already shows a dot per image (current
               one solid, the rest dimmed) over a multi-image post - the web
               feed had the exact same swipe/tap paging (goLeft/goRight

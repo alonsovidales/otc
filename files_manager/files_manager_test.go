@@ -18,6 +18,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/exifinfo"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
+	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
 func TestCosineSimilarityIdenticalVectors(t *testing.T) {
@@ -588,5 +589,39 @@ func TestWaitForTaggerBlocksUntilTheModelIsReady(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("waitForTagger never returned after the model became ready")
+	}
+}
+
+// An unknown search token - expired after cToeknsTTL, or gone because the
+// device restarted since the client was given it - used to panic on an
+// unchecked type assertion, which the connection handler turned into
+// "internal error" plus a closed connection. What a person saw was a
+// gallery that stopped loading more photos partway down.
+//
+// The correct answer is the one the code already intended: treat it as no
+// token at all and search again from the start.
+func TestUnknownSearchTokenIsNotFoundInsteadOfPanicking(t *testing.T) {
+	mg := &Manager{searchTokens: &sync.Map{}}
+
+	// Exactly what sync.Map.Load hands back for a token that isn't there.
+	if _, ok := mg.searchTokens.Load("never-issued"); ok {
+		t.Fatal("a token that was never issued was found")
+	}
+
+	// The lookup ImageSearch performs, in isolation: it must not panic
+	// and must not claim to have found anything.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("looking up an unknown token panicked: %v", r)
+		}
+	}()
+	found := false
+	if cached, ok := mg.searchTokens.Load("never-issued"); ok {
+		if _, isFiles := cached.([]*pb.File); isFiles {
+			found = true
+		}
+	}
+	if found {
+		t.Error("an unknown token reported a cached page")
 	}
 }

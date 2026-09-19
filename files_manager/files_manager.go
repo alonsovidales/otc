@@ -479,19 +479,50 @@ func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (conten
 // once and cached (see the tokenFound branch below), treating a jump as a
 // brand new search targeting a narrower result set reuses that same
 // mechanism instead of needing one of its own.
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, before *time.Time) (files []*pb.File, token string, err error) {
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, before *time.Time, have int32) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	tokenFound := false
 	if oldToken != "" && before == nil {
-		var filesMap any
-		filesMap, tokenFound = mg.searchTokens.Load(oldToken)
-		files = filesMap.([]*pb.File)
-		token = oldToken
+		// Both halves of this have to be checked before the value is
+		// used. A token the device no longer holds - expired after
+		// cToeknsTTL of no scrolling, or simply gone because the process
+		// restarted since the client got it - makes Load return a nil
+		// value, and asserting a type on that panics. It did: the
+		// connection handler's recover caught it, answered "internal
+		// error" and closed the connection, which a client reads as its
+		// gallery quietly refusing to load any more photos halfway down
+		// the grid.
+		//
+		// !tokenFound below is already the intended answer for an
+		// unknown token - start the search again from the beginning -
+		// it just never got the chance to run.
+		if cached, ok := mg.searchTokens.Load(oldToken); ok {
+			if cachedFiles, isFiles := cached.([]*pb.File); isFiles {
+				files = cachedFiles
+				token = oldToken
+				tokenFound = true
+			}
+		}
 	}
 	if !tokenFound {
 		files, err = mg.dao.SearchMedia(path, tags, personIDs, !includeVideos, before)
 		if err != nil {
 			return
+		}
+		// The client was resuming a search this device no longer holds a
+		// token for. Starting it again from the top would hand back
+		// results it already has (which it discards as duplicates),
+		// leaving its grid looking like the library ended where the
+		// token did - so skip forward to where it actually got to. Only
+		// ever applied when resuming: a search starting from scratch
+		// sends no token and must never skip anything.
+		if oldToken != "" && have > 0 {
+			if int(have) >= len(files) {
+				files = nil
+			} else {
+				files = files[have:]
+			}
+			log.Debug("Resumed a search with an unknown token, skipped:", have)
 		}
 		token = uuid.New().String()
 		log.Debug("New Token:", token)
@@ -921,18 +952,24 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 		log.Debug("Time classifying video:", time.Since(startClass), targetPath)
 
 		startThumb := time.Now()
-		thumbSrc := frames[0]
-		b := thumbSrc.Bounds()
+		// A thumbnail must exist once a file is uploaded, full stop -
+		// the same rule the image branch above spells out, and the same
+		// bug this had: it only wrote one when the frame was wider than
+		// maxWidth, so a video narrower than the thumbnail cap ended up
+		// with no thumbnail on disk at all. NewPublication reads one
+		// back unconditionally, so posting such a video failed outright
+		// ("open <hash>_thumbnail: no such file or directory") after
+		// half a minute of polling for a file nothing was ever going to
+		// write. thumbnailSource scales only when scaling is needed,
+		// which is what makes "always write one" safe here.
 		maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-		if b.Dx() > maxWidth {
-			newH := int(float64(b.Dy()) * float64(maxWidth) / float64(b.Dx()))
-			dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
-			draw.CatmullRom.Scale(dst, dst.Bounds(), thumbSrc, thumbSrc.Bounds(), draw.Over, nil)
-			var buf bytes.Buffer
-			jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80})
+		thumbImg := thumbnailSource(frames[0], maxWidth)
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
+			log.Error("error encoding video thumbnail:", err)
+		} else {
 			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-			err = os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644)
-			if err != nil {
+			if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
 				log.Error("Error generating video thumbnail:", err)
 			}
 		}
