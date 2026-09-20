@@ -2,26 +2,41 @@
 #
 # One release per line, OLDEST FIRST, tab-separated:
 #
-#   <version>	<sha256 of scripts/updates/<version>.sh>	<description>
+#   <version>	<script sha256 or ->	<web-dist.tar.gz sha256 or ->	<summary>
 #
 # A device stores the version it is on in /etc/otc/version and applies every
-# script *after* that one, in this order, to reach the newest. That is what
+# release *after* that one, in order, to reach the newest. That is what
 # makes an update incremental: a device two releases behind runs two
-# scripts, not a reinstall.
+# release scripts, not a reinstall.
 #
-# Rules for anything added here:
+# This file is read from the main branch, so a device sees a release as
+# soon as it is published here. Everything a release actually installs -
+# the source it builds from, and the web assets - comes from that
+# release's own GitHub Release, by tag, so a device always gets the
+# artefacts that belong to the version it is moving to rather than
+# whatever main happens to hold at that moment.
 #
-#   1. Every script MUST be idempotent. A device with no /etc/otc/version
-#      (every install made before this feature existed) starts from the
-#      beginning and runs all of them, so re-running a script must be a
-#      no-op rather than an error - and must never destroy data. Schema
-#      changes are ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS,
-#      never DROP, never a re-import of db.sql.
-#   2. A script only carries what is specific to its release. Refreshing
-#      the binary is common to every update and is done once at the end by
-#      scripts/update.sh - don't repeat it here.
-#   3. The sha256 is checked before the script is run as root. Regenerate
-#      it whenever the script changes:
-#        shasum -a 256 scripts/updates/<version>.sh
+# Columns:
 #
-1	7b85090a127fcea7cb3c9b6eef5ad1dd28bcdcde5f3088147626c4ee855318f7	Schema catch-up for installs made before in-place updates existed
+#   version   An integer, one higher than the last. This is the only
+#             signal a device has that anything is new.
+#   script    sha256 of scripts/updates/<version>.sh, or "-" when the
+#             release needs no migration - which is most of them. The
+#             checksum is verified before the script runs as root.
+#   assets    sha256 of the web-dist.tar.gz attached to the release, or
+#             "-" to leave the installed web app alone. Every release
+#             should ship assets (see CLAUDE.md); "-" exists so a mistake
+#             degrades instead of breaking the update.
+#   summary   Shown in Settings, so write it for whoever is deciding
+#             whether to press Update.
+#
+# Release scripts MUST be idempotent. A device with no /etc/otc/version -
+# every install made before this feature existed - starts from the
+# beginning and runs all of them, so re-running one must be a no-op rather
+# than an error, and must never destroy data. Schema changes are ADD
+# COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS, never a DROP and
+# never a re-import of db.sql.
+#
+# See CLAUDE.md, "Cutting a release", for the end-to-end process.
+#
+1	7b85090a127fcea7cb3c9b6eef5ad1dd28bcdcde5f3088147626c4ee855318f7	-	Schema catch-up for installs made before in-place updates existed

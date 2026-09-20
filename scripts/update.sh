@@ -21,8 +21,14 @@ set -uo pipefail
 # Overridable so a fork, or a test run against a local checkout, doesn't
 # need the script edited. Defaults to this project's own repository, which
 # is the same place install.sh is fetched from and run as root.
+#
+# REPO_RAW serves the manifest and the release scripts, and is read from
+# main so a device learns about a release the moment it is published.
+# REPO_GH serves what a release actually installs - the source archive and
+# the web assets - and is addressed by tag, so a device gets the artefacts
+# belonging to the version it is moving to.
 REPO_RAW="${OTC_REPO_RAW:-https://raw.githubusercontent.com/alonsovidales/otc/main}"
-SRC_TARBALL="${OTC_SRC_TARBALL:-https://github.com/alonsovidales/otc/archive/refs/heads/main.tar.gz}"
+REPO_GH="${OTC_REPO_GH:-https://github.com/alonsovidales/otc}"
 SRC_DIR=/opt/otc-src
 VERSION_FILE=/etc/otc/version
 STATUS_FILE=/var/lib/otc/update-status.json
@@ -63,10 +69,16 @@ echo "installed version: $installed"
 # Releases are listed oldest first; anything numerically after what is
 # installed is pending. Comments and blank lines are skipped.
 pending=()
-while IFS=$'\t' read -r version sha description; do
+target=""
+target_assets_sha=""
+while IFS=$'\t' read -r version script_sha assets_sha summary; do
     case "$version" in ''|\#*) continue ;; esac
     if [ "$version" -gt "$installed" ] 2>/dev/null; then
-        pending+=("$version"$'\t'"$sha")
+        pending+=("$version"$'\t'"$script_sha")
+        # The last pending release is the one this device is moving to,
+        # and therefore the one whose source and assets get installed.
+        target="$version"
+        target_assets_sha="$assets_sha"
     fi
 done < "$tmp/VERSIONS"
 
@@ -83,6 +95,13 @@ for entry in "${pending[@]}"; do
     sha="${entry##*$'\t'}"
     status running "Applying release $version"
     echo "--- release $version ---"
+
+    # Most releases change no schema and carry no script at all.
+    if [ "$sha" = "-" ]; then
+        echo "release $version has no migration"
+        echo "$version" > "$VERSION_FILE"
+        continue
+    fi
 
     curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/$version.sh" "$REPO_RAW/scripts/updates/$version.sh" \
         || fail "could not download release $version"
@@ -105,9 +124,12 @@ done
 
 # Refreshing the code is common to every update, so it happens once here
 # rather than in each release script.
-status running "Downloading the latest code"
-curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/src.tar.gz" "$SRC_TARBALL" \
-    || fail "could not download the latest code"
+# Pinned to the release's own tag rather than whatever main holds right
+# now, so what gets built is exactly what this version is.
+status running "Downloading the code for release $target"
+curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/src.tar.gz" \
+    "$REPO_GH/archive/refs/tags/v$target.tar.gz" \
+    || fail "could not download the source for release $target"
 
 mkdir -p "$tmp/src"
 tar -xzf "$tmp/src.tar.gz" -C "$tmp/src" --strip-components=1 || fail "could not unpack the latest code"
@@ -126,12 +148,29 @@ CGO_ENABLED=1 go build -o "$tmp/otc" ./bin/otc.go || fail "the build failed - se
 status running "Restarting"
 install -m 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary"
 
-# The web app is served from disk, so it has to be rebuilt too when it
-# changed. Skipped rather than fatal if npm isn't on this device.
-if command -v npm >/dev/null 2>&1 && [ -d "$SRC_DIR/web" ]; then
-    (cd "$SRC_DIR/web" && npm ci --silent && npm run build --silent) \
-        && rsync -a "$SRC_DIR/web/dist/" /var/www/ \
-        || echo "WARNING: the web app could not be rebuilt, keeping the one already installed"
+# The web app ships prebuilt, attached to the release. Devices have no
+# Node - the bundle is built once, by whoever cuts the release, rather
+# than on every Raspberry Pi in existence. The binary is still built here,
+# which is what keeps any architecture supported without a cross-build.
+if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
+    status running "Installing the web app"
+    if curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/web-dist.tar.gz" \
+        "$REPO_GH/releases/download/v$target/web-dist.tar.gz"; then
+        actual="$(sha256sum "$tmp/web-dist.tar.gz" | awk '{print $1}')"
+        if [ "$actual" != "$target_assets_sha" ]; then
+            fail "the web assets failed their checksum (expected $target_assets_sha, got $actual)"
+        fi
+        # Unpacked to one side and swapped in, so a half-extracted
+        # archive can never be what the device is serving.
+        rm -rf "$tmp/web-dist" && mkdir -p "$tmp/web-dist"
+        tar -xzf "$tmp/web-dist.tar.gz" -C "$tmp/web-dist" || fail "could not unpack the web assets"
+        rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets"
+        echo "web assets installed"
+    else
+        echo "WARNING: release $target has no web assets attached, keeping the installed web app"
+    fi
+else
+    echo "release $target ships no web assets, keeping the installed web app"
 fi
 
 status done "Updated to version $(cat "$VERSION_FILE")"

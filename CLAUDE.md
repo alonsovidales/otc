@@ -150,6 +150,68 @@ Swift/Xcode projects (`OffTheCloud.xcodeproj` in each) that consume the same gen
 messages (`make pb` copies `messages.pb.swift` into both) to talk to a device or the bridge over the
 same `/ws` protocol.
 
+## Cutting a release (issue #94)
+
+Devices update themselves in place: an owner presses **Update** in Settings and the
+device applies every release it is missing, in order, then rebuilds its own binary and
+restarts. Nothing is cross-compiled and no binaries are distributed — the device builds
+from source, which is what keeps any architecture supported. The web app is the
+exception: devices have no Node, so the bundle is built once, here, and attached to the
+release.
+
+**Follow this whenever a change is worth shipping.** A change that is only on `main` has
+not reached anybody: the version number in the manifest is the only signal a device has
+that anything is new.
+
+```bash
+# 1. Pick the next version number (the manifest's last line + 1).
+N=2
+
+# 2. Only if this release needs a schema or config change, write its script.
+#    Most releases don't. It runs as root, on the primary and on every
+#    per-user database, and MUST be idempotent - a device with no
+#    /etc/otc/version runs the whole history from 1.
+vim scripts/updates/$N.sh
+SCRIPT_SHA=$(shasum -a 256 scripts/updates/$N.sh | awk '{print $1}')   # or "-" if there is no script
+
+# 3. Build the web bundle and package it. Every release should ship this,
+#    even a backend-only one: the device installs the assets belonging to
+#    the version it is moving to, so skipping it leaves a device running
+#    new server code behind an older UI.
+npm run build --prefix web
+tar -czf web-dist.tar.gz -C web/dist .
+ASSETS_SHA=$(shasum -a 256 web-dist.tar.gz | awk '{print $1}')
+
+# 4. Add the manifest line: version, script sha, assets sha, summary.
+#    The summary is shown in Settings - write it for whoever is deciding
+#    whether to press Update.
+printf '%s\t%s\t%s\t%s\n' "$N" "$SCRIPT_SHA" "$ASSETS_SHA" "What changed" \
+    >> scripts/updates/VERSIONS
+
+# 5. Commit and push to main. The manifest is read from main, so this is
+#    what makes the release visible to devices.
+git add -A && git commit -m "Release $N: what changed" && git push
+
+# 6. Tag that commit and publish the release with the assets attached.
+#    The device downloads the source by tag, so the tag must exist and must
+#    include the manifest line above.
+git tag "v$N" && git push origin "v$N"
+gh release create "v$N" web-dist.tar.gz --title "v$N" --notes "What changed"
+```
+
+Order matters: the manifest must be on `main` before the tag, the tag must exist before a
+device tries to update, and the checksums must be of the exact files published — the
+device verifies both before running a script as root or replacing the web app.
+
+**Checking it worked**: a device shows its version under Settings → Device version, and
+the full log of any run is at `/var/log/otc/update.log`, with the current state in
+`/var/lib/otc/update-status.json`. A failed run leaves `/etc/otc/version` on the last
+release that fully applied, so re-running resumes from there; a failed build leaves the
+running binary untouched.
+
+**Forks** set `[otc] update-repo` and `[otc] update-releases` so a device updates from its
+own repository rather than silently taking code from upstream.
+
 ## Config
 
 Runtime config is INI, loaded via `cfg.Init(appName, env)`: it reads `etc/otc_<env>.ini` relative to

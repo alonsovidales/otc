@@ -15,11 +15,11 @@ func TestParseManifest(t *testing.T) {
 	manifest := `# a comment
 # another	with	tabs
 
-1	abc123	First release
-2	def456	Second release
-3	aaa111	Third	with an extra column
-not-a-number	xxx	ignored
-4	missing-description
+1	abc123	assets1	First release
+2	def456	-	Second release
+3	aaa111	assets3	Third	with an extra column
+not-a-number	xxx	yyy	ignored
+4	nosha
 `
 	releases, err := parseManifest(strings.NewReader(manifest))
 	if err != nil {
@@ -33,6 +33,11 @@ not-a-number	xxx	ignored
 	}
 	if releases[2].Description != "Third" {
 		t.Errorf("a row with extra columns lost its description: %+v", releases[2])
+	}
+	// A release with no migration carries "-" where a script checksum
+	// would be, and is still a release the device has to move through.
+	if releases[1].Version != 2 || releases[1].Description != "Second release" {
+		t.Errorf("a release with no script was misread: %+v", releases[1])
 	}
 	if releases[3].Version != 4 || releases[3].Description != "" {
 		t.Errorf("a row with no description should still be a release: %+v", releases[3])

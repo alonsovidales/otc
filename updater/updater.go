@@ -46,6 +46,13 @@ const (
 	// modified build.
 	cDefaultRepoRaw = "https://raw.githubusercontent.com/alonsovidales/otc/main"
 
+	// cDefaultRepoGH is where a release's own artefacts live - the source
+	// archive for its tag, and the prebuilt web assets attached to it.
+	// Separate from the manifest above because that is read from main (so
+	// a device learns about a release immediately) while these are
+	// addressed by tag (so it installs exactly that version).
+	cDefaultRepoGH = "https://github.com/alonsovidales/otc"
+
 	// cVersionFile is what release this device is on. Absent on every
 	// install made before this feature existed, which reads as version 0
 	// - such a device runs the whole history, which is safe precisely
@@ -68,6 +75,18 @@ func repoRaw() string {
 	}
 
 	return cDefaultRepoRaw
+}
+
+// repoGH is the release host, overridable via [otc] update-releases for
+// the same reason repoRaw is.
+func repoGH() string {
+	if cfg.HasSection("otc") {
+		if configured := cfg.GetStr("otc", "update-releases"); configured != "" {
+			return strings.TrimSuffix(configured, "/")
+		}
+	}
+
+	return cDefaultRepoGH
 }
 
 func manifestURL() string     { return repoRaw() + "/scripts/updates/VERSIONS" }
@@ -181,7 +200,12 @@ func Apply() error {
 	// Via env rather than "sudo VAR=value ...": sudo only accepts inline
 	// assignments when its policy allows them, and refuses the whole
 	// command when it doesn't.
-	cmd := exec.Command("setsid", "sudo", "-n", "/usr/bin/env", "OTC_REPO_RAW="+repoRaw(), "/bin/bash", cRunnerPath)
+	cmd := exec.Command(
+		"setsid", "sudo", "-n", "/usr/bin/env",
+		"OTC_REPO_RAW="+repoRaw(),
+		"OTC_REPO_GH="+repoGH(),
+		"/bin/bash", cRunnerPath,
+	)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
@@ -225,6 +249,10 @@ func parseManifest(r io.Reader) ([]Release, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
+		// version, script sha, assets sha, summary - see the manifest's
+		// own header. Only the version and the summary matter here; the
+		// checksums are the runner's business, since it is the one that
+		// downloads what they cover.
 		fields := strings.Split(line, "\t")
 		if len(fields) < 2 {
 			continue
@@ -234,8 +262,8 @@ func parseManifest(r io.Reader) ([]Release, error) {
 			continue
 		}
 		description := ""
-		if len(fields) >= 3 {
-			description = strings.TrimSpace(fields[2])
+		if len(fields) >= 4 {
+			description = strings.TrimSpace(fields[3])
 		}
 		releases = append(releases, Release{Version: version, Description: description})
 	}

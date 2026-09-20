@@ -3,3 +3,7 @@ otc
 .env.pi
 .ssh_run.py
 .scp_run.py
+
+# Issue #94: the release bundle is built for a GitHub Release and
+# attached there, never committed (see CLAUDE.md, "Cutting a release").
+web-dist.tar.gz
