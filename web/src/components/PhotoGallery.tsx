@@ -19,6 +19,18 @@ type Token = string | null;
 // Doing that hands the browser a Blob claiming to be video/mp4 over
 // genuinely-JPEG bytes, and it refuses to render it in an <img> at all.
 // The composer hit precisely this when it started offering videos.
+// How long a video may show no sign of life at all - no bytes, no
+// metadata, no error - before the viewer stops waiting on it. Generous on
+// purpose: since issue #110 the source is streamed from the device over
+// the bridge, and a large video on a slow link legitimately takes a
+// while to produce its first frame. Every progress event pushes this
+// back, so it only fires on a genuine stall.
+const cVideoStallMs = 30000;
+
+// Issue #113: how far a finger must travel on the date scrubber before it
+// counts as scrubbing rather than the start of a scroll.
+const cScrubEngagePx = 8;
+
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -299,14 +311,24 @@ export default function PhotoGallery() {
   // -------- modal (hi-res) --------------------------------------------------
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [hiURL, setHiURL] = useState<string | null>(null);
-  // Issue #106: set when the browser can't decode the opened video.
-  // iPhones record HEVC (hvc1) in a QuickTime container by default, which
-  // Safari plays and Chrome cannot decode at all - no amount of
-  // relabelling the blob helps, since it's the codec rather than the
-  // container it objects to (verified against a real IMG_*.MOV from this
-  // library). Rather than leave a player that sits at readyState 0
-  // forever looking broken, say so and offer the file itself.
-  const [videoUnplayable, setVideoUnplayable] = useState(false);
+  // Issue #106: why the opened video isn't playing, when it isn't.
+  //
+  // "codec" means the browser told us so - it rejected the source or
+  // failed to decode it. iPhones record HEVC (hvc1) by default, which
+  // Safari plays and some browsers can't decode at all.
+  //
+  // "stalled" means it simply never arrived: no error, no metadata, no
+  // bytes for a long time. That is a transfer problem, not a codec one,
+  // and it must not be reported as HEVC. It used to be: this was a flat
+  // boolean set by an 8-second timer on readyState === 0, which was a
+  // fair proxy back when the video was a blob already in memory (it
+  // could only be stuck if the browser refused to decode it). Issue
+  // #110 made the source a URL streamed from the device, so those 8
+  // seconds now cover real network loading - and a large video over the
+  // bridge routinely takes longer, producing a confident, wrong "it's
+  // recorded in HEVC" for files that are nothing of the sort (reproduced
+  // against an H.264 file this session).
+  const [videoProblem, setVideoProblem] = useState<null | "codec" | "stalled">(null);
 
   // -------- "More info" panel (issue #41) ------------------------------------
   const [infoOpen, setInfoOpen] = useState(false);
@@ -455,14 +477,29 @@ export default function PhotoGallery() {
     const bucket = bucketIndex.find(b => idx >= b.start && idx < b.end) ?? bucketIndex[bucketIndex.length - 1];
     if (bucket) setPlaceholderCount(bucket.count);
   };
+  // Issue #113: where a touch started, so a scrub can be told from a
+  // finger that only brushed the strip on its way into a scroll.
+  const scrubStartY = useRef<number | null>(null);
+
   const onScrubPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    handleScrubMove(e.clientY);
+    scrubStartY.current = e.clientY;
+    // A mouse click is deliberate - nobody clicks the scrubber by
+    // accident - so it still jumps straight away. A touch has to move
+    // first: pressing down used to jump the grid to the top and scrub
+    // from wherever the finger landed, which is what made brushing this
+    // strip throw the whole library back to the newest photo.
+    if (e.pointerType === "mouse") handleScrubMove(e.clientY);
   };
   const onScrubPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (scrubFrac != null) handleScrubMove(e.clientY);
+    if (scrubFrac == null) {
+      const start = scrubStartY.current;
+      if (start == null || Math.abs(e.clientY - start) < cScrubEngagePx) return;
+    }
+    handleScrubMove(e.clientY);
   };
   const onScrubPointerUp = () => {
+    scrubStartY.current = null;
     const target = scrubTarget; // capture before clearing scrubFrac below
     setScrubFrac(null);
     if (target) void jumpToDate(target.month);
@@ -474,7 +511,7 @@ export default function PhotoGallery() {
     async (idx: number) => {
       setOpenIdx(idx);
       setHiURL(null);
-      setVideoUnplayable(false);
+      setVideoProblem(null);
       setInfoOpen(false);
       setInfoData(null);
       setZoomScale(1);
@@ -1016,15 +1053,28 @@ export default function PhotoGallery() {
                 // rather than an empty black box.
                 if (isVideoFile(f)) {
                   if (!hiURL) return <img src={thumb} alt={f.path} />;
-                  if (videoUnplayable) {
+                  if (videoProblem) {
                     return (
                       <div className="pg-video-unplayable">
                         <img src={thumb} alt={f.path} />
-                        <p>This browser can't play this video.</p>
-                        <p className="pg-video-unplayable-hint">
-                          It's recorded in HEVC, which not every browser can decode - Safari
-                          handles it, and recent Chrome does on hardware that supports it.
-                        </p>
+                        {videoProblem === "codec" ? (
+                          <>
+                            <p>This browser can't play this video.</p>
+                            <p className="pg-video-unplayable-hint">
+                              It may be recorded in HEVC, which not every browser can decode -
+                              Safari handles it, and recent Chrome does on hardware that
+                              supports it.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p>This video is taking too long to load.</p>
+                            <p className="pg-video-unplayable-hint">
+                              Nothing has arrived from your device for a while - it may be
+                              busy or hard to reach right now. Trying again usually works.
+                            </p>
+                          </>
+                        )}
                         <a className="pg-video-download" href={hiURL} download={f.path.split("/").pop()}>
                           Download it
                         </a>
@@ -1037,19 +1087,41 @@ export default function PhotoGallery() {
                       controls
                       autoPlay
                       playsInline
-                      // onError covers a codec the browser rejects
-                      // outright; the timeout covers the worse case seen
-                      // with HEVC, where it simply never reaches
-                      // loadedmetadata and never errors either.
-                      onError={() => setVideoUnplayable(true)}
+                      // The browser is the only thing that actually knows
+                      // why a video won't play, so ask it rather than
+                      // inferring: only a decode failure or an outright
+                      // rejection of the source is a codec problem.
+                      // Anything else (a network error, a slow transfer)
+                      // is reported as what it is.
+                      onError={(e) => {
+                        const code = (e.currentTarget as HTMLVideoElement).error?.code;
+                        setVideoProblem(
+                          code === MediaError.MEDIA_ERR_DECODE ||
+                          code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+                            ? "codec"
+                            : "stalled"
+                        );
+                      }}
                       onLoadedMetadata={(e) => {
-                        if ((e.currentTarget as HTMLVideoElement).videoWidth === 0) setVideoUnplayable(true);
+                        if ((e.currentTarget as HTMLVideoElement).videoWidth === 0) setVideoProblem("codec");
                       }}
                       ref={(el) => {
                         if (!el) return;
-                        const timer = setTimeout(() => {
-                          if (el.readyState === 0) setVideoUnplayable(true);
-                        }, 8000);
+                        // A stall is "no sign of life for a while", not
+                        // "not finished yet" - so every event that proves
+                        // something is still happening pushes the
+                        // deadline back, and a video that streams in
+                        // slowly is left alone to do it.
+                        let timer: ReturnType<typeof setTimeout>;
+                        const giveUp = () => { if (el.readyState === 0) setVideoProblem("stalled"); };
+                        const arm = () => {
+                          clearTimeout(timer);
+                          timer = setTimeout(giveUp, cVideoStallMs);
+                        };
+                        arm();
+                        for (const ev of ["progress", "loadedmetadata", "loadeddata", "canplay", "playing"]) {
+                          el.addEventListener(ev, arm);
+                        }
                         el.addEventListener("loadedmetadata", () => clearTimeout(timer), { once: true });
                       }}
                     />

@@ -80,6 +80,19 @@
      label after a drag. */
   user-select: none;
 }
+
+/* Issue #113: on a touch screen that 64px band is a trap - it carries
+   touch-action: none, so a finger starting a scroll anywhere inside it
+   scrubs the timeline instead of scrolling the grid, which is easy to do
+   by accident and impossible to recover from mid-gesture. Narrowed to
+   the rail itself for touch only; a mouse keeps the generous target,
+   since a pointer can't mis-scroll. The year labels don't move (they're
+   positioned against the same right edge and already have
+   pointer-events: none) - they simply stop being part of the hit area
+   here, which on touch was never the point of them. */
+@media (pointer: coarse) {
+  .pg-scrubber { width: 16px; }
+}
 .pg-scrubber-tick {
   position: absolute;
   right: 14px;

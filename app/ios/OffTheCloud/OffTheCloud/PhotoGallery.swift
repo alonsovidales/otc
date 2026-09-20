@@ -755,16 +755,6 @@ final class PhotoGalleryVM: ObservableObject {
             self.hiResImage = img
             return
         }
-        // Issue #110: stream it if the device offers a URL, so playback
-        // starts on the first chunk instead of after the whole file has
-        // come down the socket and been written to a temp file. A clip
-        // small enough that streaming wouldn't pay for itself is declined
-        // by the device, and falls through to the fetch below.
-        if let streamURL = await MediaStream.url(forPath: it.path) {
-            self.videoPlayer = AVPlayer(url: streamURL)
-            return
-        }
-
         do {
             let resp = try await ws.request { e in
                 var req = ReqEnvelope()
@@ -790,6 +780,17 @@ final class PhotoGalleryVM: ObservableObject {
             self.videoPlayer = AVPlayer(url: u)
             return
         }
+
+        // Issue #110: stream it if the device offers a URL, so playback
+        // starts on the first chunk instead of after the whole file has
+        // come down the socket and been written to a temp file. A clip
+        // small enough that streaming wouldn't pay for itself is declined
+        // by the device, and falls through to the download below.
+        if let streamURL = await MediaStream.url(forPath: it.path) {
+            self.videoPlayer = AVPlayer(url: streamURL)
+            return
+        }
+
         do {
             let resp = try await ws.request { e in
                 var req = ReqEnvelope()
@@ -1655,6 +1656,20 @@ private struct FileInfoView: View {
 // cumulative photo count (see PhotoGalleryVM.yearTicks), a floating
 // month/year tooltip only while the drag is active. Mirrors web's
 // PhotoScrubber bit of PhotoGallery.tsx.
+/// Issue #113: how wide the scrubber's grab area is. Deliberately under
+/// the 44pt Apple suggests for a touch target - the gesture it competes
+/// with, scrolling the grid, is the one performed constantly, and a
+/// mis-grab there is far more annoying than having to aim a little
+/// closer to the edge to scrub.
+private let cScrubberTouchWidth: CGFloat = 16
+
+/// Issue #113: how far a finger must travel inside the strip before it
+/// counts as scrubbing at all. minimumDistance has to stay 0 (the gesture
+/// must claim the touch before the ScrollView does, or a scrub - which is
+/// also a vertical drag - gets eaten as a scroll), so this is what tells a
+/// deliberate scrub from a touch that was only ever meant to be a scroll.
+private let cScrubEngageDistance: CGFloat = 8
+
 private struct PhotoDateScrubber: View {
     @ObservedObject var vm: PhotoGalleryVM
     let scrollProxy: ScrollViewProxy
@@ -1739,17 +1754,42 @@ private struct PhotoDateScrubber: View {
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topTrailing)
-            .contentShape(Rectangle())
-            .gesture(
+            // Issue #113: the drag lives on a narrow strip at the very
+            // edge rather than the whole 64pt column. The column is that
+            // wide so the year labels have room, but making all of it
+            // grabbable meant a finger starting a scroll anywhere near
+            // the right edge was taken as a scrub - and with
+            // minimumDistance 0 (a tap has to jump) it was claimed the
+            // instant you touched down, before the gesture's direction
+            // was knowable.
+            //
+            // This does not undo the widening the .frame(width: 64)
+            // comment below describes: the year labels only render while
+            // a drag is already in progress, so at rest there is nothing
+            // out there to tap, and a drag once started keeps tracking
+            // outside the strip anyway.
+            .overlay(alignment: .trailing) {
+                Color.clear
+                    .frame(width: cScrubberTouchWidth)
+                    .contentShape(Rectangle())
+                    .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        // Issue #113: nothing happens until the finger has
+                        // actually travelled. onChanged fires once on
+                        // touch-down with no translation at all, and that
+                        // first call used to scroll the grid to the top -
+                        // so brushing this strip on the way into a scroll
+                        // threw the whole library back to the newest
+                        // photo, which is what "it does a massive
+                        // scrolling" was. A scrub moves; a stray touch
+                        // doesn't.
+                        guard vm.scrubFrac != nil || abs(value.translation.height) >= cScrubEngageDistance else { return }
                         if vm.scrubFrac == nil {
-                            // First move of a new drag (a plain tap counts
-                            // too, since onChanged fires once even without
-                            // movement) - scroll away immediately rather
-                            // than waiting for the jump to resolve, so the
-                            // current cards visibly start moving out of
-                            // the way the moment you touch the scrubber.
+                            // Now it's genuinely a drag: scroll away
+                            // immediately rather than waiting for the jump
+                            // to resolve, so the cards visibly start
+                            // moving out of the way.
                             scrollProxy.scrollTo("photoGridTop", anchor: .top)
                         }
                         let frac = min(1, max(0, value.location.y / geo.size.height))
@@ -1774,7 +1814,8 @@ private struct PhotoDateScrubber: View {
                             vm.placeholderCount = nil
                         }
                     }
-            )
+                    )
+            }
         }
         // Wide enough to hold the year labels *inside* the interactive
         // strip, not off to its side - reproduced live as tapping

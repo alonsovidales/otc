@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -49,6 +50,23 @@ const (
 	// in memory.
 	plaintextTTL = 2 * time.Minute
 )
+
+// IsStreamable reports whether this kind of media is worth serving as a
+// byte stream at all.
+//
+// Only video is. An image has to be complete before it can be shown, so
+// there is nothing to gain - and, less obviously, the normal fetch path
+// converts HEIC to JPEG on its way out (issue #44), which a raw byte
+// range bypasses entirely: an iPhone photo streamed straight off disk
+// reaches a client as something it can't display.
+//
+// Checked on the device rather than trusted to each client: a client
+// asking for a stream of a photo is a bug, and answering "no" here is
+// what keeps that bug from becoming a video player opening over
+// someone's holiday snap (which is exactly what it did on iOS).
+func IsStreamable(mime string) bool {
+	return strings.HasPrefix(mime, "video/")
+}
 
 // Stream is one readable view of a media resource, at a known size.
 type Stream struct {

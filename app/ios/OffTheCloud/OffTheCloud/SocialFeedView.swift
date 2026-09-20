@@ -29,6 +29,10 @@ private func formatPostDate(_ date: Date) -> String {
     return f.string(from: date)
 }
 
+/// The most a launch-time feed snapshot may weigh before it costs more
+/// to read than it saves (see loadCachedPosts).
+private let cMaxCachedFeedBytes = 4 << 20
+
 @MainActor
 final class SocialFeedViewModel: ObservableObject {
     // Issue #79: lifted from SocialFeedView's own private @StateObject to a
@@ -82,16 +86,41 @@ final class SocialFeedViewModel: ObservableObject {
     }
 
     private func loadCachedPosts() {
-        guard let data = try? Data(contentsOf: Self.cacheURL),
+        guard let data = try? Data(contentsOf: Self.cacheURL) else { return }
+        // Read synchronously at launch on purpose (something on screen
+        // beats a blank feed), which is only acceptable while the file is
+        // small - see saveCachedPosts. A cache written by an older build
+        // holds the entire accumulated feed, thumbnails and all, and
+        // parsing that here would freeze the launch itself; skip it and
+        // let the next save replace it with a small one.
+        guard data.count <= cMaxCachedFeedBytes,
               let cached = try? Msg_SocialPublications(serializedData: data) else { return }
         posts = cached.publications
     }
 
+    /// Writes the launch snapshot, off the main thread.
+    ///
+    /// This class is @MainActor, so both halves of this used to run
+    /// there: protobuf-encoding every post in the feed - thumbnails
+    /// included, which is megabytes once a few pages have loaded - and
+    /// then a synchronous atomic disk write, with the whole app blocked
+    /// behind it. That is the freeze reported "for a few seconds when the
+    /// Social tab is loading", and it froze every other tab too, because
+    /// a blocked main thread blocks all of them.
+    ///
+    /// Only the first page is kept: the point of the cache is to put
+    /// something on screen at launch, not to restore a whole scroll
+    /// position - and a small file is also a fast one to read back
+    /// synchronously in init.
     private func saveCachedPosts() {
-        var msg = Msg_SocialPublications()
-        msg.publications = posts
-        guard let data = try? msg.serializedData() else { return }
-        try? data.write(to: Self.cacheURL, options: .atomic)
+        let snapshot = Array(posts.prefix(Int(Self.pageSize)))
+        let url = Self.cacheURL
+        Task.detached(priority: .utility) {
+            var msg = Msg_SocialPublications()
+            msg.publications = snapshot
+            guard let data = try? msg.serializedData() else { return }
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     /// Keeps retrying every few seconds until a request actually completes
@@ -541,6 +570,116 @@ struct SocialFeedView: View {
     }
 }
 
+/// Thumbnail dimensions, parsed once per file rather than on every layout
+/// pass.
+///
+/// The media area's size is computed inside the view body, and the body
+/// re-runs constantly while a feed scrolls - so building a UIImage from
+/// the thumbnail data there meant re-parsing every image of every visible
+/// post, many times a second, on the main thread. That is work the
+/// scrolling itself then has to wait for. The answer only depends on the
+/// file, so it is remembered by hash.
+/// Issue #114: whether feed videos are muted, shared by every post.
+///
+/// Once someone taps unmute, the next video they scroll to stays
+/// unmuted - the alternative, re-muting on every post, means tapping the
+/// same button over and over down the feed.
+@MainActor
+final class FeedAudio: ObservableObject {
+    static let shared = FeedAudio()
+
+    @Published private(set) var muted = true
+
+    func toggle() {
+        muted.toggle()
+        guard !muted else { return }
+        // Without this, unmuting does nothing at all while the ringer
+        // switch is on silent - the default category is silenced by it,
+        // so the button would look broken. Only raised when sound is
+        // actually wanted, and off the main thread because activating a
+        // session is slow enough to be felt.
+        Task.detached(priority: .userInitiated) {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback)
+            try? session.setActive(true)
+        }
+    }
+}
+
+@MainActor
+private enum MediaSizeCache {
+    /// Decoded thumbnails, kept by file hash.
+    ///
+    /// Both the shape of the media area and the image drawn in it used to
+    /// be derived by building a UIImage from the thumbnail bytes inside
+    /// the view body - which re-runs constantly while a feed scrolls, so
+    /// every visible post re-parsed every one of its images many times a
+    /// second, on the main thread, with the scrolling itself waiting
+    /// behind it.
+    ///
+    /// NSCache rather than a plain dictionary so this gives the memory
+    /// back under pressure instead of growing for the life of the app.
+    private static let images: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 200
+        return cache
+    }()
+
+    static func image(of file: Msg_File) -> UIImage? {
+        let key = file.hash as NSString
+        if let cached = images.object(forKey: key) { return cached }
+        guard file.hasContent, let ui = UIImage(data: file.content) else { return nil }
+        images.setObject(ui, forKey: key)
+
+        return ui
+    }
+
+    static func size(of file: Msg_File) -> CGSize? {
+        guard let ui = image(of: file), ui.size.width > 0, ui.size.height > 0 else { return nil }
+
+        return ui.size
+    }
+}
+
+/// Issue #112 follow-up: how much of the screen one post's media may take.
+/// A backstop for very wide windows (an iPad), where even the feed box
+/// below could otherwise fill the screen and push the caption, likes and
+/// comments out of view, leaving a post you can only scroll past.
+private let cMaxMediaHeightFraction: CGFloat = 0.8
+
+/// The feed's media box, in Instagram's terms: nothing taller than 4:5,
+/// nothing wider than 1.91:1, and whatever falls between keeps its own
+/// shape. Everything this library holds is 9:16 (0.5625), which is far
+/// taller than 4:5 - shown at its own ratio it takes the whole screen,
+/// which is what put the comments out of reach.
+private let cFeedMinAspect: CGFloat = 4.0 / 5.0
+private let cFeedMaxAspect: CGFloat = 1.91
+
+/// A player that fills its box and crops the overflow, which is how
+/// Instagram shows a 9:16 clip in a 4:5 feed slot.
+///
+/// SwiftUI's own VideoPlayer can't do this: it has no videoGravity of its
+/// own and always letterboxes, so a 9:16 video in a 4:5 box would become
+/// a narrow strip between two black bars. This is the same
+/// AVPlayerViewController VideoPlayer wraps - transport controls and all
+/// - with the one property it doesn't expose set to fill.
+private struct CroppingVideoPlayer: UIViewControllerRepresentable {
+    let player: AVPlayer
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.videoGravity = .resizeAspectFill
+        controller.view.backgroundColor = .black
+
+        return controller
+    }
+
+    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        if controller.player !== player { controller.player = player }
+    }
+}
+
 private struct PostCard: View {
     let post: Msg_SocialPublication
     // Issue #78: brief "here's what you tapped" flash after opening this
@@ -590,6 +729,7 @@ private struct PostCard: View {
     // playback was torn down and restarted from zero each time, which is
     // exactly the reported "spinner shows, video never plays".
     @State private var videoPlayer: AVPlayer?
+    @ObservedObject private var feedAudio = FeedAudio.shared
 
     // Instagram-style, edge-to-edge feed (issue #12): no card background or
     // rounded frame around the whole post, and the image spans the full
@@ -634,7 +774,42 @@ private struct PostCard: View {
                     // iOS; the full-screen popup only makes sense on the
                     // web (where there's no native photo app to fall back
                     // on).
-                    mediaContent(for: file)
+                    //
+                    // Issue #109: with more than one, they page with the
+                    // finger - the images move as you drag and snap when
+                    // you let go, instead of only swapping once the
+                    // gesture ended (which made a swipe feel like it had
+                    // done nothing until it suddenly had). That is what a
+                    // paging TabView does natively, so it replaces the
+                    // hand-rolled DragGesture that used to sit below;
+                    // it needs a definite height, which is exactly the
+                    // one carouselHeight already computes for this case.
+                    carouselContent(for: file)
+                        // Issue #114: a video starts when you scroll onto
+                        // it and stops when you leave, so the feed plays
+                        // itself. The threshold means "mostly on screen",
+                        // which is also what keeps two videos from
+                        // playing at once - only one post can be that
+                        // visible at a time.
+                        .onScrollVisibilityChange(threshold: 0.6) { visible in
+                            if visible {
+                                autoplayIfVideo(file)
+                            } else {
+                                videoPlayer?.pause()
+                            }
+                        }
+                        .overlay(alignment: .topTrailing) {
+                            if file.mime.hasPrefix("video/") {
+                                Button { feedAudio.toggle() } label: {
+                                    Image(systemName: feedAudio.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(8)
+                                        .background(.black.opacity(0.45), in: Circle())
+                                }
+                                .padding(10)
+                            }
+                        }
                         .contentShape(Rectangle())
                         .scaleEffect(pinchScale, anchor: pinchAnchor)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
@@ -647,19 +822,16 @@ private struct PostCard: View {
                         }
 
                     if post.files.count > 1 {
-                        // Issue #20: tapping the left/right half of the
-                        // image also pages through it — no visible buttons,
-                        // just invisible zones alongside the drag gesture
-                        // below.
-                        HStack(spacing: 0) {
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .onTapGesture { if currentImage > 0 { currentImage -= 1 } }
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .onTapGesture { if currentImage < post.files.count - 1 { currentImage += 1 } }
-                        }
-
+                        // Issue #20's left/right tap zones used to sit
+                        // here, as a Color.clear layer over the whole
+                        // media area. That layer is hit-testable, so it
+                        // took every touch before the paging scroll view
+                        // underneath could see it - and a tap gesture
+                        // doesn't hand a drag back down, so sliding
+                        // between pictures did nothing at all on iOS
+                        // (issue #109). They now live inside each page
+                        // (see carouselContent), where a tap and the
+                        // scroll view's own pan coexist normally.
                         HStack {
                             ForEach(0..<post.files.count, id: \.self) { i in
                                 Circle()
@@ -670,22 +842,14 @@ private struct PostCard: View {
                         .padding(6)
                         .background(.black.opacity(0.3), in: Capsule())
                         .padding(.bottom, 8)
+                        // Purely an indicator, and it sits right where a
+                        // drag is likely to start.
+                        .allowsHitTesting(false)
                     }
                 }
-                // Swipe between a post's images (issue #13) — pure
-                // finger-drag, no arrow buttons; the dots above are the only
-                // other position affordance.
-                .gesture(
-                    DragGesture(minimumDistance: 20)
-                        .onEnded { value in
-                            guard post.files.count > 1 else { return }
-                            if value.translation.width < -30, currentImage < post.files.count - 1 {
-                                currentImage += 1
-                            } else if value.translation.width > 30, currentImage > 0 {
-                                currentImage -= 1
-                            }
-                        }
-                )
+                // Issue #13's swipe now comes from the paging TabView in
+                // carouselContent (issue #109), which follows the finger
+                // rather than acting only once the drag has ended.
                 // Issue #28: pinch to zoom, attached at this level (not
                 // directly on the image) and as a *simultaneous* gesture —
                 // the invisible left/right tap zones (issue #20) sit on top
@@ -826,12 +990,16 @@ private struct PostCard: View {
     private func mediaContent(for file: Msg_File) -> some View {
         if file.mime.hasPrefix("video/") {
             videoContent(for: file)
-        } else if file.hasContent, let ui = UIImage(data: file.content) {
-            Image(uiImage: ui)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity, maxHeight: carouselHeight)
-                .frame(height: carouselHeight)
+        } else if let ui = MediaSizeCache.image(of: file) {
+            // .fit, never .fill: a photo is never cut. Its own ratio
+            // shapes the box (within the allowed range), so an ordinary
+            // landscape photo fills it exactly and only something taller
+            // than 4:5 gets letterboxed - cropping these is what broke
+            // horizontal photos, especially in a post whose first item is
+            // portrait and therefore sets a tall box.
+            feedBox(for: file) {
+                Image(uiImage: ui).resizable().aspectRatio(contentMode: .fit)
+            }
         } else {
             Rectangle()
                 .fill(Color.secondary.opacity(0.08))
@@ -842,6 +1010,95 @@ private struct PostCard: View {
         }
     }
 
+    /// The shape of a post's media, read from its own thumbnail. A
+    /// video's thumbnail is a frame of that video (see UploadFile's
+    /// background processing), so it carries exactly the aspect ratio the
+    /// player will have - which is what lets the player be given the
+    /// poster's box before a single byte of video has been decoded.
+    private func mediaAspect(for file: Msg_File) -> CGFloat? {
+        guard let size = MediaSizeCache.size(of: file) else { return nil }
+
+        return size.width / size.height
+    }
+
+    /// One post's media area: a single item on its own, or a paging
+    /// carousel that moves with the finger when there are several
+    /// (issue #109).
+    @ViewBuilder
+    private func carouselContent(for current: Msg_File) -> some View {
+        if post.files.count > 1, let height = carouselHeight {
+            TabView(selection: $currentImage) {
+                ForEach(0..<post.files.count, id: \.self) { i in
+                    mediaContent(for: post.files[i])
+                        // Issue #20, kept: tapping the left or right
+                        // quarter pages through. Inside the page rather
+                        // than over the whole carousel, so the scroll
+                        // view still gets the drag.
+                        .overlay {
+                            HStack(spacing: 0) {
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { if currentImage > 0 { currentImage -= 1 } }
+                                    .frame(maxWidth: .infinity)
+                                Color.clear.frame(maxWidth: .infinity)
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { if currentImage < post.files.count - 1 { currentImage += 1 } }
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .tag(i)
+                }
+            }
+            // The dots are drawn by this card itself, over the image -
+            // TabView's own index view would sit below it and duplicate
+            // them.
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: height)
+        } else {
+            mediaContent(for: current)
+        }
+    }
+
+    /// This file's shape as the feed will show it: its own aspect ratio,
+    /// clamped into the range the feed allows (see cFeedMinAspect). The
+    /// media fills that box and is cropped, rather than being letterboxed
+    /// inside it.
+    private func displayAspect(for file: Msg_File) -> CGFloat? {
+        guard let aspect = mediaAspect(for: file) else { return nil }
+
+        return min(max(aspect, cFeedMinAspect), cFeedMaxAspect)
+    }
+
+    /// One box for this post's media, sized by boxAspect. Poster and
+    /// player share it, so starting playback can't reshape the post
+    /// (issue #112). What goes inside decides whether it is cropped to
+    /// that box or letterboxed within it - see the call sites.
+    @ViewBuilder
+    private func feedBox<Content: View>(for file: Msg_File, @ViewBuilder content: @escaping () -> Content) -> some View {
+        Color.black
+            .aspectRatio(boxAspect(for: file), contentMode: .fit)
+            .frame(maxWidth: .infinity, maxHeight: maxMediaHeight)
+            .overlay { content() }
+            .clipped()
+    }
+
+    /// The shape of this post's media area: one ratio for the whole post,
+    /// taken from its first item as Instagram does, so swiping a carousel
+    /// can't resize the card.
+    private func boxAspect(for file: Msg_File) -> CGFloat {
+        let source = post.files.first ?? file
+
+        return displayAspect(for: source) ?? cFeedMinAspect
+    }
+
+    /// The tallest this post's media may be - see cMaxMediaHeightFraction.
+    /// Applied to the poster and the player alike, so capping one can't
+    /// reintroduce the mismatch issue #112 fixed.
+    private var maxMediaHeight: CGFloat {
+        UIScreen.main.bounds.height * cMaxMediaHeightFraction
+    }
+
     /// Issue #60: a video post shows its thumbnail as a poster with a play
     /// button; tapping it fetches the actual file (GetFile, same RPC an
     /// image would use for a hi-res view on web - iOS has no such hi-res
@@ -850,23 +1107,32 @@ private struct PostCard: View {
     @ViewBuilder
     private func videoContent(for file: Msg_File) -> some View {
         if let player = videoPlayer {
-            VideoPlayer(player: player)
-                .frame(maxWidth: .infinity, maxHeight: carouselHeight)
-                .frame(height: carouselHeight ?? 320)
-                // Tapping the poster is the play gesture - starting
-                // playback here means that tap does what it looks like it
-                // does, instead of landing on a paused player that needs a
-                // second tap on its own control.
-                .onAppear { player.play() }
-                .onDisappear { player.pause() }
+            // Issue #112: the player takes the very same box the poster
+            // just occupied, so pressing play can't reshape the post. It
+            // used to fall back to a fixed 320pt-tall box that had
+            // nothing to do with the video's shape.
+            feedBox(for: file) {
+                CroppingVideoPlayer(player: player)
+            }
+            // Tapping the poster is the play gesture - starting
+            // playback here means that tap does what it looks like it
+            // does, instead of landing on a paused player that needs a
+            // second tap on its own control.
+            .onAppear { player.play() }
+            .onDisappear { player.pause() }
+            // Issue #114: the speaker button lives on this post but the
+            // preference is shared, so a toggle anywhere reaches whatever
+            // is currently playing.
+            .onChange(of: feedAudio.muted) { _, muted in player.isMuted = muted }
         } else {
             ZStack {
-                if file.hasContent, let ui = UIImage(data: file.content) {
-                    Image(uiImage: ui)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: carouselHeight)
-                        .frame(height: carouselHeight)
+                if let ui = MediaSizeCache.image(of: file) {
+                    // .fill here, unlike a photo: this poster stands in
+                    // for a player that crops to the same box, so it has
+                    // to be framed identically.
+                    feedBox(for: file) {
+                        Image(uiImage: ui).resizable().aspectRatio(contentMode: .fill)
+                    }
                 } else {
                     Rectangle()
                         .fill(Color.secondary.opacity(0.08))
@@ -886,6 +1152,20 @@ private struct PostCard: View {
         }
     }
 
+    /// Issue #114: starts this post's video because it just scrolled into
+    /// view. Muted, which is both what the issue asks for and the only
+    /// way autoplay is acceptable in a feed - the speaker button above
+    /// is what turns sound on.
+    private func autoplayIfVideo(_ file: Msg_File) {
+        guard file.mime.hasPrefix("video/") else { return }
+        if let player = videoPlayer {
+            player.isMuted = feedAudio.muted
+            player.play()
+            return
+        }
+        loadAndPlayVideo(file)
+    }
+
     private func loadAndPlayVideo(_ file: Msg_File) {
         guard !loadingVideo, videoPlaybackURL == nil else { return }
         loadingVideo = true
@@ -900,7 +1180,9 @@ private struct PostCard: View {
                 // Same handoff as the downloaded case below - the player
                 // view owns starting playback, so this must not differ.
                 videoPlaybackURL = streamURL
-                videoPlayer = AVPlayer(url: streamURL)
+                let player = AVPlayer(url: streamURL)
+                player.isMuted = feedAudio.muted
+                videoPlayer = player
                 return
             }
 
@@ -931,7 +1213,9 @@ private struct PostCard: View {
                     .appendingPathExtension(ext)
                 try rf.content.write(to: tmp)
                 videoPlaybackURL = tmp
-                videoPlayer = AVPlayer(url: tmp)
+                let player = AVPlayer(url: tmp)
+                player.isMuted = feedAudio.muted
+                videoPlayer = player
             } catch {
                 // Leave the poster + play button in place - tapping again
                 // retries, same as the rest of this app's best-effort
@@ -956,20 +1240,20 @@ private struct PostCard: View {
         }
     }
 
-    /// Issue #27: with more than one image in a post, fix the media area's
-    /// height to the tallest of them (capped at 3/4 of the screen) instead
-    /// of letting it resize per-image — swiping between mixed aspect ratios
-    /// used to make the whole card jump taller/shorter on every image.
-    /// `nil` for a single-image post, which keeps its own natural height.
+    /// Issue #27: with more than one item in a post, the media area keeps
+    /// one height rather than resizing per item - swiping between mixed
+    /// aspect ratios used to make the whole card jump taller and shorter
+    /// on every image. `nil` for a single-item post, which has nothing to
+    /// stay consistent with.
+    ///
+    /// It is the same box every item already draws into (see boxAspect),
+    /// just expressed as a height, because that is what a paging TabView
+    /// needs to be given.
     private var carouselHeight: CGFloat? {
-        guard post.files.count > 1 else { return nil }
+        guard let first = post.files.first, post.files.count > 1 else { return nil }
         let width = UIScreen.main.bounds.width
-        let heights = post.files.compactMap { f -> CGFloat? in
-            guard f.hasContent, let ui = UIImage(data: f.content), ui.size.width > 0 else { return nil }
-            return width * (ui.size.height / ui.size.width)
-        }
-        guard let tallest = heights.max() else { return nil }
-        return min(tallest, UIScreen.main.bounds.height * 0.75)
+
+        return min(width / boxAspect(for: first), maxMediaHeight)
     }
 
 }

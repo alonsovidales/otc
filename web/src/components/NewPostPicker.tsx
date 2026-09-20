@@ -617,23 +617,37 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                       onDragEnd={endDrag}
                       title={p}
                     >
-                      <div className="np-strip-thumb">
+                      {/* Issue #111: the whole tile opens the trimmer, not
+                          just a pill in its corner - there is nothing else
+                          to tap a selected video for, and the trimmer is
+                          also where you can watch it. The badge is now
+                          only an affordance and a place to show the
+                          chosen length. */}
+                      <div
+                        className={`np-strip-thumb${isVideo ? " trimmable" : ""}`}
+                        role={isVideo ? "button" : undefined}
+                        tabIndex={isVideo ? 0 : undefined}
+                        aria-label={isVideo ? `Trim ${p}` : undefined}
+                        onClick={() => { if (isVideo && trimLoading !== p) void openServerTrimmer(p); }}
+                        onKeyDown={(e) => {
+                          if (!isVideo || trimLoading === p) return;
+                          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void openServerTrimmer(p); }
+                        }}
+                      >
                         {f && <img src={stripUrlFor(f)} alt={p} />}
                         <span className="np-strip-pos">{i + 1}</span>
                         {isVideo && <span className="np-strip-video">▶</span>}
                         {isVideo && (
-                          <button
-                            className={`np-trim-btn${serverTrims[p] ? " trimmed" : ""}`}
-                            onClick={() => void openServerTrimmer(p)}
-                            disabled={trimLoading === p}
-                            aria-label={`Trim ${p}`}
-                          >
+                          <span className={`np-trim-btn${serverTrims[p] ? " trimmed" : ""}`} aria-hidden="true">
                             {trimLoading === p ? "…" : trimBadge(serverTrims[p])}
-                          </button>
+                          </span>
                         )}
                         <button
                           className="np-remove"
-                          onClick={() => f && toggleSel(f)}
+                          // Without this the click also reaches the tile
+                          // above and opens the trimmer on a video that
+                          // was just removed.
+                          onClick={(e) => { e.stopPropagation(); if (f) toggleSel(f); }}
                           aria-label={`Remove ${p} from the post`}
                         >
                           ✕
@@ -669,24 +683,35 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                     onDragEnd={endDrag}
                     title={f.name}
                   >
-                    <div className="np-strip-thumb">
+                    <div
+                      className={`np-strip-thumb${f.type.startsWith("video/") ? " trimmable" : ""}`}
+                      role={f.type.startsWith("video/") ? "button" : undefined}
+                      tabIndex={f.type.startsWith("video/") ? 0 : undefined}
+                      aria-label={f.type.startsWith("video/") ? `Trim ${f.name}` : undefined}
+                      onClick={() => {
+                        if (f.type.startsWith("video/")) setTrimming({ kind: "local", file: f, url: localUrlFor(f) });
+                      }}
+                      onKeyDown={(e) => {
+                        if (!f.type.startsWith("video/")) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setTrimming({ kind: "local", file: f, url: localUrlFor(f) });
+                        }
+                      }}
+                    >
                       {f.type.startsWith("video/")
                         ? <video src={localUrlFor(f)} muted />
                         : <img src={localUrlFor(f)} alt={f.name} />}
                       <span className="np-strip-pos">{i + 1}</span>
                       {f.type.startsWith("video/") && <span className="np-strip-video">▶</span>}
                       {f.type.startsWith("video/") && (
-                        <button
-                          className={`np-trim-btn${localTrims.get(f) ? " trimmed" : ""}`}
-                          onClick={() => setTrimming({ kind: "local", file: f, url: localUrlFor(f) })}
-                          aria-label={`Trim ${f.name}`}
-                        >
+                        <span className={`np-trim-btn${localTrims.get(f) ? " trimmed" : ""}`} aria-hidden="true">
                           {trimBadge(localTrims.get(f))}
-                        </button>
+                        </span>
                       )}
                       <button
                         className="np-remove"
-                        onClick={() => removeLocalFile(f)}
+                        onClick={(e) => { e.stopPropagation(); removeLocalFile(f); }}
                         aria-label={`Remove ${f.name} from the post`}
                       >
                         ✕

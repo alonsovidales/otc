@@ -32,6 +32,30 @@ function formatPostDate(d?: Date): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+// Instagram's feed range: nothing wider than 1.91:1, nothing taller than
+// 4:5. A post's media keeps its own shape between those two.
+// Issue #114: whether feed videos are muted, shared by every post - once
+// someone unmutes, the next video they scroll to stays unmuted rather
+// than making them tap again on every post. Module-level and read
+// through a subscription so a toggle in one card reaches the rest.
+let feedMuted = true;
+const feedMutedListeners = new Set<(muted: boolean) => void>();
+const setFeedMuted = (muted: boolean) => {
+  feedMuted = muted;
+  feedMutedListeners.forEach(fn => fn(muted));
+};
+function useFeedMuted(): [boolean, (muted: boolean) => void] {
+  const [muted, setLocal] = useState(feedMuted);
+  useEffect(() => {
+    feedMutedListeners.add(setLocal);
+    return () => { feedMutedListeners.delete(setLocal); };
+  }, []);
+  return [muted, setFeedMuted];
+}
+
+const cFeedMinAspect = 4 / 5;
+const cFeedMaxAspect = 1.91;
+
 function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
   if (!bytes || bytes.length === 0) return null;
   const blob = new Blob([bytes], { type: mime });
@@ -452,7 +476,6 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   // --------- Render helpers ----------
   const Post: React.FC<{ p: PbSocialPublication }> = ({ p }) => {
     const [idx, setIdx] = useState(0);
-    const swipe = useSwipe();
     const rootRef = useRef<HTMLElement | null>(null);
 
     // Trigger the next page fetch once this post (one of the last two
@@ -471,36 +494,84 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     const goLeft = () => setIdx(i => (i - 1 + p.files.length) % p.files.length);
     const goRight = () => setIdx(i => (i + 1) % p.files.length);
 
-    // Issue #27: with more than one image in a post, fix the media area's
-    // height to the tallest of them (capped at 3/4 of the viewport) instead
-    // of letting it resize per-image — swiping between mixed aspect ratios
-    // used to make the whole card jump taller/shorter on every image.
-    // `null` for a single-image post, which keeps its own natural height.
-    const [carouselHeight, setCarouselHeight] = useState<number | null>(null);
+    // Issue #112: every post's media now sits in one fixed 4:5 box (see
+    // .sv-media), so there is nothing per-post left to measure. This used
+    // to load every image in a carousel just to find the tallest and pin
+    // the card to it - work that is now done by a single CSS rule, and
+    // which applies to single-media posts too rather than only carousels.
+
+    // Issue #112 fix-up: the box takes this post's own shape, clamped to
+    // the range Instagram allows (nothing wider than 1.91:1, nothing
+    // taller than 4:5). Hardcoding 4:5 for every post cropped every
+    // landscape photo in the feed into a tall portrait slot.
+    //
+    // Measured from the first thumbnail, which is a local blob and
+    // therefore decodes immediately; one ratio for the whole post so
+    // swiping a carousel can't resize the card.
+    const [boxAspect, setBoxAspect] = useState<number | null>(null);
     useEffect(() => {
-      if (p.files.length <= 1) { setCarouselHeight(null); return; }
+      const first = p.files[0];
+      if (!first) return;
+      const url = bytesToURL(first.content as unknown as Uint8Array, "image/jpeg");
+      if (!url) return;
       let cancelled = false;
-      const width = rootRef.current?.getBoundingClientRect().width || window.innerWidth;
-      // Every file's content here is its JPEG thumbnail (see the isVideo
-      // comment above current/lowURL) - always decode it as one,
-      // regardless of the underlying file's own mime.
-      const urls = p.files
-        .map(f => bytesToURL(f.content as unknown as Uint8Array, "image/jpeg"))
-        .filter((u): u is string => !!u);
-      Promise.all(urls.map(u => new Promise<number>((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve(img.naturalWidth > 0 ? width * (img.naturalHeight / img.naturalWidth) : 0);
-        img.onerror = () => resolve(0);
-        img.src = u;
-      }))).then((heights) => {
-        urls.forEach(URL.revokeObjectURL);
-        if (cancelled) return;
-        const tallest = Math.max(0, ...heights);
-        if (tallest > 0) setCarouselHeight(Math.min(tallest, window.innerHeight * 0.75));
-      });
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        if (cancelled || !img.naturalWidth || !img.naturalHeight) return;
+        const ratio = img.naturalWidth / img.naturalHeight;
+        setBoxAspect(Math.min(Math.max(ratio, cFeedMinAspect), cFeedMaxAspect));
+      };
+      img.onerror = () => URL.revokeObjectURL(url);
+      img.src = url;
       return () => { cancelled = true; };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [p.uuid]);
+
+    // Issue #109: a swipe moves the images with the finger and snaps when
+    // it ends, instead of swapping only once the finger lifted - which
+    // made a swipe feel like it had done nothing right up until it
+    // suddenly had. Showing the next image arriving means every image in
+    // the post has to be on screen, side by side, so they all need a URL.
+    const stripURLs = useMemo(
+      () => p.files.map(f => bytesToURL(f.content as unknown as Uint8Array, "image/jpeg")),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [p.uuid]
+    );
+    useEffect(
+      () => () => { stripURLs.forEach(u => { if (u) URL.revokeObjectURL(u); }); },
+      [stripURLs]
+    );
+
+    // How far the strip is dragged right now, in pixels. Zero whenever a
+    // gesture isn't in progress, which is also what re-enables the snap
+    // animation (a transition during the drag would lag the finger).
+    const [dragDX, setDragDX] = useState(0);
+    const dragStartX = useRef<number | null>(null);
+
+    const onStripTouchStart = (e: React.TouchEvent) => {
+      if (p.files.length < 2) return;
+      dragStartX.current = e.touches[0].clientX;
+    };
+    const onStripTouchMove = (e: React.TouchEvent) => {
+      if (dragStartX.current == null) return;
+      let dx = e.touches[0].clientX - dragStartX.current;
+      // Resistance at the two ends, so the first and last image can still
+      // be pulled a little rather than feeling stuck.
+      if ((idx === 0 && dx > 0) || (idx === p.files.length - 1 && dx < 0)) dx /= 3;
+      setDragDX(dx);
+    };
+    const onStripTouchEnd = (e: React.TouchEvent) => {
+      if (dragStartX.current == null) return;
+      const dx = e.changedTouches[0].clientX - dragStartX.current;
+      const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width || 1;
+      dragStartX.current = null;
+      setDragDX(0);
+      // A quarter of the width, rather than a fixed 30px: the same flick
+      // should mean the same thing on a phone and on a desktop window.
+      if (dx < -width / 4) goRight();
+      else if (dx > width / 4) goLeft();
+    };
 
     const current = p.files[idx];
     const isVideo = (current.mime || "").startsWith("video/");
@@ -525,6 +596,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     // different video doesn't leave the previous one's bytes showing.
     const [inlineVideo, setInlineVideo] = useState<{ path: string; url: string } | null>(null);
     const [inlineLoading, setInlineLoading] = useState(false);
+    const [muted, setMuted] = useFeedMuted();
+    const mediaRef = useRef<HTMLDivElement | null>(null);
+    const videoElRef = useRef<HTMLVideoElement | null>(null);
     // Whatever object URL is on screen has to outlive the fetch that
     // replaced it, hence revoking the previous one rather than the current.
     useEffect(() => () => { if (inlineVideo) URL.revokeObjectURL(inlineVideo.url); },
@@ -577,6 +651,41 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       }
     };
 
+    // React renders `muted` as a property but not as an attribute, and a
+    // browser deciding whether to allow autoplay looks at the element
+    // before React has necessarily applied it - so set it directly as
+    // well, or the very first autoplay of a page load can be refused.
+    useEffect(() => {
+      if (videoElRef.current) videoElRef.current.muted = muted;
+    }, [muted, inlineVideo?.url]);
+
+    // Issue #114: a video starts when you scroll onto it and stops when
+    // you leave, so the feed plays itself. 60% visible means "mostly on
+    // screen", which is also what stops two videos playing at once -
+    // only one post can be that visible at a time.
+    useEffect(() => {
+      const node = mediaRef.current;
+      if (!node || !isVideo) return;
+      const obs = new IntersectionObserver(
+        entries => {
+          const showing = entries[0]?.intersectionRatio ?? 0;
+          if (showing >= 0.6) {
+            // Already loaded: just resume. Otherwise fetch it, which
+            // sets autoPlay on the element that replaces the poster.
+            if (videoElRef.current) void videoElRef.current.play().catch(() => {});
+            else void playInline(current);
+          } else {
+            videoElRef.current?.pause();
+          }
+        },
+        { threshold: [0, 0.6, 1] }
+      );
+      obs.observe(node);
+      return () => obs.disconnect();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isVideo, current.hash, inlineVideo?.url]);
+
+
     const profURL = useMemo(
       () => bytesToURL(p.publisher?.image as unknown as Uint8Array, "image/jpeg"),
       [p.uuid, idx]
@@ -608,43 +717,66 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
           )}
         </header>
 
+        {/* Issue #112: the box's shape comes from CSS now (a 4:5 feed
+            slot), so there is no per-post height to set here - which is
+            also what keeps the poster and the player identical. */}
         <div className="sv-media"
-             style={carouselHeight ? { height: carouselHeight } : undefined}
-             onTouchStart={swipe.onTouchStart}
-             onTouchEnd={(e)=>swipe.onTouchEnd(e, goRight, goLeft)}>
+             ref={mediaRef}
+             style={boxAspect ? { aspectRatio: String(boxAspect) } : undefined}
+             onTouchStart={onStripTouchStart}
+             onTouchMove={onStripTouchMove}
+             onTouchEnd={onStripTouchEnd}>
           {isVideo && inlineVideo?.path === current.hash ? (
             // Issue #107: plays right here, sized exactly like the poster
             // it replaced so the card doesn't jump when it starts.
             <video
+              ref={videoElRef}
               className="sv-inline-video"
               src={inlineVideo.url}
               poster={lowURL ?? undefined}
               controls
               autoPlay
               playsInline
-              style={carouselHeight ? { height: "100%", width: "100%", objectFit: "contain" } : undefined}
+              // Issue #114: muted is not a preference here, it is what
+              // makes autoplay possible at all - every browser blocks
+              // an unmuted video that starts on its own. The speaker
+              // button below is how sound gets turned on, and doing it
+              // from a real tap is what the browser requires.
+              muted={muted}
             />
           ) : lowURL ? (
-            <img
-              src={lowURL}
-              alt={current.path}
-              style={carouselHeight ? { height: "100%", width: "100%", objectFit: "contain" } : undefined}
-              onClick={(e) => {
-                // Issue #20: click the left/right quarter of a multi-image
-                // post to page through it (no visible buttons) — the
-                // middle half still opens the full-screen viewer, which is
-                // also where a video post's thumbnail (its poster, tapped
-                // here) actually starts playing (issue #60).
-                if (p.files.length > 1) {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = e.clientX - rect.left;
-                  if (x < rect.width * 0.25) { goLeft(); return; }
-                  if (x > rect.width * 0.75) { goRight(); return; }
-                }
-                if (isVideo) { void playInline(current); return; }
-                openViewer(p, idx);
+            <div
+              className="sv-strip"
+              style={{
+                transform: `translateX(calc(${-idx * 100}% + ${dragDX}px))`,
+                transition: dragDX === 0 ? "transform 0.25s ease-out" : "none",
               }}
-            />
+            >
+              {p.files.map((f, i) => (
+                <img
+                  key={`${f.hash}-${i}`}
+                  className={`sv-slide${(f.mime || "").startsWith("video/") ? " is-video" : ""}`}
+                  src={stripURLs[i] || lowURL}
+                  alt={f.path}
+                  onClick={(e) => {
+                    // Issue #20: click the left/right quarter of a
+                    // multi-image post to page through it (no visible
+                    // buttons) — the middle half still opens the
+                    // full-screen viewer, which is also where a video
+                    // post's thumbnail (its poster, tapped here) actually
+                    // starts playing (issue #60).
+                    if (p.files.length > 1) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      if (x < rect.width * 0.25) { goLeft(); return; }
+                      if (x > rect.width * 0.75) { goRight(); return; }
+                    }
+                    if ((f.mime || "").startsWith("video/")) { void playInline(f); return; }
+                    openViewer(p, i);
+                  }}
+                />
+              ))}
+            </div>
           ) : (
             <div className="sv-media-ph">🖼️</div>
           )}
@@ -652,6 +784,18 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             <div className="sv-video-badge" aria-hidden={!inlineLoading}>
               {inlineLoading ? <Spinner /> : "▶"}
             </div>
+          )}
+          {isVideo && (
+            <button
+              className="sv-mute"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMuted(!muted);
+              }}
+              aria-label={muted ? "Unmute video" : "Mute video"}
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
           )}
           {/* Issue #68: the iOS app already shows a dot per image (current
               one solid, the rest dimmed) over a multi-image post - the web

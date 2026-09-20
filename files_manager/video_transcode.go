@@ -23,18 +23,31 @@ import (
 
 const (
 	// cSocialVideoMaxWidth caps the output width of a social-compressed
-	// video (issue #60) - 854px (roughly 480p for 16:9) keeps a typical
-	// phone-shot clip comfortably watchable in a social feed while cutting
-	// file size dramatically versus a modern phone's original 1080p/4K
-	// capture. Only ever downscales - see the scale filter below.
-	cSocialVideoMaxWidth = 854
+	// video (issue #60) - only ever downscales, see the scale filter
+	// below.
+	//
+	// Issue #112 raised this by 30% (854 -> 1110): 854px was roughly
+	// 480p, which is noticeably soft once a clip is watched full-width on
+	// a phone. Note that is a 30% wider picture but ~69% more pixels, so
+	// cSocialVideoBitrate had to go up with it - holding the bitrate
+	// still would have spread the same bits over half as many again and
+	// handed back a larger, softer video rather than a better one.
+	cSocialVideoMaxWidth = 1110
 	// cSocialVideoBitrate/cSocialVideoAudioBitrate are ffmpeg's target
 	// output bitrates - a target, not a hard cap (ffmpeg's -b:v doesn't
 	// guarantee an exact output size), chosen to land a typical short,
 	// phone-shot clip well under the size that triggered compression in
 	// the first place. Re-encoding again just to hit an exact byte count
 	// wasn't worth the added complexity here.
-	cSocialVideoBitrate = "1500k"
+	//
+	// Issue #112: scaled with the pixel count when cSocialVideoMaxWidth
+	// went up (1500k * 1.69 ~= 2500k), so the extra resolution is
+	// actually visible instead of being cancelled out by coarser
+	// compression. Videos published from here on are correspondingly
+	// larger - the cost of the sharper picture that was asked for, and
+	// still a fraction of the originals this exists to avoid
+	// distributing.
+	cSocialVideoBitrate = "2500k"
 	// cSocialTrimCRF is used when a video is only being trimmed, not
 	// compressed (issue #108) - the source is already small enough to
 	// distribute, so the re-encode a frame-accurate cut requires should

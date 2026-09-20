@@ -848,6 +848,16 @@ private struct SelectedThumb: View {
                 }
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                // Issue #111: the whole thumbnail opens the trimmer, not
+                // just the little pill in its corner - that pill was a
+                // ~20x14pt target on a 60pt tile, well under anything you
+                // can reliably hit. There is nothing else to tap a
+                // selected video for, and the trimmer is also where you
+                // can watch it, so the tile itself is the obvious target.
+                // The badge below stays as the affordance and as where
+                // the chosen length is shown.
+                .contentShape(RoundedRectangle(cornerRadius: 6))
+                .onTapGesture { if !trimLoading { trim?() } }
 
                 Button(action: remove) {
                     Image(systemName: "xmark.circle.fill")
@@ -858,28 +868,34 @@ private struct SelectedThumb: View {
                 // Issue #108: shows the length that survives once a trim
                 // is set, so the strip carries the decision without
                 // having to reopen the editor.
-                if let trim {
+                // Issue #108: shows the length that survives once a trim
+                // is set, so the strip carries the decision without
+                // having to reopen the editor. No longer a button of its
+                // own (issue #111) - the whole tile is the target now, so
+                // this is purely what tells you the tile can be trimmed.
+                if trim != nil {
                     VStack {
                         Spacer()
                         HStack {
-                            Button(action: trim) {
+                            Group {
                                 if trimLoading {
                                     ProgressView().controlSize(.mini).tint(.white)
                                 } else {
-                                    Text(trimRange.map { "\u{2702} \(formatTimecode($0.length))" } ?? "\u{2702}")
-                                        .font(.system(size: 9, weight: .semibold))
+                                    Text(trimRange.map { "\u{2702} \(formatTimecode($0.length))" } ?? "\u{2702} Trim")
+                                        .font(.system(size: 11, weight: .semibold))
                                         .foregroundStyle(trimRange == nil ? .white : Color.black)
                                 }
                             }
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
                             .background(trimRange == nil ? AnyShapeStyle(.black.opacity(0.6)) : AnyShapeStyle(Color.accentColor), in: Capsule())
-                            .disabled(trimLoading)
                             Spacer()
                         }
                     }
                     .frame(width: 60, height: 60)
                     .padding(2)
+                    // The tile underneath handles the tap.
+                    .allowsHitTesting(false)
                 }
             }
             HStack(spacing: 2) {

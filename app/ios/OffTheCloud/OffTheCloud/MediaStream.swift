@@ -47,7 +47,7 @@ enum MediaStream {
         do {
             let resp = try await OTCConnection.shared.request { e in build(&e) }
             guard case .respMediaURL(let m) = resp.payload, !m.url.isEmpty else { return nil }
-            return absolute(m.url)
+            return await absolute(m.url)
         } catch {
             // Every caller has the whole-file fetch to fall back on, and
             // falling back quietly beats failing to show a video.
@@ -59,13 +59,31 @@ enum MediaStream {
     /// it has no idea whether this app reached it directly on the LAN or
     /// through the bridge. Resolving it against the endpoint this app is
     /// already connected to is what makes it work in both.
-    static func absolute(_ path: String) -> URL? {
-        let endpoint = SecretsStore.loadOrCreate().endpoint
-        guard var components = URLComponents(string: endpoint) else { return nil }
-        components.scheme = components.scheme == "ws" ? "http" : "https"
+    ///
+    /// Read off the main actor and then remembered. loadOrCreate() does
+    /// three synchronous Keychain reads, and a Task started inside a
+    /// SwiftUI view inherits the main actor - so this ran on the main
+    /// thread, and the keychain is slow the first time a process wakes it
+    /// up. That put a stall in front of the *first* video played and none
+    /// in front of any later one.
+    private static var cachedBase: URLComponents?
+
+    static func absolute(_ path: String) async -> URL? {
+        var components: URLComponents
+        if let cachedBase {
+            components = cachedBase
+        } else {
+            let endpoint = await Task.detached(priority: .userInitiated) {
+                SecretsStore.loadOrCreate().endpoint
+            }.value
+            guard var resolved = URLComponents(string: endpoint) else { return nil }
+            resolved.scheme = resolved.scheme == "ws" ? "http" : "https"
+            resolved.query = nil
+            resolved.fragment = nil
+            cachedBase = resolved
+            components = resolved
+        }
         components.path = path
-        components.query = nil
-        components.fragment = nil
 
         return components.url
     }

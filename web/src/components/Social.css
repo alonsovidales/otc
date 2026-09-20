@@ -32,8 +32,61 @@
 .sv-post-delete { margin-left: auto; border: 0; background: none; color: var(--mist-dim); cursor: pointer; font-size: 15px; opacity: 0.7; }
 .sv-post-delete:hover { opacity: 1; }
 
-.sv-media { position: relative; background: var(--ink-2); min-height: 200px; display: grid; place-items: center; }
-.sv-media img { max-height: 500px;  width: 100%; height: auto; object-fit: contain; background: var(--ink-2); cursor: pointer; }
+/* The box's shape is set per post from its own media (see Social.tsx's
+   boxAspect) - a landscape photo gets a landscape box. It is only ever
+   clamped into Instagram's range, so nothing taller than 4:5 can push
+   the caption and comments off screen. The 4/5 here is just the fallback
+   for the instant before the first thumbnail has been measured. */
+.sv-media {
+  position: relative; background: var(--ink-2); display: grid; place-items: center;
+  aspect-ratio: 4 / 5; max-height: 80vh; overflow: hidden;
+}
+/* Issue #112: the poster and the player that replaces it are sized by
+   one rule, not two. They had separate caps (500px and 75vh), so
+   pressing play on a tall video grew the card.
+   
+   The box follows Instagram's feed geometry: nothing taller than 4:5.
+   This library's videos are 9:16, which at full width is taller than the
+   screen and pushes the caption and comments out of view - so the media
+   fills a 4:5 box and the overflow is cropped, exactly as it is on the
+   phone. aspect-ratio sizes the box before any image or video metadata
+   has loaded, so the card never jumps. */
+/* Issue #109: every image in the post, side by side, so a drag shows the
+   next one arriving. The box clips it to one at a time. */
+.sv-strip { display: flex; width: 100%; height: 100%; will-change: transform; }
+.sv-slide { flex: 0 0 100%; }
+
+/* contain, not cover: a photo is never cut. The box already took its
+   shape from the photo, so an ordinary landscape or portrait one fills
+   it exactly; only something outside Instagram's range (a 9:16 photo)
+   is letterboxed rather than trimmed. Cropping these is what broke every
+   horizontal photo in the feed. */
+.sv-media img {
+  width: 100%; height: 100%;
+  object-fit: contain; background: var(--ink-2); display: block;
+}
+
+/* A video is the exception, and the reason the box exists: these are
+   9:16, which shown whole takes the entire screen. It fills the 4:5 box
+   and the overflow is cropped, exactly as Instagram does - and as the
+   poster standing in for it does, so the two are framed identically. */
+.sv-media .sv-inline-video {
+  width: 100%; height: 100%;
+  object-fit: cover; background: #000; display: block;
+}
+.sv-media .sv-slide.is-video { object-fit: cover; }
+
+/* Issue #114: sound toggle, top right of the video - the one control
+   that has to sit above the player's own chrome. */
+.sv-mute {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  width: 34px; height: 34px; border: 0; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45); color: #fff;
+  font-size: 15px; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+}
+.sv-mute:hover { background: rgba(0, 0, 0, 0.65); }
+.sv-media img { cursor: pointer; }
 .sv-media-ph { color: var(--mist-dim); padding: 20px; }
 
 /* Issue #60: marks a video post's thumbnail in the feed - centered over
@@ -115,10 +168,8 @@
 /* Issue #107: a video playing inline in the feed occupies exactly the
    space its poster did, so starting playback never shifts the timeline
    under the reader's thumb. */
+/* Sizing lives in the shared rule above (issue #112) - this only carries
+   what's specific to a player. */
 .sv-inline-video {
-  width: 100%;
-  max-height: 75vh;
-  object-fit: contain;
-  display: block;
   background: #000;
 }

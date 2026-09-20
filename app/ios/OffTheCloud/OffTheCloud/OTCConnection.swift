@@ -84,7 +84,15 @@ final class OTCConnection: ObservableObject {
     }
 
     private func connectAndAuth() async throws {
-        let secrets = SecretsStore.loadOrCreate()
+        // Read off the main actor: this class is @MainActor, and
+        // loadOrCreate() does three synchronous Keychain reads, which are
+        // slow the first time a process wakes the keychain daemon. Doing
+        // that here blocked the whole UI at exactly the moment a tab was
+        // trying to load its first data - every tab, since a blocked main
+        // thread blocks all of them.
+        let secrets = await Task.detached(priority: .userInitiated) {
+            SecretsStore.loadOrCreate()
+        }.value
         guard let url = URL(string: secrets.endpoint) else {
             throw NSError(domain: "OTCConnection", code: 1, userInfo: [NSLocalizedDescriptionKey: "Bad endpoint: \"\(secrets.endpoint)\" (\(secrets.endpoint.unicodeScalars.count) chars)"])
         }

@@ -187,3 +187,24 @@ func TestLibraryFileWithoutADecrypterFails(t *testing.T) {
 		t.Error("a library file with no way to decrypt it was served anyway")
 	}
 }
+
+// Only video is worth streaming, and serving an image as a byte range
+// actively breaks it: the normal fetch converts HEIC to JPEG on the way
+// out, which a raw range bypasses. A client asking for a stream of a
+// photo is a bug - this is what stops that bug reaching the person using
+// it as a video player opening over their photo.
+func TestOnlyVideoIsStreamable(t *testing.T) {
+	for mime, want := range map[string]bool{
+		"video/mp4":        true,
+		"video/quicktime":  true,
+		"image/jpeg":       false,
+		"image/heic":       false,
+		"application/pdf":  false,
+		"":                 false,
+		"videos/not-quite": false,
+	} {
+		if got := IsStreamable(mime); got != want {
+			t.Errorf("IsStreamable(%q) = %v, want %v", mime, got, want)
+		}
+	}
+}

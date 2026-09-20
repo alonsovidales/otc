@@ -95,10 +95,16 @@
 /* The composer's own "Trim" affordance on a selected video in the order
    strip. Lives here rather than in NewPostPicker.css so everything this
    feature adds is in one place. */
+/* Issue #111: an indicator, not a control - the tile it sits on is what
+   you tap now, so this only says "this one can be trimmed" and, once it
+   has been, how much of it survives. */
 .np-trim-btn {
   position: absolute; left: 4px; bottom: 4px;
-  padding: 1px 6px; border-radius: 999px; border: 0;
+  padding: 2px 7px; border-radius: 999px; border: 0;
   background: rgba(0, 0, 0, 0.66); color: #fff;
-  font-size: 11px; font-weight: 600; cursor: pointer;
+  font-size: 11px; font-weight: 600;
+  pointer-events: none;
 }
+.np-strip-thumb.trimmable { cursor: pointer; }
+.np-strip-thumb.trimmable:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .np-trim-btn.trimmed { background: var(--gold); color: var(--gold-ink); }

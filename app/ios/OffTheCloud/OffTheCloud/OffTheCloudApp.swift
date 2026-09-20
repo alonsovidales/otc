@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import SwiftUI
+import AVFoundation
 import BackgroundTasks
 import UIKit
 import UserNotifications
@@ -21,6 +22,19 @@ struct OTCApp: App {
         }
         Task.detached {
             try await PhotoSync.shared.runForeground()
+        }
+
+        // The first AVPlayer a process creates pays for all of
+        // AVFoundation waking up, and creating it in response to a tap
+        // means paying that on the main thread while someone is watching
+        // - reported as the whole app freezing on the first video played
+        // and behaving perfectly on every one after it. Building a
+        // throwaway player here does the same warm-up at launch, on a
+        // background thread, where there is nothing waiting on it.
+        // AVPlayer may be created off the main thread; only its views
+        // may not.
+        Task.detached(priority: .utility) {
+            _ = AVPlayer()
         }
     }
 

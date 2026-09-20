@@ -815,6 +815,12 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		return "", 0, "", 0, fmt.Errorf("nothing to stream")
 	}
 
+	// Both of these answer "don't stream this, fetch it the usual way",
+	// which every client already handles - an empty url is a normal
+	// reply, not an error.
+	if !mediastream.IsStreamable(res.Mime) {
+		return "", res.Size, res.Mime, 0, nil
+	}
 	if res.Size < mediastream.MinStreamableSize {
 		return "", res.Size, res.Mime, 0, nil
 	}
