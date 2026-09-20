@@ -40,3 +40,4 @@
 # See CLAUDE.md, "Cutting a release", for the end-to-end process.
 #
 1	7b85090a127fcea7cb3c9b6eef5ad1dd28bcdcde5f3088147626c4ee855318f7	-	Schema catch-up for installs made before in-place updates existed
+2	08f543b74d11709038b7e0ed717a8e7050fa263a060a179621c154260bed2a2d	-	Tailscale Funnel, and letting the device drive Tailscale without root

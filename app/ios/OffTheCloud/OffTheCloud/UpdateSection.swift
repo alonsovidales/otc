@@ -25,6 +25,7 @@ final class UpdateViewModel: ObservableObject {
     @Published var state = ""
     @Published var message = ""
     @Published var checkError = ""
+    @Published var lastUpdated = ""
     @Published var checking = false
     @Published var starting = false
     @Published var error: String?
@@ -67,6 +68,7 @@ final class UpdateViewModel: ObservableObject {
             state = info.state
             message = info.message
             checkError = info.checkError
+            lastUpdated = info.lastUpdated
             error = nil
             startPollingIfRunning()
         } catch {
@@ -152,7 +154,13 @@ struct UpdateSection: View {
                 }
 
                 if vm.state == "failed" {
-                    Text("The last update failed: \(vm.message)")
+                    // With the date: a failure sits in the status file
+                    // until another run replaces it, so one from weeks
+                    // ago would otherwise read as something that just
+                    // happened.
+                    Text(vm.lastUpdated.isEmpty
+                         ? "Update failed: \(vm.message)"
+                         : "Update failed on \(vm.lastUpdated): \(vm.message)")
                         .font(.caption).foregroundStyle(.red)
                 }
 

@@ -29,6 +29,13 @@ type UpdateInfo = {
 // back up once it reconnects.
 const cPollMs = 5000;
 
+// The runner writes an ISO timestamp; show it in the reader's own terms,
+// and fall back to the raw value rather than printing "Invalid Date".
+const formatWhen = (iso: string) => {
+  const when = new Date(iso);
+  return isNaN(when.getTime()) ? iso : when.toLocaleString();
+};
+
 export default function UpdatePanel() {
   const [isPrimary, setIsPrimary] = useState<boolean | null>(null);
   const [info, setInfo] = useState<UpdateInfo | null>(null);
@@ -158,7 +165,12 @@ export default function UpdatePanel() {
           )}
 
           {info.state === "failed" && (
-            <p className="up-error">The last update failed: {info.message}</p>
+            // With the date: a failure sits in the status file until
+            // another run replaces it, so one from weeks ago would
+            // otherwise read as something that just happened.
+            <p className="up-error">
+              Update failed{info.lastUpdated ? ` on ${formatWhen(info.lastUpdated)}` : ""}: {info.message}
+            </p>
           )}
 
           {info.checkError && (

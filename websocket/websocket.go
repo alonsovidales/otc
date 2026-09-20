@@ -41,6 +41,7 @@ import (
 	"github.com/alonsovidales/otc/status"
 	"github.com/alonsovidales/otc/storage"
 	"github.com/alonsovidales/otc/supervisor"
+	"github.com/alonsovidales/otc/tailscalefunnel"
 	"github.com/alonsovidales/otc/updater"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
@@ -838,6 +839,17 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 	// having to know which one it's talking to. The native apps resolve
 	// it against the address they're already connected to.
 	return "/media/" + token, res.Size, res.Mime, expiresAt.UnixMilli(), nil
+}
+
+func tailscaleStatusResponse(state tailscalefunnel.State, errMessage string) *pb.RespTailscaleStatus {
+	return &pb.RespTailscaleStatus{
+		Installed: state.Installed,
+		LoggedIn:  state.LoggedIn,
+		FunnelOn:  state.FunnelOn,
+		PublicUrl: state.PublicURL,
+		LoginUrl:  state.LoginURL,
+		Error:     errMessage,
+	}
 }
 
 // buildUpdateInfo answers issue #94's "is there a new version" question.
@@ -2065,6 +2077,44 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			RespStorageDevices: &pb.StorageDevices{
 				Devices: pbDevices,
 			},
+		}
+
+	case *pb.ReqEnvelope_ReqGetTailscaleStatus:
+		// Issue #80: machine-level like the update and storage RPCs
+		// around it - Funnel publishes this whole machine, which is not
+		// an additional user's (issue #82) to turn on. It is also the
+		// reason Funnel mode is single-user: one machine, one public
+		// name, no subdomains to hand out.
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespTailscaleStatus{
+			RespTailscaleStatus: tailscaleStatusResponse(tailscalefunnel.Status(), ""),
+		}
+
+	case *pb.ReqEnvelope_ReqSetupTailscale:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		var state tailscalefunnel.State
+		var err error
+		if p.ReqSetupTailscale.Enable {
+			state, err = tailscalefunnel.Enable(p.ReqSetupTailscale.AuthKey)
+		} else {
+			err = tailscalefunnel.Disable()
+			state = tailscalefunnel.Status()
+		}
+		errMessage := ""
+		if err != nil {
+			log.Error("error configuring tailscale funnel:", err)
+			errMessage = err.Error()
+		}
+		resp.Payload = &pb.RespEnvelope_RespTailscaleStatus{
+			RespTailscaleStatus: tailscaleStatusResponse(state, errMessage),
 		}
 
 	case *pb.ReqEnvelope_ReqCheckUpdate:

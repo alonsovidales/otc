@@ -823,6 +823,39 @@ export interface RespUpdateInfo {
 export interface ReqApplyUpdate {
 }
 
+/**
+ * Issue #80: reaching the device over Tailscale Funnel instead of the
+ * bridge. Offered at first setup; see the limitations spelled out there.
+ */
+export interface ReqSetupTailscale {
+  /**
+   * Optional. With a pre-shared auth key the whole setup is
+   * non-interactive; without one, Tailscale needs a human to authorise
+   * the node and the answer carries the URL to do that on.
+   */
+  authKey: string;
+  /**
+   * False turns Funnel back off. The node stays in the tailnet - leaving
+   * that is the owner's business, not something this switch should
+   * decide for them.
+   */
+  enable: boolean;
+}
+
+export interface ReqGetTailscaleStatus {
+}
+
+export interface RespTailscaleStatus {
+  installed: boolean;
+  loggedIn: boolean;
+  funnelOn: boolean;
+  /** Where the device can be reached, once it can be. */
+  publicUrl: string;
+  /** Set when a human still has to authorise this node. */
+  loginUrl: string;
+  error: string;
+}
+
 export interface GetSocialPublications {
   since?: Date | undefined;
   total: number;
@@ -1702,6 +1735,8 @@ export interface ReqEnvelope {
     | { $case: "reqGetMediaRange"; reqGetMediaRange: ReqGetMediaRange }
     | { $case: "reqCheckUpdate"; reqCheckUpdate: ReqCheckUpdate }
     | { $case: "reqApplyUpdate"; reqApplyUpdate: ReqApplyUpdate }
+    | { $case: "reqSetupTailscale"; reqSetupTailscale: ReqSetupTailscale }
+    | { $case: "reqGetTailscaleStatus"; reqGetTailscaleStatus: ReqGetTailscaleStatus }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -1786,6 +1821,7 @@ export interface RespEnvelope {
     | { $case: "respMediaUrl"; respMediaUrl: RespMediaURL }
     | { $case: "respMediaRange"; respMediaRange: RespMediaRange }
     | { $case: "respUpdateInfo"; respUpdateInfo: RespUpdateInfo }
+    | { $case: "respTailscaleStatus"; respTailscaleStatus: RespTailscaleStatus }
     | //
     /** Issue #101. AuthWithToken answers with the generic Ack above. */
     { $case: "respSessionToken"; respSessionToken: RespSessionToken }
@@ -5400,6 +5436,265 @@ export const ReqApplyUpdate: MessageFns<ReqApplyUpdate> = {
   },
   fromPartial<I extends Exact<DeepPartial<ReqApplyUpdate>, I>>(_: I): ReqApplyUpdate {
     const message = createBaseReqApplyUpdate();
+    return message;
+  },
+};
+
+function createBaseReqSetupTailscale(): ReqSetupTailscale {
+  return { authKey: "", enable: false };
+}
+
+export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
+  encode(message: ReqSetupTailscale, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.authKey !== "") {
+      writer.uint32(10).string(message.authKey);
+    }
+    if (message.enable !== false) {
+      writer.uint32(16).bool(message.enable);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqSetupTailscale {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqSetupTailscale();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.authKey = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.enable = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqSetupTailscale {
+    return {
+      authKey: isSet(object.authKey) ? globalThis.String(object.authKey) : "",
+      enable: isSet(object.enable) ? globalThis.Boolean(object.enable) : false,
+    };
+  },
+
+  toJSON(message: ReqSetupTailscale): unknown {
+    const obj: any = {};
+    if (message.authKey !== "") {
+      obj.authKey = message.authKey;
+    }
+    if (message.enable !== false) {
+      obj.enable = message.enable;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqSetupTailscale>, I>>(base?: I): ReqSetupTailscale {
+    return ReqSetupTailscale.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqSetupTailscale>, I>>(object: I): ReqSetupTailscale {
+    const message = createBaseReqSetupTailscale();
+    message.authKey = object.authKey ?? "";
+    message.enable = object.enable ?? false;
+    return message;
+  },
+};
+
+function createBaseReqGetTailscaleStatus(): ReqGetTailscaleStatus {
+  return {};
+}
+
+export const ReqGetTailscaleStatus: MessageFns<ReqGetTailscaleStatus> = {
+  encode(_: ReqGetTailscaleStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetTailscaleStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetTailscaleStatus();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqGetTailscaleStatus {
+    return {};
+  },
+
+  toJSON(_: ReqGetTailscaleStatus): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetTailscaleStatus>, I>>(base?: I): ReqGetTailscaleStatus {
+    return ReqGetTailscaleStatus.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetTailscaleStatus>, I>>(_: I): ReqGetTailscaleStatus {
+    const message = createBaseReqGetTailscaleStatus();
+    return message;
+  },
+};
+
+function createBaseRespTailscaleStatus(): RespTailscaleStatus {
+  return { installed: false, loggedIn: false, funnelOn: false, publicUrl: "", loginUrl: "", error: "" };
+}
+
+export const RespTailscaleStatus: MessageFns<RespTailscaleStatus> = {
+  encode(message: RespTailscaleStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.installed !== false) {
+      writer.uint32(8).bool(message.installed);
+    }
+    if (message.loggedIn !== false) {
+      writer.uint32(16).bool(message.loggedIn);
+    }
+    if (message.funnelOn !== false) {
+      writer.uint32(24).bool(message.funnelOn);
+    }
+    if (message.publicUrl !== "") {
+      writer.uint32(34).string(message.publicUrl);
+    }
+    if (message.loginUrl !== "") {
+      writer.uint32(42).string(message.loginUrl);
+    }
+    if (message.error !== "") {
+      writer.uint32(50).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespTailscaleStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespTailscaleStatus();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.installed = reader.bool();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.loggedIn = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.funnelOn = reader.bool();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.publicUrl = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.loginUrl = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.error = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespTailscaleStatus {
+    return {
+      installed: isSet(object.installed) ? globalThis.Boolean(object.installed) : false,
+      loggedIn: isSet(object.loggedIn) ? globalThis.Boolean(object.loggedIn) : false,
+      funnelOn: isSet(object.funnelOn) ? globalThis.Boolean(object.funnelOn) : false,
+      publicUrl: isSet(object.publicUrl) ? globalThis.String(object.publicUrl) : "",
+      loginUrl: isSet(object.loginUrl) ? globalThis.String(object.loginUrl) : "",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: RespTailscaleStatus): unknown {
+    const obj: any = {};
+    if (message.installed !== false) {
+      obj.installed = message.installed;
+    }
+    if (message.loggedIn !== false) {
+      obj.loggedIn = message.loggedIn;
+    }
+    if (message.funnelOn !== false) {
+      obj.funnelOn = message.funnelOn;
+    }
+    if (message.publicUrl !== "") {
+      obj.publicUrl = message.publicUrl;
+    }
+    if (message.loginUrl !== "") {
+      obj.loginUrl = message.loginUrl;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespTailscaleStatus>, I>>(base?: I): RespTailscaleStatus {
+    return RespTailscaleStatus.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespTailscaleStatus>, I>>(object: I): RespTailscaleStatus {
+    const message = createBaseRespTailscaleStatus();
+    message.installed = object.installed ?? false;
+    message.loggedIn = object.loggedIn ?? false;
+    message.funnelOn = object.funnelOn ?? false;
+    message.publicUrl = object.publicUrl ?? "";
+    message.loginUrl = object.loginUrl ?? "";
+    message.error = object.error ?? "";
     return message;
   },
 };
@@ -12492,6 +12787,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqApplyUpdate":
         ReqApplyUpdate.encode(message.payload.reqApplyUpdate, writer.uint32(730).fork()).join();
         break;
+      case "reqSetupTailscale":
+        ReqSetupTailscale.encode(message.payload.reqSetupTailscale, writer.uint32(738).fork()).join();
+        break;
+      case "reqGetTailscaleStatus":
+        ReqGetTailscaleStatus.encode(message.payload.reqGetTailscaleStatus, writer.uint32(746).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -13236,6 +13537,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqApplyUpdate", reqApplyUpdate: ReqApplyUpdate.decode(reader, reader.uint32()) };
           continue;
         }
+        case 92: {
+          if (tag !== 738) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetupTailscale",
+            reqSetupTailscale: ReqSetupTailscale.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 93: {
+          if (tag !== 746) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetTailscaleStatus",
+            reqGetTailscaleStatus: ReqGetTailscaleStatus.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -13531,6 +13854,13 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqCheckUpdate", reqCheckUpdate: ReqCheckUpdate.fromJSON(object.reqCheckUpdate) }
         : isSet(object.reqApplyUpdate)
         ? { $case: "reqApplyUpdate", reqApplyUpdate: ReqApplyUpdate.fromJSON(object.reqApplyUpdate) }
+        : isSet(object.reqSetupTailscale)
+        ? { $case: "reqSetupTailscale", reqSetupTailscale: ReqSetupTailscale.fromJSON(object.reqSetupTailscale) }
+        : isSet(object.reqGetTailscaleStatus)
+        ? {
+          $case: "reqGetTailscaleStatus",
+          reqGetTailscaleStatus: ReqGetTailscaleStatus.fromJSON(object.reqGetTailscaleStatus),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -13715,6 +14045,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqCheckUpdate = ReqCheckUpdate.toJSON(message.payload.reqCheckUpdate);
     } else if (message.payload?.$case === "reqApplyUpdate") {
       obj.reqApplyUpdate = ReqApplyUpdate.toJSON(message.payload.reqApplyUpdate);
+    } else if (message.payload?.$case === "reqSetupTailscale") {
+      obj.reqSetupTailscale = ReqSetupTailscale.toJSON(message.payload.reqSetupTailscale);
+    } else if (message.payload?.$case === "reqGetTailscaleStatus") {
+      obj.reqGetTailscaleStatus = ReqGetTailscaleStatus.toJSON(message.payload.reqGetTailscaleStatus);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -14383,6 +14717,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqSetupTailscale": {
+        if (object.payload?.reqSetupTailscale !== undefined && object.payload?.reqSetupTailscale !== null) {
+          message.payload = {
+            $case: "reqSetupTailscale",
+            reqSetupTailscale: ReqSetupTailscale.fromPartial(object.payload.reqSetupTailscale),
+          };
+        }
+        break;
+      }
+      case "reqGetTailscaleStatus": {
+        if (object.payload?.reqGetTailscaleStatus !== undefined && object.payload?.reqGetTailscaleStatus !== null) {
+          message.payload = {
+            $case: "reqGetTailscaleStatus",
+            reqGetTailscaleStatus: ReqGetTailscaleStatus.fromPartial(object.payload.reqGetTailscaleStatus),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -14572,6 +14924,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respUpdateInfo":
         RespUpdateInfo.encode(message.payload.respUpdateInfo, writer.uint32(394).fork()).join();
+        break;
+      case "respTailscaleStatus":
+        RespTailscaleStatus.encode(message.payload.respTailscaleStatus, writer.uint32(402).fork()).join();
         break;
       case "respSessionToken":
         RespSessionToken.encode(message.payload.respSessionToken, writer.uint32(362).fork()).join();
@@ -14969,6 +15324,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respUpdateInfo", respUpdateInfo: RespUpdateInfo.decode(reader, reader.uint32()) };
           continue;
         }
+        case 50: {
+          if (tag !== 402) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respTailscaleStatus",
+            respTailscaleStatus: RespTailscaleStatus.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 45: {
           if (tag !== 362) {
             break;
@@ -15105,6 +15471,11 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respMediaRange", respMediaRange: RespMediaRange.fromJSON(object.respMediaRange) }
         : isSet(object.respUpdateInfo)
         ? { $case: "respUpdateInfo", respUpdateInfo: RespUpdateInfo.fromJSON(object.respUpdateInfo) }
+        : isSet(object.respTailscaleStatus)
+        ? {
+          $case: "respTailscaleStatus",
+          respTailscaleStatus: RespTailscaleStatus.fromJSON(object.respTailscaleStatus),
+        }
         : isSet(object.respSessionToken)
         ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
         : isSet(object.respDomainAvailable)
@@ -15205,6 +15576,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respMediaRange = RespMediaRange.toJSON(message.payload.respMediaRange);
     } else if (message.payload?.$case === "respUpdateInfo") {
       obj.respUpdateInfo = RespUpdateInfo.toJSON(message.payload.respUpdateInfo);
+    } else if (message.payload?.$case === "respTailscaleStatus") {
+      obj.respTailscaleStatus = RespTailscaleStatus.toJSON(message.payload.respTailscaleStatus);
     } else if (message.payload?.$case === "respSessionToken") {
       obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
     } else if (message.payload?.$case === "respDomainAvailable") {
@@ -15537,6 +15910,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respUpdateInfo",
             respUpdateInfo: RespUpdateInfo.fromPartial(object.payload.respUpdateInfo),
+          };
+        }
+        break;
+      }
+      case "respTailscaleStatus": {
+        if (object.payload?.respTailscaleStatus !== undefined && object.payload?.respTailscaleStatus !== null) {
+          message.payload = {
+            $case: "respTailscaleStatus",
+            respTailscaleStatus: RespTailscaleStatus.fromPartial(object.payload.respTailscaleStatus),
           };
         }
         break;

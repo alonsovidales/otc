@@ -431,6 +431,32 @@ message RespUpdateInfo {
 // ReqCheckUpdate for progress.
 message ReqApplyUpdate {}
 
+// Issue #80: reaching the device over Tailscale Funnel instead of the
+// bridge. Offered at first setup; see the limitations spelled out there.
+message ReqSetupTailscale {
+  // Optional. With a pre-shared auth key the whole setup is
+  // non-interactive; without one, Tailscale needs a human to authorise
+  // the node and the answer carries the URL to do that on.
+  string auth_key = 1;
+  // False turns Funnel back off. The node stays in the tailnet - leaving
+  // that is the owner's business, not something this switch should
+  // decide for them.
+  bool enable = 2;
+}
+
+message ReqGetTailscaleStatus {}
+
+message RespTailscaleStatus {
+  bool installed = 1;
+  bool logged_in = 2;
+  bool funnel_on = 3;
+  // Where the device can be reached, once it can be.
+  string public_url = 4;
+  // Set when a human still has to authorise this node.
+  string login_url = 5;
+  string error = 6;
+}
+
 message GetSocialPublications {
   google.protobuf.Timestamp since = 1;
   int32 total = 2;
@@ -1233,6 +1259,8 @@ message ReqEnvelope {
     ReqGetMediaRange req_get_media_range = 89;
     ReqCheckUpdate req_check_update = 90;
     ReqApplyUpdate req_apply_update = 91;
+    ReqSetupTailscale req_setup_tailscale = 92;
+    ReqGetTailscaleStatus req_get_tailscale_status = 93;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1301,6 +1329,7 @@ message RespEnvelope {
     RespMediaURL resp_media_url = 47;
     RespMediaRange resp_media_range = 48;
     RespUpdateInfo resp_update_info = 49;
+    RespTailscaleStatus resp_tailscale_status = 50;
     // Issue #101. AuthWithToken answers with the generic Ack above.
     RespSessionToken resp_session_token = 45;
     // Issue #103.

@@ -7,7 +7,7 @@
 //  Created by Alonso Vidales on 8/9/25.
 //
 //  Extended to also cover the web app's device Settings tab
-//  (web/src/components/SettingsForm.tsx: domain + password change) and a
+//  (web/src/components/SettingsForm.tsx: password change, bridge secret) and a
 //  native port of the status readout (web/src/components/StatusWidget.tsx),
 //  alongside the original app-level connection/sync settings.
 
@@ -17,9 +17,6 @@ import Photos
 @MainActor
 final class DeviceSettingsViewModel: ObservableObject {
     private let ws = OTCConnection.shared
-
-    @Published var domain = ""
-    @Published var savingDomain = false
 
     // Issue #40: shared secret this device registers with the bridge relay.
     @Published var currentBridgeSecret = ""
@@ -161,11 +158,10 @@ final class DeviceSettingsViewModel: ObservableObject {
         do {
             let resp = try await ws.request { $0.payload = .reqGetSettings(Msg_GetSettings()) }
             if case .respSettings(let s) = resp.payload {
-                domain = s.domain
                 currentBridgeSecret = s.bridgeSecret
                 faceRecognitionEnabled = s.faceRecognitionEnabled
             }
-        } catch { /* leave blank; user can still type a new domain */ }
+        } catch { /* leave blank - the rest of the screen still works */ }
     }
 
     func toggleFaceRecognition(_ enabled: Bool) async {
@@ -190,28 +186,6 @@ final class DeviceSettingsViewModel: ObservableObject {
         }
     }
 
-    func saveDomain() async {
-        let trimmed = domain.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        savingDomain = true
-        defer { savingDomain = false }
-        var req = Msg_SetSettings()
-        req.domain = trimmed
-        do {
-            let resp = try await ws.request { $0.payload = .reqSetSettings(req) }
-            switch resp.payload {
-            case .respAck(let ack):
-                showToast(ack.ok ? "Domain updated ✅" : (ack.errorMsg.isEmpty ? "Update failed" : ack.errorMsg))
-            case .respSettings(let s):
-                domain = s.domain
-                showToast("Domain updated ✅")
-            default:
-                showToast("Unexpected response")
-            }
-        } catch {
-            showToast("Error updating domain")
-        }
-    }
 
     // Issue #40: update the bridge shared secret, independent of the
     // domain (they used to be updated together server-side, which silently
@@ -338,17 +312,7 @@ struct SettingsView: View {
                 // only place this was reachable at all).
                 ProfileEditorSection()
 
-                Section(header: Text("Device")) {
-                    HStack {
-                        TextField("Domain", text: $device.domain)
-                            .autocapitalization(.none)
-                            .keyboardType(.URL)
-                        Button(device.savingDomain ? "Saving…" : "Save") {
-                            Task { await device.saveDomain() }
-                        }
-                        .disabled(device.savingDomain || device.domain.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                }
+                UsersManagementSection()
 
                 // Issue #40: set/view the shared secret this device pairs
                 // with the bridge relay with, e.g. to match what's
@@ -448,6 +412,10 @@ struct SettingsView: View {
                     .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
                 }
 
+                // Issue #80: Tailscale Funnel as an alternative to the
+                // bridge. Primary-only too - see TailscaleSection.
+                TailscaleSection()
+
                 Section(header: Text("Status")) {
                     StatusSectionContent(vm: status)
                 }
@@ -502,8 +470,6 @@ struct SettingsView: View {
                 // Issue #94: in-place updates. Renders nothing on a
                 // non-primary instance - see UpdateSection.
                 UpdateSection()
-
-                UsersManagementSection()
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Settings". Still .inline so there's no big empty

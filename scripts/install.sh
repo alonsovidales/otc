@@ -144,6 +144,24 @@ apt-get update
 # storage. unzip: extracting the protoc release archive below.
 apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg libopencv-dev pkg-config mdadm unzip python3
 
+# Issue #80: Tailscale, so the setup wizard can offer Funnel as an
+# alternative to the bridge. Installed, not enabled - nothing joins a
+# tailnet or is published publicly unless the owner asks for it during
+# setup. Non-fatal: a device without it simply doesn't get the option.
+if ! command -v tailscale >/dev/null 2>&1; then
+    curl -fsSL https://tailscale.com/install.sh | sh \
+        || echo "[otc-install] WARNING: Tailscale could not be installed - the Funnel option won't be offered"
+fi
+# Let the otc user drive the daemon without root. This is not a
+# convenience: otc.service runs with NoNewPrivileges=true, so sudo from
+# the service is impossible by construction, and an operator is
+# Tailscale's own answer for exactly that. Set here because it is the
+# last moment anything runs as root.
+if command -v tailscale >/dev/null 2>&1; then
+    tailscale set --operator=otc 2>/dev/null \
+        || echo "[otc-install] NOTE: could not set the Tailscale operator yet - Settings will report it if Funnel is ever turned on"
+fi
+
 log "[2/10] otc service account"
 id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin otc
 for g in dialout video plugdev gpio i2c spi; do

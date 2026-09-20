@@ -7,6 +7,7 @@ import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
 import UpdatePanel from "./UpdatePanel";
+import TailscalePanel from "./TailscalePanel";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -23,12 +24,9 @@ function reprocessPercent(s: { total: number; processed: number }): number {
 
 export default function SettingsForm() {
   // Loaded settings
-  const [currentDomain, setCurrentDomain] = useState("");
   const [currentBridgeSecret, setCurrentBridgeSecret] = useState("");
 
   // Domain form
-  const [newDomain, setNewDomain] = useState("");
-  const [savingDomain, setSavingDomain] = useState(false);
 
   // Bridge shared secret (issue #40)
   const [regeneratingSecret, setRegeneratingSecret] = useState(false);
@@ -183,7 +181,6 @@ export default function SettingsForm() {
 
         if (resp.payload?.$case === "respSettings") {
           const s: PbSettings = resp.payload.respSettings;
-          setCurrentDomain(s.domain || "");
           setCurrentBridgeSecret(s.bridgeSecret || "");
           setFaceRecognitionEnabled(!!s.faceRecognitionEnabled);
         } else if (resp.payload?.$case === "respAck") {
@@ -197,10 +194,6 @@ export default function SettingsForm() {
   }, []);
 
   // ---------- Validation ----------
-  const canSaveDomain = useMemo(() => {
-    const nd = newDomain.trim();
-    return !!nd && nd !== currentDomain;
-  }, [newDomain, currentDomain]);
 
   const pwMismatch = newKey.length > 0 && confirmKey.length > 0 && newKey !== confirmKey;
   const canSaveKey = useMemo(() => {
@@ -211,48 +204,13 @@ export default function SettingsForm() {
   }, [oldKey, newKey, confirmKey, pwMismatch]);
 
   // ---------- Actions ----------
-  const saveDomain = async () => {
-    if (!canSaveDomain || savingDomain || savingKey) return;
-    setSavingDomain(true);
-    setStatus(null);
-    try {
-      const payload =
-        { $case: "reqSetSettings", reqSetSettings: { domain: newDomain.trim() } } as any;
-
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = payload;
-      });
-
-      if (resp.payload?.$case === "respAck") {
-        if (resp.payload.respAck.ok) {
-          setCurrentDomain(newDomain.trim());
-          setNewDomain("");
-          setStatus({ kind: "success", text: "Domain updated." });
-        } else {
-          const msg = resp.payload.respAck.errorMsg || "Update failed.";
-          setStatus({ kind: "error", text: msg });
-        }
-      } else if (resp.payload?.$case === "respSettings") {
-        // In case server returns the updated settings
-        setCurrentDomain(resp.payload.respSettings.domain || "");
-        setNewDomain("");
-        setStatus({ kind: "success", text: "Domain updated." });
-      } else {
-        setStatus({ kind: "error", text: "Unexpected response." });
-      }
-    } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
-    } finally {
-      setSavingDomain(false);
-    }
-  };
 
   // Issue #40 follow-up: the device asks the bridge itself for a fresh
   // secret (authenticated by the current one) rather than inventing one
   // locally — a self-generated secret would just be rejected by the
   // bridge, which only ever accepts one it already has on record.
   const regenerateSecret = async () => {
-    if (regeneratingSecret || savingDomain || savingKey) return;
+    if (regeneratingSecret || savingKey) return;
     setRegeneratingSecret(true);
     setStatus(null);
     try {
@@ -287,7 +245,7 @@ export default function SettingsForm() {
   };
 
   const changePassword = async () => {
-    if (!canSaveKey || savingKey || savingDomain) return;
+    if (!canSaveKey || savingKey) return;
     setSavingKey(true);
     setStatus(null);
     try {
@@ -347,46 +305,7 @@ export default function SettingsForm() {
         <ProfileCard authenticated={true} />
       </section>
 
-      {/* Issue #94: in-place updates. Renders nothing on a non-primary
-          instance - see UpdatePanel. */}
-      <UpdatePanel />
-
-      <section className="sf-section">
-        <h3>Update Domain</h3>
-        <div className="sf-row">
-          <label htmlFor="sf-domain">New domain</label>
-          <input
-            id="sf-domain"
-            className="sf-input"
-            placeholder={currentDomain}
-            value={newDomain}
-            onChange={(e) => setNewDomain(e.target.value)}
-            autoCapitalize="none"
-            autoCorrect="off"
-          />
-        </div>
-        <button className="sf-btn" disabled={!canSaveDomain || savingDomain || savingKey} onClick={() => void saveDomain()}>
-          {savingDomain ? "Saving…" : "Save Domain"}
-        </button>
-      </section>
-
-      <section className="sf-section">
-        <h3>Bridge Shared Secret</h3>
-        <p className="sf-hint">
-          This is what pairs this device with the bridge relay. Regenerating asks the bridge
-          for a new one on the spot — no need to visit its admin panel.
-        </p>
-        <div className="sf-row">
-          <label htmlFor="sf-current-secret">Secret</label>
-          <div className="sf-secret-row">
-            <input id="sf-current-secret" className="sf-input" value={currentBridgeSecret} readOnly />
-            <button className="sf-btn small" type="button" onClick={() => void copyCurrentSecret()}>Copy</button>
-          </div>
-        </div>
-        <button className="sf-btn" disabled={regeneratingSecret || savingDomain || savingKey} onClick={() => void regenerateSecret()}>
-          {regeneratingSecret ? "Regenerating…" : "Regenerate"}
-        </button>
-      </section>
+      <UsersPanel />
 
       <section className="sf-section">
         <h3>Change Password</h3>
@@ -422,7 +341,7 @@ export default function SettingsForm() {
         </div>
         {pwMismatch && <div className="sf-note error">New passwords do not match.</div>}
 
-        <button className="sf-btn" disabled={!canSaveKey || savingKey || savingDomain} onClick={() => void changePassword()}>
+        <button className="sf-btn" disabled={!canSaveKey || savingKey} onClick={() => void changePassword()}>
           {savingKey ? "Saving…" : "Change Password"}
         </button>
       </section>
@@ -440,8 +359,12 @@ export default function SettingsForm() {
         </section>
       )}
 
+      {/* Issue #80: Tailscale Funnel as an alternative to the bridge.
+          Primary-only too - Funnel publishes the whole machine. */}
+      <TailscalePanel />
+
       <section className="sf-section">
-        <h3>People</h3>
+        <h3>Face Recognition</h3>
         <p className="sf-hint">
           Detect faces in newly uploaded photos so you can search by person, like other photo
           apps. Off by default. Turning this on only affects photos uploaded from now on — it
@@ -449,6 +372,28 @@ export default function SettingsForm() {
         </p>
         <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
           {faceRecognitionBusy ? "Working…" : faceRecognitionEnabled ? "Disable Face Recognition" : "Enable Face Recognition"}
+        </button>
+      </section>
+
+      {/* Issue #94: in-place updates. Renders nothing on a non-primary
+          instance - see UpdatePanel. */}
+      <UpdatePanel />
+
+      <section className="sf-section">
+        <h3>Bridge Shared Secret</h3>
+        <p className="sf-hint">
+          This is what pairs this device with the bridge relay. Regenerating asks the bridge
+          for a new one on the spot — no need to visit its admin panel.
+        </p>
+        <div className="sf-row">
+          <label htmlFor="sf-current-secret">Secret</label>
+          <div className="sf-secret-row">
+            <input id="sf-current-secret" className="sf-input" value={currentBridgeSecret} readOnly />
+            <button className="sf-btn small" type="button" onClick={() => void copyCurrentSecret()}>Copy</button>
+          </div>
+        </div>
+        <button className="sf-btn" disabled={regeneratingSecret || savingKey} onClick={() => void regenerateSecret()}>
+          {regeneratingSecret ? "Regenerating…" : "Regenerate"}
         </button>
       </section>
 
@@ -549,8 +494,6 @@ export default function SettingsForm() {
           Sign Out
         </button>
       </section>
-
-      <UsersPanel />
     </div>
   );
 }
