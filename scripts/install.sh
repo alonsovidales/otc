@@ -697,5 +697,20 @@ echo "=========================================================="
 # re-running against a half-installed box. The marker is NOT load-bearing
 # for correctness — the script is idempotent either way — it's purely a
 # "did the last run get all the way to the end?" signal.
+# Issue #94: record which release this install corresponds to, so the
+# in-place updater knows where to start. A fresh install already has
+# everything every release script would have applied, so it starts at the
+# newest one rather than replaying history. Taken from the manifest that
+# was just downloaded with the rest of the source - and if that can't be
+# read, the file is left absent, which the updater reads as "the
+# beginning" and is safe because every release script is idempotent.
+if [ -f "$SRC_DIR/scripts/updates/VERSIONS" ]; then
+    latest_release="$(grep -vE '^[[:space:]]*(#|$)' "$SRC_DIR/scripts/updates/VERSIONS" | tail -1 | cut -f1)"
+    if [ -n "$latest_release" ]; then
+        echo "$latest_release" > /etc/otc/version
+        echo "[otc-install] Recorded release $latest_release in /etc/otc/version"
+    fi
+fi
+
 touch /etc/otc/.install-complete
 echo "[otc-install] Done. Marker at /etc/otc/.install-complete (remove it if you want the next run to treat this as a fresh install)."

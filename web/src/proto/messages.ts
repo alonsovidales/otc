@@ -776,6 +776,53 @@ export interface RespMediaRange {
   mime: string;
 }
 
+/** Issue #94: updating the device in place from Settings. */
+export interface ReqCheckUpdate {
+}
+
+export interface UpdateRelease {
+  version: number;
+  /**
+   * Named "summary" rather than "description": SwiftProtobuf renames a
+   * field called description to description_p, because it would collide
+   * with CustomStringConvertible - and every client would then be reading
+   * an oddly-named field for no reason.
+   */
+  summary: string;
+}
+
+export interface RespUpdateInfo {
+  currentVersion: number;
+  latestVersion: number;
+  /**
+   * The releases this device has yet to apply, oldest first - what makes
+   * the update incremental rather than a reinstall.
+   */
+  pending: UpdateRelease[];
+  /**
+   * "idle", "running", "done", "failed" or "uptodate", plus whatever the
+   * runner last reported. Survives the restart an update performs, since
+   * the runner writes it to disk rather than holding it in memory.
+   */
+  state: string;
+  message: string;
+  lastUpdated: string;
+  /**
+   * Set when the manifest itself couldn't be reached, which is different
+   * from "no updates": one means try again later, the other means there
+   * is nothing to do.
+   */
+  checkError: string;
+}
+
+/**
+ * Starts the update and answers immediately - it takes minutes and ends
+ * by restarting this very process, so there is nothing to wait for. Poll
+ * ReqCheckUpdate for progress.
+ */
+export interface ReqApplyUpdate {
+}
+
 export interface GetSocialPublications {
   since?: Date | undefined;
   total: number;
@@ -1653,6 +1700,8 @@ export interface ReqEnvelope {
     { $case: "reqGetStaticAsset"; reqGetStaticAsset: ReqGetStaticAsset }
     | { $case: "reqGetMediaUrl"; reqGetMediaUrl: ReqGetMediaURL }
     | { $case: "reqGetMediaRange"; reqGetMediaRange: ReqGetMediaRange }
+    | { $case: "reqCheckUpdate"; reqCheckUpdate: ReqCheckUpdate }
+    | { $case: "reqApplyUpdate"; reqApplyUpdate: ReqApplyUpdate }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -1736,6 +1785,7 @@ export interface RespEnvelope {
     { $case: "respStaticAsset"; respStaticAsset: RespStaticAsset }
     | { $case: "respMediaUrl"; respMediaUrl: RespMediaURL }
     | { $case: "respMediaRange"; respMediaRange: RespMediaRange }
+    | { $case: "respUpdateInfo"; respUpdateInfo: RespUpdateInfo }
     | //
     /** Issue #101. AuthWithToken answers with the generic Ack above. */
     { $case: "respSessionToken"; respSessionToken: RespSessionToken }
@@ -5030,6 +5080,326 @@ export const RespMediaRange: MessageFns<RespMediaRange> = {
     message.offset = object.offset ?? 0n;
     message.totalSize = object.totalSize ?? 0n;
     message.mime = object.mime ?? "";
+    return message;
+  },
+};
+
+function createBaseReqCheckUpdate(): ReqCheckUpdate {
+  return {};
+}
+
+export const ReqCheckUpdate: MessageFns<ReqCheckUpdate> = {
+  encode(_: ReqCheckUpdate, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqCheckUpdate {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqCheckUpdate();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqCheckUpdate {
+    return {};
+  },
+
+  toJSON(_: ReqCheckUpdate): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqCheckUpdate>, I>>(base?: I): ReqCheckUpdate {
+    return ReqCheckUpdate.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqCheckUpdate>, I>>(_: I): ReqCheckUpdate {
+    const message = createBaseReqCheckUpdate();
+    return message;
+  },
+};
+
+function createBaseUpdateRelease(): UpdateRelease {
+  return { version: 0, summary: "" };
+}
+
+export const UpdateRelease: MessageFns<UpdateRelease> = {
+  encode(message: UpdateRelease, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.version !== 0) {
+      writer.uint32(8).int32(message.version);
+    }
+    if (message.summary !== "") {
+      writer.uint32(18).string(message.summary);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdateRelease {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdateRelease();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.version = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.summary = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpdateRelease {
+    return {
+      version: isSet(object.version) ? globalThis.Number(object.version) : 0,
+      summary: isSet(object.summary) ? globalThis.String(object.summary) : "",
+    };
+  },
+
+  toJSON(message: UpdateRelease): unknown {
+    const obj: any = {};
+    if (message.version !== 0) {
+      obj.version = Math.round(message.version);
+    }
+    if (message.summary !== "") {
+      obj.summary = message.summary;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpdateRelease>, I>>(base?: I): UpdateRelease {
+    return UpdateRelease.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpdateRelease>, I>>(object: I): UpdateRelease {
+    const message = createBaseUpdateRelease();
+    message.version = object.version ?? 0;
+    message.summary = object.summary ?? "";
+    return message;
+  },
+};
+
+function createBaseRespUpdateInfo(): RespUpdateInfo {
+  return { currentVersion: 0, latestVersion: 0, pending: [], state: "", message: "", lastUpdated: "", checkError: "" };
+}
+
+export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
+  encode(message: RespUpdateInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.currentVersion !== 0) {
+      writer.uint32(8).int32(message.currentVersion);
+    }
+    if (message.latestVersion !== 0) {
+      writer.uint32(16).int32(message.latestVersion);
+    }
+    for (const v of message.pending) {
+      UpdateRelease.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.state !== "") {
+      writer.uint32(34).string(message.state);
+    }
+    if (message.message !== "") {
+      writer.uint32(42).string(message.message);
+    }
+    if (message.lastUpdated !== "") {
+      writer.uint32(50).string(message.lastUpdated);
+    }
+    if (message.checkError !== "") {
+      writer.uint32(58).string(message.checkError);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespUpdateInfo {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespUpdateInfo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.currentVersion = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.latestVersion = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.pending.push(UpdateRelease.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.state = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.message = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.lastUpdated = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.checkError = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespUpdateInfo {
+    return {
+      currentVersion: isSet(object.currentVersion) ? globalThis.Number(object.currentVersion) : 0,
+      latestVersion: isSet(object.latestVersion) ? globalThis.Number(object.latestVersion) : 0,
+      pending: globalThis.Array.isArray(object?.pending)
+        ? object.pending.map((e: any) => UpdateRelease.fromJSON(e))
+        : [],
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+      lastUpdated: isSet(object.lastUpdated) ? globalThis.String(object.lastUpdated) : "",
+      checkError: isSet(object.checkError) ? globalThis.String(object.checkError) : "",
+    };
+  },
+
+  toJSON(message: RespUpdateInfo): unknown {
+    const obj: any = {};
+    if (message.currentVersion !== 0) {
+      obj.currentVersion = Math.round(message.currentVersion);
+    }
+    if (message.latestVersion !== 0) {
+      obj.latestVersion = Math.round(message.latestVersion);
+    }
+    if (message.pending?.length) {
+      obj.pending = message.pending.map((e) => UpdateRelease.toJSON(e));
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    if (message.lastUpdated !== "") {
+      obj.lastUpdated = message.lastUpdated;
+    }
+    if (message.checkError !== "") {
+      obj.checkError = message.checkError;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespUpdateInfo>, I>>(base?: I): RespUpdateInfo {
+    return RespUpdateInfo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespUpdateInfo>, I>>(object: I): RespUpdateInfo {
+    const message = createBaseRespUpdateInfo();
+    message.currentVersion = object.currentVersion ?? 0;
+    message.latestVersion = object.latestVersion ?? 0;
+    message.pending = object.pending?.map((e) => UpdateRelease.fromPartial(e)) || [];
+    message.state = object.state ?? "";
+    message.message = object.message ?? "";
+    message.lastUpdated = object.lastUpdated ?? "";
+    message.checkError = object.checkError ?? "";
+    return message;
+  },
+};
+
+function createBaseReqApplyUpdate(): ReqApplyUpdate {
+  return {};
+}
+
+export const ReqApplyUpdate: MessageFns<ReqApplyUpdate> = {
+  encode(_: ReqApplyUpdate, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqApplyUpdate {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqApplyUpdate();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqApplyUpdate {
+    return {};
+  },
+
+  toJSON(_: ReqApplyUpdate): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqApplyUpdate>, I>>(base?: I): ReqApplyUpdate {
+    return ReqApplyUpdate.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqApplyUpdate>, I>>(_: I): ReqApplyUpdate {
+    const message = createBaseReqApplyUpdate();
     return message;
   },
 };
@@ -12116,6 +12486,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetMediaRange":
         ReqGetMediaRange.encode(message.payload.reqGetMediaRange, writer.uint32(714).fork()).join();
         break;
+      case "reqCheckUpdate":
+        ReqCheckUpdate.encode(message.payload.reqCheckUpdate, writer.uint32(722).fork()).join();
+        break;
+      case "reqApplyUpdate":
+        ReqApplyUpdate.encode(message.payload.reqApplyUpdate, writer.uint32(730).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -12844,6 +13220,22 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 90: {
+          if (tag !== 722) {
+            break;
+          }
+
+          message.payload = { $case: "reqCheckUpdate", reqCheckUpdate: ReqCheckUpdate.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 91: {
+          if (tag !== 730) {
+            break;
+          }
+
+          message.payload = { $case: "reqApplyUpdate", reqApplyUpdate: ReqApplyUpdate.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -13135,6 +13527,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqGetMediaUrl", reqGetMediaUrl: ReqGetMediaURL.fromJSON(object.reqGetMediaUrl) }
         : isSet(object.reqGetMediaRange)
         ? { $case: "reqGetMediaRange", reqGetMediaRange: ReqGetMediaRange.fromJSON(object.reqGetMediaRange) }
+        : isSet(object.reqCheckUpdate)
+        ? { $case: "reqCheckUpdate", reqCheckUpdate: ReqCheckUpdate.fromJSON(object.reqCheckUpdate) }
+        : isSet(object.reqApplyUpdate)
+        ? { $case: "reqApplyUpdate", reqApplyUpdate: ReqApplyUpdate.fromJSON(object.reqApplyUpdate) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -13315,6 +13711,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetMediaUrl = ReqGetMediaURL.toJSON(message.payload.reqGetMediaUrl);
     } else if (message.payload?.$case === "reqGetMediaRange") {
       obj.reqGetMediaRange = ReqGetMediaRange.toJSON(message.payload.reqGetMediaRange);
+    } else if (message.payload?.$case === "reqCheckUpdate") {
+      obj.reqCheckUpdate = ReqCheckUpdate.toJSON(message.payload.reqCheckUpdate);
+    } else if (message.payload?.$case === "reqApplyUpdate") {
+      obj.reqApplyUpdate = ReqApplyUpdate.toJSON(message.payload.reqApplyUpdate);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -13965,6 +14365,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqCheckUpdate": {
+        if (object.payload?.reqCheckUpdate !== undefined && object.payload?.reqCheckUpdate !== null) {
+          message.payload = {
+            $case: "reqCheckUpdate",
+            reqCheckUpdate: ReqCheckUpdate.fromPartial(object.payload.reqCheckUpdate),
+          };
+        }
+        break;
+      }
+      case "reqApplyUpdate": {
+        if (object.payload?.reqApplyUpdate !== undefined && object.payload?.reqApplyUpdate !== null) {
+          message.payload = {
+            $case: "reqApplyUpdate",
+            reqApplyUpdate: ReqApplyUpdate.fromPartial(object.payload.reqApplyUpdate),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -14151,6 +14569,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respMediaRange":
         RespMediaRange.encode(message.payload.respMediaRange, writer.uint32(386).fork()).join();
+        break;
+      case "respUpdateInfo":
+        RespUpdateInfo.encode(message.payload.respUpdateInfo, writer.uint32(394).fork()).join();
         break;
       case "respSessionToken":
         RespSessionToken.encode(message.payload.respSessionToken, writer.uint32(362).fork()).join();
@@ -14540,6 +14961,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respMediaRange", respMediaRange: RespMediaRange.decode(reader, reader.uint32()) };
           continue;
         }
+        case 49: {
+          if (tag !== 394) {
+            break;
+          }
+
+          message.payload = { $case: "respUpdateInfo", respUpdateInfo: RespUpdateInfo.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 45: {
           if (tag !== 362) {
             break;
@@ -14674,6 +15103,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respMediaUrl", respMediaUrl: RespMediaURL.fromJSON(object.respMediaUrl) }
         : isSet(object.respMediaRange)
         ? { $case: "respMediaRange", respMediaRange: RespMediaRange.fromJSON(object.respMediaRange) }
+        : isSet(object.respUpdateInfo)
+        ? { $case: "respUpdateInfo", respUpdateInfo: RespUpdateInfo.fromJSON(object.respUpdateInfo) }
         : isSet(object.respSessionToken)
         ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
         : isSet(object.respDomainAvailable)
@@ -14772,6 +15203,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respMediaUrl = RespMediaURL.toJSON(message.payload.respMediaUrl);
     } else if (message.payload?.$case === "respMediaRange") {
       obj.respMediaRange = RespMediaRange.toJSON(message.payload.respMediaRange);
+    } else if (message.payload?.$case === "respUpdateInfo") {
+      obj.respUpdateInfo = RespUpdateInfo.toJSON(message.payload.respUpdateInfo);
     } else if (message.payload?.$case === "respSessionToken") {
       obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
     } else if (message.payload?.$case === "respDomainAvailable") {
@@ -15095,6 +15528,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respMediaRange",
             respMediaRange: RespMediaRange.fromPartial(object.payload.respMediaRange),
+          };
+        }
+        break;
+      }
+      case "respUpdateInfo": {
+        if (object.payload?.respUpdateInfo !== undefined && object.payload?.respUpdateInfo !== null) {
+          message.payload = {
+            $case: "respUpdateInfo",
+            respUpdateInfo: RespUpdateInfo.fromPartial(object.payload.respUpdateInfo),
           };
         }
         break;

@@ -41,6 +41,7 @@ import (
 	"github.com/alonsovidales/otc/status"
 	"github.com/alonsovidales/otc/storage"
 	"github.com/alonsovidales/otc/supervisor"
+	"github.com/alonsovidales/otc/updater"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -837,6 +838,39 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 	// having to know which one it's talking to. The native apps resolve
 	// it against the address they're already connected to.
 	return "/media/" + token, res.Size, res.Mime, expiresAt.UnixMilli(), nil
+}
+
+// buildUpdateInfo answers issue #94's "is there a new version" question.
+//
+// A manifest that can't be reached is reported as check_error rather than
+// as an RPC error: the device's own installed version and the outcome of
+// any previous update are still worth showing, and "GitHub was
+// unreachable just now" is a different thing from "this failed".
+func buildUpdateInfo() *pb.RespUpdateInfo {
+	status := updater.CurrentStatus()
+	out := &pb.RespUpdateInfo{
+		CurrentVersion: int32(updater.InstalledVersion()),
+		State:          status.State,
+		Message:        status.Message,
+		LastUpdated:    status.Updated,
+	}
+
+	info, err := updater.Check()
+	if err != nil {
+		log.Debug("could not check for updates:", err)
+		out.CheckError = err.Error()
+		return out
+	}
+
+	out.LatestVersion = int32(info.LatestVersion)
+	for _, release := range info.Pending {
+		out.Pending = append(out.Pending, &pb.UpdateRelease{
+			Version: int32(release.Version),
+			Summary: release.Description,
+		})
+	}
+
+	return out
 }
 
 func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
@@ -2032,6 +2066,32 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 				Devices: pbDevices,
 			},
 		}
+
+	case *pb.ReqEnvelope_ReqCheckUpdate:
+		// Issue #94: machine-level, so primary-only for the same reason
+		// ReqSetupStorage below is - an additional user (issue #82) is a
+		// separate process sharing this one machine, and the binary and
+		// schema it runs on are not that user's to replace.
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespUpdateInfo{RespUpdateInfo: buildUpdateInfo()}
+
+	case *pb.ReqEnvelope_ReqApplyUpdate:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		if err := updater.Apply(); err != nil {
+			log.Error("error starting the device update:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 
 	case *pb.ReqEnvelope_ReqSetupStorage:
 		// Issue #85: machine-level, so primary-only. An additional user

@@ -499,6 +499,10 @@ struct SettingsView: View {
                     }
                 }
 
+                // Issue #94: in-place updates. Renders nothing on a
+                // non-primary instance - see UpdateSection.
+                UpdateSection()
+
                 UsersManagementSection()
             }
             // No nav title (issue #19): the tab bar already labels this

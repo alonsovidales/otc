@@ -6,6 +6,7 @@ import { encryptForConnection, clearPersistedToken } from "../net/pwCrypto";
 import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
+import UpdatePanel from "./UpdatePanel";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -345,6 +346,10 @@ export default function SettingsForm() {
         <h3>Profile</h3>
         <ProfileCard authenticated={true} />
       </section>
+
+      {/* Issue #94: in-place updates. Renders nothing on a non-primary
+          instance - see UpdatePanel. */}
+      <UpdatePanel />
 
       <section className="sf-section">
         <h3>Update Domain</h3>

@@ -396,6 +396,41 @@ message RespMediaRange {
   string mime = 4;
 }
 
+// Issue #94: updating the device in place from Settings.
+message ReqCheckUpdate {}
+
+message UpdateRelease {
+  int32 version = 1;
+  // Named "summary" rather than "description": SwiftProtobuf renames a
+  // field called description to description_p, because it would collide
+  // with CustomStringConvertible - and every client would then be reading
+  // an oddly-named field for no reason.
+  string summary = 2;
+}
+
+message RespUpdateInfo {
+  int32 current_version = 1;
+  int32 latest_version = 2;
+  // The releases this device has yet to apply, oldest first - what makes
+  // the update incremental rather than a reinstall.
+  repeated UpdateRelease pending = 3;
+  // "idle", "running", "done", "failed" or "uptodate", plus whatever the
+  // runner last reported. Survives the restart an update performs, since
+  // the runner writes it to disk rather than holding it in memory.
+  string state = 4;
+  string message = 5;
+  string last_updated = 6;
+  // Set when the manifest itself couldn't be reached, which is different
+  // from "no updates": one means try again later, the other means there
+  // is nothing to do.
+  string check_error = 7;
+}
+
+// Starts the update and answers immediately - it takes minutes and ends
+// by restarting this very process, so there is nothing to wait for. Poll
+// ReqCheckUpdate for progress.
+message ReqApplyUpdate {}
+
 message GetSocialPublications {
   google.protobuf.Timestamp since = 1;
   int32 total = 2;
@@ -1196,6 +1231,8 @@ message ReqEnvelope {
     ReqGetStaticAsset req_get_static_asset = 81;
     ReqGetMediaURL req_get_media_url = 88;
     ReqGetMediaRange req_get_media_range = 89;
+    ReqCheckUpdate req_check_update = 90;
+    ReqApplyUpdate req_apply_update = 91;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1263,6 +1300,7 @@ message RespEnvelope {
     RespStaticAsset resp_static_asset = 44;
     RespMediaURL resp_media_url = 47;
     RespMediaRange resp_media_range = 48;
+    RespUpdateInfo resp_update_info = 49;
     // Issue #101. AuthWithToken answers with the generic Ack above.
     RespSessionToken resp_session_token = 45;
     // Issue #103.

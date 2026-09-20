@@ -1,0 +1,18 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Issue #94. Sits inside a .sf-section, so it inherits the Settings
+   page's own card and heading styling and only adds what's specific. */
+.up-line { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.up-version { font-variant-numeric: tabular-nums; }
+.up-ok { color: var(--mist-dim); font-size: 13px; }
+
+.up-releases {
+  margin: 0 0 10px; padding-left: 18px;
+  color: var(--mist-dim); font-size: 13px;
+}
+.up-releases strong { color: var(--mist); font-variant-numeric: tabular-nums; }
+
+.up-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.up-note { color: var(--mist-dim); font-size: 12px; margin: 6px 0 0; max-width: 60ch; }
+.up-error { color: var(--ember); font-size: 13px; margin: 6px 0 0; }

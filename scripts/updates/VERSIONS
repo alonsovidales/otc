@@ -1,0 +1,27 @@
+# OTC release manifest (issue #94).
+#
+# One release per line, OLDEST FIRST, tab-separated:
+#
+#   <version>	<sha256 of scripts/updates/<version>.sh>	<description>
+#
+# A device stores the version it is on in /etc/otc/version and applies every
+# script *after* that one, in this order, to reach the newest. That is what
+# makes an update incremental: a device two releases behind runs two
+# scripts, not a reinstall.
+#
+# Rules for anything added here:
+#
+#   1. Every script MUST be idempotent. A device with no /etc/otc/version
+#      (every install made before this feature existed) starts from the
+#      beginning and runs all of them, so re-running a script must be a
+#      no-op rather than an error - and must never destroy data. Schema
+#      changes are ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS,
+#      never DROP, never a re-import of db.sql.
+#   2. A script only carries what is specific to its release. Refreshing
+#      the binary is common to every update and is done once at the end by
+#      scripts/update.sh - don't repeat it here.
+#   3. The sha256 is checked before the script is run as root. Regenerate
+#      it whenever the script changes:
+#        shasum -a 256 scripts/updates/<version>.sh
+#
+1	7b85090a127fcea7cb3c9b6eef5ad1dd28bcdcde5f3088147626c4ee855318f7	Schema catch-up for installs made before in-place updates existed
