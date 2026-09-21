@@ -72,6 +72,9 @@ final class FilesExplorerViewModel: ObservableObject {
     // Issue #54: every delete action should confirm first - this one
     // didn't.
     @Published var confirmDeleteSelected = false
+    /// Which selection action is waiting on the device - the bar shows a
+    /// spinner for it, since building a share link is a round trip.
+    @Published var preparing: SelectionActionTask?
 
     init(initialPath: String) { self.path = initialPath }
 
@@ -174,6 +177,28 @@ final class FilesExplorerViewModel: ObservableObject {
             _ = try? await ws.request { $0.payload = .reqDelFile(req) }
         }
         await load()
+    }
+
+    /// Downloads the selection, the same way the Images tab does it: the
+    /// share link the device hands back is itself the download.
+    func downloadSelected() async {
+        preparing = .download
+        defer { preparing = nil }
+        guard let link = await shareLink(), let url = URL(string: link) else {
+            showToast("Could not create download link")
+            return
+        }
+        await UIApplication.shared.open(url)
+    }
+
+    func shareSelected() async {
+        preparing = .share
+        defer { preparing = nil }
+        guard let link = await shareLink(), let url = URL(string: link) else {
+            showToast("Could not create share link")
+            return
+        }
+        shareURL = url
     }
 
     func shareLink() async -> String? {
@@ -350,21 +375,15 @@ struct FilesExplorerView: View {
                 .listStyle(.plain)
 
                 if !vm.selected.isEmpty {
-                    HStack {
-                        Text("\(vm.selected.count) selected").font(.caption)
-                        Spacer()
-                        Button(role: .destructive) { vm.confirmDeleteSelected = true } label: {
-                            Image(systemName: "trash")
-                        }
-                        Button { Task { if let link = await vm.shareLink() { UIPasteboard.general.string = link; vm.showToast("Link copied") } } } label: {
-                            Image(systemName: "link")
-                        }
-                        Button { Task { if let link = await vm.shareLink(), let url = URL(string: link) { vm.shareURL = url } } } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                    }
-                    .padding()
-                    .background(.ultraThinMaterial)
+                    // Copy-link is gone: the share sheet already offers it,
+                    // and this now matches the Images tab exactly.
+                    SelectionActionBar(
+                        count: vm.selected.count,
+                        busy: vm.preparing,
+                        onShare: { Task { await vm.shareSelected() } },
+                        onDownload: { Task { await vm.downloadSelected() } },
+                        onDelete: { vm.confirmDeleteSelected = true }
+                    )
                 }
             }
             // No nav title (issue #19): the tab bar already labels this

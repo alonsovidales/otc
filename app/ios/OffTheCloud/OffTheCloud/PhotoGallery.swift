@@ -15,7 +15,6 @@ typealias TagsListMsg       = Msg_TagsList
 typealias SearchPhotosMsg   = Msg_SearchPhotos
 typealias GetFileMsg        = Msg_GetFile
 typealias UploadFileMsg     = Msg_UploadFile
-typealias NewSocialPubMsg   = Msg_NewSocialPublication
 typealias ShareFilesLinkMsg = Msg_ShareFilesLink
 typealias DownloadSharedMsg = Msg_DownloadSharedLink
 typealias AckMsg            = Msg_Ack
@@ -52,6 +51,22 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var selectedPeople: [String] = []
     @Published var editingPersonID: String? = nil
     @Published var editingPersonName: String = ""
+
+    // Issue #115: image groups (albums). A group is one more filter on the
+    // same search (SearchPhotos.group_id), which is what keeps tags,
+    // people, the date scrubber and paging all working unchanged inside
+    // one - activeGroup just rides along in every request.
+    @Published var groups: [Msg_ImageGroup] = []
+    @Published var activeGroup: Msg_ImageGroup? = nil
+    @Published var showGroups = false
+    // The selection bar's "Group" flow: pick an existing group, or name a
+    // new one.
+    @Published var showGroupPicker = false
+    @Published var showNewGroupName = false
+    @Published var newGroupName = ""
+    @Published var showRenameGroup = false
+    @Published var renameGroupName = ""
+    @Published var confirmDeleteGroup = false
 
     // Issue #74: merge two people the model split into separate identities.
     // A second, narrower "pick mode" layered on the person strip, distinct
@@ -156,6 +171,11 @@ final class PhotoGalleryVM: ObservableObject {
     // decoded bitmap); writing it to a temp file first lets it use the
     // usual, much faster file-based path instead.
     @Published var shareURL: URL? = nil
+    /// Drives the selection bar's share sheet - see shareSelected().
+    @Published var selectionShareURL: URL? = nil
+    /// Which selection action is waiting on the device, so the bar can
+    /// show a spinner rather than looking like the tap did nothing.
+    @Published var preparing: SelectionActionTask?
 
     // Selection (via long-press)
     @Published var selected: Set<String> = []
@@ -210,10 +230,12 @@ final class PhotoGalleryVM: ObservableObject {
     private func loadDateBuckets() async {
         guard chips.isEmpty else { dateBuckets = []; return }
         let people = selectedPeople // snapshot - see fetchPage's own doc comment on why
+        let group = activeGroup?.id ?? ""
         guard let resp = try? await ws.request({ e in
             var req = ReqEnvelope()
             var b = Msg_ReqPhotoDateBuckets()
             b.personIds = people
+            b.groupID = group // issue #115
             b.includeVideos = true // issue #106: same set the grid shows
             req.payload = .reqPhotoDateBuckets(b)
             e = req
@@ -273,6 +295,113 @@ final class PhotoGalleryVM: ObservableObject {
             e = req
         }) else { return }
         if case .respPeople(let p) = resp.payload { allPeople = p.people }
+    }
+
+    // MARK: Image groups (issue #115)
+    func loadGroups() async {
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            req.payload = .reqListImageGroups(.init())
+            e = req
+        }) else { return }
+        if case .respImageGroups(let g) = resp.payload {
+            groups = g.groups
+            // Keep the chip's name/count fresh if the open group changed.
+            if let open = activeGroup, let fresh = g.groups.first(where: { $0.id == open.id }) {
+                activeGroup = fresh
+            }
+        }
+    }
+
+    func openGroup(_ g: Msg_ImageGroup) {
+        showGroups = false
+        activeGroup = g
+        restartSearch()
+    }
+
+    func leaveGroup() {
+        activeGroup = nil
+        restartSearch()
+    }
+
+    func renameActiveGroup() async {
+        guard let g = activeGroup else { return }
+        let name = renameGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name != g.name else { return }
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            var r = Msg_RenameImageGroup()
+            r.id = g.id
+            r.name = name
+            req.payload = .reqRenameImageGroup(r)
+            e = req
+        }), case .respAck(let ack) = resp.payload, ack.ok else {
+            alertMessage = "Could not rename the group."; showAlert = true
+            return
+        }
+        activeGroup?.name = name
+        if let idx = groups.firstIndex(where: { $0.id == g.id }) { groups[idx].name = name }
+    }
+
+    /// Removes the group only - the pictures are kept.
+    func deleteActiveGroup() async {
+        guard let g = activeGroup else { return }
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            var d = Msg_DeleteImageGroup()
+            d.id = g.id
+            req.payload = .reqDeleteImageGroup(d)
+            e = req
+        }), case .respAck(let ack) = resp.payload, ack.ok else {
+            alertMessage = "Could not delete the group."; showAlert = true
+            return
+        }
+        groups.removeAll { $0.id == g.id }
+        leaveGroup()
+    }
+
+    // Both send the selection's paths; the device resolves them to hashes.
+    func createGroupFromSelection() async {
+        let name = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        newGroupName = ""
+        guard !name.isEmpty else { return }
+        let paths = Array(selected)
+        guard await ensureUploadedIfLocal(paths) else { return }
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            var c = Msg_CreateImageGroup()
+            c.name = name
+            c.paths = paths
+            req.payload = .reqCreateImageGroup(c)
+            e = req
+        }), case .respImageGroup(let r) = resp.payload else {
+            alertMessage = "Could not create the group."; showAlert = true
+            return
+        }
+        groups.insert(r.group, at: 0)
+        selected.removeAll()
+        alertMessage = "Group \"\(name)\" created."; showAlert = true
+    }
+
+    func addSelectionToGroup(_ g: Msg_ImageGroup) async {
+        let paths = Array(selected)
+        guard await ensureUploadedIfLocal(paths) else { return }
+        guard let resp = try? await ws.request({ e in
+            var req = ReqEnvelope()
+            var a = Msg_AddToImageGroup()
+            a.groupID = g.id
+            a.paths = paths
+            req.payload = .reqAddToImageGroup(a)
+            e = req
+        }), case .respAck(let ack) = resp.payload, ack.ok else {
+            alertMessage = "Could not add to the group."; showAlert = true
+            return
+        }
+        selected.removeAll()
+        await loadGroups()
+        // If that was the open group, its grid has new members to show.
+        if activeGroup?.id == g.id { restartSearch() }
+        alertMessage = "Added to \"\(g.name)\"."; showAlert = true
     }
 
     func togglePerson(_ id: String) {
@@ -475,6 +604,7 @@ final class PhotoGalleryVM: ObservableObject {
         // under itself before it was even sent).
         let tags = chips
         let people = selectedPeople
+        let group = activeGroup?.id ?? ""
         let requestToken = overrideToken ?? token ?? ""
 
         do {
@@ -483,6 +613,7 @@ final class PhotoGalleryVM: ObservableObject {
                 var sp  = SearchPhotosMsg()
                 sp.tags  = tags
                 sp.personIds = people
+                sp.groupID = group // issue #115: inside a group, only its members
                 // Issue #106: videos belong in the Images section. They
                 // were excluded when this flag arrived (issue #60, where
                 // only the composer opted in), which left a device's
@@ -924,38 +1055,17 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
-    func shareInSocial() {
+    /// Share, as the Files tab means it: a link to the selection, handed
+    /// to the system share sheet.
+    ///
+    /// This replaced two buttons. "Share in social" is gone because
+    /// publishing belongs on the Social tab, which is where you write a
+    /// caption anyway, and "Share link" is gone because copying a link to
+    /// the clipboard is one of the things the share sheet already offers.
+    func shareSelected() {
         Task {
-            let paths = Array(selected)
-            guard await ensureUploadedIfLocal(paths) else { return }
-            let text = await promptSheet(title: "Caption")
-            guard let text, !text.isEmpty else { return }
-            do {
-                let resp = try await ws.request { e in
-                    var req = ReqEnvelope()
-                    var pub = NewSocialPubMsg()
-                    pub.text = text
-                    pub.paths = paths
-                    req.payload = .reqNewSocialPublication(pub)
-                    e = req
-                }
-                // A successful ReqNewSocialPublication answers with
-                // RespNewSocial (the new publication's uuid), not a plain
-                // Ack — this was checking for the wrong case and reporting
-                // "Share failed" on every successful share.
-                if case .respNewSocial = resp.payload, !resp.error {
-                    selected.removeAll()
-                    alertMessage = "Shared!"
-                } else {
-                    alertMessage = resp.error ? "Share failed: \(resp.errorMessage)" : "Share failed"
-                }
-            } catch { alertMessage = "Share failed: \(error.localizedDescription)" }
-            showAlert = true
-        }
-    }
-
-    func shareLink() {
-        Task {
+            preparing = .share
+            defer { preparing = nil }
             let paths = Array(selected)
             guard await ensureUploadedIfLocal(paths) else { return }
             do {
@@ -966,17 +1076,23 @@ final class PhotoGalleryVM: ObservableObject {
                     req.payload = .reqShareFilesLink(s)
                     e = req
                 }
-                if case .respShareLink(let link) = r.payload {
-                    UIPasteboard.general.string = link.link
-                    alertMessage = "Share link copied."
-                } else { alertMessage = "Could not create share link." }
-            } catch { alertMessage = "Share failed: \(error.localizedDescription)" }
-            showAlert = true
+                if case .respShareLink(let link) = r.payload, let url = URL(string: link.link) {
+                    selectionShareURL = url
+                } else {
+                    alertMessage = "Could not create share link."
+                    showAlert = true
+                }
+            } catch {
+                alertMessage = "Share failed: \(error.localizedDescription)"
+                showAlert = true
+            }
         }
     }
 
     func downloadZip() {
         Task {
+            preparing = .download
+            defer { preparing = nil }
             let paths = Array(selected)
             guard await ensureUploadedIfLocal(paths) else { return }
             do {
@@ -994,18 +1110,6 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
-    // Simple async prompt for iOS (sheet-like)
-    private func promptSheet(title: String) async -> String? {
-        await withCheckedContinuation { cont in
-            let alert = UIAlertController(title: title, message: nil, preferredStyle: .alert)
-            alert.addTextField { $0.placeholder = "Write something…" }
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in cont.resume(returning: nil) })
-            alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-                cont.resume(returning: alert.textFields?.first?.text ?? "")
-            })
-            UIApplication.shared.topMost?.present(alert, animated: true)
-        }
-    }
 }
 
 // MARK: - SwiftUI View (iOS)
@@ -1050,8 +1154,40 @@ struct PhotoGalleryView: View {
                     .textFieldStyle(.roundedBorder)
 
                     Button("Search") { acceptCurrentQuery() }
+                    // Issue #115: the groups list.
+                    Button {
+                        Task { await vm.loadGroups() }
+                        vm.showGroups = true
+                    } label: {
+                        Image(systemName: "book")
+                    }
+                    .accessibilityLabel("Groups")
                 }
                 .padding(.horizontal, 8)
+
+                // Issue #115: the open group, as a chip - tap the name to
+                // rename it, × to leave it. Everything else in this bar
+                // keeps working inside it.
+                if let g = vm.activeGroup {
+                    HStack(spacing: 6) {
+                        Image(systemName: "book").font(.caption)
+                        Button(g.name) {
+                            vm.renameGroupName = g.name
+                            vm.showRenameGroup = true
+                        }
+                        .buttonStyle(.plain)
+                        Text("· \(g.fileCount)").foregroundStyle(.secondary).font(.caption)
+                        Button {
+                            vm.confirmDeleteGroup = true
+                        } label: { Image(systemName: "trash").font(.caption) }
+                        .foregroundStyle(.red)
+                        Button("×") { vm.leaveGroup() }
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Color.orange.opacity(0.15))
+                    .clipShape(Capsule())
+                    .padding(.horizontal, 8)
+                }
 
                 if showSuggest, !suggestions.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
@@ -1192,16 +1328,96 @@ struct PhotoGalleryView: View {
             }
             .overlay(alignment: .bottom) {
                 if !vm.selected.isEmpty {
-                    ActionBar(
+                    SelectionActionBar(
                         count: vm.selected.count,
-                        share: vm.shareInSocial,
-                        shareLink: vm.shareLink,
-                        downloadZip: vm.downloadZip,
-                        delete: { vm.confirmDeleteSelected = true }
+                        busy: vm.preparing,
+                        onShare: vm.shareSelected,
+                        onDownload: vm.downloadZip,
+                        onDelete: { vm.confirmDeleteSelected = true },
+                        onGroup: {
+                            Task { await vm.loadGroups() }
+                            vm.showGroupPicker = true
+                        }
                     )
                     .transition(.move(edge: .bottom))
+                    .sheet(isPresented: Binding(
+                        get: { vm.selectionShareURL != nil },
+                        set: { if !$0 { vm.selectionShareURL = nil } }
+                    )) {
+                        if let url = vm.selectionShareURL { ActivityView(items: [url]) }
+                    }
                 }
             }
+        }
+        // Issue #115: the groups list - a picture on the left, like the
+        // notifications rows.
+        .sheet(isPresented: $vm.showGroups) {
+            NavigationView {
+                List {
+                    if vm.groups.isEmpty {
+                        Text("No groups yet — select some pictures and choose Group.")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(vm.groups, id: \.id) { g in
+                        Button { vm.openGroup(g) } label: {
+                            HStack(spacing: 12) {
+                                if let ui = UIImage(data: g.coverThumbnail) {
+                                    Image(uiImage: ui)
+                                        .resizable().scaledToFill()
+                                        .frame(width: 44, height: 44)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                } else {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.secondary.opacity(0.15))
+                                        .frame(width: 44, height: 44)
+                                        .overlay(Image(systemName: "book"))
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(g.name).foregroundStyle(.primary)
+                                    Text("\(g.fileCount) \(g.fileCount == 1 ? "picture" : "pictures")")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Groups")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") { vm.showGroups = false }
+                    }
+                }
+            }
+        }
+        // The selection bar's "Group": pick an existing group or start a new one.
+        .confirmationDialog("Add \(vm.selected.count) to a group", isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
+            ForEach(vm.groups, id: \.id) { g in
+                Button(g.name) { Task { await vm.addSelectionToGroup(g) } }
+            }
+            Button("New group…") { vm.showNewGroupName = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("New group", isPresented: $vm.showNewGroupName) {
+            TextField("Group name", text: $vm.newGroupName)
+            Button("Create") { Task { await vm.createGroupFromSelection() } }
+            Button("Cancel", role: .cancel) { vm.newGroupName = "" }
+        } message: {
+            Text("\(vm.selected.count) \(vm.selected.count == 1 ? "picture" : "pictures") will be added to it.")
+        }
+        .alert("Rename group", isPresented: $vm.showRenameGroup) {
+            TextField("Group name", text: $vm.renameGroupName)
+            Button("Save") { Task { await vm.renameActiveGroup() } }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "Delete the group \"\(vm.activeGroup?.name ?? "")\"?",
+            isPresented: $vm.confirmDeleteGroup, titleVisibility: .visible
+        ) {
+            Button("Delete group", role: .destructive) { Task { await vm.deleteActiveGroup() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The pictures themselves are kept.")
         }
         .onAppear { vm.onAppearInitial() }
         // Hide the global upload indicator while the multi-select action
@@ -1825,30 +2041,6 @@ private struct PhotoDateScrubber: View {
         // tap/drag target. See the GeometryReader comment above for why
         // this has to sit out here rather than on a view inside it.
         .frame(width: 64)
-    }
-}
-
-private struct ActionBar: View {
-    let count: Int
-    let share: () -> Void
-    let shareLink: () -> Void
-    let downloadZip: () -> Void
-    let delete: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Button("Share in social", action: share)
-            Spacer()
-            Button("Share link", action: shareLink)
-            Button("Download", action: downloadZip)
-            Button(role: .destructive, action: delete) {
-                Image(systemName: "trash")
-            }
-            Text("\(count) selected").foregroundColor(.secondary)
-        }
-        .padding(10)
-        .background(.ultraThinMaterial)
-        .overlay(Divider(), alignment: .top)
     }
 }
 

@@ -515,6 +515,23 @@ SQL
       INDEX USING BTREE (dt)
     ) ENGINE=InnoDB;
 SQL
+    # Issue #115: image groups (albums) - see db.sql for why members are
+    # keyed by hash and carry no FK.
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS image_groups (
+      id VARCHAR(36) NOT NULL,
+      name VARCHAR(150) NOT NULL,
+      created DATETIME NOT NULL,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB;
+    CREATE TABLE IF NOT EXISTS image_group_files (
+      group_id VARCHAR(36) NOT NULL,
+      hash VARCHAR(64) NOT NULL,
+      added DATETIME NOT NULL,
+      PRIMARY KEY (group_id, hash),
+      KEY (hash)
+    ) ENGINE=InnoDB;
+SQL
 }
 
 apply_schema_migrations otc

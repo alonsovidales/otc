@@ -596,6 +596,11 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     // different video doesn't leave the previous one's bytes showing.
     const [inlineVideo, setInlineVideo] = useState<{ path: string; url: string } | null>(null);
     const [inlineLoading, setInlineLoading] = useState(false);
+    // Shows the replay button. Set when the clip runs out, cleared by the
+    // element's own play event - which covers replaying it and scrolling
+    // back onto it alike, since play() on a finished video seeks to the
+    // start by itself.
+    const [ended, setEnded] = useState(false);
     const [muted, setMuted] = useFeedMuted();
     const mediaRef = useRef<HTMLDivElement | null>(null);
     const videoElRef = useRef<HTMLVideoElement | null>(null);
@@ -743,6 +748,8 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
               // button below is how sound gets turned on, and doing it
               // from a real tap is what the browser requires.
               muted={muted}
+              onEnded={() => setEnded(true)}
+              onPlay={() => setEnded(false)}
             />
           ) : lowURL ? (
             <div
@@ -784,6 +791,21 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             <div className="sv-video-badge" aria-hidden={!inlineLoading}>
               {inlineLoading ? <Spinner /> : "▶"}
             </div>
+          )}
+          {isVideo && ended && (
+            <button
+              className="sv-replay"
+              onClick={e => {
+                e.stopPropagation();
+                const el = videoElRef.current;
+                if (!el) return;
+                el.currentTime = 0;
+                void el.play().catch(() => {});
+              }}
+              aria-label="Replay video"
+            >
+              ↺
+            </button>
           )}
           {isVideo && (
             <button

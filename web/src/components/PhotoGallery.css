@@ -211,3 +211,28 @@
   margin-top: 4px; padding: 8px 14px; border-radius: 8px;
   background: var(--ember); color: var(--ember-ink); font-weight: 600; text-decoration: none;
 }
+
+/* Issue #115: image groups. */
+.pg-group-chip { border-color: var(--ember); }
+.pg-group-chip-icon { font-size: 13px; }
+.pg-group-chip-name { border: 0; background: transparent; color: inherit; cursor: text; padding: 0; font: inherit; }
+.pg-group-name-input { font: inherit; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--ink-2); color: var(--mist); min-width: 120px; }
+.pg-group-name-input-lg { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 16px; margin: 6px 0 4px; }
+
+/* The list: same row shape as the notifications page (np-list/np-item),
+   a picture on the left and the text beside it. */
+.pg-groups { padding: 12px; }
+.pg-groups-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pg-groups-head h3 { margin: 0; color: var(--mist); }
+.pg-close-inline { border: 0; background: transparent; color: var(--mist-dim); font-size: 22px; cursor: pointer; line-height: 1; }
+.pg-groups-empty { color: var(--mist-dim); font-size: 14px; }
+.pg-group-list { list-style: none; margin: 0; padding: 0; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.pg-group-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); cursor: pointer; color: var(--mist); }
+.pg-group-item:last-child { border-bottom: 0; }
+.pg-group-item:hover { background: var(--panel); }
+.pg-group-cover { flex: none; width: 44px; height: 44px; border-radius: 6px; object-fit: cover; }
+.pg-group-cover-ph { display: grid; place-items: center; background: var(--panel); font-size: 20px; }
+.pg-group-text { font-size: 14px; flex: 1; min-width: 0; }
+.pg-group-name { font-weight: 600; }
+.pg-group-count { font-size: 12px; color: var(--mist-dim); white-space: nowrap; }
+.pg-group-list-pick { max-height: 50vh; overflow: auto; margin: 8px 0; }

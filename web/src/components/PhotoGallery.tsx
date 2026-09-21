@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
-import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo, Person } from "../proto/messages";
+import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo, Person, ImageGroup } from "../proto/messages";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import './PhotoGallery.css';
 import Spinner from "./Spinner";
@@ -44,7 +44,14 @@ const fileKey = (f: MsgFile, idx?: number) =>
 
 // ===========================================================================
 
-export default function PhotoGallery() {
+// Issue #115: the groups list is opened from the shared header's book
+// button (App.tsx), so its open/closed state is owned there and handed in.
+type PhotoGalleryProps = {
+  groupsOpen?: boolean;
+  setGroupsOpen?: (open: boolean) => void;
+};
+
+export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () => {} }: PhotoGalleryProps) {
   // -------- tags/typeahead --------------------------------------------------
   const [allTags, setAllTags] = useState<string[]>([]);
   // Issue #53 follow-up: a reload restores the Photos tab itself now, but
@@ -108,6 +115,109 @@ export default function PhotoGallery() {
       setAllPeople(resp.payload.respPeople.people ?? []);
     }
   }, []);
+
+  // -------- image groups (issue #115) --------------------------------------
+  // A group is one more filter on the same search (see SearchPhotos.
+  // group_id), which is what keeps tags, people, the date scrubber and
+  // infinite scroll all working unchanged inside one: activeGroup simply
+  // rides along in every request below and in the deps that restart it.
+  const [groups, setGroups] = useState<ImageGroup[]>([]);
+  const [activeGroup, setActiveGroup] = useState<ImageGroup | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
+  // The create / add-to picker raised from the selection bar.
+  const [groupPicker, setGroupPicker] = useState<null | { mode: "create"; name: string } | { mode: "add" }>(null);
+  const [groupBusy, setGroupBusy] = useState(false);
+  const groupThumbURLs = useRef<Map<string, string>>(new Map());
+
+  const loadGroups = useCallback(async () => {
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: {} };
+    });
+    if (resp.payload?.$case === "respImageGroups") {
+      const next = resp.payload.respImageGroups.groups ?? [];
+      // Covers are picked at random per listing, so rebuild the object
+      // URLs rather than reuse ones that may now show a different member.
+      groupThumbURLs.current.forEach(u => URL.revokeObjectURL(u));
+      groupThumbURLs.current = new Map();
+      setGroups(next);
+      // Keep the chip's name/count fresh if the open group was renamed or
+      // grew from another client.
+      setActiveGroup(prev => (prev ? next.find(g => g.id === prev.id) ?? prev : prev));
+    }
+  }, []);
+  const groupThumb = (g: ImageGroup) => {
+    const cached = groupThumbURLs.current.get(g.id);
+    if (cached) return cached;
+    const url = bytesToURL(g.coverThumbnail as unknown as Uint8Array);
+    if (url) groupThumbURLs.current.set(g.id, url);
+    return url;
+  };
+  useEffect(() => { if (groupsOpen) void loadGroups(); }, [groupsOpen, loadGroups]);
+
+  const openGroup = (g: ImageGroup) => {
+    setActiveGroup(g);
+    setGroupsOpen(false);
+  };
+  const leaveGroup = () => setActiveGroup(null);
+
+  const commitRenameGroup = async () => {
+    if (!activeGroup || editingGroupName == null) return;
+    const name = editingGroupName.trim();
+    setEditingGroupName(null);
+    if (!name || name === activeGroup.name) return;
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = { $case: "reqRenameImageGroup", reqRenameImageGroup: { id: activeGroup.id, name } };
+    });
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      setActiveGroup({ ...activeGroup, name });
+      setGroups(prev => prev.map(g => (g.id === activeGroup.id ? { ...g, name } : g)));
+    }
+  };
+  const deleteActiveGroup = async () => {
+    if (!activeGroup) return;
+    if (!window.confirm(`Delete the group "${activeGroup.name}"? The pictures themselves are kept.`)) return;
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = { $case: "reqDeleteImageGroup", reqDeleteImageGroup: { id: activeGroup.id } };
+    });
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      setGroups(prev => prev.filter(g => g.id !== activeGroup.id));
+      setActiveGroup(null);
+    }
+  };
+  // Both take the selection's paths - the device resolves them to hashes.
+  const createGroupFromSelection = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setGroupBusy(true);
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        (e as any).payload = { $case: "reqCreateImageGroup", reqCreateImageGroup: { name: trimmed, paths: selOrder } };
+      });
+      if (resp.payload?.$case === "respImageGroup" && resp.payload.respImageGroup.group) {
+        const g = resp.payload.respImageGroup.group;
+        setGroups(prev => [g, ...prev]);
+        setGroupPicker(null);
+        setSelOrder([]);
+      } else {
+        alert(resp.errorMessage || "Could not create the group");
+      }
+    } finally { setGroupBusy(false); }
+  };
+  const addSelectionToGroup = async (g: ImageGroup) => {
+    setGroupBusy(true);
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        (e as any).payload = { $case: "reqAddToImageGroup", reqAddToImageGroup: { groupId: g.id, paths: selOrder } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setGroupPicker(null);
+        setSelOrder([]);
+        void loadGroups();
+      } else {
+        alert(resp.errorMessage || "Could not add to the group");
+      }
+    } finally { setGroupBusy(false); }
+  };
 
   const togglePerson = (id: string) => setSelectedPeople(prev =>
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -300,13 +410,13 @@ export default function PhotoGallery() {
     const resp: RespEnvelope = await useWS.request(e => {
       (e as any).payload = {
         $case: "reqPhotoDateBuckets",
-        reqPhotoDateBuckets: { tags: [], personIds: selectedPeople, includeVideos: true },
+        reqPhotoDateBuckets: { tags: [], personIds: selectedPeople, groupId: activeGroup?.id ?? "", includeVideos: true },
       };
     });
     if (resp.payload?.$case === "respPhotoDateBuckets") {
       setDateBuckets(resp.payload.respPhotoDateBuckets.buckets ?? []);
     }
-  }, [chips.length, selectedPeople]);
+  }, [chips.length, selectedPeople, activeGroup?.id]);
 
   // -------- modal (hi-res) --------------------------------------------------
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -377,6 +487,8 @@ export default function PhotoGallery() {
             reqSearchPhotos: {
               tags: chips,
               personIds: selectedPeople,
+              // Issue #115: inside a group, only its members.
+              groupId: activeGroup?.id ?? "",
               // Issue #106: videos belong in the Images section too. They
               // were excluded when the flag was introduced (issue #60,
               // where only the social composer opted in), which left a
@@ -599,7 +711,7 @@ export default function PhotoGallery() {
     setScrubFrac(null);
     setPlaceholderCount(null);
     loadDateBuckets();
-  }, [chips, selectedPeople]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chips, selectedPeople, activeGroup?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------- infinite scroll: one call at a time -----------------------------
   useEffect(() => {
@@ -767,6 +879,33 @@ export default function PhotoGallery() {
       {/* top search with chips and suggestions */}
       <div className="pg-search">
         <div className="pg-chipbar">
+          {/* Issue #115: the open group, as a chip like a tag - its name
+              edits in place, × leaves the group. Everything else in this
+              bar keeps working inside it. */}
+          {activeGroup && (
+            <span className="pg-chip pg-group-chip" title={`${activeGroup.fileCount} in this group`}>
+              <span className="pg-group-chip-icon" aria-hidden="true">📖</span>
+              {editingGroupName != null ? (
+                <input
+                  className="pg-group-name-input"
+                  autoFocus
+                  value={editingGroupName}
+                  onChange={e => setEditingGroupName(e.target.value)}
+                  onBlur={() => void commitRenameGroup()}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") void commitRenameGroup();
+                    if (e.key === "Escape") setEditingGroupName(null);
+                  }}
+                />
+              ) : (
+                <button className="pg-group-chip-name" title="Rename this group" onClick={() => setEditingGroupName(activeGroup.name)}>
+                  {activeGroup.name}
+                </button>
+              )}
+              <button className="pg-chip-x" title="Delete this group" onClick={() => void deleteActiveGroup()}>🗑️</button>
+              <button className="pg-chip-x" onClick={leaveGroup} aria-label="Leave group">×</button>
+            </span>
+          )}
           {chips.map((c) => (
             <span key={`chip-${c}`} className="pg-chip">
               {c}
@@ -889,6 +1028,92 @@ export default function PhotoGallery() {
           </>
         )}
       </div>
+
+      {/* Issue #115: the groups list. Same row shape as the notifications
+          page - a picture on the left, text beside it. */}
+      {groupsOpen && (
+        <div className="pg-groups">
+          <div className="pg-groups-head">
+            <h3>Groups</h3>
+            <button className="pg-close-inline" onClick={() => setGroupsOpen(false)} aria-label="Close">×</button>
+          </div>
+          {groups.length === 0 ? (
+            <p className="pg-groups-empty">No groups yet — select some pictures and choose <strong>Create group</strong>.</p>
+          ) : (
+            <ul className="pg-group-list">
+              {groups.map(g => {
+                const thumb = groupThumb(g);
+                return (
+                  <li key={g.id} className="pg-group-item" onClick={() => openGroup(g)}>
+                    {thumb
+                      ? <img src={thumb} className="pg-group-cover" alt="" />
+                      : <div className="pg-group-cover pg-group-cover-ph">📖</div>}
+                    <span className="pg-group-text">
+                      <span className="pg-group-name">{g.name}</span>
+                      <span className="pg-group-count"> · {g.fileCount} {g.fileCount === 1 ? "picture" : "pictures"}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Issue #115: create a group from the selection, or add it to one. */}
+      {groupPicker && (
+        <div className="pg-modal" onClick={() => !groupBusy && setGroupPicker(null)}>
+          <div className="pg-modal-inner pg-person-confirm" onClick={e => e.stopPropagation()}>
+            {groupPicker.mode === "create" ? (
+              <>
+                <p>Name for the new group ({selOrder.length} {selOrder.length === 1 ? "picture" : "pictures"}):</p>
+                <input
+                  className="pg-group-name-input pg-group-name-input-lg"
+                  autoFocus
+                  placeholder="Group name…"
+                  value={groupPicker.name}
+                  onChange={e => setGroupPicker({ mode: "create", name: e.target.value })}
+                  onKeyDown={e => { if (e.key === "Enter") void createGroupFromSelection(groupPicker.name); }}
+                />
+                <div className="pg-modal-actions">
+                  <button onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
+                  <button onClick={() => void createGroupFromSelection(groupPicker.name)} disabled={groupBusy || !groupPicker.name.trim()}>
+                    {groupBusy ? <Spinner label="Creating…" /> : "Create"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>Add {selOrder.length} {selOrder.length === 1 ? "picture" : "pictures"} to:</p>
+                {groups.length === 0
+                  ? <p className="pg-groups-empty">There are no groups yet.</p>
+                  : (
+                    <ul className="pg-group-list pg-group-list-pick">
+                      {groups.map(g => {
+                        const thumb = groupThumb(g);
+                        return (
+                          <li key={g.id} className="pg-group-item" onClick={() => !groupBusy && void addSelectionToGroup(g)}>
+                            {thumb
+                              ? <img src={thumb} className="pg-group-cover" alt="" />
+                              : <div className="pg-group-cover pg-group-cover-ph">📖</div>}
+                            <span className="pg-group-text">
+                              <span className="pg-group-name">{g.name}</span>
+                              <span className="pg-group-count"> · {g.fileCount}</span>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                <div className="pg-modal-actions">
+                  <button onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
+                  <button onClick={() => setGroupPicker({ mode: "create", name: "" })} disabled={groupBusy}>New group…</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {confirmDeletePersonId && (
         <div className="pg-modal" onClick={() => setConfirmDeletePersonId(null)}>
@@ -1015,8 +1240,8 @@ export default function PhotoGallery() {
       {selOrder.length > 0 && (
         <div className="pg-actions">
           <button onClick={shareInSocial}>Share in social</button>
-          <button onClick={() => alert("Create group (not implemented)")}>Create group</button>
-          <button onClick={() => alert("Add to existing group (not implemented)")}>Add to group</button>
+          <button onClick={() => setGroupPicker({ mode: "create", name: "" })}>Create group</button>
+          <button onClick={() => { void loadGroups(); setGroupPicker({ mode: "add" }); }}>Add to group</button>
           <button onClick={() => shareOrDownload(false)} disabled={!!preparing}>
             {preparing === "link" ? <Spinner label="Preparing…" /> : "Share link"}
           </button>

@@ -28,7 +28,7 @@ func TestSearchMediaNoFiltersImagesOnly(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, nil, true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, nil, "", true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -48,7 +48,7 @@ func TestSearchMediaTagsOnlyOrdersByScore(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", []string{"dogs", "beach"}, nil, true, nil); err != nil {
+	if _, err := d.SearchMedia("", []string{"dogs", "beach"}, nil, "", true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -70,7 +70,7 @@ func TestSearchMediaMultiplePeopleRequiresAllOfThem(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, []string{"alice-id", "bob-id"}, true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, []string{"alice-id", "bob-id"}, "", true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -96,7 +96,7 @@ func TestSearchMediaCombinesTagsAndPerson(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", []string{"dogs"}, []string{"alice-id"}, true, nil); err != nil {
+	if _, err := d.SearchMedia("", []string{"dogs"}, []string{"alice-id"}, "", true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -119,7 +119,7 @@ func TestSearchMediaImagesOnlyIgnoredWhenFiltersApplied(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, "", true, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -143,7 +143,7 @@ func TestSearchMediaBeforeCutoffAddsWhereClause(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, nil, true, &before); err != nil {
+	if _, err := d.SearchMedia("", nil, nil, "", true, &before); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -171,7 +171,7 @@ func TestSearchMediaDateBucketsNoFilters(t *testing.T) {
 			AddRow("2022-05", 1))
 
 	d := NewWithDB(db)
-	buckets, err := d.SearchMediaDateBuckets(nil, nil, true)
+	buckets, err := d.SearchMediaDateBuckets(nil, nil, "", true)
 	if err != nil {
 		t.Fatalf("SearchMediaDateBuckets: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestSearchMediaDateBucketsMultiplePeopleRequiresAllOfThem(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMediaDateBuckets(nil, []string{"alice-id", "bob-id"}, true); err != nil {
+	if _, err := d.SearchMediaDateBuckets(nil, []string{"alice-id", "bob-id"}, "", true); err != nil {
 		t.Fatalf("SearchMediaDateBuckets: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -1181,5 +1181,53 @@ func TestPublicationFileMimeRejectsAHashFromAnotherPublication(t *testing.T) {
 	}
 	if found || mime != "" {
 		t.Errorf("mime=%q found=%v, want empty / false", mime, found)
+	}
+}
+
+// Issue #115: a group is an inner join on its membership table, and it
+// switches the plain-browse images-only mime clause off just like tags
+// and people do - inside an album, videos the owner put there must show.
+func TestSearchMediaGroupFilter(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("join `image_group_files` as `ig` on `ig`\\.`hash` = `f`\\.`hash` and `ig`\\.`group_id` = \\? order by `f`\\.`created` desc").
+		WithArgs("album-1").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", nil, nil, "album-1", true, nil); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// "alice, but only inside this album": the group join comes after the
+// person join, so its arg is bound after theirs.
+func TestSearchMediaCombinesPersonAndGroup(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery(
+		"join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?\\) "+
+			"join `image_group_files` as `ig` on `ig`\\.`hash` = `f`\\.`hash` and `ig`\\.`group_id` = \\?.*"+
+			"having count\\(distinct `fc`\\.`person_id`\\) = 1").
+		WithArgs("alice-id", "album-1").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
+
+	d := NewWithDB(db)
+	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, "album-1", true, nil); err != nil {
+		t.Fatalf("SearchMedia: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
 	}
 }

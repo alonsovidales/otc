@@ -1433,7 +1433,10 @@ func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 // use, an optional created-before cutoff), they just select something
 // different off the result. Kept as one function so the two queries can't
 // silently drift apart on what counts as a match.
-func searchMediaClauses(path string, tags []string, personIDs []string, imagesOnly bool, before *time.Time) (from, where, groupBy, having, orderBy, selectExtra string, args []any) {
+// groupID (issue #115) restricts to one image group's members - an inner
+// join on image_group_files, so it combines with tags/people the same way
+// they combine with each other (a photo has to satisfy all of them).
+func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time) (from, where, groupBy, having, orderBy, selectExtra string, args []any) {
 	from = "from `files` as `f`"
 	orderBy = " order by `f`.`created` desc"
 
@@ -1460,6 +1463,11 @@ func searchMediaClauses(path string, tags []string, personIDs []string, imagesOn
 		having = fmt.Sprintf(" having count(distinct `fc`.`person_id`) = %d", len(personIDs))
 	}
 
+	if groupID != "" {
+		from += " join `image_group_files` as `ig` on `ig`.`hash` = `f`.`hash` and `ig`.`group_id` = ?"
+		args = append(args, groupID)
+	}
+
 	var whereParts []string
 	if path != "" {
 		whereParts = append(whereParts, "`f`.`path` regexp ?")
@@ -1469,7 +1477,7 @@ func searchMediaClauses(path string, tags []string, personIDs []string, imagesOn
 		// left-to-right order the ?s appear in the assembled query.
 		args = append(args, "^"+path+"[^/]+$")
 	}
-	if len(tags) == 0 && len(personIDs) == 0 && imagesOnly {
+	if len(tags) == 0 && len(personIDs) == 0 && groupID == "" && imagesOnly {
 		whereParts = append(whereParts, "`f`.`mime` like 'image%'")
 	}
 	// Issue #77: the date scrubber's "jump to date" - same left-to-right
@@ -1485,8 +1493,8 @@ func searchMediaClauses(path string, tags []string, personIDs []string, imagesOn
 	return
 }
 
-func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, imagesOnly bool, before *time.Time) (files []*pb.File, err error) {
-	from, where, groupBy, having, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, imagesOnly, before)
+func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time) (files []*pb.File, err error) {
+	from, where, groupBy, having, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before)
 
 	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
 		from + where + groupBy + having + orderBy
@@ -1533,8 +1541,8 @@ type DateBucket struct {
 // buckets are always reported newest-month-first regardless of chip state -
 // callers are expected to hide the scrubber entirely when tags are active,
 // per its own doc comment on the ReqPhotoDateBuckets proto message.
-func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, imagesOnly bool) (buckets []DateBucket, err error) {
-	from, where, groupBy, having, _, _, args := searchMediaClauses("", tags, personIDs, imagesOnly, nil)
+func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, groupID string, imagesOnly bool) (buckets []DateBucket, err error) {
+	from, where, groupBy, having, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil)
 
 	// groupBy/having (by `f`.`hash`, when personIDs are given) enforce the
 	// "matches every requested person on the SAME file" AND semantics -
@@ -1561,6 +1569,97 @@ func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, images
 		buckets = append(buckets, b)
 	}
 	return buckets, rows.Err()
+}
+
+// ImageGroup is one album (issue #115) as the DB sees it: CoverHash is a
+// member picked at random on each listing, for the list to show a picture
+// per group; the caller turns it into a thumbnail (that needs the
+// session's key, which this package never holds). Empty when the group
+// has no members that still exist.
+type ImageGroup struct {
+	ID        string
+	Name      string
+	FileCount int
+	CoverHash string
+}
+
+// ListImageGroups lists every group, newest first, with a live member
+// count and a random cover. Both are computed against `files` rather
+// than image_group_files alone, so a member whose last copy was deleted
+// is neither counted nor offered as a cover (see the table's comment in
+// db.sql for why there is no FK doing this for us).
+func (dao *Dao) ListImageGroups() (groups []*ImageGroup, err error) {
+	rows, err := dao.db.Query(
+		"select `g`.`id`, `g`.`name`," +
+			" (select count(distinct `m`.`hash`) from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`)," +
+			" (select `m`.`hash` from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id` order by rand() limit 1)" +
+			" from `image_groups` as `g` order by `g`.`created` desc")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		g := new(ImageGroup)
+		var cover sql.NullString
+		if err := rows.Scan(&g.ID, &g.Name, &g.FileCount, &cover); err != nil {
+			return nil, err
+		}
+		g.CoverHash = cover.String
+		groups = append(groups, g)
+	}
+	return groups, rows.Err()
+}
+
+// CreateImageGroup makes a new, empty group and returns its id.
+func (dao *Dao) CreateImageGroup(name string) (id string, err error) {
+	id = uuid.New().String()
+	_, err = dao.db.Exec("insert into `image_groups` (`id`, `name`, `created`) values (?, ?, ?)", id, name, time.Now())
+	return
+}
+
+// AddPathsToImageGroup adds the files at `paths` to a group, resolving
+// them to hashes here so a client only ever has to send what its
+// selection holds. Files already in the group are skipped (insert
+// ignore against the primary key), never an error - "add these to the
+// album" should succeed whether or not some of them were there already.
+func (dao *Dao) AddPathsToImageGroup(groupID string, paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	ph := strings.Repeat("?,", len(paths))
+	ph = ph[:len(ph)-1]
+	args := []any{groupID, time.Now()}
+	for _, p := range paths {
+		args = append(args, p)
+	}
+	_, err := dao.db.Exec(
+		"insert ignore into `image_group_files` (`group_id`, `hash`, `added`)"+
+			" select distinct ?, `hash`, ? from `files` where `path` in ("+ph+")", args...)
+	return err
+}
+
+func (dao *Dao) RenameImageGroup(id, name string) (err error) {
+	_, err = dao.db.Exec("update `image_groups` set `name` = ? where `id` = ?", name, id)
+	return
+}
+
+// DeleteImageGroup removes the group and its memberships. The pictures
+// themselves are untouched - a group is a way of looking at them, not
+// where they live.
+func (dao *Dao) DeleteImageGroup(id string) error {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec("delete from `image_group_files` where `group_id` = ?", id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("delete from `image_groups` where `id` = ?", id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // ReprocessState mirrors the `reprocess_state` singleton row (issue #73) -

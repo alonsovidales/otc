@@ -413,3 +413,27 @@ create table reprocess_state
   primary key (`id`)
 ) engine=InnoDB;
 insert into `reprocess_state` (`id`) values (1);
+-- Issue #115: image groups (albums). Files are members by `hash`, the same
+-- way file_tags and faces reference them - dedup means several files rows
+-- can share one hash, and a group holding the picture should hold it once
+-- however many copies exist on disk. No FK to files(hash) for the same
+-- reason file_tags has none (see its comment): a hash whose last copy is
+-- deleted just stops matching the join in dao.searchMediaClauses, and
+-- ListImageGroups only ever counts/covers members that still exist.
+create table image_groups
+(
+  `id` varchar(36) not null,
+  `name` varchar(150) not null,
+  `created` datetime not null,
+
+  primary key (`id`)
+) engine=InnoDB;
+create table image_group_files
+(
+  `group_id` varchar(36) not null,
+  `hash` varchar(64) not null,
+  `added` datetime not null,
+
+  primary key (`group_id`, `hash`),
+  key (`hash`)
+) engine=InnoDB;

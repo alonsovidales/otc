@@ -15,13 +15,22 @@ struct OTCApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
-        print("Registering task")
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.yourco.otc.sync", using: nil) { task in
             guard let task = task as? BGProcessingTask else { return }
             SyncScheduler.handle(task: task)
         }
         Task.detached {
             try await PhotoSync.shared.runForeground()
+        }
+
+        // Make the Swift runtime instantiate the generated protobuf
+        // conformances here, off the main thread, rather than wherever the
+        // first message happens to be built or parsed - which at launch is
+        // on the main thread. Parsing nothing is enough: the cost is the
+        // metadata, not the bytes. userInitiated, not utility, because
+        // something on the main thread is very likely about to want it.
+        Task.detached(priority: .userInitiated) {
+            _ = try? Msg_SocialPublications(serializedData: Data())
         }
 
         // The first AVPlayer a process creates pays for all of
@@ -35,6 +44,22 @@ struct OTCApp: App {
         // may not.
         Task.detached(priority: .utility) {
             _ = AVPlayer()
+
+            // Raising the audio session is a synchronous round trip to the
+            // media server, and whoever calls play() first pays for it.
+            // .ambient rather than the default .soloAmbient is also the
+            // right category for a feed that starts muted - it leaves
+            // whatever the owner was already listening to playing.
+            // FeedAudio raises it to .playback if they unmute.
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.ambient)
+            try? session.setActive(true)
+
+            // There used to be an AVPlayerViewController warm-up here as
+            // well. It is gone because what it was amortising is gone: the
+            // feed draws into a bare AVPlayerLayer now (see
+            // CroppingVideoPlayer), which has no view controller, no
+            // transport UI and no layout machinery to pay for up front.
         }
     }
 

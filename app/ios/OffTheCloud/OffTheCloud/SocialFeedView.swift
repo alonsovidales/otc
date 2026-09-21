@@ -33,6 +33,32 @@ private func formatPostDate(_ date: Date) -> String {
 /// to read than it saves (see loadCachedPosts).
 private let cMaxCachedFeedBytes = 4 << 20
 
+/// Hands a publication to SwiftUI by reference rather than by value.
+///
+/// Caught with the debugger paused during the freeze: AttributeGraph -
+/// SwiftUI's diffing engine - was ~170 frames deep in
+/// LayoutDescriptor::make_layout, recursively walking the fields and
+/// oneof cases of the generated protobuf types, because the feed handed
+/// Msg_SocialPublication straight to a View as a stored property.
+/// AttributeGraph builds a layout descriptor for every value type it has
+/// to compare, and these are enormous: 144 message types and 460
+/// conformances in messages.pb.swift, nested and mutually recursive.
+///
+/// It only ever pays that once per type (TypeDescriptorCache), which is
+/// exactly the shape of the bug - slow on a cold launch, fine coming back
+/// from the background, fine between tabs, because the cache lives as
+/// long as the process.
+///
+/// A final class sidesteps all of it: AttributeGraph compares a reference
+/// by pointer and never walks what is behind it. Boxes are rebuilt
+/// whenever posts changes, so a new box *is* the signal that the content
+/// changed.
+final class PostBox {
+    let pub: Msg_SocialPublication
+
+    init(_ pub: Msg_SocialPublication) { self.pub = pub }
+}
+
 @MainActor
 final class SocialFeedViewModel: ObservableObject {
     // Issue #79: lifted from SocialFeedView's own private @StateObject to a
@@ -49,7 +75,11 @@ final class SocialFeedViewModel: ObservableObject {
     /// photo sync on the same shared connection.
     private static let pageSize: Int32 = 4
 
-    @Published var posts: [Msg_SocialPublication] = []
+    @Published var posts: [Msg_SocialPublication] = [] {
+        didSet { boxedPosts = posts.map(PostBox.init) }
+    }
+    /// What the feed actually renders - see PostBox.
+    @Published private(set) var boxedPosts: [PostBox] = []
     @Published var loading = false
     @Published var loadingMore = false
     // Issue #79: true once the server has answered at least one loadFeed
@@ -69,12 +99,25 @@ final class SocialFeedViewModel: ObservableObject {
         .appendingPathComponent("social_feed_cache.pb")
 
     init() {
-        loadCachedPosts()
-        // Nothing cached yet (first-ever launch) — mark loading right away,
-        // synchronously, so the very first render shows the loading state
-        // rather than a flash of "No posts yet" before the async fetch
-        // below has had a chance to even start.
-        if posts.isEmpty { loading = true }
+        // Mark loading right away, synchronously, so the very first render
+        // shows the loading state rather than a flash of "No posts yet".
+        loading = true
+        // The cached snapshot is read off the main thread, which costs a
+        // moment of empty feed and is worth it.
+        //
+        // This is the app's first touch of SwiftProtobuf, and that first
+        // touch is not just a parse: it makes the Swift runtime
+        // instantiate conformances for the generated message types - 460
+        // of them across 144 messages in messages.pb.swift - which showed
+        // up on a device as threads sitting in
+        // swift_conformsToProtocolMaybeInstantiateSuperclasses and dyld
+        // symbol lookups while the app was starting. Doing it on the main
+        // thread meant launch waited for all of that, and only ever on a
+        // cold start, because the runtime caches it for the life of the
+        // process. Which is exactly the shape of the bug: slow when
+        // launched fresh, fine coming back from the background, fine
+        // between tabs.
+        Task { await loadCachedPosts() }
         // Issue #22: start fetching immediately when the app launches,
         // rather than waiting for the user to actually tap the Social tab —
         // by the time they do, the feed is often already there. This
@@ -85,17 +128,24 @@ final class SocialFeedViewModel: ObservableObject {
         startAutoLoad()
     }
 
-    private func loadCachedPosts() {
-        guard let data = try? Data(contentsOf: Self.cacheURL) else { return }
-        // Read synchronously at launch on purpose (something on screen
-        // beats a blank feed), which is only acceptable while the file is
-        // small - see saveCachedPosts. A cache written by an older build
-        // holds the entire accumulated feed, thumbnails and all, and
-        // parsing that here would freeze the launch itself; skip it and
-        // let the next save replace it with a small one.
-        guard data.count <= cMaxCachedFeedBytes,
-              let cached = try? Msg_SocialPublications(serializedData: data) else { return }
-        posts = cached.publications
+    private func loadCachedPosts() async {
+        let url = Self.cacheURL
+        let cached = await Task.detached(priority: .userInitiated) { () -> [Msg_SocialPublication] in
+            guard let data = try? Data(contentsOf: url) else { return [] }
+            // A cache written by an older build holds the entire
+            // accumulated feed, thumbnails and all; skip an oversized one
+            // and let the next save replace it with a small one.
+            guard data.count <= cMaxCachedFeedBytes,
+                  let msg = try? Msg_SocialPublications(serializedData: data)
+            else { return [] }
+
+            return msg.publications
+        }.value
+        // The network has had the whole read and parse to answer in, and
+        // if it did its posts are fresher than this snapshot - so this
+        // only ever fills an empty feed, never replaces a loaded one.
+        guard posts.isEmpty, !cached.isEmpty else { return }
+        posts = cached
     }
 
     /// Writes the launch snapshot, off the main thread.
@@ -471,9 +521,10 @@ struct SocialFeedView: View {
                                 // up now.
                                 logoHeader
                                     .padding(.top, -44)
-                                ForEach(vm.posts, id: \.uuid) { post in
+                                ForEach(vm.boxedPosts, id: \.pub.uuid) { box in
+                                    let post = box.pub
                                     PostCard(
-                                        post: post,
+                                        box: box,
                                         isHighlighted: post.uuid == vm.highlightPub,
                                         highlightCommentUuid: post.uuid == vm.highlightPub ? vm.highlightComment : nil,
                                         onLikePub: { Task { await vm.likePublication(post.uuid) } },
@@ -619,17 +670,31 @@ private enum MediaSizeCache {
     ///
     /// NSCache rather than a plain dictionary so this gives the memory
     /// back under pressure instead of growing for the life of the app.
+    /// Bounded by bytes, not just by count. A feed "thumbnail" off the
+    /// device is a 1000px JPEG - measured at 1000x1333, 325KB on disk but
+    /// **5.3MB** once decoded into pixels. At the old count-only limit of
+    /// 200 that is over a gigabyte of images this cache would happily
+    /// hold, which a phone answers with memory warnings and eventually by
+    /// killing the app. Counting the decoded footprint keeps it near the
+    /// 64MB below whatever the images happen to be.
     private static let images: NSCache<NSString, UIImage> = {
         let cache = NSCache<NSString, UIImage>()
         cache.countLimit = 200
+        cache.totalCostLimit = 64 << 20
         return cache
     }()
+
+    /// What holding this image actually costs in memory: its pixels, not
+    /// the compressed bytes it arrived as.
+    private static func cost(of image: UIImage) -> Int {
+        Int(image.size.width * image.scale * image.size.height * image.scale) * 4
+    }
 
     static func image(of file: Msg_File) -> UIImage? {
         let key = file.hash as NSString
         if let cached = images.object(forKey: key) { return cached }
         guard file.hasContent, let ui = UIImage(data: file.content) else { return nil }
-        images.setObject(ui, forKey: key)
+        images.setObject(ui, forKey: key, cost: cost(of: ui))
 
         return ui
     }
@@ -663,25 +728,68 @@ private let cFeedMaxAspect: CGFloat = 1.91
 /// a narrow strip between two black bars. This is the same
 /// AVPlayerViewController VideoPlayer wraps - transport controls and all
 /// - with the one property it doesn't expose set to fill.
-private struct CroppingVideoPlayer: UIViewControllerRepresentable {
+/// A plain AVPlayerLayer, deliberately not AVPlayerViewController.
+///
+/// The feed shows no transport controls, so the whole view controller was
+/// machinery being paid for and not used - and it is not cheap machinery.
+/// Caught on a device with the debugger paused during the freeze, the main
+/// thread was here:
+///
+///     AVPlayerViewControllerContentView.layoutSubviews
+///       -> _updateVideoGravityDuringLayoutSubviews...
+///         -> AVPlayerLayer.setBounds:      (KVO on videoBounds fires)
+///           -> AVPlayerLayer.videoRect -> _presentationSize
+///             -> CFPreferencesCopyAppValue   (cold path)
+///               -> os_log -> stringWithFormat -> CFString alloc/dealloc
+///
+/// That is a preferences lookup and a log format, synchronously, inside a
+/// layout pass, every time a player layer's bounds change - once per
+/// player, per layout, and the feed autoplays. Setting videoGravity on a
+/// bare layer gets the identical cropping with none of it: nothing
+/// observes videoBounds, so nothing recomputes videoRect during layout.
+///
+/// SwiftUI's own VideoPlayer is not an option either - it wraps the same
+/// AVPlayerViewController and has no videoGravity, so a 9:16 clip in a 4:5
+/// box would letterbox into a narrow strip.
+final class PlayerLayerView: UIView {
+    override static var layerClass: AnyClass { AVPlayerLayer.self }
+
+    var playerLayer: AVPlayerLayer {
+        // Safe by construction: layerClass above is what backs this view.
+        layer as! AVPlayerLayer // swiftlint:disable:this force_cast
+    }
+}
+
+private struct CroppingVideoPlayer: UIViewRepresentable {
     let player: AVPlayer
 
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let controller = AVPlayerViewController()
-        controller.player = player
-        controller.videoGravity = .resizeAspectFill
-        controller.view.backgroundColor = .black
+    func makeUIView(context: Context) -> PlayerLayerView {
+        let view = PlayerLayerView()
+        view.backgroundColor = .black
+        view.playerLayer.videoGravity = .resizeAspectFill
+        view.playerLayer.player = player
 
-        return controller
+        return view
     }
 
-    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
-        if controller.player !== player { controller.player = player }
+    func updateUIView(_ view: PlayerLayerView, context: Context) {
+        if view.playerLayer.player !== player { view.playerLayer.player = player }
+    }
+
+    static func dismantleUIView(_ view: PlayerLayerView, coordinator: Coordinator) {
+        // Detached explicitly rather than left to deallocation: a layer
+        // still holding a player keeps it decoding for as long as the
+        // layer is alive.
+        view.playerLayer.player = nil
     }
 }
 
 private struct PostCard: View {
-    let post: Msg_SocialPublication
+    let box: PostBox
+
+    /// Computed, not stored: a stored protobuf value is precisely what
+    /// sends AttributeGraph walking (see PostBox).
+    private var post: Msg_SocialPublication { box.pub }
     // Issue #78: brief "here's what you tapped" flash after opening this
     // post/comment from a notification - cleared by the parent view after
     // a couple of seconds, same as the web version's own fade-out.
@@ -729,6 +837,8 @@ private struct PostCard: View {
     // playback was torn down and restarted from zero each time, which is
     // exactly the reported "spinner shows, video never plays".
     @State private var videoPlayer: AVPlayer?
+    /// Shows the replay button: this post's clip has run out.
+    @State private var videoEnded = false
     @ObservedObject private var feedAudio = FeedAudio.shared
 
     // Instagram-style, edge-to-edge feed (issue #12): no card background or
@@ -1114,12 +1224,42 @@ private struct PostCard: View {
             feedBox(for: file) {
                 CroppingVideoPlayer(player: player)
             }
+            // Replay, over the frame the clip stopped on. Without it a
+            // finished video is a dead end: play() on a player sitting at
+            // the end does nothing, so scrolling away and back doesn't
+            // restart it either - the seek is what does.
+            .overlay {
+                if videoEnded {
+                    Button {
+                        videoEnded = false
+                        player.seek(to: .zero)
+                        player.play()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise.circle.fill")
+                            .font(.system(size: 56))
+                            .foregroundStyle(.white)
+                            .shadow(radius: 4)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             // Tapping the poster is the play gesture - starting
             // playback here means that tap does what it looks like it
             // does, instead of landing on a paused player that needs a
             // second tap on its own control.
             .onAppear { player.play() }
             .onDisappear { player.pause() }
+            // Deliberately only cleared by the replay button above: the
+            // notification fires for whichever item finished, and a post
+            // has exactly one, so anything else would hide the button
+            // while the video is still sitting on its last frame.
+            .onReceive(NotificationCenter.default.publisher(
+                for: AVPlayerItem.didPlayToEndTimeNotification
+            )) { note in
+                guard let item = note.object as? AVPlayerItem,
+                      item === player.currentItem else { return }
+                videoEnded = true
+            }
             // Issue #114: the speaker button lives on this post but the
             // preference is shared, so a toggle anywhere reaches whatever
             // is currently playing.
@@ -1180,9 +1320,7 @@ private struct PostCard: View {
                 // Same handoff as the downloaded case below - the player
                 // view owns starting playback, so this must not differ.
                 videoPlaybackURL = streamURL
-                let player = AVPlayer(url: streamURL)
-                player.isMuted = feedAudio.muted
-                videoPlayer = player
+                videoPlayer = await Self.preparedPlayer(for: streamURL, muted: feedAudio.muted)
                 return
             }
 
@@ -1211,17 +1349,45 @@ private struct PostCard: View {
                 let tmp = FileManager.default.temporaryDirectory
                     .appendingPathComponent(UUID().uuidString)
                     .appendingPathExtension(ext)
-                try rf.content.write(to: tmp)
+                // Off the main thread: this is a whole video file, and
+                // writing it here used to stall the feed for as long as
+                // the disk took.
+                let content = rf.content
+                try await Task.detached(priority: .userInitiated) {
+                    try content.write(to: tmp)
+                }.value
                 videoPlaybackURL = tmp
-                let player = AVPlayer(url: tmp)
-                player.isMuted = feedAudio.muted
-                videoPlayer = player
+                videoPlayer = await Self.preparedPlayer(for: tmp, muted: feedAudio.muted)
             } catch {
                 // Leave the poster + play button in place - tapping again
                 // retries, same as the rest of this app's best-effort
                 // network calls.
             }
         }
+    }
+
+    /// Builds a player whose asset has already been inspected, off the
+    /// main thread.
+    ///
+    /// Handing AVPlayerViewController a player made straight from a URL
+    /// makes the controller ask that asset for its tracks and duration
+    /// while it is laying itself out - on the main thread, with the
+    /// answers for a streamed URL sitting behind a network round trip.
+    /// That is the other half of the first-video freeze: not decoding,
+    /// asking. Loading the properties here means the controller finds them
+    /// already there and never blocks for them.
+    private static func preparedPlayer(for url: URL, muted: Bool) async -> AVPlayer {
+        await Task.detached(priority: .userInitiated) {
+            let asset = AVURLAsset(url: url)
+            // Best-effort: an asset that can't answer still plays (or
+            // still fails) exactly as it did before, just without the
+            // head start.
+            _ = try? await asset.load(.isPlayable, .tracks)
+            let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+            player.isMuted = muted
+
+            return player
+        }.value
     }
 
     /// Maps a video's mime to the file extension AVFoundation needs to

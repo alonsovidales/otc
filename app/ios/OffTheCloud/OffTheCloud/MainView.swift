@@ -22,35 +22,47 @@ struct MainView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
+            // Every tab is wrapped in LazyTab - see its doc comment for why
+            // the ones not showing must not be built at launch.
             TabView(selection: $selectedTab) {
                 // Issue #78 follow-up: notifications became a section of
                 // its own (was a header/toolbar bell+sheet) - leftmost tab,
                 // per the user's explicit ask ("in the ios app, it should
                 // be at the left").
-                NotificationsListView(model: notifications)
-                    .tabItem { Label("Alerts", systemImage: "bell.fill") }
-                    .badge(notifications.unacknowledgedCount)
-                    .tag(0)
+                LazyTab(tag: 0, selection: $selectedTab) {
+                    NotificationsListView(model: notifications)
+                }
+                .tabItem { Label("Alerts", systemImage: "bell.fill") }
+                .badge(notifications.unacknowledgedCount)
+                .tag(0)
 
-                SocialFeedView()
-                    .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
-                    .tag(1)
+                LazyTab(tag: 1, selection: $selectedTab) {
+                    SocialFeedView()
+                }
+                .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
+                .tag(1)
 
                 // Issue #84: Friendships moved from here into a sheet
                 // presented by SocialFeedView's own toolbar (tag 2 left
                 // unused rather than renumbering everything after it -
                 // same convention as a removed proto field).
-                FilesExplorerView(initialPath: "/")
-                    .tabItem { Label("Files", systemImage: "folder") }
-                    .tag(3)
+                LazyTab(tag: 3, selection: $selectedTab) {
+                    FilesExplorerView(initialPath: "/")
+                }
+                .tabItem { Label("Files", systemImage: "folder") }
+                .tag(3)
 
-                PhotoGalleryView(deviceID: secrets.deviceId, localPhotosFolder: nil)
-                    .tabItem { Label("Images", systemImage: "photo.on.rectangle") }
-                    .tag(4)
+                LazyTab(tag: 4, selection: $selectedTab) {
+                    PhotoGalleryView(deviceID: secrets.deviceId, localPhotosFolder: nil)
+                }
+                .tabItem { Label("Images", systemImage: "photo.on.rectangle") }
+                .tag(4)
 
-                SettingsView()
-                    .tabItem { Label("Settings", systemImage: "gearshape") }
-                    .tag(5)
+                LazyTab(tag: 5, selection: $selectedTab) {
+                    SettingsView()
+                }
+                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag(5)
             }
 
             if (upload.totalPending > 0 || upload.isUploading) && !upload.suppressed {
@@ -120,5 +132,42 @@ struct MainView: View {
         }
         // Otherwise: cache was empty and the network hasn't answered yet -
         // stay on Social (already the default) and re-check once it does.
+    }
+}
+
+
+/// A tab whose content is not built until the tab is first selected.
+///
+/// TabView constructs every tab's view tree up front, whether or not it
+/// is showing. That was the remaining cold-launch cost after the feed's
+/// PostBox fix: each tab still held generated protobuf values in its views
+/// - the Files rows' Msg_File, the people chips' Msg_Person, the alerts
+/// list's [Msg_Notification] - and AttributeGraph builds a layout
+/// descriptor for every one of those types by recursively walking its
+/// fields (see PostBox's doc comment for the trace that showed this).
+/// Doing it for five tabs' worth of types at once, before the first
+/// frame, is what a cold start was waiting on; the runtime then caches
+/// it, which is why only a cold start ever paid.
+///
+/// Deferring the build changes nothing else: a tab that isn't showing
+/// never had its onAppear fire at launch anyway, so each one still loads
+/// its data the first time it is selected, exactly as before. Once built,
+/// a tab stays built, so switching back is instant.
+private struct LazyTab<Content: View>: View {
+    let tag: Int
+    @Binding var selection: Int
+    @ViewBuilder let content: () -> Content
+
+    @State private var built = false
+
+    var body: some View {
+        if built || selection == tag {
+            content()
+                .onAppear { built = true }
+        } else {
+            // Something has to occupy the slot so the tab item exists;
+            // it is never seen, since the tab isn't selected.
+            Color.clear
+        }
     }
 }

@@ -54,6 +54,11 @@ function App() {
   // than this component needing to know anything about the picker itself.
   const [openComposer, setOpenComposer] = useState<(() => void) | null>(null);
 
+  // Issue #115: whether the Images tab is showing its groups list. Held
+  // here because the button that toggles it sits in the shared header,
+  // not inside the gallery.
+  const [groupsOpen, setGroupsOpen] = useState(false);
+
   // Issue #105: whether a session restore is actually in flight right now.
   // The authenticated-only views below used to show "Signing in…" purely
   // because `authenticated` was false, with no idea whether anything was
@@ -317,7 +322,28 @@ function App() {
                 the feed underneath. */}
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <TopTabs value={tab} onChange={setTab} notificationCount={notificationCount} />
+                <TopTabs
+                  value={tab}
+                  onChange={setTab}
+                  notificationCount={notificationCount}
+                  beforeNotifications={tab === "PhotoGallery" && (
+                    // Issue #115: image groups - a book, right of the tabs and
+                    // left of the bell, only while looking at Images.
+                    <button
+                      className={`top-tab${groupsOpen ? " is-active" : ""}`}
+                      onClick={() => setGroupsOpen(v => !v)}
+                      aria-label="Groups"
+                      aria-pressed={groupsOpen}
+                      title="Groups"
+                    >
+                      <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5Z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
+                        <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5A2.5 2.5 0 0 1 4 20.5Z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
+                        <path d="M8 7h7M8 10.5h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  )}
+                />
                 {/* Issue #84: Friendships is no longer its own top-level
                     tab - reached from here instead, left of "+", only
                     while actually looking at the feed they both act on. */}
@@ -374,7 +400,7 @@ function App() {
             request before the auto-auth from #46 had resolved, surfacing
             as a bare "not authenticated" error instead of just waiting. */}
         {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : signedOutPlaceholder)}
-        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery /> : signedOutPlaceholder)}
+        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery groupsOpen={groupsOpen} setGroupsOpen={setGroupsOpen} /> : signedOutPlaceholder)}
         {tab === "Settings" && (authenticated ? <SettingsForm /> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (
           <NotificationsPage

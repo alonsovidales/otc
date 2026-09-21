@@ -91,7 +91,7 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
   `file_tags`, `social_publications` + likes/comments, `social_friendship`, `settings`, `profile`,
-  `shared_links`, `vault`, `events`, `people`, `faces`). Business logic in other packages should go
+  `shared_links`, `vault`, `events`, `people`, `faces`, `image_groups` + `image_group_files`). Business logic in other packages should go
   through `dao`, not raw SQL.
 - `files_manager` — file storage, hashing, dedup on disk.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;

@@ -595,6 +595,13 @@ export interface SearchPhotos {
    * starting from scratch sends nothing and is never skipped forward.
    */
   have: number;
+  /**
+   * Issue #115: restrict to one image group (album). A group is just
+   * another filter on this same search - combined with tags/people
+   * exactly like they combine with each other - which is what keeps
+   * search and scrolling working unchanged inside a group.
+   */
+  groupId: string;
 }
 
 export interface ListOfFiles {
@@ -612,6 +619,8 @@ export interface ReqPhotoDateBuckets {
   tags: string[];
   personIds: string[];
   includeVideos: boolean;
+  /** issue #115, same meaning as SearchPhotos.group_id */
+  groupId: string;
 }
 
 export interface PhotoDateBucket {
@@ -1037,6 +1046,62 @@ export interface DeletePerson {
 export interface MergePeople {
   targetId: string;
   sourceIds: string[];
+}
+
+/**
+ * Issue #115: image groups (albums). cover_thumbnail is one member's
+ * thumbnail, chosen at random per listing, so the list can render with
+ * a picture per group without a round trip each - same idea as
+ * Person.cover_thumbnail.
+ */
+export interface ImageGroup {
+  id: string;
+  name: string;
+  fileCount: number;
+  coverThumbnail: Uint8Array;
+}
+
+export interface ListImageGroups {
+}
+
+export interface ImageGroups {
+  groups: ImageGroup[];
+}
+
+/**
+ * CreateImageGroup makes a group holding `paths` (which may be empty).
+ * Paths rather than hashes because that is what a selection holds on
+ * every client; the device resolves them. Answered with the new group.
+ */
+export interface CreateImageGroup {
+  name: string;
+  paths: string[];
+}
+
+export interface RespImageGroup {
+  group?: ImageGroup | undefined;
+}
+
+/**
+ * AddToImageGroup adds `paths` to an existing group; already-members are
+ * ignored, not an error. Answered with the generic Ack.
+ */
+export interface AddToImageGroup {
+  groupId: string;
+  paths: string[];
+}
+
+export interface RenameImageGroup {
+  id: string;
+  name: string;
+}
+
+/**
+ * DeleteImageGroup removes the group and its membership rows only - never
+ * the pictures themselves. Answered with the generic Ack.
+ */
+export interface DeleteImageGroup {
+  id: string;
 }
 
 /**
@@ -1738,6 +1803,13 @@ export interface ReqEnvelope {
     | { $case: "reqSetupTailscale"; reqSetupTailscale: ReqSetupTailscale }
     | { $case: "reqGetTailscaleStatus"; reqGetTailscaleStatus: ReqGetTailscaleStatus }
     | //
+    /** Issue #115: image groups. */
+    { $case: "reqListImageGroups"; reqListImageGroups: ListImageGroups }
+    | { $case: "reqCreateImageGroup"; reqCreateImageGroup: CreateImageGroup }
+    | { $case: "reqAddToImageGroup"; reqAddToImageGroup: AddToImageGroup }
+    | { $case: "reqRenameImageGroup"; reqRenameImageGroup: RenameImageGroup }
+    | { $case: "reqDeleteImageGroup"; reqDeleteImageGroup: DeleteImageGroup }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -1822,6 +1894,10 @@ export interface RespEnvelope {
     | { $case: "respMediaRange"; respMediaRange: RespMediaRange }
     | { $case: "respUpdateInfo"; respUpdateInfo: RespUpdateInfo }
     | { $case: "respTailscaleStatus"; respTailscaleStatus: RespTailscaleStatus }
+    | //
+    /** Issue #115: image groups. */
+    { $case: "respImageGroups"; respImageGroups: ImageGroups }
+    | { $case: "respImageGroup"; respImageGroup: RespImageGroup }
     | //
     /** Issue #101. AuthWithToken answers with the generic Ack above. */
     { $case: "respSessionToken"; respSessionToken: RespSessionToken }
@@ -3434,7 +3510,7 @@ export const ListFiles: MessageFns<ListFiles> = {
 };
 
 function createBaseSearchPhotos(): SearchPhotos {
-  return { tags: [], token: "", includeVideos: false, personIds: [], before: undefined, have: 0 };
+  return { tags: [], token: "", includeVideos: false, personIds: [], before: undefined, have: 0, groupId: "" };
 }
 
 export const SearchPhotos: MessageFns<SearchPhotos> = {
@@ -3456,6 +3532,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.have !== 0) {
       writer.uint32(48).int32(message.have);
+    }
+    if (message.groupId !== "") {
+      writer.uint32(58).string(message.groupId);
     }
     return writer;
   },
@@ -3515,6 +3594,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.have = reader.int32();
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3534,6 +3621,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
         : [],
       before: isSet(object.before) ? fromJsonTimestamp(object.before) : undefined,
       have: isSet(object.have) ? globalThis.Number(object.have) : 0,
+      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
     };
   },
 
@@ -3557,6 +3645,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     if (message.have !== 0) {
       obj.have = Math.round(message.have);
     }
+    if (message.groupId !== "") {
+      obj.groupId = message.groupId;
+    }
     return obj;
   },
 
@@ -3571,6 +3662,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.personIds = object.personIds?.map((e) => e) || [];
     message.before = object.before ?? undefined;
     message.have = object.have ?? 0;
+    message.groupId = object.groupId ?? "";
     return message;
   },
 };
@@ -3652,7 +3744,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
 };
 
 function createBaseReqPhotoDateBuckets(): ReqPhotoDateBuckets {
-  return { tags: [], personIds: [], includeVideos: false };
+  return { tags: [], personIds: [], includeVideos: false, groupId: "" };
 }
 
 export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
@@ -3665,6 +3757,9 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
     }
     if (message.includeVideos !== false) {
       writer.uint32(24).bool(message.includeVideos);
+    }
+    if (message.groupId !== "") {
+      writer.uint32(34).string(message.groupId);
     }
     return writer;
   },
@@ -3700,6 +3795,14 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
           message.includeVideos = reader.bool();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3716,6 +3819,7 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
         ? object.personIds.map((e: any) => globalThis.String(e))
         : [],
       includeVideos: isSet(object.includeVideos) ? globalThis.Boolean(object.includeVideos) : false,
+      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
     };
   },
 
@@ -3730,6 +3834,9 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
     if (message.includeVideos !== false) {
       obj.includeVideos = message.includeVideos;
     }
+    if (message.groupId !== "") {
+      obj.groupId = message.groupId;
+    }
     return obj;
   },
 
@@ -3741,6 +3848,7 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
     message.tags = object.tags?.map((e) => e) || [];
     message.personIds = object.personIds?.map((e) => e) || [];
     message.includeVideos = object.includeVideos ?? false;
+    message.groupId = object.groupId ?? "";
     return message;
   },
 };
@@ -7525,6 +7633,563 @@ export const MergePeople: MessageFns<MergePeople> = {
     const message = createBaseMergePeople();
     message.targetId = object.targetId ?? "";
     message.sourceIds = object.sourceIds?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseImageGroup(): ImageGroup {
+  return { id: "", name: "", fileCount: 0, coverThumbnail: new Uint8Array(0) };
+}
+
+export const ImageGroup: MessageFns<ImageGroup> = {
+  encode(message: ImageGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.fileCount !== 0) {
+      writer.uint32(24).int32(message.fileCount);
+    }
+    if (message.coverThumbnail.length !== 0) {
+      writer.uint32(34).bytes(message.coverThumbnail);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ImageGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseImageGroup();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.fileCount = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.coverThumbnail = reader.bytes();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ImageGroup {
+    return {
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      fileCount: isSet(object.fileCount) ? globalThis.Number(object.fileCount) : 0,
+      coverThumbnail: isSet(object.coverThumbnail) ? bytesFromBase64(object.coverThumbnail) : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: ImageGroup): unknown {
+    const obj: any = {};
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.fileCount !== 0) {
+      obj.fileCount = Math.round(message.fileCount);
+    }
+    if (message.coverThumbnail.length !== 0) {
+      obj.coverThumbnail = base64FromBytes(message.coverThumbnail);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ImageGroup>, I>>(base?: I): ImageGroup {
+    return ImageGroup.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ImageGroup>, I>>(object: I): ImageGroup {
+    const message = createBaseImageGroup();
+    message.id = object.id ?? "";
+    message.name = object.name ?? "";
+    message.fileCount = object.fileCount ?? 0;
+    message.coverThumbnail = object.coverThumbnail ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseListImageGroups(): ListImageGroups {
+  return {};
+}
+
+export const ListImageGroups: MessageFns<ListImageGroups> = {
+  encode(_: ListImageGroups, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListImageGroups {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListImageGroups();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ListImageGroups {
+    return {};
+  },
+
+  toJSON(_: ListImageGroups): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListImageGroups>, I>>(base?: I): ListImageGroups {
+    return ListImageGroups.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListImageGroups>, I>>(_: I): ListImageGroups {
+    const message = createBaseListImageGroups();
+    return message;
+  },
+};
+
+function createBaseImageGroups(): ImageGroups {
+  return { groups: [] };
+}
+
+export const ImageGroups: MessageFns<ImageGroups> = {
+  encode(message: ImageGroups, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.groups) {
+      ImageGroup.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ImageGroups {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseImageGroups();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.groups.push(ImageGroup.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ImageGroups {
+    return {
+      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => ImageGroup.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: ImageGroups): unknown {
+    const obj: any = {};
+    if (message.groups?.length) {
+      obj.groups = message.groups.map((e) => ImageGroup.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ImageGroups>, I>>(base?: I): ImageGroups {
+    return ImageGroups.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ImageGroups>, I>>(object: I): ImageGroups {
+    const message = createBaseImageGroups();
+    message.groups = object.groups?.map((e) => ImageGroup.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseCreateImageGroup(): CreateImageGroup {
+  return { name: "", paths: [] };
+}
+
+export const CreateImageGroup: MessageFns<CreateImageGroup> = {
+  encode(message: CreateImageGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    for (const v of message.paths) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CreateImageGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCreateImageGroup();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CreateImageGroup {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: CreateImageGroup): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CreateImageGroup>, I>>(base?: I): CreateImageGroup {
+    return CreateImageGroup.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CreateImageGroup>, I>>(object: I): CreateImageGroup {
+    const message = createBaseCreateImageGroup();
+    message.name = object.name ?? "";
+    message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseRespImageGroup(): RespImageGroup {
+  return { group: undefined };
+}
+
+export const RespImageGroup: MessageFns<RespImageGroup> = {
+  encode(message: RespImageGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.group !== undefined) {
+      ImageGroup.encode(message.group, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespImageGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespImageGroup();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.group = ImageGroup.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespImageGroup {
+    return { group: isSet(object.group) ? ImageGroup.fromJSON(object.group) : undefined };
+  },
+
+  toJSON(message: RespImageGroup): unknown {
+    const obj: any = {};
+    if (message.group !== undefined) {
+      obj.group = ImageGroup.toJSON(message.group);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespImageGroup>, I>>(base?: I): RespImageGroup {
+    return RespImageGroup.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespImageGroup>, I>>(object: I): RespImageGroup {
+    const message = createBaseRespImageGroup();
+    message.group = (object.group !== undefined && object.group !== null)
+      ? ImageGroup.fromPartial(object.group)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseAddToImageGroup(): AddToImageGroup {
+  return { groupId: "", paths: [] };
+}
+
+export const AddToImageGroup: MessageFns<AddToImageGroup> = {
+  encode(message: AddToImageGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.groupId !== "") {
+      writer.uint32(10).string(message.groupId);
+    }
+    for (const v of message.paths) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AddToImageGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAddToImageGroup();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AddToImageGroup {
+    return {
+      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: AddToImageGroup): unknown {
+    const obj: any = {};
+    if (message.groupId !== "") {
+      obj.groupId = message.groupId;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AddToImageGroup>, I>>(base?: I): AddToImageGroup {
+    return AddToImageGroup.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AddToImageGroup>, I>>(object: I): AddToImageGroup {
+    const message = createBaseAddToImageGroup();
+    message.groupId = object.groupId ?? "";
+    message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseRenameImageGroup(): RenameImageGroup {
+  return { id: "", name: "" };
+}
+
+export const RenameImageGroup: MessageFns<RenameImageGroup> = {
+  encode(message: RenameImageGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RenameImageGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRenameImageGroup();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RenameImageGroup {
+    return {
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+    };
+  },
+
+  toJSON(message: RenameImageGroup): unknown {
+    const obj: any = {};
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RenameImageGroup>, I>>(base?: I): RenameImageGroup {
+    return RenameImageGroup.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RenameImageGroup>, I>>(object: I): RenameImageGroup {
+    const message = createBaseRenameImageGroup();
+    message.id = object.id ?? "";
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+function createBaseDeleteImageGroup(): DeleteImageGroup {
+  return { id: "" };
+}
+
+export const DeleteImageGroup: MessageFns<DeleteImageGroup> = {
+  encode(message: DeleteImageGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteImageGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteImageGroup();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DeleteImageGroup {
+    return { id: isSet(object.id) ? globalThis.String(object.id) : "" };
+  },
+
+  toJSON(message: DeleteImageGroup): unknown {
+    const obj: any = {};
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DeleteImageGroup>, I>>(base?: I): DeleteImageGroup {
+    return DeleteImageGroup.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeleteImageGroup>, I>>(object: I): DeleteImageGroup {
+    const message = createBaseDeleteImageGroup();
+    message.id = object.id ?? "";
     return message;
   },
 };
@@ -12793,6 +13458,21 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetTailscaleStatus":
         ReqGetTailscaleStatus.encode(message.payload.reqGetTailscaleStatus, writer.uint32(746).fork()).join();
         break;
+      case "reqListImageGroups":
+        ListImageGroups.encode(message.payload.reqListImageGroups, writer.uint32(754).fork()).join();
+        break;
+      case "reqCreateImageGroup":
+        CreateImageGroup.encode(message.payload.reqCreateImageGroup, writer.uint32(762).fork()).join();
+        break;
+      case "reqAddToImageGroup":
+        AddToImageGroup.encode(message.payload.reqAddToImageGroup, writer.uint32(770).fork()).join();
+        break;
+      case "reqRenameImageGroup":
+        RenameImageGroup.encode(message.payload.reqRenameImageGroup, writer.uint32(778).fork()).join();
+        break;
+      case "reqDeleteImageGroup":
+        DeleteImageGroup.encode(message.payload.reqDeleteImageGroup, writer.uint32(786).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -13559,6 +14239,61 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 94: {
+          if (tag !== 754) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListImageGroups",
+            reqListImageGroups: ListImageGroups.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 95: {
+          if (tag !== 762) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqCreateImageGroup",
+            reqCreateImageGroup: CreateImageGroup.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 96: {
+          if (tag !== 770) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqAddToImageGroup",
+            reqAddToImageGroup: AddToImageGroup.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 97: {
+          if (tag !== 778) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRenameImageGroup",
+            reqRenameImageGroup: RenameImageGroup.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 98: {
+          if (tag !== 786) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqDeleteImageGroup",
+            reqDeleteImageGroup: DeleteImageGroup.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -13861,6 +14596,16 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqGetTailscaleStatus",
           reqGetTailscaleStatus: ReqGetTailscaleStatus.fromJSON(object.reqGetTailscaleStatus),
         }
+        : isSet(object.reqListImageGroups)
+        ? { $case: "reqListImageGroups", reqListImageGroups: ListImageGroups.fromJSON(object.reqListImageGroups) }
+        : isSet(object.reqCreateImageGroup)
+        ? { $case: "reqCreateImageGroup", reqCreateImageGroup: CreateImageGroup.fromJSON(object.reqCreateImageGroup) }
+        : isSet(object.reqAddToImageGroup)
+        ? { $case: "reqAddToImageGroup", reqAddToImageGroup: AddToImageGroup.fromJSON(object.reqAddToImageGroup) }
+        : isSet(object.reqRenameImageGroup)
+        ? { $case: "reqRenameImageGroup", reqRenameImageGroup: RenameImageGroup.fromJSON(object.reqRenameImageGroup) }
+        : isSet(object.reqDeleteImageGroup)
+        ? { $case: "reqDeleteImageGroup", reqDeleteImageGroup: DeleteImageGroup.fromJSON(object.reqDeleteImageGroup) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -14049,6 +14794,16 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqSetupTailscale = ReqSetupTailscale.toJSON(message.payload.reqSetupTailscale);
     } else if (message.payload?.$case === "reqGetTailscaleStatus") {
       obj.reqGetTailscaleStatus = ReqGetTailscaleStatus.toJSON(message.payload.reqGetTailscaleStatus);
+    } else if (message.payload?.$case === "reqListImageGroups") {
+      obj.reqListImageGroups = ListImageGroups.toJSON(message.payload.reqListImageGroups);
+    } else if (message.payload?.$case === "reqCreateImageGroup") {
+      obj.reqCreateImageGroup = CreateImageGroup.toJSON(message.payload.reqCreateImageGroup);
+    } else if (message.payload?.$case === "reqAddToImageGroup") {
+      obj.reqAddToImageGroup = AddToImageGroup.toJSON(message.payload.reqAddToImageGroup);
+    } else if (message.payload?.$case === "reqRenameImageGroup") {
+      obj.reqRenameImageGroup = RenameImageGroup.toJSON(message.payload.reqRenameImageGroup);
+    } else if (message.payload?.$case === "reqDeleteImageGroup") {
+      obj.reqDeleteImageGroup = DeleteImageGroup.toJSON(message.payload.reqDeleteImageGroup);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -14735,6 +15490,51 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqListImageGroups": {
+        if (object.payload?.reqListImageGroups !== undefined && object.payload?.reqListImageGroups !== null) {
+          message.payload = {
+            $case: "reqListImageGroups",
+            reqListImageGroups: ListImageGroups.fromPartial(object.payload.reqListImageGroups),
+          };
+        }
+        break;
+      }
+      case "reqCreateImageGroup": {
+        if (object.payload?.reqCreateImageGroup !== undefined && object.payload?.reqCreateImageGroup !== null) {
+          message.payload = {
+            $case: "reqCreateImageGroup",
+            reqCreateImageGroup: CreateImageGroup.fromPartial(object.payload.reqCreateImageGroup),
+          };
+        }
+        break;
+      }
+      case "reqAddToImageGroup": {
+        if (object.payload?.reqAddToImageGroup !== undefined && object.payload?.reqAddToImageGroup !== null) {
+          message.payload = {
+            $case: "reqAddToImageGroup",
+            reqAddToImageGroup: AddToImageGroup.fromPartial(object.payload.reqAddToImageGroup),
+          };
+        }
+        break;
+      }
+      case "reqRenameImageGroup": {
+        if (object.payload?.reqRenameImageGroup !== undefined && object.payload?.reqRenameImageGroup !== null) {
+          message.payload = {
+            $case: "reqRenameImageGroup",
+            reqRenameImageGroup: RenameImageGroup.fromPartial(object.payload.reqRenameImageGroup),
+          };
+        }
+        break;
+      }
+      case "reqDeleteImageGroup": {
+        if (object.payload?.reqDeleteImageGroup !== undefined && object.payload?.reqDeleteImageGroup !== null) {
+          message.payload = {
+            $case: "reqDeleteImageGroup",
+            reqDeleteImageGroup: DeleteImageGroup.fromPartial(object.payload.reqDeleteImageGroup),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -14927,6 +15727,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respTailscaleStatus":
         RespTailscaleStatus.encode(message.payload.respTailscaleStatus, writer.uint32(402).fork()).join();
+        break;
+      case "respImageGroups":
+        ImageGroups.encode(message.payload.respImageGroups, writer.uint32(410).fork()).join();
+        break;
+      case "respImageGroup":
+        RespImageGroup.encode(message.payload.respImageGroup, writer.uint32(418).fork()).join();
         break;
       case "respSessionToken":
         RespSessionToken.encode(message.payload.respSessionToken, writer.uint32(362).fork()).join();
@@ -15335,6 +16141,22 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 51: {
+          if (tag !== 410) {
+            break;
+          }
+
+          message.payload = { $case: "respImageGroups", respImageGroups: ImageGroups.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 52: {
+          if (tag !== 418) {
+            break;
+          }
+
+          message.payload = { $case: "respImageGroup", respImageGroup: RespImageGroup.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 45: {
           if (tag !== 362) {
             break;
@@ -15476,6 +16298,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           $case: "respTailscaleStatus",
           respTailscaleStatus: RespTailscaleStatus.fromJSON(object.respTailscaleStatus),
         }
+        : isSet(object.respImageGroups)
+        ? { $case: "respImageGroups", respImageGroups: ImageGroups.fromJSON(object.respImageGroups) }
+        : isSet(object.respImageGroup)
+        ? { $case: "respImageGroup", respImageGroup: RespImageGroup.fromJSON(object.respImageGroup) }
         : isSet(object.respSessionToken)
         ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
         : isSet(object.respDomainAvailable)
@@ -15578,6 +16404,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respUpdateInfo = RespUpdateInfo.toJSON(message.payload.respUpdateInfo);
     } else if (message.payload?.$case === "respTailscaleStatus") {
       obj.respTailscaleStatus = RespTailscaleStatus.toJSON(message.payload.respTailscaleStatus);
+    } else if (message.payload?.$case === "respImageGroups") {
+      obj.respImageGroups = ImageGroups.toJSON(message.payload.respImageGroups);
+    } else if (message.payload?.$case === "respImageGroup") {
+      obj.respImageGroup = RespImageGroup.toJSON(message.payload.respImageGroup);
     } else if (message.payload?.$case === "respSessionToken") {
       obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
     } else if (message.payload?.$case === "respDomainAvailable") {
@@ -15919,6 +16749,24 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respTailscaleStatus",
             respTailscaleStatus: RespTailscaleStatus.fromPartial(object.payload.respTailscaleStatus),
+          };
+        }
+        break;
+      }
+      case "respImageGroups": {
+        if (object.payload?.respImageGroups !== undefined && object.payload?.respImageGroups !== null) {
+          message.payload = {
+            $case: "respImageGroups",
+            respImageGroups: ImageGroups.fromPartial(object.payload.respImageGroups),
+          };
+        }
+        break;
+      }
+      case "respImageGroup": {
+        if (object.payload?.respImageGroup !== undefined && object.payload?.respImageGroup !== null) {
+          message.payload = {
+            $case: "respImageGroup",
+            respImageGroup: RespImageGroup.fromPartial(object.payload.respImageGroup),
           };
         }
         break;

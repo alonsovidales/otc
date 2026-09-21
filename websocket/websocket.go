@@ -1604,7 +1604,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			t := p.ReqSearchPhotos.Before.AsTime()
 			before = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, before, p.ReqSearchPhotos.Have)
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, p.ReqSearchPhotos.Have)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -1621,7 +1621,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqPhotoDateBuckets:
-		buckets, err := ch.mg.filesManager.PhotoDateBuckets(p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.IncludeVideos)
+		buckets, err := ch.mg.filesManager.PhotoDateBuckets(p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.GroupId, p.ReqPhotoDateBuckets.IncludeVideos)
 		if err != nil {
 			log.Error("error trying to compute photo date buckets:", err)
 			resp.Error = true
@@ -1972,6 +1972,87 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.Payload = &pb.RespEnvelope_RespPeople{
 				RespPeople: &pb.People{People: people},
 			}
+		}
+
+	// Issue #115: image groups (albums).
+	case *pb.ReqEnvelope_ReqListImageGroups:
+		groups, err := ch.mg.filesManager.ListImageGroups(ses)
+		if err != nil {
+			log.Error("error listing image groups:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespImageGroups{
+				RespImageGroups: &pb.ImageGroups{Groups: groups},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqCreateImageGroup:
+		name := strings.TrimSpace(p.ReqCreateImageGroup.Name)
+		log.Info("Create image group:", name)
+		if name == "" {
+			resp.Error = true
+			resp.ErrorMessage = "a group needs a name"
+			break
+		}
+		id, err := ch.mg.dao.CreateImageGroup(name)
+		if err == nil {
+			err = ch.mg.dao.AddPathsToImageGroup(id, p.ReqCreateImageGroup.Paths)
+		}
+		if err != nil {
+			log.Error("error creating image group:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			// Answered with the group as the list would show it, so a
+			// client can drop it straight into its own list.
+			groups, _ := ch.mg.filesManager.ListImageGroups(ses)
+			created := &pb.ImageGroup{Id: id, Name: name, FileCount: int32(len(p.ReqCreateImageGroup.Paths))}
+			for _, g := range groups {
+				if g.Id == id {
+					created = g
+					break
+				}
+			}
+			resp.Payload = &pb.RespEnvelope_RespImageGroup{
+				RespImageGroup: &pb.RespImageGroup{Group: created},
+			}
+		}
+
+	case *pb.ReqEnvelope_ReqAddToImageGroup:
+		log.Info("Add to image group:", p.ReqAddToImageGroup.GroupId, len(p.ReqAddToImageGroup.Paths))
+		if err := ch.mg.dao.AddPathsToImageGroup(p.ReqAddToImageGroup.GroupId, p.ReqAddToImageGroup.Paths); err != nil {
+			log.Error("error adding to image group:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqRenameImageGroup:
+		name := strings.TrimSpace(p.ReqRenameImageGroup.Name)
+		log.Info("Rename image group:", p.ReqRenameImageGroup.Id)
+		if name == "" {
+			resp.Error = true
+			resp.ErrorMessage = "a group needs a name"
+			break
+		}
+		if err := ch.mg.dao.RenameImageGroup(p.ReqRenameImageGroup.Id, name); err != nil {
+			log.Error("error renaming image group:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqDeleteImageGroup:
+		log.Info("Delete image group:", p.ReqDeleteImageGroup.Id)
+		if err := ch.mg.dao.DeleteImageGroup(p.ReqDeleteImageGroup.Id); err != nil {
+			log.Error("error deleting image group:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
 	case *pb.ReqEnvelope_ReqRenamePerson:

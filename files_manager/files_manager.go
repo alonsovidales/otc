@@ -479,7 +479,7 @@ func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (conten
 // once and cached (see the tokenFound branch below), treating a jump as a
 // brand new search targeting a narrower result set reuses that same
 // mechanism instead of needing one of its own.
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, before *time.Time, have int32) (files []*pb.File, token string, err error) {
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	tokenFound := false
 	if oldToken != "" && before == nil {
@@ -505,7 +505,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		}
 	}
 	if !tokenFound {
-		files, err = mg.dao.SearchMedia(path, tags, personIDs, !includeVideos, before)
+		files, err = mg.dao.SearchMedia(path, tags, personIDs, groupID, !includeVideos, before)
 		if err != nil {
 			return
 		}
@@ -551,8 +551,33 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 // PhotoDateBuckets (issue #77) answers "how many photos per month" for the
 // gallery's date scrubber - a thin passthrough, no thumbnails/encryption
 // involved since it's just counts, not files.
-func (mg *Manager) PhotoDateBuckets(tags []string, personIDs []string, includeVideos bool) ([]dao.DateBucket, error) {
-	return mg.dao.SearchMediaDateBuckets(tags, personIDs, !includeVideos)
+func (mg *Manager) PhotoDateBuckets(tags []string, personIDs []string, groupID string, includeVideos bool) ([]dao.DateBucket, error) {
+	return mg.dao.SearchMediaDateBuckets(tags, personIDs, groupID, !includeVideos)
+}
+
+// ListImageGroups (issue #115) lists the albums with a cover picture each:
+// the dao picks a random member's hash, and this decrypts that member's
+// thumbnail with the session's key - the same GetThumbnail every search
+// result goes through, which only needs the hash. A group with no cover
+// (empty, or every member since deleted) just has no picture.
+func (mg *Manager) ListImageGroups(session *session.Session) ([]*pb.ImageGroup, error) {
+	groups, err := mg.dao.ListImageGroups()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*pb.ImageGroup, 0, len(groups))
+	for _, g := range groups {
+		item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount)}
+		if g.CoverHash != "" {
+			if thumb, err := mg.GetThumbnail(session, &pb.File{Hash: g.CoverHash}); err == nil {
+				item.CoverThumbnail = thumb
+			} else {
+				log.Error("error reading a group cover thumbnail:", err)
+			}
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }
 
 func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File, err error) {

@@ -237,6 +237,11 @@ message SearchPhotos {
   // Only meaningful alongside a token (i.e. when resuming); a search
   // starting from scratch sends nothing and is never skipped forward.
   int32 have = 6;
+  // Issue #115: restrict to one image group (album). A group is just
+  // another filter on this same search - combined with tags/people
+  // exactly like they combine with each other - which is what keeps
+  // search and scrolling working unchanged inside a group.
+  string group_id = 7;
 }
 
 message ListOfFiles {
@@ -252,6 +257,7 @@ message ReqPhotoDateBuckets {
   repeated string tags = 1;
   repeated string person_ids = 2;
   bool include_videos = 3;
+  string group_id = 4; // issue #115, same meaning as SearchPhotos.group_id
 }
 
 message PhotoDateBucket {
@@ -633,6 +639,54 @@ message DeletePerson {
 message MergePeople {
   string target_id = 1;
   repeated string source_ids = 2;
+}
+
+// Issue #115: image groups (albums). cover_thumbnail is one member's
+// thumbnail, chosen at random per listing, so the list can render with
+// a picture per group without a round trip each - same idea as
+// Person.cover_thumbnail.
+message ImageGroup {
+  string id = 1;
+  string name = 2;
+  int32 file_count = 3;
+  bytes cover_thumbnail = 4;
+}
+
+message ListImageGroups {
+}
+
+message ImageGroups {
+  repeated ImageGroup groups = 1;
+}
+
+// CreateImageGroup makes a group holding `paths` (which may be empty).
+// Paths rather than hashes because that is what a selection holds on
+// every client; the device resolves them. Answered with the new group.
+message CreateImageGroup {
+  string name = 1;
+  repeated string paths = 2;
+}
+
+message RespImageGroup {
+  ImageGroup group = 1;
+}
+
+// AddToImageGroup adds `paths` to an existing group; already-members are
+// ignored, not an error. Answered with the generic Ack.
+message AddToImageGroup {
+  string group_id = 1;
+  repeated string paths = 2;
+}
+
+message RenameImageGroup {
+  string id = 1;
+  string name = 2;
+}
+
+// DeleteImageGroup removes the group and its membership rows only - never
+// the pictures themselves. Answered with the generic Ack.
+message DeleteImageGroup {
+  string id = 1;
 }
 
 // StartReprocess kicks off issue #73's full-library reprocess: every
@@ -1261,6 +1315,12 @@ message ReqEnvelope {
     ReqApplyUpdate req_apply_update = 91;
     ReqSetupTailscale req_setup_tailscale = 92;
     ReqGetTailscaleStatus req_get_tailscale_status = 93;
+    // Issue #115: image groups.
+    ListImageGroups req_list_image_groups = 94;
+    CreateImageGroup req_create_image_group = 95;
+    AddToImageGroup req_add_to_image_group = 96;
+    RenameImageGroup req_rename_image_group = 97;
+    DeleteImageGroup req_delete_image_group = 98;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1330,6 +1390,9 @@ message RespEnvelope {
     RespMediaRange resp_media_range = 48;
     RespUpdateInfo resp_update_info = 49;
     RespTailscaleStatus resp_tailscale_status = 50;
+    // Issue #115: image groups.
+    ImageGroups resp_image_groups = 51;
+    RespImageGroup resp_image_group = 52;
     // Issue #101. AuthWithToken answers with the generic Ack above.
     RespSessionToken resp_session_token = 45;
     // Issue #103.

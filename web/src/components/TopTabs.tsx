@@ -19,6 +19,10 @@ export type TopTabsProps = {
   // (was a standalone header bell+dropdown) - the unread count now shows
   // as a badge on this tab instead, same as the bell's badge used to.
   notificationCount?: number;
+  // Issue #115: something rendered to the right of the tabs but left of
+  // the bell - the Images tab's groups button lives here, since "before
+  // the bell" is inside this component's own row, not after it.
+  beforeNotifications?: React.ReactNode;
 };
 
 // Issue #84: "Profile" removed from here - its editable form lives at the
@@ -33,7 +37,7 @@ const ALL_TABS: { key: TabKey; label: string }[] = [
   { key: "Notifications", label: "Notifications" },
 ];
 
-export default function TopTabs({ value, onChange, className, notificationCount = 0 }: TopTabsProps) {
+export default function TopTabs({ value, onChange, className, notificationCount = 0, beforeNotifications }: TopTabsProps) {
   const idx = useMemo(() => ALL_TABS.findIndex(t => t.key === value), [value]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -58,8 +62,9 @@ export default function TopTabs({ value, onChange, className, notificationCount 
       {ALL_TABS.map((t) => {
         const selected = t.key === value;
         return (
+          <React.Fragment key={t.key}>
+          {t.key === "Notifications" && beforeNotifications}
           <button
-            key={t.key}
             role="tab"
             aria-selected={selected}
             tabIndex={selected ? 0 : -1}
@@ -83,6 +88,7 @@ export default function TopTabs({ value, onChange, className, notificationCount 
               <span className="top-tab-badge">{notificationCount > 99 ? "99+" : notificationCount}</span>
             )}
           </button>
+          </React.Fragment>
         );
       })}
     </div>
