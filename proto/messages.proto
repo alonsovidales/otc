@@ -923,6 +923,29 @@ message UpdatePushRegistrationsAck {
   bool ok = 1;
 }
 
+// BridgeNotify asks the bridge to deliver an iOS push on this device's
+// behalf. The APNs auth key is the developer *team's* private key - whoever
+// holds it can notify every install of the app - so it lives on the bridge
+// alone and no device ever sees it. Note what this message does not carry:
+// tokens. The bridge sends to the APNs tokens it holds for the
+// authenticated domain (those this very device registered via
+// UpdatePushRegistrations), so a device cannot address anyone else's
+// phones by construction, not by a check. Web Push is not relayed: its
+// VAPID keypair is the device's own, so the device keeps sending that
+// itself. title/body are the same minimal text as ever - a friend's name
+// and an action, never post content.
+message BridgeNotify {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+  string title = 4;
+  string body = 5;
+}
+
+message BridgeNotifyAck {
+  bool ok = 1;
+}
+
 message GetProfile {
 }
 
@@ -1321,6 +1344,8 @@ message ReqEnvelope {
     AddToImageGroup req_add_to_image_group = 96;
     RenameImageGroup req_rename_image_group = 97;
     DeleteImageGroup req_delete_image_group = 98;
+    // APNs relayed through the bridge, which alone holds the team key.
+    BridgeNotify req_bridge_notify = 99;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1393,6 +1418,7 @@ message RespEnvelope {
     // Issue #115: image groups.
     ImageGroups resp_image_groups = 51;
     RespImageGroup resp_image_group = 52;
+    BridgeNotifyAck resp_bridge_notify_ack = 53;
     // Issue #101. AuthWithToken answers with the generic Ack above.
     RespSessionToken resp_session_token = 45;
     // Issue #103.

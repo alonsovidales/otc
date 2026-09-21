@@ -978,6 +978,45 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 				return
 
+			// A device asking for an iOS push to its own phones - see
+			// BridgeNotify in messages.proto. Authenticated exactly like a
+			// registration update, and sent to the tokens stored under the
+			// authenticated domain only: the request names none, so there
+			// is no way to reach another device's phones from here.
+			case *pb.ReqEnvelope_ReqBridgeNotify:
+				defer conn.Close()
+				req := p.ReqBridgeNotify
+				log.Info("Relay push for device:", req.Domain)
+
+				defined, validSecret, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
+				if err != nil && err != sql.ErrNoRows {
+					log.Error("error validating device for push relay:", err)
+					resp.Error = true
+					resp.ErrorMessage = err.Error()
+				} else if !defined || !validSecret {
+					log.Error("push relay rejected: invalid device/secret for", req.Domain)
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+						log.Error("error logging auth event:", logErr)
+					}
+					resp.Error = true
+					resp.ErrorMessage = "Invalid Secret"
+				} else if ps, err := push.Init(&domainPushStorage{dao: mg.dao, domain: req.Domain}); err != nil {
+					log.Error("could not init push for relay:", req.Domain, err)
+					resp.Error = true
+					resp.ErrorMessage = err.Error()
+				} else {
+					ps.NotifyAPNs(req.Title, req.Body)
+					resp.Payload = &pb.RespEnvelope_RespBridgeNotifyAck{
+						RespBridgeNotifyAck: &pb.BridgeNotifyAck{Ok: true},
+					}
+				}
+
+				respBin, _ := proto.Marshal(resp)
+				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
+
 			case *pb.ReqEnvelope_ReqUpdatePushRegistrations:
 				// One-off request/response, not a pooled relay connection -
 				// same shape as ReqRotateBridgeSecret above (issue #62): the

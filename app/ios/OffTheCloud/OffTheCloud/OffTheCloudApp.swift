@@ -15,7 +15,7 @@ struct OTCApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.yourco.otc.sync", using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: "cloud.off-the.OffTheCloud.sync", using: nil) { task in
             guard let task = task as? BGProcessingTask else { return }
             SyncScheduler.handle(task: task)
         }

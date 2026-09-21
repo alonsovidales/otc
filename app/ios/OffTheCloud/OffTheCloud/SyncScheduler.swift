@@ -15,7 +15,7 @@ import Network
 enum SyncScheduler {
     static func scheduleNext() {
         print("SyncScheduler running in background...")
-        let req = BGProcessingTaskRequest(identifier: "com.yourco.otc.sync")
+        let req = BGProcessingTaskRequest(identifier: "cloud.off-the.OffTheCloud.sync")
         req.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // 15 minutes
         req.requiresNetworkConnectivity = true
         req.requiresExternalPower = false

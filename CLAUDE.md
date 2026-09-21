@@ -117,6 +117,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   token (`ReqIssueSessionToken` / `ReqAuthWithToken` / `ReqRevokeSessionToken`) that redeems back
   into the same already-derived `*Session`. Process-local and deliberately not persisted — exactly
   like the `*Session` objects it points at, tokens don't survive a restart.
+- `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
+  team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
+  relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself
+  registered - so a device can only ever reach its own phones.
 - `api` — the small HTTP layer: healthcheck, the `/ws` upgrade, and static file serving (serves
   `web/dist` copied to the device's static path; appends `.html` to extensionless paths for
   client-side routing).

@@ -1368,6 +1368,31 @@ export interface UpdatePushRegistrationsAck {
   ok: boolean;
 }
 
+/**
+ * BridgeNotify asks the bridge to deliver an iOS push on this device's
+ * behalf. The APNs auth key is the developer *team's* private key - whoever
+ * holds it can notify every install of the app - so it lives on the bridge
+ * alone and no device ever sees it. Note what this message does not carry:
+ * tokens. The bridge sends to the APNs tokens it holds for the
+ * authenticated domain (those this very device registered via
+ * UpdatePushRegistrations), so a device cannot address anyone else's
+ * phones by construction, not by a check. Web Push is not relayed: its
+ * VAPID keypair is the device's own, so the device keeps sending that
+ * itself. title/body are the same minimal text as ever - a friend's name
+ * and an action, never post content.
+ */
+export interface BridgeNotify {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+  title: string;
+  body: string;
+}
+
+export interface BridgeNotifyAck {
+  ok: boolean;
+}
+
 export interface GetProfile {
 }
 
@@ -1810,6 +1835,9 @@ export interface ReqEnvelope {
     | { $case: "reqRenameImageGroup"; reqRenameImageGroup: RenameImageGroup }
     | { $case: "reqDeleteImageGroup"; reqDeleteImageGroup: DeleteImageGroup }
     | //
+    /** APNs relayed through the bridge, which alone holds the team key. */
+    { $case: "reqBridgeNotify"; reqBridgeNotify: BridgeNotify }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -1898,6 +1926,7 @@ export interface RespEnvelope {
     /** Issue #115: image groups. */
     { $case: "respImageGroups"; respImageGroups: ImageGroups }
     | { $case: "respImageGroup"; respImageGroup: RespImageGroup }
+    | { $case: "respBridgeNotifyAck"; respBridgeNotifyAck: BridgeNotifyAck }
     | //
     /** Issue #101. AuthWithToken answers with the generic Ack above. */
     { $case: "respSessionToken"; respSessionToken: RespSessionToken }
@@ -10043,6 +10072,188 @@ export const UpdatePushRegistrationsAck: MessageFns<UpdatePushRegistrationsAck> 
   },
 };
 
+function createBaseBridgeNotify(): BridgeNotify {
+  return { ownerUuid: "", domain: "", secret: "", title: "", body: "" };
+}
+
+export const BridgeNotify: MessageFns<BridgeNotify> = {
+  encode(message: BridgeNotify, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    if (message.title !== "") {
+      writer.uint32(34).string(message.title);
+    }
+    if (message.body !== "") {
+      writer.uint32(42).string(message.body);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeNotify {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBridgeNotify();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.title = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.body = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BridgeNotify {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      title: isSet(object.title) ? globalThis.String(object.title) : "",
+      body: isSet(object.body) ? globalThis.String(object.body) : "",
+    };
+  },
+
+  toJSON(message: BridgeNotify): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.title !== "") {
+      obj.title = message.title;
+    }
+    if (message.body !== "") {
+      obj.body = message.body;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BridgeNotify>, I>>(base?: I): BridgeNotify {
+    return BridgeNotify.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BridgeNotify>, I>>(object: I): BridgeNotify {
+    const message = createBaseBridgeNotify();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    message.title = object.title ?? "";
+    message.body = object.body ?? "";
+    return message;
+  },
+};
+
+function createBaseBridgeNotifyAck(): BridgeNotifyAck {
+  return { ok: false };
+}
+
+export const BridgeNotifyAck: MessageFns<BridgeNotifyAck> = {
+  encode(message: BridgeNotifyAck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ok !== false) {
+      writer.uint32(8).bool(message.ok);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeNotifyAck {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBridgeNotifyAck();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.ok = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BridgeNotifyAck {
+    return { ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false };
+  },
+
+  toJSON(message: BridgeNotifyAck): unknown {
+    const obj: any = {};
+    if (message.ok !== false) {
+      obj.ok = message.ok;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BridgeNotifyAck>, I>>(base?: I): BridgeNotifyAck {
+    return BridgeNotifyAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BridgeNotifyAck>, I>>(object: I): BridgeNotifyAck {
+    const message = createBaseBridgeNotifyAck();
+    message.ok = object.ok ?? false;
+    return message;
+  },
+};
+
 function createBaseGetProfile(): GetProfile {
   return {};
 }
@@ -13473,6 +13684,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqDeleteImageGroup":
         DeleteImageGroup.encode(message.payload.reqDeleteImageGroup, writer.uint32(786).fork()).join();
         break;
+      case "reqBridgeNotify":
+        BridgeNotify.encode(message.payload.reqBridgeNotify, writer.uint32(794).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -14294,6 +14508,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 99: {
+          if (tag !== 794) {
+            break;
+          }
+
+          message.payload = { $case: "reqBridgeNotify", reqBridgeNotify: BridgeNotify.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -14606,6 +14828,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqRenameImageGroup", reqRenameImageGroup: RenameImageGroup.fromJSON(object.reqRenameImageGroup) }
         : isSet(object.reqDeleteImageGroup)
         ? { $case: "reqDeleteImageGroup", reqDeleteImageGroup: DeleteImageGroup.fromJSON(object.reqDeleteImageGroup) }
+        : isSet(object.reqBridgeNotify)
+        ? { $case: "reqBridgeNotify", reqBridgeNotify: BridgeNotify.fromJSON(object.reqBridgeNotify) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -14804,6 +15028,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqRenameImageGroup = RenameImageGroup.toJSON(message.payload.reqRenameImageGroup);
     } else if (message.payload?.$case === "reqDeleteImageGroup") {
       obj.reqDeleteImageGroup = DeleteImageGroup.toJSON(message.payload.reqDeleteImageGroup);
+    } else if (message.payload?.$case === "reqBridgeNotify") {
+      obj.reqBridgeNotify = BridgeNotify.toJSON(message.payload.reqBridgeNotify);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -15535,6 +15761,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqBridgeNotify": {
+        if (object.payload?.reqBridgeNotify !== undefined && object.payload?.reqBridgeNotify !== null) {
+          message.payload = {
+            $case: "reqBridgeNotify",
+            reqBridgeNotify: BridgeNotify.fromPartial(object.payload.reqBridgeNotify),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -15733,6 +15968,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respImageGroup":
         RespImageGroup.encode(message.payload.respImageGroup, writer.uint32(418).fork()).join();
+        break;
+      case "respBridgeNotifyAck":
+        BridgeNotifyAck.encode(message.payload.respBridgeNotifyAck, writer.uint32(426).fork()).join();
         break;
       case "respSessionToken":
         RespSessionToken.encode(message.payload.respSessionToken, writer.uint32(362).fork()).join();
@@ -16157,6 +16395,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respImageGroup", respImageGroup: RespImageGroup.decode(reader, reader.uint32()) };
           continue;
         }
+        case 53: {
+          if (tag !== 426) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respBridgeNotifyAck",
+            respBridgeNotifyAck: BridgeNotifyAck.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 45: {
           if (tag !== 362) {
             break;
@@ -16302,6 +16551,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respImageGroups", respImageGroups: ImageGroups.fromJSON(object.respImageGroups) }
         : isSet(object.respImageGroup)
         ? { $case: "respImageGroup", respImageGroup: RespImageGroup.fromJSON(object.respImageGroup) }
+        : isSet(object.respBridgeNotifyAck)
+        ? { $case: "respBridgeNotifyAck", respBridgeNotifyAck: BridgeNotifyAck.fromJSON(object.respBridgeNotifyAck) }
         : isSet(object.respSessionToken)
         ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
         : isSet(object.respDomainAvailable)
@@ -16408,6 +16659,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respImageGroups = ImageGroups.toJSON(message.payload.respImageGroups);
     } else if (message.payload?.$case === "respImageGroup") {
       obj.respImageGroup = RespImageGroup.toJSON(message.payload.respImageGroup);
+    } else if (message.payload?.$case === "respBridgeNotifyAck") {
+      obj.respBridgeNotifyAck = BridgeNotifyAck.toJSON(message.payload.respBridgeNotifyAck);
     } else if (message.payload?.$case === "respSessionToken") {
       obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
     } else if (message.payload?.$case === "respDomainAvailable") {
@@ -16767,6 +17020,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respImageGroup",
             respImageGroup: RespImageGroup.fromPartial(object.payload.respImageGroup),
+          };
+        }
+        break;
+      }
+      case "respBridgeNotifyAck": {
+        if (object.payload?.respBridgeNotifyAck !== undefined && object.payload?.respBridgeNotifyAck !== null) {
+          message.payload = {
+            $case: "respBridgeNotifyAck",
+            respBridgeNotifyAck: BridgeNotifyAck.fromPartial(object.payload.respBridgeNotifyAck),
           };
         }
         break;

@@ -351,10 +351,49 @@ func commonDirPrefix(paths []string) string {
 	return common
 }
 
+// resolvePaths (issue #116) turns what a client selected into the files it
+// meant. A directory has no row of its own - it exists only as a prefix
+// shared by the paths under it - so anything that isn't a file row is
+// taken to be one and expanded to every file beneath it, recursively.
+// The trailing slash is normalised because clients disagree on it: the
+// web's rows carry "/kim", the listing's own regexp wants "/kim/", and
+// without the slash "/kim" would also match "/kimono/...".
+//
+// An empty directory can't be told apart from a typo (both have no rows),
+// so both are an error rather than a silent no-op: sharing "nothing" is
+// never what was asked for.
+func (mg *Manager) resolvePaths(paths []string) (files []*pb.File, err error) {
+	for _, path := range paths {
+		if file, fileErr := mg.dao.GetFileByPath(path); fileErr == nil {
+			files = append(files, file)
+			continue
+		}
+		dir := strings.TrimSuffix(path, "/") + "/"
+		under, listErr := mg.dao.GetFilesByPath(dir, true, false)
+		if listErr != nil {
+			return nil, listErr
+		}
+		if len(under) == 0 {
+			return nil, fmt.Errorf("no such file or directory: %s", path)
+		}
+		files = append(files, under...)
+	}
+	return files, nil
+}
+
 func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domain string) (link string, err error) {
-	files := make([]*pb.File, len(paths))
-	for i, path := range paths {
-		files[i], err = mg.GetFile(session, path)
+	// Issue #116: a selection may hold directories; each becomes every
+	// file under it, keeping its structure inside the archive (the common
+	// prefix stripped below is the directory itself when one folder was
+	// shared, so its contents land at the archive root with their own
+	// subfolders intact).
+	entries, err := mg.resolvePaths(paths)
+	if err != nil {
+		return "", err
+	}
+	files := make([]*pb.File, len(entries))
+	for i, entry := range entries {
+		files[i], err = mg.GetFile(session, entry.Path)
 		if err != nil {
 			return "", err
 		}
@@ -700,6 +739,24 @@ func locationTags(ex *exifinfo.Info) []imagestagger.RAMTag {
 		{Name: city, Score: 1},
 		{Name: country, Score: 1},
 	}
+}
+
+// DelPath (issue #116) deletes a file, or - when path is a directory -
+// every file under it. Files go one at a time through DelFile so the
+// dedup bookkeeping there (a blob is only removed once its last path is
+// gone) holds for each; a directory that becomes empty simply stops
+// being listed, since it was never anything but its files' paths.
+func (mg *Manager) DelPath(session *session.Session, path string) error {
+	entries, err := mg.resolvePaths([]string{path})
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err := mg.DelFile(session, entry.Path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (mg *Manager) DelFile(session *session.Session, path string) (err error) {

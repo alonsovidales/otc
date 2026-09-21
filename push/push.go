@@ -71,6 +71,18 @@ type Push struct {
 	apnsTopic    string
 	subscriberID string
 
+	// RelayAPNs, if set, is asked to deliver an iOS notification instead of
+	// this process sending it to APNs itself. The device sets it (see
+	// websocket.relayAPNsToBridge): the APNs auth key is the developer
+	// team's private key and must never be on a device, so a device hands
+	// the title/body to the bridge, which holds the key and this device's
+	// own tokens. Returning false means "not relayed" (no bridge
+	// configured, or it couldn't be reached) and the local client, if any,
+	// is tried instead - which on a device is normally nil, so the
+	// notification is simply not delivered to iOS. The bridge leaves this
+	// nil and sends directly.
+	RelayAPNs func(title, body string) bool
+
 	// OnChange, if set, is called after a stale subscription/token is
 	// pruned (see sendWebPush/sendApns) - i.e. whenever storage's
 	// registration set actually changed as a side effect of sending. The
@@ -138,11 +150,13 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 //	key-path=/etc/otc/apns_auth_key.p8
 //	key-id=ABCD1234EF
 //	team-id=WXYZ9876AB
-//	bundle-id=otc.OffTheCloud
+//	bundle-id=cloud.off-the.OffTheCloud
 //	production=1
 func (p *Push) loadApns() {
 	if !cfg.HasSection("apns") {
-		log.Info("No [apns] config section - push notifications to iOS are registered but won't be delivered until it's configured")
+		// Expected on a device: iOS pushes go through the bridge (see
+		// RelayAPNs). Only the bridge itself carries an [apns] section.
+		log.Info("No [apns] config section - iOS pushes will be relayed through the bridge if one is configured")
 		return
 	}
 
@@ -264,7 +278,15 @@ func (p *Push) sendWebPush(title, body string) {
 	}
 }
 
+// NotifyAPNs sends to iOS only - what the bridge does on a device's behalf
+// (see BridgeNotify in messages.proto), Web Push having stayed with the
+// device that owns the VAPID keypair.
+func (p *Push) NotifyAPNs(title, body string) { p.sendApns(title, body) }
+
 func (p *Push) sendApns(title, body string) {
+	if p.RelayAPNs != nil && p.RelayAPNs(title, body) {
+		return
+	}
 	if p.apnsClient == nil {
 		return
 	}

@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"archive/zip"
 	"bytes"
+	"database/sql"
 	"image"
 	"image/color"
 	"math"
@@ -623,5 +624,56 @@ func TestUnknownSearchTokenIsNotFoundInsteadOfPanicking(t *testing.T) {
 	}
 	if found {
 		t.Error("an unknown token reported a cached page")
+	}
+}
+
+// Issue #116: a selected directory has no row of its own, so it is
+// recognised by not being a file and expanded to everything under it -
+// with the trailing slash normalised, so "/kim" can't also pick up
+// "/kimono/...".
+func TestResolvePathsExpandsADirectoryToTheFilesUnderIt(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	// Not a file row...
+	mock.ExpectQuery("from `files` where `path` = \\?").WithArgs("/kim").WillReturnError(sql.ErrNoRows)
+	// ...so listed recursively as a directory, anchored with the slash.
+	mock.ExpectQuery("from `files` where `path` regexp \\?").WithArgs("^/kim/").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
+			AddRow("h1", "image/jpeg", time.Now(), time.Now(), "/kim/a.jpg", 1).
+			AddRow("h2", "image/jpeg", time.Now(), time.Now(), "/kim/sub/b.jpg", 2))
+
+	mg := &Manager{dao: dao.NewWithDB(db)}
+	files, err := mg.resolvePaths([]string{"/kim"})
+	if err != nil {
+		t.Fatalf("resolvePaths: %v", err)
+	}
+	if len(files) != 2 || files[0].Path != "/kim/a.jpg" || files[1].Path != "/kim/sub/b.jpg" {
+		t.Errorf("expected the two files under /kim, got %+v", files)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// A path that is neither a file nor a non-empty directory is an error,
+// never a silent nothing.
+func TestResolvePathsRejectsUnknownPath(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("from `files` where `path` = \\?").WithArgs("/nope").WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery("from `files` where `path` regexp \\?").WithArgs("^/nope/").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
+
+	mg := &Manager{dao: dao.NewWithDB(db)}
+	if _, err := mg.resolvePaths([]string{"/nope"}); err == nil {
+		t.Error("expected an error for a path that is neither a file nor a directory")
 	}
 }

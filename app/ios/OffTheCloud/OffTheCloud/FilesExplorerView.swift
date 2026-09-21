@@ -297,12 +297,13 @@ struct FilesExplorerView: View {
                             // A row's own checkbox while selecting, rather
                             // than relying on the List's built-in selection
                             // UI - see `selecting`'s doc comment for why.
-                            // Directories can't usefully be "selected" (the
-                            // delete/share/download actions below all
-                            // expect file paths), so this only ever shows
-                            // for a real file, and .. never gets one either
-                            // way since it's a directory entry too.
-                            if selecting && !row.isDir {
+                            // Issue #116: directories are selectable too -
+                            // the device expands one to every file under it
+                            // for share/download/delete (see
+                            // files_manager.resolvePaths). Only ".." is
+                            // left out, being navigation rather than a
+                            // thing.
+                            if selecting && row.path != ".." {
                                 Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
                                     .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
                                     .frame(width: 20)
@@ -330,7 +331,7 @@ struct FilesExplorerView: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if selecting {
-                                guard !row.isDir else { return }
+                                guard row.path != ".." else { return }
                                 if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
                                 else { vm.selected.insert(row.path) }
                                 return
@@ -347,11 +348,10 @@ struct FilesExplorerView: View {
                         // file, independent of (and without needing) the
                         // Select mode above - the standard iOS pattern for
                         // one-off actions on a single item. Directories
-                        // are left out: DelFile/ShareFilesLink both expect
-                        // file paths, same reason Select's own checkbox
-                        // skips them too.
+                        // get it too since issue #116 (the device expands
+                        // one to its files); only ".." is left out.
                         .contextMenu {
-                            if !row.isDir {
+                            if row.path != ".." {
                                 Button {
                                     Task {
                                         vm.selected = [row.path]

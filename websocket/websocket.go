@@ -239,6 +239,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// from the background friend-sync loop and shouldn't block on a
 	// bridge round-trip.
 	ps.OnChange = func() { go mg.syncPushRegistrationsToBridge() }
+	ps.RelayAPNs = mg.relayAPNsToBridge
 
 	// Issue #103: a local-only user's instance has no bridge-addr at all
 	// (see supervisor.bridgeAddrFor), and dialing "wss:///ws" forever
@@ -576,6 +577,64 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 // surface the error to — the next successful sync (the very next
 // register, or this device's own next restart) naturally catches the
 // bridge back up.
+// relayAPNsToBridge asks the bridge to deliver an iOS push to this device's
+// own registered phones - see BridgeNotify's doc comment in messages.proto
+// for why the key never lives here and why no tokens are sent. Same one-off
+// connection pattern as syncPushRegistrationsToBridge below. Returns
+// whether the bridge accepted it; false lets push fall back (to nothing,
+// on a device without its own key - the intended state).
+func (mg *Manager) relayAPNsToBridge(title, body string) bool {
+	if !bridgeConfigured() {
+		return false
+	}
+	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
+	h := http.Header{}
+	h.Set("Sec-WebSocket-Protocol", "protobuf")
+	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	if err != nil {
+		log.Error("error dialing bridge to relay a push:", err)
+		return false
+	}
+	defer c.Close()
+
+	b, err := proto.Marshal(&pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqBridgeNotify{
+			ReqBridgeNotify: &pb.BridgeNotify{
+				OwnerUuid: mg.settings.DeviceUuid,
+				Domain:    mg.settings.Domain,
+				Secret:    mg.settings.BridgeSecret,
+				Title:     title,
+				Body:      body,
+			},
+		},
+	})
+	if err != nil {
+		log.Error("error marshaling push relay:", err)
+		return false
+	}
+	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		log.Error("error writing push relay to bridge:", err)
+		return false
+	}
+	_, data, err := c.ReadMessage()
+	if err != nil {
+		log.Error("error reading push relay ack from bridge:", err)
+		return false
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		log.Error("error decoding push relay ack:", err)
+		return false
+	}
+	if resp.Error {
+		log.Error("bridge refused to relay a push:", resp.ErrorMessage)
+		return false
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespBridgeNotifyAck)
+	return ok && ack.RespBridgeNotifyAck.Ok
+}
+
 func (mg *Manager) syncPushRegistrationsToBridge() {
 	// Nothing to sync push registrations *to* on a local-only instance,
 	// and this runs on every push-subscription change - so without this it
@@ -1542,7 +1601,8 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqDelFile:
 		log.Info("Del file by path:", p.ReqDelFile.Path)
-		err := ch.mg.filesManager.DelFile(ses, p.ReqDelFile.Path)
+		// Issue #116: a directory path deletes everything under it.
+		err := ch.mg.filesManager.DelPath(ses, p.ReqDelFile.Path)
 		if err != nil {
 			// This used to only ever reach the client, never the server's
 			// own log — tracking down a real "Delete failed" report meant

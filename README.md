@@ -28,19 +28,15 @@ This is used to sync some folders in your local computer
 
 This is used to access all the data, sync photos and documents from your mobile device, Social Network app and much more
 
-<img height="300" alt="3014CBED-F750-4949-A15E-6D01140833BF_1_102_o" src="https://github.com/user-attachments/assets/f147bfd7-7115-4e41-921c-4c59c3fa75a2" />
-<img height="300" alt="F3DEA941-1E34-4645-851A-42388CF29A49_1_102_o" src="https://github.com/user-attachments/assets/8c86bb84-255b-43dd-a726-ae4faaff69eb" />
-<img height="300" alt="58FC9CDB-06BC-4FA3-AEC0-AB0D6BBA8912_1_102_o" src="https://github.com/user-attachments/assets/957194a4-cdb0-4f0f-8018-3f971086d36e" />
-<img height="300" alt="1A8E46EC-2AE1-40F2-B9BF-3C720A62DB68_1_102_o" src="https://github.com/user-attachments/assets/30549feb-bd38-47ad-b886-6d7af8db6e2b" />
+<p>
+<img height="420" alt="Social feed: photo posts with likes, comments and multi-photo carousels" src="docs/screenshots/ios-social.png" />
+<img height="420" alt="Images: the photo library with people recognised on-device and a tag search" src="docs/screenshots/ios-images.png" />
+</p>
 
 
 **The Web app**
 
 With this you can access all your data and social network from any browser just with your password
-
-<img height="300" alt="Screenshot 2026-05-18 at 16 35 47" src="https://github.com/user-attachments/assets/f20f2e79-0385-4cdc-b955-48e9d3c44619" />
-<img height="300" alt="Screenshot 2026-05-18 at 16 44 21" src="https://github.com/user-attachments/assets/08a7d890-33ec-4f67-8772-a8ed574baacf" />
-<img height="300" alt="Screenshot 2026-05-18 at 16 45 16" src="https://github.com/user-attachments/assets/5758ff5d-5a89-4494-a633-a8da14cc4c5b" />
 
 **Recommended Hardware**
 ========================
@@ -346,11 +342,13 @@ max-images-search=5
 # Identifiers & Profiles > Keys > create one with the "Apple Push
 # Notifications service (APNs)" capability, download its .p8 file (Apple
 # only lets you download it once), and note its Key ID and your Team ID.
+# Bridge only - never on a device. The APNs auth key is the developer
+# team's private key; devices ask the bridge to send (BridgeNotify).
 [apns]
 key-path=/etc/otc/apns_auth_key.p8
 key-id=<key id from the Apple Developer portal>
 team-id=<your Apple Developer team id>
-bundle-id=otc.OffTheCloud
+bundle-id=cloud.off-the.OffTheCloud
 # 1 once the app is TestFlight/App-Store distributed; leave unset (or 0)
 # while testing against Xcode's own debug builds, which use the sandbox
 # APNs environment instead.
