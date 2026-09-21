@@ -364,6 +364,21 @@ export default function FilesExplorer({
             onKeyDown={onPathKey}
             onBlur={(e)=> (e.currentTarget.value && normPath(e.currentTarget.value) !== path) && setPath(normPath(e.currentTarget.value))}
           />
+          {/* Issue #51: re-list this directory on demand. Files arrive from
+              other clients (the phone's sync, the Mac app) while this page
+              sits open, and nothing else re-reads the listing. */}
+          <button
+            className={`fb-refresh${loading ? " spinning" : ""}`}
+            onClick={() => void loadList(path)}
+            disabled={loading}
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+              <path d="M20 4v5h-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
       {selected.length > 0 && (
         <div className="fb-actions">

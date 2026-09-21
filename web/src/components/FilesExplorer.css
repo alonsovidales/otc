@@ -65,3 +65,12 @@
   .fb-head, .fb-row { grid-template-columns: 26px 1fr 140px; }
   .c-created, .c-modified { display: none; }
 }
+
+/* Issue #51: the refresh button beside the path. Same box as the input so
+   the row reads as one control; spins while the listing is in flight. */
+.fb-refresh { width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--ink-2); color: var(--mist); cursor: pointer; display: grid; place-items: center; }
+.fb-refresh:hover { background: var(--panel); }
+.fb-refresh:disabled { cursor: default; opacity: 0.7; }
+.fb-refresh.spinning svg { animation: fb-spin 0.9s linear infinite; }
+@keyframes fb-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fb-refresh.spinning svg { animation: none; } }

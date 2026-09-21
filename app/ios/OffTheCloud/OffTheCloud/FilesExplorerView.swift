@@ -377,6 +377,10 @@ struct FilesExplorerView: View {
                     }
                 }
                 .listStyle(.plain)
+                // Issue #51: pull down to re-list this directory - files
+                // arrive from other clients (the Mac app, another phone)
+                // while this screen sits open, and nothing else re-reads it.
+                .refreshable { await vm.load() }
 
                 if !vm.selected.isEmpty {
                     // Copy-link is gone: the share sheet already offers it,
