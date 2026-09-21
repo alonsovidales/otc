@@ -488,10 +488,44 @@ struct SocialFeedView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if vm.posts.isEmpty {
+                    // Issue #79: an empty timeline is the first thing a new
+                    // owner sees, so it should say what this is for and
+                    // offer the one thing to do about it - not send them
+                    // to Images, as this used to.
                     VStack(spacing: 0) {
                         logoHeader
-                        ContentUnavailableView("No posts yet", systemImage: "photo.on.rectangle.angled")
+                        Spacer()
+                        VStack(spacing: 14) {
+                            Text("No social posts")
+                                .font(.system(size: 30, weight: .heavy))
+                            Text("Share a photo or a video with your friends - it stays on your own device.")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 320)
+                            Button { showingPicker = true } label: {
+                                // ZStack rather than a frame on the glyph:
+                                // an SF Symbol's own bounds aren't square,
+                                // so framing it centres its box, not the
+                                // cross. Centring it inside the circle does.
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(red: 1.0, green: 0.42, blue: 0.29))
+                                        .frame(width: 96, height: 96)
+                                        .shadow(color: .black.opacity(0.22), radius: 12, y: 5)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 40, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("New post")
+                            .padding(.top, 10)
+                        }
+                        Spacer()
+                        Spacer()
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     // Issue #78: wrapped in ScrollViewReader (new to this
                     // file) purely so a tapped notification can scroll to

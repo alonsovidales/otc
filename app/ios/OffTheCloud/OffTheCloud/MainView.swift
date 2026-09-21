@@ -11,10 +11,10 @@ struct MainView: View {
     // programmatically at all - a tapped notification needs to be able to
     // jump to Social or Profile on its own, not just rely on the user
     // already being there. Issue #79: Social (not Notifications) is the
-    // default landing tab - see routeInitialTabIfNeeded below for the
-    // "fall back to Images if Social is empty" part.
+    // default landing tab, and it stays that even when the timeline is
+    // empty - an empty feed shows its own invitation to post (see
+    // SocialFeedView) rather than being something to route away from.
     @State private var selectedTab = 1
-    @State private var didRouteInitialTab = false
     // Issue #56: the bridge's verdict on whether this device is reachable
     // at all. Observed rather than stored so this clears itself as soon as
     // OTCConnection's own reconnect succeeds.
@@ -64,18 +64,10 @@ struct MainView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(5)
             }
-
-            if (upload.totalPending > 0 || upload.isUploading) && !upload.suppressed {
-                // Full-width hairline sitting right above the tab bar (issue
-                // #14) — no side margins or card shadow, so it reads as a
-                // thin status rule rather than a floating panel that could
-                // cover another screen's own bottom UI (e.g. the Files tab's
-                // Edit-mode selection toolbar, or the Images tab's
-                // multi-select action bar). It only grows when tapped.
-                UploadBar()
-                    .padding(.bottom, 56) // sit right above the tab bar
-            }
         }
+        // Issue #122: no upload indicator over the tabs any more. The
+        // full detail lives in Settings > Uploads, and a sync running in
+        // the background is not something every screen needs to announce.
         // A like/comment or friend-request notification is handled by
         // SocialFeedView itself now (it observes
         // `notifications.pendingDeepLink` directly, presenting its own
@@ -90,21 +82,6 @@ struct MainView: View {
                 break
             }
         }
-        // Issue #79: "if there is nothing in the social timeline, open the
-        // images section by default instead" - a one-time launch decision,
-        // not a standing redirect (didRouteInitialTab guards it so it never
-        // fires again once the user has actually navigated). Checked both
-        // on appear (covers the cache already having posts, so no need to
-        // wait on the network) and whenever hasLoadedOnce flips true
-        // (covers a cold launch with an empty/no cache, where the very
-        // first server round-trip is what actually settles the question).
-        .onAppear { routeInitialTabIfNeeded() }
-        .onChange(of: social.hasLoadedOnce) { _, _ in routeInitialTabIfNeeded() }
-        // Also cancels the pending routing decision if the user manually
-        // taps a tab before the network resolves (this fires for our own
-        // programmatic selectedTab=4 above too, but didRouteInitialTab is
-        // already true by then, so it's a no-op in that case).
-        .onChange(of: selectedTab) { _, _ in didRouteInitialTab = true }
         // Issue #56: covers the tabs rather than sitting inside one of
         // them - while the device can't be reached there is nothing behind
         // this worth interacting with, since every tab's content comes
@@ -117,22 +94,18 @@ struct MainView: View {
             if let code = connection.statusCode {
                 DeviceUnreachableView(message: connection.lastError ?? "", code: code)
                     .transition(.opacity)
+            } else if connection.connectionFailed {
+                // Everything else that stops the app connecting - a wrong
+                // address or password, an unreachable host - with the
+                // settings to fix it. See ConnectionProblemView.
+                ConnectionProblemView()
+                    .transition(.opacity)
             }
         }
         .animation(.default, value: connection.statusCode)
+        .animation(.default, value: connection.connectionFailed)
     }
 
-    private func routeInitialTabIfNeeded() {
-        guard !didRouteInitialTab else { return }
-        if !social.posts.isEmpty {
-            didRouteInitialTab = true // Social already has content - stay put.
-        } else if social.hasLoadedOnce {
-            selectedTab = 4 // Images
-            didRouteInitialTab = true
-        }
-        // Otherwise: cache was empty and the network hasn't answered yet -
-        // stay on Social (already the default) and re-check once it does.
-    }
 }
 
 

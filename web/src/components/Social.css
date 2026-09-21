@@ -211,3 +211,19 @@
 .sv-inline-video {
   background: #000;
 }
+
+/* Issue #79: the empty timeline. */
+.sv-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 72px 24px 40px; text-align: center; color: var(--mist); }
+.sv-empty h2 { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.01em; }
+.sv-empty p { margin: 0; max-width: 380px; color: var(--mist-dim); font-size: 17px; line-height: 1.4; }
+/* A true circle with the + dead centre: padding 0 (the global button
+   padding otherwise widens it into an oval), and the glyph laid out with
+   grid rather than line-height, which the font's own metrics put low. */
+.sv-empty-new {
+  margin-top: 18px; width: 96px; height: 96px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--ember); color: #fff; cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0,0,0,.32);
+  display: grid; place-items: center;
+}
+.sv-empty-new svg { width: 44px; height: 44px; display: block; }
+.sv-empty-new:hover { filter: brightness(1.08); }

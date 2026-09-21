@@ -420,9 +420,9 @@ struct SettingsView: View {
                     StatusSectionContent(vm: status)
                 }
 
-                // Issue #14's fallback: the global indicator is now just a
-                // hairline above the tab bar, but the full detail is always
-                // reachable here too, with no floating chrome at all.
+                // Issue #122: the only place upload progress is shown. There
+                // used to be a hairline over every tab as well (issue #14);
+                // a background sync isn't worth announcing everywhere.
                 if upload.totalPending > 0 || upload.isUploading {
                     Section(header: Text("Uploads")) {
                         UploadDetail(upload: upload)
@@ -430,8 +430,8 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("Connection")) {
-                    TextField("Endpoint (wss://…/ws)", text: $secrets.endpoint)
-                        .autocapitalization(.none)
+                    // Issue #121: name for the bridge, or a custom address.
+                    ConnectionEndpointFields(endpoint: $secrets.endpoint)
                     SecureField("Password", text: $secrets.password)
                     Text("Device ID: \(secrets.deviceId)")
                         .font(.caption)

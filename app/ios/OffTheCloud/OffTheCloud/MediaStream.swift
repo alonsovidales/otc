@@ -74,7 +74,7 @@ enum MediaStream {
             components = cachedBase
         } else {
             let endpoint = await Task.detached(priority: .userInitiated) {
-                SecretsStore.loadOrCreate().endpoint
+                SecretsStore.loadOrCreate().endpointURLString // normalized: scheme + /ws filled in
             }.value
             guard var resolved = URLComponents(string: endpoint) else { return nil }
             resolved.scheme = resolved.scheme == "ws" ? "http" : "https"

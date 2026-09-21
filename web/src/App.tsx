@@ -112,7 +112,14 @@ function App() {
   // which is exactly why Profile is where a failed restore lands - it's
   // this device's public face, reachable with no session at all, and it
   // carries the Sign In button to try again from.
-  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "Settings", "Notifications", "Friends"];
+  // Issue #118: Social is in this list too. Its feed is an authenticated
+  // request for a browser (only a friend's *device* reads it anonymously),
+  // so signed out it rendered an empty timeline - a blank page with a
+  // Sign In button in the corner - whenever a session token expired,
+  // whether that was found out on reload or mid-session. The public
+  // profile is what an unregistered visitor gets, and it is what an
+  // expired session should get too.
+  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "Settings", "Notifications", "Friends", "Social"];
   const cLandingTab: TabKey = "Profile";
 
   // Sends the viewer somewhere usable when a session couldn't be restored,

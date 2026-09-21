@@ -259,17 +259,15 @@ struct FilesExplorerView: View {
     @StateObject private var vm: FilesExplorerViewModel
     @State private var pathField: String
     @State private var showImporter = false
-    // Replaces the native List(selection:) + EditButton()/EditMode
-    // combination this used to use: that pairing needs the row's tap
-    // gesture to be the *List's own* selection-toggle handling, but this
-    // view also needs a tap to open the file when not selecting - adding a
-    // custom .onTapGesture for that (even one that's a no-op while
-    // EditMode is .active) is enough to intercept the touch before the
-    // List's built-in selection handling ever sees it, so tapping a row in
-    // "Edit" mode silently did nothing instead of selecting it. Managing
-    // selection entirely ourselves - this flag, plus a checkbox drawn per
-    // row - sidesteps that conflict rather than fighting it.
-    @State private var selecting = false
+    // Selection is managed here rather than with List(selection:) +
+    // EditButton(): that pairing needs the row's tap to be the List's own
+    // selection-toggle handling, and this view also needs a tap to open
+    // the file, which intercepts the touch first and left "Edit" mode
+    // silently doing nothing. There is no select mode any more either -
+    // every row carries its own checkbox all the time (the web's table
+    // has had one per row from the start), tapping the checkbox selects
+    // and tapping the rest of the row opens, so nothing has to be
+    // switched on before something can be picked.
 
     init(initialPath: String) {
         _vm = StateObject(wrappedValue: FilesExplorerViewModel(initialPath: initialPath))
@@ -294,19 +292,31 @@ struct FilesExplorerView: View {
                 List {
                     ForEach(vm.rows) { row in
                         HStack {
-                            // A row's own checkbox while selecting, rather
-                            // than relying on the List's built-in selection
-                            // UI - see `selecting`'s doc comment for why.
+                            // The row's own checkbox, always there - see the
+                            // note on selection at the top of this view.
                             // Issue #116: directories are selectable too -
                             // the device expands one to every file under it
                             // for share/download/delete (see
-                            // files_manager.resolvePaths). Only ".." is
-                            // left out, being navigation rather than a
-                            // thing.
-                            if selecting && row.path != ".." {
-                                Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
-                                    .frame(width: 20)
+                            // files_manager.resolvePaths). Only ".." has
+                            // none, being navigation rather than a thing;
+                            // it keeps the width so names stay aligned.
+                            if row.path != ".." {
+                                Button {
+                                    if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
+                                    else { vm.selected.insert(row.path) }
+                                } label: {
+                                    Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
+                                }
+                                // .plain: inside a List a default Button
+                                // claims the whole row's tap, and the row
+                                // tap below has to stay "open".
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(vm.selected.contains(row.path) ? "Deselect" : "Select")
+                            } else {
+                                Color.clear.frame(width: 28, height: 28)
                             }
                             // Issue #71: a spinner in place of the row's own
                             // icon while its GetFile round trip is in
@@ -330,12 +340,6 @@ struct FilesExplorerView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if selecting {
-                                guard row.path != ".." else { return }
-                                if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
-                                else { vm.selected.insert(row.path) }
-                                return
-                            }
                             // Issue #71: ignore taps while any row's open is
                             // already in flight - see openingPath's own doc
                             // comment for why that's the fix, not just the
@@ -391,17 +395,6 @@ struct FilesExplorerView: View {
             // you are. Still .inline so there's no big empty title bar.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    // Select toggles the checkbox-per-row mode above;
-                    // Cancel here (matching the Photos app's own wording
-                    // for the same toggle) also clears whatever was
-                    // already selected, same as leaving selection mode any
-                    // other way should.
-                    Button(selecting ? "Cancel" : "Select") {
-                        selecting.toggle()
-                        if !selecting { vm.selected.removeAll() }
-                    }
-                }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button { showImporter = true } label: { Image(systemName: "square.and.arrow.down.on.square") }
                 }

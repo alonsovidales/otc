@@ -83,6 +83,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
 }) {
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
+  // Whether the first page has answered - an empty feed before that is
+  // "still loading", not "nothing here", and must not show the invitation.
+  const [loaded, setLoaded] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const endReachedRef = useRef(false);
   const loadingMoreRef = useRef(false);
@@ -101,6 +104,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     });
     if (resp.payload?.$case !== "respSocialPublications") return;
     const sp: PbSocialPublications = resp.payload.respSocialPublications;
+    setLoaded(true);
     if (replacing) {
       setFeed(sp.publications);
     } else {
@@ -901,6 +905,22 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     <div className="sv-wrap">
       {/* Right: feed */}
       <div className="sv-feed">
+        {/* Issue #79: an empty timeline invites the first post instead of
+            being blank. Only for the owner - a visitor with nothing to see
+            gets nothing to do about it either. */}
+        {authenticated && loaded && feed.length === 0 && (
+          <div className="sv-empty">
+            <h2>No social posts</h2>
+            <p>Share a photo or a video with your friends — it stays on your own device.</p>
+            <button className="sv-empty-new" onClick={() => setPickerOpen(true)} aria-label="New post">
+              {/* Drawn, not typed: a text "+" sits on the font's baseline,
+                  visibly below centre in a circle this size. */}
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+              </svg>
+            </button>
+          </div>
+        )}
         {feed.map(p => <Post key={p.uuid} p={p} />)}
         {loadingMore && <div className="sv-loading-more">Loading more…</div>}
       </div>

@@ -26,6 +26,14 @@ final class OTCConnection: ObservableObject {
     /// answering normally, which is what lets the UI built on it clear
     /// itself the moment things recover.
     @Published private(set) var statusCode: String?
+    /// Set whenever connecting or signing in fails for any reason - a bad
+    /// address, an unreachable host, a refused handshake, a wrong password
+    /// - with lastError saying which. Cleared the moment a connection
+    /// succeeds. MainView shows the connection form over the tabs while
+    /// this is set, because a wrong endpoint or password is something the
+    /// owner has to fix, and an app that keeps retrying in silence behind
+    /// empty tabs gives them nothing to fix it with.
+    @Published private(set) var connectionFailed = false
 
     private let ws = WSClient()
     private var connectTask: Task<Void, Error>?
@@ -93,11 +101,22 @@ final class OTCConnection: ObservableObject {
         let secrets = await Task.detached(priority: .userInitiated) {
             SecretsStore.loadOrCreate()
         }.value
-        guard let url = URL(string: secrets.endpoint) else {
-            throw NSError(domain: "OTCConnection", code: 1, userInfo: [NSLocalizedDescriptionKey: "Bad endpoint: \"\(secrets.endpoint)\" (\(secrets.endpoint.unicodeScalars.count) chars)"])
+        // Normalized (scheme and /ws filled in) - see
+        // SecretsStore.normalizedEndpoint for why the stored value can't
+        // be dialled as typed.
+        guard let url = URL(string: secrets.endpointURLString) else {
+            lastError = "The address \"\(secrets.endpoint)\" isn't valid."
+            connectionFailed = true
+            throw NSError(domain: "OTCConnection", code: 1, userInfo: [NSLocalizedDescriptionKey: lastError ?? "Bad endpoint"])
         }
 
-        try await ws.connect(url: url)
+        do {
+            try await ws.connect(url: url)
+        } catch {
+            lastError = Self.describe(error)
+            connectionFailed = true
+            throw error
+        }
 
         // Everything past this point talks over a live socket that, once
         // connected through the bridge, is pinned to this app's session for
@@ -155,13 +174,43 @@ final class OTCConnection: ObservableObject {
             }
         } catch {
             await ws.close()
+            // Any failure on the way in, not just the two the bridge names:
+            // a refused handshake or an unreachable host arrives here as a
+            // URLSession error with nothing set above, and the owner
+            // should see it rather than empty tabs.
+            if lastError == nil { lastError = Self.describe(error) }
+            connectionFailed = true
             throw error
         }
 
         lastError = nil
         statusCode = nil
+        connectionFailed = false
         backoffSeconds = 1
         authenticated = true
+    }
+
+    /// Plain words for the errors URLSession hands back, which are not
+    /// written for people ("There was a bad response from the server").
+    private static func describe(_ error: Error) -> String {
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain {
+            switch ns.code {
+            case NSURLErrorBadServerResponse:
+                return "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
+            case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
+                return "That address can't be found. Check the device name or address."
+            case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost:
+                return "The device isn't answering. It may be off, or the address may be wrong."
+            case NSURLErrorNotConnectedToInternet:
+                return "No internet connection."
+            case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasBadDate:
+                return "Couldn't make a secure connection to that address."
+            default:
+                break
+            }
+        }
+        return ns.localizedDescription
     }
 
     private func handleDisconnect() {

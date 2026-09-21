@@ -1420,12 +1420,6 @@ struct PhotoGalleryView: View {
             Text("The pictures themselves are kept.")
         }
         .onAppear { vm.onAppearInitial() }
-        // Hide the global upload indicator while the multi-select action
-        // bar is showing — the two would otherwise stack at the bottom.
-        .onChange(of: vm.selected.isEmpty) { _, isEmpty in
-            UploadModel.shared.suppressed = !isEmpty
-        }
-        .onDisappear { UploadModel.shared.suppressed = false }
         .confirmationDialog(
             "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",
             isPresented: $vm.confirmDeleteSelected,

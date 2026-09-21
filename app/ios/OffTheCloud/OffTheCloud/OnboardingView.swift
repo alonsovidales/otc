@@ -19,10 +19,9 @@ struct OnboardingView: View {
         NavigationView {
             Form {
                 Section(header: Text("Connect to Off The Cloud")) {
-                    TextField("WebSocket endpoint (wss://host/ws)", text: $endpoint)
-                        .autocapitalization(.none)
-                        .textContentType(.URL)
-                        .keyboardType(.URL)
+                    // Issue #121: the device's name is all the bridge
+                    // needs; a custom address is behind the toggle.
+                    ConnectionEndpointFields(endpoint: $endpoint)
                     SecureField("Password", text: $password)
                 }
                 Section {
