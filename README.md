@@ -19,9 +19,9 @@ This is the Raspberry Pi with two micro-SDs and two custom status leds that is u
 
 **The MacOS/Windows application**
 
-This is used to sync some folders in your local computer
+A menu-bar app that keeps folders on your computer in sync with the device - watch local folders, or pull a remote folder down to a local one
 
-<img height="300" alt="Screenshot 2026-05-18 at 16 07 21" src="https://github.com/user-attachments/assets/c5fcc06f-3df4-484d-a6f9-6cbfa0a6f363" />
+<img height="420" alt="macOS menu-bar app: connected, watching five local folders and one synced remote folder" src="docs/screenshots/mac-sync.png" />
 
 
 **The iOS/Android app**
@@ -29,14 +29,25 @@ This is used to sync some folders in your local computer
 This is used to access all the data, sync photos and documents from your mobile device, Social Network app and much more
 
 <p>
-<img height="420" alt="Social feed: photo posts with likes, comments and multi-photo carousels" src="docs/screenshots/ios-social.png" />
-<img height="420" alt="Images: the photo library with people recognised on-device and a tag search" src="docs/screenshots/ios-images.png" />
+<img height="420" alt="Social feed: photo posts with likes, comments and multi-photo carousels" src="docs/screenshots/ios-social.jpg" />
+<img height="420" alt="Images: the photo library, with people recognised on the device and tag search" src="docs/screenshots/ios-images.jpg" />
+<img height="420" alt="Search: the 'Dog' tag combined with a person filter - both narrow the same search" src="docs/screenshots/ios-search.jpg" />
+</p>
+<p>
+<img height="420" alt="Files: browse, select and share files and folders" src="docs/screenshots/ios-files.jpg" />
+<img height="420" alt="Notifications: friend requests, likes and comments" src="docs/screenshots/ios-alerts.jpg" />
 </p>
 
 
 **The Web app**
 
 With this you can access all your data and social network from any browser just with your password
+
+<img width="800" alt="Social feed in the browser" src="docs/screenshots/web-social.jpg" />
+<img width="800" alt="Images: a tag search alongside the people recognised on the device" src="docs/screenshots/web-images-search.jpg" />
+<img width="800" alt="Image groups (albums): create one from a selection, add to it, open it and keep searching inside" src="docs/screenshots/web-groups.jpg" />
+<img width="800" alt="Files: browse, upload by drag and drop, select and share" src="docs/screenshots/web-files.jpg" />
+<img width="800" alt="Notifications" src="docs/screenshots/web-alerts.jpg" />
 
 **Recommended Hardware**
 ========================
