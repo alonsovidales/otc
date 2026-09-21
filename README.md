@@ -21,7 +21,7 @@ This is the Raspberry Pi with two micro-SDs and two custom status leds that is u
 
 A menu-bar app that keeps folders on your computer in sync with the device - watch local folders, or pull a remote folder down to a local one
 
-<img height="420" alt="macOS menu-bar app: connected, watching five local folders and one synced remote folder" src="docs/screenshots/mac-sync.png" />
+<img width="432" height="426" alt="Screenshot 2026-09-21 at 17 19 19" src="https://github.com/user-attachments/assets/b5afff2e-167e-49b2-890d-d86ca1454acc" />
 
 
 **The iOS/Android app**
