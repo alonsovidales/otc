@@ -660,6 +660,12 @@ export interface Ack {
    * three codebases would then have to keep in step.
    */
   code: string;
+  /**
+   * Issue #117: set with code "too_many_attempts" - how long, in seconds,
+   * until this address may try a password again. Shown by every client,
+   * so the message can say when rather than just no.
+   */
+  retryAfterSeconds: number;
 }
 
 export interface GetTags {
@@ -1280,6 +1286,20 @@ export interface BridgeAckOnboard {
 }
 
 /**
+ * BridgeClientInfo (issue #117) is the first thing the bridge sends down a
+ * relay connection once it has paired it with a client: the client's own
+ * address, which the device otherwise never sees - every relayed request
+ * arrives from the bridge's IP. The device keeps it for the life of that
+ * relay (one relay serves one client for its whole session) and rate-limits
+ * password attempts by it. Only honoured on connections the device itself
+ * dialled out to the bridge; a client connected directly to the device
+ * cannot send this to choose its own address.
+ */
+export interface BridgeClientInfo {
+  remoteAddr: string;
+}
+
+/**
  * RotateBridgeSecret lets a device that already knows its current secret
  * get a fresh one issued, without an admin manually deleting and re-adding
  * its domain on the bridge's admin panel. Sent bridge-side (not on the
@@ -1837,6 +1857,7 @@ export interface ReqEnvelope {
     | //
     /** APNs relayed through the bridge, which alone holds the team key. */
     { $case: "reqBridgeNotify"; reqBridgeNotify: BridgeNotify }
+    | { $case: "reqBridgeClientInfo"; reqBridgeClientInfo: BridgeClientInfo }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -4177,7 +4198,7 @@ export const File: MessageFns<File> = {
 };
 
 function createBaseAck(): Ack {
-  return { ok: false, errorMsg: "", code: "" };
+  return { ok: false, errorMsg: "", code: "", retryAfterSeconds: 0 };
 }
 
 export const Ack: MessageFns<Ack> = {
@@ -4190,6 +4211,9 @@ export const Ack: MessageFns<Ack> = {
     }
     if (message.code !== "") {
       writer.uint32(26).string(message.code);
+    }
+    if (message.retryAfterSeconds !== 0) {
+      writer.uint32(32).int32(message.retryAfterSeconds);
     }
     return writer;
   },
@@ -4225,6 +4249,14 @@ export const Ack: MessageFns<Ack> = {
           message.code = reader.string();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.retryAfterSeconds = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4239,6 +4271,7 @@ export const Ack: MessageFns<Ack> = {
       ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false,
       errorMsg: isSet(object.errorMsg) ? globalThis.String(object.errorMsg) : "",
       code: isSet(object.code) ? globalThis.String(object.code) : "",
+      retryAfterSeconds: isSet(object.retryAfterSeconds) ? globalThis.Number(object.retryAfterSeconds) : 0,
     };
   },
 
@@ -4253,6 +4286,9 @@ export const Ack: MessageFns<Ack> = {
     if (message.code !== "") {
       obj.code = message.code;
     }
+    if (message.retryAfterSeconds !== 0) {
+      obj.retryAfterSeconds = Math.round(message.retryAfterSeconds);
+    }
     return obj;
   },
 
@@ -4264,6 +4300,7 @@ export const Ack: MessageFns<Ack> = {
     message.ok = object.ok ?? false;
     message.errorMsg = object.errorMsg ?? "";
     message.code = object.code ?? "";
+    message.retryAfterSeconds = object.retryAfterSeconds ?? 0;
     return message;
   },
 };
@@ -9453,6 +9490,64 @@ export const BridgeAckOnboard: MessageFns<BridgeAckOnboard> = {
   },
 };
 
+function createBaseBridgeClientInfo(): BridgeClientInfo {
+  return { remoteAddr: "" };
+}
+
+export const BridgeClientInfo: MessageFns<BridgeClientInfo> = {
+  encode(message: BridgeClientInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.remoteAddr !== "") {
+      writer.uint32(10).string(message.remoteAddr);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeClientInfo {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBridgeClientInfo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.remoteAddr = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BridgeClientInfo {
+    return { remoteAddr: isSet(object.remoteAddr) ? globalThis.String(object.remoteAddr) : "" };
+  },
+
+  toJSON(message: BridgeClientInfo): unknown {
+    const obj: any = {};
+    if (message.remoteAddr !== "") {
+      obj.remoteAddr = message.remoteAddr;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BridgeClientInfo>, I>>(base?: I): BridgeClientInfo {
+    return BridgeClientInfo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BridgeClientInfo>, I>>(object: I): BridgeClientInfo {
+    const message = createBaseBridgeClientInfo();
+    message.remoteAddr = object.remoteAddr ?? "";
+    return message;
+  },
+};
+
 function createBaseRotateBridgeSecret(): RotateBridgeSecret {
   return { ownerUuid: "", domain: "", secret: "" };
 }
@@ -13687,6 +13782,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqBridgeNotify":
         BridgeNotify.encode(message.payload.reqBridgeNotify, writer.uint32(794).fork()).join();
         break;
+      case "reqBridgeClientInfo":
+        BridgeClientInfo.encode(message.payload.reqBridgeClientInfo, writer.uint32(802).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -14516,6 +14614,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqBridgeNotify", reqBridgeNotify: BridgeNotify.decode(reader, reader.uint32()) };
           continue;
         }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqBridgeClientInfo",
+            reqBridgeClientInfo: BridgeClientInfo.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -14830,6 +14939,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqDeleteImageGroup", reqDeleteImageGroup: DeleteImageGroup.fromJSON(object.reqDeleteImageGroup) }
         : isSet(object.reqBridgeNotify)
         ? { $case: "reqBridgeNotify", reqBridgeNotify: BridgeNotify.fromJSON(object.reqBridgeNotify) }
+        : isSet(object.reqBridgeClientInfo)
+        ? { $case: "reqBridgeClientInfo", reqBridgeClientInfo: BridgeClientInfo.fromJSON(object.reqBridgeClientInfo) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -15030,6 +15141,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqDeleteImageGroup = DeleteImageGroup.toJSON(message.payload.reqDeleteImageGroup);
     } else if (message.payload?.$case === "reqBridgeNotify") {
       obj.reqBridgeNotify = BridgeNotify.toJSON(message.payload.reqBridgeNotify);
+    } else if (message.payload?.$case === "reqBridgeClientInfo") {
+      obj.reqBridgeClientInfo = BridgeClientInfo.toJSON(message.payload.reqBridgeClientInfo);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -15766,6 +15879,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqBridgeNotify",
             reqBridgeNotify: BridgeNotify.fromPartial(object.payload.reqBridgeNotify),
+          };
+        }
+        break;
+      }
+      case "reqBridgeClientInfo": {
+        if (object.payload?.reqBridgeClientInfo !== undefined && object.payload?.reqBridgeClientInfo !== null) {
+          message.payload = {
+            $case: "reqBridgeClientInfo",
+            reqBridgeClientInfo: BridgeClientInfo.fromPartial(object.payload.reqBridgeClientInfo),
           };
         }
         break;

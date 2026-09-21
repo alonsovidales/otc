@@ -293,6 +293,10 @@ message Ack {
   // client can tell these apart without matching on English prose that
   // three codebases would then have to keep in step.
   string code = 3;
+  // Issue #117: set with code "too_many_attempts" - how long, in seconds,
+  // until this address may try a password again. Shown by every client,
+  // so the message can say when rather than just no.
+  int32 retry_after_seconds = 4;
 }
 
 message GetTags {
@@ -844,6 +848,18 @@ message BridgeAckOnboard {
   bool ok = 1;
 }
 
+// BridgeClientInfo (issue #117) is the first thing the bridge sends down a
+// relay connection once it has paired it with a client: the client's own
+// address, which the device otherwise never sees - every relayed request
+// arrives from the bridge's IP. The device keeps it for the life of that
+// relay (one relay serves one client for its whole session) and rate-limits
+// password attempts by it. Only honoured on connections the device itself
+// dialled out to the bridge; a client connected directly to the device
+// cannot send this to choose its own address.
+message BridgeClientInfo {
+  string remote_addr = 1;
+}
+
 // RotateBridgeSecret lets a device that already knows its current secret
 // get a fresh one issued, without an admin manually deleting and re-adding
 // its domain on the bridge's admin panel. Sent bridge-side (not on the
@@ -1346,6 +1362,7 @@ message ReqEnvelope {
     DeleteImageGroup req_delete_image_group = 98;
     // APNs relayed through the bridge, which alone holds the team key.
     BridgeNotify req_bridge_notify = 99;
+    BridgeClientInfo req_bridge_client_info = 100;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

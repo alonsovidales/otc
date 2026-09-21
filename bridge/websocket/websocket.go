@@ -14,8 +14,10 @@ import (
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"net"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 )
@@ -289,6 +291,23 @@ func (d *deviceRelay) failAll() {
 // forward sends one request frame to the device and returns its matching
 // response frame, correlated by envelope id — safe to call concurrently
 // for several requests in flight on the same relay at once.
+// clientAddr (issue #117) is the address reported to a device for the
+// client on this connection. The bridge sits behind TLS termination on the
+// same host, so X-Forwarded-For's first hop is the real client when the
+// connection came from loopback; otherwise the peer itself.
+func clientAddr(r *http.Request, conn *gorilla.Conn) string {
+	host, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+	if err != nil {
+		host = conn.RemoteAddr().String()
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		if fwd := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); fwd != "" {
+			return fwd
+		}
+	}
+	return host
+}
+
 func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 	return d.forwardWithTimeout(frame, cForwardTimeout)
 }
@@ -1112,6 +1131,23 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						pool.availableConns = pool.availableConns[1:]
 
 						log.Debug("Connecting")
+						// Issue #117: tell the device who this relay now
+						// serves, before its first request - the device
+						// only ever sees the bridge's own address otherwise.
+						// Best-effort: an old device that doesn't know the
+						// message answers with an error, which is fine.
+						if infoFrame, err := proto.Marshal(&pb.ReqEnvelope{
+							Id: 0,
+							Payload: &pb.ReqEnvelope_ReqBridgeClientInfo{
+								ReqBridgeClientInfo: &pb.BridgeClientInfo{RemoteAddr: clientAddr(r, conn)},
+							},
+						}); err == nil {
+							if _, err := candidate.forward(infoFrame); err != nil {
+								log.Error("error sending client info to the device:", err)
+								candidate.Close()
+								continue
+							}
+						}
 						respFrame, err := candidate.forward(frame)
 						if err != nil {
 							log.Error("Error fordwading message:", err)

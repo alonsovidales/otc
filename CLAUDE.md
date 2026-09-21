@@ -116,7 +116,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   keep theirs in the Keychain, so after a password `ReqAuth` it holds a single-use, TTL'd opaque
   token (`ReqIssueSessionToken` / `ReqAuthWithToken` / `ReqRevokeSessionToken`) that redeems back
   into the same already-derived `*Session`. Process-local and deliberately not persisted — exactly
-  like the `*Session` objects it points at, tokens don't survive a restart.
+  like the `*Session` objects it points at, tokens don't survive a restart. `session/ratelimit.go` (issue #117) is the per-address
+  password-attempt limit: 5 failures in a minute lock that address out for a minute, answered with
+  `Ack.code = "too_many_attempts"` + `retry_after_seconds`. The bridge reports each relayed client's
+  address to the device with `BridgeClientInfo`, so the limit applies through the bridge too.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself

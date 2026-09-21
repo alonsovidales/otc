@@ -141,6 +141,13 @@ export function UseWS() {
           return true;
         }
 
+        // Issue #117: locked out for a while - say so, with the time,
+        // rather than "incorrect password". Thrown so the sign-in form's
+        // existing error path shows the device's own message.
+        if (resp.payload?.$case === "respAck" && resp.payload.respAck.code === "too_many_attempts") {
+          throw new Error(resp.payload.respAck.errorMsg || "Too many attempts. Try again in a minute.");
+        }
+
         // Wrong/stale password (e.g. it was changed elsewhere, or a
         // leftover key from a previous device) — don't keep retrying it on
         // every future reload.

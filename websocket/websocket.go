@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math/rand"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -742,6 +743,14 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 type connHandler struct {
 	mg *Manager
 
+	// Issue #117: who is on the other end, for the password-attempt limit.
+	// For a direct connection, the peer's address. For one this device
+	// dialled out to the bridge, it starts empty and is filled in by the
+	// bridge's BridgeClientInfo once a client has been paired with it -
+	// which is the only way it can be set from the wire (fromBridge).
+	remoteAddr string
+	fromBridge bool
+
 	mu            sync.RWMutex
 	session       *session.Session
 	friendProfile *profile.Profile
@@ -1152,6 +1161,22 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqAuth:
+		// Issue #117: refused outright while this address is locked out,
+		// before the password is even looked at.
+		if retry, blocked := session.Attempts.Blocked(ch.remoteAddr); blocked {
+			secs := int32(retry.Seconds() + 0.999)
+			log.Info("password attempt refused, address locked out:", ch.remoteAddr, "for", retry.Round(time.Second))
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{
+					Ok:                false,
+					Code:              "too_many_attempts",
+					ErrorMsg:          fmt.Sprintf("Too many attempts. Try again in %d seconds.", secs),
+					RetryAfterSeconds: secs,
+				},
+			}
+			return resp, true
+		}
+
 		key, err := ch.decryptSecret(p.ReqAuth.Key)
 		if err == nil {
 			var ses *session.Session
@@ -1167,14 +1192,19 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			// which is 1 *nanosecond* (time.Sleep takes a Duration, i.e.
 			// nanoseconds) — no throttling at all against repeated guesses.
 			time.Sleep(time.Second)
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok:       false,
-					ErrorMsg: fmt.Sprintf("Error: %s", err),
-				},
+			ack := &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)}
+			// Issue #117: the attempt that spends the allowance is answered
+			// with the lockout itself, so the client can say when to retry.
+			if locked := session.Attempts.Fail(ch.remoteAddr); locked > 0 {
+				log.Info("too many failed password attempts from", ch.remoteAddr, "- locked out for", locked)
+				ack.Code = "too_many_attempts"
+				ack.RetryAfterSeconds = int32(locked.Seconds())
+				ack.ErrorMsg = fmt.Sprintf("Too many attempts. Try again in %d seconds.", ack.RetryAfterSeconds)
 			}
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 			return resp, true
 		}
+		session.Attempts.Reset(ch.remoteAddr)
 		log.Info("Authenticated session")
 
 		// One-off self-healing sweep for any face row written before
@@ -1189,6 +1219,17 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 				Ok: true,
 			},
 		}
+
+	// Issue #117: the bridge telling this relay who it now serves. Only from
+	// a connection this device opened to the bridge - a direct client
+	// naming an address for itself is ignored, and told nothing.
+	case *pb.ReqEnvelope_ReqBridgeClientInfo:
+		if ch.fromBridge {
+			ch.remoteAddr = p.ReqBridgeClientInfo.RemoteAddr
+		} else {
+			log.Info("ignoring BridgeClientInfo on a direct connection from", ch.remoteAddr)
+		}
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 
 	case *pb.ReqEnvelope_ReqAuthWithToken:
 		// Issue #101: the token-redemption counterpart to ReqAuth above -
@@ -2847,9 +2888,31 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 // write; wg makes sure this function doesn't return - and so doesn't let a
 // caller's deferred conn.Close() run out from under a still-writing
 // goroutine - until every in-flight request has actually finished.
+// clientAddr is the address a direct connection is limited by (issue
+// #117). X-Forwarded-For is believed only when the connection itself comes
+// from this machine - Tailscale Funnel terminates TLS in tailscaled and
+// forwards from loopback with the real client in that header - and never
+// from a LAN peer, which could otherwise pick a fresh "address" per guess.
+func clientAddr(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		if fwd := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); fwd != "" {
+			return fwd
+		}
+	}
+	return host
+}
+
 func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	ch := &connHandler{
-		mg: mg,
+		mg:         mg,
+		fromBridge: r == nil,
+	}
+	if r != nil {
+		ch.remoteAddr = clientAddr(r)
 	}
 
 	var writeMu sync.Mutex
