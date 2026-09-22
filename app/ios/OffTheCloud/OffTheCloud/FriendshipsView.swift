@@ -97,7 +97,7 @@ struct FriendshipsView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section("Add a friend") {
                     HStack {

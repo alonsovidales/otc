@@ -16,7 +16,7 @@ struct OnboardingView: View {
     @State private var password = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Connect to Off The Cloud")) {
                     // Issue #121: the device's name is all the bridge

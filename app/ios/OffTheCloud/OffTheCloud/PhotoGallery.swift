@@ -1119,12 +1119,14 @@ struct PhotoGalleryView: View {
 
     @State private var showSuggest = false
     @State private var personPendingDelete: String? = nil
-    // Back to a fixed 3 columns (issue #77 briefly tried .adaptive here to
-    // fix an overflow caused by reserving dedicated layout space for the
-    // scrubber - reverted along with that reservation itself, which
-    // turned out to be the actual thing worth removing; the scrubber now
-    // overlays the grid's own edge instead of pushing it inward).
-    private let cols = Array(repeating: GridItem(.flexible(minimum: 120, maximum: 160), spacing: 1), count: 3)
+    // Issue #123: as many columns as fit, so the grid uses the whole width
+    // on an iPad (six on an 11-inch, more in landscape) instead of the
+    // fixed three that only ever made sense on a phone - and still
+    // exactly three on a phone, where 120pt tiles fit three abreast.
+    // (Issue #77 once backed away from .adaptive because of an overflow,
+    // but that came from reserving layout space for the date scrubber,
+    // which has since become an overlay on the grid's edge instead.)
+    private let cols = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 1)]
 
     init(deviceID: String, localPhotosFolder: URL?) {
         _vm = StateObject(wrappedValue: PhotoGalleryVM(deviceID: deviceID, localPhotosFolder: localPhotosFolder))
@@ -1305,10 +1307,12 @@ struct PhotoGalleryView: View {
                                     )
                                     .task { await vm.loadMoreIfNeeded(current: it) }
                                 }
-                                if vm.loading {
-                                    ProgressView().frame(height: 60).gridCellColumns(cols.count)
-                                }
                             }
+                        }
+                        // Outside the grid: an adaptive grid has no fixed
+                        // column count for gridCellColumns to span.
+                        if vm.placeholderCount == nil && vm.loading {
+                            ProgressView().frame(height: 60)
                         }
                     }
                     .padding(10)
@@ -1352,7 +1356,7 @@ struct PhotoGalleryView: View {
         // Issue #115: the groups list - a picture on the left, like the
         // notifications rows.
         .sheet(isPresented: $vm.showGroups) {
-            NavigationView {
+            NavigationStack {
                 List {
                     if vm.groups.isEmpty {
                         Text("No groups yet — select some pictures and choose Group.")
@@ -1801,7 +1805,7 @@ private struct FileInfoView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if loading {
                     ProgressView()

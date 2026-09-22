@@ -472,7 +472,7 @@ struct SocialFeedView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 // Issue #22: an empty ScrollView while the very first fetch
                 // is still in flight used to just look frozen — show an
@@ -1483,7 +1483,7 @@ private struct LikersListView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if let likers {
                     if likers.isEmpty {

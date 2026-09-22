@@ -32,7 +32,7 @@ struct NotificationsListView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if model.loadingList && model.notifications.isEmpty {
                     ProgressView()
@@ -85,7 +85,6 @@ struct NotificationsListView: View {
             }
             .navigationTitle("Notifications")
         }
-        .navigationViewStyle(.stack)
         .task { await model.openPanel() }
     }
 }

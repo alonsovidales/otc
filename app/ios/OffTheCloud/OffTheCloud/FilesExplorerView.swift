@@ -275,7 +275,7 @@ struct FilesExplorerView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 HStack {
                     TextField("/path/", text: $pathField, onCommit: { vm.navigate(to: pathField) })

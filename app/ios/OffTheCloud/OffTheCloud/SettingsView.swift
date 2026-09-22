@@ -305,7 +305,7 @@ struct SettingsView: View {
     @StateObject private var status = StatusViewModel()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 // Issue #84: first thing in Settings, not bundled in with
                 // friend management on its own tab (which used to be the

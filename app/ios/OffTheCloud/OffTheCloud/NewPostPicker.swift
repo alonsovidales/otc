@@ -549,7 +549,7 @@ struct NewPostPickerView: View {
     private let cols = Array(repeating: GridItem(.flexible(minimum: 100, maximum: 140), spacing: 8), count: 3)
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Issue #49: Phone shows the camera roll directly (fast
                 // thumbnails, no iCloud download - see loadLocalPage's doc
