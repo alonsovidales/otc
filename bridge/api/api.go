@@ -14,8 +14,10 @@ import (
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/staticassets"
 	"google.golang.org/protobuf/proto"
+	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -38,7 +40,33 @@ const (
 	cContactNameMax   = 150
 	cContactEmailMax  = 255
 	cContactReasonMax = 64
+
+	// Issue #38: the setup wizard on a freshly flashed device reserves its
+	// name here before installing anything. One claim per address per
+	// cClaimCooldown keeps a script from squatting the whole namespace.
+	cClaimCooldown = 10 * time.Second
+	cNameMaxLen    = 63
+
+	// Issue #38: a device being set up over its hotspot joins the owner's
+	// WiFi and, with it, loses the phone that was driving the wizard. It
+	// reports its new LAN address here under a one-time token the wizard
+	// page already holds; the page polls for it and follows. Stored in
+	// the database (ten-minute expiry, see dao.SetSetupBeacon) so any
+	// bridge instance can answer the poll.
+	cSetupTokenMinLen = 32
+	cSetupTokenMaxLen = 128
 )
+
+// cNamePattern is a valid device name: one DNS label, lower case, no
+// leading/trailing hyphen - the same shape scripts/install.sh accepts.
+var cNamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+// cReservedNames can never be device names: they are (or may one day be)
+// the bridge's own hosts.
+var cReservedNames = map[string]bool{
+	"www": true, "api": true, "admin": true, "mail": true, "static": true,
+	"downloads": true, "bridge": true, "ns1": true, "ns2": true,
+}
 
 // API Structure that manage the HTTP API
 type API struct {
@@ -51,6 +79,11 @@ type API struct {
 
 	contactMu         sync.Mutex
 	lastContactByAddr map[string]time.Time
+
+	claimMu         sync.Mutex
+	lastClaimByAddr map[string]time.Time
+	// tld is [otc-api] tld, read once at Init; device domains are <name>.<tld>.
+	tld string
 }
 
 // Init Initializes the API and starts listening on the specified ports serving
@@ -63,6 +96,8 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, staticPa
 		muxHTTPServer:     http.NewServeMux(),
 		staticPath:        staticPath,
 		lastContactByAddr: map[string]time.Time{},
+		lastClaimByAddr:   map[string]time.Time{},
+		tld:               cfg.GetStr("otc-api", "tld"),
 	}
 
 	api.registerAPIs()
@@ -94,6 +129,17 @@ func (api *API) registerAPIs() {
 	api.muxHTTPServer.HandleFunc(websocket.CEndpoint, api.websocket.Listen)
 
 	api.muxHTTPServer.HandleFunc("POST /api/contact", api.submitContact)
+
+	// Issue #38: the flashable image's setup wizard checks and reserves the
+	// device's name here, before the install script runs - so "that name
+	// is taken" is something the person sees while they can still change
+	// it, not a failed bridge registration after a 20-minute install.
+	api.muxHTTPServer.HandleFunc("GET /api/name-available", api.nameAvailable)
+	api.muxHTTPServer.HandleFunc("POST /api/claim", api.claimName)
+	api.muxHTTPServer.HandleFunc("GET /api/device-online", api.deviceOnline)
+	api.muxHTTPServer.HandleFunc("POST /api/setup-beacon", api.setupBeacon)
+	api.muxHTTPServer.HandleFunc("GET /api/setup-lookup", api.setupLookup)
+	api.muxHTTPServer.HandleFunc("OPTIONS /api/setup-lookup", api.setupLookup)
 
 	// Issue #110: video streaming. Registered ahead of the "/" catch-all
 	// so it doesn't fall through to proxyStaticAsset, which would fetch
@@ -354,6 +400,184 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"ok": "true"})
+}
+
+// deviceDomain is the full bridge domain for a device name.
+func (api *API) deviceDomain(name string) string {
+	tld := api.tld
+	if tld == "" {
+		tld = "off-the.cloud"
+	}
+	return name + "." + tld
+}
+
+// nameAvailable (issue #38) answers {"available": bool} for ?name=. Public
+// and unauthenticated on purpose - it tells nothing a friend request to
+// that domain wouldn't, and the wizard calls it as the person types.
+func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
+	name := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
+	if !cNamePattern.MatchString(name) {
+		writeJSONErr(w, http.StatusBadRequest, "a name is lower-case letters, digits and hyphens, up to 63 characters")
+		return
+	}
+	if cReservedNames[name] {
+		writeJSON(w, http.StatusOK, map[string]any{"available": false, "domain": api.deviceDomain(name)})
+		return
+	}
+	registered, err := api.dao.IsDomainRegistered(api.deviceDomain(name))
+	if err != nil {
+		log.Error("error checking name availability:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not check that name right now")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"available": !registered, "domain": api.deviceDomain(name)})
+}
+
+// claimName (issue #38) reserves a device name for the identity the setup
+// wizard just generated - exactly what ReqBridgeRegister does the first
+// time an unknown device dials in, only before the device exists. From
+// then on the device authenticates with that owner_uuid + secret like any
+// other; nothing else about it is special. 409 if the name is taken.
+func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name      string `json:"name"`
+		OwnerUUID string `json:"owner_uuid"`
+		Secret    string `json:"secret"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	name := strings.ToLower(strings.TrimSpace(body.Name))
+	if !cNamePattern.MatchString(name) || cReservedNames[name] {
+		writeJSONErr(w, http.StatusBadRequest, "that name can't be used")
+		return
+	}
+	// The identity is what the device will present forever after, so it
+	// has to be a real one - not a blank the wizard forgot to fill in.
+	if len(body.OwnerUUID) < 16 || len(body.OwnerUUID) > 64 || len(body.Secret) < 32 || len(body.Secret) > 128 {
+		writeJSONErr(w, http.StatusBadRequest, "owner_uuid and secret are required")
+		return
+	}
+
+	remoteAddr := clientaddr.Of(r)
+	api.claimMu.Lock()
+	now := time.Now()
+	if last, ok := api.lastClaimByAddr[remoteAddr]; ok && now.Sub(last) < cClaimCooldown {
+		api.claimMu.Unlock()
+		writeJSONErr(w, http.StatusTooManyRequests, "please wait a moment before trying another name")
+		return
+	}
+	api.lastClaimByAddr[remoteAddr] = now
+	for addr, t := range api.lastClaimByAddr {
+		if now.Sub(t) > cContactMapTTL {
+			delete(api.lastClaimByAddr, addr)
+		}
+	}
+	api.claimMu.Unlock()
+
+	domain := api.deviceDomain(name)
+	registered, err := api.dao.IsDomainRegistered(domain)
+	if err != nil {
+		log.Error("error checking name before claim:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
+		return
+	}
+	if registered {
+		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		return
+	}
+	if err := api.dao.RegistreDevice(body.OwnerUUID, domain, body.Secret); err != nil {
+		// Lost a race with another claim for the same name, most likely.
+		log.Error("error claiming name", domain, ":", err)
+		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		return
+	}
+	log.Info("name claimed by the setup wizard:", domain, "from", remoteAddr)
+	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
+}
+
+// deviceOnline (issue #38) answers {"online": bool} for ?name= - whether
+// that device holds a live connection to this bridge right now. The setup
+// wizard polls it after installing; nothing here a friend request to the
+// same domain wouldn't reveal.
+func (api *API) deviceOnline(w http.ResponseWriter, r *http.Request) {
+	name := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
+	if !cNamePattern.MatchString(name) {
+		writeJSONErr(w, http.StatusBadRequest, "invalid name")
+		return
+	}
+	online := api.websocket != nil && api.websocket.IsOnline(api.deviceDomain(name))
+	writeJSON(w, http.StatusOK, map[string]any{"online": online, "domain": api.deviceDomain(name)})
+}
+
+var cSetupTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// setupBeacon (issue #38): the device reports {token, addr} once it is on
+// the owner's network. Only private (LAN) addresses are accepted - that
+// is all this is for, and it keeps the store from being used to point a
+// page at anything else.
+func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token string `json:"token"`
+		Addr  string `json:"addr"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if len(body.Token) < cSetupTokenMinLen || len(body.Token) > cSetupTokenMaxLen || !cSetupTokenPattern.MatchString(body.Token) {
+		writeJSONErr(w, http.StatusBadRequest, "invalid token")
+		return
+	}
+	ip := net.ParseIP(body.Addr)
+	if ip == nil || !ip.IsPrivate() {
+		writeJSONErr(w, http.StatusBadRequest, "addr must be a private (LAN) IPv4 or IPv6 address")
+		return
+	}
+	if err := api.dao.SetSetupBeacon(body.Token, ip.String()); err != nil {
+		log.Error("error storing setup beacon:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not store the report")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// setupLookup (issue #38) is polled by the wizard page - served by the
+// device, so from another origin - until the device has reported in.
+// 404 until then; the token is unguessable, so a hit is the device's
+// own report. Answered with CORS open to any origin: the page's origin is
+// whatever the hotspot's captive DNS made it.
+func (api *API) setupLookup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Cache-Control", "no-store")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	token := r.URL.Query().Get("token")
+	if len(token) < cSetupTokenMinLen || len(token) > cSetupTokenMaxLen || !cSetupTokenPattern.MatchString(token) {
+		writeJSONErr(w, http.StatusBadRequest, "invalid token")
+		return
+	}
+	addr, found, err := api.dao.GetSetupBeacon(token)
+	if err != nil {
+		log.Error("error looking up setup beacon:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not look that up right now")
+		return
+	}
+	if !found {
+		writeJSONErr(w, http.StatusNotFound, "not reported yet")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"addr": addr})
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func writeJSONErr(w http.ResponseWriter, status int, msg string) {

@@ -171,3 +171,158 @@ func TestServeOwnPageFallsBackToTheStatusWhenTheFileIsMissing(t *testing.T) {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
 }
+
+// Issue #38: the setup wizard reserves a device's name before installing.
+func TestClaimNameReservesAFreeNameAndRefusesATakenOne(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	// First claim: free, inserted.
+	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+		WithArgs("newpi.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mock.ExpectExec("insert into `devices`").
+		WithArgs("11111111-2222-3333-4444-555555555555", "newpi.off-the.cloud", "0123456789abcdef0123456789abcdef01234567").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	// Second claim (another address): already there.
+	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+		WithArgs("newpi.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+
+	api := &API{
+		muxHTTPServer:   http.NewServeMux(),
+		dao:             dao.NewWithDB(db),
+		lastClaimByAddr: map[string]time.Time{},
+	}
+	claim := func(remoteAddr, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(body))
+		req.RemoteAddr = remoteAddr
+		rec := httptest.NewRecorder()
+		api.claimName(rec, req)
+		return rec
+	}
+	good := `{"name":"NewPi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`
+
+	if rec := claim("203.0.113.7:1111", good); rec.Code != http.StatusCreated {
+		t.Fatalf("free name: %d %s, want 201", rec.Code, rec.Body.String())
+	}
+	if rec := claim("203.0.113.8:1111", good); rec.Code != http.StatusConflict {
+		t.Errorf("taken name: %d, want 409", rec.Code)
+	}
+	if rec := claim("203.0.113.7:2222", good); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("second claim from the same host within the cooldown: %d, want 429", rec.Code)
+	}
+	if rec := claim("203.0.113.9:1111", `{"name":"www","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("reserved name: %d, want 400", rec.Code)
+	}
+	if rec := claim("203.0.113.10:1111", `{"name":"ok-name","owner_uuid":"x","secret":"short"}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("blank identity: %d, want 400", rec.Code)
+	}
+	if rec := claim("203.0.113.11:1111", `{"name":"Bad Name!","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("invalid name: %d, want 400", rec.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+func TestNameAvailableAnswersForFreeTakenAndReservedNames(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+		WithArgs("free.off-the.cloud").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+		WithArgs("pit.off-the.cloud").WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db)}
+	ask := func(name string) (int, string) {
+		req := httptest.NewRequest(http.MethodGet, "/api/name-available?name="+name, nil)
+		rec := httptest.NewRecorder()
+		api.nameAvailable(rec, req)
+		return rec.Code, strings.TrimSpace(rec.Body.String())
+	}
+	if code, body := ask("free"); code != 200 || !strings.Contains(body, `"available":true`) {
+		t.Errorf("free: %d %s", code, body)
+	}
+	if code, body := ask("pit"); code != 200 || !strings.Contains(body, `"available":false`) {
+		t.Errorf("taken: %d %s", code, body)
+	}
+	if code, body := ask("admin"); code != 200 || !strings.Contains(body, `"available":false`) {
+		t.Errorf("reserved: %d %s", code, body)
+	}
+	if code, _ := ask("no_underscores"); code != http.StatusBadRequest {
+		t.Errorf("invalid: %d, want 400", code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// Issue #38: the LAN-address hand-off between a device that just joined
+// the owner's WiFi and the wizard page still open on their phone.
+func TestSetupBeaconHandOff(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	token := "abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+	other := "abcdefghijklmnopqrstuvwxyz0123456789ABCX"
+	// lookup before: nothing
+	mock.ExpectQuery("select `addr` from `setup_beacons`").WithArgs(token, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"addr"}))
+	// the valid report (the two invalid ones never reach the DB)
+	mock.ExpectExec("delete from `setup_beacons`").WithArgs(10).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("insert into `setup_beacons`").WithArgs(token, "192.168.1.20").WillReturnResult(sqlmock.NewResult(0, 1))
+	// lookup after: the address; another token: nothing
+	mock.ExpectQuery("select `addr` from `setup_beacons`").WithArgs(token, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"addr"}).AddRow("192.168.1.20"))
+	mock.ExpectQuery("select `addr` from `setup_beacons`").WithArgs(other, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"addr"}))
+
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db)}
+
+	lookup := func(tok string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/setup-lookup?token="+tok, nil)
+		rec := httptest.NewRecorder()
+		api.setupLookup(rec, req)
+		return rec
+	}
+	beacon := func(body string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/setup-beacon", strings.NewReader(body))
+		rec := httptest.NewRecorder()
+		api.setupBeacon(rec, req)
+		return rec.Code
+	}
+
+	if rec := lookup(token); rec.Code != http.StatusNotFound {
+		t.Fatalf("before any report: %d, want 404", rec.Code)
+	}
+	if code := beacon(`{"token":"` + token + `","addr":"8.8.8.8"}`); code != http.StatusBadRequest {
+		t.Errorf("public address accepted: %d, want 400", code)
+	}
+	if code := beacon(`{"token":"short","addr":"192.168.1.20"}`); code != http.StatusBadRequest {
+		t.Errorf("short token accepted: %d, want 400", code)
+	}
+	if code := beacon(`{"token":"` + token + `","addr":"192.168.1.20"}`); code != http.StatusNoContent {
+		t.Fatalf("report: %d, want 204", code)
+	}
+	rec := lookup(token)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"addr":"192.168.1.20"`) {
+		t.Errorf("after the report: %d %s, want the address", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Error("the page polls from another origin - CORS must be open")
+	}
+	if rec := lookup(other); rec.Code != http.StatusNotFound {
+		t.Errorf("another token: %d, want 404", rec.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}

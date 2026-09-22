@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1063,7 +1064,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
 		fr, err := ch.mg.social.GetFriendship(p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
 		log.Info("Getting friendship status err:", err)
-		if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Issue #25: "we hold nothing for you" is an answer, not a
+			// failure - see FriendshipStatus.not_found.
+			resp.Payload = &pb.RespEnvelope_RespFriendshipStatus{
+				RespFriendshipStatus: &pb.FriendshipStatus{NotFound: true},
+			}
+		} else if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error retreiving friendship: %s", err)
 		} else {
@@ -1097,6 +1104,18 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 				Ok: true,
 			},
 		}
+
+	case *pb.ReqEnvelope_ReqFriendshipInterDelete:
+		// Issue #25: the other device deleted the friendship; its secret is
+		// what authorises dropping our copy (see ExternalFriendshipDelete).
+		log.Info("Friendship deleted by the other side:", p.ReqFriendshipInterDelete.Domain)
+		if err := ch.mg.social.ExternalFriendshipDelete(p.ReqFriendshipInterDelete.Domain, p.ReqFriendshipInterDelete.Secret); err != nil {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)},
+			}
+			return resp, true
+		}
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 
 	case *pb.ReqEnvelope_ReqDidSendFriendshipReq:
 		var err error
@@ -1464,6 +1483,16 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 					Ok: true,
 				},
 			}
+		}
+
+	case *pb.ReqEnvelope_ReqDeleteFriendship:
+		// Issue #25.
+		log.Info("Delete friendship:", p.ReqDeleteFriendship.Domain)
+		if err := ch.mg.social.DeleteFriendship(p.ReqDeleteFriendship.Domain); err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("Error trying to delete the friendship: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
 	case *pb.ReqEnvelope_ReqChangeFriendStatus:

@@ -603,6 +603,19 @@ func (fr *friendship) updateFriendshipStatus() (err error) {
 	if err != nil {
 		return err
 	}
+	// Issue #25: the receiver deleted our request while we could not be
+	// told (it was off, or we were). Only a still-pending request is
+	// removed on the strength of this - an accepted friendship that the
+	// other side no longer knows about is left for the owner to decide on.
+	if resp.RespFriendshipStatus.NotFound {
+		if fr.data.Status == pb.FriendShipStatus_Pending {
+			log.Info("friend request to", fr.data.OriginProfile.Domain, "was deleted on the other side, removing it here too")
+			return fr.dao.DeleteFriendship(fr.data.OriginProfile.Domain)
+		}
+		log.Info("friendship with", fr.data.OriginProfile.Domain, "is unknown on the other side, leaving it as is")
+		return nil
+	}
+
 	status := resp.RespFriendshipStatus.Status
 	log.Debug("Remote friendship status:", fr.data.OriginProfile.Domain, status)
 
@@ -1456,4 +1469,91 @@ func (sc *Social) DeleteComment(commentUuid string) (err error) {
 
 func (sc *Social) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (err error) {
 	return sc.dao.ChangeFriendStatus(domain, status)
+}
+
+// DeleteFriendship (issue #25) removes the friendship with domain from this
+// device - in practice a request the owner wants gone, whichever side sent
+// it - and asks the other device to drop its copy as well. That second
+// part is best effort: the other device may be switched off, and the
+// owner's decision must not depend on it. A sender whose counterpart
+// deleted while it was off still converges on its next sync (see the
+// not_found handling in updateFriendshipStatus).
+func (sc *Social) DeleteFriendship(domain string) error {
+	friendships, err := sc.dao.GetFriendships()
+	if err != nil {
+		return err
+	}
+	var fr *pb.Friendship
+	for _, f := range friendships {
+		if f.OriginProfile.Domain == domain {
+			fr = f
+			break
+		}
+	}
+	if fr == nil {
+		return fmt.Errorf("no friendship with %s", domain)
+	}
+
+	if err := sc.notifyFriendshipDeleted(domain, fr.Secret); err != nil {
+		log.Info("could not tell", domain, "the friendship was deleted, it will find out on its own:", err)
+	}
+	return sc.dao.DeleteFriendship(domain)
+}
+
+// notifyFriendshipDeleted tells domain's device that the friendship
+// identified by secret is gone here (issue #25).
+func (sc *Social) notifyFriendshipDeleted(domain, secret string) error {
+	conn, err := sc.connectToDevice(domain)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	msg := &pb.ReqEnvelope{
+		Id: 1,
+		Payload: &pb.ReqEnvelope_ReqFriendshipInterDelete{
+			ReqFriendshipInterDelete: &pb.FriendshipInterDelete{
+				Domain: sc.settings.Domain,
+				Secret: secret,
+			},
+		},
+	}
+	b, _ := proto.Marshal(msg)
+	if err := conn.WriteMessage(gorilla.BinaryMessage, b); err != nil {
+		return err
+	}
+	// The owner is waiting on this; a device that never answers must not
+	// hold their delete hostage.
+	conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+	_, data, err := conn.ReadMessage()
+	if err != nil {
+		return err
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		return err
+	}
+	ack, err := expectPayload[*pb.RespEnvelope_RespAck]("delete friendship", domain, resp.Payload)
+	if err != nil {
+		return err
+	}
+	if !ack.RespAck.Ok {
+		return errors.New(ack.RespAck.ErrorMsg)
+	}
+	return nil
+}
+
+// ExternalFriendshipDelete handles another device's FriendshipInterDelete
+// (issue #25): that device deleted the friendship on its side, so drop our
+// copy - but only if it knows the secret we hold for it.
+func (sc *Social) ExternalFriendshipDelete(domain, secret string) error {
+	removed, err := sc.dao.DeleteFriendshipWithSecret(domain, secret)
+	if err != nil {
+		return err
+	}
+	if !removed {
+		return errors.New("Friendship not found")
+	}
+	log.Info("friendship with", domain, "removed at that device's request")
+	return nil
 }

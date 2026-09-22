@@ -81,6 +81,26 @@ final class FriendshipsViewModel: ObservableObject {
         }
     }
 
+    // Issue #25: removes the request from this device and, best effort,
+    // from the other one - the device does the asking.
+    func deleteFriendship(_ f: Msg_Friendship) async {
+        var req = Msg_DeleteFriendship()
+        req.domain = f.originProfile.domain
+        do {
+            let resp = try await ws.request { $0.payload = .reqDeleteFriendship(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                await reloadFriendships()
+                showToast(f.sent ? "Request cancelled" : "Request deleted")
+            } else if resp.error {
+                showToast(resp.errorMessage)
+            } else {
+                showToast("Delete failed")
+            }
+        } catch {
+            showToast("Error deleting request")
+        }
+    }
+
     private func showToast(_ m: String) {
         toast = m
         Task { [weak self] in
@@ -114,7 +134,11 @@ struct FriendshipsView: View {
                         Text("No friendships yet.").foregroundColor(.secondary)
                     } else {
                         ForEach(vm.friendships, id: \.originProfile.domain) { f in
-                            FriendRow(f: f, onChange: { status in Task { await vm.changeStatus(f, to: status) } })
+                            FriendRow(
+                                f: f,
+                                onChange: { status in Task { await vm.changeStatus(f, to: status) } },
+                                onDelete: { Task { await vm.deleteFriendship(f) } }
+                            )
                         }
                     }
                 } header: {
@@ -158,6 +182,13 @@ struct FriendshipsView: View {
 private struct FriendRow: View {
     let f: Msg_Friendship
     let onChange: (Msg_FriendShipStatus) -> Void
+    let onDelete: () -> Void
+    @State private var confirmingDelete = false
+
+    // Issue #25: a pending request can be removed by either side - the
+    // sender withdraws it, the receiver declines it.
+    private var canDelete: Bool { f.status == .pending }
+    private var deleteLabel: String { f.sent ? "Cancel request" : "Delete request" }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -170,10 +201,13 @@ private struct FriendRow: View {
                     .font(.caption2).foregroundColor(.secondary)
             }
             Spacer()
-            if !f.sent {
+            if !actionOptions.isEmpty || canDelete {
                 Menu {
                     ForEach(actionOptions, id: \.0) { opt in
                         Button(opt.0) { onChange(opt.1) }
+                    }
+                    if canDelete {
+                        Button(deleteLabel, role: .destructive) { confirmingDelete = true }
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -181,6 +215,17 @@ private struct FriendRow: View {
             }
         }
         .padding(.vertical, 4)
+        .confirmationDialog(
+            f.sent ? "Cancel this friend request?" : "Delete this friend request?",
+            isPresented: $confirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button(deleteLabel, role: .destructive) { onDelete() }
+        } message: {
+            Text(f.sent
+                 ? "The request will be withdrawn on both devices."
+                 : "The request will be removed here and on the sender's device.")
+        }
     }
 
     private var statusLabel: String {
@@ -192,6 +237,8 @@ private struct FriendRow: View {
     }
 
     private var actionOptions: [(String, Msg_FriendShipStatus)] {
+        // The sender does not decide the status; the receiver does.
+        if f.sent { return [] }
         switch f.status {
         case .pending: return [("Accept", .accepted), ("Block", .blocked)]
         case .accepted: return [("Set Pending", .pending), ("Block", .blocked)]

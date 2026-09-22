@@ -1231,3 +1231,54 @@ func TestSearchMediaCombinesPersonAndGroup(t *testing.T) {
 		t.Errorf("not all expected queries ran: %v", err)
 	}
 }
+
+// Issue #25: the owner's own delete needs no secret; the one arriving from
+// the other device must present the stored secret and reports whether
+// anything matched, so the caller can answer "not found" honestly.
+func TestDeleteFriendship(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("delete from `social_friendship` where `domain` = \\?").
+		WithArgs("pit.off-the.cloud").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	if err := d.DeleteFriendship("pit.off-the.cloud"); err != nil {
+		t.Fatalf("DeleteFriendship: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+func TestDeleteFriendshipWithSecretReportsWhetherARowMatched(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("delete from `social_friendship` where `domain` = \\? and `secret` = \\?").
+		WithArgs("pit.off-the.cloud", "right-secret").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `social_friendship` where `domain` = \\? and `secret` = \\?").
+		WithArgs("pit.off-the.cloud", "wrong-secret").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	d := NewWithDB(db)
+	removed, err := d.DeleteFriendshipWithSecret("pit.off-the.cloud", "right-secret")
+	if err != nil || !removed {
+		t.Fatalf("with the stored secret: removed=%v err=%v, want true/nil", removed, err)
+	}
+	removed, err = d.DeleteFriendshipWithSecret("pit.off-the.cloud", "wrong-secret")
+	if err != nil || removed {
+		t.Fatalf("with a wrong secret: removed=%v err=%v, want false/nil - a domain alone must not be enough", removed, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}

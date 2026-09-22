@@ -319,6 +319,37 @@ func (dao *Dao) NewContactRequest(name, email, reason, message string) (err erro
 	return
 }
 
+// cSetupBeaconTTLMinutes is how long a setup hand-off stays answerable.
+const cSetupBeaconTTLMinutes = 10
+
+// SetSetupBeacon records (or refreshes) where a device being set up can be
+// reached on its LAN, under the wizard's one-time token (issue #38), and
+// drops every expired hand-off while it is at it.
+func (dao *Dao) SetSetupBeacon(token, addr string) (err error) {
+	if _, err = dao.db.Exec("delete from `setup_beacons` where `created` < now() - interval ? minute", cSetupBeaconTTLMinutes); err != nil {
+		return
+	}
+	_, err = dao.db.Exec(
+		"insert into `setup_beacons` (`token`, `addr`, `created`) values (?, ?, now()) on duplicate key update `addr` = values(`addr`), `created` = now()",
+		token, addr)
+	return
+}
+
+// GetSetupBeacon answers the wizard page's poll: the address reported
+// under token within the last ten minutes, or found=false.
+func (dao *Dao) GetSetupBeacon(token string) (addr string, found bool, err error) {
+	err = dao.db.QueryRow(
+		"select `addr` from `setup_beacons` where `token` = ? and `created` >= now() - interval ? minute",
+		token, cSetupBeaconTTLMinutes).Scan(&addr)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return addr, true, nil
+}
+
 // ContactRequest is a row from the contact_requests table.
 type ContactRequest struct {
 	Id      int

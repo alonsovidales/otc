@@ -293,3 +293,36 @@ func TestIsDomainRegisteredCountsADisabledRegistration(t *testing.T) {
 		t.Error("expected a disabled device's domain to still count as taken")
 	}
 }
+
+// Issue #38: the setup hand-off lives in the database, not in one bridge
+// process's memory, and is answerable for ten minutes only.
+func TestSetupBeaconRoundTrip(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectExec("delete from `setup_beacons` where `created` < now\\(\\) - interval \\? minute").
+		WithArgs(10).WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectExec("insert into `setup_beacons`").
+		WithArgs("tok-1", "192.168.1.20").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("select `addr` from `setup_beacons` where `token` = \\? and `created` >= now\\(\\) - interval \\? minute").
+		WithArgs("tok-1", 10).WillReturnRows(sqlmock.NewRows([]string{"addr"}).AddRow("192.168.1.20"))
+	mock.ExpectQuery("select `addr` from `setup_beacons`").
+		WithArgs("tok-2", 10).WillReturnRows(sqlmock.NewRows([]string{"addr"}))
+
+	d := NewWithDB(db)
+	if err := d.SetSetupBeacon("tok-1", "192.168.1.20"); err != nil {
+		t.Fatalf("SetSetupBeacon: %v", err)
+	}
+	addr, found, err := d.GetSetupBeacon("tok-1")
+	if err != nil || !found || addr != "192.168.1.20" {
+		t.Errorf("GetSetupBeacon(tok-1) = %q %v %v, want the reported address", addr, found, err)
+	}
+	if _, found, err := d.GetSetupBeacon("tok-2"); err != nil || found {
+		t.Errorf("GetSetupBeacon(tok-2): found=%v err=%v, want not found", found, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}

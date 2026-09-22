@@ -889,9 +889,14 @@ func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 		}
 		var status string
 		var latestSync sql.NullTime
-		if err := rowFriendships.Scan(&status, &friendship.OriginProfile.Name, &friendship.OriginProfile.Image, &friendship.OriginProfile.Text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret, &latestSync, &friendship.NotificationsStarted); err != nil {
+		// name and text are nullable columns; a NULL in either used to
+		// fail the scan and with it the whole friend sync, for everyone.
+		var name, text sql.NullString
+		if err := rowFriendships.Scan(&status, &name, &friendship.OriginProfile.Image, &text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret, &latestSync, &friendship.NotificationsStarted); err != nil {
 			return nil, err
 		}
+		friendship.OriginProfile.Name = name.String
+		friendship.OriginProfile.Text = text.String
 		if latestSync.Valid {
 			friendship.LatestSync = timestamppb.New(latestSync.Time)
 		}
@@ -1018,6 +1023,27 @@ func (dao *Dao) DeleteSocialComment(commentUuid string) (err error) {
 	}
 
 	return tx.Commit()
+}
+
+// DeleteFriendship removes the friendship row for domain (issue #25) -
+// the owner's own decision, so no secret check here.
+func (dao *Dao) DeleteFriendship(domain string) error {
+	_, err := dao.db.Exec("delete from `social_friendship` where `domain` = ?", domain)
+	return err
+}
+
+// DeleteFriendshipWithSecret is DeleteFriendship for a request arriving from
+// the other device (issue #25): the row only goes when the secret that
+// device presents is the one stored for its domain, so knowing a domain is
+// not enough to make someone's friend request disappear. Reports whether a
+// row was actually removed.
+func (dao *Dao) DeleteFriendshipWithSecret(domain, secret string) (bool, error) {
+	res, err := dao.db.Exec("delete from `social_friendship` where `domain` = ? and `secret` = ?", domain, secret)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
 }
 
 func (dao *Dao) ChangeFriendStatus(domain string, status pb.FriendShipStatus) (err error) {

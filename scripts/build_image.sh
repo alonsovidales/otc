@@ -1,72 +1,71 @@
 #!/bin/bash
-# Builds a distributable OTC image (issue #38) by customizing a stock
-# Raspberry Pi OS Lite (64-bit) image: installs MariaDB + copies this
-# device's own already-built/tested artifacts (otc binary, web bundle,
-# ONNX runtime + tagging model, raid-watch/network-setup scripts) into it,
-# then wires up first-boot provisioning (otc_firstrun.sh, in this same
-# directory) so each flashed card gets its own fresh identity instead of
-# cloning this device's.
+# Builds the flashable OTC image (issue #38): stock Raspberry Pi OS Lite
+# (64-bit) plus the first-boot setup wizard (setup_wizard.py), the hotspot
+# script (network_setup.py) and their systemd units - and nothing else.
+# Everything a device actually runs is installed by scripts/install.sh,
+# fetched fresh from GitHub by the wizard at setup time, so a new release
+# of the software never needs a new image: the image is only how a person
+# reaches the wizard.
 #
-# Run as root, ON a fully bootstrapped, working OTC device itself (e.g. one
-# set up via `make -f Makefile.pi bootstrap`) — not on your own workstation.
-# It reads that device's already-installed /usr/bin/otc, /var/www,
-# /usr/local/models, and the raid-watch/network-setup services, and needs
-# to run on the same CPU architecture as the image it's building (aarch64
-# for a Raspberry Pi), since it chroots into the mounted image directly
-# with no cross-arch/QEMU step.
+# Run as root on any arm64 Linux box with losetup (a Raspberry Pi is fine;
+# `make image` runs it on TARGET over SSH) - the chroot below only runs
+# systemctl/apt, no binaries are copied in, so the host's own release
+# doesn't matter.
 #
-#   $ sudo bash scripts/build_image.sh
+#   $ make image TARGET=pit.otc          # from a dev machine
+#   $ sudo bash scripts/build_image.sh   # or directly on the device
 #
-# Produces $WORK/otc.img (uncompressed) — compress it yourself afterwards,
-# e.g. `xz -T0 -k otc.img`, before publishing (see the README's "Option 1"
-# install instructions for where released images are expected to live).
-set -ex
+# Produces, under $WORK:
+#   off-the-cloud-rpi-lite-arm64.img.xz         the image (~550MB)
+#   off-the-cloud-rpi-lite-arm64.img.xz.sha256  its checksum
+set -euo pipefail
 
 WORK=${WORK:-/home/otc/image-build}
 SRC_REPO=${SRC_REPO:-/home/otc/otc}
-GROW_BY=${GROW_BY:-2G}
+BASE_URL=${BASE_URL:-https://downloads.raspberrypi.com/raspios_lite_arm64_latest}
+XZ_LEVEL=${XZ_LEVEL:--6}
+NAME=${NAME:-off-the-cloud-rpi-lite-arm64}
+# The hostname the image boots with: with mDNS that makes the wizard
+# reachable at http://otc.local/ on a wired network, no hotspot needed.
+HOSTNAME=${HOSTNAME_IN_IMAGE:-otc}
+
+[ "$(id -u)" -eq 0 ] || { echo "run as root (sudo bash $0)"; exit 1; }
+for f in "$SRC_REPO/scripts/setup_wizard.py" "$SRC_REPO/scripts/network_setup.py"; do
+    [ -e "$f" ] || { echo "missing $f - sync the repo to $SRC_REPO first (make sync)"; exit 1; }
+done
+for t in losetup partprobe xz sha256sum curl; do
+    command -v "$t" >/dev/null || { echo "missing tool: $t"; exit 1; }
+done
 
 IMG_XZ=$WORK/base.img.xz
-IMG=$WORK/otc.img
+IMG=$WORK/$NAME.img
 MNT=$WORK/mnt
-
 mkdir -p "$WORK" "$MNT"
 
-echo "=== [1/10] Download base image ==="
+echo "=== Building $NAME ==="
+
+echo "=== [1/7] Download base image (cached in $IMG_XZ) ==="
+# Downloaded to a temporary name and renamed only once complete, so an
+# interrupted download can't be mistaken for the cached base next time.
 if [ ! -f "$IMG_XZ" ]; then
-    curl -L -o "$IMG_XZ" https://downloads.raspberrypi.com/raspios_lite_arm64_latest
+    curl -fL --retry 3 -o "$IMG_XZ.part" "$BASE_URL"
+    mv "$IMG_XZ.part" "$IMG_XZ"
 fi
 
-echo "=== [2/10] Decompress (working copy — base stays untouched for re-runs) ==="
+echo "=== [2/7] Decompress (working copy - the base stays untouched for re-runs) ==="
+rm -f "$IMG" "$IMG.xz"
 xz -dk -T0 -c "$IMG_XZ" > "$IMG"
 
-echo "=== [3/10] Grow the image so there's room for the model/binaries we're adding ==="
-# Stock image's root partition is sized tight to stock content.
-truncate -s +"$GROW_BY" "$IMG"
-
-echo "=== [4/10] Attach loop device, resize partition 2 to fill the new space ==="
+echo "=== [3/7] Mount ==="
 LOOPDEV=$(losetup --show -fP "$IMG")
 partprobe "$LOOPDEV" || true
 sleep 1
-parted -s "$LOOPDEV" resizepart 2 100%
-partprobe "$LOOPDEV" || true
-sleep 1
-e2fsck -f -y "${LOOPDEV}p2" || true
-resize2fs "${LOOPDEV}p2"
-
-echo "=== [5/10] Mount root + boot ==="
-mount "${LOOPDEV}p2" "$MNT"
-mount "${LOOPDEV}p1" "$MNT/boot/firmware"
-
-echo "=== [6/10] Bind mounts + resolv.conf for a working chroot ==="
-mount --bind /dev "$MNT/dev"
-mount --bind /proc "$MNT/proc"
-mount --bind /sys "$MNT/sys"
-cp /etc/resolv.conf "$MNT/etc/resolv.conf"
 
 cleanup() {
     set +e
+    rm -f "$MNT/usr/sbin/policy-rc.d" "$MNT/zero" 2>/dev/null
     umount "$MNT/boot/firmware" 2>/dev/null
+    umount "$MNT/dev/pts" 2>/dev/null
     umount "$MNT/dev" 2>/dev/null
     umount "$MNT/proc" 2>/dev/null
     umount "$MNT/sys" 2>/dev/null
@@ -75,151 +74,138 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== [7/10] Install packages in chroot (mariadb, ffmpeg, onnxruntime) ==="
+mount "${LOOPDEV}p2" "$MNT"
+mount "${LOOPDEV}p1" "$MNT/boot/firmware"
+mount --bind /dev "$MNT/dev"
+mount --bind /dev/pts "$MNT/dev/pts"
+mount --bind /proc "$MNT/proc"
+mount --bind /sys "$MNT/sys"
+# No service may start inside the chroot (there is no init to start it
+# under); package maintainer scripts respect this file.
+printf '#!/bin/sh\nexit 101\n' > "$MNT/usr/sbin/policy-rc.d"
+chmod +x "$MNT/usr/sbin/policy-rc.d"
+cp /etc/resolv.conf "$MNT/etc/resolv.conf"
+
+# mdadm is what the wizard needs before install.sh has run to find the
+# RAID1 array (and the database on it) a dead Pi left behind, so the
+# person is offered a recovery instead of a fresh name and a wipe. avahi
+# is what makes http://otc.local/ resolve once the person is back on
+# their own network after the WiFi step took the hotspot down. dnsmasq is
+# what NetworkManager runs DHCP + the captive-portal DNS with on the
+# hotspot.
 chroot "$MNT" /bin/bash -c "
+    set -e
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
-    apt-get install -y mariadb-server ffmpeg libonnxruntime1.21
+    apt-get install -y --no-install-recommends mdadm avahi-daemon dnsmasq-base
+    systemctl enable avahi-daemon.service
 "
 
-# cloud-init ships on stock Raspberry Pi OS to process Raspberry Pi
-# Imager's own Customisation data (user-data/network-config on the boot
-# partition) — this image never provides any, by design, since it
-# provisions itself instead (otc-firstrun.service/network-setup.service).
-# Found on real Pi 5 hardware that boot can stall reaching
-# cloud-init.target regardless of the MariaDB/otc-firstrun fixes above —
-# cloud-init's own datasource detection runs from a systemd *generator*
-# (executes unconditionally, very early in boot, before any unit can be
-# masked/disabled to stop it), so purging the package outright — removing
-# the generator script itself — is the only way to be sure this can't
-# happen, rather than trying to tune around whatever it's doing.
+echo "=== [4/7] Scripts, units, hostname ==="
+install -m 0755 "$SRC_REPO/scripts/setup_wizard.py"  "$MNT/usr/local/bin/setup_wizard.py"
+install -m 0755 "$SRC_REPO/scripts/network_setup.py" "$MNT/usr/local/bin/network_setup.py"
+
+cat > "$MNT/etc/systemd/system/network-setup.service" <<'EOF'
+[Unit]
+Description=OTC first-boot WiFi/AP setup
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/network_setup.py
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > "$MNT/etc/systemd/system/otc-setup.service" <<'EOF'
+[Unit]
+Description=OTC first-boot setup wizard (issue #38)
+After=network-setup.service NetworkManager.service
+Wants=network-setup.service
+# install.sh creates this at the end of a successful install; from then
+# on the wizard has nothing to do and must not hold port 80 from otc.
+ConditionPathExists=!/etc/otc/.install-complete
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/setup_wizard.py
+Restart=on-failure
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# NetworkManager's own WiFi switch ships off on stock Raspberry Pi OS
+# (Imager/raspi-config turn it on when a country is set); network_setup.py
+# turns it on at runtime too, this just makes the first boot start right.
+mkdir -p "$MNT/var/lib/NetworkManager"
+printf '[main]\nNetworkingEnabled=true\nWirelessEnabled=true\nWWANEnabled=true\n' > "$MNT/var/lib/NetworkManager/NetworkManager.state"
+
+echo "$HOSTNAME" > "$MNT/etc/hostname"
+sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$HOSTNAME/" "$MNT/etc/hosts"
+grep -q "^127.0.1.1" "$MNT/etc/hosts" || printf '127.0.1.1\t%s\n' "$HOSTNAME" >> "$MNT/etc/hosts"
+
+echo "=== [5/7] Enable/disable services in the chroot ==="
+chroot "$MNT" systemctl enable network-setup.service otc-setup.service
+# Stock Raspberry Pi OS's own first-boot flow prompts *interactively on the
+# console* to create a user account when nothing pre-answered it (Imager's
+# Customisation step normally writes /boot/firmware/userconf.txt). This
+# image is flashed without that step, so the prompt would sit there
+# blocking every later boot step, waiting for a keyboard that usually
+# isn't even connected.
+chroot "$MNT" systemctl mask userconfig.service 2>/dev/null || true
+# That prompt is also what hands the HDMI console over to a login prompt
+# once it's done (found on real hardware: with it masked, boot finished
+# with no login on tty1 at all - only the serial console got one). Enable
+# the console login directly instead, so the otc-debug account below is
+# actually reachable from a keyboard and monitor.
+chroot "$MNT" systemctl enable getty@tty1.service
+# cloud-init ships on stock Raspberry Pi OS to process Imager's
+# Customisation data, which this image never has. Found on real Pi 5
+# hardware that boot can stall reaching cloud-init.target; its datasource
+# detection runs from a systemd generator that no unit can be masked
+# ahead of, so purging the package is the only sure way.
 chroot "$MNT" /bin/bash -c "
     export DEBIAN_FRONTEND=noninteractive
-    apt-get purge -y cloud-init
-    apt-get autoremove -y
+    apt-get purge -y cloud-init 2>/dev/null || true
+    apt-get autoremove -y 2>/dev/null || true
+    apt-get clean
 "
-
-echo "=== [8/10] Create the otc service account ==="
-chroot "$MNT" /bin/bash -c "
-    id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin \
-        -G dialout,video,plugdev,gpio,i2c,spi otc
-"
-
-# Masking userconfig.service below (stock Raspberry Pi OS's own first-boot
-# "create a login user" prompt) closes the interactive-console-blocking
-# hole it caused (issue #38 follow-up, found on real Pi 5 hardware) but
-# also removes the *only* way to ever get a shell on the device — the
-# service account above is deliberately non-interactive (-s
-# /usr/sbin/nologin), and Imager's own customisation is skipped by design
-# for this image. Without this, a stuck boot is completely undebuggable
-# from the console. This is console-only (SSH isn't enabled by this image
-# either), so it's gated by already having physical access to the device.
+# A console login for troubleshooting a boot that never reaches the
+# wizard: the only interactive account on the image, console-only (SSH is
+# not enabled), so it's gated by physical access - and physical access to
+# an unencrypted card is the whole game anyway. install.sh creates the
+# unprivileged otc service account itself later.
 DEBUG_PASSWORD_HASH=$(openssl passwd -6 'off-the-cloud')
 chroot "$MNT" /bin/bash -c "
     id otc-debug >/dev/null 2>&1 || useradd -m -s /bin/bash -G sudo otc-debug
     echo 'otc-debug:$DEBUG_PASSWORD_HASH' | chpasswd -e
 "
 
-echo "=== [9/10] Copy this device's own already-built/tested artifacts ==="
-cp /usr/bin/otc "$MNT/usr/bin/otc"
-chmod +x "$MNT/usr/bin/otc"
-
-mkdir -p "$MNT/var/www"
-cp -a /var/www/. "$MNT/var/www/"
-
-mkdir -p "$MNT/usr/local/models"
-cp -a /usr/local/models/. "$MNT/usr/local/models/"
-
-cp "$SRC_REPO/scripts/raid_watch.py" "$MNT/usr/local/bin/raid_watch.py"
-cp "$SRC_REPO/scripts/network_setup.py" "$MNT/usr/local/bin/network_setup.py"
-chmod +x "$MNT/usr/local/bin/raid_watch.py" "$MNT/usr/local/bin/network_setup.py"
-
-mkdir -p "$MNT/usr/local/share/otc"
-cp "$SRC_REPO/db/db.sql" "$MNT/usr/local/share/otc/db.sql"
-
-cp "$SRC_REPO/scripts/otc_firstrun.sh" "$MNT/usr/local/bin/otc_firstrun.sh"
-chmod +x "$MNT/usr/local/bin/otc_firstrun.sh"
-
-# systemd units: otc.service + its env file copied verbatim from this
-# already-working device; raid-watch/network-setup are assumed already
-# installed here too (via `make -f Makefile.pi raid-watch`/`network-setup`)
-# so their unit files are copied straight from the live system rather than
-# re-derived.
-cp /etc/systemd/system/otc.service "$MNT/etc/systemd/system/otc.service"
-cp /etc/systemd/system/raid-watch.service "$MNT/etc/systemd/system/raid-watch.service"
-cp /etc/systemd/system/network-setup.service "$MNT/etc/systemd/system/network-setup.service"
-mkdir -p "$MNT/etc/otc"
-cp /etc/otc/otc.env "$MNT/etc/otc/otc.env"
-
-cat > "$MNT/etc/systemd/system/otc-firstrun.service" <<'EOF'
-[Unit]
-Description=OTC first-boot provisioning
-After=mariadb.service
-Wants=mariadb.service
-Before=otc.service raid-watch.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-# This script has its own internal ~240s polling ceiling for MariaDB, but
-# that's only a safety net *inside* the script — nothing previously bounded
-# how long systemd itself would wait for this unit's job to finish. Found
-# on real Pi 5 hardware that this mattered even with that internal limit:
-# boot can sit showing "Job otc-firstrun.service/start running" with no
-# console/login access at all until the job resolves one way or another.
-# This is the actual guarantee that it always does, regardless of what
-# otc_firstrun.sh is doing or why.
-TimeoutStartSec=300
-ExecStart=/usr/local/bin/otc_firstrun.sh
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# otc.service and raid-watch genuinely need firstrun's DB/config done first
-# — drop-ins rather than editing the unit files copied above verbatim.
-# network-setup deliberately does NOT wait on this: it's what gets a
-# person to the setup wizard in the first place (the WiFi AP), and must
-# come up on its own regardless of whether firstrun (or MariaDB, or
-# anything else) is still working or has hit a snag — the one real bug
-# this fixes, found via a live test on real Pi 5 hardware where firstrun
-# blocking network-setup meant the WiFi AP never appeared at all.
-mkdir -p "$MNT/etc/systemd/system/otc.service.d" \
-         "$MNT/etc/systemd/system/raid-watch.service.d"
-for svc in otc raid-watch; do
-    cat > "$MNT/etc/systemd/system/$svc.service.d/override.conf" <<'EOF'
-[Unit]
-After=otc-firstrun.service
-Requires=otc-firstrun.service
-EOF
-done
-
-echo "=== [10/10] Enable services + clean up for distribution ==="
-chroot "$MNT" systemctl enable otc-firstrun.service
-chroot "$MNT" systemctl enable otc.service
-chroot "$MNT" systemctl enable raid-watch.service
-chroot "$MNT" systemctl enable network-setup.service
-
-# Stock Raspberry Pi OS's own first-boot flow prompts *interactively on the
-# console* to create a user account when nothing satisfied it ahead of time
-# (normally Raspberry Pi Imager's own "Customisation" step writes
-# /boot/firmware/userconf.txt to pre-answer this) — since this image
-# provisions itself instead (otc-firstrun.service) and was flashed without
-# that step (see README), nothing was ever going to answer that prompt, so
-# it just sat there blocking every later boot step — including
-# network-setup and otc-firstrun themselves — waiting for a keyboard that
-# usually isn't even connected. Masking it outright is correct here: we
-# genuinely don't want an interactive Linux login account for this device
-# at all, only the otc service account, which is already created above.
-chroot "$MNT" systemctl mask userconfig.service 2>/dev/null || true
-
-chroot "$MNT" apt-get clean
+echo "=== [6/7] Clean up for distribution ==="
 rm -rf "$MNT/var/lib/apt/lists/"*
-
+rm -f "$MNT/usr/sbin/policy-rc.d"
 # Fresh identity per flashed card, not this build machine's.
 rm -f "$MNT"/etc/ssh/ssh_host_*
 : > "$MNT/etc/machine-id"
-rm -f "$MNT/var/lib/dbus/machine-id" 2>/dev/null || true
+rm -f "$MNT/var/lib/dbus/machine-id"
+# Zero the free space so it compresses to nothing.
+dd if=/dev/zero of="$MNT/zero" bs=4M status=none 2>/dev/null || true
+rm -f "$MNT/zero"
+sync
+cleanup
+trap - EXIT
 
-echo "Build complete. Image (pre-compression): $IMG"
-ls -lh "$IMG"
+echo "=== [7/7] Compress ==="
+xz -T0 "$XZ_LEVEL" "$IMG"
+( cd "$WORK" && sha256sum "$NAME.img.xz" > "$NAME.img.xz.sha256" )
+
+echo "Build complete:"
+ls -lh "$WORK/$NAME.img.xz"
+cat "$WORK/$NAME.img.xz.sha256"

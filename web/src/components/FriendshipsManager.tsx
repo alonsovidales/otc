@@ -31,21 +31,23 @@ const statusLabel = (s: FriendShipStatus): string => {
 
 /**
  * Buttons allowed when *we are the receiver* (friendship.sent === false)
- * - Pending -> Accept / Block
+ * - Pending -> Accept / Block / Delete
  * - Accepted -> Set Pending / Block
  * - Blocked -> Accept / Set Pending
+ * When *we sent it* the only thing to do is withdraw it while it is still
+ * pending (issue #25) - the other side decides everything else.
  */
 function ActionButtons({
   f,
   onChange,
+  onDelete,
   disabled,
 }: {
   f: MsgFriendship;
   onChange: (next: FriendShipStatus) => void;
+  onDelete: () => void;
   disabled?: boolean;
 }) {
-  if (f.sent) return null; // we sent it; no actions until other side responds
-
   const btn = (label: string, next: FriendShipStatus) => (
     <button
       className="fr-btn"
@@ -55,6 +57,17 @@ function ActionButtons({
       {label}
     </button>
   );
+  // Issue #25: same request to the device either way; the label says
+  // which side of it the owner is on.
+  const del = (
+    <button className="fr-btn danger" onClick={onDelete} disabled={disabled}>
+      {f.sent ? "Cancel request" : "Delete"}
+    </button>
+  );
+
+  if (f.sent) {
+    return f.status === FriendShipStatus.Pending ? <div className="fr-actions">{del}</div> : null;
+  }
 
   switch (f.status) {
     case FriendShipStatus.Pending:
@@ -62,6 +75,7 @@ function ActionButtons({
         <div className="fr-actions">
           {btn("Accept", FriendShipStatus.Accepted)}
           {btn("Block", FriendShipStatus.Blocked)}
+          {del}
         </div>
       );
     case FriendShipStatus.Accepted:
@@ -91,6 +105,10 @@ export default function FriendshipsManager() {
   // Friendships list
   const [friends, setFriends] = useState<MsgFriendships | null>(null);
   const [loadingFriends, setLoadingFriends] = useState(false);
+
+  // Issue #25: domain of the request whose delete is awaiting a second
+  // click - the row swaps its buttons for a confirm/keep pair meanwhile.
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   // Toast/message
   const [message, setMessage] = useState<string | null>(null);
@@ -175,6 +193,29 @@ export default function FriendshipsManager() {
     }
   };
 
+  // Issue #25: removes the request here and, best effort, on the other
+  // device - the device handles that side, this just asks.
+  const deleteFriendship = async (f: MsgFriendship) => {
+    setConfirmingDelete(null);
+    try {
+      const resp = await useWS.request((e) => {
+        (e as any).payload = {
+          $case: "reqDeleteFriendship",
+          reqDeleteFriendship: { domain: f.originProfile?.domain },
+        };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        await reloadFriendships();
+        showMsg(f.sent ? "Request cancelled" : "Request deleted");
+      } else {
+        showMsg(resp.error ? resp.errorMessage : "Delete failed");
+      }
+    } catch (err) {
+      console.error("Delete friendship error:", err);
+      showMsg("Error deleting request");
+    }
+  };
+
   return (
     <div className="friends-wrap">
       {message && <div className="toast">{message}</div>}
@@ -236,10 +277,19 @@ export default function FriendshipsManager() {
                     <span className={`status pill s-${f.status}`}>
                       {statusLabel(f.status)} {f.sent ? "(sent)" : ""}
                     </span>
-                    <ActionButtons
-                      f={f}
-                      onChange={(next) => changeStatus(f, next)}
-                    />
+                    {confirmingDelete === domain ? (
+                      <div className="fr-actions fr-confirm">
+                        <span>{f.sent ? "Cancel this request?" : "Delete this request?"}</span>
+                        <button className="fr-btn danger" onClick={() => deleteFriendship(f)}>Yes</button>
+                        <button className="fr-btn" onClick={() => setConfirmingDelete(null)}>Keep</button>
+                      </div>
+                    ) : (
+                      <ActionButtons
+                        f={f}
+                        onChange={(next) => changeStatus(f, next)}
+                        onDelete={() => setConfirmingDelete(domain)}
+                      />
+                    )}
                   </div>
                 </li>
               );

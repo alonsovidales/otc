@@ -605,6 +605,22 @@ const cOneOffMaxAttempts = 3
 // for the whole loop, unlike the default case) means a slow/stale
 // candidate here blocks this one caller, not every other request trying
 // to reach the same device concurrently.
+// IsOnline reports whether domain's device currently holds at least one
+// live connection to this bridge (issue #38: the setup wizard asks this
+// after installing, to know the device it just set up is really reachable
+// before sending the person to its address).
+func (mg *Manager) IsOnline(domain string) bool {
+	mg.bridgesMu.RLock()
+	pool, ok := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	if !ok {
+		return false
+	}
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	return pool.liveCount > 0
+}
+
 func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte, err error) {
 	mg.bridgesMu.RLock()
 	pool, ok := mg.bridges[domain]

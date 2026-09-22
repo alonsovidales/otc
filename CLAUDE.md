@@ -29,7 +29,29 @@ make web      # npm run build (web/) then copy dist/ into ios app and scp to TAR
 make pb       # regenerate proto/generated/*.go, web/src/proto/*.ts, and app/*/OffTheCloud/*.pb.swift from proto/messages.proto
 make sync     # rsync the whole repo to the device (excludes handled by rsync flags)
 make clean    # remove generated protobuf, the otc binary, and ios web-dist
+make image    # issue #38: build the flashable Pi image ON TARGET (scripts/build_image.sh) and copy it to dist/
+make image-publish  # upload dist/off-the-cloud-rpi-lite-arm64.img.xz to the rolling "image" GitHub release
 ```
+
+The image (issue #38) is stock Raspberry Pi OS Lite plus `scripts/setup_wizard.py` (a root,
+stdlib-only web wizard on port 80: WiFi, device name reserved on the bridge via its public
+`/api/name-available` + `/api/claim`, disks, then runs `install.sh` and shows its `[n/10]` steps as
+a progress bar) and `scripts/network_setup.py` (the "Off The Cloud" hotspot on a virtual `uap0`
+interface, kept up while `wlan0` joins the owner's WiFi - verified on a Pi 5; one radio means one
+channel, so the join is pinned to 2.4 GHz during setup and the hotspot follows it, and the band
+limit is lifted once setup is done). Networks are scanned once before the hotspot starts (scanning
+takes the radio away and drops the phone's captive sheet), and the captive DNS stays on for the
+whole setup so the sheet stays open (the bridge's own domain is exempted so the final link works).
+Fallback if the phone still loses the page: the device reports its LAN address to the bridge under
+a one-time token (`POST /api/setup-beacon`, bridge DB `setup_beacons`, 10-minute expiry) and the
+page polls `GET /api/setup-lookup`. Two Pi 5 pitfalls learnt the hard way: NetworkManager's WiFi
+switch ships off on stock Raspberry Pi OS (`nmcli radio wifi on`), and an idle `wlan0` reports
+channel 34 (5170 MHz) - never copy a channel from an interface that isn't connected. The wizard also handles a re-imaged
+device: it assembles any existing RAID1 array (`mdadm` is the one package baked into the image)
+and, if it holds an OTC database, offers recovery - `install.sh` reassembles instead of wiping and
+the identity in that database wins, so no name is asked; after installing it polls the bridge's
+`/api/device-online` and only asks for a name if the recovered device never shows up. It contains
+no otc code, so it only needs rebuilding when those two scripts change.
 
 The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
 `GOOS=linux GOARCH=amd64 CGO_ENABLED=0` and deploys to `off-the.cloud` over SSH as `ubuntu`.
@@ -120,6 +142,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   password-attempt limit: 5 failures in a minute lock that address out for a minute, answered with
   `Ack.code = "too_many_attempts"` + `retry_after_seconds`. The bridge reports each relayed client's
   address to the device with `BridgeClientInfo`, so the limit applies through the bridge too.
+  Friend requests (issue #25) can be removed by either side: `ReqDeleteFriendship` deletes the
+  local row and, best effort, sends `FriendshipInterDelete` (authenticated by the shared
+  per-friendship secret) so the other device drops its copy; a sender whose request was deleted
+  while it was offline learns it from `FriendshipStatus.not_found` on its next friend sync.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself

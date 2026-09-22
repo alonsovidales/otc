@@ -16,7 +16,7 @@ sync:
 	#ssh otc@$(TARGET) sudo mkdir -p /opt/onnxruntime/lib
 	#ssh otc@$(TARGET) sudo cp onnxruntime-linux-aarch64-1.22.0/lib/*.so* /opt/onnxruntime/lib/
 	rsync -avz --delete \
-	  --exclude='.git' --exclude='node_modules' --exclude='web/dist' --exclude='.env.pi' \
+	  --exclude='.git' --exclude='node_modules' --exclude='web/dist' --exclude='dist' --exclude='.env.pi' \
 	  ./ otc@$(TARGET):/home/otc/otc/
 
 .PHONY: sync
@@ -51,6 +51,35 @@ pb:
 	@echo "$(OK_COLOR)==> Generated$(NO_COLOR)"
 
 .PHONY: pb
+
+# Issue #38: the flashable Raspberry Pi image - stock Raspberry Pi OS Lite
+# plus the setup wizard and hotspot scripts (scripts/build_image.sh), so
+# it is independent of the software release: the wizard installs the
+# current code with scripts/install.sh at setup time. Built on TARGET
+# (needs losetup + an arm64 chroot) and copied back here into dist/.
+IMAGE_NAME  := off-the-cloud-rpi-lite-arm64
+IMAGE_WORK  := /home/otc/image-build
+# One rolling GitHub release, tag "image", holds the current image at a
+# stable URL: https://github.com/alonsovidales/otc/releases/download/image/$(IMAGE_NAME).img.xz
+IMAGE_RELEASE := image
+
+image: sync
+	@echo "$(OK_COLOR)==> Building $(IMAGE_NAME) on $(TARGET) (base download + xz: a few minutes)...$(NO_COLOR)"
+	ssh otc@$(TARGET) 'sudo -n bash /home/otc/otc/scripts/build_image.sh'
+	mkdir -p dist
+	scp otc@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz otc@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz.sha256 dist/
+	@echo "$(OK_COLOR)==> dist/$(IMAGE_NAME).img.xz ready - publish with: make image-publish$(NO_COLOR)"
+
+.PHONY: image
+
+image-publish:
+	@test -f dist/$(IMAGE_NAME).img.xz || { echo "dist/$(IMAGE_NAME).img.xz not found - run 'make image' first"; exit 1; }
+	@gh release view $(IMAGE_RELEASE) >/dev/null 2>&1 || gh release create $(IMAGE_RELEASE) --title "Raspberry Pi image" \
+		--notes "Flash with Raspberry Pi Imager (Use custom, no customisation), boot, join the 'Off The Cloud' WiFi and follow the wizard. Rebuilt whenever the setup scripts change; the software itself is installed at setup time."
+	gh release upload $(IMAGE_RELEASE) dist/$(IMAGE_NAME).img.xz dist/$(IMAGE_NAME).img.xz.sha256 --clobber
+	@echo "$(OK_COLOR)==> https://github.com/alonsovidales/otc/releases/download/$(IMAGE_RELEASE)/$(IMAGE_NAME).img.xz$(NO_COLOR)"
+
+.PHONY: image-publish
 
 otc:
 	@echo "$(OK_COLOR)==> Compiling...$(NO_COLOR)"

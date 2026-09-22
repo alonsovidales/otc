@@ -536,6 +536,22 @@ message ChangeFriendStatus {
   FriendShipStatus status = 2;
 }
 
+// Issue #25: the owner removes a friend request from their own device -
+// one they sent (withdrawing it) or one they received (declining it).
+// The device also asks the other side to drop its copy, best effort.
+message DeleteFriendship {
+  string domain = 1;
+}
+
+// Issue #25: device-to-device counterpart of DeleteFriendship, sent by the
+// deleting device so the other one drops its copy of the request too.
+// Authenticated the way GetFriendshipStatus and DidSendFriendshipReq are:
+// by the per-friendship secret only the two devices share.
+message FriendshipInterDelete {
+  string domain = 1; // the calling device's own domain
+  string secret = 2;
+}
+
 message LikePublication {
   string pub_uuid = 1;
 }
@@ -1236,6 +1252,11 @@ message GetFriendshipStatus {
 
 message FriendshipStatus {
   FriendShipStatus status = 1;
+  // Issue #25: true when the asked-about device holds no friendship for
+  // that domain+secret at all - which, for a sender still holding a
+  // pending request, means the receiver deleted it. Distinct from an error
+  // so a network or database problem never reads as "they declined".
+  bool not_found = 2;
 }
 
 message AuthAsFriend {
@@ -1363,6 +1384,8 @@ message ReqEnvelope {
     // APNs relayed through the bridge, which alone holds the team key.
     BridgeNotify req_bridge_notify = 99;
     BridgeClientInfo req_bridge_client_info = 100;
+    DeleteFriendship req_delete_friendship = 101;
+    FriendshipInterDelete req_friendship_inter_delete = 102;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

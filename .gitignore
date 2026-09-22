@@ -7,3 +7,5 @@ otc
 # Issue #94: the release bundle is built for a GitHub Release and
 # attached there, never committed (see CLAUDE.md, "Cutting a release").
 web-dist.tar.gz
+dist/
+__pycache__/

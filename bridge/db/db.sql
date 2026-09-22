@@ -67,6 +67,23 @@ create table contact_requests
   key (`created`)
 ) engine=InnoDB;
 
+-- Issue #38: the setup wizard's LAN-address hand-off. A device being set
+-- up over its hotspot joins the owner's WiFi and loses the phone driving
+-- the wizard; it reports its new LAN address here under a one-time token
+-- the wizard page already holds, and the page polls for it. Rows are
+-- worthless after ten minutes and purged on every write - this is a
+-- hand-off, not a record, and lives in the database rather than in one
+-- bridge process's memory so any bridge instance can answer the poll.
+create table setup_beacons
+(
+  `token` varchar(128) not null,
+  `addr` varchar(64) not null,
+  `created` datetime not null,
+
+  primary key (`token`),
+  key (`created`)
+) engine=InnoDB;
+
 -- Per-device push-notification registrations, mirrored from the device
 -- itself (issue #62: "alert the owner if their device goes unreachable" -
 -- the bridge is the only party that can ever observe that, since offline

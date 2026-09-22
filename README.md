@@ -92,26 +92,47 @@ pre-configured.
 
 **Option 1: Flash the pre-built image (easiest for a fresh Raspberry Pi)**
 --------------------------------------------------
-1. Download the latest image from the [Releases page](https://github.com/alonsovidales/otc/releases) -
-   look for an asset named like `off-the-cloud-v<version>-rpi-lite-arm64.img.xz`.
+The image is a stock Raspberry Pi OS Lite with a first-boot setup wizard on it and nothing else
+(about 550 MB). The wizard asks for your WiFi, the device's name and its disks, then installs the
+current software with the same `install.sh` as Option 0, showing its progress - so there is never
+an "old image": whatever you flash installs today's release.
+
+1. Download [off-the-cloud-rpi-lite-arm64.img.xz](https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz)
+   (the `.sha256` next to it lets you check the download with `shasum -a 256 -c`).
 2. Flash it to a MicroSD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/): choose
    "Use custom", pick the downloaded `.img.xz` file, select your card, and write. Don't use Imager's
-   own `Customisation` step for this - the image already has everything it needs and generates its own
-   identity (device UUID, DB password, bridge secret) the first time it actually boots for real, so
-   nothing needs pre-filling in.
-3. Put the card in the Pi and power it on. On this first boot, if the device can't find a working
-   network (no ethernet plugged in, no WiFi configured), it opens its own temporary WiFi network
-   called **"Off The Cloud"** - no password. Join it from your phone or laptop; most devices will pop
-   up a "Sign in to network" prompt automatically, or open a browser and go to any address to reach
-   the setup page yourself.
+   own `Customisation` step - the wizard handles WiFi and identity itself.
+3. Plug in the USB disks you want to use (two for RAID1), put the card in the Pi and power it on.
+   After a minute it opens its own WiFi network called **"Off The Cloud"** (no password). Join it
+   from your phone: the "sign in to network" sheet opens the wizard (or open a browser and go to
+   any address). Wired into your router instead? Open the address your router shows for a device
+   called `otc` (or `http://otc.local/` where that resolves).
+4. The wizard walks through four steps:
+   - **WiFi**: pick your network (2.4 GHz networks are listed; the Pi can move to 5 GHz once it
+     is set up) and enter its password. The Pi joins it while keeping its own hotspot up - the
+     hotspot restarts for a few seconds and your phone reconnects to it by itself - and the page
+     carries on once the Pi is online.
+   - **Name**: the device's `<name>.off-the.cloud` address, checked as you type and reserved on the
+     bridge the moment you continue.
+   - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
+     wiped), or none to keep everything on the SD card for now.
+   - **Install**: a progress bar over the install script's steps, with what it is doing under it
+     and the log one tap away. This takes a while on a Pi - it downloads the tagging model and
+     builds the software from source.
+5. When it finishes, the wizard waits until the bridge sees the device connected, then shows its
+   address, `https://<name>.off-the.cloud` - open it in your browser; the app asks you to choose
+   the owner password and set up your profile. The hotspot switches off a minute later and the
+   setup wizard with it; the hotspot only comes back if the device ever loses its network.
 
-   Already have the Pi wired into your router with an ethernet cable? Then it's already online and
-   you can skip straight to the setup page at `http://<its-address>:8080/` - use whatever your router
-   shows for the device's IP, or try `http://otc.local:8080/` if your network supports mDNS.
-4. Follow the setup wizard (see **"Using the setup wizard"** below) to pick an owner name and
-   password, choose how to use any attached USB drives, and join your real WiFi network if you
-   reached it over the temporary AP.
-5. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 under
+**Replacing a dead Pi**: if the Pi died but its two disks didn't, flash a new card with the same
+image, attach the same disks, and go through the wizard again. At the Storage step it finds the
+existing Off The Cloud array (and the database on it) and offers to **recover** it: the array is
+reassembled instead of wiped, the database comes back with everything in it - photos, files,
+friends, the owner password - and the device presents its old name and bridge identity, so there
+is no Name step and no new password. The wizard then checks the device is really back on the
+bridge; only if it isn't (the old name was released, say) does it ask for a name and register the
+recovered device under it.
+6. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 under
    the manual instructions below for the pinout.
 
 If you ever need a console shell on the device itself (a keyboard/monitor plugged directly into
@@ -119,13 +140,14 @@ it - this image doesn't enable SSH), log in as `otc-debug` / `off-the-cloud` and
 This account only matters if you're troubleshooting a boot problem; nothing about normal setup or
 day-to-day use needs it.
 
-To build and publish this image yourself instead of using a released one: bootstrap a device the
-normal way (`Makefile.pi bootstrap`, plus `raid-watch`/`network-setup`), then run
-`scripts/build_image.sh` (as root, on that same device) - it customizes a fresh Raspberry Pi OS Lite
-download by copying that device's already-working `otc` binary, web build, ONNX tagging model, and
-service scripts into it, and wires up `scripts/otc_firstrun.sh` to provision a fresh identity
-(device UUID, DB password, bridge secret) the first time each flashed card actually boots for real.
-Compress the resulting `otc.img` (`xz -T0 -k otc.img`) before uploading it as a release asset.
+To build and publish the image yourself (only needed when the wizard or hotspot scripts change -
+the software it installs always comes from `main`), with `TARGET` in `makefile` pointing at any
+arm64 Linux box you can SSH to as `otc` (a Pi is fine):
+
+```
+$ make image           # builds on TARGET (scripts/build_image.sh), copies dist/off-the-cloud-rpi-lite-arm64.img.xz back
+$ make image-publish   # uploads it to the rolling "image" GitHub release, at the URL linked above
+```
 
 **Using the setup wizard**
 ---------------------------

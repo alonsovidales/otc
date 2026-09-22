@@ -85,7 +85,10 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
         }}>
           <div className="sf-row">
           <h3>Password</h3>
-            <input id="sf-old" className="sf-input" type="password" onChange={(e)=>setKey(e.target.value)} />
+            {/* Focused as soon as the form appears: pressing Sign In and
+                then having to click into the one field on the page was a
+                wasted click every single time. */}
+            <input id="sf-old" className="sf-input" type="password" autoFocus onChange={(e)=>setKey(e.target.value)} />
           </div>
           <button className="sf-btn">
             Log In

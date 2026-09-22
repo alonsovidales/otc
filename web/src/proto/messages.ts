@@ -938,6 +938,27 @@ export interface ChangeFriendStatus {
   status: FriendShipStatus;
 }
 
+/**
+ * Issue #25: the owner removes a friend request from their own device -
+ * one they sent (withdrawing it) or one they received (declining it).
+ * The device also asks the other side to drop its copy, best effort.
+ */
+export interface DeleteFriendship {
+  domain: string;
+}
+
+/**
+ * Issue #25: device-to-device counterpart of DeleteFriendship, sent by the
+ * deleting device so the other one drops its copy of the request too.
+ * Authenticated the way GetFriendshipStatus and DidSendFriendshipReq are:
+ * by the per-friendship secret only the two devices share.
+ */
+export interface FriendshipInterDelete {
+  /** the calling device's own domain */
+  domain: string;
+  secret: string;
+}
+
 export interface LikePublication {
   pubUuid: string;
 }
@@ -1717,6 +1738,13 @@ export interface GetFriendshipStatus {
 
 export interface FriendshipStatus {
   status: FriendShipStatus;
+  /**
+   * Issue #25: true when the asked-about device holds no friendship for
+   * that domain+secret at all - which, for a sender still holding a
+   * pending request, means the receiver deleted it. Distinct from an error
+   * so a network or database problem never reads as "they declined".
+   */
+  notFound: boolean;
 }
 
 export interface AuthAsFriend {
@@ -1858,6 +1886,8 @@ export interface ReqEnvelope {
     /** APNs relayed through the bridge, which alone holds the team key. */
     { $case: "reqBridgeNotify"; reqBridgeNotify: BridgeNotify }
     | { $case: "reqBridgeClientInfo"; reqBridgeClientInfo: BridgeClientInfo }
+    | { $case: "reqDeleteFriendship"; reqDeleteFriendship: DeleteFriendship }
+    | { $case: "reqFriendshipInterDelete"; reqFriendshipInterDelete: FriendshipInterDelete }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -6731,6 +6761,140 @@ export const ChangeFriendStatus: MessageFns<ChangeFriendStatus> = {
     const message = createBaseChangeFriendStatus();
     message.domain = object.domain ?? "";
     message.status = object.status ?? 0;
+    return message;
+  },
+};
+
+function createBaseDeleteFriendship(): DeleteFriendship {
+  return { domain: "" };
+}
+
+export const DeleteFriendship: MessageFns<DeleteFriendship> = {
+  encode(message: DeleteFriendship, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteFriendship {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteFriendship();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DeleteFriendship {
+    return { domain: isSet(object.domain) ? globalThis.String(object.domain) : "" };
+  },
+
+  toJSON(message: DeleteFriendship): unknown {
+    const obj: any = {};
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DeleteFriendship>, I>>(base?: I): DeleteFriendship {
+    return DeleteFriendship.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeleteFriendship>, I>>(object: I): DeleteFriendship {
+    const message = createBaseDeleteFriendship();
+    message.domain = object.domain ?? "";
+    return message;
+  },
+};
+
+function createBaseFriendshipInterDelete(): FriendshipInterDelete {
+  return { domain: "", secret: "" };
+}
+
+export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
+  encode(message: FriendshipInterDelete, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.domain !== "") {
+      writer.uint32(10).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipInterDelete {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFriendshipInterDelete();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FriendshipInterDelete {
+    return {
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: FriendshipInterDelete): unknown {
+    const obj: any = {};
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FriendshipInterDelete>, I>>(base?: I): FriendshipInterDelete {
+    return FriendshipInterDelete.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FriendshipInterDelete>, I>>(object: I): FriendshipInterDelete {
+    const message = createBaseFriendshipInterDelete();
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
     return message;
   },
 };
@@ -13257,13 +13421,16 @@ export const GetFriendshipStatus: MessageFns<GetFriendshipStatus> = {
 };
 
 function createBaseFriendshipStatus(): FriendshipStatus {
-  return { status: 0 };
+  return { status: 0, notFound: false };
 }
 
 export const FriendshipStatus: MessageFns<FriendshipStatus> = {
   encode(message: FriendshipStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.status !== 0) {
       writer.uint32(8).int32(message.status);
+    }
+    if (message.notFound !== false) {
+      writer.uint32(16).bool(message.notFound);
     }
     return writer;
   },
@@ -13283,6 +13450,14 @@ export const FriendshipStatus: MessageFns<FriendshipStatus> = {
           message.status = reader.int32() as any;
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.notFound = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13293,13 +13468,19 @@ export const FriendshipStatus: MessageFns<FriendshipStatus> = {
   },
 
   fromJSON(object: any): FriendshipStatus {
-    return { status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0 };
+    return {
+      status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
+      notFound: isSet(object.notFound) ? globalThis.Boolean(object.notFound) : false,
+    };
   },
 
   toJSON(message: FriendshipStatus): unknown {
     const obj: any = {};
     if (message.status !== 0) {
       obj.status = friendShipStatusToJSON(message.status);
+    }
+    if (message.notFound !== false) {
+      obj.notFound = message.notFound;
     }
     return obj;
   },
@@ -13310,6 +13491,7 @@ export const FriendshipStatus: MessageFns<FriendshipStatus> = {
   fromPartial<I extends Exact<DeepPartial<FriendshipStatus>, I>>(object: I): FriendshipStatus {
     const message = createBaseFriendshipStatus();
     message.status = object.status ?? 0;
+    message.notFound = object.notFound ?? false;
     return message;
   },
 };
@@ -13784,6 +13966,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         break;
       case "reqBridgeClientInfo":
         BridgeClientInfo.encode(message.payload.reqBridgeClientInfo, writer.uint32(802).fork()).join();
+        break;
+      case "reqDeleteFriendship":
+        DeleteFriendship.encode(message.payload.reqDeleteFriendship, writer.uint32(810).fork()).join();
+        break;
+      case "reqFriendshipInterDelete":
+        FriendshipInterDelete.encode(message.payload.reqFriendshipInterDelete, writer.uint32(818).fork()).join();
         break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
@@ -14625,6 +14813,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 101: {
+          if (tag !== 810) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqDeleteFriendship",
+            reqDeleteFriendship: DeleteFriendship.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 102: {
+          if (tag !== 818) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqFriendshipInterDelete",
+            reqFriendshipInterDelete: FriendshipInterDelete.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -14941,6 +15151,13 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqBridgeNotify", reqBridgeNotify: BridgeNotify.fromJSON(object.reqBridgeNotify) }
         : isSet(object.reqBridgeClientInfo)
         ? { $case: "reqBridgeClientInfo", reqBridgeClientInfo: BridgeClientInfo.fromJSON(object.reqBridgeClientInfo) }
+        : isSet(object.reqDeleteFriendship)
+        ? { $case: "reqDeleteFriendship", reqDeleteFriendship: DeleteFriendship.fromJSON(object.reqDeleteFriendship) }
+        : isSet(object.reqFriendshipInterDelete)
+        ? {
+          $case: "reqFriendshipInterDelete",
+          reqFriendshipInterDelete: FriendshipInterDelete.fromJSON(object.reqFriendshipInterDelete),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -15143,6 +15360,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqBridgeNotify = BridgeNotify.toJSON(message.payload.reqBridgeNotify);
     } else if (message.payload?.$case === "reqBridgeClientInfo") {
       obj.reqBridgeClientInfo = BridgeClientInfo.toJSON(message.payload.reqBridgeClientInfo);
+    } else if (message.payload?.$case === "reqDeleteFriendship") {
+      obj.reqDeleteFriendship = DeleteFriendship.toJSON(message.payload.reqDeleteFriendship);
+    } else if (message.payload?.$case === "reqFriendshipInterDelete") {
+      obj.reqFriendshipInterDelete = FriendshipInterDelete.toJSON(message.payload.reqFriendshipInterDelete);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -15888,6 +16109,26 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqBridgeClientInfo",
             reqBridgeClientInfo: BridgeClientInfo.fromPartial(object.payload.reqBridgeClientInfo),
+          };
+        }
+        break;
+      }
+      case "reqDeleteFriendship": {
+        if (object.payload?.reqDeleteFriendship !== undefined && object.payload?.reqDeleteFriendship !== null) {
+          message.payload = {
+            $case: "reqDeleteFriendship",
+            reqDeleteFriendship: DeleteFriendship.fromPartial(object.payload.reqDeleteFriendship),
+          };
+        }
+        break;
+      }
+      case "reqFriendshipInterDelete": {
+        if (
+          object.payload?.reqFriendshipInterDelete !== undefined && object.payload?.reqFriendshipInterDelete !== null
+        ) {
+          message.payload = {
+            $case: "reqFriendshipInterDelete",
+            reqFriendshipInterDelete: FriendshipInterDelete.fromPartial(object.payload.reqFriendshipInterDelete),
           };
         }
         break;

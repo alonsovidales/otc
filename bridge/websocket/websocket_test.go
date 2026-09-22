@@ -927,3 +927,19 @@ func TestClaimingARelayThatDiesMidClaimDoesNotDeadlockThePool(t *testing.T) {
 		t.Errorf("liveCount = %d, want 0", pool.liveCount)
 	}
 }
+
+func TestIsOnlineFollowsThePoolsLiveCount(t *testing.T) {
+	mg := &Manager{bridges: map[string]*bridgePool{
+		"up.otc":   {lock: new(sync.Mutex), liveCount: 2},
+		"down.otc": {lock: new(sync.Mutex), liveCount: 0},
+	}}
+	if !mg.IsOnline("up.otc") {
+		t.Error("a pool with live connections must be online")
+	}
+	if mg.IsOnline("down.otc") {
+		t.Error("a pool with no live connections must be offline")
+	}
+	if mg.IsOnline("never.otc") {
+		t.Error("an unknown domain must be offline")
+	}
+}
