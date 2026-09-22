@@ -382,27 +382,25 @@ struct FilesExplorerView: View {
                 // while this screen sits open, and nothing else re-reads it.
                 .refreshable { await vm.load() }
 
-                if !vm.selected.isEmpty {
-                    // Copy-link is gone: the share sheet already offers it,
-                    // and this now matches the Images tab exactly.
-                    SelectionActionBar(
-                        count: vm.selected.count,
-                        busy: vm.preparing,
-                        onShare: { Task { await vm.shareSelected() } },
-                        onDownload: { Task { await vm.downloadSelected() } },
-                        onDelete: { vm.confirmDeleteSelected = true }
-                    )
-                }
+                // Always shown here, unlike Images: Upload acts on the
+                // folder being browsed, not on a selection, so it needs
+                // somewhere to live when nothing is selected - and this is
+                // where the rest of the actions are. Share/Download/Delete
+                // grey out until something is ticked.
+                SelectionActionBar(
+                    count: vm.selected.count,
+                    busy: vm.preparing,
+                    onShare: { Task { await vm.shareSelected() } },
+                    onDownload: { Task { await vm.downloadSelected() } },
+                    onDelete: { vm.confirmDeleteSelected = true },
+                    onUpload: { showImporter = true }
+                )
+                .padding(.vertical, 8)
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Files", and the path field above already shows where
             // you are. Still .inline so there's no big empty title bar.
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { showImporter = true } label: { Image(systemName: "square.and.arrow.down.on.square") }
-                }
-            }
             .overlay(alignment: .top) {
                 if let toast = vm.toast {
                     Text(toast)

@@ -110,6 +110,18 @@ final class SyncModel: ObservableObject {
     @Published var remoteFolders: [RemoteFolder] = []
     @Published var overallStatus: String = "Not connected"
 
+    // Issue #69: the device's RAID, for the menu bar icon. Polled while
+    // connected (see pollRaidStatus); .unknown until the first answer and
+    // whenever the connection is down, so a stale "all good" is never
+    // shown for a device we can't currently hear from.
+    @Published var raidHealth: RaidHealth = .unknown
+    private var raidPollTask: Task<Void, Never>?
+    // Every 10 seconds: a minute was too slow when someone is actually
+    // watching the icon after pulling a drive. GetStatus is cheap on the
+    // device (it reads /proc/mdstat and a few counters, no disk I/O of
+    // note), so this costs nothing that shows.
+    private static let raidPollInterval: Duration = .seconds(10)
+
     private let ws = WSClient()
     private var settings: SettingsStore?
     private var cancellables: Set<AnyCancellable> = []
@@ -147,10 +159,16 @@ final class SyncModel: ObservableObject {
         restoreRemoteFolders()
 
         ws.onConnect = { [weak self] in
-            Task { @MainActor in self?.overallStatus = "Connected" }
+            Task { @MainActor in
+                self?.overallStatus = "Connected"
+                self?.startRaidPolling()
+            }
         }
         ws.onDisconnect = { [weak self] _ in
-            Task { @MainActor in self?.overallStatus = "Disconnected" }
+            Task { @MainActor in
+                self?.overallStatus = "Disconnected"
+                self?.stopRaidPolling()
+            }
         }
     }
 
@@ -179,6 +197,31 @@ final class SyncModel: ObservableObject {
     }
 
     // MARK: - UI actions
+
+    // MARK: - RAID health (issue #69)
+
+    private func startRaidPolling() {
+        guard raidPollTask == nil else { return }
+        raidPollTask = Task { [weak self] in
+            while let self, !Task.isCancelled {
+                await self.pollRaidStatus()
+                try? await Task.sleep(for: Self.raidPollInterval)
+            }
+        }
+    }
+
+    private func stopRaidPolling() {
+        raidPollTask?.cancel()
+        raidPollTask = nil
+        raidHealth = .unknown
+    }
+
+    private func pollRaidStatus() async {
+        guard let resp = try? await ws.request({ req in
+            req.payload = .reqGetStatus(Msg_GetStatus())
+        }), case .respStatus(let status) = resp.payload else { return }
+        raidHealth = RaidHealth(status: status)
+    }
 
     func addFolder() {
         let panel = NSOpenPanel()
@@ -1046,5 +1089,58 @@ final class SyncModel: ObservableObject {
         }
 
         self.remoteFolders = restored
+    }
+}
+
+
+/// How the device's storage is doing, reduced to what the menu bar icon
+/// can say (issue #69): two drives, both fine; one gone; or the array
+/// itself gone.
+enum RaidHealth: Equatable {
+    /// Every device in the array is active (or it is resyncing, which is
+    /// the array healing - not a fault).
+    case ok
+    /// The array is up but missing devices - one drive down on a RAID1.
+    case degraded
+    /// No usable array: it failed, or the device reports errors and no
+    /// active devices at all.
+    case failed
+    /// Not connected, or no answer yet.
+    case unknown
+
+    init(status: Msg_Status) {
+        switch status.raidState {
+        case .raidInSync, .raidSyncing:
+            self = .ok
+        case .raidDegraded:
+            // Degraded with nothing active is a dead array, not a limp one.
+            self = status.raidDevicesActive > 0 ? .degraded : .failed
+        case .raidNone, .raidUnknown, .UNRECOGNIZED:
+            // A device with no RAID at all is "fine" as far as this icon
+            // is concerned - there is no array to be broken. Only an
+            // explicit error from the device turns that red.
+            self = status.errors.isEmpty ? .ok : .failed
+        }
+    }
+
+    /// The icon: the rack symbol, with each drive line coloured by state.
+    /// Green/green, red/orange (one down, the other carrying everything),
+    /// red/red.
+    var driveColors: (top: Color, bottom: Color) {
+        switch self {
+        case .ok:       return (.green, .green)
+        case .degraded: return (.red, .orange)
+        case .failed:   return (.red, .red)
+        case .unknown:  return (.secondary, .secondary)
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .ok:       return "Storage healthy"
+        case .degraded: return "A drive is down - the RAID is degraded"
+        case .failed:   return "The RAID has failed"
+        case .unknown:  return "Storage status unknown"
+        }
     }
 }

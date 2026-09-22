@@ -821,3 +821,109 @@ func TestDeadConnectionIsEvictedFromThePool(t *testing.T) {
 		t.Errorf("liveCount = %d, want 1", pool.liveCount)
 	}
 }
+
+// newDiesOnFirstMessageDeviceServer stands in for a device whose process
+// restarts the instant a client's claim reaches it: the very first frame
+// the bridge sends on the relay is answered by the connection going away.
+func newDiesOnFirstMessageDeviceServer(t *testing.T) (*httptest.Server, string) {
+	t.Helper()
+	upgrader := gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		_, _, _ = conn.ReadMessage()
+		conn.Close()
+	}))
+	return srv, "ws" + strings.TrimPrefix(srv.URL, "http")
+}
+
+// The outage that took cala off the air on 2026-09-22: a client claimed a
+// pooled relay at the exact moment cala's own process restarted. The
+// forward failed, the claim path called candidate.Close() while still
+// holding pool.lock, and Close() waits for the relay's readLoop - whose
+// own exit path (failAll -> onDeath -> onDeviceConnectionDied) needs that
+// same lock. Both goroutines waited on each other forever, and with the
+// lock never released every later registration from cala and every
+// static-asset fetch for it hung until the bridge was restarted: the
+// bridge logged 83 "proxying static asset: cala" lines that day and not
+// one of them ever finished, with cala itself never receiving a single
+// request. The claim must therefore release pool.lock before it talks to
+// the device or closes anything.
+func TestClaimingARelayThatDiesMidClaimDoesNotDeadlockThePool(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(false))
+
+	deviceSrv, deviceURL := newDiesOnFirstMessageDeviceServer(t)
+	defer deviceSrv.Close()
+
+	mg := &Manager{
+		dao:      dao.NewWithDB(db),
+		bridges:  map[string]*bridgePool{},
+		upgrader: gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }},
+	}
+	bridgeSrv := httptest.NewServer(http.HandlerFunc(mg.Listen))
+	defer bridgeSrv.Close()
+	// The pool is keyed by the Host the client connects with.
+	domain := strings.TrimPrefix(bridgeSrv.URL, "http://")
+
+	pool := &bridgePool{lock: new(sync.Mutex), liveCount: 1}
+	var doomed *deviceRelay
+	doomed = dialRelayWithOnDeath(t, deviceURL, func() { mg.onDeviceConnectionDied(domain, doomed) })
+	pool.availableConns = []*deviceRelay{doomed}
+	mg.bridges[domain] = pool
+
+	client, _, err := gorilla.DefaultDialer.Dial("ws"+strings.TrimPrefix(bridgeSrv.URL, "http"), nil)
+	if err != nil {
+		t.Fatalf("dialing bridge: %v", err)
+	}
+	defer client.Close()
+	if err := client.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, 1)); err != nil {
+		t.Fatalf("writing request: %v", err)
+	}
+
+	// With the deadlock, nothing ever comes back on this connection and
+	// the pool's lock can never be taken again; both must hold within a
+	// couple of seconds - the failure here is an immediate "device
+	// connection closed", not a timeout.
+	client.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, data, err := client.ReadMessage()
+	if err != nil {
+		t.Fatalf("no answer from the bridge after the relay died mid-claim (deadlock?): %v", err)
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("unmarshaling response: %v", err)
+	}
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok || ack.RespAck.Code != cCodeDeviceUnreachable {
+		t.Fatalf("expected the unreachable RespAck once the only relay died, got %v / %T", resp.Error, resp.Payload)
+	}
+
+	locked := make(chan struct{})
+	go func() {
+		pool.lock.Lock()
+		defer pool.lock.Unlock()
+		close(locked)
+	}()
+	select {
+	case <-locked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("pool.lock is still held after the claim finished - the pool is deadlocked")
+	}
+
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	if len(pool.availableConns) != 0 {
+		t.Errorf("pool still holds %d connections, want 0 - the dead relay must be evicted", len(pool.availableConns))
+	}
+	if pool.liveCount != 0 {
+		t.Errorf("liveCount = %d, want 0", pool.liveCount)
+	}
+}

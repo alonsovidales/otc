@@ -805,7 +805,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				mg.bridgesMu.RUnlock()
 
 				if defined && !validSecret {
-					log.Error("error registering bridge:", err)
+					// err is nil on this branch (IsValidDevice answered
+					// fine - the answer was "no"), so it used to log a
+					// useless "error registering bridge: <nil>" with no
+					// domain, which sent an outage investigation down the
+					// wrong path. The secret itself is deliberately not
+					// logged.
+					log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(),
+						"- owner/secret do not match the bridge's record (owner claimed:", p.ReqBridgeRegister.OwnerUuid, ")")
 					resp.Error = true
 					resp.ErrorMessage = "Invalid Secret"
 					// Someone tried to register an already-claimed domain with
@@ -1125,10 +1132,33 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				pool, ok := mg.bridges[r.Host]
 				mg.bridgesMu.RUnlock()
 				if ok {
-					pool.lock.Lock()
-					for picked == nil && len(pool.availableConns) > 0 {
+					for picked == nil {
+						// pool.lock is held only long enough to pop a
+						// candidate - never across the round trips to the
+						// device below, and never across Close(). Close()
+						// waits for the relay's readLoop to exit, and that
+						// readLoop's last act (failAll -> onDeath ->
+						// onDeviceConnectionDied) takes pool.lock itself:
+						// closing a candidate that died mid-claim while
+						// still holding the lock deadlocked this goroutine
+						// against the relay's own, and with it the whole
+						// pool - every later registration from that device
+						// and every static-asset fetch for it queued behind
+						// the lock forever, until the bridge was restarted.
+						// That is exactly what took cala off the air on
+						// 2026-09-22: its otc process restarted while a
+						// client was mid-claim on one of its relays.
+						// Holding the lock across forward() was also
+						// serialising every client's claim on the same
+						// device behind one 90s timeout, for no reason.
+						pool.lock.Lock()
+						if len(pool.availableConns) == 0 {
+							pool.lock.Unlock()
+							break
+						}
 						candidate := pool.availableConns[0]
 						pool.availableConns = pool.availableConns[1:]
+						pool.lock.Unlock()
 
 						log.Debug("Connecting")
 						// Issue #117: tell the device who this relay now
@@ -1168,14 +1198,12 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 						if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
 							log.Error("error responding, closing the connection:", err)
-							pool.lock.Unlock()
 							return
 						}
 						if err := mg.dao.RecordDeviceActivity(r.Host, int64(len(frame)), int64(len(respFrame))); err != nil {
 							log.Error("error recording device activity:", err)
 						}
 					}
-					pool.lock.Unlock()
 				}
 
 				if picked == nil {

@@ -38,26 +38,41 @@ struct SelectionActionBar: View {
     /// to one. Only the Images tab has it, so it is optional and absent
     /// from the bar when not given.
     var onGroup: (() -> Void)? = nil
+    /// Files only: upload from this phone into the folder being browsed.
+    /// It acts on the folder, not the selection, so the Files bar is shown
+    /// all the time and this is the one item that works with nothing
+    /// selected - the others grey out until something is.
+    var onUpload: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 6) {
             // Its own pill rather than bare text: this sits over the grid,
             // and unbacked caption text on top of photographs is
-            // unreadable - which is exactly how it looked.
-            Text("\(count) selected")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .modifier(CapsuleBarBackground())
+            // unreadable - which is exactly how it looked. Only once
+            // there is a count to show.
+            if count > 0 {
+                Text("\(count) selected")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .modifier(CapsuleBarBackground())
+            }
 
             HStack(spacing: 0) {
+                if let onUpload {
+                    item("Upload", symbol: "square.and.arrow.down.on.square", action: onUpload)
+                }
                 item("Share", symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
+                    .disabled(count == 0)
                 item("Download", symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
+                    .disabled(count == 0)
                 if let onGroup {
                     item("Group", symbol: "book", action: onGroup)
+                        .disabled(count == 0)
                 }
                 item("Delete", symbol: "trash", tint: .red, action: onDelete)
+                    .disabled(count == 0)
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 8)
@@ -66,6 +81,7 @@ struct SelectionActionBar: View {
         .padding(.horizontal, 24)
         .disabled(busy != nil)
         .animation(.easeInOut(duration: 0.15), value: busy)
+        .animation(.easeInOut(duration: 0.15), value: count > 0)
     }
 
     private func item(

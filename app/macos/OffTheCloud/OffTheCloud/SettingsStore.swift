@@ -21,6 +21,36 @@ final class SettingsStore: ObservableObject {
     private static let cPasswordKey = "password"
     private static let cDomainKey = "domain"
 
+    // Issue #121: most devices are reached through the public bridge, where
+    // the address is entirely determined by the device's name - so the
+    // form asks for the name and builds the rest, and only someone with a
+    // device elsewhere (their own bridge, Tailscale, the LAN) types an
+    // address. The stored `domain` stays what WSClient.configure already
+    // takes: a bare host for the bridge, or a full URL for anything else.
+    static let bridgeDomain = "off-the.cloud"
+
+    static func bridgeDomain(forName name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() + "." + bridgeDomain
+    }
+
+    /// The device name if `domain` is a plain bridge host, else nil - which
+    /// is how the form knows to open the custom field instead.
+    static func bridgeName(fromDomain domain: String) -> String? {
+        var d = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // A full bridge URL someone typed before this existed is still just
+        // a name: wss://cala.off-the.cloud/ws is "cala". Anything with a
+        // port, a non-wss scheme or another path is genuinely custom.
+        if d.hasPrefix("wss://") {
+            d.removeFirst("wss://".count)
+            if d.hasSuffix("/ws") { d.removeLast("/ws".count) }
+            d = d.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+        guard !d.contains("://"), !d.contains("/"), !d.contains(":"),
+              d.hasSuffix("." + bridgeDomain) else { return nil }
+        let name = String(d.dropLast(bridgeDomain.count + 1))
+        return name.isEmpty || name.contains(".") ? nil : name
+    }
+
     @Published var domain: String {
         didSet { save() }
     }

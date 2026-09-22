@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
@@ -140,7 +139,13 @@ func GetStatus() (st *pb.Status, err error) {
 	if err != nil {
 		log.Error("error reading RAID stats:", err)
 	}
-	cpuPerc, err := cpu.Percent(time.Second, false)
+	// Non-blocking: cpu.Percent with an interval sleeps for that long to
+	// take its sample, which made every status request take a full second
+	// - felt directly by anything that polls this (the web status widget,
+	// the Mac app's RAID icon). With a zero interval gopsutil reports the
+	// usage since the *previous* call instead, so the first answer after
+	// startup is 0 and every one after that is a real figure, at no cost.
+	cpuPerc, err := cpu.Percent(0, false)
 	if err != nil {
 		log.Error("error reading CPU stats:", err)
 	}

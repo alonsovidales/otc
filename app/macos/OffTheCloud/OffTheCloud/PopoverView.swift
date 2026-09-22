@@ -69,6 +69,13 @@ struct PopoverView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
+                // Issue #69: the icon in words, for anyone who noticed
+                // it change colour.
+                if sync.raidHealth != .unknown {
+                    Text(sync.raidHealth.summary)
+                        .font(.caption)
+                        .foregroundStyle(sync.raidHealth == .ok ? Color.secondary : Color.red)
+                }
             }
 
             if showSettings {
@@ -308,9 +315,9 @@ struct SettingsInlineView: View {
                 Text("Settings").font(.subheadline.bold())
                 Spacer()
             }
-            TextField("Domain (e.g. cala.off-the.cloud)", text: $settings.domain)
-                .textFieldStyle(.roundedBorder)
-                .disableAutocorrection(true)
+            // Issue #121: the device's name is all the bridge needs; a
+            // custom address is behind the toggle.
+            DeviceAddressFields(domain: $settings.domain)
             SecureField("Password", text: $settings.password)
                 .textFieldStyle(.roundedBorder)
             HStack {
@@ -325,5 +332,66 @@ struct SettingsInlineView: View {
         }
         .padding(8)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+
+/// Issue #121: how the device's address is entered - its bridge name, or
+/// behind a toggle, any address. Mirrors the iOS app's
+/// ConnectionEndpointFields. An existing custom address opens the form in
+/// custom mode, so nothing set up on purpose is silently rewritten.
+struct DeviceAddressFields: View {
+    /// The stored value - a bare bridge host, or a full URL.
+    @Binding var domain: String
+
+    @State private var deviceName = ""
+    @State private var customAddress = false
+    @State private var loaded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if customAddress {
+                TextField("Address (wss://host/ws or host)", text: $domain)
+                    .textFieldStyle(.roundedBorder)
+                    .disableAutocorrection(true)
+            } else {
+                HStack(spacing: 4) {
+                    TextField("Device name", text: $deviceName)
+                        .textFieldStyle(.roundedBorder)
+                        .disableAutocorrection(true)
+                        .onChange(of: deviceName) { _, name in
+                            domain = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? "" : SettingsStore.bridgeDomain(forName: name)
+                        }
+                    Text(".\(SettingsStore.bridgeDomain)")
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                }
+            }
+            Toggle("Custom address", isOn: $customAddress)
+                .toggleStyle(.checkbox)
+                .font(.footnote)
+                .onChange(of: customAddress) { _, custom in
+                    if !custom {
+                        deviceName = SettingsStore.bridgeName(fromDomain: domain) ?? ""
+                        domain = deviceName.isEmpty ? "" : SettingsStore.bridgeDomain(forName: deviceName)
+                    }
+                }
+            if customAddress {
+                Text("For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws).")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear {
+            guard !loaded else { return }
+            loaded = true
+            if let name = SettingsStore.bridgeName(fromDomain: domain) {
+                deviceName = name
+            } else if !domain.isEmpty {
+                customAddress = true
+            }
+        }
     }
 }
