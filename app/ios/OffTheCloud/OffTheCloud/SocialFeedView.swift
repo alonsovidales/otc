@@ -431,6 +431,11 @@ final class SocialFeedViewModel: ObservableObject {
 }
 
 struct SocialFeedView: View {
+    // Issue #123: on an iPad the tab bar sits across the top, not the
+    // bottom, so the negative offset below (which pulls the logo up into
+    // pull-to-refresh's reserved space on a phone) would push it under
+    // the tab bar instead.
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     // Issue #79: shared with MainView (environmentObject-injected from
     // RootView, same wiring as UploadModel/NotificationsModel) instead of
     // owned privately here, so MainView can decide whether to default-
@@ -554,7 +559,7 @@ struct SocialFeedView: View {
                                 // screenshot to confirm it actually lines
                                 // up now.
                                 logoHeader
-                                    .padding(.top, -44)
+                                    .padding(.top, hSizeClass == .regular ? 0 : -44)
                                 ForEach(vm.boxedPosts, id: \.pub.uuid) { box in
                                     let post = box.pub
                                     PostCard(
@@ -579,6 +584,10 @@ struct SocialFeedView: View {
                                         .padding(.vertical, 16)
                                 }
                             }
+                            // Issue #123: a centred column on an iPad,
+                            // edge to edge on a phone (see cFeedMaxWidth).
+                            .frame(maxWidth: cFeedMaxWidth)
+                            .frame(maxWidth: .infinity)
                         }
                         .refreshable { await vm.loadFeed() }
                         .onChange(of: vm.scrollTargetPub) { _, target in
@@ -745,6 +754,18 @@ private enum MediaSizeCache {
 /// below could otherwise fill the screen and push the caption, likes and
 /// comments out of view, leaving a post you can only scroll past.
 private let cMaxMediaHeightFraction: CGFloat = 0.8
+
+/// Issue #123: the widest the feed column gets. A phone is narrower than
+/// this so it changes nothing there; on an iPad it keeps a post the shape
+/// of a post (Instagram's web feed picks about the same figure) instead of
+/// stretching a portrait video to 820pt of mostly letterbox.
+private let cFeedMaxWidth: CGFloat = 600
+
+/// The width posts are actually laid out in - the screen's, capped at
+/// cFeedMaxWidth - for the media maths that used to assume the screen.
+private var feedWidth: CGFloat {
+    min(UIScreen.main.bounds.width, cFeedMaxWidth)
+}
 
 /// The feed's media box, in Instagram's terms: nothing taller than 4:5,
 /// nothing wider than 1.91:1, and whatever falls between keeps its own
@@ -1451,9 +1472,7 @@ private struct PostCard: View {
     /// needs to be given.
     private var carouselHeight: CGFloat? {
         guard let first = post.files.first, post.files.count > 1 else { return nil }
-        let width = UIScreen.main.bounds.width
-
-        return min(width / boxAspect(for: first), maxMediaHeight)
+        return min(feedWidth / boxAspect(for: first), maxMediaHeight)
     }
 
 }
