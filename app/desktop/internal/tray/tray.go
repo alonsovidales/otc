@@ -215,7 +215,7 @@ func statusDot(s string) string {
 	switch s {
 	case "Connected":
 		return "●"
-	case "Disconnected", "Sync not running":
+	case "Disconnected", "Sync not running", "Connecting…":
 		return "◐"
 	case "Missing domain/password", "Wrong password":
 		return "○"

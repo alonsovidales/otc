@@ -179,7 +179,12 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		go e.startSync()
 	}
 	e.ws.OnDisconnect = func(err error) {
-		e.setStatus("Disconnected")
+		e.mu.Lock()
+		wrongPassword := e.status == "Wrong password"
+		e.mu.Unlock()
+		if !wrongPassword {
+			e.setStatus("Disconnected")
+		}
 		e.stopRaidPolling()
 	}
 	e.ws.OnAuthFailed = func(msg string) {
@@ -290,6 +295,7 @@ func (e *Engine) applySettings() {
 	cfg, pw := e.cfg, e.password
 	e.mu.Unlock()
 	if config.Ready(cfg, pw) {
+		e.setStatus("Connecting…")
 		e.ws.Configure(cfg.Domain, cfg.ClientID, pw)
 		e.ws.Connect()
 	} else {
@@ -679,6 +685,7 @@ func (e *Engine) reconcile(f config.Folder) {
 	}
 	if err := wsclient.RespError(resp, "could not list remote files"); err != nil {
 		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
+		e.scheduleErrorRetry(f)
 
 		return
 	}

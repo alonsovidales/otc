@@ -18,8 +18,17 @@ typealias ListOfFiles = Msg_ListOfFiles
 final class WSClient {
 
     // MARK: Public callbacks
+    /// Fires once the socket is up AND the device has accepted the
+    /// password - not before. It used to fire on the raw socket opening,
+    /// while Auth was still in flight, so the first ListFiles went out
+    /// unauthenticated and every folder showed "not authenticated" under a
+    /// green "Connected" until the next retry.
     var onConnect: (() -> Void)?
     var onDisconnect: ((Error?) -> Void)?
+    /// The device rejected the password. Reconnecting stops until the
+    /// settings change (connect() re-enables it) rather than retrying a
+    /// password that won't work.
+    var onAuthFailed: ((String) -> Void)?
     var onPush: ((Resp) -> Void)? // unsolicited server messages
 
     // MARK: Internal state
@@ -58,6 +67,7 @@ final class WSClient {
     func connect() {
         queue.async { [weak self] in
             guard let self = self, let url = self.url else { return }
+            self.autoReconnect = true
 
             // WebSocket options — set LARGE max message size (your choice)
             let wsOpts = NWProtocolWebSocket.Options()
@@ -88,9 +98,8 @@ final class WSClient {
                 case .ready:
                     self.isOpen = true
                     self.backoffSeconds = 1
-                    self.onConnect?()
                     self.receiveLoop()
-                    self.sendAuthIfPossible()
+                    self.authenticateThenAnnounce()
 
                 case .waiting(let error):
                     // Path not currently available — notify, then let state machine proceed.
@@ -229,12 +238,33 @@ final class WSClient {
     }
 
     // MARK: Helpers
-    private func sendAuthIfPossible() {
-        guard let key = self.key else { return }
+    /// Auth first, onConnect after - see onConnect's doc comment.
+    private func authenticateThenAnnounce() {
+        guard let key = self.key else { self.onConnect?(); return }
         Task { [weak self] in
             guard let self else { return }
-            _ = try? await self.auth(key: key)
+            do {
+                if try await self.auth(key: key) {
+                    self.onConnect?()
+                } else {
+                    self.failAuth("The device rejected the password")
+                }
+            } catch {
+                self.failAuth(error.localizedDescription)
+            }
         }
+    }
+
+    private func failAuth(_ message: String) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.autoReconnect = false
+            self.isOpen = false
+            self.flushAndFail(NSError(domain: "auth", code: 2, userInfo: [NSLocalizedDescriptionKey: message]))
+            self.conn?.cancel()
+            self.conn = nil
+        }
+        onAuthFailed?(message)
     }
 
     private func flushAndFail(_ error: Error) {

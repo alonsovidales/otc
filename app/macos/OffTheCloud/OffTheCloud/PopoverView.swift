@@ -152,8 +152,8 @@ struct PopoverView: View {
     private var statusColor: Color {
         switch sync.overallStatus {
         case "Connected": return .green
-        case "Disconnected": return .yellow
-        case "Missing domain/password": return .red
+        case "Disconnected", "Connecting…": return .yellow
+        case "Missing domain/password", "Wrong password": return .red
         default: return .gray
         }
     }

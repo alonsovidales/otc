@@ -166,7 +166,17 @@ final class SyncModel: ObservableObject {
         }
         ws.onDisconnect = { [weak self] _ in
             Task { @MainActor in
-                self?.overallStatus = "Disconnected"
+                // A rejected password is its own state; a plain drop
+                // must not overwrite it with "Disconnected".
+                if self?.overallStatus != "Wrong password" {
+                    self?.overallStatus = "Disconnected"
+                }
+                self?.stopRaidPolling()
+            }
+        }
+        ws.onAuthFailed = { [weak self] _ in
+            Task { @MainActor in
+                self?.overallStatus = "Wrong password"
                 self?.stopRaidPolling()
             }
         }
@@ -184,6 +194,7 @@ final class SyncModel: ObservableObject {
                 guard let self else { return }
                 Task { @MainActor in
                     if settings.ready {
+                        self.overallStatus = "Connecting…"
                         self.ws.configure(domain: domain, key: key)
                         self.ws.connect()
                         self.startSync()
@@ -498,6 +509,10 @@ final class SyncModel: ObservableObject {
             // make every file look new and re-upload the whole tree.
             if resp.error {
                 updateState(folder.id, .error(resp.errorMessage.isEmpty ? "Could not list remote files" : resp.errorMessage))
+                // Retried on the short schedule like a thrown error, not
+                // left until the 10-minute safety net - this is the path
+                // a "not authenticated" reply used to sit on.
+                scheduleErrorRetry(for: folder)
                 return
             }
             var remoteMap: [String: String] = [:]
