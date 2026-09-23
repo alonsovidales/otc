@@ -44,7 +44,7 @@ takes the radio away and drops the phone's captive sheet), and the captive DNS s
 whole setup so the sheet stays open (the bridge's own domain is exempted so the final link works).
 Fallback if the phone still loses the page: the device reports its LAN address to the bridge under
 a one-time token (`POST /api/setup-beacon`, bridge DB `setup_beacons`, 10-minute expiry) and the
-page polls `GET /api/setup-lookup`. Two Pi 5 pitfalls learnt the hard way: NetworkManager's WiFi
+page polls `GET /api/setup-lookup`. Three Pi 5 pitfalls learnt the hard way: the image strips SSH host keys, so enabling ssh on an older card needs `ssh-keygen -A` first (newer images regenerate them from a ssh.service drop-in); NetworkManager's WiFi
 switch ships off on stock Raspberry Pi OS (`nmcli radio wifi on`), and an idle `wlan0` reports
 channel 34 (5170 MHz) - never copy a channel from an interface that isn't connected. The wizard also handles a re-imaged
 device: it assembles any existing RAID1 array (`mdadm` is the one package baked into the image)

@@ -151,8 +151,13 @@ plug in a keyboard and monitor and log in as:
 It has `sudo`. Nothing about normal setup or day-to-day use needs it; it's for troubleshooting
 and the few things listed here:
 
-- **Enable SSH** (optional, for remote troubleshooting): `sudo systemctl enable --now ssh`, then
-  put your public key in `~otc-debug/.ssh/authorized_keys` and use `ssh otc-debug@<name>.local`.
+- **Enable SSH** (optional, for remote troubleshooting): the image ships without SSH host keys
+  (so no two devices share one), so generate them first:
+  ```
+  sudo ssh-keygen -A && sudo systemctl enable --now ssh
+  ```
+  then put your public key in `~otc-debug/.ssh/authorized_keys` and use `ssh otc-debug@<name>.local`.
+  (Cards flashed from a newer image generate the keys on their own the first time sshd starts.)
 - **Force an update from the console** - normally you press **Update** in Settings, but a device
   installed before release 5 can't start one on its own and needs this once:
   ```

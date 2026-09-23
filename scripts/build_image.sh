@@ -193,6 +193,20 @@ rm -rf "$MNT/var/lib/apt/lists/"*
 rm -f "$MNT/usr/sbin/policy-rc.d"
 # Fresh identity per flashed card, not this build machine's.
 rm -f "$MNT"/etc/ssh/ssh_host_*
+# ...which leaves sshd unable to start ("no hostkeys available") if the
+# owner ever enables SSH from the console. The stock regenerate service
+# isn't enabled on this image, so the keys are made on demand instead:
+# ssh-keygen -A only creates what is missing, so it's a no-op afterwards.
+# ExecStartPre is additive across drop-ins and runs in order, so the
+# packaged `sshd -t` (which fails without keys) has to be cleared and
+# re-added after the keygen.
+mkdir -p "$MNT/etc/systemd/system/ssh.service.d"
+cat > "$MNT/etc/systemd/system/ssh.service.d/hostkeys.conf" <<'EOF2'
+[Service]
+ExecStartPre=
+ExecStartPre=/usr/bin/ssh-keygen -A
+ExecStartPre=/usr/sbin/sshd -t
+EOF2
 : > "$MNT/etc/machine-id"
 rm -f "$MNT/var/lib/dbus/machine-id"
 # Zero the free space so it compresses to nothing.
