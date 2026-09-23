@@ -8,7 +8,6 @@
 package tray
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -290,72 +289,24 @@ func (u *ui) addLocal_() {
 	Refresh()
 }
 
-// addRemote is RemoteFolderPickerView: one directory level at a time, in a
-// list dialog, then the local destination in the folder chooser.
+// addRemote is RemoteFolderPickerView: browse the device's tree (a native
+// window on Windows, the desktop's list dialog on Linux - see picker_*.go),
+// then the local destination in the folder chooser.
 func (u *ui) addRemote() {
-	current := "/"
-	for {
-		entries, err := u.c.ListRemote(current)
-		if err != nil {
-			_ = zenity.Error("Could not list the device's folders: "+err.Error(), zenity.Title("Off The Cloud"))
-
-			return
-		}
-		// The macOS picker's shape: the subfolders to open, and one button
-		// that chooses the folder being looked at. "Open" drills into the
-		// selected row; "Choose this folder" is the extra button.
-		var items []string
-		if current != "/" {
-			items = append(items, "‹ Up")
-		}
-		for _, e := range entries {
-			if e.IsDir {
-				items = append(items, "📁 "+e.Name)
-			}
-		}
-		if len(items) == 0 {
-			items = []string{"(no subfolders here)"}
-		}
-		label := baseName(current)
-		if label == "" {
-			label = "/"
-		}
-		pick, err := zenity.List(
-			"Remote folder: "+current+" — open a subfolder, or choose “"+label+"” to keep it in sync with a folder on this computer.",
-			items, zenity.Title("Choose a Remote Folder"), zenity.Width(460), zenity.Height(460),
-			zenity.OKLabel("Open"), zenity.ExtraButton("Choose “"+label+"”"),
-		)
-		if errors.Is(err, zenity.ErrExtraButton) {
-			dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose where to download “"+current+"” and keep it in sync"))
-			if err != nil || dir == "" {
-				return
-			}
-			cfg := u.c.Config()
-			cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: current, LocalPath: dir})
-			if err := u.c.SaveConfig(cfg); err != nil {
-				_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
-			}
-			Refresh()
-
-			return
-		}
-		if err != nil {
-			return
-		}
-		switch {
-		case pick == "" || pick == "(no subfolders here)":
-			continue
-		case pick == "‹ Up":
-			current = parentPath(current)
-		default:
-			name := strings.TrimPrefix(pick, "📁 ")
-			for _, e := range entries {
-				if e.IsDir && e.Name == name {
-					current = e.Path
-				}
-			}
-		}
+	remote, ok := pickRemoteFolder(u.c.ListRemote)
+	if !ok {
+		return
 	}
+	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose where to download “"+remote+"” and keep it in sync"))
+	if err != nil || dir == "" {
+		return
+	}
+	cfg := u.c.Config()
+	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
+	if err := u.c.SaveConfig(cfg); err != nil {
+		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+	}
+	Refresh()
 }
 
 func baseName(p string) string {
