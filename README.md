@@ -61,16 +61,17 @@ With this you can access all your data and social network from any browser just 
 **Installation of the device**
 ==============================
 
-There are four ways to set up a device, from least to most work: run the one-line install script
-against a machine you already have login access to (fastest - no flashing, no RAID/status LEDs),
-flash the pre-built image (best for a from-scratch Raspberry Pi with two SD cards for RAID1), run
-`Makefile.pi` against a plain Raspberry Pi OS install (recommended if you want to build from
-source), or follow the manual steps yourself.
+There are four ways to set up a device, from least to most work: flash the pre-built image (a
+Raspberry Pi 5 with at least 8 GB of RAM - no keyboard, monitor or Linux knowledge needed, RAID1
+included), run the one-line install script against a machine you already have login access to
+(Ubuntu, Debian, Raspberry Pi OS or another Debian-based 64-bit distro - no flashing, no RAID/status
+LEDs), run `Makefile.pi` against a plain Raspberry Pi OS install (if you want to build from source),
+or follow the manual steps yourself.
 
-**Option 0: One-line install script (fastest)**
+**Option 0: One-line install script (any Debian/Ubuntu machine)**
 -------------------------------------------------
-Already have a Debian/Ubuntu-family Linux box you can log into (a Raspberry Pi, an old laptop, a
-VPS)? Skip flashing anything - log in and run:
+Already have a Debian/Ubuntu-family Linux box you can log into (Ubuntu, Debian or Raspberry Pi OS,
+64-bit - a Raspberry Pi, an old laptop, a VPS)? Skip flashing anything - log in and run:
 
 ```
 $ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh | sudo bash -s -- <subdomain>
@@ -90,10 +91,11 @@ across two disks, run `Makefile.pi`'s `raid`/`raid-watch` targets afterwards (se
 the pre-built image below instead, which handles all of that from a first boot with nothing
 pre-configured.
 
-**Option 1: Flash the pre-built image (easiest for a fresh Raspberry Pi)**
+**Option 1: Flash the pre-built image (easiest - Raspberry Pi 5, 8 GB+ of RAM)**
 --------------------------------------------------
-The image is a stock Raspberry Pi OS Lite with a first-boot setup wizard on it and nothing else
-(about 550 MB). The wizard asks for your WiFi, the device's name and its disks, then installs the
+The image is for a **Raspberry Pi 5 with at least 8 GB of RAM** (the tagging model and the build
+from source need the memory). It is a stock Raspberry Pi OS Lite with a first-boot setup wizard on
+it and nothing else (about 530 MB). The wizard asks for your WiFi, the device's name and its disks, then installs the
 current software with the same `install.sh` as Option 0, showing its progress - so there is never
 an "old image": whatever you flash installs today's release.
 
@@ -109,16 +111,20 @@ an "old image": whatever you flash installs today's release.
    called `otc` (or `http://otc.local/` where that resolves).
 4. The wizard walks through four steps:
    - **WiFi**: pick your network (2.4 GHz networks are listed; the Pi can move to 5 GHz once it
-     is set up) and enter its password. The Pi joins it while keeping its own hotspot up - the
-     hotspot restarts for a few seconds and your phone reconnects to it by itself - and the page
-     carries on once the Pi is online.
+     is set up) and enter its password. The Pi joins it while keeping its own hotspot up. The
+     hotspot restarts for a few seconds to move to your network's channel, so your phone may get
+     disconnected: if it doesn't rejoin "Off The Cloud" by itself, reconnect to it in your WiFi
+     settings and come back to the page, which carries on once the Pi is online.
    - **Name**: the device's `<name>.off-the.cloud` address, checked as you type and reserved on the
      bridge the moment you continue.
    - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
      wiped), or none to keep everything on the SD card for now.
    - **Install**: a progress bar over the install script's steps, with what it is doing under it
      and the log one tap away. This takes a while on a Pi - it downloads the tagging model and
-     builds the software from source.
+     builds the software from source - about 20 minutes. You don't have to wait on the hotspot:
+     once the name is reserved you can close the page and disconnect; when the installation is
+     complete, open `https://<name>.off-the.cloud` from any network. To check the progress
+     meanwhile, connect to the "Off The Cloud" WiFi again and the page comes back.
 5. When it finishes, the wizard waits until the bridge sees the device connected, then shows its
    address, `https://<name>.off-the.cloud` - open it in your browser; the app asks you to choose
    the owner password and set up your profile. The hotspot switches off a minute later and the

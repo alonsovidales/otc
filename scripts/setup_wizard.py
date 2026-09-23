@@ -670,8 +670,13 @@ class Handler(BaseHTTPRequestHandler):
             if not ssid:
                 self.send_json(400, {"error": "choose a network"})
                 return
+            known = next((n for n in scan_wifi() if n.get("ssid") == ssid), None)
+            security = (known or {}).get("security", "")
+            if known and known.get("secured") and not password:
+                self.send_json(400, {"error": f"{ssid} needs a password"})
+                return
+            print(f"[otc-setup] join requested: {ssid!r} security={security!r} password={len(password)} chars")
             Path(CONFIG["join_result"]).unlink(missing_ok=True)
-            security = next((n.get("security", "") for n in scan_wifi() if n.get("ssid") == ssid), "")
             # network_setup.py (root, owns the radio) does the actual join
             # and moves the hotspot onto the joined network's channel; the
             # request is handed over after a moment so the page can say so.
@@ -820,6 +825,8 @@ async function refresh(){let st;try{st=await api('/api/state')}catch(e){return}
  // while someone is typing a password throws their focus away.
  const key=JSON.stringify([step,state.online,state.ssid,jr,ph,state.install.step,state.install.detail,state.install.error,state.install.domain]);
  if(key===lastKey&&!first)return;lastKey=key;
+ // A join that failed must be shown even while the joining view is up.
+ if(step===1&&wifi.joining&&jr&&jr.ok===false){wifi.joining=false;render();return}
  if(typing()||(step===1&&wifi.joining&&!state.online))return;
  render()}
 function typing(){const a=document.activeElement;return a&&(a.tagName==='INPUT')&&view.contains(a)&&a.value!==''}
@@ -835,10 +842,13 @@ function renderWifi(){const online=state&&state.online;const cur=state&&state.ss
  <div class="msg ${jr&&jr.ok===false?'bad':''}" id="wmsg">${jr&&jr.ok===false?esc(jr.error||'Could not join that network - check the password.')+' The hotspot is back - reconnect to it.':''}</div>`;
  if(wifi.joining){view.innerHTML=`<h2>1 · Joining ${esc(wifi.sel)}</h2>
   <div class="step"><span class="spin"></span>Connecting and waiting for the internet - up to a minute.</div>
-  <p class="hint" style="margin-top:10px">The "Off The Cloud" hotspot restarts for a few seconds meanwhile; your phone reconnects to it by itself. Keep this page open - it continues on its own.</p>
+  <p style="margin-top:12px;padding:10px 12px;border:1px solid var(--ember);border-radius:10px"><b>If you get disconnected, reconnect to the "Off The Cloud" WiFi.</b> The hotspot restarts for a few seconds to switch to your network's channel; most phones rejoin it by themselves, but if yours doesn't, pick "Off The Cloud" again in your WiFi settings and come back to this page.</p>
+  <p class="hint">Keep this page open - it continues on its own once the device is online.</p>
   <p class="hint">A wrong password shows up here as an error; just try again.</p>`;pollBridge();return}
  $('#rescan').onclick=()=>scan(true);document.querySelectorAll('#nets li[data-ssid]').forEach(li=>li.onclick=()=>{wifi.sel=li.dataset.ssid;render();$('#pw').focus()});
- $('#join').onclick=async()=>{const pw=$('#pw').value;const r=await post('/api/wifi',{ssid:wifi.sel,password:pw});if(!r.ok){$('#wmsg').textContent=r.error||'Failed';$('#wmsg').className='msg bad';return}
+ $('#join').onclick=async()=>{const pw=$('#pw').value;const net=wifi.list.find(n=>n.ssid===wifi.sel);
+  if(net&&net.secured&&!pw){$('#wmsg').textContent='Enter the password for '+wifi.sel;$('#wmsg').className='msg bad';$('#pw').focus();return}
+  const r=await post('/api/wifi',{ssid:wifi.sel,password:pw});if(!r.ok){$('#wmsg').textContent=r.error||'Failed';$('#wmsg').className='msg bad';return}
   wifi.joining=true;wifi.countdown=r.delay_s||15;render();const tick=setInterval(()=>{wifi.countdown=Math.max(0,wifi.countdown-1);const c=$('#cd');if(c)c.textContent=wifi.countdown;if(wifi.countdown===0)clearInterval(tick)},1000)};
  const sk=$('#skip');if(sk)sk.onclick=()=>{step=2;if(!disks.loaded)loadDisks();render()}}
 let polling=false;
@@ -889,6 +899,7 @@ function renderInstall(){const i=state.install;const pct=i.total?Math.round(100*
   $('#again').onclick=async()=>{await post('/api/verify');refresh()};$('#anyway').onclick=async()=>{await post('/api/finish');location.href='https://'+dom};return}
  const failed=i.phase==='failed';
  view.innerHTML=`<h2>4 · ${i.recovery?'Recovering':'Installing'}</h2><p class="hint">Downloading and setting everything up. This takes a while on a Raspberry Pi - keep the device powered.</p>
+ ${dom&&!failed?`<p style="padding:10px 12px;border:1px solid var(--ok);border-radius:10px"><b>You can close this window and disconnect now.</b> The installation takes about 20 minutes. When it is complete, open <b>https://${esc(dom)}</b> from any network. To check the progress meanwhile, connect to the "Off The Cloud" WiFi again and this page comes back.</p>`:''}
  <div class="bar"><div style="width:${failed?100:pct}%;${failed?'background:var(--bad)':''}"></div></div>
  <div class="step">${failed?'Failed':'<span class="spin"></span>'+esc(i.text||'Starting…')} <small style="color:var(--dim)">${i.step}/${i.total}</small></div>
  <div class="detail">${esc(failed?(i.error||''):(i.detail||''))}</div>

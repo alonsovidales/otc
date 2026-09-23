@@ -42,6 +42,11 @@ CONFIG = {
     # exists the hotspot stays up no matter what - the person doing the
     # setup is on it - even after the device has joined a real network.
     "setup_done_marker": "/var/lib/otc/setup-done",
+    "install_complete_marker": "/etc/otc/.install-complete",
+    # How long the installed service has to have been running before the
+    # hotspot is dropped without the wizard's say-so (gives the wizard's
+    # own bridge check and "Ready" screen time to happen first).
+    "post_install_grace_s": 180,
     "wifi_interface": "wlan0",
     # The hotspot lives on a second, virtual interface on the same radio,
     # so the device is an access point and a WiFi client at once and the
@@ -111,7 +116,26 @@ def ensure_wifi_unblocked():
 
 
 def setup_done():
-    return Path(CONFIG["setup_done_marker"]).exists()
+    """Setup is over when the wizard says so (its marker), or - whether or
+    not anyone stayed on the hotspot to see the wizard's last screen -
+    once install.sh has completed and the otc service has been running
+    for a while. The hotspot must never outlive the setup: an open,
+    unauthenticated network is fine for a device with nothing on it, not
+    for one holding someone's photos."""
+    if Path(CONFIG["setup_done_marker"]).exists():
+        return True
+    if Path(CONFIG["install_complete_marker"]).exists():
+        res = run(["systemctl", "show", "otc.service", "-p", "ActiveState", "-p", "ActiveEnterTimestampMonotonic"])
+        if "ActiveState=active" in res.stdout:
+            try:
+                started = int(res.stdout.split("ActiveEnterTimestampMonotonic=")[1].split()[0]) / 1e6
+                if time.monotonic() - started > CONFIG["post_install_grace_s"]:
+                    Path(CONFIG["setup_done_marker"]).touch()
+                    print("[network-setup] install complete and otc running - setup is over")
+                    return True
+            except (IndexError, ValueError):
+                pass
+    return False
 
 
 def ensure_ap_interface():
@@ -362,7 +386,15 @@ def perform_pending_wifi_join():
         return
 
     security = (request.get("security") or "").upper()
-    print(f"[network-setup] Joining requested network: {ssid}")
+    print(f"[network-setup] Joining requested network: {ssid} (security={security or 'open'}, password: {len(password)} chars)")
+    # One radio, one channel: the hotspot has to let go of it while the
+    # client side associates with a network that may sit on a different
+    # channel. It comes back right after, on that network's channel (or
+    # on its own default if the join failed); the phone rejoins it.
+    if ap_is_active():
+        print("[network-setup] pausing the hotspot for the join")
+        run(["nmcli", "connection", "down", CONFIG["ap_connection_name"]])
+        run(["nmcli", "connection", "delete", CONFIG["ap_connection_name"]])
     # A profile rather than `device wifi connect`, so the band can be
     # pinned: while setting up, the owner's network is joined on 2.4GHz
     # only, which is where the hotspot (same radio, same channel) can
@@ -398,17 +430,11 @@ def perform_pending_wifi_join():
 
     req_path.unlink(missing_ok=True)
 
-    if ok:
-        if setup_done():
-            teardown_ap_mode()
-        else:
-            # Keep serving the person on the hotspot, but re-create it so
-            # it follows the client's channel and stops hijacking DNS now
-            # that the device is online (see write_captive_dns_config).
-            print("[network-setup] setup in progress - restarting the AP alongside the new connection")
-            run(["nmcli", "connection", "down", CONFIG["ap_connection_name"]])
-            run(["nmcli", "connection", "delete", CONFIG["ap_connection_name"]])
-            ensure_ap_mode()
+    if not setup_done():
+        # Back up for the person on the phone: on the joined network's
+        # channel if the join worked, on the default one otherwise.
+        print("[network-setup] setup in progress - bringing the hotspot back")
+        ensure_ap_mode()
 
 
 def lift_band_limit():
