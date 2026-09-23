@@ -156,7 +156,17 @@ final class PhotoGalleryVM: ObservableObject {
 
     // Modal
     @Published var openIndex: Int? = nil
-    @Published var hiResImage: UIImage? = nil
+    // Full-size images by path, kept for the last few opened so the pager
+    // can draw the neighbour it is sliding towards and swiping back to a
+    // photo doesn't fetch it again. hiResImage is the open one's.
+    @Published var hiResImages: [String: UIImage] = [:]
+    private var hiResOrder: [String] = []
+    private var inFlightHiRes = Set<String>()
+    private let cHiResCacheSize = 8
+    var hiResImage: UIImage? {
+        guard let i = openIndex, items.indices.contains(i) else { return nil }
+        return hiResImages[items[i].path]
+    }
     // Issue #106: non-nil while a video is open in the viewer. Held rather
     // than rebuilt in the view body - a player constructed inline is
     // recreated on every SwiftUI update, which tears playback down and
@@ -736,18 +746,30 @@ final class PhotoGalleryVM: ObservableObject {
     func open(index: Int) {
         guard items.indices.contains(index) else { return }
         openIndex = index
-        hiResImage = nil
         videoPlayer?.pause()
         videoPlayer = nil
         infoOpen = false
         infoData = nil
         Task { await fetchHiRes(index: index) }
+        // The viewer slides towards the neighbours, so have them ready.
+        for n in [index - 1, index + 1] where items.indices.contains(n) {
+            Task { await fetchHiRes(index: n, prefetch: true) }
+        }
     }
     func closeModal() {
         openIndex = nil
-        hiResImage = nil
+        hiResImages.removeAll()
+        hiResOrder.removeAll()
         videoPlayer?.pause()
         videoPlayer = nil
+    }
+
+    private func cacheHiRes(_ img: UIImage, for path: String) {
+        if hiResImages[path] == nil { hiResOrder.append(path) }
+        hiResImages[path] = img
+        while hiResOrder.count > cHiResCacheSize {
+            hiResImages.removeValue(forKey: hiResOrder.removeFirst())
+        }
     }
 
     // Issue #41: fetch and show the currently-open photo/video's
@@ -871,21 +893,27 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
-    private func fetchHiRes(index: Int) async {
+    /// prefetch: a neighbour being readied for the slide - its image is
+    /// fetched, but a video is not started until it is actually opened.
+    private func fetchHiRes(index: Int, prefetch: Bool = false) async {
+        guard items.indices.contains(index) else { return }
         let it = items[index]
 
         // Issue #106: a video can't be decoded into a UIImage - it gets
         // written out and played instead. Its own thumbnail already stands
         // in on screen while this runs, so there is no blank frame.
         if it.mime.hasPrefix("video/") {
-            await fetchVideo(it)
+            if !prefetch { await fetchVideo(it) }
             return
         }
 
+        if hiResImages[it.path] != nil || inFlightHiRes.contains(it.path) { return }
         if let u = it.localURL, let img = UIImage(contentsOfFile: u.path) {
-            self.hiResImage = img
+            cacheHiRes(img, for: it.path)
             return
         }
+        inFlightHiRes.insert(it.path)
+        defer { inFlightHiRes.remove(it.path) }
         do {
             let resp = try await ws.request { e in
                 var req = ReqEnvelope()
@@ -895,7 +923,7 @@ final class PhotoGalleryVM: ObservableObject {
                 e = req
             }
             if case .respFile(let f) = resp.payload, let img = UIImage(data: f.content) {
-                self.hiResImage = img
+                cacheHiRes(img, for: it.path)
             }
         } catch { /* ignore */ }
     }
@@ -1453,34 +1481,19 @@ struct PhotoGalleryView: View {
             Button("Merge", role: .destructive) { Task { await vm.confirmMerge() } }
             Button("Cancel", role: .cancel) { vm.pendingMerge = nil }
         }
-        .sheet(item: Binding(
-            get: { vm.openIndex.map { SheetIndex(index: $0) } },
-            set: { vm.openIndex = $0?.index }
-        )) { _ in
+        // Presented once and left up while paging: the previous sheet was
+        // keyed by the index, so every swipe dismissed it and presented a
+        // new one - the "closes and reopens" the viewer used to do. Full
+        // screen, like the Photos app and the Android viewer.
+        .fullScreenCover(isPresented: Binding(
+            get: { vm.openIndex != nil },
+            set: { if !$0 { vm.closeModal() } }
+        )) {
             ImageModal(
-                image: vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) }),
-                videoPlayer: vm.videoPlayer,
-                showPrev: (vm.openIndex ?? 0) > 0,
-                showNext: (vm.openIndex ?? 0) < vm.items.count - 1,
-                prev: vm.prev,
-                next: vm.next,
-                close: vm.closeModal,
+                vm: vm,
                 save: { vm.saveToPhotos(vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) })) },
                 share: { vm.shareCurrentPhoto(vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) })) },
-                delete: { vm.deleteCurrentPhoto() },
-                // A second top-level `.sheet` on this same view (which is
-                // what this used to be) can't present while the ImageModal
-                // sheet above is already up — SwiftUI silently drops it, no
-                // error, no share sheet, ever. Nesting it inside ImageModal
-                // itself presents it from *that* sheet's own view instead,
-                // which works.
-                shareURL: $vm.shareURL,
-                // Issue #41: same nesting reasoning applies to the "More
-                // info" panel.
-                showInfo: { vm.openInfo() },
-                infoOpen: $vm.infoOpen,
-                infoLoading: vm.infoLoading,
-                infoData: vm.infoData
+                delete: { vm.deleteCurrentPhoto() }
             )
         }
     }
@@ -1667,134 +1680,160 @@ private struct PhotoTile: View {
     }
 }
 
-/// The Photos app's own single-image viewer, minus the album picker: no
-/// Prev/Next buttons (issue #9) — page through with a swipe, same as the
-/// Social feed's viewer (issue #13/#18) — plus share/save-to-Photos/delete
-/// actions along the bottom, again matching the system Photos app.
+/// The Photos app's own single-image viewer: full screen, paging between
+/// photos by sliding the strip of previous/current/next (three views, so
+/// a library of thousands costs nothing), share/save-to-Photos/delete
+/// along the bottom (issue #9), info top-left (issue #41), pinch to zoom
+/// (issue #36). Mirrors the Android viewer's pager.
 private struct ImageModal: View {
-    let image: UIImage?
-    /// Issue #106: non-nil when the open item is a video, in which case it
-    /// plays here instead of `image` being shown.
-    let videoPlayer: AVPlayer?
-    let showPrev: Bool
-    let showNext: Bool
-    let prev: () -> Void
-    let next: () -> Void
-    let close: () -> Void
+    @ObservedObject var vm: PhotoGalleryVM
     let save: () -> Void
     let share: () -> Void
     let delete: () -> Void
-    @Binding var shareURL: URL?
-    // Issue #41: "More info" — camera/EXIF metadata computed live on the
-    // server from the file's own bytes.
-    let showInfo: () -> Void
-    @Binding var infoOpen: Bool
-    let infoLoading: Bool
-    let infoData: Msg_FileExifInfo?
 
     @State private var confirmDelete = false
+    // The strip's horizontal offset while a finger drags it or it animates
+    // to the neighbour; zero when at rest on the open photo.
+    @State private var dragOffset: CGFloat = 0
+    @State private var sliding = false
 
-    // Issue #36: same pinch-to-zoom already in the Social feed (issue
-    // #28), now in the pictures section's own full-screen viewer too —
-    // zooms around wherever the fingers actually are (MagnifyGesture's
-    // startAnchor) and snaps back to normal on release, no extra
-    // bookkeeping since @GestureState resets itself when the gesture ends.
+    // Issue #36: zooms around wherever the fingers are (MagnifyGesture's
+    // startAnchor) and snaps back on release - @GestureState resets itself.
     @GestureState private var pinchScale: CGFloat = 1.0
     @GestureState private var pinchAnchor: UnitPoint = .center
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.9).ignoresSafeArea()
-            VStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 0) {
                 HStack {
-                    Button { showInfo() } label: {
+                    Button { vm.openInfo() } label: {
                         Image(systemName: "info.circle").font(.title2).foregroundStyle(.white)
                     }
                     Spacer()
-                    Button { close() } label: {
+                    Button { vm.closeModal() } label: {
                         Image(systemName: "xmark.circle.fill").font(.title).foregroundStyle(.white)
                     }
-                }.padding()
-
-                if let player = videoPlayer {
-                    // Issue #106: plays in the viewer, filling it the same
-                    // way a photo does. Tapping the cell is the play
-                    // gesture, so it starts on its own rather than landing
-                    // on a paused player needing a second tap.
-                    VideoPlayer(player: player)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .onAppear { player.play() }
-                        .onDisappear { player.pause() }
-                } else if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                        .scaleEffect(pinchScale, anchor: pinchAnchor)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
-                        // Issue #9: swipe left/right to page through photos —
-                        // no Prev/Next buttons, matching the Social feed's
-                        // swipe (issue #13/#18) and the system Photos app.
-                        .gesture(
-                            DragGesture(minimumDistance: 20)
-                                .onEnded { value in
-                                    if value.translation.width < -30, showNext { next() }
-                                    else if value.translation.width > 30, showPrev { prev() }
-                                }
-                        )
-                        // Simultaneous (not a replacement) so pinching
-                        // doesn't get swallowed by the swipe gesture above.
-                        .simultaneousGesture(
-                            MagnifyGesture()
-                                .updating($pinchScale) { value, state, _ in
-                                    state = value.magnification
-                                }
-                                .updating($pinchAnchor) { value, state, _ in
-                                    state = value.startAnchor
-                                }
-                        )
-                } else {
-                    ProgressView().tint(.white).padding()
                 }
+                .padding()
 
-                // Issue #9: share / save-to-Photos / delete, Photos
-                // app-style, instead of a single "Download" that used to
-                // just re-run the multi-select zip download.
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let idx = vm.openIndex ?? 0
+                    HStack(spacing: 0) {
+                        page(idx - 1, size: geo.size)
+                        page(idx, size: geo.size)
+                        page(idx + 1, size: geo.size)
+                    }
+                    .frame(width: w * 3, height: geo.size.height)
+                    .offset(x: -w + dragOffset)
+                    .gesture(
+                        DragGesture(minimumDistance: 20)
+                            .onChanged { v in
+                                guard !sliding else { return }
+                                var dx = v.translation.width
+                                // Rubber-band at either end rather than
+                                // sliding into nothing.
+                                if (dx > 0 && idx == 0) || (dx < 0 && idx >= vm.items.count - 1) { dx /= 3 }
+                                dragOffset = dx
+                            }
+                            .onEnded { v in
+                                guard !sliding else { return }
+                                let dx = v.translation.width
+                                let flick = v.predictedEndTranslation.width
+                                if (dx < -w / 4 || flick < -w / 2), idx < vm.items.count - 1 {
+                                    slide(to: -w) { vm.next() }
+                                } else if (dx > w / 4 || flick > w / 2), idx > 0 {
+                                    slide(to: w) { vm.prev() }
+                                } else {
+                                    withAnimation(.easeOut(duration: 0.2)) { dragOffset = 0 }
+                                }
+                            }
+                    )
+                }
+                .clipped()
+
                 HStack(spacing: 48) {
-                    Button { share() } label: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    Button { save() } label: {
-                        Image(systemName: "arrow.down.circle")
-                    }
-                    Button(role: .destructive) {
-                        confirmDelete = true
-                    } label: {
-                        Image(systemName: "trash")
-                    }
+                    Button { share() } label: { Image(systemName: "square.and.arrow.up") }
+                    Button { save() } label: { Image(systemName: "arrow.down.circle") }
+                    Button(role: .destructive) { confirmDelete = true } label: { Image(systemName: "trash") }
                 }
                 .font(.title2)
                 .foregroundStyle(.white)
-                .padding(.top, 8)
-            }.padding()
+                .padding(.vertical, 12)
+            }
         }
         .confirmationDialog("Delete this photo?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete Photo", role: .destructive, action: delete)
             Button("Cancel", role: .cancel) {}
         }
-        // Nested inside this already-presented sheet rather than back on
-        // PhotoGalleryView — see the call site's comment for why.
+        // Nested here rather than on PhotoGalleryView: a second sheet on the
+        // presenting view can't show while this cover is up.
         .sheet(isPresented: Binding(
-            get: { shareURL != nil },
-            set: { if !$0 { shareURL = nil } }
+            get: { vm.shareURL != nil },
+            set: { if !$0 { vm.shareURL = nil } }
         )) {
-            if let url = shareURL { ActivityView(items: [url]) }
+            if let url = vm.shareURL { ActivityView(items: [url]) }
         }
-        // Issue #41: same nesting reasoning as the share sheet above.
-        .sheet(isPresented: $infoOpen) {
-            FileInfoView(loading: infoLoading, info: infoData)
+        .sheet(isPresented: $vm.infoOpen) {
+            FileInfoView(loading: vm.infoLoading, info: vm.infoData)
         }
+    }
+
+    /// Animates the strip one page over, then commits the new index and
+    /// re-centres the strip without animating, so the photo that just slid
+    /// in stays exactly where it landed.
+    private func slide(to x: CGFloat, then commit: @escaping () -> Void) {
+        sliding = true
+        withAnimation(.easeOut(duration: 0.25)) { dragOffset = x }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
+                commit()
+                dragOffset = 0
+            }
+            sliding = false
+        }
+    }
+
+    @ViewBuilder
+    private func page(_ i: Int, size: CGSize) -> some View {
+        ZStack {
+            if vm.items.indices.contains(i) {
+                let item = vm.items[i]
+                if i == vm.openIndex, let player = vm.videoPlayer {
+                    // Issue #106: plays in the viewer, filling it the same
+                    // way a photo does, starting on its own.
+                    VideoPlayer(player: player)
+                        .onAppear { player.play() }
+                        .onDisappear { player.pause() }
+                } else if let img = vm.hiResImages[item.path] ?? thumb(item) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFit()
+                        .scaleEffect(i == vm.openIndex ? pinchScale : 1, anchor: pinchAnchor)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
+                        // Simultaneous so pinching isn't swallowed by the
+                        // strip's drag.
+                        .simultaneousGesture(
+                            MagnifyGesture()
+                                .updating($pinchScale) { value, state, _ in state = value.magnification }
+                                .updating($pinchAnchor) { value, state, _ in state = value.startAnchor }
+                        )
+                } else {
+                    ProgressView().tint(.white)
+                }
+            }
+        }
+        .frame(width: size.width, height: size.height)
+    }
+
+    /// The grid's own thumbnail, shown until the full-size image arrives.
+    private func thumb(_ item: PhotoGalleryVM.Item) -> UIImage? {
+        if let u = item.localURL, let img = UIImage(contentsOfFile: u.path) { return img }
+        if let d = item.thumbData { return UIImage(data: d) }
+        return nil
     }
 }
 
@@ -2041,8 +2080,6 @@ private struct PhotoDateScrubber: View {
         .frame(width: 64)
     }
 }
-
-private struct SheetIndex: Identifiable { let index: Int; var id: Int { index } }
 
 // MARK: - Small UIKit helper to present alerts on top-most controller
 
