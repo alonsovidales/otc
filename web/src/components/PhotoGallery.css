@@ -147,12 +147,34 @@
 .pg-order-controls button:disabled { opacity: 0.3; cursor: default; }
 
 .pg-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }
-.pg-modal-inner { position: relative; background: var(--ink-2); border: 1px solid var(--line); border-radius: 8px; padding: 16px; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; gap: 10px; }
-.pg-close { position: absolute; top: 6px; right: 6px; border: 0; background: transparent; color: var(--mist); font-size: 22px; }
+/* Issue #130: the box is sized from the viewport and everything inside
+   fits it (border-box, no overflow), so the header row - and its Info
+   button - is always on screen, on a phone as much as on a desktop. */
+.pg-modal-inner {
+  position: relative; box-sizing: border-box;
+  width: min(94vw, 1400px); max-height: 94vh;
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.pg-modal-hdr { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; border-bottom: 1px solid var(--line); flex: none; }
+.pg-modal-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--mist-dim); }
+.pg-close { border: 0; background: transparent; color: var(--mist); font-size: 24px; line-height: 1; padding: 2px 8px; cursor: pointer; }
 
-/* Issue #41: "More info" panel — camera/EXIF metadata + a location map. */
-.pg-info-btn { position: absolute; top: 6px; right: 44px; border: 0; background: transparent; color: var(--mist); font-size: 20px; cursor: pointer; }
-.pg-info-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; max-width: 85vw; background: var(--ink-2); color: var(--mist); overflow-y: auto; box-shadow: -4px 0 16px rgba(0,0,0,0.4); }
+/* Issue #41: "More info" panel — camera/EXIF metadata + a location map.
+   Issue #130: the button is a labelled pill in the header, not a glyph over
+   the picture. */
+.pg-info-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px 4px 6px;
+  background: var(--panel); color: var(--mist); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.pg-info-btn:hover, .pg-info-btn.on { background: var(--ember); color: var(--ember-ink); border-color: transparent; }
+.pg-info-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor;
+  font: italic 700 12px/1 Georgia, serif;
+}
+.pg-info-panel { position: absolute; top: 45px; right: 0; bottom: 0; width: 320px; max-width: 100%; background: var(--ink-2); color: var(--mist); overflow-y: auto; box-shadow: -4px 0 16px rgba(0,0,0,0.4); border-left: 1px solid var(--line); }
 .pg-info-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 600; }
 .pg-info-close { border: 0; background: transparent; color: var(--mist); font-size: 18px; cursor: pointer; }
 .pg-info-loading { padding: 14px; color: var(--mist-dim); }
@@ -160,10 +182,12 @@
 .pg-info-row { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .pg-info-label { color: var(--mist-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 .pg-info-map { width: 100%; height: 180px; border: 0; border-radius: 8px; margin-top: 4px; }
-.pg-nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(234,242,239,0.18); color: var(--mist); font-size: 28px; padding: 10px 14px; border-radius: 999px; }
-.pg-nav.left { left: -46px; } .pg-nav.right { right: -46px; }
-.pg-modal-imgwrap { display: flex; align-items: center; justify-content: center; max-width: 90vw; max-height: 90vh; touch-action: none; }
-.pg-modal-imgwrap img { width: 90vw; height: 90vh; object-fit: contain; background: var(--ink); }
+/* Issue #130: the arrows live inside the box now (they used to hang 46px
+   outside it, off-screen on a phone); swiping still pages too. */
+.pg-nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(0,0,0,0.45); color: var(--mist); font-size: 28px; line-height: 1; padding: 8px 12px; border-radius: 999px; cursor: pointer; }
+.pg-nav.left { left: 10px; } .pg-nav.right { right: 10px; }
+.pg-modal-imgwrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; touch-action: none; background: var(--ink); }
+.pg-modal-imgwrap img { width: 100%; height: calc(94vh - 45px); object-fit: contain; background: var(--ink); }
 .pg-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* Issue #106: marks a video in the grid. Bottom-left so it never collides
@@ -193,8 +217,8 @@
    playback controls along the video's bottom edge stay inside the
    modal's padding rather than being clipped off. */
 .pg-modal-imgwrap video {
-  width: 90vw;
-  max-height: 84vh;
+  width: 100%;
+  max-height: calc(94vh - 45px);
   object-fit: contain;
   display: block;
   background: var(--ink);

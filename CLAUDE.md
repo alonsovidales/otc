@@ -222,6 +222,11 @@ from source, which is what keeps any architecture supported. The web app is the
 exception: devices have no Node, so the bundle is built once, here, and attached to the
 release.
 
+**Cala is only ever updated this way.** Since 2026-09-23 Cala (installed from the image, SSH off)
+gets every change through a release and the Update button in its Settings - never `make pi`/`make
+web` against it - so the release history can't fall behind what devices actually run. Pit stays
+the `make` development target. Cutting a release is the last step of any device or web change.
+
 **Follow this whenever a change is worth shipping.** A change that is only on `main` has
 not reached anybody: the version number in the manifest is the only signal a device has
 that anything is new.
@@ -283,6 +288,11 @@ the working directory, or `/etc/otc_<env>.ini` if that's missing. Dev config liv
 `[logger]`, `[tagger]`, `[faces]` sections used in production on the Pi.
 
 ## VERY IMPORTANT NOTES
+- **The iOS and Android apps must stay in sync - this is critical.** `app/android` is a 1:1 port of
+  `app/ios`: any change to a screen, flow, request, setting or behaviour in one app must be made in
+  the other in the same piece of work, with the matching file/type name (SwiftUI view <->
+  Composable, ViewModel <-> ViewModel). Never ship a feature or fix to only one of them; if the
+  other side genuinely can't be done yet, open a GitHub issue for it before finishing.
 - All the sensible content like photographies or files of any kind uploaded by the user should be encrypted at rest
 - No sensible communications should be shared over unsecure channels
 - Security is our main prioirty then reliability, durability and performance

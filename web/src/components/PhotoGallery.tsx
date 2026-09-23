@@ -1257,9 +1257,20 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       {openIdx != null && (
         <div className="pg-modal" onClick={() => setOpenIdx(null)}>
           <div className="pg-modal-inner" onClick={(e) => e.stopPropagation()}>
-            <button className="pg-close" onClick={() => setOpenIdx(null)}>×</button>
-            {/* Issue #41: camera/EXIF metadata + location, on demand. */}
-            <button className="pg-info-btn" title="More info" onClick={openInfo}>ⓘ</button>
+            {/* Issue #130: a header row of its own, like the mobile
+                viewers, rather than two glyphs floated over the picture's
+                top-right corner - those vanished against a bright sky and,
+                on a phone-width browser, sat past the right edge of the
+                screen entirely, which is why "the web can't show the
+                metadata": the button that opens it was never in view. */}
+            <div className="pg-modal-hdr">
+              {/* Issue #41: camera/EXIF metadata + location, on demand. */}
+              <button className={"pg-info-btn" + (infoOpen ? " on" : "")} title="More info" onClick={infoOpen ? closeInfo : openInfo}>
+                <span className="pg-info-glyph">i</span> Info
+              </button>
+              <span className="pg-modal-title">{items[openIdx].path.split("/").pop()}</span>
+              <button className="pg-close" title="Close" onClick={() => setOpenIdx(null)}>×</button>
+            </div>
             {openIdx > 0 && <button className="pg-nav left" onClick={() => openAt(openIdx - 1)}>‹</button>}
             {openIdx < items.length - 1 && <button className="pg-nav right" onClick={() => openAt(openIdx + 1)}>›</button>}
             <div

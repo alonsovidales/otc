@@ -134,16 +134,52 @@ curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/src.tar.gz" \
 mkdir -p "$tmp/src"
 tar -xzf "$tmp/src.tar.gz" -C "$tmp/src" --strip-components=1 || fail "could not unpack the latest code"
 
-status running "Building"
+status running "Staging the source"
 mkdir -p "$SRC_DIR"
 rsync -a --delete --exclude '.git' "$tmp/src/" "$SRC_DIR/" || fail "could not stage the new source"
 
 cd "$SRC_DIR" || fail "no source directory at $SRC_DIR"
-export PATH="$PATH:/usr/local/go/bin"
+export PATH="/usr/local/bin:$PATH:/usr/local/go/bin"
+
+# proto/generated is gitignored, so it is neither in the archive above nor
+# left over from the previous build (the rsync --delete just removed it).
+# Regenerated here exactly as install.sh does, from the proto that came
+# with this very release - the first thing `go build` would otherwise hit
+# is "undefined: pb.X". protoc-gen-go is pinned to go.mod's protobuf
+# runtime so plugin and library stay compatible.
+status running "Generating protobuf code"
+PROTOC_VERSION=29.3
+case "$(uname -m)" in
+    aarch64|arm64) PROTOC_ARCH=aarch_64 ;;
+    x86_64)        PROTOC_ARCH=x86_64 ;;
+    *)             fail "unsupported architecture $(uname -m)" ;;
+esac
+if ! command -v protoc >/dev/null 2>&1 || ! protoc --version | grep -q " ${PROTOC_VERSION}$"; then
+    curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/protoc.zip" \
+        "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+        || fail "could not download protoc ${PROTOC_VERSION}"
+    rm -rf /opt/protoc && mkdir -p /opt/protoc
+    (cd /opt/protoc && unzip -q "$tmp/protoc.zip") || fail "could not unpack protoc"
+    ln -sf /opt/protoc/bin/protoc /usr/local/bin/protoc
+fi
+PROTOC_GEN_GO_VERSION="$(awk '/google.golang.org\/protobuf /{print $2}' go.mod)"
+[ -n "$PROTOC_GEN_GO_VERSION" ] || fail "couldn't find google.golang.org/protobuf's version in go.mod"
+GOBIN=/usr/local/bin go install "google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}" \
+    || fail "could not install protoc-gen-go ${PROTOC_GEN_GO_VERSION}"
+mkdir -p proto/generated
+protoc -I=proto --go_out=proto/generated --go_opt=paths=source_relative proto/messages.proto \
+    || fail "protoc failed"
+
+status running "Building"
+# Same build environment as install.sh: CGO for gocv/ONNX Runtime, with
+# the runtime's headers and library where install.sh put them.
+export CGO_ENABLED=1
+export CGO_CFLAGS="-I/opt/onnxruntime/include"
+export CGO_LDFLAGS="-L/opt/onnxruntime/lib -lonnxruntime"
 # Built into a temporary name and moved into place only on success: a
 # failed build must leave the running binary alone rather than truncating
 # the one the service needs to start again.
-CGO_ENABLED=1 go build -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
+go build -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
 
 status running "Restarting"
 install -m 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary"
