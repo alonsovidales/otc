@@ -134,6 +134,7 @@ type Engine struct {
 	remoteRetry  map[string]*time.Timer
 	loopsStarted bool
 	raidStop     chan struct{}
+	authRetry    *time.Timer
 	folderBusy   map[string]bool
 	onChange     func()
 	hostname     string
@@ -180,16 +181,37 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	}
 	e.ws.OnDisconnect = func(err error) {
 		e.mu.Lock()
-		wrongPassword := e.status == "Wrong password"
+		wrongPassword := e.status == "Wrong password" || strings.HasPrefix(e.status, "Too many attempts")
 		e.mu.Unlock()
 		if !wrongPassword {
 			e.setStatus("Disconnected")
 		}
 		e.stopRaidPolling()
 	}
-	e.ws.OnAuthFailed = func(msg string) {
-		e.setStatus("Wrong password")
+	e.ws.OnAuthFailed = func(msg string, retryAfter int) {
 		log.Printf("authentication failed: %s", msg)
+		if retryAfter <= 0 {
+			e.setStatus("Wrong password")
+
+			return
+		}
+		// Locked out for guessing, not necessarily wrong: say so, and try
+		// once more when the lock lifts.
+		e.setStatus(fmt.Sprintf("Too many attempts - retrying in %ds", retryAfter))
+		e.mu.Lock()
+		if e.authRetry != nil {
+			e.authRetry.Stop()
+		}
+		e.authRetry = time.AfterFunc(time.Duration(retryAfter+1)*time.Second, func() {
+			e.mu.Lock()
+			ready := config.Ready(e.cfg, e.password) && !e.stopped
+			e.mu.Unlock()
+			if ready {
+				e.setStatus("Connecting…")
+				e.ws.Connect()
+			}
+		})
+		e.mu.Unlock()
 	}
 
 	return e
@@ -250,6 +272,10 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		}
 	}
 	credsChanged := old.Domain != cfg.Domain || oldPw != password
+	if credsChanged && e.authRetry != nil {
+		e.authRetry.Stop()
+		e.authRetry = nil
+	}
 	e.mu.Unlock()
 	e.notify()
 	if credsChanged {

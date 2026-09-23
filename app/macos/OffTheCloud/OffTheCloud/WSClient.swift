@@ -28,7 +28,9 @@ final class WSClient {
     /// The device rejected the password. Reconnecting stops until the
     /// settings change (connect() re-enables it) rather than retrying a
     /// password that won't work.
-    var onAuthFailed: ((String) -> Void)?
+    /// retryAfter is set when the device refused to even check the
+    /// password because this address made too many attempts (issue #117).
+    var onAuthFailed: ((String, _ retryAfter: Int?) -> Void)?
     var onPush: ((Resp) -> Void)? // unsolicited server messages
 
     // MARK: Internal state
@@ -205,8 +207,17 @@ final class WSClient {
             a.create = false
             req.payload = .reqAuth(a)
         }
-        if case .respAck(let ack) = resp.payload { return ack.ok }
+        if case .respAck(let ack) = resp.payload {
+            if ack.ok { return true }
+            throw AuthError(message: ack.errorMsg.isEmpty ? "The device rejected the password" : ack.errorMsg,
+                            retryAfter: ack.code == "too_many_attempts" ? Int(ack.retryAfterSeconds) : nil)
+        }
         return false
+    }
+
+    struct AuthError: Error {
+        let message: String
+        let retryAfter: Int?
     }
 
     // MARK: Receive loop
@@ -247,15 +258,17 @@ final class WSClient {
                 if try await self.auth(key: key) {
                     self.onConnect?()
                 } else {
-                    self.failAuth("The device rejected the password")
+                    self.failAuth("The device rejected the password", retryAfter: nil)
                 }
+            } catch let err as AuthError {
+                self.failAuth(err.message, retryAfter: err.retryAfter)
             } catch {
-                self.failAuth(error.localizedDescription)
+                self.failAuth(error.localizedDescription, retryAfter: nil)
             }
         }
     }
 
-    private func failAuth(_ message: String) {
+    private func failAuth(_ message: String, retryAfter: Int?) {
         queue.async { [weak self] in
             guard let self else { return }
             self.autoReconnect = false
@@ -264,7 +277,7 @@ final class WSClient {
             self.conn?.cancel()
             self.conn = nil
         }
-        onAuthFailed?(message)
+        onAuthFailed?(message, retryAfter)
     }
 
     private func flushAndFail(_ error: Error) {

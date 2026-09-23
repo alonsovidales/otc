@@ -387,7 +387,7 @@ func connectOnce(cfg *config.Config, pw string) (*wsclient.Client, error) {
 	ws := wsclient.New()
 	done := make(chan error, 2)
 	ws.OnConnect = func() { done <- nil }
-	ws.OnAuthFailed = func(msg string) { done <- errors.New(msg) }
+	ws.OnAuthFailed = func(msg string, _ int) { done <- errors.New(msg) }
 	ws.OnDisconnect = func(err error) {
 		if err != nil {
 			select {

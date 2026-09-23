@@ -217,8 +217,6 @@ func statusDot(s string) string {
 		return "●"
 	case "Disconnected", "Sync not running", "Connecting…":
 		return "◐"
-	case "Missing domain/password", "Wrong password":
-		return "○"
 	default:
 		return "○"
 	}
@@ -350,16 +348,23 @@ func (u *ui) settingsDialog() {
 	} else {
 		cfg.Domain = config.BridgeDomainForName(entered)
 	}
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
-
+	// Both halves are asked for before anything is saved, so the engine
+	// reconnects once with the new pair - not once with the new device and
+	// the old password, which would spend one of the device's five
+	// password attempts per minute for nothing.
+	_, pw, err := zenity.Password(zenity.Title("Off The Cloud — Password for " + cfg.Domain))
+	if err != nil {
 		return
 	}
-	_, pw, err := zenity.Password(zenity.Title("Off The Cloud — Password for " + cfg.Domain))
-	if err == nil && pw != "" {
+	if pw != "" {
 		if err := u.c.SetPassword(pw); err != nil {
 			_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+
+			return
 		}
+	}
+	if err := u.c.SaveConfig(cfg); err != nil {
+		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 }

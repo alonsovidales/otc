@@ -39,8 +39,10 @@ type Client struct {
 	OnConnect    func()
 	OnDisconnect func(err error)
 	// OnAuthFailed reports a rejected password, so the UI can say so rather
-	// than just "disconnected".
-	OnAuthFailed func(msg string)
+	// than just "disconnected". retryAfter is non-zero when the device
+	// refused to even check it because this address made too many attempts
+	// (the device's rate limit, issue #117).
+	OnAuthFailed func(msg string, retryAfter int)
 
 	mu        sync.Mutex
 	url       string
@@ -158,7 +160,12 @@ func (c *Client) dial(gen int64) {
 
 	if err := c.auth(); err != nil {
 		if c.OnAuthFailed != nil {
-			c.OnAuthFailed(err.Error())
+			var ae *AuthError
+			retry := 0
+			if errors.As(err, &ae) {
+				retry = ae.RetryAfter
+			}
+			c.OnAuthFailed(err.Error(), retry)
 		}
 		// A wrong password is not a reason to hammer the device: the
 		// socket stays down until the settings change and Connect is
@@ -207,16 +214,29 @@ func (c *Client) auth() error {
 	}
 	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
 	if !ok || !ack.RespAck.Ok {
-		msg := "authentication rejected"
-		if ok && ack.RespAck.ErrorMsg != "" {
-			msg = ack.RespAck.ErrorMsg
+		ae := &AuthError{Message: "authentication rejected"}
+		if ok {
+			if ack.RespAck.ErrorMsg != "" {
+				ae.Message = ack.RespAck.ErrorMsg
+			}
+			if ack.RespAck.Code == "too_many_attempts" {
+				ae.RetryAfter = int(ack.RespAck.RetryAfterSeconds)
+			}
 		}
 
-		return errors.New(msg)
+		return ae
 	}
 
 	return nil
 }
+
+// AuthError is the device's answer to a password it did not accept.
+type AuthError struct {
+	Message    string
+	RetryAfter int // seconds, when the address is locked out for too many attempts
+}
+
+func (e *AuthError) Error() string { return e.Message }
 
 func (c *Client) readLoop(conn *websocket.Conn, gen int64) {
 	for {

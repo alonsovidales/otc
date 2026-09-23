@@ -154,7 +154,7 @@ struct PopoverView: View {
         case "Connected": return .green
         case "Disconnected", "Connecting…": return .yellow
         case "Missing domain/password", "Wrong password": return .red
-        default: return .gray
+        default: return sync.overallStatus.hasPrefix("Too many attempts") ? .red : .gray
         }
     }
 }

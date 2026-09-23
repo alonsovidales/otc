@@ -116,6 +116,7 @@ final class SyncModel: ObservableObject {
     // shown for a device we can't currently hear from.
     @Published var raidHealth: RaidHealth = .unknown
     private var raidPollTask: Task<Void, Never>?
+    private var authRetryTask: Task<Void, Never>?
     // Every 10 seconds: a minute was too slow when someone is actually
     // watching the icon after pulling a drive. GetStatus is cheap on the
     // device (it reads /proc/mdstat and a few counters, no disk I/O of
@@ -174,10 +175,24 @@ final class SyncModel: ObservableObject {
                 self?.stopRaidPolling()
             }
         }
-        ws.onAuthFailed = { [weak self] _ in
+        ws.onAuthFailed = { [weak self] message, retryAfter in
             Task { @MainActor in
-                self?.overallStatus = "Wrong password"
-                self?.stopRaidPolling()
+                guard let self else { return }
+                self.stopRaidPolling()
+                if let retryAfter {
+                    // Locked out for guessing, not necessarily wrong: say
+                    // so, and try once more when the lock lifts.
+                    self.overallStatus = "Too many attempts - retrying in \(retryAfter)s"
+                    self.authRetryTask?.cancel()
+                    self.authRetryTask = Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(retryAfter + 1))
+                        guard !Task.isCancelled, let self, self.settings?.ready == true else { return }
+                        self.overallStatus = "Connecting…"
+                        self.ws.connect()
+                    }
+                } else {
+                    self.overallStatus = "Wrong password"
+                }
             }
         }
     }
@@ -190,9 +205,18 @@ final class SyncModel: ObservableObject {
 
         settings.$domain
             .combineLatest(settings.$password)
+            // Debounced: these fire on every keystroke in the Settings
+            // fields, and reconnecting with each partial password sent a
+            // wrong password per character - five of those in a minute
+            // and the device locks the address out (issue #117), which is
+            // exactly what "Wrong password" followed by a connection a
+            // minute later looked like.
+            .debounce(for: .seconds(1.5), scheduler: DispatchQueue.main)
+            .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
             .sink { [weak self] domain, key in
                 guard let self else { return }
                 Task { @MainActor in
+                    self.authRetryTask?.cancel()
                     if settings.ready {
                         self.overallStatus = "Connecting…"
                         self.ws.configure(domain: domain, key: key)
