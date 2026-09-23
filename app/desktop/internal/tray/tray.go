@@ -50,9 +50,14 @@ type ui struct {
 	raid     *systray.MenuItem
 	empty    *systray.MenuItem
 	folders  []*folderItem
+	addLocal *systray.MenuItem
+	addRem   *systray.MenuItem
+	settings *systray.MenuItem
 	autost   *systray.MenuItem
+	quit     *systray.MenuItem
 	lastIcon string
 	refresh  chan struct{}
+	stopLoop chan struct{}
 }
 
 // Run blocks until the tray quits.
@@ -75,6 +80,28 @@ func Refresh() {
 func (u *ui) onReady() {
 	systray.SetTitle("")
 	systray.SetTooltip("Off The Cloud — Sync")
+	u.build(nil)
+	u.apply()
+	go func() {
+		for {
+			select {
+			case <-refreshCh:
+				u.apply()
+			case <-time.After(2 * time.Second):
+				u.apply()
+			}
+		}
+	}()
+}
+
+// build lays the whole menu out in the macOS popover's order - status,
+// folders, actions - which means starting over whenever the folder set
+// changes, since a tray menu can only ever append.
+func (u *ui) build(folders []config.FolderStatus) {
+	if u.stopLoop != nil {
+		close(u.stopLoop)
+	}
+	systray.ResetMenu()
 	title := systray.AddMenuItem("Off The Cloud — Sync", "")
 	title.Disable()
 	u.status = systray.AddMenuItem("Not connected", "")
@@ -85,59 +112,67 @@ func (u *ui) onReady() {
 	systray.AddSeparator()
 	u.empty = systray.AddMenuItem("No folders yet — add one below.", "")
 	u.empty.Disable()
+	u.folders = nil
+	for _, f := range folders {
+		mi := systray.AddMenuItem(folderTitle(f), "")
+		rm := mi.AddSubMenuItem("Remove", "Stop syncing this folder (nothing is deleted)")
+		u.folders = append(u.folders, &folderItem{item: mi, remove: rm, id: f.ID, remote: f.RemotePath != ""})
+	}
+	if len(folders) > 0 {
+		u.empty.Hide()
+	}
 	systray.AddSeparator()
-	addLocal := systray.AddMenuItem("Add Local Folder…", "Mirror a folder on this computer to the device")
-	addRemote := systray.AddMenuItem("Add Remote Folder…", "Keep a device folder in sync with a local one")
-	settings := systray.AddMenuItem("Settings…", "Device and password")
+	u.addLocal = systray.AddMenuItem("Add Local Folder…", "Mirror a folder on this computer to the device")
+	u.addRem = systray.AddMenuItem("Add Remote Folder…", "Keep a device folder in sync with a local one")
+	u.settings = systray.AddMenuItem("Settings…", "Device and password")
 	u.autost = systray.AddMenuItemCheckbox("Start at login", "", u.c.AutostartEnabled())
 	systray.AddSeparator()
-	quit := systray.AddMenuItem("Quit", "")
+	u.quit = systray.AddMenuItem("Quit", "")
 
-	u.apply()
+	stop := make(chan struct{})
+	u.stopLoop = stop
+	items := u.folders
+	addLocal, addRem, settings, autost, quit := u.addLocal, u.addRem, u.settings, u.autost, u.quit
 	go func() {
 		for {
 			select {
+			case <-stop:
+				return
 			case <-addLocal.ClickedCh:
-				go u.addLocal()
-			case <-addRemote.ClickedCh:
+				go u.addLocal_()
+			case <-addRem.ClickedCh:
 				go u.addRemote()
 			case <-settings.ClickedCh:
-				go u.settings()
-			case <-u.autost.ClickedCh:
+				go u.settingsDialog()
+			case <-autost.ClickedCh:
 				go u.toggleAutostart()
 			case <-quit.ClickedCh:
 				u.c.Quit()
 				systray.Quit()
 
 				return
-			case <-refreshCh:
-				u.apply()
-			case <-time.After(2 * time.Second):
-				u.apply()
 			}
 		}
 	}()
+	for _, fi := range items {
+		fi := fi
+		go func() {
+			for {
+				select {
+				case <-stop:
+					return
+				case <-fi.remove.ClickedCh:
+					u.removeFolder(fi)
+				}
+			}
+		}()
+	}
 }
 
 func (u *ui) apply() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	st := u.c.Snapshot()
-	u.status.SetTitle(statusDot(st.Status) + " " + st.Status)
-	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
-		u.raid.SetTitle(st.RaidSummary)
-		u.raid.Show()
-	} else {
-		u.raid.Hide()
-	}
-	if st.Raid != u.lastIcon {
-		systray.SetIcon(icons.For(st.Raid))
-		u.lastIcon = st.Raid
-	}
-	systray.SetTooltip("Off The Cloud — " + st.Status)
-
-	// Folder rows: rebuilt only when the set changes, retitled otherwise
-	// (removing and re-adding items on every tick would flicker).
 	want := make([]config.FolderStatus, 0, len(st.Folders)+len(st.RemoteFolders))
 	want = append(want, st.Folders...)
 	want = append(want, st.RemoteFolders...)
@@ -152,32 +187,22 @@ func (u *ui) apply() {
 		}
 	}
 	if !same {
-		for _, fi := range u.folders {
-			fi.item.Remove()
-		}
-		u.folders = nil
-		for _, f := range want {
-			f := f
-			item := u.empty // placeholder to keep position: items append at the end, so add after the empty marker
-			_ = item
-			mi := systray.AddMenuItem("", "")
-			rm := mi.AddSubMenuItem("Remove", "Stop syncing this folder (nothing is deleted)")
-			fi := &folderItem{item: mi, remove: rm, id: f.ID, remote: f.RemotePath != ""}
-			u.folders = append(u.folders, fi)
-			go func() {
-				for range rm.ClickedCh {
-					u.removeFolder(fi)
-				}
-			}()
-		}
+		u.build(want)
 	}
+	u.status.SetTitle(statusDot(st.Status) + " " + st.Status)
+	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
+		u.raid.SetTitle(st.RaidSummary)
+		u.raid.Show()
+	} else {
+		u.raid.Hide()
+	}
+	if st.Raid != u.lastIcon {
+		systray.SetIcon(icons.For(st.Raid))
+		u.lastIcon = st.Raid
+	}
+	systray.SetTooltip("Off The Cloud — " + st.Status)
 	for i, f := range want {
 		u.folders[i].item.SetTitle(folderTitle(f))
-	}
-	if len(want) == 0 {
-		u.empty.Show()
-	} else {
-		u.empty.Hide()
 	}
 	if u.c.AutostartEnabled() {
 		u.autost.Check()
@@ -189,13 +214,13 @@ func (u *ui) apply() {
 func statusDot(s string) string {
 	switch s {
 	case "Connected":
-		return "🟢"
-	case "Disconnected":
-		return "🟡"
+		return "●"
+	case "Disconnected", "Sync not running":
+		return "◐"
 	case "Missing domain/password", "Wrong password":
-		return "🔴"
+		return "○"
 	default:
-		return "⚪"
+		return "○"
 	}
 }
 
@@ -251,7 +276,7 @@ func (u *ui) removeFolder(fi *folderItem) {
 	Refresh()
 }
 
-func (u *ui) addLocal() {
+func (u *ui) addLocal_() {
 	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose a folder to keep in sync"))
 	if err != nil || dir == "" {
 		return
@@ -327,7 +352,7 @@ func parentPath(p string) string {
 
 // settings is SettingsInlineView: the device by name (issue #121) or any
 // address, then the password.
-func (u *ui) settings() {
+func (u *ui) settingsDialog() {
 	cfg := u.c.Config()
 	current := config.BridgeName(cfg.Domain)
 	hint := "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)."

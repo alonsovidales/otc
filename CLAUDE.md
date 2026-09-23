@@ -201,8 +201,15 @@ edit goes through config.json, which the engine watches - so the CLI, the tray a
 never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
 Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
 iOS/Android. Test on Linux with the Lima VM `otc` (`limactl shell otc`, `limactl copy
-dist/otc-sync-linux-arm64 otc:/tmp/`); the tray needs a real desktop - the VM is headless, so the
-tray on Linux and everything on Windows are tested on real machines.
+dist/otc-sync-linux-arm64 otc:/tmp/`); the tray needs a real desktop - the Lima VM is headless, so the
+Linux tray is tested on a real machine. Windows is tested in the QEMU VM under `~/VMs/win11`
+(`./run.sh` starts it: Windows 11 ARM64, user `otc`, SSH on `127.0.0.1:2222` with the Mac's key,
+VNC on `127.0.0.1:5905`; `./qmp.py screenshot|type|combo|click` drives the screen through QMP,
+`scp -P 2222` copies builds in; the tray app has to be launched on the desktop, e.g. through
+`qmp.py combo meta_l+r` + `qmp.py type`, since an SSH session has no desktop). It was installed
+unattended from Microsoft's Enterprise Evaluation ISO (`unattend/autounattend.xml`), whose
+licence has expired - Windows shows a watermark and may shut the VM down periodically; if that
+gets in the way, rebuild it from a retail ISO (CrystalFetch) with the same answer file.
 
 ### Native apps (`app/ios`, `app/macos`, `app/android`)
 
