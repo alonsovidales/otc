@@ -7,6 +7,12 @@ import CryptoKit
 import SwiftProtobuf
 import AppKit   // <- for NSOpenPanel
 import CoreServices // <- for FSEventStreamEventFlags constants
+import os
+
+/// The unified log, so what a reconcile decided can be read back with
+/// `log show --predicate 'subsystem == "cloud.off-the.OffTheCloud"'`
+/// rather than lost in a print() nobody sees from a menu bar app.
+private let syncLog = Logger(subsystem: "cloud.off-the.OffTheCloud", category: "sync")
 
 @MainActor
 final class SyncModel: ObservableObject {
@@ -154,6 +160,30 @@ final class SyncModel: ObservableObject {
     // batch of local changes correctly in one go.
     private var remoteFolderWatchers: [UUID: FolderWatcher] = [:]
     private var remoteFolderDebounce: [UUID: Task<Void, Never>] = [:]
+    private var remoteFoldersBusy: Set<UUID> = []
+
+    // Local content hashes remembered per folder, keyed by full path and
+    // validated by size + modification date: a two-way folder is
+    // reconciled every minute, and hashing a 30 GB tree each time (as it
+    // did) kept the disk and CPU busy for nothing. Only files that
+    // changed since the last pass are read again.
+    private struct HashEntry { let size: Int; let modified: Date; let hash: String }
+    private var localHashCache: [UUID: [String: HashEntry]] = [:]
+
+    /// The content hash of `url`, from the cache when size and date still
+    /// match, else freshly computed (off the main actor) and cached.
+    private func cachedHash(for url: URL, folderId: UUID) async throws -> String {
+        let values = try url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+        let size = values.fileSize ?? -1
+        let modified = values.contentModificationDate ?? .distantPast
+        let key = url.standardizedFileURL.path
+        if let hit = localHashCache[folderId]?[key], hit.size == size, hit.modified == modified {
+            return hit.hash
+        }
+        let hash = try await Task.detached(priority: .utility) { try Self.sha256Hex(of: url) }.value
+        localHashCache[folderId, default: [:]][key] = HashEntry(size: size, modified: modified, hash: hash)
+        return hash
+    }
 
     init() {
         restoreFolders()
@@ -295,6 +325,7 @@ final class SyncModel: ObservableObject {
         errorRetryTasks[f.id]?.cancel()
         errorRetryTasks.removeValue(forKey: f.id)
 
+        localHashCache.removeValue(forKey: f.id)
         f.url.stopAccessingSecurityScopedResource()
         folders.removeAll { $0.id == f.id }
 
@@ -375,6 +406,7 @@ final class SyncModel: ObservableObject {
         remoteErrorRetryTasks[f.id]?.cancel()
         remoteErrorRetryTasks.removeValue(forKey: f.id)
 
+        localHashCache.removeValue(forKey: f.id)
         f.localURL.stopAccessingSecurityScopedResource()
         remoteFolders.removeAll { $0.id == f.id }
 
@@ -482,9 +514,7 @@ final class SyncModel: ObservableObject {
         let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
 
         if exists, !isDir.boolValue {
-            let localHash = try? await Task.detached(priority: .utility) {
-                try Self.sha256Hex(of: fileURL)
-            }.value
+            let localHash = try? await cachedHash(for: fileURL, folderId: folderId)
             guard let localHash else { return }
             guard remoteHashesByFolder[folderId]?[remotePath] != localHash else { return }
             do {
@@ -559,9 +589,7 @@ final class SyncModel: ObservableObject {
             var toUpload: [(url: URL, remotePath: String, hash: String, size: Int64)] = []
             for fileURL in localFiles {
                 let remotePath = remotePathFor(fileURL.path)
-                let localHash = try? await Task.detached(priority: .utility) {
-                    try Self.sha256Hex(of: fileURL)
-                }.value
+                let localHash = try? await cachedHash(for: fileURL, folderId: folder.id)
                 guard let localHash, remoteMap[remotePath] != localHash else { continue }
                 let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
                 toUpload.append((fileURL, remotePath, localHash, size))
@@ -693,6 +721,13 @@ final class SyncModel: ObservableObject {
     // remote untouched.
     private func reconcileRemoteFolder(_ folder: RemoteFolder) async {
         guard ws.isConnected() else { return }
+        // One pass per folder at a time: the 60-second poll, the watcher's
+        // debounce and a fresh add can all ask while a big tree is still
+        // being hashed, and two passes reading the same baseline would
+        // each act on the same differences.
+        guard !remoteFoldersBusy.contains(folder.id) else { return }
+        remoteFoldersBusy.insert(folder.id)
+        defer { remoteFoldersBusy.remove(folder.id) }
 
         remoteErrorRetryTasks[folder.id]?.cancel()
         remoteErrorRetryTasks[folder.id] = nil
@@ -748,13 +783,22 @@ final class SyncModel: ObservableObject {
 
             // Hashing is the slow part, so only do it for what's actually
             // on disk right now — remote's hash comes for free from the
-            // listing above.
+            // listing above. A file that can't be read is left out of the
+            // comparison entirely: treating it as "not here" would fetch
+            // (and overwrite) something that is here, just unreadable.
             var localHashes: [String: String] = [:]
+            var unreadable: Set<String> = []
             for (relative, url) in localByRelative {
-                if let h = try? await Task.detached(priority: .utility) { try Self.sha256Hex(of: url) }.value {
-                    localHashes[relative] = h
+                do {
+                    localHashes[relative] = try await cachedHash(for: url, folderId: folder.id)
+                } catch {
+                    unreadable.insert(relative)
+                    if unreadable.count <= 5 {
+                        syncLog.error("cannot hash \(relative, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    }
                 }
             }
+            syncLog.info("two-way \(folder.remotePath, privacy: .public): remote=\(remoteByRelative.count) local=\(localByRelative.count) hashed=\(localHashes.count) unreadable=\(unreadable.count) baseline=\(self.lastSyncedByRemoteFolder[folder.id]?.count ?? 0)")
 
             let lastSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
             let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
@@ -768,6 +812,7 @@ final class SyncModel: ObservableObject {
             var newSynced = lastSynced
 
             for relative in allRelativePaths {
+                if unreadable.contains(relative) { continue }
                 let localHash = localHashes[relative]
                 let remoteFile = remoteByRelative[relative]
                 let remoteHash = remoteFile?.hash
@@ -804,6 +849,9 @@ final class SyncModel: ObservableObject {
                     remoteWins = remoteChanged
                 }
 
+                if actions.count < 20 {
+                    syncLog.info("plan \(relative, privacy: .public): local=\(localHash?.prefix(8) ?? "-", privacy: .public) remote=\(remoteHash?.prefix(8) ?? "-", privacy: .public) last=\(last?.prefix(8) ?? "-", privacy: .public) conflict=\(conflict) remoteWins=\(remoteWins)")
+                }
                 if remoteWins {
                     if let remoteHash {
                         actions.append((relative, .download, Int(remoteFile?.size ?? 0), nil))
@@ -823,10 +871,11 @@ final class SyncModel: ObservableObject {
                 }
             }
 
+            syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote")
             if !actions.isEmpty {
                 let total = actions.count
                 for (i, action) in actions.enumerated() {
-                    updateRemoteState(folder.id, .scanning(progress: Double(i) / Double(total), currentFile: (action.relative as NSString).lastPathComponent))
+                    updateRemoteState(folder.id, .scanning(progress: Double(i) / Double(total), currentFile: "\(i + 1)/\(total) · " + (action.relative as NSString).lastPathComponent))
                     let localURL = folder.localURL.appendingPathComponent(action.relative)
                     let remotePath = remotePrefix + action.relative
                     do {

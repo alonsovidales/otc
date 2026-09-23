@@ -135,10 +135,14 @@ type Engine struct {
 	loopsStarted bool
 	raidStop     chan struct{}
 	authRetry    *time.Timer
-	folderBusy   map[string]bool
-	onChange     func()
-	hostname     string
-	stopped      bool
+	// Local content hashes per folder, keyed by path and validated by
+	// size + mtime, so the minute-by-minute two-way poll doesn't re-read
+	// a whole tree that hasn't changed (see SyncModel's localHashCache).
+	hashCache  map[string]map[string]hashEntry
+	folderBusy map[string]bool
+	onChange   func()
+	hostname   string
+	stopped    bool
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -165,6 +169,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		errorRetry:   map[string]*time.Timer{},
 		remoteRetry:  map[string]*time.Timer{},
 		folderBusy:   map[string]bool{},
+		hashCache:    map[string]map[string]hashEntry{},
 		onChange:     onChange,
 		hostname:     host,
 	}
@@ -293,6 +298,7 @@ func (e *Engine) dropFolderLocked(id string) {
 	}
 	delete(e.remoteHashes, id)
 	delete(e.folderStates, id)
+	delete(e.hashCache, id)
 	if t := e.errorRetry[id]; t != nil {
 		t.Stop()
 		delete(e.errorRetry, id)
@@ -314,6 +320,7 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 	}
 	delete(e.lastSynced, id)
 	delete(e.remoteStates, id)
+	delete(e.hashCache, id)
 }
 
 func (e *Engine) applySettings() {
@@ -641,7 +648,7 @@ func (e *Engine) processChangedPath(path string, f config.Folder) {
 		if isHidden(path) {
 			return
 		}
-		h, err := sha256File(path)
+		h, err := e.cachedHash(f.ID, path)
 		if err != nil || h == known {
 			return
 		}
@@ -734,7 +741,7 @@ func (e *Engine) reconcile(f config.Folder) {
 	for _, p := range local {
 		rp := e.remotePathFor(p)
 		localRemote[rp] = true
-		h, err := sha256File(p)
+		h, err := e.cachedHash(f.ID, p)
 		if err != nil || remoteMap[rp] == h {
 			continue
 		}
@@ -878,6 +885,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	localByRel := map[string]string{}
 	localHashes := map[string]string{}
+	// A file that can't be read is left out of the comparison entirely:
+	// treating it as "not here" would fetch (and overwrite) something that
+	// is here, just unreadable - an evicted cloud-drive placeholder, say.
+	unreadable := map[string]bool{}
 	for _, p := range local {
 		rel, err := filepath.Rel(f.LocalPath, p)
 		if err != nil {
@@ -885,8 +896,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		rel = filepath.ToSlash(rel)
 		localByRel[rel] = p
-		if h, err := sha256File(p); err == nil {
+		if h, err := e.cachedHash(f.ID, p); err == nil {
 			localHashes[rel] = h
+		} else {
+			unreadable[rel] = true
+			if len(unreadable) <= 5 {
+				log.Printf("cannot hash %s: %v", rel, err)
+			}
 		}
 	}
 
@@ -913,6 +929,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	var actions []action
 	for rel := range all {
+		if unreadable[rel] {
+			continue
+		}
 		localHash, hasLocal := localHashes[rel]
 		remoteFile := remoteByRel[rel]
 		remoteHash := ""
@@ -972,7 +991,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 
 	for i, a := range actions {
-		e.setRemoteState(f.ID, FolderState{Kind: StateScanning, Progress: float64(i) / float64(len(actions)), CurrentFile: baseName(a.relative)})
+		e.setRemoteState(f.ID, FolderState{Kind: StateScanning, Progress: float64(i) / float64(len(actions)), CurrentFile: fmt.Sprintf("%d/%d · %s", i+1, len(actions), baseName(a.relative))})
 		localPath := filepath.Join(f.LocalPath, filepath.FromSlash(a.relative))
 		remotePath := remotePrefix + a.relative
 		var err error
@@ -1006,6 +1025,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	e.mu.Lock()
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
+	if len(unreadable) > 0 {
+		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d file(s) could not be read", len(unreadable))})
+
+		return
+	}
 	e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
 }
 
@@ -1214,6 +1238,38 @@ func enumerateFiles(root string) ([]string, error) {
 	})
 
 	return out, err
+}
+
+type hashEntry struct {
+	size    int64
+	modTime time.Time
+	hash    string
+}
+
+// cachedHash is sha256File through the per-folder cache.
+func (e *Engine) cachedHash(folderID, p string) (string, error) {
+	fi, err := os.Stat(p)
+	if err != nil {
+		return "", err
+	}
+	e.mu.Lock()
+	hit, ok := e.hashCache[folderID][p]
+	e.mu.Unlock()
+	if ok && hit.size == fi.Size() && hit.modTime.Equal(fi.ModTime()) {
+		return hit.hash, nil
+	}
+	h, err := sha256File(p)
+	if err != nil {
+		return "", err
+	}
+	e.mu.Lock()
+	if e.hashCache[folderID] == nil {
+		e.hashCache[folderID] = map[string]hashEntry{}
+	}
+	e.hashCache[folderID][p] = hashEntry{size: fi.Size(), modTime: fi.ModTime(), hash: h}
+	e.mu.Unlock()
+
+	return h, nil
 }
 
 func sha256File(p string) (string, error) {
