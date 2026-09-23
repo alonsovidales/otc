@@ -9,6 +9,7 @@ package exifinfo
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"regexp"
@@ -115,7 +116,10 @@ func fromExif(x *exif.Exif) *Info {
 			info.Height = int32(i)
 		}
 	}
-	if lat, lon, err := x.LatLong(); err == nil {
+	// A photo whose GPS tags were blanked (Android's MediaStore writes 0/0
+	// rationals, which goexif turns into NaN without an error) has no
+	// position, and neither does the 0,0 that some cameras write for one.
+	if lat, lon, err := x.LatLong(); err == nil && !math.IsNaN(lat) && !math.IsNaN(lon) && (lat != 0 || lon != 0) {
 		info.HasGPS = true
 		info.Latitude = lat
 		info.Longitude = lon

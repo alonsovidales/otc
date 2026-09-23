@@ -74,6 +74,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import cloud.offthe.otc.R
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -81,6 +83,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -160,8 +163,10 @@ fun SocialFeedView() {
     }
 
     Scaffold(topBar = {
+        // Issue #81 (as on iOS): the bar itself carries no title - the logo
+        // is the feed's first row, so it scrolls away once reading starts.
         TopAppBar(
-            title = { LogoHeader() },
+            title = {},
             actions = {
                 IconButton(onClick = { showingFriendships = true }) { Icon(Icons.Default.Group, "Friends") }
                 IconButton(onClick = { showingPicker = true }) { Icon(Icons.Outlined.AddCircleOutline, "New post", tint = Ember) }
@@ -170,17 +175,26 @@ fun SocialFeedView() {
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             when {
-                st.posts.isEmpty() && st.loading -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-                    CircularProgressIndicator(); Spacer(Modifier.height(8.dp)); Text("Loading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Issue #22: a real loading state while the first fetch is in
+                // flight, distinct from "genuinely no posts" - both under the
+                // same masthead as the feed itself.
+                st.posts.isEmpty() && st.loading -> Column(Modifier.fillMaxSize()) {
+                    LogoHeader()
+                    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+                        CircularProgressIndicator(); Spacer(Modifier.height(8.dp)); Text("Loading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                st.posts.isEmpty() -> EmptyFeed { showingPicker = true }
+                st.posts.isEmpty() -> Column(Modifier.fillMaxSize()) {
+                    LogoHeader()
+                    EmptyFeed { showingPicker = true }
+                }
                 else -> PullToRefreshBox(
                     isRefreshing = refreshing,
                     onRefresh = { scope.launch { refreshing = true; vm.loadFeed(); refreshing = false } },
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().widthIn(max = feedMaxWidthDp.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        item { Spacer(Modifier.height(2.dp)) }
+                        item { LogoHeader() }
                         itemsIndexed(st.posts, key = { _, p -> p.uuid }) { idx, post ->
                             LaunchedEffect(post.uuid) { vm.loadMoreIfNeeded(post) }
                             PostCard(
@@ -216,11 +230,17 @@ fun SocialFeedView() {
     }
 }
 
+/** The OTCLogo masthead: 28dp high at the leading edge, like the iOS logoHeader (issue #126). */
 @Composable
 private fun LogoHeader() {
-    // The iOS app draws the OTCLogo image here; the wordmark stands in
-    // until the asset is added to the Android resources.
-    Text("Off The Cloud", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp)) {
+        Image(
+            painter = painterResource(R.drawable.otc_logo),
+            contentDescription = "Off The Cloud",
+            modifier = Modifier.height(28.dp),
+            contentScale = ContentScale.Fit,
+        )
+    }
 }
 
 @Composable
@@ -430,8 +450,8 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
     Box(Modifier.fillMaxSize()) {
         val p = player
         if (p != null) {
-            AndroidView(factory = { ctx -> PlayerView(ctx).apply { useController = false; resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM; this.player = p } },
-                update = { it.player = p }, modifier = Modifier.fillMaxSize())
+            AndroidView(factory = { ctx -> (android.view.LayoutInflater.from(ctx).inflate(R.layout.player_texture, null) as PlayerView).apply { this.player = p } },
+                update = { it.player = p }, modifier = Modifier.fillMaxSize().clipToBounds())
             if (ended) IconButton(onClick = { ended = false; p.seekTo(0); p.play() }, modifier = Modifier.align(Alignment.Center).size(72.dp)) {
                 Icon(Icons.Default.Replay, "Replay", tint = Color.White, modifier = Modifier.size(56.dp))
             }

@@ -1503,8 +1503,16 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 		// left-to-right order the ?s appear in the assembled query.
 		args = append(args, "^"+path+"[^/]+$")
 	}
-	if len(tags) == 0 && len(personIDs) == 0 && groupID == "" && imagesOnly {
-		whereParts = append(whereParts, "`f`.`mime` like 'image%'")
+	// Without a tag, person or album join there is nothing tying the rows
+	// to media, so say so here: the gallery must never be handed a text
+	// file (it has no thumbnail, and one such row used to blank the whole
+	// gallery of a device that also syncs documents).
+	if len(tags) == 0 && len(personIDs) == 0 && groupID == "" {
+		if imagesOnly {
+			whereParts = append(whereParts, "`f`.`mime` like 'image%'")
+		} else {
+			whereParts = append(whereParts, "(`f`.`mime` like 'image%' or `f`.`mime` like 'video%')")
+		}
 	}
 	// Issue #77: the date scrubber's "jump to date" - same left-to-right
 	// arg-ordering rule as above, this is the last WHERE part so its arg

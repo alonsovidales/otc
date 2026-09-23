@@ -245,7 +245,15 @@ outside the SDK dir so `sdkmanager` doesn't overwrite them, and kill the 37 serv
 phone is a Motorola moto g06 (Android 15, serial ZY32MBZVJ4). Every iOS screen has an Android counterpart under
 `app/src/main/java/cloud/offthe/otc/` (`ui/` mirrors the SwiftUI views, `net/` the connection,
 `data/` the stores, `sync/` PhotoSync/SyncScheduler/AssetSyncCache); still missing versus iOS:
-push notifications (FCM), the logo asset in the feed header, and a map in the EXIF panel.
+push notifications (FCM). The EXIF panel's map is osmdroid (OpenStreetMap, no API key), and it
+only ever has something to show because `PhotoSync.readData` asks the MediaStore for the
+original bytes under `ACCESS_MEDIA_LOCATION` - since Android 10 a photo read through a plain
+content URI comes back with its GPS tags blanked to 0/0, which the device used to report as
+NaN. Two Compose pitfalls hit here: a `PlayerView` in a `LazyColumn` must be inflated from
+`res/layout/player_texture.xml` (`surface_type="texture_view"` + `clipToBounds()`), or its
+SurfaceView paints at a stale position over whatever scrolls above it, and a full-screen `Dialog`
+with `decorFitsSystemWindows = false` needs `systemBarsPadding()` or its top buttons sit under
+the status bar and never get the tap.
 
 ## Cutting a release (issue #94)
 

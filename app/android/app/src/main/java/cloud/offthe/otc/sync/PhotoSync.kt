@@ -6,6 +6,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -77,8 +78,20 @@ object PhotoSync {
         return out
     }
 
-    fun readData(uri: Uri): ByteArray =
-        OTCApp.instance.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: throw IllegalStateException("cannot read $uri")
+    /**
+     * The asset's bytes as they are on disk. Since Android 10 the MediaStore
+     * serves a copy with the GPS EXIF tags blanked (0/0 rationals, which the
+     * device reads as NaN) unless the app holds ACCESS_MEDIA_LOCATION and
+     * asks for the original - issue #127's map needs the real position, the
+     * way PhotoKit hands it to the iOS app.
+     */
+    fun readData(uri: Uri): ByteArray {
+        val context = OTCApp.instance
+        val src = if (Build.VERSION.SDK_INT >= 29 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) == PackageManager.PERMISSION_GRANTED
+        ) MediaStore.setRequireOriginal(uri) else uri
+        return context.contentResolver.openInputStream(src)?.use { it.readBytes() } ?: throw IllegalStateException("cannot read $uri")
+    }
 
     private fun timestamp(ms: Long): Timestamp = Timestamp.newBuilder().setSeconds(ms / 1000).setNanos(((ms % 1000) * 1_000_000).toInt()).build()
 

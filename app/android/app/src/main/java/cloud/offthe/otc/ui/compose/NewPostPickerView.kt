@@ -426,7 +426,11 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
 }
 
 fun mediaPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 33) {
-    arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+    // ACCESS_MEDIA_LOCATION (issue #127) rides along with the media
+    // permission: it is what lets the sync upload a photo's GPS tags intact.
+    arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.ACCESS_MEDIA_LOCATION)
+} else if (Build.VERSION.SDK_INT >= 29) {
+    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.ACCESS_MEDIA_LOCATION)
 } else {
     arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 }

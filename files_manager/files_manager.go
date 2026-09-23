@@ -577,14 +577,19 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		token = "" // We reached the end
 	}
 
+	// A file without a thumbnail (never processed, or a document that
+	// slipped into the results) is returned without one; it must not turn
+	// into the whole page's error, which is what a leaked err here did.
 	for _, file := range files {
-		file.Content, err = mg.GetThumbnail(session, file)
-		if err != nil {
-			log.Error("error decryptinig the data", err)
+		content, thumbErr := mg.GetThumbnail(session, file)
+		if thumbErr != nil {
+			log.Error("error decryptinig the data", thumbErr)
+			continue
 		}
+		file.Content = content
 	}
 
-	return
+	return files, token, nil
 }
 
 // PhotoDateBuckets (issue #77) answers "how many photos per month" for the

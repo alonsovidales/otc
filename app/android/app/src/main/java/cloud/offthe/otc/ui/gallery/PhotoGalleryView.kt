@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -508,7 +509,9 @@ private fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
 
     Dialog(onDismissRequest = { vm.closeModal() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            Column(Modifier.fillMaxSize()) {
+            // Edge to edge, so the toolbar has to step down from under the
+            // status bar itself or its buttons can't be tapped.
+            Column(Modifier.fillMaxSize().systemBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(8.dp)) {
                     IconButton(onClick = { vm.openInfo() }) { Icon(Icons.Default.Info, "More info", tint = Color.White) }
                     Spacer(Modifier.weight(1f))
@@ -593,9 +596,12 @@ private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
                 val loc = listOf(info.city, info.country).filter { it.isNotEmpty() }.joinToString(", ")
                 if (loc.isNotEmpty()) InfoRow("Location", loc)
                 if (info.hasGps) {
-                    // No map SDK without an API key; a tap opens the point in the maps app.
+                    // Issue #127: the same 0.05° region around the point the iOS
+                    // panel shows, on OpenStreetMap; a tap on the caption opens
+                    // the point in the phone's maps app.
+                    LocationMap(info.latitude, info.longitude)
                     TextButton(onClick = { Share.openInBrowser(context, "geo:${info.latitude},${info.longitude}?q=${info.latitude},${info.longitude}") }) {
-                        Text("Open location in Maps (%.5f, %.5f)".format(info.latitude, info.longitude))
+                        Text("Open in Maps (%.5f, %.5f)".format(info.latitude, info.longitude))
                     }
                 }
                 if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text("No EXIF metadata in this file", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -603,4 +609,35 @@ private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
         }
         Spacer(Modifier.height(24.dp))
     }
+}
+
+/** An OpenStreetMap view centred on the photo's position with a marker (issue #127). */
+@Composable
+private fun LocationMap(latitude: Double, longitude: Double) {
+    val context = LocalContext.current
+    AndroidView(
+        factory = { ctx ->
+            org.osmdroid.config.Configuration.getInstance().apply {
+                userAgentValue = ctx.packageName
+                osmdroidBasePath = ctx.cacheDir
+                osmdroidTileCache = java.io.File(ctx.cacheDir, "osmdroid-tiles")
+            }
+            org.osmdroid.views.MapView(ctx).apply {
+                setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                setMultiTouchControls(true)
+                zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
+                val point = org.osmdroid.util.GeoPoint(latitude, longitude)
+                // Zoom 13 spans roughly 0.05° of latitude on a phone-width map.
+                controller.setZoom(13.0)
+                controller.setCenter(point)
+                overlays.add(org.osmdroid.views.overlay.Marker(this).apply {
+                    position = point
+                    setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
+                })
+                // OpenStreetMap's tile policy asks for the credit on the map.
+                overlays.add(org.osmdroid.views.overlay.CopyrightOverlay(ctx))
+            }
+        },
+        modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
+    )
 }
