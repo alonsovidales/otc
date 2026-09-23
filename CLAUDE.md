@@ -330,6 +330,13 @@ the working directory, or `/etc/otc_<env>.ini` if that's missing. Dev config liv
   the other in the same piece of work, with the matching file/type name (SwiftUI view <->
   Composable, ViewModel <-> ViewModel). Never ship a feature or fix to only one of them; if the
   other side genuinely can't be done yet, open a GitHub issue for it before finishing.
+- **The macOS, Windows and Linux sync clients must stay in sync too - equally critical.** The
+  macOS app (`app/macos`, Swift) and `otc-sync` (`app/desktop`, Go, the Windows and Linux client)
+  are the same product: any change to what one of them does - a menu item, a sync rule, a
+  setting, a status, how it starts at login - is made to the other in the same piece of work
+  (Swift file <-> Go package, see "Desktop sync client"). Never ship to only one of the three
+  platforms; if a platform genuinely can't be done yet, open a GitHub issue for it before
+  finishing.
 - All the sensible content like photographies or files of any kind uploaded by the user should be encrypted at rest
 - No sensible communications should be shared over unsecure channels
 - Security is our main prioirty then reliability, durability and performance
