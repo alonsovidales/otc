@@ -182,6 +182,22 @@ func runDaemon(withTray bool) error {
 	}
 
 	if withTray {
+		// One tray per user: a second launch (double-clicking the exe again,
+		// the autostart entry firing while it is already up) must not add a
+		// second icon. The viewer case - a tray next to the service - is
+		// different and still allowed, since the service holds only the
+		// engine lock, not this one.
+		trayLockPath, err := config.TrayLockPath()
+		if err != nil {
+			return err
+		}
+		trayLock := flock.New(trayLockPath)
+		if ok, err := trayLock.TryLock(); err != nil || !ok {
+			fmt.Fprintln(os.Stderr, "the tray app is already running")
+
+			return nil
+		}
+		defer func() { _ = trayLock.Unlock() }()
 		// First run on a desktop: register at login unless the owner said no.
 		if cfg.AutostartEnabled() {
 			if enabled, _ := autostart.Enabled(); !enabled {

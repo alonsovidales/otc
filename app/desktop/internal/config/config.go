@@ -290,6 +290,9 @@ func SaveState(st *State) error {
 // LockPath is the file the engine holds a lock on while it runs.
 func LockPath() (string, error) { return path("lock") }
 
+// TrayLockPath is the file the one tray process per user holds a lock on.
+func TrayLockPath() (string, error) { return path("tray.lock") }
+
 // ConfigPath is where config.json lives, for the daemon to watch.
 func ConfigPath() (string, error) { return path("config.json") }
 
