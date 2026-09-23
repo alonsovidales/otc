@@ -195,7 +195,10 @@ the iOS file/type names (SwiftUI view ↔ Composable, ObservableObject ↔ ViewM
 EncryptedSharedPreferences, PhotoKit ↔ MediaStore, BGTaskScheduler ↔ WorkManager, APNs ↔ FCM).
 `make pb` writes its protobuf bindings (`--java_out=lite` + `--kotlin_out=lite`, package
 `cloud.offthe.otc.proto`, one file per type) to `app/android/app/src/main/proto-gen/`, which is
-gitignored like `proto/generated`. Because those generators emit one file per type, no two proto
+gitignored like `proto/generated`. The root `.gitignore` ignores the device binary as `/otc` - anchored, because the
+unanchored `otc` it used to be also swallowed the `cloud/offthe/otc/` package directory and the
+first Android commit went out with no Kotlin at all; check `git ls-files app/android | grep .kt`
+after adding sources. Because those generators emit one file per type, no two proto
 type names may differ only by case (the message `FriendshipStatusReply` was renamed for exactly
 that: it collided with the enum `FriendShipStatus` on macOS's case-insensitive filesystem). The
 protobuf runtime version in `app/build.gradle.kts` must match the installed `protoc` (4.<protoc
