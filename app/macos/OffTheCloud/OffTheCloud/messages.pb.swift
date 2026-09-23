@@ -8,7 +8,11 @@
 // For information on using the generated types, please see the documentation:
 //   https://github.com/apple/swift-protobuf/
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -16,12 +20,12 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
-public enum Msg_StatusErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Msg_StatusErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case diskError // = 0
   case syncing // = 1
@@ -69,7 +73,7 @@ public enum Msg_StatusErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
 /// from Unknown (an array exists but /proc/mdstat couldn't be parsed) —
 /// both render as "no bar to draw", but they're different enough
 /// conditions to keep separate rather than collapsing to one "n/a" value.
-public enum Msg_RaidState: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Msg_RaidState: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case raidUnknown // = 0
   case raidNone // = 1
@@ -115,7 +119,7 @@ public enum Msg_RaidState: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-public enum Msg_FriendShipStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Msg_FriendShipStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case pending // = 0
   case accepted // = 1
@@ -153,7 +157,7 @@ public enum Msg_FriendShipStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-public enum Msg_ActionType: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Msg_ActionType: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case friendshipReq // = 0
   case likePub // = 1
@@ -195,7 +199,7 @@ public enum Msg_ActionType: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-public enum Msg_BridgeOnboardErrorType: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Msg_BridgeOnboardErrorType: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case genericError // = 0
   case takenDomain // = 1
@@ -249,7 +253,7 @@ public enum Msg_BridgeOnboardErrorType: SwiftProtobuf.Enum, Swift.CaseIterable {
 /// already "for" the one person who'll ever see it. Deliberately excludes
 /// "a friend posted something new" - Instagram's own activity tab treats
 /// that as ordinary feed content too, not a notification.
-public enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case notificationLikePublication // = 0
   case notificationLikeComment // = 1
@@ -295,7 +299,7 @@ public enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-public struct Msg_StatusErrors: Sendable {
+public nonisolated struct Msg_StatusErrors: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -309,7 +313,7 @@ public struct Msg_StatusErrors: Sendable {
   public init() {}
 }
 
-public struct Msg_GetStatus: Sendable {
+public nonisolated struct Msg_GetStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -319,7 +323,7 @@ public struct Msg_GetStatus: Sendable {
   public init() {}
 }
 
-public struct Msg_Status: Sendable {
+public nonisolated struct Msg_Status: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -362,7 +366,7 @@ public struct Msg_Status: Sendable {
   public init() {}
 }
 
-public struct Msg_Auth: Sendable {
+public nonisolated struct Msg_Auth: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -391,7 +395,7 @@ public struct Msg_Auth: Sendable {
 /// place of the password - see session/tokens.go for the server-side
 /// store, and its own doc comment for why every redemption mints a fresh
 /// token rather than counting down from the original login.
-public struct Msg_ReqIssueSessionToken: Sendable {
+public nonisolated struct Msg_ReqIssueSessionToken: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -401,7 +405,7 @@ public struct Msg_ReqIssueSessionToken: Sendable {
   public init() {}
 }
 
-public struct Msg_SessionToken: Sendable {
+public nonisolated struct Msg_SessionToken: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -415,17 +419,17 @@ public struct Msg_SessionToken: Sendable {
   public init() {}
 }
 
-public struct Msg_RespSessionToken: Sendable {
+public nonisolated struct Msg_RespSessionToken: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var sessionToken: Msg_SessionToken {
-    get {return _sessionToken ?? Msg_SessionToken()}
+    get {_sessionToken ?? Msg_SessionToken()}
     set {_sessionToken = newValue}
   }
   /// Returns true if `sessionToken` has been explicitly set.
-  public var hasSessionToken: Bool {return self._sessionToken != nil}
+  public var hasSessionToken: Bool {self._sessionToken != nil}
   /// Clears the value of `sessionToken`. Subsequent reads from it will return its default value.
   public mutating func clearSessionToken() {self._sessionToken = nil}
 
@@ -441,7 +445,7 @@ public struct Msg_RespSessionToken: Sendable {
 /// token). A client that gets Ok back still needs its own follow-up
 /// IssueSessionToken call to keep a fresh token in storage, since redeeming
 /// one consumes it (see RedeemToken).
-public struct Msg_ReqAuthWithToken: Sendable {
+public nonisolated struct Msg_ReqAuthWithToken: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -463,7 +467,7 @@ public struct Msg_ReqAuthWithToken: Sendable {
 /// anyone. Without that this would be an anonymous "does <name> exist?"
 /// oracle on a public relay, letting anybody enumerate which subdomains -
 /// and therefore which people - are registered here.
-public struct Msg_ReqIsDomainAvailable: Sendable {
+public nonisolated struct Msg_ReqIsDomainAvailable: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -482,7 +486,7 @@ public struct Msg_ReqIsDomainAvailable: Sendable {
   public init() {}
 }
 
-public struct Msg_RespDomainAvailable: Sendable {
+public nonisolated struct Msg_RespDomainAvailable: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -498,7 +502,7 @@ public struct Msg_RespDomainAvailable: Sendable {
 /// button) so a token that's already sitting in some other tab's storage
 /// stops working immediately, rather than just quietly expiring on its own
 /// TTL. Answers with the generic Ack.
-public struct Msg_ReqRevokeSessionToken: Sendable {
+public nonisolated struct Msg_ReqRevokeSessionToken: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -513,7 +517,7 @@ public struct Msg_ReqRevokeSessionToken: Sendable {
 /// ChangeKey, and use it to encrypt the key material client-side so that
 /// the plaintext password never crosses the bridge, which only relays
 /// already-encrypted application payloads between device and client.
-public struct Msg_GetPubKey: Sendable {
+public nonisolated struct Msg_GetPubKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -523,7 +527,7 @@ public struct Msg_GetPubKey: Sendable {
   public init() {}
 }
 
-public struct Msg_PubKey: Sendable {
+public nonisolated struct Msg_PubKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -555,7 +559,7 @@ public struct Msg_PubKey: Sendable {
   public init() {}
 }
 
-public struct Msg_UploadFile: Sendable {
+public nonisolated struct Msg_UploadFile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -567,11 +571,11 @@ public struct Msg_UploadFile: Sendable {
   public var forceOverride: Bool = false
 
   public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_created = newValue}
   }
   /// Returns true if `created` has been explicitly set.
-  public var hasCreated: Bool {return self._created != nil}
+  public var hasCreated: Bool {self._created != nil}
   /// Clears the value of `created`. Subsequent reads from it will return its default value.
   public mutating func clearCreated() {self._created = nil}
 
@@ -587,7 +591,7 @@ public struct Msg_UploadFile: Sendable {
 /// already deduplicated by hash server-side (multiple paths can share one
 /// on-disk blob), this just lets a client find that out *before* spending
 /// the bandwidth on a re-upload, not just after.
-public struct Msg_HasFile: Sendable {
+public nonisolated struct Msg_HasFile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -599,7 +603,7 @@ public struct Msg_HasFile: Sendable {
   public init() {}
 }
 
-public struct Msg_FileExists: Sendable {
+public nonisolated struct Msg_FileExists: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -616,7 +620,7 @@ public struct Msg_FileExists: Sendable {
 /// have confirmed via HasFile first that the hash actually exists here;
 /// the server verifies that itself too and rejects the request if not,
 /// rather than trusting the claim blindly.
-public struct Msg_LinkFile: Sendable {
+public nonisolated struct Msg_LinkFile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -628,11 +632,11 @@ public struct Msg_LinkFile: Sendable {
   public var forceOverride: Bool = false
 
   public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_created = newValue}
   }
   /// Returns true if `created` has been explicitly set.
-  public var hasCreated: Bool {return self._created != nil}
+  public var hasCreated: Bool {self._created != nil}
   /// Clears the value of `created`. Subsequent reads from it will return its default value.
   public mutating func clearCreated() {self._created = nil}
 
@@ -643,7 +647,7 @@ public struct Msg_LinkFile: Sendable {
   fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_DelFile: Sendable {
+public nonisolated struct Msg_DelFile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -655,7 +659,7 @@ public struct Msg_DelFile: Sendable {
   public init() {}
 }
 
-public struct Msg_GetFile: Sendable {
+public nonisolated struct Msg_GetFile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -667,7 +671,7 @@ public struct Msg_GetFile: Sendable {
   public init() {}
 }
 
-public struct Msg_ListFiles: Sendable {
+public nonisolated struct Msg_ListFiles: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -681,7 +685,7 @@ public struct Msg_ListFiles: Sendable {
   public init() {}
 }
 
-public struct Msg_SearchPhotos: Sendable {
+public nonisolated struct Msg_SearchPhotos: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -712,11 +716,11 @@ public struct Msg_SearchPhotos: Sendable {
   /// filtered/sorted result set once per token) by treating a jump exactly
   /// like a brand new search.
   public var before: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _before ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_before ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_before = newValue}
   }
   /// Returns true if `before` has been explicitly set.
-  public var hasBefore: Bool {return self._before != nil}
+  public var hasBefore: Bool {self._before != nil}
   /// Clears the value of `before`. Subsequent reads from it will return its default value.
   public mutating func clearBefore() {self._before = nil}
 
@@ -747,7 +751,7 @@ public struct Msg_SearchPhotos: Sendable {
   fileprivate var _before: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_ListOfFiles: Sendable {
+public nonisolated struct Msg_ListOfFiles: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -765,7 +769,7 @@ public struct Msg_ListOfFiles: Sendable {
 /// date scrubber and to know how many placeholder squares to draw while
 /// dragging to a month that hasn't loaded yet. Same filter shape as
 /// SearchPhotos minus token/before - a scrubber query, not a page fetch.
-public struct Msg_ReqPhotoDateBuckets: Sendable {
+public nonisolated struct Msg_ReqPhotoDateBuckets: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -784,7 +788,7 @@ public struct Msg_ReqPhotoDateBuckets: Sendable {
   public init() {}
 }
 
-public struct Msg_PhotoDateBucket: Sendable {
+public nonisolated struct Msg_PhotoDateBucket: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -799,7 +803,7 @@ public struct Msg_PhotoDateBucket: Sendable {
   public init() {}
 }
 
-public struct Msg_RespPhotoDateBuckets: Sendable {
+public nonisolated struct Msg_RespPhotoDateBuckets: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -812,7 +816,7 @@ public struct Msg_RespPhotoDateBuckets: Sendable {
   public init() {}
 }
 
-public struct Msg_File: Sendable {
+public nonisolated struct Msg_File: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -822,20 +826,20 @@ public struct Msg_File: Sendable {
   public var mime: String = String()
 
   public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_created = newValue}
   }
   /// Returns true if `created` has been explicitly set.
-  public var hasCreated: Bool {return self._created != nil}
+  public var hasCreated: Bool {self._created != nil}
   /// Clears the value of `created`. Subsequent reads from it will return its default value.
   public mutating func clearCreated() {self._created = nil}
 
   public var modified: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _modified ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_modified ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_modified = newValue}
   }
   /// Returns true if `modified` has been explicitly set.
-  public var hasModified: Bool {return self._modified != nil}
+  public var hasModified: Bool {self._modified != nil}
   /// Clears the value of `modified`. Subsequent reads from it will return its default value.
   public mutating func clearModified() {self._modified = nil}
 
@@ -844,11 +848,11 @@ public struct Msg_File: Sendable {
   public var size: Int32 = 0
 
   public var content: Data {
-    get {return _content ?? Data()}
+    get {_content ?? Data()}
     set {_content = newValue}
   }
   /// Returns true if `content` has been explicitly set.
-  public var hasContent: Bool {return self._content != nil}
+  public var hasContent: Bool {self._content != nil}
   /// Clears the value of `content`. Subsequent reads from it will return its default value.
   public mutating func clearContent() {self._content = nil}
 
@@ -861,7 +865,7 @@ public struct Msg_File: Sendable {
   fileprivate var _content: Data? = nil
 }
 
-public struct Msg_Ack: Sendable {
+public nonisolated struct Msg_Ack: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -892,7 +896,7 @@ public struct Msg_Ack: Sendable {
   public init() {}
 }
 
-public struct Msg_GetTags: Sendable {
+public nonisolated struct Msg_GetTags: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -902,7 +906,7 @@ public struct Msg_GetTags: Sendable {
   public init() {}
 }
 
-public struct Msg_TagsList: Sendable {
+public nonisolated struct Msg_TagsList: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -914,7 +918,7 @@ public struct Msg_TagsList: Sendable {
   public init() {}
 }
 
-public struct Msg_ChangeKey: Sendable {
+public nonisolated struct Msg_ChangeKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -934,7 +938,7 @@ public struct Msg_ChangeKey: Sendable {
 /// The original file in the owner's library is never touched - only the
 /// copy that goes into the post, exactly like the size-driven compression
 /// in issue #60.
-public struct Msg_VideoTrim: Sendable {
+public nonisolated struct Msg_VideoTrim: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -954,7 +958,7 @@ public struct Msg_VideoTrim: Sendable {
   public init() {}
 }
 
-public struct Msg_NewSocialPublication: Sendable {
+public nonisolated struct Msg_NewSocialPublication: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -973,17 +977,17 @@ public struct Msg_NewSocialPublication: Sendable {
   public init() {}
 }
 
-public struct Msg_GetEvents: Sendable {
+public nonisolated struct Msg_GetEvents: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var since: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_since = newValue}
   }
   /// Returns true if `since` has been explicitly set.
-  public var hasSince: Bool {return self._since != nil}
+  public var hasSince: Bool {self._since != nil}
   /// Clears the value of `since`. Subsequent reads from it will return its default value.
   public mutating func clearSince() {self._since = nil}
 
@@ -996,7 +1000,7 @@ public struct Msg_GetEvents: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_GetSocialPublicationFiles: Sendable {
+public nonisolated struct Msg_GetSocialPublicationFiles: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1022,7 +1026,7 @@ public struct Msg_GetSocialPublicationFiles: Sendable {
 /// pub_uuid is not redundant: the device only serves a hash that actually
 /// belongs to that publication, which keeps this from becoming a
 /// read-any-file-by-hash oracle for anyone who can reach the feed.
-public struct Msg_GetPublicationMedia: Sendable {
+public nonisolated struct Msg_GetPublicationMedia: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1041,7 +1045,7 @@ public struct Msg_GetPublicationMedia: Sendable {
 /// <video> element or AVPlayer, which then fetch it with ordinary HTTP
 /// range requests - the player starts on the first chunk and only ever
 /// pulls the parts it actually plays.
-public struct Msg_ReqGetMediaURL: Sendable {
+public nonisolated struct Msg_ReqGetMediaURL: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1059,7 +1063,7 @@ public struct Msg_ReqGetMediaURL: Sendable {
   public init() {}
 }
 
-public struct Msg_RespMediaURL: Sendable {
+public nonisolated struct Msg_RespMediaURL: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1086,7 +1090,7 @@ public struct Msg_RespMediaURL: Sendable {
 /// plain HTTP to /media/<token>, and the bridge translates. The token is
 /// the only credential: it was minted for one specific file, for one
 /// already-authenticated session, and expires (see mediatokens).
-public struct Msg_ReqGetMediaRange: Sendable {
+public nonisolated struct Msg_ReqGetMediaRange: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1102,7 +1106,7 @@ public struct Msg_ReqGetMediaRange: Sendable {
   public init() {}
 }
 
-public struct Msg_RespMediaRange: Sendable {
+public nonisolated struct Msg_RespMediaRange: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1121,7 +1125,7 @@ public struct Msg_RespMediaRange: Sendable {
 }
 
 /// Issue #94: updating the device in place from Settings.
-public struct Msg_ReqCheckUpdate: Sendable {
+public nonisolated struct Msg_ReqCheckUpdate: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1131,7 +1135,7 @@ public struct Msg_ReqCheckUpdate: Sendable {
   public init() {}
 }
 
-public struct Msg_UpdateRelease: Sendable {
+public nonisolated struct Msg_UpdateRelease: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1149,7 +1153,7 @@ public struct Msg_UpdateRelease: Sendable {
   public init() {}
 }
 
-public struct Msg_RespUpdateInfo: Sendable {
+public nonisolated struct Msg_RespUpdateInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1184,7 +1188,7 @@ public struct Msg_RespUpdateInfo: Sendable {
 /// Starts the update and answers immediately - it takes minutes and ends
 /// by restarting this very process, so there is nothing to wait for. Poll
 /// ReqCheckUpdate for progress.
-public struct Msg_ReqApplyUpdate: Sendable {
+public nonisolated struct Msg_ReqApplyUpdate: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1196,7 +1200,7 @@ public struct Msg_ReqApplyUpdate: Sendable {
 
 /// Issue #80: reaching the device over Tailscale Funnel instead of the
 /// bridge. Offered at first setup; see the limitations spelled out there.
-public struct Msg_ReqSetupTailscale: Sendable {
+public nonisolated struct Msg_ReqSetupTailscale: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1216,7 +1220,7 @@ public struct Msg_ReqSetupTailscale: Sendable {
   public init() {}
 }
 
-public struct Msg_ReqGetTailscaleStatus: Sendable {
+public nonisolated struct Msg_ReqGetTailscaleStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1226,7 +1230,7 @@ public struct Msg_ReqGetTailscaleStatus: Sendable {
   public init() {}
 }
 
-public struct Msg_RespTailscaleStatus: Sendable {
+public nonisolated struct Msg_RespTailscaleStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1250,17 +1254,17 @@ public struct Msg_RespTailscaleStatus: Sendable {
   public init() {}
 }
 
-public struct Msg_GetSocialPublications: Sendable {
+public nonisolated struct Msg_GetSocialPublications: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var since: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_since = newValue}
   }
   /// Returns true if `since` has been explicitly set.
-  public var hasSince: Bool {return self._since != nil}
+  public var hasSince: Bool {self._since != nil}
   /// Clears the value of `since`. Subsequent reads from it will return its default value.
   public mutating func clearSince() {self._since = nil}
 
@@ -1275,7 +1279,7 @@ public struct Msg_GetSocialPublications: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_NewSocialComment: Sendable {
+public nonisolated struct Msg_NewSocialComment: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1291,7 +1295,7 @@ public struct Msg_NewSocialComment: Sendable {
   public init() {}
 }
 
-public struct Msg_DelSocialComment: Sendable {
+public nonisolated struct Msg_DelSocialComment: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1304,7 +1308,7 @@ public struct Msg_DelSocialComment: Sendable {
 }
 
 /// issue #34: delete one of your own posts.
-public struct Msg_DelSocialPublication: Sendable {
+public nonisolated struct Msg_DelSocialPublication: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1316,7 +1320,7 @@ public struct Msg_DelSocialPublication: Sendable {
   public init() {}
 }
 
-public struct Msg_DidSendFriendshipReq: Sendable {
+public nonisolated struct Msg_DidSendFriendshipReq: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1330,17 +1334,17 @@ public struct Msg_DidSendFriendshipReq: Sendable {
   public init() {}
 }
 
-public struct Msg_Friendship: Sendable {
+public nonisolated struct Msg_Friendship: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var originProfile: Msg_Profile {
-    get {return _originProfile ?? Msg_Profile()}
+    get {_originProfile ?? Msg_Profile()}
     set {_originProfile = newValue}
   }
   /// Returns true if `originProfile` has been explicitly set.
-  public var hasOriginProfile: Bool {return self._originProfile != nil}
+  public var hasOriginProfile: Bool {self._originProfile != nil}
   /// Clears the value of `originProfile`. Subsequent reads from it will return its default value.
   public mutating func clearOriginProfile() {self._originProfile = nil}
 
@@ -1351,11 +1355,11 @@ public struct Msg_Friendship: Sendable {
   public var secret: String = String()
 
   public var latestSync: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _latestSync ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_latestSync ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_latestSync = newValue}
   }
   /// Returns true if `latestSync` has been explicitly set.
-  public var hasLatestSync: Bool {return self._latestSync != nil}
+  public var hasLatestSync: Bool {self._latestSync != nil}
   /// Clears the value of `latestSync`. Subsequent reads from it will return its default value.
   public mutating func clearLatestSync() {self._latestSync = nil}
 
@@ -1375,7 +1379,7 @@ public struct Msg_Friendship: Sendable {
   fileprivate var _latestSync: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_Friendships: Sendable {
+public nonisolated struct Msg_Friendships: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1387,7 +1391,7 @@ public struct Msg_Friendships: Sendable {
   public init() {}
 }
 
-public struct Msg_FriendshipsList: Sendable {
+public nonisolated struct Msg_FriendshipsList: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1397,7 +1401,7 @@ public struct Msg_FriendshipsList: Sendable {
   public init() {}
 }
 
-public struct Msg_FriendshipRequest: Sendable {
+public nonisolated struct Msg_FriendshipRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1409,7 +1413,7 @@ public struct Msg_FriendshipRequest: Sendable {
   public init() {}
 }
 
-public struct Msg_FriendshipInterRequest: Sendable {
+public nonisolated struct Msg_FriendshipInterRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1419,11 +1423,11 @@ public struct Msg_FriendshipInterRequest: Sendable {
   public var secret: String = String()
 
   public var originProfile: Msg_Profile {
-    get {return _originProfile ?? Msg_Profile()}
+    get {_originProfile ?? Msg_Profile()}
     set {_originProfile = newValue}
   }
   /// Returns true if `originProfile` has been explicitly set.
-  public var hasOriginProfile: Bool {return self._originProfile != nil}
+  public var hasOriginProfile: Bool {self._originProfile != nil}
   /// Clears the value of `originProfile`. Subsequent reads from it will return its default value.
   public mutating func clearOriginProfile() {self._originProfile = nil}
 
@@ -1434,7 +1438,7 @@ public struct Msg_FriendshipInterRequest: Sendable {
   fileprivate var _originProfile: Msg_Profile? = nil
 }
 
-public struct Msg_ChangeFriendStatus: Sendable {
+public nonisolated struct Msg_ChangeFriendStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1451,7 +1455,7 @@ public struct Msg_ChangeFriendStatus: Sendable {
 /// Issue #25: the owner removes a friend request from their own device -
 /// one they sent (withdrawing it) or one they received (declining it).
 /// The device also asks the other side to drop its copy, best effort.
-public struct Msg_DeleteFriendship: Sendable {
+public nonisolated struct Msg_DeleteFriendship: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1467,7 +1471,7 @@ public struct Msg_DeleteFriendship: Sendable {
 /// deleting device so the other one drops its copy of the request too.
 /// Authenticated the way GetFriendshipStatus and DidSendFriendshipReq are:
 /// by the per-friendship secret only the two devices share.
-public struct Msg_FriendshipInterDelete: Sendable {
+public nonisolated struct Msg_FriendshipInterDelete: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1482,7 +1486,7 @@ public struct Msg_FriendshipInterDelete: Sendable {
   public init() {}
 }
 
-public struct Msg_LikePublication: Sendable {
+public nonisolated struct Msg_LikePublication: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1494,7 +1498,7 @@ public struct Msg_LikePublication: Sendable {
   public init() {}
 }
 
-public struct Msg_LikeComment: Sendable {
+public nonisolated struct Msg_LikeComment: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1507,7 +1511,7 @@ public struct Msg_LikeComment: Sendable {
 }
 
 /// issue #29: "who liked this" for a publication or a comment.
-public struct Msg_GetPublicationLikers: Sendable {
+public nonisolated struct Msg_GetPublicationLikers: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1519,7 +1523,7 @@ public struct Msg_GetPublicationLikers: Sendable {
   public init() {}
 }
 
-public struct Msg_GetCommentLikers: Sendable {
+public nonisolated struct Msg_GetCommentLikers: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1531,7 +1535,7 @@ public struct Msg_GetCommentLikers: Sendable {
   public init() {}
 }
 
-public struct Msg_Likers: Sendable {
+public nonisolated struct Msg_Likers: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1543,7 +1547,7 @@ public struct Msg_Likers: Sendable {
   public init() {}
 }
 
-public struct Msg_GetSettings: Sendable {
+public nonisolated struct Msg_GetSettings: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1553,7 +1557,7 @@ public struct Msg_GetSettings: Sendable {
   public init() {}
 }
 
-public struct Msg_SetSettings: Sendable {
+public nonisolated struct Msg_SetSettings: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1565,7 +1569,7 @@ public struct Msg_SetSettings: Sendable {
   public init() {}
 }
 
-public struct Msg_Settings: Sendable {
+public nonisolated struct Msg_Settings: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1595,7 +1599,7 @@ public struct Msg_Settings: Sendable {
 /// even after this is turned back on - see the `faces` table's own doc
 /// comment in db.sql for why that's a deliberate design choice, not a
 /// missing backfill feature.
-public struct Msg_SetFaceRecognitionEnabled: Sendable {
+public nonisolated struct Msg_SetFaceRecognitionEnabled: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1611,7 +1615,7 @@ public struct Msg_SetFaceRecognitionEnabled: Sendable {
 /// library (issue #52). cover_thumbnail is one representative face crop (an
 /// aligned, already-small JPEG - see face_recognition.FaceDetection), enough
 /// to render a People list without a second round trip per entry.
-public struct Msg_Person: Sendable {
+public nonisolated struct Msg_Person: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1629,7 +1633,7 @@ public struct Msg_Person: Sendable {
   public init() {}
 }
 
-public struct Msg_ListPeople: Sendable {
+public nonisolated struct Msg_ListPeople: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1639,7 +1643,7 @@ public struct Msg_ListPeople: Sendable {
   public init() {}
 }
 
-public struct Msg_People: Sendable {
+public nonisolated struct Msg_People: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1655,7 +1659,7 @@ public struct Msg_People: Sendable {
 /// person - there's no separate "add a name" request, since from the
 /// server's point of view naming an unnamed person and renaming an already-
 /// named one are the exact same update.
-public struct Msg_RenamePerson: Sendable {
+public nonisolated struct Msg_RenamePerson: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1674,7 +1678,7 @@ public struct Msg_RenamePerson: Sendable {
 /// the `faces` table's own doc comment in db.sql. Not reversible: a face
 /// that reappears in a *future* photo gets clustered into a brand new
 /// person, same as if it had never been seen before.
-public struct Msg_DeletePerson: Sendable {
+public nonisolated struct Msg_DeletePerson: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1695,7 +1699,7 @@ public struct Msg_DeletePerson: Sendable {
 /// already has the right name as the target. Not reversible - see
 /// DeletePerson's own doc comment on why an un-merge isn't a thing either
 /// (a future photo of that source identity just gets clustered fresh).
-public struct Msg_MergePeople: Sendable {
+public nonisolated struct Msg_MergePeople: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1713,7 +1717,7 @@ public struct Msg_MergePeople: Sendable {
 /// thumbnail, chosen at random per listing, so the list can render with
 /// a picture per group without a round trip each - same idea as
 /// Person.cover_thumbnail.
-public struct Msg_ImageGroup: Sendable {
+public nonisolated struct Msg_ImageGroup: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1731,7 +1735,7 @@ public struct Msg_ImageGroup: Sendable {
   public init() {}
 }
 
-public struct Msg_ListImageGroups: Sendable {
+public nonisolated struct Msg_ListImageGroups: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1741,7 +1745,7 @@ public struct Msg_ListImageGroups: Sendable {
   public init() {}
 }
 
-public struct Msg_ImageGroups: Sendable {
+public nonisolated struct Msg_ImageGroups: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1756,7 +1760,7 @@ public struct Msg_ImageGroups: Sendable {
 /// CreateImageGroup makes a group holding `paths` (which may be empty).
 /// Paths rather than hashes because that is what a selection holds on
 /// every client; the device resolves them. Answered with the new group.
-public struct Msg_CreateImageGroup: Sendable {
+public nonisolated struct Msg_CreateImageGroup: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1770,17 +1774,17 @@ public struct Msg_CreateImageGroup: Sendable {
   public init() {}
 }
 
-public struct Msg_RespImageGroup: Sendable {
+public nonisolated struct Msg_RespImageGroup: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var group: Msg_ImageGroup {
-    get {return _group ?? Msg_ImageGroup()}
+    get {_group ?? Msg_ImageGroup()}
     set {_group = newValue}
   }
   /// Returns true if `group` has been explicitly set.
-  public var hasGroup: Bool {return self._group != nil}
+  public var hasGroup: Bool {self._group != nil}
   /// Clears the value of `group`. Subsequent reads from it will return its default value.
   public mutating func clearGroup() {self._group = nil}
 
@@ -1793,7 +1797,7 @@ public struct Msg_RespImageGroup: Sendable {
 
 /// AddToImageGroup adds `paths` to an existing group; already-members are
 /// ignored, not an error. Answered with the generic Ack.
-public struct Msg_AddToImageGroup: Sendable {
+public nonisolated struct Msg_AddToImageGroup: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1807,7 +1811,7 @@ public struct Msg_AddToImageGroup: Sendable {
   public init() {}
 }
 
-public struct Msg_RenameImageGroup: Sendable {
+public nonisolated struct Msg_RenameImageGroup: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1823,7 +1827,7 @@ public struct Msg_RenameImageGroup: Sendable {
 
 /// DeleteImageGroup removes the group and its membership rows only - never
 /// the pictures themselves. Answered with the generic Ack.
-public struct Msg_DeleteImageGroup: Sendable {
+public nonisolated struct Msg_DeleteImageGroup: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1844,7 +1848,7 @@ public struct Msg_DeleteImageGroup: Sendable {
 /// when it finishes; poll GetReprocessStatus for progress. Calling this
 /// again while a run is already active in this process is a no-op, not an
 /// error - it just leaves the existing run going.
-public struct Msg_StartReprocess: Sendable {
+public nonisolated struct Msg_StartReprocess: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1865,7 +1869,7 @@ public struct Msg_StartReprocess: Sendable {
 /// GetReprocessStatus is polled (same pattern as GetStatus for RAID/disk)
 /// to drive the Settings screen's progress bar while a reprocess run is
 /// active - see ReprocessStatus.
-public struct Msg_GetReprocessStatus: Sendable {
+public nonisolated struct Msg_GetReprocessStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1875,7 +1879,7 @@ public struct Msg_GetReprocessStatus: Sendable {
   public init() {}
 }
 
-public struct Msg_ReprocessStatus: Sendable {
+public nonisolated struct Msg_ReprocessStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1900,7 +1904,7 @@ public struct Msg_ReprocessStatus: Sendable {
 /// status flip to "stopped". Stopping is not the same as it never having
 /// run: the next StartReprocess resumes from wherever this left off,
 /// exactly like recovering from an interrupted run.
-public struct Msg_StopReprocess: Sendable {
+public nonisolated struct Msg_StopReprocess: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1915,7 +1919,7 @@ public struct Msg_StopReprocess: Sendable {
 /// secret was silently regenerated on every domain change), which broke a
 /// device's bridge pairing any time someone just wanted to rename their
 /// domain. They're independent settings now.
-public struct Msg_SetBridgeSecret: Sendable {
+public nonisolated struct Msg_SetBridgeSecret: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1932,7 +1936,7 @@ public struct Msg_SetBridgeSecret: Sendable {
 /// (formats whichever disks are picked), so it's kept as an explicit,
 /// separate confirmation step rather than something that happens
 /// automatically just because a device was detected.
-public struct Msg_ListStorageDevices: Sendable {
+public nonisolated struct Msg_ListStorageDevices: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1942,7 +1946,7 @@ public struct Msg_ListStorageDevices: Sendable {
   public init() {}
 }
 
-public struct Msg_StorageDevice: Sendable {
+public nonisolated struct Msg_StorageDevice: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1959,7 +1963,7 @@ public struct Msg_StorageDevice: Sendable {
   public init() {}
 }
 
-public struct Msg_StorageDevices: Sendable {
+public nonisolated struct Msg_StorageDevices: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1977,7 +1981,7 @@ public struct Msg_StorageDevices: Sendable {
 /// SetupStorage is destructive on anything selected: 2 devices creates a
 /// RAID1 mirror across them, 1 formats and uses that single device alone
 /// (no redundancy), 0 leaves storage on the boot disk as-is.
-public struct Msg_SetupStorage: Sendable {
+public nonisolated struct Msg_SetupStorage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1995,7 +1999,7 @@ public struct Msg_SetupStorage: Sendable {
 /// privilege), so it runs directly in the otc service like
 /// ListStorageDevices; actually joining a network is privileged the same
 /// way storage setup is — see SetWifi.
-public struct Msg_ListWifiNetworks: Sendable {
+public nonisolated struct Msg_ListWifiNetworks: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2005,7 +2009,7 @@ public struct Msg_ListWifiNetworks: Sendable {
   public init() {}
 }
 
-public struct Msg_WifiNetwork: Sendable {
+public nonisolated struct Msg_WifiNetwork: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2022,7 +2026,7 @@ public struct Msg_WifiNetwork: Sendable {
   public init() {}
 }
 
-public struct Msg_WifiNetworks: Sendable {
+public nonisolated struct Msg_WifiNetworks: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2037,7 +2041,7 @@ public struct Msg_WifiNetworks: Sendable {
 /// SetWifi hands the join off to a privileged process the same way
 /// SetupStorage does (see storage.RequestSetup) — the otc service can't run
 /// `nmcli connection up` itself. An empty password means an open network.
-public struct Msg_SetWifi: Sendable {
+public nonisolated struct Msg_SetWifi: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2055,7 +2059,7 @@ public struct Msg_SetWifi: Sendable {
 /// a browser PushSubscription's fields verbatim (endpoint + the two keys from
 /// subscription.toJSON().keys) so the device can send RFC8291-encrypted Web
 /// Push messages directly, no third-party push provider account needed.
-public struct Msg_RegisterWebPush: Sendable {
+public nonisolated struct Msg_RegisterWebPush: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2075,7 +2079,7 @@ public struct Msg_RegisterWebPush: Sendable {
 /// delivery on iOS. Sending actually reaching the phone additionally needs
 /// this OTC device configured with an APNs Auth Key (see the [apns] config
 /// section) - registering the token here is safe/inert without one.
-public struct Msg_RegisterApnsToken: Sendable {
+public nonisolated struct Msg_RegisterApnsToken: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2087,7 +2091,7 @@ public struct Msg_RegisterApnsToken: Sendable {
   public init() {}
 }
 
-public struct Msg_GetVapidPublicKey: Sendable {
+public nonisolated struct Msg_GetVapidPublicKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2100,7 +2104,7 @@ public struct Msg_GetVapidPublicKey: Sendable {
 /// The device generates its own VAPID keypair on first use (see push.Init) -
 /// no external account needed, unlike APNs. This is the public half, base64url
 /// encoded, ready to pass as PushManager.subscribe's applicationServerKey.
-public struct Msg_VapidPublicKey: Sendable {
+public nonisolated struct Msg_VapidPublicKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2112,7 +2116,7 @@ public struct Msg_VapidPublicKey: Sendable {
   public init() {}
 }
 
-public struct Msg_BridgeRegister: Sendable {
+public nonisolated struct Msg_BridgeRegister: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2128,7 +2132,7 @@ public struct Msg_BridgeRegister: Sendable {
   public init() {}
 }
 
-public struct Msg_BridgeAckOnboard: Sendable {
+public nonisolated struct Msg_BridgeAckOnboard: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2148,7 +2152,7 @@ public struct Msg_BridgeAckOnboard: Sendable {
 /// password attempts by it. Only honoured on connections the device itself
 /// dialled out to the bridge; a client connected directly to the device
 /// cannot send this to choose its own address.
-public struct Msg_BridgeClientInfo: Sendable {
+public nonisolated struct Msg_BridgeClientInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2167,7 +2171,7 @@ public struct Msg_BridgeClientInfo: Sendable {
 /// the only thing that authenticates this request: the bridge only replaces
 /// it if this matches what it already has on record for owner_uuid+domain,
 /// same compare-and-swap spirit as BridgeRegister's existing secret check.
-public struct Msg_RotateBridgeSecret: Sendable {
+public nonisolated struct Msg_RotateBridgeSecret: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2183,7 +2187,7 @@ public struct Msg_RotateBridgeSecret: Sendable {
   public init() {}
 }
 
-public struct Msg_RotateBridgeSecretAck: Sendable {
+public nonisolated struct Msg_RotateBridgeSecretAck: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2207,7 +2211,7 @@ public struct Msg_RotateBridgeSecretAck: Sendable {
 /// not the primary sending this - the same identity that user's own
 /// process would use to register with the bridge itself. Answers with the
 /// generic Ack.
-public struct Msg_ReqSetDeviceDisabled: Sendable {
+public nonisolated struct Msg_ReqSetDeviceDisabled: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2230,7 +2234,7 @@ public struct Msg_ReqSetDeviceDisabled: Sendable {
 /// up its own owner_uuid/domain/current secret and does the
 /// RotateBridgeSecret round trip to the bridge itself, then persists and
 /// returns the new secret — the web app never talks to the bridge directly.
-public struct Msg_RegenerateBridgeSecret: Sendable {
+public nonisolated struct Msg_RegenerateBridgeSecret: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2250,7 +2254,7 @@ public struct Msg_RegenerateBridgeSecret: Sendable {
 /// before — simpler and self-healing (a bridge DB reset just looks like
 /// every device re-syncing on its next registration change) than trying to
 /// keep two independently-diffed copies in sync over time.
-public struct Msg_UpdatePushRegistrations: Sendable {
+public nonisolated struct Msg_UpdatePushRegistrations: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2279,7 +2283,7 @@ public struct Msg_UpdatePushRegistrations: Sendable {
   public init() {}
 }
 
-public struct Msg_WebPushSub: Sendable {
+public nonisolated struct Msg_WebPushSub: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2295,7 +2299,7 @@ public struct Msg_WebPushSub: Sendable {
   public init() {}
 }
 
-public struct Msg_UpdatePushRegistrationsAck: Sendable {
+public nonisolated struct Msg_UpdatePushRegistrationsAck: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2318,7 +2322,7 @@ public struct Msg_UpdatePushRegistrationsAck: Sendable {
 /// VAPID keypair is the device's own, so the device keeps sending that
 /// itself. title/body are the same minimal text as ever - a friend's name
 /// and an action, never post content.
-public struct Msg_BridgeNotify: Sendable {
+public nonisolated struct Msg_BridgeNotify: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2338,7 +2342,7 @@ public struct Msg_BridgeNotify: Sendable {
   public init() {}
 }
 
-public struct Msg_BridgeNotifyAck: Sendable {
+public nonisolated struct Msg_BridgeNotifyAck: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2350,7 +2354,7 @@ public struct Msg_BridgeNotifyAck: Sendable {
   public init() {}
 }
 
-public struct Msg_GetProfile: Sendable {
+public nonisolated struct Msg_GetProfile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2360,7 +2364,7 @@ public struct Msg_GetProfile: Sendable {
   public init() {}
 }
 
-public struct Msg_Profile: Sendable {
+public nonisolated struct Msg_Profile: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2368,11 +2372,11 @@ public struct Msg_Profile: Sendable {
   public var name: String = String()
 
   public var image: Data {
-    get {return _image ?? Data()}
+    get {_image ?? Data()}
     set {_image = newValue}
   }
   /// Returns true if `image` has been explicitly set.
-  public var hasImage: Bool {return self._image != nil}
+  public var hasImage: Bool {self._image != nil}
   /// Clears the value of `image`. Subsequent reads from it will return its default value.
   public mutating func clearImage() {self._image = nil}
 
@@ -2387,7 +2391,7 @@ public struct Msg_Profile: Sendable {
   fileprivate var _image: Data? = nil
 }
 
-public struct Msg_ShareFilesLink: Sendable {
+public nonisolated struct Msg_ShareFilesLink: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2399,7 +2403,7 @@ public struct Msg_ShareFilesLink: Sendable {
   public init() {}
 }
 
-public struct Msg_ShareLink: Sendable {
+public nonisolated struct Msg_ShareLink: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2411,7 +2415,7 @@ public struct Msg_ShareLink: Sendable {
   public init() {}
 }
 
-public struct Msg_DownloadSharedLink: Sendable {
+public nonisolated struct Msg_DownloadSharedLink: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2425,7 +2429,7 @@ public struct Msg_DownloadSharedLink: Sendable {
   public init() {}
 }
 
-public struct Msg_NewSocial: Sendable {
+public nonisolated struct Msg_NewSocial: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2437,7 +2441,7 @@ public struct Msg_NewSocial: Sendable {
   public init() {}
 }
 
-public struct Msg_SharedFiles: Sendable {
+public nonisolated struct Msg_SharedFiles: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2449,7 +2453,7 @@ public struct Msg_SharedFiles: Sendable {
   public init() {}
 }
 
-public struct Msg_Comment: Sendable {
+public nonisolated struct Msg_Comment: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2465,11 +2469,11 @@ public struct Msg_Comment: Sendable {
   public var likes: Int32 = 0
 
   public var dateTime: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _dateTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_dateTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_dateTime = newValue}
   }
   /// Returns true if `dateTime` has been explicitly set.
-  public var hasDateTime: Bool {return self._dateTime != nil}
+  public var hasDateTime: Bool {self._dateTime != nil}
   /// Clears the value of `dateTime`. Subsequent reads from it will return its default value.
   public mutating func clearDateTime() {self._dateTime = nil}
 
@@ -2484,7 +2488,7 @@ public struct Msg_Comment: Sendable {
   fileprivate var _dateTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_SocialPublication: Sendable {
+public nonisolated struct Msg_SocialPublication: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2500,11 +2504,11 @@ public struct Msg_SocialPublication: Sendable {
   public var likes: Int32 = 0
 
   public var publisher: Msg_Profile {
-    get {return _publisher ?? Msg_Profile()}
+    get {_publisher ?? Msg_Profile()}
     set {_publisher = newValue}
   }
   /// Returns true if `publisher` has been explicitly set.
-  public var hasPublisher: Bool {return self._publisher != nil}
+  public var hasPublisher: Bool {self._publisher != nil}
   /// Clears the value of `publisher`. Subsequent reads from it will return its default value.
   public mutating func clearPublisher() {self._publisher = nil}
 
@@ -2520,11 +2524,11 @@ public struct Msg_SocialPublication: Sendable {
   /// date_time is when the post was published, so clients can show it in
   /// the feed (same field shape as Comment.date_time above).
   public var dateTime: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _dateTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_dateTime ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_dateTime = newValue}
   }
   /// Returns true if `dateTime` has been explicitly set.
-  public var hasDateTime: Bool {return self._dateTime != nil}
+  public var hasDateTime: Bool {self._dateTime != nil}
   /// Clears the value of `dateTime`. Subsequent reads from it will return its default value.
   public mutating func clearDateTime() {self._dateTime = nil}
 
@@ -2536,7 +2540,7 @@ public struct Msg_SocialPublication: Sendable {
   fileprivate var _dateTime: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_SocialPublicationFiles: Sendable {
+public nonisolated struct Msg_SocialPublicationFiles: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2553,7 +2557,7 @@ public struct Msg_SocialPublicationFiles: Sendable {
 /// info" panel (issue #41). city/country are filled in from latitude/
 /// longitude via an offline reverse-geocode (see geotag/) whenever has_gps
 /// is true, the same lookup issue #42 uses to add them as searchable tags.
-public struct Msg_FileExifInfo: Sendable {
+public nonisolated struct Msg_FileExifInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2563,11 +2567,11 @@ public struct Msg_FileExifInfo: Sendable {
   public var cameraModel: String = String()
 
   public var takenAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _takenAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_takenAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_takenAt = newValue}
   }
   /// Returns true if `takenAt` has been explicitly set.
-  public var hasTakenAt: Bool {return self._takenAt != nil}
+  public var hasTakenAt: Bool {self._takenAt != nil}
   /// Clears the value of `takenAt`. Subsequent reads from it will return its default value.
   public mutating func clearTakenAt() {self._takenAt = nil}
 
@@ -2600,7 +2604,7 @@ public struct Msg_FileExifInfo: Sendable {
   fileprivate var _takenAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_GetFileInfo: Sendable {
+public nonisolated struct Msg_GetFileInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2612,7 +2616,7 @@ public struct Msg_GetFileInfo: Sendable {
   public init() {}
 }
 
-public struct Msg_SocialPublications: Sendable {
+public nonisolated struct Msg_SocialPublications: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2620,11 +2624,11 @@ public struct Msg_SocialPublications: Sendable {
   public var publications: [Msg_SocialPublication] = []
 
   public var since: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_since = newValue}
   }
   /// Returns true if `since` has been explicitly set.
-  public var hasSince: Bool {return self._since != nil}
+  public var hasSince: Bool {self._since != nil}
   /// Clears the value of `since`. Subsequent reads from it will return its default value.
   public mutating func clearSince() {self._since = nil}
 
@@ -2635,7 +2639,7 @@ public struct Msg_SocialPublications: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_Event: Sendable {
+public nonisolated struct Msg_Event: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2643,11 +2647,11 @@ public struct Msg_Event: Sendable {
   public var uuid: String = String()
 
   public var dt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _dt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_dt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_dt = newValue}
   }
   /// Returns true if `dt` has been explicitly set.
-  public var hasDt: Bool {return self._dt != nil}
+  public var hasDt: Bool {self._dt != nil}
   /// Clears the value of `dt`. Subsequent reads from it will return its default value.
   public mutating func clearDt() {self._dt = nil}
 
@@ -2662,7 +2666,7 @@ public struct Msg_Event: Sendable {
   fileprivate var _dt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_Events: Sendable {
+public nonisolated struct Msg_Events: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2670,11 +2674,11 @@ public struct Msg_Events: Sendable {
   public var events: [Msg_Event] = []
 
   public var since: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_since ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_since = newValue}
   }
   /// Returns true if `since` has been explicitly set.
-  public var hasSince: Bool {return self._since != nil}
+  public var hasSince: Bool {self._since != nil}
   /// Clears the value of `since`. Subsequent reads from it will return its default value.
   public mutating func clearSince() {self._since = nil}
 
@@ -2685,7 +2689,7 @@ public struct Msg_Events: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_Notification: Sendable {
+public nonisolated struct Msg_Notification: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2693,11 +2697,11 @@ public struct Msg_Notification: Sendable {
   public var uuid: String = String()
 
   public var dt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _dt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_dt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_dt = newValue}
   }
   /// Returns true if `dt` has been explicitly set.
-  public var hasDt: Bool {return self._dt != nil}
+  public var hasDt: Bool {self._dt != nil}
   /// Clears the value of `dt`. Subsequent reads from it will return its default value.
   public mutating func clearDt() {self._dt = nil}
 
@@ -2724,11 +2728,11 @@ public struct Msg_Notification: Sendable {
   /// image), shown at the left of the row - unset if that friend has no
   /// avatar cached.
   public var actorImage: Data {
-    get {return _actorImage ?? Data()}
+    get {_actorImage ?? Data()}
     set {_actorImage = newValue}
   }
   /// Returns true if `actorImage` has been explicitly set.
-  public var hasActorImage: Bool {return self._actorImage != nil}
+  public var hasActorImage: Bool {self._actorImage != nil}
   /// Clears the value of `actorImage`. Subsequent reads from it will return its default value.
   public mutating func clearActorImage() {self._actorImage = nil}
 
@@ -2736,11 +2740,11 @@ public struct Msg_Notification: Sendable {
   /// points to (pub_uuid's first file), shown at the right of the row -
   /// unset for FriendRequest/FriendAccepted, which point at no post.
   public var thumbnail: Data {
-    get {return _thumbnail ?? Data()}
+    get {_thumbnail ?? Data()}
     set {_thumbnail = newValue}
   }
   /// Returns true if `thumbnail` has been explicitly set.
-  public var hasThumbnail: Bool {return self._thumbnail != nil}
+  public var hasThumbnail: Bool {self._thumbnail != nil}
   /// Clears the value of `thumbnail`. Subsequent reads from it will return its default value.
   public mutating func clearThumbnail() {self._thumbnail = nil}
 
@@ -2753,7 +2757,7 @@ public struct Msg_Notification: Sendable {
   fileprivate var _thumbnail: Data? = nil
 }
 
-public struct Msg_ReqListNotifications: Sendable {
+public nonisolated struct Msg_ReqListNotifications: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2765,7 +2769,7 @@ public struct Msg_ReqListNotifications: Sendable {
   public init() {}
 }
 
-public struct Msg_RespNotifications: Sendable {
+public nonisolated struct Msg_RespNotifications: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2777,7 +2781,7 @@ public struct Msg_RespNotifications: Sendable {
   public init() {}
 }
 
-public struct Msg_ReqGetNotificationCount: Sendable {
+public nonisolated struct Msg_ReqGetNotificationCount: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2787,7 +2791,7 @@ public struct Msg_ReqGetNotificationCount: Sendable {
   public init() {}
 }
 
-public struct Msg_RespNotificationCount: Sendable {
+public nonisolated struct Msg_RespNotificationCount: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2800,7 +2804,7 @@ public struct Msg_RespNotificationCount: Sendable {
 }
 
 /// Answers with the generic Ack.
-public struct Msg_ReqMarkNotificationsAcknowledged: Sendable {
+public nonisolated struct Msg_ReqMarkNotificationsAcknowledged: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2813,7 +2817,7 @@ public struct Msg_ReqMarkNotificationsAcknowledged: Sendable {
 /// A single-post fetch, new for issue #78: tapping a notification for a
 /// post that isn't among whatever page of the feed happens to be loaded
 /// needs to be able to pull just that one post to open/scroll to.
-public struct Msg_ReqGetPublication: Sendable {
+public nonisolated struct Msg_ReqGetPublication: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2825,17 +2829,17 @@ public struct Msg_ReqGetPublication: Sendable {
   public init() {}
 }
 
-public struct Msg_RespPublication: Sendable {
+public nonisolated struct Msg_RespPublication: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var publication: Msg_SocialPublication {
-    get {return _publication ?? Msg_SocialPublication()}
+    get {_publication ?? Msg_SocialPublication()}
     set {_publication = newValue}
   }
   /// Returns true if `publication` has been explicitly set.
-  public var hasPublication: Bool {return self._publication != nil}
+  public var hasPublication: Bool {self._publication != nil}
   /// Clears the value of `publication`. Subsequent reads from it will return its default value.
   public mutating func clearPublication() {self._publication = nil}
 
@@ -2853,7 +2857,7 @@ public struct Msg_RespPublication: Sendable {
 /// there is deliberately no is_admin/promote concept here - the original
 /// device owner (whoever is logged into the primary instance) is the only
 /// admin there will ever be; every other user is just a user.
-public struct Msg_User: Sendable {
+public nonisolated struct Msg_User: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2871,11 +2875,11 @@ public struct Msg_User: Sendable {
   public var active: Bool = false
 
   public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_created = newValue}
   }
   /// Returns true if `created` has been explicitly set.
-  public var hasCreated: Bool {return self._created != nil}
+  public var hasCreated: Bool {self._created != nil}
   /// Clears the value of `created`. Subsequent reads from it will return its default value.
   public mutating func clearCreated() {self._created = nil}
 
@@ -2891,7 +2895,7 @@ public struct Msg_User: Sendable {
   fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-public struct Msg_ReqListUsers: Sendable {
+public nonisolated struct Msg_ReqListUsers: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2901,7 +2905,7 @@ public struct Msg_ReqListUsers: Sendable {
   public init() {}
 }
 
-public struct Msg_RespUsers: Sendable {
+public nonisolated struct Msg_RespUsers: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2915,7 +2919,7 @@ public struct Msg_RespUsers: Sendable {
 
 /// port is optional - omit it (0) to let the primary pick the next free
 /// one itself.
-public struct Msg_ReqCreateUser: Sendable {
+public nonisolated struct Msg_ReqCreateUser: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2944,7 +2948,7 @@ public struct Msg_ReqCreateUser: Sendable {
 /// confirm_username must match username exactly - checked server-side too,
 /// never trusted from the client alone, since this deletes a whole
 /// database and storage directory.
-public struct Msg_ReqDeleteUser: Sendable {
+public nonisolated struct Msg_ReqDeleteUser: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2964,7 +2968,7 @@ public struct Msg_ReqDeleteUser: Sendable {
 /// (supervisor.Stop), not just a flag flip that only takes effect next
 /// time it happens to restart; enabling spawns it again right away.
 /// Answers with the generic Ack.
-public struct Msg_ReqSetUserActive: Sendable {
+public nonisolated struct Msg_ReqSetUserActive: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2978,7 +2982,7 @@ public struct Msg_ReqSetUserActive: Sendable {
   public init() {}
 }
 
-public struct Msg_ReqGetUserMetrics: Sendable {
+public nonisolated struct Msg_ReqGetUserMetrics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -2990,7 +2994,7 @@ public struct Msg_ReqGetUserMetrics: Sendable {
   public init() {}
 }
 
-public struct Msg_RespUserMetrics: Sendable {
+public nonisolated struct Msg_RespUserMetrics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3011,7 +3015,7 @@ public struct Msg_RespUserMetrics: Sendable {
 /// per-user instances (which never expose user management, even if a
 /// request reaches it directly - see websocket.go's guard on every other
 /// RPC above).
-public struct Msg_ReqGetInstanceRole: Sendable {
+public nonisolated struct Msg_ReqGetInstanceRole: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3021,7 +3025,7 @@ public struct Msg_ReqGetInstanceRole: Sendable {
   public init() {}
 }
 
-public struct Msg_RespInstanceRole: Sendable {
+public nonisolated struct Msg_RespInstanceRole: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3033,7 +3037,7 @@ public struct Msg_RespInstanceRole: Sendable {
   public init() {}
 }
 
-public struct Msg_GetFriendshipStatus: Sendable {
+public nonisolated struct Msg_GetFriendshipStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3047,7 +3051,7 @@ public struct Msg_GetFriendshipStatus: Sendable {
   public init() {}
 }
 
-public struct Msg_FriendshipStatus: Sendable {
+public nonisolated struct Msg_FriendshipStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3065,7 +3069,7 @@ public struct Msg_FriendshipStatus: Sendable {
   public init() {}
 }
 
-public struct Msg_AuthAsFriend: Sendable {
+public nonisolated struct Msg_AuthAsFriend: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3089,7 +3093,7 @@ public struct Msg_AuthAsFriend: Sendable {
 /// staticassets.Resolve), and only ever answers with a file that already
 /// exists inside its own static assets directory: nothing else on the
 /// device is reachable through this, regardless of what path asks for.
-public struct Msg_ReqGetStaticAsset: Sendable {
+public nonisolated struct Msg_ReqGetStaticAsset: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3101,7 +3105,7 @@ public struct Msg_ReqGetStaticAsset: Sendable {
   public init() {}
 }
 
-public struct Msg_RespStaticAsset: Sendable {
+public nonisolated struct Msg_RespStaticAsset: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3115,7 +3119,7 @@ public struct Msg_RespStaticAsset: Sendable {
   public init() {}
 }
 
-public struct Msg_ReqEnvelope: Sendable {
+public nonisolated struct Msg_ReqEnvelope: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -3864,7 +3868,7 @@ public struct Msg_ReqEnvelope: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Payload: Equatable, Sendable {
+  public nonisolated enum OneOf_Payload: Equatable, Sendable {
     case reqListFiles(Msg_ListFiles)
     case reqGetStatus(Msg_GetStatus)
     case reqAuth(Msg_Auth)
@@ -3979,23 +3983,23 @@ public struct Msg_ReqEnvelope: Sendable {
   public init() {}
 }
 
-public struct Msg_RespEnvelope: @unchecked Sendable {
+public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var id: Int32 {
-    get {return _storage._id}
+    get {_storage._id}
     set {_uniqueStorage()._id = newValue}
   }
 
   public var error: Bool {
-    get {return _storage._error}
+    get {_storage._error}
     set {_uniqueStorage()._error = newValue}
   }
 
   public var errorMessage: String {
-    get {return _storage._errorMessage}
+    get {_storage._errorMessage}
     set {_uniqueStorage()._errorMessage = newValue}
   }
 
@@ -4371,7 +4375,7 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Payload: Equatable, Sendable {
+  public nonisolated enum OneOf_Payload: Equatable, Sendable {
     case respStatus(Msg_Status)
     case respAck(Msg_Ack)
     case respFile(Msg_File)
@@ -4439,33 +4443,33 @@ public struct Msg_RespEnvelope: @unchecked Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "msg"
+fileprivate nonisolated let _protobuf_package = "msg"
 
-extension Msg_StatusErrorCode: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_StatusErrorCode: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DiskError\0\u{1}Syncing\0\u{1}MissingDisk\0\u{1}ErrorInDisk\0")
 }
 
-extension Msg_RaidState: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RaidState: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0RaidUnknown\0\u{1}RaidNone\0\u{1}RaidInSync\0\u{1}RaidSyncing\0\u{1}RaidDegraded\0")
 }
 
-extension Msg_FriendShipStatus: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FriendShipStatus: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0Pending\0\u{1}Accepted\0\u{1}Blocked\0")
 }
 
-extension Msg_ActionType: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ActionType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FriendshipReq\0\u{1}LikePub\0\u{1}LikeComm\0\u{1}NewSocialComm\0")
 }
 
-extension Msg_BridgeOnboardErrorType: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_BridgeOnboardErrorType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0generic_error\0\u{1}taken_domain\0\u{1}secret_missmatch\0\u{1}unknown_owner\0\u{1}pending_approval\0")
 }
 
-extension Msg_NotificationType: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_NotificationType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0")
 }
 
-extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StatusErrors"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}StatusErrorCode\0\u{1}Message\0")
 
@@ -4500,7 +4504,7 @@ extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -4519,7 +4523,7 @@ extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Status"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
 
@@ -4614,7 +4618,7 @@ extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   }
 }
 
-extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Auth"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}key\0\u{1}create\0")
 
@@ -4654,7 +4658,7 @@ extension Msg_Auth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
   }
 }
 
-extension Msg_ReqIssueSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqIssueSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqIssueSessionToken"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -4673,7 +4677,7 @@ extension Msg_ReqIssueSessionToken: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_SessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionToken"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{3}expires_at_unix_ms\0")
 
@@ -4708,7 +4712,7 @@ extension Msg_SessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_RespSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespSessionToken"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_token\0")
 
@@ -4742,7 +4746,7 @@ extension Msg_RespSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_ReqAuthWithToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqAuthWithToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqAuthWithToken"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0")
 
@@ -4772,7 +4776,7 @@ extension Msg_ReqAuthWithToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_ReqIsDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqIsDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqIsDomainAvailable"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{3}candidate_domain\0")
 
@@ -4817,7 +4821,7 @@ extension Msg_ReqIsDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_RespDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespDomainAvailable"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}available\0")
 
@@ -4847,7 +4851,7 @@ extension Msg_RespDomainAvailable: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Msg_ReqRevokeSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqRevokeSessionToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqRevokeSessionToken"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -4866,7 +4870,7 @@ extension Msg_ReqRevokeSessionToken: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPubKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -4885,7 +4889,7 @@ extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PubKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0\u{3}is_primary\0")
 
@@ -4925,7 +4929,7 @@ extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   }
 }
 
-extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UploadFile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}content\0\u{1}forceOverride\0\u{1}created\0")
 
@@ -4974,7 +4978,7 @@ extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   }
 }
 
-extension Msg_HasFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_HasFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".HasFile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0")
 
@@ -5004,7 +5008,7 @@ extension Msg_HasFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
   }
 }
 
-extension Msg_FileExists: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FileExists: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileExists"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}exists\0")
 
@@ -5034,7 +5038,7 @@ extension Msg_FileExists: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   }
 }
 
-extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LinkFile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}path\0\u{1}forceOverride\0\u{1}created\0")
 
@@ -5083,7 +5087,7 @@ extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
   }
 }
 
-extension Msg_DelFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DelFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DelFile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
 
@@ -5113,7 +5117,7 @@ extension Msg_DelFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
   }
 }
 
-extension Msg_GetFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
 
@@ -5143,7 +5147,7 @@ extension Msg_GetFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
   }
 }
 
-extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListFiles"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}recursive\0")
 
@@ -5178,7 +5182,7 @@ extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0")
 
@@ -5242,7 +5246,7 @@ extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListOfFiles"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0")
 
@@ -5277,7 +5281,7 @@ extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqPhotoDateBuckets"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{3}person_ids\0\u{3}include_videos\0\u{3}group_id\0")
 
@@ -5322,7 +5326,7 @@ extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Msg_PhotoDateBucket: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_PhotoDateBucket: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PhotoDateBucket"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}month\0\u{1}count\0")
 
@@ -5357,7 +5361,7 @@ extension Msg_PhotoDateBucket: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespPhotoDateBuckets"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}buckets\0")
 
@@ -5387,7 +5391,7 @@ extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0")
 
@@ -5451,7 +5455,7 @@ extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
   }
 }
 
-extension Msg_Ack: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Ack: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Ack"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0\u{3}error_msg\0\u{1}code\0\u{3}retry_after_seconds\0")
 
@@ -5496,7 +5500,7 @@ extension Msg_Ack: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBa
   }
 }
 
-extension Msg_GetTags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetTags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetTags"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -5515,7 +5519,7 @@ extension Msg_GetTags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
   }
 }
 
-extension Msg_TagsList: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_TagsList: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TagsList"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0")
 
@@ -5545,7 +5549,7 @@ extension Msg_TagsList: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
   }
 }
 
-extension Msg_ChangeKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ChangeKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ChangeKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}old_key\0\u{3}new_key\0")
 
@@ -5580,7 +5584,7 @@ extension Msg_ChangeKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_VideoTrim: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_VideoTrim: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VideoTrim"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}start_secs\0\u{3}end_secs\0")
 
@@ -5620,7 +5624,7 @@ extension Msg_VideoTrim: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_NewSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_NewSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NewSocialPublication"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0\u{1}paths\0\u{1}trims\0")
 
@@ -5660,7 +5664,7 @@ extension Msg_NewSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_GetEvents: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetEvents: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetEvents"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}since\0\u{1}total\0")
 
@@ -5699,7 +5703,7 @@ extension Msg_GetEvents: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_GetSocialPublicationFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetSocialPublicationFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetSocialPublicationFiles"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0")
 
@@ -5729,7 +5733,7 @@ extension Msg_GetSocialPublicationFiles: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Msg_GetPublicationMedia: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetPublicationMedia: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPublicationMedia"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{1}hash\0")
 
@@ -5764,7 +5768,7 @@ extension Msg_GetPublicationMedia: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Msg_ReqGetMediaURL: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetMediaURL: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetMediaURL"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}pub_uuid\0\u{1}hash\0")
 
@@ -5804,7 +5808,7 @@ extension Msg_ReqGetMediaURL: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_RespMediaURL: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespMediaURL: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespMediaURL"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}total_size\0\u{1}mime\0\u{3}expires_at_unix_ms\0")
 
@@ -5849,7 +5853,7 @@ extension Msg_RespMediaURL: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_ReqGetMediaRange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetMediaRange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetMediaRange"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0\u{1}offset\0\u{1}length\0")
 
@@ -5889,7 +5893,7 @@ extension Msg_ReqGetMediaRange: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_RespMediaRange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespMediaRange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespMediaRange"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0\u{1}offset\0\u{3}total_size\0\u{1}mime\0")
 
@@ -5934,7 +5938,7 @@ extension Msg_RespMediaRange: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_ReqCheckUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqCheckUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqCheckUpdate"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -5953,7 +5957,7 @@ extension Msg_ReqCheckUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateRelease"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{1}summary\0")
 
@@ -5988,7 +5992,7 @@ extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
   }
 }
 
-extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespUpdateInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_version\0\u{3}latest_version\0\u{1}pending\0\u{1}state\0\u{1}message\0\u{3}last_updated\0\u{3}check_error\0")
 
@@ -6048,7 +6052,7 @@ extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_ReqApplyUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqApplyUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqApplyUpdate"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -6067,7 +6071,7 @@ extension Msg_ReqApplyUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_ReqSetupTailscale: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqSetupTailscale: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqSetupTailscale"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}auth_key\0\u{1}enable\0")
 
@@ -6102,7 +6106,7 @@ extension Msg_ReqSetupTailscale: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_ReqGetTailscaleStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetTailscaleStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetTailscaleStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -6121,7 +6125,7 @@ extension Msg_ReqGetTailscaleStatus: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Msg_RespTailscaleStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespTailscaleStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespTailscaleStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}installed\0\u{3}logged_in\0\u{3}funnel_on\0\u{3}public_url\0\u{3}login_url\0\u{1}error\0")
 
@@ -6176,7 +6180,7 @@ extension Msg_RespTailscaleStatus: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Msg_GetSocialPublications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetSocialPublications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetSocialPublications"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}since\0\u{1}total\0\u{3}exclude_uuids\0")
 
@@ -6220,7 +6224,7 @@ extension Msg_GetSocialPublications: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Msg_NewSocialComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_NewSocialComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NewSocialComment"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{1}comment\0\u{1}publisher\0")
 
@@ -6260,7 +6264,7 @@ extension Msg_NewSocialComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_DelSocialComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DelSocialComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DelSocialComment"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}comment_uuid\0")
 
@@ -6290,7 +6294,7 @@ extension Msg_DelSocialComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_DelSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DelSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DelSocialPublication"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0")
 
@@ -6320,7 +6324,7 @@ extension Msg_DelSocialPublication: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_DidSendFriendshipReq: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DidSendFriendshipReq: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DidSendFriendshipReq"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}secret\0\u{1}domain\0")
 
@@ -6355,7 +6359,7 @@ extension Msg_DidSendFriendshipReq: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Friendship"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}origin_profile\0\u{1}status\0\u{1}sent\0\u{1}secret\0\u{3}latest_sync\0\u{3}notifications_started\0")
 
@@ -6414,7 +6418,7 @@ extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   }
 }
 
-extension Msg_Friendships: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Friendships: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Friendships"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}friendships\0")
 
@@ -6444,7 +6448,7 @@ extension Msg_Friendships: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_FriendshipsList: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FriendshipsList: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FriendshipsList"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -6463,7 +6467,7 @@ extension Msg_FriendshipsList: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_FriendshipRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FriendshipRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FriendshipRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0")
 
@@ -6493,7 +6497,7 @@ extension Msg_FriendshipRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_FriendshipInterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FriendshipInterRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FriendshipInterRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0\u{3}origin_profile\0")
 
@@ -6537,7 +6541,7 @@ extension Msg_FriendshipInterRequest: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Msg_ChangeFriendStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ChangeFriendStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ChangeFriendStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}status\0")
 
@@ -6572,7 +6576,7 @@ extension Msg_ChangeFriendStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Msg_DeleteFriendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DeleteFriendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteFriendship"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0")
 
@@ -6602,7 +6606,7 @@ extension Msg_DeleteFriendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_FriendshipInterDelete: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FriendshipInterDelete: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FriendshipInterDelete"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0")
 
@@ -6637,7 +6641,7 @@ extension Msg_FriendshipInterDelete: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Msg_LikePublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_LikePublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LikePublication"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0")
 
@@ -6667,7 +6671,7 @@ extension Msg_LikePublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_LikeComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_LikeComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LikeComment"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}comment_uuid\0")
 
@@ -6697,7 +6701,7 @@ extension Msg_LikeComment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_GetPublicationLikers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetPublicationLikers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetPublicationLikers"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0")
 
@@ -6727,7 +6731,7 @@ extension Msg_GetPublicationLikers: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_GetCommentLikers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetCommentLikers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetCommentLikers"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}comment_uuid\0")
 
@@ -6757,7 +6761,7 @@ extension Msg_GetCommentLikers: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_Likers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Likers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Likers"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}likers\0")
 
@@ -6787,7 +6791,7 @@ extension Msg_Likers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   }
 }
 
-extension Msg_GetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetSettings"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -6806,7 +6810,7 @@ extension Msg_GetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetSettings"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0")
 
@@ -6836,7 +6840,7 @@ extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0")
 
@@ -6876,7 +6880,7 @@ extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementat
   }
 }
 
-extension Msg_SetFaceRecognitionEnabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SetFaceRecognitionEnabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetFaceRecognitionEnabled"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
 
@@ -6906,7 +6910,7 @@ extension Msg_SetFaceRecognitionEnabled: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Person"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{3}face_count\0\u{3}cover_thumbnail\0")
 
@@ -6951,7 +6955,7 @@ extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   }
 }
 
-extension Msg_ListPeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ListPeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListPeople"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -6970,7 +6974,7 @@ extension Msg_ListPeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   }
 }
 
-extension Msg_People: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_People: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".People"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}people\0")
 
@@ -7000,7 +7004,7 @@ extension Msg_People: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   }
 }
 
-extension Msg_RenamePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RenamePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RenamePerson"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0")
 
@@ -7035,7 +7039,7 @@ extension Msg_RenamePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_DeletePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DeletePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeletePerson"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0")
 
@@ -7065,7 +7069,7 @@ extension Msg_DeletePerson: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_MergePeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_MergePeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MergePeople"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}target_id\0\u{3}source_ids\0")
 
@@ -7100,7 +7104,7 @@ extension Msg_MergePeople: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_ImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ImageGroup"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{3}file_count\0\u{3}cover_thumbnail\0")
 
@@ -7145,7 +7149,7 @@ extension Msg_ImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   }
 }
 
-extension Msg_ListImageGroups: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ListImageGroups: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListImageGroups"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -7164,7 +7168,7 @@ extension Msg_ListImageGroups: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_ImageGroups: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ImageGroups: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ImageGroups"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}groups\0")
 
@@ -7194,7 +7198,7 @@ extension Msg_ImageGroups: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_CreateImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_CreateImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateImageGroup"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}paths\0")
 
@@ -7229,7 +7233,7 @@ extension Msg_CreateImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_RespImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespImageGroup"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}group\0")
 
@@ -7263,7 +7267,7 @@ extension Msg_RespImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_AddToImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_AddToImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AddToImageGroup"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}group_id\0\u{1}paths\0")
 
@@ -7298,7 +7302,7 @@ extension Msg_AddToImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_RenameImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RenameImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RenameImageGroup"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0")
 
@@ -7333,7 +7337,7 @@ extension Msg_RenameImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_DeleteImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DeleteImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteImageGroup"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0")
 
@@ -7363,7 +7367,7 @@ extension Msg_DeleteImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_StartReprocess: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_StartReprocess: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StartReprocess"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}force_restart\0")
 
@@ -7393,7 +7397,7 @@ extension Msg_StartReprocess: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_GetReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetReprocessStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -7412,7 +7416,7 @@ extension Msg_GetReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Msg_ReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReprocessStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{1}total\0\u{1}processed\0")
 
@@ -7452,7 +7456,7 @@ extension Msg_ReprocessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_StopReprocess: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_StopReprocess: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StopReprocess"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -7471,7 +7475,7 @@ extension Msg_StopReprocess: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
   }
 }
 
-extension Msg_SetBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SetBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetBridgeSecret"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}secret\0")
 
@@ -7501,7 +7505,7 @@ extension Msg_SetBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_ListStorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ListStorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListStorageDevices"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -7520,7 +7524,7 @@ extension Msg_ListStorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Msg_StorageDevice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_StorageDevice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StorageDevice"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}size_bytes\0\u{1}model\0")
 
@@ -7560,7 +7564,7 @@ extension Msg_StorageDevice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
   }
 }
 
-extension Msg_StorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_StorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StorageDevices"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}devices\0")
 
@@ -7590,7 +7594,7 @@ extension Msg_StorageDevices: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_SetupStorage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SetupStorage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetupStorage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_paths\0")
 
@@ -7620,7 +7624,7 @@ extension Msg_SetupStorage: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_ListWifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ListWifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListWifiNetworks"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -7639,7 +7643,7 @@ extension Msg_ListWifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".WifiNetwork"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ssid\0\u{1}signal\0\u{1}secured\0")
 
@@ -7679,7 +7683,7 @@ extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_WifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_WifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".WifiNetworks"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}networks\0")
 
@@ -7709,7 +7713,7 @@ extension Msg_WifiNetworks: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_SetWifi: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SetWifi: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetWifi"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ssid\0\u{1}password\0")
 
@@ -7744,7 +7748,7 @@ extension Msg_SetWifi: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
   }
 }
 
-extension Msg_RegisterWebPush: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RegisterWebPush: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegisterWebPush"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}endpoint\0\u{1}p256dh\0\u{1}auth\0")
 
@@ -7784,7 +7788,7 @@ extension Msg_RegisterWebPush: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_RegisterApnsToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RegisterApnsToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegisterApnsToken"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}token\0")
 
@@ -7814,7 +7818,7 @@ extension Msg_RegisterApnsToken: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_GetVapidPublicKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetVapidPublicKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetVapidPublicKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -7833,7 +7837,7 @@ extension Msg_GetVapidPublicKey: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_VapidPublicKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_VapidPublicKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VapidPublicKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}key\0")
 
@@ -7863,7 +7867,7 @@ extension Msg_VapidPublicKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_BridgeRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_BridgeRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BridgeRegister"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0")
 
@@ -7903,7 +7907,7 @@ extension Msg_BridgeRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_BridgeAckOnboard: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_BridgeAckOnboard: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BridgeAckOnboard"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0")
 
@@ -7933,7 +7937,7 @@ extension Msg_BridgeAckOnboard: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_BridgeClientInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_BridgeClientInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BridgeClientInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}remote_addr\0")
 
@@ -7963,7 +7967,7 @@ extension Msg_BridgeClientInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_RotateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RotateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RotateBridgeSecret"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0")
 
@@ -8003,7 +8007,7 @@ extension Msg_RotateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Msg_RotateBridgeSecretAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RotateBridgeSecretAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RotateBridgeSecretAck"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}new_secret\0")
 
@@ -8033,7 +8037,7 @@ extension Msg_RotateBridgeSecretAck: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Msg_ReqSetDeviceDisabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqSetDeviceDisabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqSetDeviceDisabled"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{1}disabled\0")
 
@@ -8078,7 +8082,7 @@ extension Msg_ReqSetDeviceDisabled: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_RegenerateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RegenerateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegenerateBridgeSecret"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -8097,7 +8101,7 @@ extension Msg_RegenerateBridgeSecret: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdatePushRegistrations"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{3}apns_tokens\0\u{3}web_push_subs\0\u{3}vapid_public_key\0\u{3}vapid_private_key\0")
 
@@ -8157,7 +8161,7 @@ extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Msg_WebPushSub: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_WebPushSub: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".WebPushSub"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}endpoint\0\u{1}p256dh\0\u{1}auth\0")
 
@@ -8197,7 +8201,7 @@ extension Msg_WebPushSub: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   }
 }
 
-extension Msg_UpdatePushRegistrationsAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_UpdatePushRegistrationsAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdatePushRegistrationsAck"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0")
 
@@ -8227,7 +8231,7 @@ extension Msg_UpdatePushRegistrationsAck: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Msg_BridgeNotify: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_BridgeNotify: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BridgeNotify"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{1}title\0\u{1}body\0")
 
@@ -8277,7 +8281,7 @@ extension Msg_BridgeNotify: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_BridgeNotifyAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_BridgeNotifyAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BridgeNotifyAck"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ok\0")
 
@@ -8307,7 +8311,7 @@ extension Msg_BridgeNotifyAck: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_GetProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetProfile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -8326,7 +8330,7 @@ extension Msg_GetProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplement
   }
 }
 
-extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Profile"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}image\0\u{1}text\0\u{1}domain\0")
 
@@ -8375,7 +8379,7 @@ extension Msg_Profile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
   }
 }
 
-extension Msg_ShareFilesLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ShareFilesLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ShareFilesLink"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}paths\0")
 
@@ -8405,7 +8409,7 @@ extension Msg_ShareFilesLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
   }
 }
 
-extension Msg_ShareLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ShareLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ShareLink"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}link\0")
 
@@ -8435,7 +8439,7 @@ extension Msg_ShareLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_DownloadSharedLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_DownloadSharedLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DownloadSharedLink"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}secret\0")
 
@@ -8470,7 +8474,7 @@ extension Msg_DownloadSharedLink: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Msg_NewSocial: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_NewSocial: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NewSocial"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0")
 
@@ -8500,7 +8504,7 @@ extension Msg_NewSocial: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_SharedFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SharedFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SharedFiles"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0")
 
@@ -8530,7 +8534,7 @@ extension Msg_SharedFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Comment"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}comment\0\u{1}publisher\0\u{1}likes\0\u{3}date_time\0\u{1}liked\0")
 
@@ -8594,7 +8598,7 @@ extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
   }
 }
 
-extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SocialPublication"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}text\0\u{1}files\0\u{1}comments\0\u{1}likes\0\u{2}\u{2}publisher\0\u{1}liked\0\u{1}own\0\u{3}date_time\0")
 
@@ -8668,7 +8672,7 @@ extension Msg_SocialPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_SocialPublicationFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SocialPublicationFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SocialPublicationFiles"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0")
 
@@ -8698,7 +8702,7 @@ extension Msg_SocialPublicationFiles: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FileExifInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}camera_make\0\u{3}camera_model\0\u{3}taken_at\0\u{3}exposure_time\0\u{3}f_number\0\u{1}iso\0\u{3}focal_length\0\u{1}width\0\u{1}height\0\u{3}has_gps\0\u{1}latitude\0\u{1}longitude\0\u{1}city\0\u{1}country\0")
 
@@ -8797,7 +8801,7 @@ extension Msg_FileExifInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_GetFileInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetFileInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFileInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
 
@@ -8827,7 +8831,7 @@ extension Msg_GetFileInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_SocialPublications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_SocialPublications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SocialPublications"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}publications\0\u{1}since\0")
 
@@ -8866,7 +8870,7 @@ extension Msg_SocialPublications: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Msg_Event: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Event: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Event"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{1}content\0")
 
@@ -8915,7 +8919,7 @@ extension Msg_Event: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementation
   }
 }
 
-extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Events"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}events\0\u{1}since\0")
 
@@ -8954,7 +8958,7 @@ extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementatio
   }
 }
 
-extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0\u{3}actor_image\0\u{1}thumbnail\0")
 
@@ -9033,7 +9037,7 @@ extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_ReqListNotifications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqListNotifications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqListNotifications"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}limit\0")
 
@@ -9063,7 +9067,7 @@ extension Msg_ReqListNotifications: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Msg_RespNotifications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespNotifications: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespNotifications"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}notifications\0")
 
@@ -9093,7 +9097,7 @@ extension Msg_RespNotifications: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_ReqGetNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetNotificationCount"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -9112,7 +9116,7 @@ extension Msg_ReqGetNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Msg_RespNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespNotificationCount"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}unacknowledged_count\0")
 
@@ -9142,7 +9146,7 @@ extension Msg_RespNotificationCount: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Msg_ReqMarkNotificationsAcknowledged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqMarkNotificationsAcknowledged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqMarkNotificationsAcknowledged"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -9161,7 +9165,7 @@ extension Msg_ReqMarkNotificationsAcknowledged: SwiftProtobuf.Message, SwiftProt
   }
 }
 
-extension Msg_ReqGetPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetPublication"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0")
 
@@ -9191,7 +9195,7 @@ extension Msg_ReqGetPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_RespPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespPublication"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}publication\0")
 
@@ -9225,7 +9229,7 @@ extension Msg_RespPublication: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".User"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}username\0\u{1}port\0\u{1}subdomain\0\u{2}\u{2}active\0\u{1}created\0\u{3}bridge_access\0")
 
@@ -9289,7 +9293,7 @@ extension Msg_User: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationB
   }
 }
 
-extension Msg_ReqListUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqListUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqListUsers"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -9308,7 +9312,7 @@ extension Msg_ReqListUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespUsers"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0")
 
@@ -9338,7 +9342,7 @@ extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
   }
 }
 
-extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqCreateUser"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0\u{1}port\0\u{3}request_bridge_access\0")
 
@@ -9378,7 +9382,7 @@ extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
   }
 }
 
-extension Msg_ReqDeleteUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqDeleteUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqDeleteUser"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{3}confirm_username\0")
 
@@ -9413,7 +9417,7 @@ extension Msg_ReqDeleteUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
   }
 }
 
-extension Msg_ReqSetUserActive: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqSetUserActive: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqSetUserActive"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}active\0")
 
@@ -9448,7 +9452,7 @@ extension Msg_ReqSetUserActive: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_ReqGetUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetUserMetrics"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0")
 
@@ -9478,7 +9482,7 @@ extension Msg_ReqGetUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_RespUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespUserMetrics"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}storage_mb\0\u{3}storage_pct\0\u{3}active_connections\0")
 
@@ -9518,7 +9522,7 @@ extension Msg_RespUserMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_ReqGetInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetInstanceRole"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -9537,7 +9541,7 @@ extension Msg_ReqGetInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Msg_RespInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespInstanceRole"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_primary\0")
 
@@ -9567,7 +9571,7 @@ extension Msg_RespInstanceRole: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_GetFriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_GetFriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFriendshipStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0")
 
@@ -9602,7 +9606,7 @@ extension Msg_GetFriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Msg_FriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_FriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FriendshipStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}not_found\0")
 
@@ -9637,7 +9641,7 @@ extension Msg_FriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AuthAsFriend"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0")
 
@@ -9672,7 +9676,7 @@ extension Msg_AuthAsFriend: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
   }
 }
 
-extension Msg_ReqGetStaticAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqGetStaticAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqGetStaticAsset"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
 
@@ -9702,7 +9706,7 @@ extension Msg_ReqGetStaticAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Msg_RespStaticAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespStaticAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespStaticAsset"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0\u{3}content_type\0")
 
@@ -9737,7 +9741,7 @@ extension Msg_RespStaticAsset: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
   }
 }
 
-extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0")
 
@@ -11305,7 +11309,7 @@ extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
   }
 }
 
-extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0")
 

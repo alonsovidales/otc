@@ -9,21 +9,28 @@ PROTO_OUT := $(PROTO_SRC)/generated
 PROTO_TS_OUT := web/src/proto
 PROTOS    := $(notdir $(wildcard $(PROTO_SRC)/*.proto))
 TARGET    := pit.otc
+# The SSH login on TARGET. A device provisioned by hand (Makefile.pi /
+# install.sh run by you) has the `otc` account with your key; a device set
+# up from the flashable image (issue #38) only has `otc-debug` (the `otc`
+# service account there has no shell), and SSH must first be enabled on
+# its console: sudo systemctl enable --now ssh, plus your key in
+# ~otc-debug/.ssh/authorized_keys.
+PI_USER   ?= otc
 #TARGET    := otc
 
 sync:
-	#ssh otc@$(TARGET) wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz
-	#ssh otc@$(TARGET) sudo mkdir -p /opt/onnxruntime/lib
-	#ssh otc@$(TARGET) sudo cp onnxruntime-linux-aarch64-1.22.0/lib/*.so* /opt/onnxruntime/lib/
+	#ssh $(PI_USER)@$(TARGET) wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-aarch64-1.22.0.tgz
+	#ssh $(PI_USER)@$(TARGET) sudo mkdir -p /opt/onnxruntime/lib
+	#ssh $(PI_USER)@$(TARGET) sudo cp onnxruntime-linux-aarch64-1.22.0/lib/*.so* /opt/onnxruntime/lib/
 	rsync -avz --delete \
 	  --exclude='.git' --exclude='node_modules' --exclude='web/dist' --exclude='dist' --exclude='.env.pi' \
-	  ./ otc@$(TARGET):/home/otc/otc/
+	  ./ $(PI_USER)@$(TARGET):/home/otc/otc/
 
 .PHONY: sync
 
 pi:
 	@echo "$(OK_COLOR)==> Building for pi...$(NO_COLOR)"
-	ssh otc@$(TARGET) sudo systemctl stop otc
+	ssh $(PI_USER)@$(TARGET) sudo systemctl stop otc
 	# PATH gets /usr/local/go/bin appended (not prepended) just for the
 	# build command itself, on top of whatever this login shell's own
 	# PATH already resolves - a device where `go` is already reachable is
@@ -31,15 +38,18 @@ pi:
 	# installed there but its login shell's own PATH never picks it up,
 	# which used to fail this whole target outright with a plain
 	# "go: command not found".
-	ssh -tt otc@$(TARGET) 'bash -lc "cd otc && PATH=$$PATH:/usr/local/go/bin CGO_ENABLED=1 go build -o otc ./bin/otc.go && sudo mv otc /usr/bin/"'
-	ssh otc@$(TARGET) sudo systemctl start otc
+	ssh -tt $(PI_USER)@$(TARGET) 'bash -lc "cd otc && PATH=$$PATH:/usr/local/go/bin CGO_ENABLED=1 go build -o otc ./bin/otc.go && sudo mv otc /usr/bin/"'
+	ssh $(PI_USER)@$(TARGET) sudo systemctl start otc
 
 .PHONY: pi
 
 pb:
 	@echo "$(OK_COLOR)==> Generating Go files...$(NO_COLOR)"
 	mkdir -p $(PROTO_OUT)
-	npx protoc -I=$(PROTO_SRC) \
+	# protoc-gen-ts_proto is a web/ dev dependency, protoc-gen-go(-grpc)
+	# come from `go install` into $$HOME/go/bin - neither is on a fresh
+	# machine's PATH by default.
+	PATH="$(CURDIR)/web/node_modules/.bin:$(HOME)/go/bin:$$PATH" npx protoc -I=$(PROTO_SRC) \
 	  --go_out=$(PROTO_OUT) --go_opt=paths=source_relative \
 	  --go-grpc_out=$(PROTO_OUT) --go-grpc_opt=paths=source_relative \
 	  --ts_proto_out=$(PROTO_TS_OUT) \
@@ -65,9 +75,9 @@ IMAGE_RELEASE := image
 
 image: sync
 	@echo "$(OK_COLOR)==> Building $(IMAGE_NAME) on $(TARGET) (base download + xz: a few minutes)...$(NO_COLOR)"
-	ssh otc@$(TARGET) 'sudo -n bash /home/otc/otc/scripts/build_image.sh'
+	ssh $(PI_USER)@$(TARGET) 'sudo -n bash /home/otc/otc/scripts/build_image.sh'
 	mkdir -p dist
-	scp otc@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz otc@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz.sha256 dist/
+	scp $(PI_USER)@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz $(PI_USER)@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz.sha256 dist/
 	@echo "$(OK_COLOR)==> dist/$(IMAGE_NAME).img.xz ready - publish with: make image-publish$(NO_COLOR)"
 
 .PHONY: image
@@ -87,7 +97,7 @@ otc:
 	CC=aarch64-unknown-linux-gnu-gcc \
 	CGO_CFLAGS="-I$(HOME)/ort-aarch64/onnxruntime-linux-aarch64-1.20.1/include" \
 	CGO_LDFLAGS="-L$(HOME)/ort-aarch64/onnxruntime-linux-aarch64-1.20.1/lib -lonnxruntime" \
-	go build -o otc ./bin/otc.go && scp otc otc@$(TARGET):/usr/bin/
+	go build -o otc ./bin/otc.go && scp otc $(PI_USER)@$(TARGET):/usr/bin/
 
 .PHONY: otc
 
@@ -97,7 +107,7 @@ web:
 	@echo "$(OK_COLOR)==> Copying static content...$(NO_COLOR)"
 	mkdir -p app/ios/OffTheCloud/web-dist
 	cp -a web/dist/* app/ios/OffTheCloud/web-dist/
-	scp -r web/dist/* otc@$(TARGET):/var/www/
+	scp -r web/dist/* $(PI_USER)@$(TARGET):/var/www/
 	# Issue #95: the bridge fetches a device's own web assets straight from
 	# it now (see staticassets.Resolve / ReqGetStaticAsset) instead of
 	# serving a separate copy of its own - no reason left to also push one
