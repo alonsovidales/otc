@@ -320,6 +320,9 @@ struct SettingsInlineView: View {
             DeviceAddressFields(domain: $settings.domain)
             SecureField("Password", text: $settings.password)
                 .textFieldStyle(.roundedBorder)
+            Toggle("Start at login", isOn: $settings.startAtLogin)
+                .toggleStyle(.checkbox)
+                .font(.footnote)
             HStack {
                 Image(systemName: settings.ready ? "checkmark.circle" : "exclamationmark.triangle")
                     .foregroundStyle(settings.ready ? .green : .orange)

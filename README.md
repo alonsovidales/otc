@@ -24,6 +24,52 @@ A menu-bar app that keeps folders on your computer in sync with the device - wat
 <img width="432" height="426" alt="Screenshot 2026-09-21 at 17 19 19" src="https://github.com/user-attachments/assets/b5afff2e-167e-49b2-890d-d86ca1454acc" />
 
 
+**The Windows and Linux clients**
+
+The same sync client for Windows and Linux, `otc-sync`: a tray icon with the same menu (status,
+the RAID's health as the icon's colour, your folders, add a local or a remote folder, settings),
+plus a command line, and on Linux it can run as a service on a machine nobody logs into. It
+starts at login on its own. Download the binary for your system from the
+[desktop release](https://github.com/alonsovidales/otc/releases/tag/desktop):
+
+| System | File |
+|---|---|
+| Windows (Intel/AMD) | `otc-sync-windows-amd64.exe` |
+| Windows (ARM) | `otc-sync-windows-arm64.exe` |
+| Linux (Intel/AMD) | `otc-sync-linux-amd64` |
+| Linux (ARM, e.g. a Raspberry Pi) | `otc-sync-linux-arm64` |
+
+*Windows*: run the `.exe` once; it appears in the tray, asks for your device and password under
+Settings…, and registers itself to start at login. Keep it somewhere permanent (not Downloads),
+since that path is what starts at login.
+
+*Linux, with a desktop*:
+
+```
+sudo install -m 0755 otc-sync-linux-amd64 /usr/local/bin/otc-sync
+otc-sync            # the tray app; registers itself under ~/.config/autostart
+```
+
+*Linux, command line and service* (a server, a Pi, a box with no desktop):
+
+```
+otc-sync settings --name cala --password-prompt   # or --address ws://192.168.1.10:8080/ws
+otc-sync add ~/Documents                          # mirror a folder up to the device
+otc-sync add-remote /Photos ~/Photos              # two-way sync with a device folder
+otc-sync ls /                                     # browse the device
+otc-sync service install                          # run as a systemd user service, from boot
+otc-sync status                                   # what it is doing
+otc-sync folders | remove <id> | service uninstall | autostart on|off
+```
+
+Only one process syncs at a time: with the service installed, the tray app becomes a viewer of
+it, and every change made from the tray or the command line is picked up by the service at once.
+The password goes to the OS keyring (Windows Credential Manager, the Secret Service on a Linux
+desktop); without one, to a file only your user can read under `~/.config/otc-sync/`
+(`OTC_SYNC_NO_KEYRING=1` forces that, for a service that has to start before the keyring is
+unlocked). Folders land on the device under `/windows/<computer>/…` and `/linux/<computer>/…`,
+like the Mac's `/mac/<computer>/…`.
+
 **The iOS/Android app**
 
 This is used to access all the data, sync photos and documents from your mobile device, Social Network app and much more

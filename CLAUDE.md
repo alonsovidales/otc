@@ -183,6 +183,27 @@ lets a device running an older build still work correctly through the bridge. `b
 holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
 independently of a device's web build.
 
+### Desktop sync client (`app/desktop`, issues #119 and #120)
+
+`otc-sync` is the Windows and Linux counterpart of the macOS menu bar app, written in Go inside
+this module (it shares `proto/generated`), pure Go so `make desktop` cross-compiles all four
+binaries into `dist/` from any machine and `make desktop-publish` uploads them to the rolling
+GitHub release `desktop`. Its packages are one-to-one with the Swift files: `wsclient` =
+WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with a watcher and a
+10-minute reconcile, two-way remote folders with the three-way merge and a 1-minute poll,
+hash-first uploads, RAID polling), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch
+per directory, added as directories appear), `tray` = PopoverView.swift (fyne.io/systray menu,
+the OS's own dialogs through ncruces/zenity - no GUI toolkit, no CGO), `config` = SettingsStore
++ the bookmarks (config.json, keyring or a 0600 `secret` file, state.json), `autostart` (XDG
+autostart file / HKCU Run key), `service` (systemd user unit + linger). One process runs the
+engine (a flock in the config dir); a tray started next to the service is a viewer, and every
+edit goes through config.json, which the engine watches - so the CLI, the tray and the service
+never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
+Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
+iOS/Android. Test on Linux with the Lima VM `otc` (`limactl shell otc`, `limactl copy
+dist/otc-sync-linux-arm64 otc:/tmp/`); the tray needs a real desktop - the VM is headless, so the
+tray on Linux and everything on Windows are tested on real machines.
+
 ### Native apps (`app/ios`, `app/macos`, `app/android`)
 
 Swift/Xcode projects (`OffTheCloud.xcodeproj` in each) that consume the same generated Swift protobuf

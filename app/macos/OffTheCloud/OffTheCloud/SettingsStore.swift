@@ -2,6 +2,7 @@
 
 import Foundation
 import Combine
+import ServiceManagement
 
 /// Persisted settings. Changes trigger re-connect/sync automatically.
 @MainActor
@@ -51,6 +52,17 @@ final class SettingsStore: ObservableObject {
         return name.isEmpty || name.contains(".") ? nil : name
     }
 
+    // Start at login, like a sync client is expected to (the Windows and
+    // Linux clients register themselves too). On by default the first
+    // time the app runs; the toggle in Settings turns it off.
+    private static let cLoginItemKey = "startAtLogin"
+    @Published var startAtLogin: Bool {
+        didSet {
+            UserDefaults.standard.set(startAtLogin, forKey: Self.cLoginItemKey)
+            LoginItem.set(enabled: startAtLogin)
+        }
+    }
+
     @Published var domain: String {
         didSet { save() }
     }
@@ -63,6 +75,16 @@ final class SettingsStore: ObservableObject {
         password = Keychain.loadString(key: Self.cPasswordKey)
             ?? Self.migrateLegacyPlaintextPassword()
             ?? ""
+        if UserDefaults.standard.object(forKey: Self.cLoginItemKey) == nil {
+            startAtLogin = true
+            UserDefaults.standard.set(true, forKey: Self.cLoginItemKey)
+            LoginItem.set(enabled: true)
+        } else {
+            startAtLogin = UserDefaults.standard.bool(forKey: Self.cLoginItemKey)
+            // Re-assert it, so a registration the system dropped (an app
+            // moved on disk, say) comes back without anyone noticing.
+            if startAtLogin { LoginItem.set(enabled: true) }
+        }
     }
 
     /// One-off migration for an install that still has its password in
@@ -117,5 +139,22 @@ enum Keychain {
             return String(data: data, encoding: .utf8)
         }
         return nil
+    }
+}
+
+/// SMAppService is macOS 13+'s way for an app to start itself at login -
+/// no helper bundle, and the user can see and change it under System
+/// Settings > General > Login Items.
+enum LoginItem {
+    static func set(enabled: Bool) {
+        do {
+            if enabled {
+                if SMAppService.mainApp.status != .enabled { try SMAppService.mainApp.register() }
+            } else {
+                if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+            }
+        } catch {
+            print("Login item:", error)
+        }
     }
 }
