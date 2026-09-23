@@ -61,6 +61,16 @@ const (
 	cStatusFile  = "/var/lib/otc/update-status.json"
 	cRunnerPath  = "/var/lib/otc/update.sh"
 
+	// cRequestPath is the trigger the device writes to ask for an update,
+	// and cRootRunner the root-side script systemd's otc-update.path
+	// starts in answer to it (scripts/update-runner/). The service runs
+	// with NoNewPrivileges, so this is the only way it can get an update
+	// run as root: it cannot sudo, whatever sudoers says. A device whose
+	// installer predates the path unit has no runner, and falls back to
+	// sudo below - which works only on a hand-set-up development box.
+	cRequestPath = "/var/lib/otc/update.request"
+	cRootRunner  = "/usr/local/bin/otc-update-runner"
+
 	// cManifestTimeout keeps a check from hanging the RPC it was called
 	// from when GitHub is slow or unreachable.
 	cManifestTimeout = 15 * time.Second
@@ -184,6 +194,22 @@ func Apply() error {
 		return fmt.Errorf("an update is already running")
 	}
 
+	// The normal path: hand the run to systemd. The trigger carries no
+	// instructions on purpose - the root side reads the repository from
+	// the root-owned config, so nothing writable by this user decides
+	// what gets run as root. See scripts/update-runner/otc-update-runner.sh.
+	if _, err := os.Stat(cRootRunner); err == nil {
+		stamp := time.Now().UTC().Format(time.RFC3339) + "\n"
+		if err := os.WriteFile(cRequestPath, []byte(stamp), 0o644); err != nil { // perms: rw-r--r--
+			return fmt.Errorf("requesting the update: %w", err)
+		}
+		log.Info("device update requested")
+
+		return nil
+	}
+
+	// Legacy path, for a device set up by hand before the path unit
+	// existed: run the script ourselves under sudo.
 	if err := download(updateScriptURL(), cRunnerPath); err != nil {
 		return fmt.Errorf("downloading the updater: %w", err)
 	}

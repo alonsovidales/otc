@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Runs one device update as root. Started by otc-update.path when the
+# device (running unprivileged, see otc.service's NoNewPrivileges) drops
+# /var/lib/otc/update.request - see otc-update-runner.sh.
+[Unit]
+Description=Off The Cloud in-place update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/otc-update-runner
+# The update ends by restarting otc.service; this unit is separate from it
+# precisely so that restart doesn't take the updater down with it.
+KillMode=process

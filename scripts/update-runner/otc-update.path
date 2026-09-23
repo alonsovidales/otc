@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Watches for the trigger the device writes when the owner presses Update
+# in Settings, and starts otc-update.service (as root) when it appears.
+[Unit]
+Description=Off The Cloud update trigger
+
+[Path]
+PathExists=/var/lib/otc/update.request
+Unit=otc-update.service
+
+[Install]
+WantedBy=multi-user.target

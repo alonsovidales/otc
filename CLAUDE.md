@@ -227,6 +227,16 @@ gets every change through a release and the Update button in its Settings - neve
 web` against it - so the release history can't fall behind what devices actually run. Pit stays
 the `make` development target. Cutting a release is the last step of any device or web change.
 
+**How the button works** (release 5): otc.service runs unprivileged with `NoNewPrivileges=true`, so
+the device cannot sudo. `updater.Apply` writes `/var/lib/otc/update.request`; systemd's
+`otc-update.path` starts `otc-update.service`, which runs `/usr/local/bin/otc-update-runner` as
+root: it reads `[otc] update-repo`/`update-releases` from the root-owned config, downloads
+`scripts/update.sh` from there into `/run/otc-update/` and runs it. Those three files live in
+`scripts/update-runner/` and are installed by install.sh and by release 5. A device without the
+runner falls back to the old `sudo -n` path, which only works on a hand-set-up box like Pit. To
+exercise the whole flow on Pit without the app: `ssh otc@pit.otc touch /var/lib/otc/update.request`
+and watch `/var/lib/otc/update-status.json`.
+
 **Follow this whenever a change is worth shipping.** A change that is only on `main` has
 not reached anybody: the version number in the manifest is the only signal a device has
 that anything is new.

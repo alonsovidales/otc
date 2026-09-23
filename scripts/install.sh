@@ -710,8 +710,18 @@ SystemCallArchitectures=native
 WantedBy=multi-user.target
 EOF
 
+# Issue #94: the Update button. otc.service above runs with
+# NoNewPrivileges=true, so the device can't sudo its way to root for an
+# update; it writes /var/lib/otc/update.request instead and this path unit
+# runs the update as root - see scripts/update-runner/otc-update-runner.sh.
+log "Update trigger (otc-update.path)"
+install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
+install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service
+install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.path" /etc/systemd/system/otc-update.path
+
 systemctl daemon-reload
 systemctl enable otc.service
+systemctl enable --now otc-update.path
 systemctl restart otc.service
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
