@@ -141,10 +141,27 @@ recovered device under it.
 6. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 under
    the manual instructions below for the pinout.
 
-If you ever need a console shell on the device itself (a keyboard/monitor plugged directly into
-it - this image doesn't enable SSH), log in as `otc-debug` / `off-the-cloud` and `sudo` from there.
-This account only matters if you're troubleshooting a boot problem; nothing about normal setup or
-day-to-day use needs it.
+**Console access.** The image doesn't enable SSH. If you ever need a shell on the device itself,
+plug in a keyboard and monitor and log in as:
+
+| user | password |
+|---|---|
+| `otc-debug` | `off-the-cloud` |
+
+It has `sudo`. Nothing about normal setup or day-to-day use needs it; it's for troubleshooting
+and the few things listed here:
+
+- **Enable SSH** (optional, for remote troubleshooting): `sudo systemctl enable --now ssh`, then
+  put your public key in `~otc-debug/.ssh/authorized_keys` and use `ssh otc-debug@<name>.local`.
+- **Force an update from the console** - normally you press **Update** in Settings, but a device
+  installed before release 5 can't start one on its own and needs this once:
+  ```
+  sudo bash -c 'curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/update.sh -o /tmp/update.sh && bash /tmp/update.sh'
+  ```
+  It prints nothing; follow it with `tail -f /var/log/otc/update.log`.
+- **Logs**: the device's own log is `/var/log/otc/otc.log`, the setup wizard's is
+  `journalctl -u otc-setup`, and an update's is `/var/log/otc/update.log` (its current state is in
+  `/var/lib/otc/update-status.json`).
 
 To build and publish the image yourself (only needed when the wizard or hotspot scripts change -
 the software it installs always comes from `main`), with `TARGET` in `makefile` pointing at any

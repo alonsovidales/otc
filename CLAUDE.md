@@ -51,7 +51,10 @@ device: it assembles any existing RAID1 array (`mdadm` is the one package baked 
 and, if it holds an OTC database, offers recovery - `install.sh` reassembles instead of wiping and
 the identity in that database wins, so no name is asked; after installing it polls the bridge's
 `/api/device-online` and only asks for a name if the recovered device never shows up. It contains
-no otc code, so it only needs rebuilding when those two scripts change.
+no otc code, so it only needs rebuilding when those two scripts change. The image has no SSH; its
+console login is `otc-debug` / `off-the-cloud` (with sudo), set in `build_image.sh` and documented
+in README.md under "Console access" - the only way into a device like Cala short of enabling SSH
+from that console.
 
 The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
 `GOOS=linux GOARCH=amd64 CGO_ENABLED=0` and deploys to `off-the.cloud` over SSH as `ubuntu`.
