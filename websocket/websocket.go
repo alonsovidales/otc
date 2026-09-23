@@ -1068,14 +1068,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			// Issue #25: "we hold nothing for you" is an answer, not a
 			// failure - see FriendshipStatus.not_found.
 			resp.Payload = &pb.RespEnvelope_RespFriendshipStatus{
-				RespFriendshipStatus: &pb.FriendshipStatus{NotFound: true},
+				RespFriendshipStatus: &pb.FriendshipStatusReply{NotFound: true},
 			}
 		} else if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error retreiving friendship: %s", err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFriendshipStatus{
-				RespFriendshipStatus: &pb.FriendshipStatus{
+				RespFriendshipStatus: &pb.FriendshipStatusReply{
 					Status: fr.Status,
 				},
 			}

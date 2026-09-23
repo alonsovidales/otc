@@ -9,3 +9,11 @@ otc
 web-dist.tar.gz
 dist/
 __pycache__/
+# Android (issue #88)
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/local.properties
+app/android/.idea/
+app/android/*.iml
+app/android/app/src/main/proto-gen/

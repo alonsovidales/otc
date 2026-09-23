@@ -3051,7 +3051,11 @@ public nonisolated struct Msg_GetFriendshipStatus: Sendable {
   public init() {}
 }
 
-public nonisolated struct Msg_FriendshipStatus: Sendable {
+/// FriendshipStatusReply, not FriendshipStatus: that name differs from the
+/// enum FriendShipStatus only by case, and the Java/Kotlin generators put
+/// each type in its own file (and class file), which collide on a
+/// case-insensitive filesystem - macOS, where the Android app is built.
+public nonisolated struct Msg_FriendshipStatusReply: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -4120,10 +4124,10 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respSocialPublicationFiles(newValue)}
   }
 
-  public var respFriendshipStatus: Msg_FriendshipStatus {
+  public var respFriendshipStatus: Msg_FriendshipStatusReply {
     get {
       if case .respFriendshipStatus(let v)? = _storage._payload {return v}
-      return Msg_FriendshipStatus()
+      return Msg_FriendshipStatusReply()
     }
     set {_uniqueStorage()._payload = .respFriendshipStatus(newValue)}
   }
@@ -4390,7 +4394,7 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     case respNewSocial(Msg_NewSocial)
     case respSocialPublications(Msg_SocialPublications)
     case respSocialPublicationFiles(Msg_SocialPublicationFiles)
-    case respFriendshipStatus(Msg_FriendshipStatus)
+    case respFriendshipStatus(Msg_FriendshipStatusReply)
     case respEvents(Msg_Events)
     case respPubKey(Msg_PubKey)
     case respLikers(Msg_Likers)
@@ -9606,8 +9610,8 @@ nonisolated extension Msg_GetFriendshipStatus: SwiftProtobuf.Message, SwiftProto
   }
 }
 
-nonisolated extension Msg_FriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".FriendshipStatus"
+nonisolated extension Msg_FriendshipStatusReply: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FriendshipStatusReply"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}not_found\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -9633,7 +9637,7 @@ nonisolated extension Msg_FriendshipStatus: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Msg_FriendshipStatus, rhs: Msg_FriendshipStatus) -> Bool {
+  public static func ==(lhs: Msg_FriendshipStatusReply, rhs: Msg_FriendshipStatusReply) -> Bool {
     if lhs.status != rhs.status {return false}
     if lhs.notFound != rhs.notFound {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -11523,7 +11527,7 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
           }
         }()
         case 23: try {
-          var v: Msg_FriendshipStatus?
+          var v: Msg_FriendshipStatusReply?
           var hadOneofValue = false
           if let current = _storage._payload {
             hadOneofValue = true

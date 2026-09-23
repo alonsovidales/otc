@@ -45,7 +45,7 @@ pi:
 
 pb:
 	@echo "$(OK_COLOR)==> Generating Go files...$(NO_COLOR)"
-	mkdir -p $(PROTO_OUT)
+	mkdir -p $(PROTO_OUT) ./app/android/app/src/main/proto-gen
 	# protoc-gen-ts_proto is a web/ dev dependency, protoc-gen-go(-grpc)
 	# come from `go install` into $$HOME/go/bin - neither is on a fresh
 	# machine's PATH by default.
@@ -56,6 +56,8 @@ pb:
 	  --ts_proto_opt=enumsAsLiterals=true,oneof=unions,useEnumNamesAsValues=true,esModuleInterop=true,useOptionals=messages,outputServices=none,forceLong=bigint \
   	  --swift_out=./app/ios/OffTheCloud/OffTheCloud/ \
 	  --swift_opt=Visibility=Public \
+	  --java_out=lite:./app/android/app/src/main/proto-gen/ \
+	  --kotlin_out=lite:./app/android/app/src/main/proto-gen/ \
 	  $(PROTOS)
 	cp ./app/ios/OffTheCloud/OffTheCloud/messages.pb.swift app/macos/OffTheCloud/OffTheCloud/
 	@echo "$(OK_COLOR)==> Generated$(NO_COLOR)"

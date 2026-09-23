@@ -71,7 +71,10 @@ The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
   opencv` currently installs OpenCV 5, which gocv v0.40.0 doesn't build against) and add
   `$(brew --prefix opencv@4)/lib/pkgconfig` to `PKG_CONFIG_PATH` if `pkg-config --exists opencv4`
   doesn't already find it.
-- `make pb` needs `npx protoc` with the Go, Go-gRPC, ts-proto, and Swift protoc plugins available.
+- `make pb` needs `npx protoc` with the Go, Go-gRPC, ts-proto, and Swift protoc plugins available
+  (`go install google.golang.org/protobuf/cmd/protoc-gen-go@<go.mod version>`, `go install
+  google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`, `brew install swift-protobuf`; ts-proto comes
+  from `web/node_modules` after `npm ci --prefix web` - the pb target puts both on its PATH).
 
 **Tests**: only `cfg/` and `log/` currently have `_test.go` files. Run with
 `go test ./cfg/... ./log/...` (or `go test ./...` once the Go toolchain matches `go.mod`).
@@ -177,11 +180,38 @@ lets a device running an older build still work correctly through the bridge. `b
 holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
 independently of a device's web build.
 
-### Native apps (`app/ios`, `app/macos`)
+### Native apps (`app/ios`, `app/macos`, `app/android`)
 
 Swift/Xcode projects (`OffTheCloud.xcodeproj` in each) that consume the same generated Swift protobuf
 messages (`make pb` copies `messages.pb.swift` into both) to talk to a device or the bridge over the
 same `/ws` protocol.
+
+`app/android` (issue #88) is the Android app: Kotlin + Jetpack Compose, a 1:1 port of the iOS app
+kept in its own directory so the two are worked on independently - port screen by screen, keeping
+the iOS file/type names (SwiftUI view ↔ Composable, ObservableObject ↔ ViewModel, Keychain ↔
+EncryptedSharedPreferences, PhotoKit ↔ MediaStore, BGTaskScheduler ↔ WorkManager, APNs ↔ FCM).
+`make pb` writes its protobuf bindings (`--java_out=lite` + `--kotlin_out=lite`, package
+`cloud.offthe.otc.proto`, one file per type) to `app/android/app/src/main/proto-gen/`, which is
+gitignored like `proto/generated`. Because those generators emit one file per type, no two proto
+type names may differ only by case (the message `FriendshipStatusReply` was renamed for exactly
+that: it collided with the enum `FriendShipStatus` on macOS's case-insensitive filesystem). The
+protobuf runtime version in `app/build.gradle.kts` must match the installed `protoc` (4.<protoc
+minor>, e.g. protoc 36.2 ↔ `protobuf-kotlin-lite:4.36.2`). Build with `cd app/android && ./gradlew
+assembleDebug` (the wrapper pins Gradle 9.1; the Homebrew `gradle` is too new for AGP 8.13 and is
+only used to generate the wrapper). Toolchain on the Mac: `openjdk@21`, `android-commandlinetools`
++ `sdkmanager` packages (platform 36, build-tools 36, emulator, `system-images;android-36;
+google_apis;arm64-v8a`), Android Studio; `JAVA_HOME`/`ANDROID_HOME` are set in `~/.zprofile` and
+`app/android/local.properties` points at the SDK. An emulator named `otc_pixel` (Pixel 8, API 36)
+exists: `emulator -avd otc_pixel`, then `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+(adb on macOS tends to flip to "offline" right after a large install - retry in a loop rather than
+assuming the install failed). For a real phone over USB, the SDK's adb 37.0.1 crashes on macOS 27
+(`libunwind: stepWithCompactEncoding` in `usb_osx.cpp`) the moment a phone is plugged in; the
+35.0.2 platform-tools from Google's archive (`platform-tools_r35.0.2-darwin.zip`) work - keep them
+outside the SDK dir so `sdkmanager` doesn't overwrite them, and kill the 37 server first. The test
+phone is a Motorola moto g06 (Android 15, serial ZY32MBZVJ4). Every iOS screen has an Android counterpart under
+`app/src/main/java/cloud/offthe/otc/` (`ui/` mirrors the SwiftUI views, `net/` the connection,
+`data/` the stores, `sync/` PhotoSync/SyncScheduler/AssetSyncCache); still missing versus iOS:
+push notifications (FCM), the logo asset in the feed header, and a map in the EXIF panel.
 
 ## Cutting a release (issue #94)
 

@@ -1736,7 +1736,13 @@ export interface GetFriendshipStatus {
   secret: string;
 }
 
-export interface FriendshipStatus {
+/**
+ * FriendshipStatusReply, not FriendshipStatus: that name differs from the
+ * enum FriendShipStatus only by case, and the Java/Kotlin generators put
+ * each type in its own file (and class file), which collide on a
+ * case-insensitive filesystem - macOS, where the Android app is built.
+ */
+export interface FriendshipStatusReply {
   status: FriendShipStatus;
   /**
    * Issue #25: true when the asked-about device holds no friendship for
@@ -1926,7 +1932,7 @@ export interface RespEnvelope {
     | { $case: "respNewSocial"; respNewSocial: NewSocial }
     | { $case: "respSocialPublications"; respSocialPublications: SocialPublications }
     | { $case: "respSocialPublicationFiles"; respSocialPublicationFiles: SocialPublicationFiles }
-    | { $case: "respFriendshipStatus"; respFriendshipStatus: FriendshipStatus }
+    | { $case: "respFriendshipStatus"; respFriendshipStatus: FriendshipStatusReply }
     | { $case: "respEvents"; respEvents: Events }
     | { $case: "respPubKey"; respPubKey: PubKey }
     | { $case: "respLikers"; respLikers: Likers }
@@ -13420,12 +13426,12 @@ export const GetFriendshipStatus: MessageFns<GetFriendshipStatus> = {
   },
 };
 
-function createBaseFriendshipStatus(): FriendshipStatus {
+function createBaseFriendshipStatusReply(): FriendshipStatusReply {
   return { status: 0, notFound: false };
 }
 
-export const FriendshipStatus: MessageFns<FriendshipStatus> = {
-  encode(message: FriendshipStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const FriendshipStatusReply: MessageFns<FriendshipStatusReply> = {
+  encode(message: FriendshipStatusReply, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.status !== 0) {
       writer.uint32(8).int32(message.status);
     }
@@ -13435,10 +13441,10 @@ export const FriendshipStatus: MessageFns<FriendshipStatus> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipStatus {
+  decode(input: BinaryReader | Uint8Array, length?: number): FriendshipStatusReply {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFriendshipStatus();
+    const message = createBaseFriendshipStatusReply();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -13467,14 +13473,14 @@ export const FriendshipStatus: MessageFns<FriendshipStatus> = {
     return message;
   },
 
-  fromJSON(object: any): FriendshipStatus {
+  fromJSON(object: any): FriendshipStatusReply {
     return {
       status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
       notFound: isSet(object.notFound) ? globalThis.Boolean(object.notFound) : false,
     };
   },
 
-  toJSON(message: FriendshipStatus): unknown {
+  toJSON(message: FriendshipStatusReply): unknown {
     const obj: any = {};
     if (message.status !== 0) {
       obj.status = friendShipStatusToJSON(message.status);
@@ -13485,11 +13491,11 @@ export const FriendshipStatus: MessageFns<FriendshipStatus> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<FriendshipStatus>, I>>(base?: I): FriendshipStatus {
-    return FriendshipStatus.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<FriendshipStatusReply>, I>>(base?: I): FriendshipStatusReply {
+    return FriendshipStatusReply.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<FriendshipStatus>, I>>(object: I): FriendshipStatus {
-    const message = createBaseFriendshipStatus();
+  fromPartial<I extends Exact<DeepPartial<FriendshipStatusReply>, I>>(object: I): FriendshipStatusReply {
+    const message = createBaseFriendshipStatusReply();
     message.status = object.status ?? 0;
     message.notFound = object.notFound ?? false;
     return message;
@@ -16251,7 +16257,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         SocialPublicationFiles.encode(message.payload.respSocialPublicationFiles, writer.uint32(202).fork()).join();
         break;
       case "respFriendshipStatus":
-        FriendshipStatus.encode(message.payload.respFriendshipStatus, writer.uint32(186).fork()).join();
+        FriendshipStatusReply.encode(message.payload.respFriendshipStatus, writer.uint32(186).fork()).join();
         break;
       case "respEvents":
         Events.encode(message.payload.respEvents, writer.uint32(194).fork()).join();
@@ -16504,7 +16510,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
 
           message.payload = {
             $case: "respFriendshipStatus",
-            respFriendshipStatus: FriendshipStatus.decode(reader, reader.uint32()),
+            respFriendshipStatus: FriendshipStatusReply.decode(reader, reader.uint32()),
           };
           continue;
         }
@@ -16845,7 +16851,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         : isSet(object.respFriendshipStatus)
         ? {
           $case: "respFriendshipStatus",
-          respFriendshipStatus: FriendshipStatus.fromJSON(object.respFriendshipStatus),
+          respFriendshipStatus: FriendshipStatusReply.fromJSON(object.respFriendshipStatus),
         }
         : isSet(object.respEvents)
         ? { $case: "respEvents", respEvents: Events.fromJSON(object.respEvents) }
@@ -16967,7 +16973,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     } else if (message.payload?.$case === "respSocialPublicationFiles") {
       obj.respSocialPublicationFiles = SocialPublicationFiles.toJSON(message.payload.respSocialPublicationFiles);
     } else if (message.payload?.$case === "respFriendshipStatus") {
-      obj.respFriendshipStatus = FriendshipStatus.toJSON(message.payload.respFriendshipStatus);
+      obj.respFriendshipStatus = FriendshipStatusReply.toJSON(message.payload.respFriendshipStatus);
     } else if (message.payload?.$case === "respEvents") {
       obj.respEvents = Events.toJSON(message.payload.respEvents);
     } else if (message.payload?.$case === "respPubKey") {
@@ -17156,7 +17162,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         if (object.payload?.respFriendshipStatus !== undefined && object.payload?.respFriendshipStatus !== null) {
           message.payload = {
             $case: "respFriendshipStatus",
-            respFriendshipStatus: FriendshipStatus.fromPartial(object.payload.respFriendshipStatus),
+            respFriendshipStatus: FriendshipStatusReply.fromPartial(object.payload.respFriendshipStatus),
           };
         }
         break;

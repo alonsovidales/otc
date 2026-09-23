@@ -5,6 +5,11 @@ import "google/protobuf/timestamp.proto";
 package msg;
 
 option go_package = "github.com/alonsovidales/otc/proto/generated;msg";
+// Android app (issue #88): protoc --java_out/--kotlin_out. Java-only
+// options, ignored by the Go/TS/Swift generators.
+option java_package = "cloud.offthe.otc.proto";
+option java_multiple_files = true;
+option java_outer_classname = "MessagesProto";
 
 enum StatusErrorCode {
   DiskError = 0;
@@ -1250,7 +1255,11 @@ message GetFriendshipStatus {
   string secret = 2;
 }
 
-message FriendshipStatus {
+// FriendshipStatusReply, not FriendshipStatus: that name differs from the
+// enum FriendShipStatus only by case, and the Java/Kotlin generators put
+// each type in its own file (and class file), which collide on a
+// case-insensitive filesystem - macOS, where the Android app is built.
+message FriendshipStatusReply {
   FriendShipStatus status = 1;
   // Issue #25: true when the asked-about device holds no friendship for
   // that domain+secret at all - which, for a sender still holding a
@@ -1419,7 +1428,7 @@ message RespEnvelope {
     NewSocial resp_new_social = 21;
     SocialPublications resp_social_publications = 22;
     SocialPublicationFiles resp_social_publication_files = 25;
-    FriendshipStatus resp_friendship_status = 23;
+    FriendshipStatusReply resp_friendship_status = 23;
     Events resp_events = 24;
     PubKey resp_pub_key = 26;
     Likers resp_likers = 27;
