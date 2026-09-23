@@ -8,6 +8,7 @@
 package tray
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -300,7 +301,10 @@ func (u *ui) addRemote() {
 
 			return
 		}
-		items := []string{"✔ Choose this folder (" + current + ")"}
+		// The macOS picker's shape: the subfolders to open, and one button
+		// that chooses the folder being looked at. "Open" drills into the
+		// selected row; "Choose this folder" is the extra button.
+		var items []string
 		if current != "/" {
 			items = append(items, "‹ Up")
 		}
@@ -309,12 +313,19 @@ func (u *ui) addRemote() {
 				items = append(items, "📁 "+e.Name)
 			}
 		}
-		pick, err := zenity.List("Remote folder: "+current, items, zenity.Title("Choose a Remote Folder"), zenity.Width(420), zenity.Height(420))
-		if err != nil || pick == "" {
-			return
+		if len(items) == 0 {
+			items = []string{"(no subfolders here)"}
 		}
-		switch {
-		case strings.HasPrefix(pick, "✔"):
+		label := baseName(current)
+		if label == "" {
+			label = "/"
+		}
+		pick, err := zenity.List(
+			"Remote folder: "+current+" — open a subfolder, or choose “"+label+"” to keep it in sync with a folder on this computer.",
+			items, zenity.Title("Choose a Remote Folder"), zenity.Width(460), zenity.Height(460),
+			zenity.OKLabel("Open"), zenity.ExtraButton("Choose “"+label+"”"),
+		)
+		if errors.Is(err, zenity.ErrExtraButton) {
 			dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose where to download “"+current+"” and keep it in sync"))
 			if err != nil || dir == "" {
 				return
@@ -327,6 +338,13 @@ func (u *ui) addRemote() {
 			Refresh()
 
 			return
+		}
+		if err != nil {
+			return
+		}
+		switch {
+		case pick == "" || pick == "(no subfolders here)":
+			continue
 		case pick == "‹ Up":
 			current = parentPath(current)
 		default:
@@ -338,6 +356,15 @@ func (u *ui) addRemote() {
 			}
 		}
 	}
+}
+
+func baseName(p string) string {
+	p = strings.TrimSuffix(p, "/")
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		return p[i+1:]
+	}
+
+	return p
 }
 
 func parentPath(p string) string {
