@@ -205,13 +205,12 @@ final class SyncModel: ObservableObject {
 
         settings.$domain
             .combineLatest(settings.$password)
-            // Debounced: these fire on every keystroke in the Settings
-            // fields, and reconnecting with each partial password sent a
-            // wrong password per character - five of those in a minute
-            // and the device locks the address out (issue #117), which is
-            // exactly what "Wrong password" followed by a connection a
-            // minute later looked like.
-            .debounce(for: .seconds(1.5), scheduler: DispatchQueue.main)
+            // The Settings panel applies domain and password together with
+            // its Connect button (they used to bind straight to the fields,
+            // reconnecting on every keystroke and spending a password
+            // attempt per character - issue #117's lock-out). The short
+            // debounce folds that pair of assignments into one reconnect.
+            .debounce(for: .seconds(0.3), scheduler: DispatchQueue.main)
             .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
             .sink { [weak self] domain, key in
                 guard let self else { return }

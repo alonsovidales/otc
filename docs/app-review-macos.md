@@ -33,7 +33,7 @@ The app needs an Off The Cloud device to talk to. For review, use our demo devic
 Steps:
 1. Launch the app. It appears in the menu bar (a small rack icon); click it.
 2. Click the gear, type the device name above under "Device name" and the password under
-   "Password". The status turns "Connected" within a few seconds.
+   "Password", then press Connect. The status turns "Connected" within a few seconds.
 3. "Add Folder" > "Local Folder…", pick any folder on the Mac. It shows a progress bar while its
    files upload, then "Watching". Files you add or delete in that folder follow within seconds.
    They are visible on the device at `https://<name>.off-the.cloud` (same password) under

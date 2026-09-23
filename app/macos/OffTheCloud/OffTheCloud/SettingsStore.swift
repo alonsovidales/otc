@@ -102,6 +102,14 @@ final class SettingsStore: ObservableObject {
         return legacy
     }
 
+    /// Both halves at once, from the Settings panel's Connect button. The
+    /// two assignments still publish twice; SyncModel's short debounce
+    /// folds them into one reconnect with the new pair.
+    func apply(domain newDomain: String, password newPassword: String) {
+        domain = newDomain.trimmingCharacters(in: .whitespacesAndNewlines)
+        password = newPassword
+    }
+
     private func save() {
         UserDefaults.standard.set(domain, forKey: Self.cDomainKey)
         Keychain.saveString(key: Self.cPasswordKey, value: password)

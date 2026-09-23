@@ -309,6 +309,17 @@ struct FolderStateView: View {
 
 struct SettingsInlineView: View {
     @ObservedObject private var settings = SettingsStore.shared
+    // Edited locally and applied with the Connect button - not bound to
+    // the store, which would reconnect on every keystroke and spend one
+    // of the device's five password attempts per minute per character
+    // typed (issue #117's lock-out, seen live as "Wrong password").
+    @State private var domain = ""
+    @State private var password = ""
+    @State private var loaded = false
+
+    private var dirty: Bool { domain != settings.domain || password != settings.password }
+    private var canConnect: Bool { !domain.isEmpty && !password.isEmpty && dirty }
+
     var body: some View {
         VStack(spacing: 8) {
             HStack {
@@ -317,27 +328,45 @@ struct SettingsInlineView: View {
             }
             // Issue #121: the device's name is all the bridge needs; a
             // custom address is behind the toggle.
-            DeviceAddressFields(domain: $settings.domain)
-            SecureField("Password", text: $settings.password)
+            DeviceAddressFields(domain: $domain)
+            SecureField("Password", text: $password)
                 .textFieldStyle(.roundedBorder)
+                .onSubmit { if canConnect { apply() } }
             Toggle("Start at login", isOn: $settings.startAtLogin)
                 .toggleStyle(.checkbox)
                 .font(.footnote)
             HStack {
-                Image(systemName: settings.ready ? "checkmark.circle" : "exclamationmark.triangle")
-                    .foregroundStyle(settings.ready ? .green : .orange)
-                Text(settings.ready ? "Syncing will start automatically." :
-                     "Enter both domain and password to start syncing.")
+                Image(systemName: settings.ready && !dirty ? "checkmark.circle" : "exclamationmark.triangle")
+                    .foregroundStyle(settings.ready && !dirty ? .green : .orange)
+                Text(statusLine)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button("Connect") { apply() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(!canConnect)
             }
         }
         .padding(8)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .onAppear {
+            guard !loaded else { return }
+            loaded = true
+            domain = settings.domain
+            password = settings.password
+        }
+    }
+
+    private var statusLine: String {
+        if dirty { return "Press Connect to apply." }
+        return settings.ready ? "Syncing will start automatically." : "Enter both device and password, then Connect."
+    }
+
+    private func apply() {
+        settings.apply(domain: domain, password: password)
     }
 }
-
 
 /// Issue #121: how the device's address is entered - its bridge name, or
 /// behind a toggle, any address. Mirrors the iOS app's
