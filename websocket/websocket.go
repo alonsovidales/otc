@@ -2530,9 +2530,15 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	default:
-		log.Error("unknown payload:", p)
+		// A request this build has no case for is, in practice, an app
+		// newer than the device: the proto field is unknown here, so the
+		// oneof decodes as nothing. Say so in words the owner can act on -
+		// the fix is the Update button - rather than a bare "unknown
+		// payload" that reads like a bug.
+		log.Error("unknown payload (the client is probably newer than this device):", p)
 		resp.Error = true
-		resp.ErrorMessage = "unknown payload"
+		resp.ErrorCode = "unknown_payload"
+		resp.ErrorMessage = "This device does not understand that request: its software is older than the app. Check for updates in Settings."
 	}
 
 	return
