@@ -66,6 +66,15 @@ final class AssetSyncCache {
         queue.sync { flushLocked() }
     }
 
+    /// Log Out: another device knows none of these hashes.
+    func clear() {
+        queue.sync {
+            cache = [:]
+            dirtyCount = 0
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     /// Must only be called while already on `queue`.
     private func flushLocked() {
         guard dirtyCount > 0 else { return }

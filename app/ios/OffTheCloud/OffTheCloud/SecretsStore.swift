@@ -110,6 +110,38 @@ final class SecretsStore: ObservableObject {
         return SecretsStore(endpoint: endpoint, password: password, deviceId: deviceId, wifiOnly: wifiOnly, includeVideos: includeVideos, downloadFromiCloud: downloadFromiCloud)
     }
 
+    /// Log Out (SettingsView): forget the connection and wipe everything
+    /// this phone holds about the device - the Keychain items, the
+    /// defaults, the sync history, the caches - and start over with a fresh
+    /// device id, so the next sign-in looks like a first install. Nothing
+    /// on the device itself is touched. Clearing endpoint/password is what
+    /// flips RootView back to onboarding.
+    func logOut() {
+        Keychain.delete(key: "endpoint")
+        Keychain.delete(key: "password")
+        Keychain.delete(key: "device_id")
+        if let domain = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+        }
+        let fm = FileManager.default
+        var dirs = [fm.temporaryDirectory]
+        for kind in [FileManager.SearchPathDirectory.cachesDirectory, .applicationSupportDirectory] {
+            dirs += fm.urls(for: kind, in: .userDomainMask)
+        }
+        for dir in dirs {
+            for item in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] {
+                try? fm.removeItem(at: item)
+            }
+        }
+        endpoint = ""
+        password = ""
+        wifiOnly = false
+        includeVideos = true
+        downloadFromiCloud = true
+        deviceId = UUID().uuidString
+        Keychain.saveString(key: "device_id", value: deviceId)
+    }
+
     func persist() {
         Keychain.saveString(key: "endpoint", value: endpoint)
         Keychain.saveString(key: "password", value: password)
@@ -134,6 +166,15 @@ enum Keychain {
         let addStatus = SecItemAdd(query as CFDictionary, nil)
         // Never log `value` here — this is also used for the account password.
         print("Keychain save key=\(key) deleteStatus=\(delStatus) addStatus=\(addStatus)")
+    }
+
+    static func delete(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecAttrService as String: "OffTheCloud"
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 
     static func loadString(key: String) -> String? {

@@ -29,6 +29,9 @@ object MediaStream {
 
     @Volatile private var cachedBase: URI? = null
 
+    /** Log Out: the next device has another address. */
+    fun reset() { cachedBase = null }
+
     /** The device answers with a path ("/media/<token>"); resolve it against the endpoint in use. */
     fun absolute(path: String): String? {
         val base = cachedBase ?: run {

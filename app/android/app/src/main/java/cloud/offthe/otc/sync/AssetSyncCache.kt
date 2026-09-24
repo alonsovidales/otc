@@ -27,6 +27,13 @@ object AssetSyncCache {
 
     @Synchronized fun flush() = flushLocked()
 
+    /** Log Out: another device knows none of these hashes. */
+    @Synchronized fun clear() {
+        cache.clear()
+        dirty = 0
+        file.delete()
+    }
+
     private fun flushLocked() {
         if (dirty == 0) return
         try { file.writeText(JSONObject(cache as Map<*, *>).toString()) } catch (_: Exception) {}

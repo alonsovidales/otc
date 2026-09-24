@@ -82,6 +82,14 @@ object OTCConnection {
         backoffMs = 1_000L
     }
 
+    /** Log Out: drop the connection and forget what went wrong with the last one. */
+    fun reset() {
+        invalidate()
+        _lastError.value = null
+        _statusCode.value = null
+        _connectionFailed.value = false
+    }
+
     private suspend fun connectAndAuth() {
         val secrets = SecretsStore.loadOrCreate()
         val url = secrets.endpointURLString

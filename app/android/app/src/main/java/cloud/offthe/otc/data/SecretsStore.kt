@@ -43,6 +43,27 @@ class SecretsStore private constructor(
 
     val isConfigured: Boolean get() = _endpoint.value.isNotEmpty() && _password.value.isNotEmpty()
 
+    /**
+     * Log Out (SettingsView, as on iOS): forget the connection and wipe
+     * everything this phone holds about the device - the secrets, the
+     * settings, the sync history, the caches - and start over with a fresh
+     * device id, so the next sign-in looks like a first install. Nothing
+     * on the device itself is touched.
+     */
+    fun logOut() {
+        val ctx = OTCApp.instance
+        secure().edit().clear().apply()
+        plain().edit().clear().apply()
+        ctx.getSharedPreferences("otc_sync", Context.MODE_PRIVATE).edit().clear().apply()
+        for (dir in listOf(ctx.cacheDir, ctx.filesDir)) dir.listFiles()?.forEach { it.deleteRecursively() }
+        _endpoint.value = ""
+        _password.value = ""
+        _wifiOnly.value = false
+        _includeVideos.value = true
+        _downloadFromCloud.value = true
+        _deviceId.value = UUID.randomUUID().toString().also { secure().edit().putString("device_id", it).apply() }
+    }
+
     /** endpoint, normalized - what every connection should dial. */
     val endpointURLString: String get() = normalizedEndpoint(_endpoint.value)
 

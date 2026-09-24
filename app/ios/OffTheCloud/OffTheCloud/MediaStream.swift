@@ -68,6 +68,9 @@ enum MediaStream {
     /// in front of any later one.
     private static var cachedBase: URLComponents?
 
+    /// Log Out: the next device has another address.
+    static func reset() { cachedBase = nil }
+
     static func absolute(_ path: String) async -> URL? {
         var components: URLComponents
         if let cachedBase {

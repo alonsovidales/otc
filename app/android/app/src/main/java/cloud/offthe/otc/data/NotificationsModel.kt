@@ -53,6 +53,15 @@ object NotificationsModel {
         pollJob = null
     }
 
+    /** Log Out: nothing unread, nothing listed, nothing to jump to. */
+    fun reset() {
+        stopPolling()
+        _unacknowledgedCount.value = 0
+        _notifications.value = emptyList()
+        _loadingList.value = false
+        _pendingDeepLink.value = null
+    }
+
     private suspend fun fetchCount() {
         val resp = try {
             OTCConnection.request { it.setReqGetNotificationCount(ReqGetNotificationCount.getDefaultInstance()) }

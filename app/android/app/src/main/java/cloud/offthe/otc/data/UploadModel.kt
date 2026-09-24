@@ -36,4 +36,7 @@ object UploadModel {
     }
 
     fun complete() = _state.update { State(progress = 1f) }
+
+    /** Log Out. */
+    fun reset() { _state.value = State() }
 }

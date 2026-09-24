@@ -50,6 +50,15 @@ final class NotificationsModel: ObservableObject {
         pollTask = nil
     }
 
+    /// Log Out: nothing unread, nothing listed, nothing to jump to.
+    func reset() {
+        stopPolling()
+        unacknowledgedCount = 0
+        notifications = []
+        loadingList = false
+        pendingDeepLink = nil
+    }
+
     private func fetchCount() async {
         guard let resp = try? await ws.request({ e in
             var req = ReqEnvelope()

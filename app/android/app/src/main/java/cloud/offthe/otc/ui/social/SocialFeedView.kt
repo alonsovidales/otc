@@ -107,6 +107,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
+import androidx.compose.foundation.layout.WindowInsets
 
 // Port of SocialFeedView.swift: the feed, PostCard, likers sheet, video
 // autoplay (issue #114) with a shared mute preference, carousel paging
@@ -162,11 +163,17 @@ fun SocialFeedView() {
         vm.consumeScrollTarget()
     }
 
-    Scaffold(topBar = {
+    // MainView's Scaffold already keeps the tabs below the status bar, so
+    // this bar must not pad for it again (it did, and the masthead sat
+    // under a status bar's worth of empty space); 48dp, the icons' own
+    // height, is as short as the row can be.
+    Scaffold(contentWindowInsets = WindowInsets(0), topBar = {
         // Issue #81 (as on iOS): the bar itself carries no title - the logo
         // is the feed's first row, so it scrolls away once reading starts.
         TopAppBar(
             title = {},
+            windowInsets = WindowInsets(0),
+            expandedHeight = 48.dp,
             actions = {
                 IconButton(onClick = { showingFriendships = true }) { Icon(Icons.Default.Group, "Friends") }
                 IconButton(onClick = { showingPicker = true }) { Icon(Icons.Outlined.AddCircleOutline, "New post", tint = Ember) }

@@ -65,6 +65,18 @@ import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.Toast
 import cloud.offthe.otc.ui.compose.mediaPermissions
 import kotlinx.coroutines.launch
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import cloud.offthe.otc.MainActivity
+import cloud.offthe.otc.data.NotificationsModel
+import cloud.offthe.otc.net.MediaStream
+import cloud.offthe.otc.sync.AssetSyncCache
+import cloud.offthe.otc.sync.SyncScheduler
+import cloud.offthe.otc.ui.social.SocialFeedViewModel
 
 // Port of SettingsView.swift and its sections: Profile (issue #84),
 // Users (#82), bridge secret (#40), face recognition (#52), reprocess
@@ -104,6 +116,7 @@ fun SettingsView(secrets: SecretsStore) {
     val includeVideos by secrets.includeVideos.collectAsState()
     val downloadFromCloud by secrets.downloadFromCloud.collectAsState()
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
+    var confirmLogout by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         device.loadSettings()
@@ -189,6 +202,7 @@ fun SettingsView(secrets: SecretsStore) {
                 PasswordField(password, "Password", secrets::setPassword)
                 Caption("Device ID: $deviceId")
                 RowButton("Save Connection") { secrets.persist(); OTCConnection.invalidate() }
+                RowButton("Log Out", destructive = true) { confirmLogout = true }
             }
 
             Section("Sync Options") {
@@ -209,6 +223,15 @@ fun SettingsView(secrets: SecretsStore) {
         Toast(dst.toast, Modifier.align(Alignment.TopCenter))
     }
 
+    if (confirmLogout) {
+        AlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            title = { Text("Log out of this device?") },
+            text = { Text("The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.") },
+            confirmButton = { TextButton(onClick = { confirmLogout = false; logOut(context, secrets) }) { Text("Log Out", color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } },
+        )
+    }
     dst.reprocessConfirm?.let { action ->
         val resume = action == DeviceSettingsViewModel.ReprocessConfirm.RESUME
         AlertDialog(
@@ -235,6 +258,27 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
         Text(label, Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange)
     }
+}
+
+/**
+ * Log Out (the same as SettingsView.swift's logOut): stop everything that
+ * talks to the device, forget what it told us, wipe what this phone stores,
+ * then start the app over so onboarding comes up on a clean slate - the
+ * activity-scoped view models (gallery, files, settings) are the one thing
+ * a wipe of the stores can't reach.
+ */
+private fun logOut(context: Context, secrets: SecretsStore) {
+    NotificationsModel.reset()
+    UploadModel.reset()
+    SocialFeedViewModel.reset()
+    OTCConnection.reset()
+    MediaStream.reset()
+    SyncScheduler.cancel()
+    AssetSyncCache.clear()
+    secrets.logOut()
+    val activity = context as? Activity ?: return
+    activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+    activity.finish()
 }
 
 @Composable

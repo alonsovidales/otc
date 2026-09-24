@@ -22,6 +22,11 @@ enum SyncScheduler {
         try? BGTaskScheduler.shared.submit(req)
     }
 
+    /// Log Out: nothing to sync until someone signs in again.
+    static func cancel() {
+        BGTaskScheduler.shared.cancelAllTaskRequests()
+    }
+
     static func handle(task: BGProcessingTask) {
         print("Handle")
         scheduleNext() // plan the next one, regardless of how this one goes

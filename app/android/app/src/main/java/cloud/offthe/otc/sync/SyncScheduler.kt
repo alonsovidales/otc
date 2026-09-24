@@ -26,6 +26,11 @@ object SyncScheduler {
         WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.REPLACE, req)
     }
 
+    /** Log Out: nothing to sync until someone signs in again. */
+    fun cancel(context: Context = OTCApp.instance) {
+        WorkManager.getInstance(context).cancelUniqueWork(name)
+    }
+
     class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
         override suspend fun doWork(): Result {
             scheduleNext(applicationContext)

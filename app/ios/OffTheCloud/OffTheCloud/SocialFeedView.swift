@@ -91,6 +91,18 @@ final class SocialFeedViewModel: ObservableObject {
 
     private var pollTask: Task<Void, Never>?
 
+    /// Log Out: an empty feed, no cached snapshot, and the auto-load stopped.
+    func reset() {
+        pollTask?.cancel()
+        pollTask = nil
+        posts = []
+        loading = false
+        loadingMore = false
+        hasLoadedOnce = false
+        endReached = false
+        try? FileManager.default.removeItem(at: Self.cacheURL)
+    }
+
     /// On-disk snapshot of the last successfully loaded page (issue #22):
     /// read synchronously at init so the feed shows *something* the instant
     /// the app launches — even before the network request that refreshes it

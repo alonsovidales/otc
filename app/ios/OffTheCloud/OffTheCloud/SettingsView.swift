@@ -303,6 +303,7 @@ struct SettingsView: View {
     @EnvironmentObject var upload: UploadModel
     @StateObject private var device = DeviceSettingsViewModel()
     @StateObject private var status = StatusViewModel()
+    @State private var confirmLogout = false
 
     var body: some View {
         NavigationStack {
@@ -440,6 +441,9 @@ struct SettingsView: View {
                         secrets.persist()
                         OTCConnection.shared.invalidate()
                     }
+                    Button("Log Out", role: .destructive) {
+                        confirmLogout = true
+                    }
                 }
 
                 Section(header: Text("Sync Options")) {
@@ -501,6 +505,12 @@ struct SettingsView: View {
             status.stop()
             device.stopPollingReprocessStatus()
         }
+        .alert("Log out of this device?", isPresented: $confirmLogout) {
+            Button("Log Out", role: .destructive) { logOut() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.")
+        }
         .confirmationDialog(
             device.reprocessConfirmAction == .resume
                 ? "Resume reprocessing where it left off? It can take a while."
@@ -516,6 +526,25 @@ struct SettingsView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+    }
+}
+
+extension SettingsView {
+    /// Log Out (the same as SettingsView.kt's logOut): stop everything that
+    /// talks to the device, forget what it told us, wipe what this phone
+    /// stores. RootView shows onboarding the moment the secrets clear, and
+    /// MainView going away takes every per-tab view model with it.
+    fileprivate func logOut() {
+        status.stop()
+        device.stopPollingReprocessStatus()
+        NotificationsModel.shared.reset()
+        UploadModel.shared.reset()
+        SocialFeedViewModel.shared.reset()
+        OTCConnection.shared.reset()
+        MediaStream.reset()
+        SyncScheduler.cancel()
+        AssetSyncCache.shared.clear()
+        secrets.logOut()
     }
 }
 

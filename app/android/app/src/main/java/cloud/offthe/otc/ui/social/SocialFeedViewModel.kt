@@ -79,6 +79,15 @@ object SocialFeedViewModel {
         }
     }
 
+    /** Log Out: an empty feed, no cached snapshot, and the auto-load stopped. */
+    fun reset() {
+        pollJob?.cancel()
+        pollJob = null
+        endReached = false
+        _state.value = State(loading = false)
+        cacheFile.delete()
+    }
+
     private fun startAutoLoad() {
         if (pollJob != null) return
         pollJob = scope.launch {

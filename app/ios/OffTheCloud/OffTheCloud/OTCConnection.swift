@@ -91,6 +91,15 @@ final class OTCConnection: ObservableObject {
         backoffSeconds = 1
     }
 
+    /// Log Out: drop the connection and forget what went wrong with the
+    /// last one, so the next sign-in starts without a stale error over it.
+    func reset() {
+        invalidate()
+        lastError = nil
+        statusCode = nil
+        connectionFailed = false
+    }
+
     private func connectAndAuth() async throws {
         // Read off the main actor: this class is @MainActor, and
         // loadOrCreate() does three synchronous Keychain reads, which are

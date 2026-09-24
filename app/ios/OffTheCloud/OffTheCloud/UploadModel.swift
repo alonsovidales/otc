@@ -23,6 +23,17 @@ final class UploadModel: ObservableObject {
     // flight, just stops starting new ones until resumed.
     @Published var isPaused: Bool = false
 
+    /// Log Out.
+    func reset() {
+        DispatchQueue.main.async {
+            self.totalPending = 0
+            self.currentName = ""
+            self.progress = 0
+            self.isUploading = false
+            self.isPaused = false
+        }
+    }
+
     func togglePause() {
         DispatchQueue.main.async {
             self.isPaused.toggle()
