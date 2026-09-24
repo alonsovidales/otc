@@ -166,6 +166,13 @@ message UploadFile {
   bytes content = 2;
   bool forceOverride = 3;
   google.protobuf.Timestamp created = 4;
+  // The photo library's own identifier for the asset this came from (iOS:
+  // PHCloudIdentifier, the same on every device signed into the owner's
+  // iCloud account; Android has nothing comparable, its MediaStore ids are
+  // one phone's row numbers). The device keeps it next to the content hash
+  // so another phone, or this one after a reinstall, can recognise the
+  // asset with HasCloudIds instead of downloading it from iCloud to hash it.
+  string cloud_id = 5;
 }
 
 // Issue #58: lets a sync client (iOS/macOS) check whether this device
@@ -175,6 +182,27 @@ message UploadFile {
 // the bandwidth on a re-upload, not just after.
 message HasFile {
   string hash = 1;
+  // Optional: the asset's cloud id (see UploadFile.cloud_id). When the hash
+  // is on the device, it is attached to every row with that hash - this is
+  // how content that was uploaded before cloud ids existed, or from another
+  // platform, gets one.
+  string cloud_id = 2;
+}
+
+// HasCloudIds: which of these cloud ids (UploadFile.cloud_id) does the
+// device already hold, and under which content hash - the answer that lets
+// a photo sync skip the iCloud download and just LinkFile the hash.
+message HasCloudIds {
+  repeated string cloud_ids = 1;
+}
+
+message CloudIdFile {
+  string cloud_id = 1;
+  string hash = 2;
+}
+
+message CloudIdsFound {
+  repeated CloudIdFile files = 1;
 }
 
 message FileExists {
@@ -191,6 +219,8 @@ message LinkFile {
   string path = 2;
   bool forceOverride = 3;
   google.protobuf.Timestamp created = 4;
+  // See UploadFile.cloud_id.
+  string cloud_id = 5;
 }
 
 message DelFile {
@@ -1395,6 +1425,8 @@ message ReqEnvelope {
     BridgeClientInfo req_bridge_client_info = 100;
     DeleteFriendship req_delete_friendship = 101;
     FriendshipInterDelete req_friendship_inter_delete = 102;
+    // Answers with resp_cloud_ids_found.
+    HasCloudIds req_has_cloud_ids = 103;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1472,5 +1504,6 @@ message RespEnvelope {
     RespSessionToken resp_session_token = 45;
     // Issue #103.
     RespDomainAvailable resp_domain_available = 46;
+    CloudIdsFound resp_cloud_ids_found = 54;
   }
 }

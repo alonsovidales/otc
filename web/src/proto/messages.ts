@@ -504,7 +504,18 @@ export interface UploadFile {
   path: string;
   content: Uint8Array;
   forceOverride: boolean;
-  created?: Date | undefined;
+  created?:
+    | Date
+    | undefined;
+  /**
+   * The photo library's own identifier for the asset this came from (iOS:
+   * PHCloudIdentifier, the same on every device signed into the owner's
+   * iCloud account; Android has nothing comparable, its MediaStore ids are
+   * one phone's row numbers). The device keeps it next to the content hash
+   * so another phone, or this one after a reinstall, can recognise the
+   * asset with HasCloudIds instead of downloading it from iCloud to hash it.
+   */
+  cloudId: string;
 }
 
 /**
@@ -516,6 +527,31 @@ export interface UploadFile {
  */
 export interface HasFile {
   hash: string;
+  /**
+   * Optional: the asset's cloud id (see UploadFile.cloud_id). When the hash
+   * is on the device, it is attached to every row with that hash - this is
+   * how content that was uploaded before cloud ids existed, or from another
+   * platform, gets one.
+   */
+  cloudId: string;
+}
+
+/**
+ * HasCloudIds: which of these cloud ids (UploadFile.cloud_id) does the
+ * device already hold, and under which content hash - the answer that lets
+ * a photo sync skip the iCloud download and just LinkFile the hash.
+ */
+export interface HasCloudIds {
+  cloudIds: string[];
+}
+
+export interface CloudIdFile {
+  cloudId: string;
+  hash: string;
+}
+
+export interface CloudIdsFound {
+  files: CloudIdFile[];
 }
 
 export interface FileExists {
@@ -533,7 +569,11 @@ export interface LinkFile {
   hash: string;
   path: string;
   forceOverride: boolean;
-  created?: Date | undefined;
+  created?:
+    | Date
+    | undefined;
+  /** See UploadFile.cloud_id. */
+  cloudId: string;
 }
 
 export interface DelFile {
@@ -1895,6 +1935,9 @@ export interface ReqEnvelope {
     | { $case: "reqDeleteFriendship"; reqDeleteFriendship: DeleteFriendship }
     | { $case: "reqFriendshipInterDelete"; reqFriendshipInterDelete: FriendshipInterDelete }
     | //
+    /** Answers with resp_cloud_ids_found. */
+    { $case: "reqHasCloudIds"; reqHasCloudIds: HasCloudIds }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -1990,6 +2033,7 @@ export interface RespEnvelope {
     | //
     /** Issue #103. */
     { $case: "respDomainAvailable"; respDomainAvailable: RespDomainAvailable }
+    | { $case: "respCloudIdsFound"; respCloudIdsFound: CloudIdsFound }
     | undefined;
 }
 
@@ -3072,7 +3116,7 @@ export const PubKey: MessageFns<PubKey> = {
 };
 
 function createBaseUploadFile(): UploadFile {
-  return { path: "", content: new Uint8Array(0), forceOverride: false, created: undefined };
+  return { path: "", content: new Uint8Array(0), forceOverride: false, created: undefined, cloudId: "" };
 }
 
 export const UploadFile: MessageFns<UploadFile> = {
@@ -3088,6 +3132,9 @@ export const UploadFile: MessageFns<UploadFile> = {
     }
     if (message.created !== undefined) {
       Timestamp.encode(toTimestamp(message.created), writer.uint32(34).fork()).join();
+    }
+    if (message.cloudId !== "") {
+      writer.uint32(42).string(message.cloudId);
     }
     return writer;
   },
@@ -3131,6 +3178,14 @@ export const UploadFile: MessageFns<UploadFile> = {
           message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.cloudId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3146,6 +3201,7 @@ export const UploadFile: MessageFns<UploadFile> = {
       content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
       forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
       created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
     };
   },
 
@@ -3163,6 +3219,9 @@ export const UploadFile: MessageFns<UploadFile> = {
     if (message.created !== undefined) {
       obj.created = message.created.toISOString();
     }
+    if (message.cloudId !== "") {
+      obj.cloudId = message.cloudId;
+    }
     return obj;
   },
 
@@ -3175,18 +3234,22 @@ export const UploadFile: MessageFns<UploadFile> = {
     message.content = object.content ?? new Uint8Array(0);
     message.forceOverride = object.forceOverride ?? false;
     message.created = object.created ?? undefined;
+    message.cloudId = object.cloudId ?? "";
     return message;
   },
 };
 
 function createBaseHasFile(): HasFile {
-  return { hash: "" };
+  return { hash: "", cloudId: "" };
 }
 
 export const HasFile: MessageFns<HasFile> = {
   encode(message: HasFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.hash !== "") {
       writer.uint32(10).string(message.hash);
+    }
+    if (message.cloudId !== "") {
+      writer.uint32(18).string(message.cloudId);
     }
     return writer;
   },
@@ -3206,6 +3269,14 @@ export const HasFile: MessageFns<HasFile> = {
           message.hash = reader.string();
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.cloudId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3216,13 +3287,19 @@ export const HasFile: MessageFns<HasFile> = {
   },
 
   fromJSON(object: any): HasFile {
-    return { hash: isSet(object.hash) ? globalThis.String(object.hash) : "" };
+    return {
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
+    };
   },
 
   toJSON(message: HasFile): unknown {
     const obj: any = {};
     if (message.hash !== "") {
       obj.hash = message.hash;
+    }
+    if (message.cloudId !== "") {
+      obj.cloudId = message.cloudId;
     }
     return obj;
   },
@@ -3233,6 +3310,203 @@ export const HasFile: MessageFns<HasFile> = {
   fromPartial<I extends Exact<DeepPartial<HasFile>, I>>(object: I): HasFile {
     const message = createBaseHasFile();
     message.hash = object.hash ?? "";
+    message.cloudId = object.cloudId ?? "";
+    return message;
+  },
+};
+
+function createBaseHasCloudIds(): HasCloudIds {
+  return { cloudIds: [] };
+}
+
+export const HasCloudIds: MessageFns<HasCloudIds> = {
+  encode(message: HasCloudIds, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.cloudIds) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HasCloudIds {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHasCloudIds();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.cloudIds.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): HasCloudIds {
+    return {
+      cloudIds: globalThis.Array.isArray(object?.cloudIds) ? object.cloudIds.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: HasCloudIds): unknown {
+    const obj: any = {};
+    if (message.cloudIds?.length) {
+      obj.cloudIds = message.cloudIds;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HasCloudIds>, I>>(base?: I): HasCloudIds {
+    return HasCloudIds.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HasCloudIds>, I>>(object: I): HasCloudIds {
+    const message = createBaseHasCloudIds();
+    message.cloudIds = object.cloudIds?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseCloudIdFile(): CloudIdFile {
+  return { cloudId: "", hash: "" };
+}
+
+export const CloudIdFile: MessageFns<CloudIdFile> = {
+  encode(message: CloudIdFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.cloudId !== "") {
+      writer.uint32(10).string(message.cloudId);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CloudIdFile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCloudIdFile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.cloudId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CloudIdFile {
+    return {
+      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+    };
+  },
+
+  toJSON(message: CloudIdFile): unknown {
+    const obj: any = {};
+    if (message.cloudId !== "") {
+      obj.cloudId = message.cloudId;
+    }
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CloudIdFile>, I>>(base?: I): CloudIdFile {
+    return CloudIdFile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CloudIdFile>, I>>(object: I): CloudIdFile {
+    const message = createBaseCloudIdFile();
+    message.cloudId = object.cloudId ?? "";
+    message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
+function createBaseCloudIdsFound(): CloudIdsFound {
+  return { files: [] };
+}
+
+export const CloudIdsFound: MessageFns<CloudIdsFound> = {
+  encode(message: CloudIdsFound, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.files) {
+      CloudIdFile.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CloudIdsFound {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCloudIdsFound();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.files.push(CloudIdFile.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CloudIdsFound {
+    return {
+      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => CloudIdFile.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: CloudIdsFound): unknown {
+    const obj: any = {};
+    if (message.files?.length) {
+      obj.files = message.files.map((e) => CloudIdFile.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CloudIdsFound>, I>>(base?: I): CloudIdsFound {
+    return CloudIdsFound.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CloudIdsFound>, I>>(object: I): CloudIdsFound {
+    const message = createBaseCloudIdsFound();
+    message.files = object.files?.map((e) => CloudIdFile.fromPartial(e)) || [];
     return message;
   },
 };
@@ -3296,7 +3570,7 @@ export const FileExists: MessageFns<FileExists> = {
 };
 
 function createBaseLinkFile(): LinkFile {
-  return { hash: "", path: "", forceOverride: false, created: undefined };
+  return { hash: "", path: "", forceOverride: false, created: undefined, cloudId: "" };
 }
 
 export const LinkFile: MessageFns<LinkFile> = {
@@ -3312,6 +3586,9 @@ export const LinkFile: MessageFns<LinkFile> = {
     }
     if (message.created !== undefined) {
       Timestamp.encode(toTimestamp(message.created), writer.uint32(34).fork()).join();
+    }
+    if (message.cloudId !== "") {
+      writer.uint32(42).string(message.cloudId);
     }
     return writer;
   },
@@ -3355,6 +3632,14 @@ export const LinkFile: MessageFns<LinkFile> = {
           message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.cloudId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3370,6 +3655,7 @@ export const LinkFile: MessageFns<LinkFile> = {
       path: isSet(object.path) ? globalThis.String(object.path) : "",
       forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
       created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
     };
   },
 
@@ -3387,6 +3673,9 @@ export const LinkFile: MessageFns<LinkFile> = {
     if (message.created !== undefined) {
       obj.created = message.created.toISOString();
     }
+    if (message.cloudId !== "") {
+      obj.cloudId = message.cloudId;
+    }
     return obj;
   },
 
@@ -3399,6 +3688,7 @@ export const LinkFile: MessageFns<LinkFile> = {
     message.path = object.path ?? "";
     message.forceOverride = object.forceOverride ?? false;
     message.created = object.created ?? undefined;
+    message.cloudId = object.cloudId ?? "";
     return message;
   },
 };
@@ -13979,6 +14269,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqFriendshipInterDelete":
         FriendshipInterDelete.encode(message.payload.reqFriendshipInterDelete, writer.uint32(818).fork()).join();
         break;
+      case "reqHasCloudIds":
+        HasCloudIds.encode(message.payload.reqHasCloudIds, writer.uint32(826).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -14841,6 +15134,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 103: {
+          if (tag !== 826) {
+            break;
+          }
+
+          message.payload = { $case: "reqHasCloudIds", reqHasCloudIds: HasCloudIds.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -15164,6 +15465,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqFriendshipInterDelete",
           reqFriendshipInterDelete: FriendshipInterDelete.fromJSON(object.reqFriendshipInterDelete),
         }
+        : isSet(object.reqHasCloudIds)
+        ? { $case: "reqHasCloudIds", reqHasCloudIds: HasCloudIds.fromJSON(object.reqHasCloudIds) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -15370,6 +15673,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqDeleteFriendship = DeleteFriendship.toJSON(message.payload.reqDeleteFriendship);
     } else if (message.payload?.$case === "reqFriendshipInterDelete") {
       obj.reqFriendshipInterDelete = FriendshipInterDelete.toJSON(message.payload.reqFriendshipInterDelete);
+    } else if (message.payload?.$case === "reqHasCloudIds") {
+      obj.reqHasCloudIds = HasCloudIds.toJSON(message.payload.reqHasCloudIds);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -16139,6 +16444,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqHasCloudIds": {
+        if (object.payload?.reqHasCloudIds !== undefined && object.payload?.reqHasCloudIds !== null) {
+          message.payload = {
+            $case: "reqHasCloudIds",
+            reqHasCloudIds: HasCloudIds.fromPartial(object.payload.reqHasCloudIds),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -16346,6 +16660,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respDomainAvailable":
         RespDomainAvailable.encode(message.payload.respDomainAvailable, writer.uint32(370).fork()).join();
+        break;
+      case "respCloudIdsFound":
+        CloudIdsFound.encode(message.payload.respCloudIdsFound, writer.uint32(434).fork()).join();
         break;
     }
     return writer;
@@ -16797,6 +17114,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 54: {
+          if (tag !== 434) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respCloudIdsFound",
+            respCloudIdsFound: CloudIdsFound.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -16929,6 +17257,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           $case: "respDomainAvailable",
           respDomainAvailable: RespDomainAvailable.fromJSON(object.respDomainAvailable),
         }
+        : isSet(object.respCloudIdsFound)
+        ? { $case: "respCloudIdsFound", respCloudIdsFound: CloudIdsFound.fromJSON(object.respCloudIdsFound) }
         : undefined,
     };
   },
@@ -17034,6 +17364,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
     } else if (message.payload?.$case === "respDomainAvailable") {
       obj.respDomainAvailable = RespDomainAvailable.toJSON(message.payload.respDomainAvailable);
+    } else if (message.payload?.$case === "respCloudIdsFound") {
+      obj.respCloudIdsFound = CloudIdsFound.toJSON(message.payload.respCloudIdsFound);
     }
     return obj;
   },
@@ -17416,6 +17748,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respDomainAvailable",
             respDomainAvailable: RespDomainAvailable.fromPartial(object.payload.respDomainAvailable),
+          };
+        }
+        break;
+      }
+      case "respCloudIdsFound": {
+        if (object.payload?.respCloudIdsFound !== undefined && object.payload?.respCloudIdsFound !== null) {
+          message.payload = {
+            $case: "respCloudIdsFound",
+            respCloudIdsFound: CloudIdsFound.fromPartial(object.payload.respCloudIdsFound),
           };
         }
         break;

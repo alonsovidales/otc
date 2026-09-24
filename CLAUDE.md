@@ -245,7 +245,14 @@ outside the SDK dir so `sdkmanager` doesn't overwrite them, and kill the 37 serv
 phone is a Motorola moto g06 (Android 15, serial ZY32MBZVJ4). Every iOS screen has an Android counterpart under
 `app/src/main/java/cloud/offthe/otc/` (`ui/` mirrors the SwiftUI views, `net/` the connection,
 `data/` the stores, `sync/` PhotoSync/SyncScheduler/AssetSyncCache); still missing versus iOS:
-push notifications (FCM). The EXIF panel's map is osmdroid (OpenStreetMap, no API key), and it
+push notifications (FCM). One deliberate difference: the photo sync's cloud-id shortcut (release
+7, `files.cloud_id`, `HasCloudIds`) is iOS-only - `PHCloudIdentifier` is the same for an asset on
+every device on the owner's iCloud account, so a phone asks the device "which of these do you
+already have?" and links the hash instead of downloading the asset from iCloud to hash it. Android
+has no equivalent (MediaStore ids are one phone's row numbers, and the originals are local files
+anyway), so it leaves `cloud_id` empty; the device attaches an id to every row of a hash whenever
+any client names it (`HasFile.cloud_id`), so content uploaded from Android still gets one the
+first time an iPhone sees the same asset. The EXIF panel's map is osmdroid (OpenStreetMap, no API key), and it
 only ever has something to show because `PhotoSync.readData` asks the MediaStore for the
 original bytes under `ACCESS_MEDIA_LOCATION` - since Android 10 a photo read through a plain
 content URI comes back with its GPS tags blanked to 0/0, which the device used to report as

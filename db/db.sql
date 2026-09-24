@@ -24,12 +24,21 @@ create table files
   `modified` datetime not null,
   `path` varchar(768) not null,
   `size` int not null,
+  -- The photo library's own identifier for the asset this row came from
+  -- (release 7): iOS's PHCloudIdentifier, the same on every device signed
+  -- into the owner's iCloud account. Set on upload/link, and attached to
+  -- every row of a hash the moment a client mentions the id with that
+  -- hash (HasFile). Lets a phone ask "do you have these already?"
+  -- (HasCloudIds) before paying for an iCloud download just to hash the
+  -- asset. NULL for anything else - Android, the sync clients, the web.
+  `cloud_id` varchar(255) null,
 
   key (`hash`),
   unique (`path`),
   INDEX USING BTREE (`created`),
   INDEX USING BTREE (`modified`),
-  INDEX USING BTREE (`size`)
+  INDEX USING BTREE (`size`),
+  INDEX USING BTREE (`cloud_id`)
 ) engine=InnoDB;
 
 create table file_tags

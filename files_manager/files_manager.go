@@ -801,7 +801,10 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	return
 }
 
-func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created *timestamppb.Timestamp) (file *pb.File, err error) {
+// UploadFile stores content under path. cloudID is the photo library's own
+// name for the asset (UploadFile.cloud_id in the proto), kept with the row
+// and attached to any other row of the same content.
+func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	mimeType := mimetype.Detect(content)
 	//mimeType := http.DetectContentType(content)
 	log.Debug("Mime type:", mimeType.String())
@@ -824,9 +827,12 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		Size:     int32(len(content)),
 	}
 
-	duplicated, err := mg.dao.StoreNewFile(file)
+	duplicated, err := mg.dao.StoreNewFile(file, cloudID)
 	if err != nil {
 		return nil, err
+	}
+	if err := mg.dao.SetCloudIDForHash(hash, cloudID); err != nil {
+		log.Error("error recording the cloud id:", err)
 	}
 
 	if duplicated {
@@ -849,7 +855,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 		if forceOverride {
 			mg.DelFile(session, path)
-			_, err = mg.dao.StoreNewFile(file)
+			_, err = mg.dao.StoreNewFile(file, cloudID)
 			if err != nil {
 				return nil, err
 			}
@@ -1071,7 +1077,10 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 // that out *before* spending the bandwidth on a re-upload, via LinkFile
 // below, rather than only after the fact like the existing
 // duplicated-path check in UploadFile does.
-func (mg *Manager) HasFile(hash string) (exists bool, err error) {
+// HasFile answers whether the device holds content with this hash. When it
+// does and the client named the asset's cloud id, that id is attached to
+// the hash's rows (see files.cloud_id in db.sql).
+func (mg *Manager) HasFile(hash, cloudID string) (exists bool, err error) {
 	_, err = mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
 		return false, nil
@@ -1079,7 +1088,18 @@ func (mg *Manager) HasFile(hash string) (exists bool, err error) {
 	if err != nil {
 		return false, err
 	}
+	if err := mg.dao.SetCloudIDForHash(hash, cloudID); err != nil {
+		log.Error("error recording the cloud id:", err)
+	}
+
 	return true, nil
+}
+
+// HasCloudIDs is the photo sync's "which of these do you already have?",
+// answered as cloud id -> hash so the client can LinkFile without ever
+// downloading the asset.
+func (mg *Manager) HasCloudIDs(ids []string) (map[string]string, error) {
+	return mg.dao.FindCloudIDs(ids)
 }
 
 // LinkFile registers path as pointing at content this device already has
@@ -1089,7 +1109,7 @@ func (mg *Manager) HasFile(hash string) (exists bool, err error) {
 // UploadFile's own duplicated-path handling (same path already exists:
 // no-op if the hash already matches, otherwise only overwritten with
 // forceOverride) — the one difference is this never touches disk at all.
-func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created *timestamppb.Timestamp) (file *pb.File, err error) {
+func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("no file with that hash on this device")
@@ -1111,9 +1131,12 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		Size:     existing.Size,
 	}
 
-	duplicated, err := mg.dao.StoreNewFile(file)
+	duplicated, err := mg.dao.StoreNewFile(file, cloudID)
 	if err != nil {
 		return nil, err
+	}
+	if err := mg.dao.SetCloudIDForHash(hash, cloudID); err != nil {
+		log.Error("error recording the cloud id:", err)
 	}
 	if duplicated {
 		existingAtPath, err := mg.dao.GetFileByPath(path)
@@ -1130,7 +1153,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		if err := mg.DelFile(session, path); err != nil {
 			return nil, err
 		}
-		if _, err := mg.dao.StoreNewFile(file); err != nil {
+		if _, err := mg.dao.StoreNewFile(file, cloudID); err != nil {
 			return nil, err
 		}
 	}

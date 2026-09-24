@@ -86,6 +86,24 @@ final class PhotoSync: NSObject {
         }
     }
 
+    /// Each asset's PHCloudIdentifier as a string, by local identifier
+    /// (release 7). The cloud identifier is what stays the same for an
+    /// asset across the owner's devices and reinstalls, where the local
+    /// identifier is this library's alone. Assets PhotoKit can't map are
+    /// simply absent, and go through the hash path as before.
+    private func cloudIdentifiers(for assets: [PHAsset]) -> [String: String] {
+        let ids = assets.map(\.localIdentifier)
+        guard !ids.isEmpty else { return [:] }
+        var out: [String: String] = [:]
+        for (local, result) in PHPhotoLibrary.shared().cloudIdentifierMappings(forLocalIdentifiers: ids) {
+            if case .success(let cloud) = result {
+                out[local] = cloud.stringValue
+            }
+        }
+
+        return out
+    }
+
     /// Just the filename PHAssetResource already has in its local metadata
     /// - no network access, no download, unlike exportAssetToTempFile
     /// below (which picks the same resource for the same reason, but
@@ -283,6 +301,30 @@ final class PhotoSync: NSObject {
             print("Upload listing the files:", resp.errorMessage)
         }
 
+        // Release 7: ask the device which of these assets it already holds
+        // by their PHCloudIdentifier - the same id on every device signed
+        // into the owner's iCloud account - and get each one's content
+        // hash back. A match is linked straight to its path below without
+        // the iCloud download and the hashing that used to be the only
+        // way to find out. One PhotoKit lookup and a few batched round
+        // trips up front, instead of one download per asset.
+        let cloudIDs = cloudIdentifiers(for: assets)
+        var knownCloudHashes: [String: String] = [:]
+        for batch in Array(cloudIDs.values).chunked(into: 500) {
+            let found = try? await ws.request { env in
+                var q = Msg_HasCloudIds()
+                q.cloudIds = batch
+                env.payload = .reqHasCloudIds(q)
+            }
+            if let found, case .respCloudIdsFound(let f) = found.payload {
+                for entry in f.files {
+                    knownCloudHashes[entry.cloudID] = entry.hash
+                }
+            }
+        }
+        let knownCloud = knownCloudHashes
+        print("[dedup] \(knownCloud.count) of \(cloudIDs.count) assets already on the device by cloud id")
+
         var idx = 0
         for chunk in assets.chunked(into: Self.cMaxConcurrentUploads) {
             // Issue #70: a BGProcessingTask's expirationHandler cancels the
@@ -336,7 +378,16 @@ final class PhotoSync: NSObject {
                             // identical to what synced before.
                             var data: Data? = nil
                             var hash: String
-                            if let cachedHash = AssetSyncCache.shared.hash(for: asset.localIdentifier) {
+                            let cloudID = cloudIDs[asset.localIdentifier] ?? ""
+                            let cloudHash = cloudID.isEmpty ? nil : knownCloud[cloudID]
+                            if let cloudHash {
+                                // Release 7: the device already has this
+                                // asset (uploaded from another phone, or
+                                // before a reinstall) - no download, no
+                                // hashing, no HasFile round trip.
+                                print("[dedup] \(cleanName): cloud id already on device -> \(cloudHash)")
+                                hash = cloudHash
+                            } else if let cachedHash = AssetSyncCache.shared.hash(for: asset.localIdentifier) {
                                 print("[dedup] \(cleanName): asset cache hit -> \(cachedHash)")
                                 hash = cachedHash
                             } else {
@@ -374,6 +425,11 @@ final class PhotoSync: NSObject {
                                 let hasResp = try await ws.request { env in
                                     var hf = Msg_HasFile()
                                     hf.hash = hash
+                                    // Names the asset for the device, so
+                                    // content it already has (from any
+                                    // platform, or older builds) gets its
+                                    // cloud id attached by hash.
+                                    hf.cloudID = cloudID
                                     env.payload = .reqHasFile(hf)
                                 }
                                 print("[dedup] \(cleanName): HasFile round trip in \(String(format: "%.3f", Date().timeIntervalSince(hasFileStart)))s")
@@ -384,7 +440,10 @@ final class PhotoSync: NSObject {
                                 return false
                             }
 
-                            var alreadyOnDevice = try await checkHasFile()
+                            var alreadyOnDevice = cloudHash != nil
+                            if !alreadyOnDevice {
+                                alreadyOnDevice = try await checkHasFile()
+                            }
 
                             // The cached hash turned out not to be on the
                             // device after all (e.g. storage was reset) -
@@ -413,6 +472,7 @@ final class PhotoSync: NSObject {
                                     lf.path = path
                                     lf.forceOverride = false
                                     lf.created = created
+                                    lf.cloudID = cloudID
                                     env.payload = .reqLinkFile(lf)
                                 }
                             } else {
@@ -425,6 +485,7 @@ final class PhotoSync: NSObject {
                                     up.content = data
                                     up.forceOverride = false
                                     up.created = created
+                                    up.cloudID = cloudID
                                     env.payload = .reqUploadFile(up)
                                 }
                             }

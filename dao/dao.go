@@ -231,10 +231,13 @@ func (dao *Dao) AddTags(file *pb.File, tags []imagestagger.RAMTag) {
 	}
 }
 
-func (dao *Dao) StoreNewFile(file *pb.File) (duplicated bool, err error) {
+// StoreNewFile inserts the row; cloudID (see files.cloud_id in db.sql) is
+// optional and stored as NULL when empty.
+func (dao *Dao) StoreNewFile(file *pb.File, cloudID string) (duplicated bool, err error) {
 	_, err = dao.db.Exec(
-		"insert into `files` (`hash`, `mime`, `created`, `modified`, `path`, `size`) values (?, ?, ?, ?, ?, ?)",
-		file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Path, file.Size)
+		"insert into `files` (`hash`, `mime`, `created`, `modified`, `path`, `size`, `cloud_id`) values (?, ?, ?, ?, ?, ?, ?)",
+		file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Path, file.Size,
+		sql.NullString{String: cloudID, Valid: cloudID != ""})
 
 	if err != nil {
 		if me, ok := err.(*mysql.MySQLError); ok && me.Number == 1062 {
@@ -243,6 +246,46 @@ func (dao *Dao) StoreNewFile(file *pb.File) (duplicated bool, err error) {
 	}
 
 	return
+}
+
+// SetCloudIDForHash attaches the photo library's identifier to every row
+// of a hash that has none yet (release 7, files.cloud_id): the client
+// already knows this content is on the device, and is telling us what its
+// library calls it, so the next device can find it by that name.
+func (dao *Dao) SetCloudIDForHash(hash, cloudID string) error {
+	if cloudID == "" {
+		return nil
+	}
+	_, err := dao.db.Exec("update `files` set `cloud_id` = ? where `hash` = ? and `cloud_id` is null", cloudID, hash)
+
+	return err
+}
+
+// FindCloudIDs answers which of ids the device holds, as cloud id -> hash.
+func (dao *Dao) FindCloudIDs(ids []string) (map[string]string, error) {
+	found := map[string]string{}
+	if len(ids) == 0 {
+		return found, nil
+	}
+	ph := strings.Repeat("?,", len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	rows, err := dao.db.Query("select `cloud_id`, `hash` from `files` where `cloud_id` in ("+ph[:len(ph)-1]+")", args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, hash string
+		if err := rows.Scan(&id, &hash); err != nil {
+			return nil, err
+		}
+		found[id] = hash
+	}
+
+	return found, rows.Err()
 }
 
 func (dao *Dao) GetFileByHash(hash string) (file *pb.File, err error) {

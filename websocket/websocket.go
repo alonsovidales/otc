@@ -1610,7 +1610,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqUploadFile:
 		log.Info("Uploading file with path:", p.ReqUploadFile.Path)
-		pbFile, err := ch.mg.filesManager.UploadFile(ses, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created)
+		pbFile, err := ch.mg.filesManager.UploadFile(ses, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created, p.ReqUploadFile.CloudId)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
@@ -1621,7 +1621,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqHasFile:
-		exists, err := ch.mg.filesManager.HasFile(p.ReqHasFile.Hash)
+		exists, err := ch.mg.filesManager.HasFile(p.ReqHasFile.Hash, p.ReqHasFile.CloudId)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error checking file hash: %s", err)
@@ -1631,9 +1631,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqHasCloudIds:
+		found, err := ch.mg.filesManager.HasCloudIDs(p.ReqHasCloudIds.CloudIds)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error checking cloud ids: %s", err)
+		} else {
+			out := &pb.CloudIdsFound{}
+			for id, hash := range found {
+				out.Files = append(out.Files, &pb.CloudIdFile{CloudId: id, Hash: hash})
+			}
+			resp.Payload = &pb.RespEnvelope_RespCloudIdsFound{RespCloudIdsFound: out}
+		}
+
 	case *pb.ReqEnvelope_ReqLinkFile:
 		log.Info("Linking file with path:", p.ReqLinkFile.Path, "to hash:", p.ReqLinkFile.Hash)
-		pbFile, err := ch.mg.filesManager.LinkFile(ses, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created)
+		pbFile, err := ch.mg.filesManager.LinkFile(ses, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created, p.ReqLinkFile.CloudId)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to link file: %s", err)
