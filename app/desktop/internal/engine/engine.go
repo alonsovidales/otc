@@ -1179,6 +1179,15 @@ func (e *Engine) deleteRemote(remotePath string) error {
 	if err != nil {
 		return err
 	}
+	// Issue #132: the owner made that folder upload only, so the device
+	// keeps the file however the local copy goes. That is the folder
+	// working as intended, not a failure to retry (SyncModel.delete does
+	// the same).
+	if resp != nil && resp.Error && resp.ErrorCode == "upload_only" {
+		log.Printf("delete of %s skipped: the folder is upload only", remotePath)
+
+		return nil
+	}
 
 	return wsclient.RespError(resp, "delete rejected")
 }

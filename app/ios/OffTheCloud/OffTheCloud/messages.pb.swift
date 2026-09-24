@@ -724,6 +724,55 @@ public nonisolated struct Msg_GetFile: Sendable {
 
   public var path: String = String()
 
+  /// Issue #132: an older version's hash (from ListFileVersions) serves that
+  /// version's content instead of the current one.
+  public var hash: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Issue #132: mark a folder upload only (or clear it). Nothing under an
+/// upload-only folder can be deleted, and a second upload to a path that
+/// already exists keeps the old content as a version instead of replacing
+/// or refusing it.
+public nonisolated struct Msg_SetUploadOnly: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var uploadOnly: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Issue #132: the older versions of a path in an upload-only folder, newest
+/// first. Each entry's `modified` is when it stopped being the current one;
+/// its hash is what GetFile.hash takes.
+public nonisolated struct Msg_ListFileVersions: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_FileVersions: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var versions: [Msg_File] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -913,6 +962,13 @@ public nonisolated struct Msg_File: Sendable {
   public var hasContent: Bool {self._content != nil}
   /// Clears the value of `content`. Subsequent reads from it will return its default value.
   public mutating func clearContent() {self._content = nil}
+
+  /// Issue #132, filled by ListFiles: this entry is, or is inside, an
+  /// upload-only folder (see SetUploadOnly), and how many older versions
+  /// the file has (see ListFileVersions).
+  public var uploadOnly: Bool = false
+
+  public var versions: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -3884,6 +3940,24 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqHasCloudIds(newValue)}
   }
 
+  /// Issue #132. Answers with the generic Ack.
+  public var reqSetUploadOnly: Msg_SetUploadOnly {
+    get {
+      if case .reqSetUploadOnly(let v)? = payload {return v}
+      return Msg_SetUploadOnly()
+    }
+    set {payload = .reqSetUploadOnly(newValue)}
+  }
+
+  /// Issue #132. Answers with resp_file_versions.
+  public var reqListFileVersions: Msg_ListFileVersions {
+    get {
+      if case .reqListFileVersions(let v)? = payload {return v}
+      return Msg_ListFileVersions()
+    }
+    set {payload = .reqListFileVersions(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -4039,6 +4113,10 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqFriendshipInterDelete(Msg_FriendshipInterDelete)
     /// Answers with resp_cloud_ids_found.
     case reqHasCloudIds(Msg_HasCloudIds)
+    /// Issue #132. Answers with the generic Ack.
+    case reqSetUploadOnly(Msg_SetUploadOnly)
+    /// Issue #132. Answers with resp_file_versions.
+    case reqListFileVersions(Msg_ListFileVersions)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -4074,6 +4152,14 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
   public var errorMessage: String {
     get {_storage._errorMessage}
     set {_uniqueStorage()._errorMessage = newValue}
+  }
+
+  /// Machine-readable reason when error is set, for the cases a client has
+  /// to act on rather than just show: "upload_only" (issue #132: a delete
+  /// under an upload-only folder - a sync client must not retry it).
+  public var errorCode: String {
+    get {_storage._errorCode}
+    set {_uniqueStorage()._errorCode = newValue}
   }
 
   public var payload: OneOf_Payload? {
@@ -4454,6 +4540,14 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respCloudIdsFound(newValue)}
   }
 
+  public var respFileVersions: Msg_FileVersions {
+    get {
+      if case .respFileVersions(let v)? = _storage._payload {return v}
+      return Msg_FileVersions()
+    }
+    set {_uniqueStorage()._payload = .respFileVersions(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Payload: Equatable, Sendable {
@@ -4515,6 +4609,7 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     /// Issue #103.
     case respDomainAvailable(Msg_RespDomainAvailable)
     case respCloudIdsFound(Msg_CloudIdsFound)
+    case respFileVersions(Msg_FileVersions)
 
   }
 
@@ -5311,6 +5406,76 @@ nonisolated extension Msg_DelFile: SwiftProtobuf.Message, SwiftProtobuf._Message
 
 nonisolated extension Msg_GetFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetFile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}hash\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetFile, rhs: Msg_GetFile) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.hash != rhs.hash {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_SetUploadOnly: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetUploadOnly"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}upload_only\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.uploadOnly) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if self.uploadOnly != false {
+      try visitor.visitSingularBoolField(value: self.uploadOnly, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetUploadOnly, rhs: Msg_SetUploadOnly) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.uploadOnly != rhs.uploadOnly {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_ListFileVersions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListFileVersions"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -5332,8 +5497,38 @@ nonisolated extension Msg_GetFile: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Msg_GetFile, rhs: Msg_GetFile) -> Bool {
+  public static func ==(lhs: Msg_ListFileVersions, rhs: Msg_ListFileVersions) -> Bool {
     if lhs.path != rhs.path {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_FileVersions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FileVersions"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}versions\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.versions) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.versions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.versions, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_FileVersions, rhs: Msg_FileVersions) -> Bool {
+    if lhs.versions != rhs.versions {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5585,7 +5780,7 @@ nonisolated extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5600,6 +5795,8 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       case 5: try { try decoder.decodeSingularStringField(value: &self.path) }()
       case 6: try { try decoder.decodeSingularInt32Field(value: &self.size) }()
       case 8: try { try decoder.decodeSingularBytesField(value: &self._content) }()
+      case 9: try { try decoder.decodeSingularBoolField(value: &self.uploadOnly) }()
+      case 10: try { try decoder.decodeSingularInt32Field(value: &self.versions) }()
       default: break
       }
     }
@@ -5631,6 +5828,12 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try { if let v = self._content {
       try visitor.visitSingularBytesField(value: v, fieldNumber: 8)
     } }()
+    if self.uploadOnly != false {
+      try visitor.visitSingularBoolField(value: self.uploadOnly, fieldNumber: 9)
+    }
+    if self.versions != 0 {
+      try visitor.visitSingularInt32Field(value: self.versions, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -5642,6 +5845,8 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if lhs.path != rhs.path {return false}
     if lhs.size != rhs.size {return false}
     if lhs._content != rhs._content {return false}
+    if lhs.uploadOnly != rhs.uploadOnly {return false}
+    if lhs.versions != rhs.versions {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -9935,7 +10140,7 @@ nonisolated extension Msg_RespStaticAsset: SwiftProtobuf.Message, SwiftProtobuf.
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -11127,6 +11332,32 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqHasCloudIds(v)
         }
       }()
+      case 104: try {
+        var v: Msg_SetUploadOnly?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetUploadOnly(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetUploadOnly(v)
+        }
+      }()
+      case 105: try {
+        var v: Msg_ListFileVersions?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListFileVersions(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListFileVersions(v)
+        }
+      }()
       default: break
       }
     }
@@ -11505,6 +11736,14 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqHasCloudIds(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 103)
     }()
+    case .reqSetUploadOnly?: try {
+      guard case .reqSetUploadOnly(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 104)
+    }()
+    case .reqListFileVersions?: try {
+      guard case .reqListFileVersions(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 105)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -11520,12 +11759,13 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{4}\u{7}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
     var _error: Bool = false
     var _errorMessage: String = String()
+    var _errorCode: String = String()
     var _payload: Msg_RespEnvelope.OneOf_Payload?
 
       // This property is used as the initial default value for new instances of the type.
@@ -11540,6 +11780,7 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       _id = source._id
       _error = source._error
       _errorMessage = source._errorMessage
+      _errorCode = source._errorCode
       _payload = source._payload
     }
   }
@@ -11562,6 +11803,7 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
         case 1: try { try decoder.decodeSingularInt32Field(value: &_storage._id) }()
         case 2: try { try decoder.decodeSingularBoolField(value: &_storage._error) }()
         case 3: try { try decoder.decodeSingularStringField(value: &_storage._errorMessage) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._errorCode) }()
         case 10: try {
           var v: Msg_Status?
           var hadOneofValue = false
@@ -12147,6 +12389,19 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
             _storage._payload = .respCloudIdsFound(v)
           }
         }()
+        case 55: try {
+          var v: Msg_FileVersions?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFileVersions(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFileVersions(v)
+          }
+        }()
         default: break
         }
       }
@@ -12167,6 +12422,9 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       }
       if !_storage._errorMessage.isEmpty {
         try visitor.visitSingularStringField(value: _storage._errorMessage, fieldNumber: 3)
+      }
+      if !_storage._errorCode.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._errorCode, fieldNumber: 4)
       }
       switch _storage._payload {
       case .respStatus?: try {
@@ -12349,6 +12607,10 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
         guard case .respCloudIdsFound(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 54)
       }()
+      case .respFileVersions?: try {
+        guard case .respFileVersions(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 55)
+      }()
       case nil: break
       }
     }
@@ -12363,6 +12625,7 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
         if _storage._id != rhs_storage._id {return false}
         if _storage._error != rhs_storage._error {return false}
         if _storage._errorMessage != rhs_storage._errorMessage {return false}
+        if _storage._errorCode != rhs_storage._errorCode {return false}
         if _storage._payload != rhs_storage._payload {return false}
         return true
       }

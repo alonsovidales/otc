@@ -76,6 +76,11 @@ export default function FilesExplorer({
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [dragOver, setDragOver] = useState(false);
 
+  // Issue #132: the versions pop-up - which file it is for and the older
+  // versions the device listed (newest first), or null when closed.
+  const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; versions: PbFile[] } | null>(null);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+
   // Image viewer
   const [viewer, setViewer] = useState<{ name: string; url: string } | null>(null);
 
@@ -127,6 +132,8 @@ export default function FilesExplorer({
           path: "..",
           size: 0,
           content: undefined,
+          uploadOnly: false,
+          versions: 0,
         };
         // Don’t add .. at root
         const files = p === "/" ? lof.files : [up, ...lof.files];
@@ -283,16 +290,66 @@ export default function FilesExplorer({
   };
   const selected = useMemo(() => listing.filter(f => sel[rowKey(f)]), [listing, sel]);
 
+  // Issue #132: nothing under an upload-only folder can be deleted - the
+  // device refuses with error_code "upload_only", and the button is greyed
+  // out up front so the refusal is never a surprise.
+  const selectedUploadOnly = useMemo(() => selected.some(f => f.uploadOnly), [selected]);
+
   const delSelected = async () => {
-    if (!selected.length) return;
+    if (!selected.length || selectedUploadOnly) return;
     if (!window.confirm(`Delete ${selected.length} item${selected.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
     for (const f of selected) {
       const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
-      await useWS.request((e: Partial<ReqEnvelope>) => {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqDelFile", reqDelFile: { path: full } };
       });
+      if (resp.error && resp.errorCode === "upload_only") {
+        alert(`${leafName(full)} is in an upload-only folder and cannot be deleted.`);
+        break;
+      }
     }
     await loadList(path);
+  };
+
+  // Issue #132: the lock next to a folder - flag it upload only, or clear
+  // it. Everything under it (and its lock) follows on the next listing.
+  const toggleUploadOnly = async (f: PbFile) => {
+    const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
+    await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqSetUploadOnly", reqSetUploadOnly: { path: full, uploadOnly: !f.uploadOnly } };
+    });
+    await loadList(path);
+  };
+
+  // Issue #132: the versions badge - list a file's older versions.
+  const openVersions = async (f: PbFile) => {
+    const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
+    setVersionsLoading(true);
+    setVersionsOf({ path: full, name: leafName(full), versions: [] });
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqListFileVersions", reqListFileVersions: { path: full } };
+      });
+      if (resp.payload?.$case === "respFileVersions") {
+        setVersionsOf({ path: full, name: leafName(full), versions: resp.payload.respFileVersions.versions });
+      }
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
+
+  // A version downloads by its hash; the current one is the row itself.
+  const downloadVersion = async (full: string, hash: string, name: string) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: full, hash } };
+    });
+    if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) return;
+    const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
   };
 
   // Same reasoning as the Photo Gallery's own share actions: the device
@@ -344,8 +401,19 @@ export default function FilesExplorer({
     size: f.size,
     created: f.created,
     modified: f.modified,
+    uploadOnly: !!f.uploadOnly,
+    versions: f.versions ?? 0,
     file: f,
   })), [listing]);
+
+  const lockIcon = (locked: boolean) => (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+      {locked
+        ? <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+        : <path d="M8 11V7a4 4 0 0 1 7.5-2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />}
+    </svg>
+  );
 
   return (
     <div
@@ -385,7 +453,8 @@ export default function FilesExplorer({
           <div className="fb-actions-inner">
             <div><strong>{selected.length}</strong> selected</div>
             <div className="grow" />
-            <button className="btn danger" onClick={() => void delSelected()}>Delete</button>
+            <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
+              title={selectedUploadOnly ? "The selection includes an upload-only folder's contents, which cannot be deleted" : undefined}>Delete</button>
             <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
               {preparing === "share" ? <Spinner label="Preparing…" /> : "Share"}
             </button>
@@ -464,6 +533,32 @@ export default function FilesExplorer({
                       took, which just looked stuck. */}
                   {openingPath === r.file.path ? <span className="fb-opening">Opening…</span> : r.name}
                 </button>
+                {/* Issue #132: the lock on a folder flags it upload only;
+                    on a file it just says the file is inside one. */}
+                {r.name !== ".." && r.isDir && (
+                  <button
+                    className={`fb-lock${r.uploadOnly ? " on" : ""}`}
+                    onClick={() => void toggleUploadOnly(r.file)}
+                    title={r.uploadOnly ? "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear." : "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version"}
+                    aria-label={r.uploadOnly ? "Clear upload only" : "Make upload only"}
+                    aria-pressed={r.uploadOnly}
+                  >
+                    {lockIcon(r.uploadOnly)}
+                  </button>
+                )}
+                {!r.isDir && r.uploadOnly && (
+                  <span className="fb-lock on static" title="In an upload-only folder: cannot be deleted">{lockIcon(true)}</span>
+                )}
+                {!r.isDir && r.versions > 0 && (
+                  <button className="fb-versions" onClick={() => void openVersions(r.file)} title="Older versions of this file">
+                    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 12a8 8 0 1 0 2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                      <path d="M4 4v5h5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12 8v4l3 2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                    </svg>
+                    {r.versions} {r.versions === 1 ? "version" : "versions"}
+                  </button>
+                )}
               </div>
               <div className="c c-size">{r.isDir ? "—" : fmtBytes(r.size)}</div>
               <div className="c c-created">{r.created ? r.created.toLocaleString() : "—"}</div>
@@ -474,6 +569,35 @@ export default function FilesExplorer({
       </div>
 
       <div className="fb-tip">Tip: Drag files into the table to upload to <code>{path}</code>.</div>
+
+      {/* Issue #132: the versions pop-up - every older version of the
+          file with when it was replaced and its size; each downloads. */}
+      {versionsOf && (
+        <div className="fb-modal" onClick={() => setVersionsOf(null)}>
+          <div className="fb-modal-body fb-versions-body" onClick={(e) => e.stopPropagation()}>
+            <button className="fb-close" onClick={() => setVersionsOf(null)} aria-label="Close">✕</button>
+            <h3 className="fb-versions-title">Versions of {versionsOf.name}</h3>
+            <p className="fb-versions-hint">The file is in an upload-only folder, so each upload to this path kept the one before it.</p>
+            {versionsLoading && <div className="fb-row">Loading…</div>}
+            {!versionsLoading && (
+              <ul className="fb-versions-list">
+                <li className="fb-versions-item current">
+                  <span className="fb-versions-when">Current</span>
+                  <span className="fb-versions-size" />
+                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name)}>Download</button>
+                </li>
+                {versionsOf.versions.map((v) => (
+                  <li key={v.hash} className="fb-versions-item">
+                    <span className="fb-versions-when">Replaced {v.modified ? v.modified.toLocaleString() : "—"}</span>
+                    <span className="fb-versions-size">{fmtBytes(v.size)}</span>
+                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name)}>Download</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {viewer && (
         <div className="fb-modal" onClick={() => { URL.revokeObjectURL(viewer.url); setViewer(null); }}>

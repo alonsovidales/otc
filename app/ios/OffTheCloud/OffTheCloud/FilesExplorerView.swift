@@ -45,6 +45,10 @@ struct FileRow: Identifiable {
     let size: Int32
     let created: Date?
     let modified: Date?
+    // Issue #132: inside (or itself) an upload-only folder, and how many
+    // older versions the device keeps for the file.
+    let uploadOnly: Bool
+    let versions: Int32
     let raw: Msg_File
 }
 
@@ -75,6 +79,10 @@ final class FilesExplorerViewModel: ObservableObject {
     /// Which selection action is waiting on the device - the bar shows a
     /// spinner for it, since building a share link is a round trip.
     @Published var preparing: SelectionActionTask?
+    // Issue #132: the versions sheet - the file it is for and the older
+    // versions the device listed (newest first).
+    @Published var versionsOf: (row: FileRow, versions: [Msg_File])?
+    @Published var versionsLoading = false
 
     init(initialPath: String) { self.path = initialPath }
 
@@ -102,6 +110,8 @@ final class FilesExplorerViewModel: ObservableObject {
                         size: f.size,
                         created: f.hasCreated ? f.created.date : nil,
                         modified: f.hasModified ? f.modified.date : nil,
+                        uploadOnly: f.uploadOnly,
+                        versions: f.versions,
                         raw: f
                     )
                 }
@@ -170,13 +180,67 @@ final class FilesExplorerViewModel: ObservableObject {
         }
     }
 
+    /// Issue #132: true when the selection touches an upload-only folder -
+    /// the device refuses those deletes, so the button greys out first.
+    var selectionUploadOnly: Bool {
+        rows.contains { selected.contains($0.path) && $0.uploadOnly }
+    }
+
     func deleteSelected() async {
         for p in selected {
             var req = Msg_DelFile()
             req.path = p.contains("/") ? p : joinPath(path, p)
-            _ = try? await ws.request { $0.payload = .reqDelFile(req) }
+            guard let resp = try? await ws.request({ $0.payload = .reqDelFile(req) }) else { continue }
+            if resp.error && resp.errorCode == "upload_only" {
+                showToast("\(leafName(req.path)) is in an upload-only folder and cannot be deleted")
+                break
+            }
         }
         await load()
+    }
+
+    /// Issue #132: the lock on a folder - flag it upload only, or clear it.
+    func toggleUploadOnly(_ row: FileRow) async {
+        var req = Msg_SetUploadOnly()
+        req.path = fullPath(for: row)
+        req.uploadOnly = !row.uploadOnly
+        if let resp = try? await ws.request({ $0.payload = .reqSetUploadOnly(req) }), resp.error {
+            showToast(resp.errorMessage.isEmpty ? "Could not update the folder" : resp.errorMessage)
+        }
+        await load()
+    }
+
+    /// Issue #132: the versions badge - list the file's older versions.
+    func openVersions(_ row: FileRow) async {
+        versionsLoading = true
+        versionsOf = (row, [])
+        defer { versionsLoading = false }
+        var req = Msg_ListFileVersions()
+        req.path = fullPath(for: row)
+        guard let resp = try? await ws.request({ $0.payload = .reqListFileVersions(req) }),
+              case .respFileVersions(let v) = resp.payload else { return }
+        versionsOf = (row, v.versions)
+    }
+
+    /// A version opens in the same Quick Look preview a file does; an empty
+    /// hash is the current one.
+    func openVersion(_ row: FileRow, hash: String) async {
+        var req = Msg_GetFile()
+        req.path = fullPath(for: row)
+        req.hash = hash
+        do {
+            let resp = try await ws.request { $0.payload = .reqGetFile(req) }
+            guard case .respFile(let f) = resp.payload else {
+                showToast("Could not fetch that version")
+                return
+            }
+            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
+            try f.content.write(to: tmp)
+            versionsOf = nil
+            previewURL = tmp
+        } catch {
+            showToast("Download failed: \(error.localizedDescription)")
+        }
     }
 
     /// Downloads the selection, the same way the Images tab does it: the
@@ -337,6 +401,36 @@ struct FilesExplorerView: View {
                                 }
                             }
                             Spacer()
+                            // Issue #132: the versions badge opens the
+                            // sheet; the lock on a folder toggles upload
+                            // only, on a file it just says it is inside one.
+                            if !row.isDir && row.versions > 0 {
+                                Button {
+                                    Task { await vm.openVersions(row) }
+                                } label: {
+                                    Label("\(row.versions)", systemImage: "clock.arrow.circlepath")
+                                        .font(.caption)
+                                        .padding(.horizontal, 8).padding(.vertical, 3)
+                                        .background(Color.secondary.opacity(0.15), in: Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
+                            }
+                            if row.path != ".." && row.isDir {
+                                Button {
+                                    Task { await vm.toggleUploadOnly(row) }
+                                } label: {
+                                    Image(systemName: row.uploadOnly ? "lock.fill" : "lock.open")
+                                        .foregroundColor(row.uploadOnly ? .accentColor : .secondary)
+                                        .frame(width: 28, height: 28)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(row.uploadOnly ? "Clear upload only" : "Make upload only")
+                            } else if row.uploadOnly {
+                                Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
+                                    .accessibilityLabel("In an upload-only folder")
+                            }
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -366,11 +460,20 @@ struct FilesExplorerView: View {
                                 } label: {
                                     Label("Share", systemImage: "square.and.arrow.up")
                                 }
-                                Button(role: .destructive) {
-                                    vm.selected = [row.path]
-                                    vm.confirmDeleteSelected = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                                if row.isDir {
+                                    Button {
+                                        Task { await vm.toggleUploadOnly(row) }
+                                    } label: {
+                                        Label(row.uploadOnly ? "Clear upload only" : "Make upload only", systemImage: row.uploadOnly ? "lock.open" : "lock")
+                                    }
+                                }
+                                if !row.uploadOnly {
+                                    Button(role: .destructive) {
+                                        vm.selected = [row.path]
+                                        vm.confirmDeleteSelected = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
@@ -392,7 +495,13 @@ struct FilesExplorerView: View {
                     busy: vm.preparing,
                     onShare: { Task { await vm.shareSelected() } },
                     onDownload: { Task { await vm.downloadSelected() } },
-                    onDelete: { vm.confirmDeleteSelected = true },
+                    onDelete: {
+                        if vm.selectionUploadOnly {
+                            vm.showToast("The selection is in an upload-only folder and cannot be deleted")
+                        } else {
+                            vm.confirmDeleteSelected = true
+                        }
+                    },
                     onUpload: { showImporter = true }
                 )
                 .padding(.vertical, 8)
@@ -436,6 +545,45 @@ struct FilesExplorerView: View {
         .sheet(isPresented: Binding(get: { vm.shareURL != nil }, set: { if !$0 { vm.shareURL = nil } })) {
             if let url = vm.shareURL {
                 ActivityView(items: [url])
+            }
+        }
+        // Issue #132: the versions pop-up - the current file and every
+        // older version with when it was replaced and its size; a tap
+        // opens that version in the same preview a file gets.
+        .sheet(isPresented: Binding(get: { vm.versionsOf != nil }, set: { if !$0 { vm.versionsOf = nil } })) {
+            if let (row, versions) = vm.versionsOf {
+                NavigationStack {
+                    List {
+                        Section(footer: Text("The file is in an upload-only folder, so each upload to this path kept the one before it.")) {
+                            Button {
+                                Task { await vm.openVersion(row, hash: "") }
+                            } label: {
+                                HStack {
+                                    Text("Current").fontWeight(.semibold)
+                                    Spacer()
+                                    Text(formatBytes(row.size)).foregroundColor(.secondary)
+                                }
+                            }
+                            if vm.versionsLoading {
+                                ProgressView()
+                            }
+                            ForEach(versions, id: \.hash) { v in
+                                Button {
+                                    Task { await vm.openVersion(row, hash: v.hash) }
+                                } label: {
+                                    HStack {
+                                        Text("Replaced \(v.hasModified ? v.modified.date.formatted(date: .abbreviated, time: .shortened) : "—")")
+                                        Spacer()
+                                        Text(formatBytes(v.size)).foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .navigationTitle("Versions of \(row.name)")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { vm.versionsOf = nil } } }
+                }
             }
         }
         .confirmationDialog(

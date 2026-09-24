@@ -119,9 +119,20 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
   `file_tags`, `social_publications` + likes/comments, `social_friendship`, `settings`, `profile`,
-  `shared_links`, `vault`, `events`, `people`, `faces`, `image_groups` + `image_group_files`). Business logic in other packages should go
+  `shared_links`, `vault`, `events`, `people`, `faces`, `image_groups` + `image_group_files`,
+  `upload_only_folders` + `file_versions`). Business logic in other packages should go
   through `dao`, not raw SQL.
-- `files_manager` — file storage, hashing, dedup on disk.
+- `files_manager` — file storage, hashing, dedup on disk. Issue #132's upload-only folders live
+  here: `upload_only_folders` (paths with their trailing slash, checked by prefix) refuse
+  `DelPath` for anything under them with `ErrUploadOnly` (`RespEnvelope.error_code =
+  "upload_only"`, which the sync clients treat as done rather than retry), and a second
+  `UploadFile`/`LinkFile` to an existing path there moves the old row into `file_versions`
+  (`dao.ReplaceFileKeepingVersion`) instead of failing or overwriting. Blobs are shared by hash
+  between `files` and `file_versions`, so `HashReferenced` is the check before one is removed;
+  a path's versions go with it when it is finally deleted. `ListFiles` annotates every entry
+  with `upload_only` and `versions`, `ListFileVersions` lists them, and `GetFile.hash` serves
+  one. The web, iOS and Android explorers show the lock on folders (a toggle, `SetUploadOnly`)
+  and the versions badge that opens the pop-up.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
 - `face_recognition` — issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)

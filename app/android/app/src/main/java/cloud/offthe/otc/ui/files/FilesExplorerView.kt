@@ -77,6 +77,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.ui.text.font.FontWeight
+import cloud.offthe.otc.proto.ListFileVersions
+import cloud.offthe.otc.proto.SetUploadOnly
+import java.text.DateFormat
+import java.util.Date
 
 // Port of FilesExplorerView.swift: path navigation, per-row checkboxes,
 // upload from the phone, share/download/delete of the selection, and
@@ -98,7 +107,10 @@ private fun normPath(p: String): String {
 }
 private fun leafName(full: String) = full.split('/').lastOrNull { it.isNotEmpty() } ?: full
 
-data class FileRow(val path: String, val name: String, val isDir: Boolean, val size: Int, val raw: PbFile)
+// uploadOnly/versions: issue #132 - inside (or itself) an upload-only
+// folder, and how many older versions the device keeps for the file.
+data class FileRow(val path: String, val name: String, val isDir: Boolean, val size: Int, val raw: PbFile,
+                   val uploadOnly: Boolean = false, val versions: Int = 0)
 
 class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     data class State(
@@ -111,6 +123,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val openingPath: String? = null,
         val confirmDeleteSelected: Boolean = false,
         val preparing: SelectionActionTask? = null,
+        // Issue #132: the versions pop-up - the file and its older versions.
+        val versionsOf: Pair<FileRow, List<PbFile>>? = null,
+        val versionsLoading: Boolean = false,
     )
 
     private val _state = MutableStateFlow(State(path = initialPath))
@@ -125,7 +140,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                 val files = resp.respListOfFiles.filesList.toMutableList()
                 if (path != "/") files.add(0, PbFile.newBuilder().setMime("inode/directory").setPath("..").build())
                 val rows = files.map { f ->
-                    FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.size, f)
+                    FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.size, f, f.uploadOnly, f.versions)
                 }
                 _state.update { it.copy(rows = rows, selected = emptySet()) }
             } else if (resp.error) {
@@ -178,13 +193,59 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         }
     }
 
+    /** Issue #132: the selection touches an upload-only folder - the device refuses those deletes. */
+    val selectionUploadOnly: Boolean get() = _state.value.rows.any { it.path in _state.value.selected && it.uploadOnly }
+
     suspend fun deleteSelected() {
         for (p in _state.value.selected) {
             try {
-                OTCConnection.request { it.setReqDelFile(DelFile.newBuilder().setPath(if (p.contains("/")) p else joinPath(path, p))) }
+                val full = if (p.contains("/")) p else joinPath(path, p)
+                val resp = OTCConnection.request { it.setReqDelFile(DelFile.newBuilder().setPath(full)) }
+                if (resp.error && resp.errorCode == "upload_only") {
+                    showToast("${leafName(full)} is in an upload-only folder and cannot be deleted")
+                    break
+                }
             } catch (_: Exception) {}
         }
         load()
+    }
+
+    /** Issue #132: the lock on a folder - flag it upload only, or clear it. */
+    suspend fun toggleUploadOnly(row: FileRow) {
+        try {
+            val resp = OTCConnection.request { it.setReqSetUploadOnly(SetUploadOnly.newBuilder().setPath(fullPath(row)).setUploadOnly(!row.uploadOnly)) }
+            if (resp.error) showToast(resp.errorMessage.ifEmpty { "Could not update the folder" })
+        } catch (e: Exception) { showToast("Could not update the folder: ${e.message}") }
+        load()
+    }
+
+    /** Issue #132: the versions badge - list the file's older versions. */
+    suspend fun openVersions(row: FileRow) {
+        _state.update { it.copy(versionsOf = row to emptyList(), versionsLoading = true) }
+        try {
+            val resp = OTCConnection.request { it.setReqListFileVersions(ListFileVersions.newBuilder().setPath(fullPath(row))) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_VERSIONS) {
+                _state.update { it.copy(versionsOf = row to resp.respFileVersions.versionsList) }
+            }
+        } catch (_: Exception) {
+        } finally { _state.update { it.copy(versionsLoading = false) } }
+    }
+
+    fun closeVersions() = _state.update { it.copy(versionsOf = null) }
+
+    /** A version opens the way a file does; an empty hash is the current one. */
+    suspend fun openVersion(context: Context, row: FileRow, hash: String) {
+        try {
+            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row)).setHash(hash)) }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) { showToast("Could not fetch that version"); return }
+            val f = resp.respFile
+            val tmp = File(context.cacheDir, leafName(row.path))
+            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
+            closeVersions()
+            Share.preview(context, tmp, f.mime.ifEmpty { null })
+        } catch (e: Exception) {
+            showToast("Download failed: ${e.message}")
+        }
     }
 
     suspend fun shareLink(): String? {
@@ -310,6 +371,27 @@ fun FilesExplorerView(initialPath: String) {
                                 Text(row.name, maxLines = 1)
                                 if (!row.isDir) Text(formatBytes(row.size.toLong()), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                            // Issue #132: the versions badge opens the pop-up;
+                            // the lock on a folder toggles upload only, on a
+                            // file it just says it is inside one.
+                            if (!row.isDir && row.versions > 0) {
+                                TextButton(onClick = { scope.launch { vm.openVersions(row) } }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                                    Icon(Icons.Default.History, null, Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("${row.versions}", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                            if (row.path != ".." && row.isDir) {
+                                IconButton(onClick = { scope.launch { vm.toggleUploadOnly(row) } }, modifier = Modifier.size(36.dp)) {
+                                    Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
+                                        if (row.uploadOnly) "Clear upload only" else "Make upload only",
+                                        tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            } else if (row.uploadOnly) {
+                                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Lock, "In an upload-only folder", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -320,7 +402,10 @@ fun FilesExplorerView(initialPath: String) {
                 busy = st.preparing,
                 onShare = { scope.launch { vm.shareSelected(context) } },
                 onDownload = { scope.launch { vm.downloadSelected(context) } },
-                onDelete = { vm.setConfirmDelete(true) },
+                onDelete = {
+                    if (vm.selectionUploadOnly) vm.showToast("The selection is in an upload-only folder and cannot be deleted")
+                    else vm.setConfirmDelete(true)
+                },
                 onUpload = { importer.launch(arrayOf("*/*")) },
             )
             Spacer(Modifier.size(8.dp))
@@ -328,6 +413,35 @@ fun FilesExplorerView(initialPath: String) {
         Toast(st.toast, Modifier.align(Alignment.TopCenter))
     }
 
+    // Issue #132: the versions pop-up - the current file and every older
+    // version with when it was replaced and its size; a tap opens that
+    // version the way a file opens.
+    st.versionsOf?.let { (row, versions) ->
+        AlertDialog(
+            onDismissRequest = { vm.closeVersions() },
+            title = { Text("Versions of ${row.name}") },
+            text = {
+                Column {
+                    Text("The file is in an upload-only folder, so each upload to this path kept the one before it.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.size(8.dp))
+                    Row(Modifier.fillMaxWidth().clickable { scope.launch { vm.openVersion(context, row, "") } }.padding(vertical = 8.dp)) {
+                        Text("Current", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(formatBytes(row.size.toLong()), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (st.versionsLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    versions.forEach { v ->
+                        Row(Modifier.fillMaxWidth().clickable { scope.launch { vm.openVersion(context, row, v.hash) } }.padding(vertical = 8.dp)) {
+                            Text("Replaced " + (if (v.hasModified()) DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(v.modified.seconds * 1000)) else "—"),
+                                modifier = Modifier.weight(1f))
+                            Text(formatBytes(v.size.toLong()), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { vm.closeVersions() }) { Text("Done") } },
+        )
+    }
     if (st.confirmDeleteSelected) {
         val n = st.selected.size
         AlertDialog(

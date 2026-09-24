@@ -1032,6 +1032,13 @@ final class SyncModel: ObservableObject {
             req.payload = .reqDelFile(d)
         }
         if resp.error {
+            // Issue #132: the owner made that folder upload only, so the
+            // device keeps the file however the local copy goes. That is
+            // the folder working as intended, not a failure to retry.
+            if resp.errorCode == "upload_only" {
+                syncLog.notice("delete of \(remotePath, privacy: .public) skipped: the folder is upload only")
+                return
+            }
             throw NSError(domain: "sync.delete", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "delete rejected" : resp.errorMessage])
         }
     }

@@ -229,6 +229,29 @@ message DelFile {
 
 message GetFile {
   string path = 1;
+  // Issue #132: an older version's hash (from ListFileVersions) serves that
+  // version's content instead of the current one.
+  string hash = 2;
+}
+
+// Issue #132: mark a folder upload only (or clear it). Nothing under an
+// upload-only folder can be deleted, and a second upload to a path that
+// already exists keeps the old content as a version instead of replacing
+// or refusing it.
+message SetUploadOnly {
+  string path = 1;
+  bool upload_only = 2;
+}
+
+// Issue #132: the older versions of a path in an upload-only folder, newest
+// first. Each entry's `modified` is when it stopped being the current one;
+// its hash is what GetFile.hash takes.
+message ListFileVersions {
+  string path = 1;
+}
+
+message FileVersions {
+  repeated File versions = 1;
 }
 
 message ListFiles {
@@ -312,6 +335,11 @@ message File {
   string path = 5;
   int32 size = 6;
   optional bytes content = 8;
+  // Issue #132, filled by ListFiles: this entry is, or is inside, an
+  // upload-only folder (see SetUploadOnly), and how many older versions
+  // the file has (see ListFileVersions).
+  bool upload_only = 9;
+  int32 versions = 10;
 }
 
 message Ack {
@@ -1427,6 +1455,10 @@ message ReqEnvelope {
     FriendshipInterDelete req_friendship_inter_delete = 102;
     // Answers with resp_cloud_ids_found.
     HasCloudIds req_has_cloud_ids = 103;
+    // Issue #132. Answers with the generic Ack.
+    SetUploadOnly req_set_upload_only = 104;
+    // Issue #132. Answers with resp_file_versions.
+    ListFileVersions req_list_file_versions = 105;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1445,6 +1477,10 @@ message RespEnvelope {
   int32 id = 1;
   bool error = 2;
   string error_message = 3;
+  // Machine-readable reason when error is set, for the cases a client has
+  // to act on rather than just show: "upload_only" (issue #132: a delete
+  // under an upload-only folder - a sync client must not retry it).
+  string error_code = 4;
   oneof payload {
     Status resp_status = 10;
     Ack resp_ack = 11;
@@ -1505,5 +1541,6 @@ message RespEnvelope {
     // Issue #103.
     RespDomainAvailable resp_domain_available = 46;
     CloudIdsFound resp_cloud_ids_found = 54;
+    FileVersions resp_file_versions = 55;
   }
 }

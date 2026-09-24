@@ -582,6 +582,35 @@ export interface DelFile {
 
 export interface GetFile {
   path: string;
+  /**
+   * Issue #132: an older version's hash (from ListFileVersions) serves that
+   * version's content instead of the current one.
+   */
+  hash: string;
+}
+
+/**
+ * Issue #132: mark a folder upload only (or clear it). Nothing under an
+ * upload-only folder can be deleted, and a second upload to a path that
+ * already exists keeps the old content as a version instead of replacing
+ * or refusing it.
+ */
+export interface SetUploadOnly {
+  path: string;
+  uploadOnly: boolean;
+}
+
+/**
+ * Issue #132: the older versions of a path in an upload-only folder, newest
+ * first. Each entry's `modified` is when it stopped being the current one;
+ * its hash is what GetFile.hash takes.
+ */
+export interface ListFileVersions {
+  path: string;
+}
+
+export interface FileVersions {
+  versions: File[];
 }
 
 export interface ListFiles {
@@ -681,7 +710,16 @@ export interface File {
   modified?: Date | undefined;
   path: string;
   size: number;
-  content?: Uint8Array | undefined;
+  content?:
+    | Uint8Array
+    | undefined;
+  /**
+   * Issue #132, filled by ListFiles: this entry is, or is inside, an
+   * upload-only folder (see SetUploadOnly), and how many older versions
+   * the file has (see ListFileVersions).
+   */
+  uploadOnly: boolean;
+  versions: number;
 }
 
 export interface Ack {
@@ -1938,6 +1976,12 @@ export interface ReqEnvelope {
     /** Answers with resp_cloud_ids_found. */
     { $case: "reqHasCloudIds"; reqHasCloudIds: HasCloudIds }
     | //
+    /** Issue #132. Answers with the generic Ack. */
+    { $case: "reqSetUploadOnly"; reqSetUploadOnly: SetUploadOnly }
+    | //
+    /** Issue #132. Answers with resp_file_versions. */
+    { $case: "reqListFileVersions"; reqListFileVersions: ListFileVersions }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -1960,6 +2004,12 @@ export interface RespEnvelope {
   id: number;
   error: boolean;
   errorMessage: string;
+  /**
+   * Machine-readable reason when error is set, for the cases a client has
+   * to act on rather than just show: "upload_only" (issue #132: a delete
+   * under an upload-only folder - a sync client must not retry it).
+   */
+  errorCode: string;
   payload?:
     | { $case: "respStatus"; respStatus: Status }
     | { $case: "respAck"; respAck: Ack }
@@ -2034,6 +2084,7 @@ export interface RespEnvelope {
     /** Issue #103. */
     { $case: "respDomainAvailable"; respDomainAvailable: RespDomainAvailable }
     | { $case: "respCloudIdsFound"; respCloudIdsFound: CloudIdsFound }
+    | { $case: "respFileVersions"; respFileVersions: FileVersions }
     | undefined;
 }
 
@@ -3752,13 +3803,16 @@ export const DelFile: MessageFns<DelFile> = {
 };
 
 function createBaseGetFile(): GetFile {
-  return { path: "" };
+  return { path: "", hash: "" };
 }
 
 export const GetFile: MessageFns<GetFile> = {
   encode(message: GetFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.path !== "") {
       writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
     }
     return writer;
   },
@@ -3767,6 +3821,155 @@ export const GetFile: MessageFns<GetFile> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseGetFile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetFile {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+    };
+  },
+
+  toJSON(message: GetFile): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetFile>, I>>(base?: I): GetFile {
+    return GetFile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetFile>, I>>(object: I): GetFile {
+    const message = createBaseGetFile();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
+function createBaseSetUploadOnly(): SetUploadOnly {
+  return { path: "", uploadOnly: false };
+}
+
+export const SetUploadOnly: MessageFns<SetUploadOnly> = {
+  encode(message: SetUploadOnly, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.uploadOnly !== false) {
+      writer.uint32(16).bool(message.uploadOnly);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetUploadOnly {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetUploadOnly();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.uploadOnly = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetUploadOnly {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      uploadOnly: isSet(object.uploadOnly) ? globalThis.Boolean(object.uploadOnly) : false,
+    };
+  },
+
+  toJSON(message: SetUploadOnly): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.uploadOnly !== false) {
+      obj.uploadOnly = message.uploadOnly;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetUploadOnly>, I>>(base?: I): SetUploadOnly {
+    return SetUploadOnly.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetUploadOnly>, I>>(object: I): SetUploadOnly {
+    const message = createBaseSetUploadOnly();
+    message.path = object.path ?? "";
+    message.uploadOnly = object.uploadOnly ?? false;
+    return message;
+  },
+};
+
+function createBaseListFileVersions(): ListFileVersions {
+  return { path: "" };
+}
+
+export const ListFileVersions: MessageFns<ListFileVersions> = {
+  encode(message: ListFileVersions, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListFileVersions {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListFileVersions();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3787,11 +3990,11 @@ export const GetFile: MessageFns<GetFile> = {
     return message;
   },
 
-  fromJSON(object: any): GetFile {
+  fromJSON(object: any): ListFileVersions {
     return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
   },
 
-  toJSON(message: GetFile): unknown {
+  toJSON(message: ListFileVersions): unknown {
     const obj: any = {};
     if (message.path !== "") {
       obj.path = message.path;
@@ -3799,12 +4002,72 @@ export const GetFile: MessageFns<GetFile> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<GetFile>, I>>(base?: I): GetFile {
-    return GetFile.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<ListFileVersions>, I>>(base?: I): ListFileVersions {
+    return ListFileVersions.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<GetFile>, I>>(object: I): GetFile {
-    const message = createBaseGetFile();
+  fromPartial<I extends Exact<DeepPartial<ListFileVersions>, I>>(object: I): ListFileVersions {
+    const message = createBaseListFileVersions();
     message.path = object.path ?? "";
+    return message;
+  },
+};
+
+function createBaseFileVersions(): FileVersions {
+  return { versions: [] };
+}
+
+export const FileVersions: MessageFns<FileVersions> = {
+  encode(message: FileVersions, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.versions) {
+      File.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FileVersions {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFileVersions();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.versions.push(File.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FileVersions {
+    return {
+      versions: globalThis.Array.isArray(object?.versions) ? object.versions.map((e: any) => File.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: FileVersions): unknown {
+    const obj: any = {};
+    if (message.versions?.length) {
+      obj.versions = message.versions.map((e) => File.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FileVersions>, I>>(base?: I): FileVersions {
+    return FileVersions.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FileVersions>, I>>(object: I): FileVersions {
+    const message = createBaseFileVersions();
+    message.versions = object.versions?.map((e) => File.fromPartial(e)) || [];
     return message;
   },
 };
@@ -4368,7 +4631,17 @@ export const RespPhotoDateBuckets: MessageFns<RespPhotoDateBuckets> = {
 };
 
 function createBaseFile(): File {
-  return { hash: "", mime: "", created: undefined, modified: undefined, path: "", size: 0, content: undefined };
+  return {
+    hash: "",
+    mime: "",
+    created: undefined,
+    modified: undefined,
+    path: "",
+    size: 0,
+    content: undefined,
+    uploadOnly: false,
+    versions: 0,
+  };
 }
 
 export const File: MessageFns<File> = {
@@ -4393,6 +4666,12 @@ export const File: MessageFns<File> = {
     }
     if (message.content !== undefined) {
       writer.uint32(66).bytes(message.content);
+    }
+    if (message.uploadOnly !== false) {
+      writer.uint32(72).bool(message.uploadOnly);
+    }
+    if (message.versions !== 0) {
+      writer.uint32(80).int32(message.versions);
     }
     return writer;
   },
@@ -4460,6 +4739,22 @@ export const File: MessageFns<File> = {
           message.content = reader.bytes();
           continue;
         }
+        case 9: {
+          if (tag !== 72) {
+            break;
+          }
+
+          message.uploadOnly = reader.bool();
+          continue;
+        }
+        case 10: {
+          if (tag !== 80) {
+            break;
+          }
+
+          message.versions = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4478,6 +4773,8 @@ export const File: MessageFns<File> = {
       path: isSet(object.path) ? globalThis.String(object.path) : "",
       size: isSet(object.size) ? globalThis.Number(object.size) : 0,
       content: isSet(object.content) ? bytesFromBase64(object.content) : undefined,
+      uploadOnly: isSet(object.uploadOnly) ? globalThis.Boolean(object.uploadOnly) : false,
+      versions: isSet(object.versions) ? globalThis.Number(object.versions) : 0,
     };
   },
 
@@ -4504,6 +4801,12 @@ export const File: MessageFns<File> = {
     if (message.content !== undefined) {
       obj.content = base64FromBytes(message.content);
     }
+    if (message.uploadOnly !== false) {
+      obj.uploadOnly = message.uploadOnly;
+    }
+    if (message.versions !== 0) {
+      obj.versions = Math.round(message.versions);
+    }
     return obj;
   },
 
@@ -4519,6 +4822,8 @@ export const File: MessageFns<File> = {
     message.path = object.path ?? "";
     message.size = object.size ?? 0;
     message.content = object.content ?? undefined;
+    message.uploadOnly = object.uploadOnly ?? false;
+    message.versions = object.versions ?? 0;
     return message;
   },
 };
@@ -14272,6 +14577,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqHasCloudIds":
         HasCloudIds.encode(message.payload.reqHasCloudIds, writer.uint32(826).fork()).join();
         break;
+      case "reqSetUploadOnly":
+        SetUploadOnly.encode(message.payload.reqSetUploadOnly, writer.uint32(834).fork()).join();
+        break;
+      case "reqListFileVersions":
+        ListFileVersions.encode(message.payload.reqListFileVersions, writer.uint32(842).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -15142,6 +15453,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqHasCloudIds", reqHasCloudIds: HasCloudIds.decode(reader, reader.uint32()) };
           continue;
         }
+        case 104: {
+          if (tag !== 834) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetUploadOnly",
+            reqSetUploadOnly: SetUploadOnly.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 105: {
+          if (tag !== 842) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListFileVersions",
+            reqListFileVersions: ListFileVersions.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -15467,6 +15800,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         : isSet(object.reqHasCloudIds)
         ? { $case: "reqHasCloudIds", reqHasCloudIds: HasCloudIds.fromJSON(object.reqHasCloudIds) }
+        : isSet(object.reqSetUploadOnly)
+        ? { $case: "reqSetUploadOnly", reqSetUploadOnly: SetUploadOnly.fromJSON(object.reqSetUploadOnly) }
+        : isSet(object.reqListFileVersions)
+        ? { $case: "reqListFileVersions", reqListFileVersions: ListFileVersions.fromJSON(object.reqListFileVersions) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -15675,6 +16012,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqFriendshipInterDelete = FriendshipInterDelete.toJSON(message.payload.reqFriendshipInterDelete);
     } else if (message.payload?.$case === "reqHasCloudIds") {
       obj.reqHasCloudIds = HasCloudIds.toJSON(message.payload.reqHasCloudIds);
+    } else if (message.payload?.$case === "reqSetUploadOnly") {
+      obj.reqSetUploadOnly = SetUploadOnly.toJSON(message.payload.reqSetUploadOnly);
+    } else if (message.payload?.$case === "reqListFileVersions") {
+      obj.reqListFileVersions = ListFileVersions.toJSON(message.payload.reqListFileVersions);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -16453,6 +16794,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqSetUploadOnly": {
+        if (object.payload?.reqSetUploadOnly !== undefined && object.payload?.reqSetUploadOnly !== null) {
+          message.payload = {
+            $case: "reqSetUploadOnly",
+            reqSetUploadOnly: SetUploadOnly.fromPartial(object.payload.reqSetUploadOnly),
+          };
+        }
+        break;
+      }
+      case "reqListFileVersions": {
+        if (object.payload?.reqListFileVersions !== undefined && object.payload?.reqListFileVersions !== null) {
+          message.payload = {
+            $case: "reqListFileVersions",
+            reqListFileVersions: ListFileVersions.fromPartial(object.payload.reqListFileVersions),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -16513,7 +16872,7 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
 };
 
 function createBaseRespEnvelope(): RespEnvelope {
-  return { id: 0, error: false, errorMessage: "", payload: undefined };
+  return { id: 0, error: false, errorMessage: "", errorCode: "", payload: undefined };
 }
 
 export const RespEnvelope: MessageFns<RespEnvelope> = {
@@ -16526,6 +16885,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     }
     if (message.errorMessage !== "") {
       writer.uint32(26).string(message.errorMessage);
+    }
+    if (message.errorCode !== "") {
+      writer.uint32(34).string(message.errorCode);
     }
     switch (message.payload?.$case) {
       case "respStatus":
@@ -16664,6 +17026,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       case "respCloudIdsFound":
         CloudIdsFound.encode(message.payload.respCloudIdsFound, writer.uint32(434).fork()).join();
         break;
+      case "respFileVersions":
+        FileVersions.encode(message.payload.respFileVersions, writer.uint32(442).fork()).join();
+        break;
     }
     return writer;
   },
@@ -16697,6 +17062,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           }
 
           message.errorMessage = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.errorCode = reader.string();
           continue;
         }
         case 10: {
@@ -17125,6 +17498,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 55: {
+          if (tag !== 442) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respFileVersions",
+            respFileVersions: FileVersions.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -17139,6 +17523,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       id: isSet(object.id) ? globalThis.Number(object.id) : 0,
       error: isSet(object.error) ? globalThis.Boolean(object.error) : false,
       errorMessage: isSet(object.errorMessage) ? globalThis.String(object.errorMessage) : "",
+      errorCode: isSet(object.errorCode) ? globalThis.String(object.errorCode) : "",
       payload: isSet(object.respStatus)
         ? { $case: "respStatus", respStatus: Status.fromJSON(object.respStatus) }
         : isSet(object.respAck)
@@ -17259,6 +17644,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         }
         : isSet(object.respCloudIdsFound)
         ? { $case: "respCloudIdsFound", respCloudIdsFound: CloudIdsFound.fromJSON(object.respCloudIdsFound) }
+        : isSet(object.respFileVersions)
+        ? { $case: "respFileVersions", respFileVersions: FileVersions.fromJSON(object.respFileVersions) }
         : undefined,
     };
   },
@@ -17273,6 +17660,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     }
     if (message.errorMessage !== "") {
       obj.errorMessage = message.errorMessage;
+    }
+    if (message.errorCode !== "") {
+      obj.errorCode = message.errorCode;
     }
     if (message.payload?.$case === "respStatus") {
       obj.respStatus = Status.toJSON(message.payload.respStatus);
@@ -17366,6 +17756,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respDomainAvailable = RespDomainAvailable.toJSON(message.payload.respDomainAvailable);
     } else if (message.payload?.$case === "respCloudIdsFound") {
       obj.respCloudIdsFound = CloudIdsFound.toJSON(message.payload.respCloudIdsFound);
+    } else if (message.payload?.$case === "respFileVersions") {
+      obj.respFileVersions = FileVersions.toJSON(message.payload.respFileVersions);
     }
     return obj;
   },
@@ -17378,6 +17770,7 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     message.id = object.id ?? 0;
     message.error = object.error ?? false;
     message.errorMessage = object.errorMessage ?? "";
+    message.errorCode = object.errorCode ?? "";
     switch (object.payload?.$case) {
       case "respStatus": {
         if (object.payload?.respStatus !== undefined && object.payload?.respStatus !== null) {
@@ -17757,6 +18150,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respCloudIdsFound",
             respCloudIdsFound: CloudIdsFound.fromPartial(object.payload.respCloudIdsFound),
+          };
+        }
+        break;
+      }
+      case "respFileVersions": {
+        if (object.payload?.respFileVersions !== undefined && object.payload?.respFileVersions !== null) {
+          message.payload = {
+            $case: "respFileVersions",
+            respFileVersions: FileVersions.fromPartial(object.payload.respFileVersions),
           };
         }
         break;

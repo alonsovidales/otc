@@ -286,7 +286,80 @@ func (mg *Manager) deleteSharedLink(pathUuid string) {
 }
 
 func (mg *Manager) ListFiles(session *session.Session, path string, recursive bool) (files []*pb.File, err error) {
-	return mg.dao.GetFilesByPath(path, recursive, false)
+	files, err = mg.dao.GetFilesByPath(path, recursive, false)
+	if err != nil {
+		return nil, err
+	}
+	// Issue #132: say which entries live under an upload-only folder and
+	// how many older versions each file keeps, so the clients can show the
+	// lock and the versions badge without a request per row.
+	folders, err := mg.dao.GetUploadOnlyFolders()
+	if err != nil {
+		return nil, err
+	}
+	pathRegexp := "^" + path
+	if !recursive {
+		pathRegexp += "[^/]+$"
+	}
+	versions, err := mg.dao.CountFileVersions(pathRegexp)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range files {
+		f.UploadOnly = underUploadOnly(f.Path, f.Mime == "inode/directory", folders)
+		f.Versions = versions[f.Path]
+	}
+
+	return files, nil
+}
+
+// ErrUploadOnly is the refusal for a delete under an upload-only folder
+// (issue #132); the handler turns it into RespEnvelope.error_code.
+var ErrUploadOnly = errors.New("this folder is upload only: nothing in it can be deleted")
+
+// folderPath is a folder as upload_only_folders stores it: with its
+// trailing slash, so "/kim/" never also covers "/kimono/".
+func folderPath(path string) string {
+	if !strings.HasSuffix(path, "/") {
+		return path + "/"
+	}
+
+	return path
+}
+
+func underUploadOnly(path string, isDir bool, folders []string) bool {
+	p := path
+	if isDir {
+		p = folderPath(p)
+	}
+	for _, f := range folders {
+		if strings.HasPrefix(p, f) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isUploadOnly is whether path (a file, or a folder given with or without
+// its slash) is inside a folder the owner flagged with SetUploadOnly.
+func (mg *Manager) isUploadOnly(path string, isDir bool) (bool, error) {
+	folders, err := mg.dao.GetUploadOnlyFolders()
+	if err != nil {
+		return false, err
+	}
+
+	return underUploadOnly(path, isDir, folders), nil
+}
+
+// SetUploadOnly flags or clears a folder (issue #132).
+func (mg *Manager) SetUploadOnly(path string, on bool) error {
+	return mg.dao.SetUploadOnlyFolder(folderPath(path), on)
+}
+
+// FileVersions lists a path's older versions (issue #132), newest first.
+func (mg *Manager) FileVersions(path string) ([]*pb.File, error) {
+	return mg.dao.GetFileVersions(path)
 }
 
 func (mg *Manager) cosineSimilarity(a, b []float32) float32 {
@@ -393,7 +466,7 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	}
 	files := make([]*pb.File, len(entries))
 	for i, entry := range entries {
-		files[i], err = mg.GetFile(session, entry.Path)
+		files[i], err = mg.GetFile(session, entry.Path, "")
 		if err != nil {
 			return "", err
 		}
@@ -624,8 +697,14 @@ func (mg *Manager) ListImageGroups(session *session.Session) ([]*pb.ImageGroup, 
 	return out, nil
 }
 
-func (mg *Manager) GetFile(session *session.Session, path string) (file *pb.File, err error) {
-	file, err = mg.dao.GetFileByPath(path)
+// GetFile serves the current content of path, or (issue #132) the older
+// version with the given hash when one is named.
+func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (file *pb.File, err error) {
+	if versionHash != "" {
+		file, err = mg.dao.GetFileVersion(path, versionHash)
+	} else {
+		file, err = mg.dao.GetFileByPath(path)
+	}
 	if err == nil {
 		encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), file.Hash))
 		if err != nil {
@@ -756,6 +835,20 @@ func (mg *Manager) DelPath(session *session.Session, path string) error {
 	if err != nil {
 		return err
 	}
+	// Issue #132: refused as a whole before anything goes, so a folder
+	// holding an upload-only subfolder isn't half deleted.
+	folders, err := mg.dao.GetUploadOnlyFolders()
+	if err != nil {
+		return err
+	}
+	if underUploadOnly(path, true, folders) {
+		return ErrUploadOnly
+	}
+	for _, entry := range entries {
+		if underUploadOnly(entry.Path, false, folders) {
+			return ErrUploadOnly
+		}
+	}
 	for _, entry := range entries {
 		if err := mg.DelFile(session, entry.Path); err != nil {
 			return err
@@ -789,16 +882,29 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	// - and by hash, not the path that's now gone - is the check this was
 	// actually meant to make: does any *other* file row still point at
 	// this content.
-	if _, hashErr := mg.dao.GetFileByHash(hash); hashErr == nil {
-		return nil
-	}
-
-	fullPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
-	if err = os.Remove(fullPath); err != nil {
+	// Issue #132: the path's kept versions go with it (the folder is no
+	// longer upload only, or this never was); their blobs too, unless
+	// another path or version still uses them.
+	versionHashes, err := mg.dao.DelFileVersions(path)
+	if err != nil {
 		return err
 	}
-	os.Remove(fmt.Sprintf("%s_thumbnail", fullPath))
-	return
+	for _, h := range append([]string{hash}, versionHashes...) {
+		referenced, refErr := mg.dao.HashReferenced(h)
+		if refErr != nil {
+			return refErr
+		}
+		if referenced {
+			continue
+		}
+		fullPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), h)
+		if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		os.Remove(fmt.Sprintf("%s_thumbnail", fullPath))
+	}
+
+	return nil
 }
 
 // UploadFile stores content under path. cloudID is the photo library's own
@@ -853,13 +959,25 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 			log.Debug("Same file with same content for:", path, hash)
 			return existing, nil
 		}
-		if forceOverride {
+		// Issue #132: in an upload-only folder the old content is kept as
+		// a version and the new one becomes current - whether or not the
+		// client asked to override, nothing there is ever lost.
+		uploadOnly, err := mg.isUploadOnly(path, false)
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case uploadOnly:
+			if err = mg.dao.ReplaceFileKeepingVersion(file, cloudID); err != nil {
+				return nil, err
+			}
+		case forceOverride:
 			mg.DelFile(session, path)
 			_, err = mg.dao.StoreNewFile(file, cloudID)
 			if err != nil {
 				return nil, err
 			}
-		} else {
+		default:
 			return nil, errors.New("Duplicated file")
 		}
 	}
@@ -1146,6 +1264,19 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		if existingAtPath.Hash == hash {
 			log.Debug("Same file already linked at:", path, hash)
 			return existingAtPath, nil
+		}
+		// Issue #132: see UploadFile - an upload-only folder keeps the old
+		// content as a version.
+		uploadOnly, err := mg.isUploadOnly(path, false)
+		if err != nil {
+			return nil, err
+		}
+		if uploadOnly {
+			if err := mg.dao.ReplaceFileKeepingVersion(file, cloudID); err != nil {
+				return nil, err
+			}
+
+			return file, nil
 		}
 		if !forceOverride {
 			return nil, errors.New("Duplicated file")

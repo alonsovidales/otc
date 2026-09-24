@@ -185,7 +185,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 
 	files := make([]*pb.File, len(paths))
 	for i, path := range paths {
-		file, err := sc.filesmanager.GetFile(ses, path)
+		file, err := sc.filesmanager.GetFile(ses, path, "")
 		if err != nil {
 			log.Error("Error loading file:", err)
 			return "", fmt.Errorf("error loading file %q: %w", path, err)

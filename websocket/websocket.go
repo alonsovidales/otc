@@ -1658,7 +1658,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqGetFile:
 		log.Info("Get file with path:", p.ReqGetFile.Path)
-		pbFile, err := ch.mg.filesManager.GetFile(ses, p.ReqGetFile.Path)
+		pbFile, err := ch.mg.filesManager.GetFile(ses, p.ReqGetFile.Path, p.ReqGetFile.Hash)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file: %s", err)
@@ -1694,6 +1694,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			log.Error("error trying to delete file:", p.ReqDelFile.Path, err)
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to delete file: %s", err)
+			if errors.Is(err, filesmanager.ErrUploadOnly) {
+				resp.ErrorCode = "upload_only"
+				resp.ErrorMessage = err.Error()
+			}
 		} else {
 			log.Info("Deleted file by path:", p.ReqDelFile.Path)
 			// Acknoledge the Deletion
@@ -1702,6 +1706,25 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 					Ok: true,
 				},
 			}
+		}
+
+	// Issue #132: upload-only folders and the versions they keep.
+	case *pb.ReqEnvelope_ReqSetUploadOnly:
+		log.Info("Set upload only:", p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly)
+		if err := ch.mg.filesManager.SetUploadOnly(p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly); err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error updating the folder: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqListFileVersions:
+		versions, err := ch.mg.filesManager.FileVersions(p.ReqListFileVersions.Path)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error listing the versions: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFileVersions{RespFileVersions: &pb.FileVersions{Versions: versions}}
 		}
 
 	case *pb.ReqEnvelope_ReqListFiles:

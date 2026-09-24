@@ -201,6 +201,10 @@ if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
         rm -rf "$tmp/web-dist" && mkdir -p "$tmp/web-dist"
         tar -xzf "$tmp/web-dist.tar.gz" -C "$tmp/web-dist" || fail "could not unpack the web assets"
         rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets"
+        # This runs as root, so the files land root-owned; hand them to the
+        # service user, or a development `make web` (scp as otc) is refused
+        # by the very files the previous release installed.
+        chown -R otc:otc /var/www 2>/dev/null || true
         echo "web assets installed"
     else
         echo "WARNING: release $target has no web assets attached, keeping the installed web app"

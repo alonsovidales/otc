@@ -376,11 +376,15 @@ func (dao *Dao) DelFileByPath(path string) (err error) {
 		return err
 	}
 
-	var refCount int
+	// Issue #132: a version still holding this content keeps its tags too.
+	var refCount, versionRefs int
 	if err = tx.QueryRow("select count(*) from `files` where `hash` = ? for update", hash).Scan(&refCount); err != nil {
 		return err
 	}
-	if refCount <= 1 {
+	if err = tx.QueryRow("select count(*) from `file_versions` where `hash` = ?", hash).Scan(&versionRefs); err != nil {
+		return err
+	}
+	if refCount+versionRefs <= 1 {
 		if _, err = tx.Exec("delete from `file_tags` where `hash` = ?", hash); err != nil {
 			return err
 		}
@@ -391,6 +395,147 @@ func (dao *Dao) DelFileByPath(path string) (err error) {
 	}
 
 	return tx.Commit()
+}
+
+// --- Issue #132: upload-only folders and file versions ---
+
+// GetUploadOnlyFolders lists the flagged folders, each with its trailing slash.
+func (dao *Dao) GetUploadOnlyFolders() (paths []string, err error) {
+	rows, err := dao.db.Query("select `path` from `upload_only_folders`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, err
+		}
+		paths = append(paths, p)
+	}
+
+	return paths, rows.Err()
+}
+
+// SetUploadOnlyFolder flags or clears a folder (path with trailing slash).
+func (dao *Dao) SetUploadOnlyFolder(path string, on bool) (err error) {
+	if on {
+		_, err = dao.db.Exec("insert ignore into `upload_only_folders` (`path`) values (?)", path)
+	} else {
+		_, err = dao.db.Exec("delete from `upload_only_folders` where `path` = ?", path)
+	}
+
+	return err
+}
+
+// ReplaceFileKeepingVersion moves the current row of file.Path into
+// file_versions and makes file the current one, in one transaction.
+func (dao *Dao) ReplaceFileKeepingVersion(file *pb.File, cloudID string) error {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec("insert into `file_versions` (`path`, `hash`, `mime`, `size`, `created`, `modified`, `replaced`) "+
+		"select `path`, `hash`, `mime`, `size`, `created`, `modified`, ? from `files` where `path` = ?", time.Now(), file.Path); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("update `files` set `hash` = ?, `mime` = ?, `size` = ?, `created` = ?, `modified` = ?, `cloud_id` = coalesce(?, `cloud_id`) where `path` = ?",
+		file.Hash, file.Mime, file.Size, file.Created.AsTime(), file.Modified.AsTime(),
+		sql.NullString{String: cloudID, Valid: cloudID != ""}, file.Path); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// GetFileVersions lists a path's older versions, newest first; Modified
+// carries when each stopped being current.
+func (dao *Dao) GetFileVersions(path string) (files []*pb.File, err error) {
+	rows, err := dao.db.Query("select `hash`, `mime`, `size`, `created`, `replaced` from `file_versions` where `path` = ? order by `replaced` desc", path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		f := &pb.File{Path: path}
+		var created, replaced time.Time
+		if err := rows.Scan(&f.Hash, &f.Mime, &f.Size, &created, &replaced); err != nil {
+			return nil, err
+		}
+		f.Created = timestamppb.New(created)
+		f.Modified = timestamppb.New(replaced)
+		files = append(files, f)
+	}
+
+	return files, rows.Err()
+}
+
+// GetFileVersion is one older version of path, by hash.
+func (dao *Dao) GetFileVersion(path, hash string) (file *pb.File, err error) {
+	file = &pb.File{Path: path}
+	var created, replaced time.Time
+	err = dao.db.QueryRow("select `hash`, `mime`, `size`, `created`, `replaced` from `file_versions` where `path` = ? and `hash` = ? order by `replaced` desc limit 1", path, hash).
+		Scan(&file.Hash, &file.Mime, &file.Size, &created, &replaced)
+	file.Created = timestamppb.New(created)
+	file.Modified = timestamppb.New(replaced)
+
+	return
+}
+
+// CountFileVersions is how many older versions each path matching the
+// regexp has - what a listing shows as the versions badge.
+func (dao *Dao) CountFileVersions(pathRegexp string) (map[string]int32, error) {
+	counts := map[string]int32{}
+	rows, err := dao.db.Query("select `path`, count(*) from `file_versions` where `path` regexp ? group by `path`", pathRegexp)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var p string
+		var n int32
+		if err := rows.Scan(&p, &n); err != nil {
+			return nil, err
+		}
+		counts[p] = n
+	}
+
+	return counts, rows.Err()
+}
+
+// DelFileVersions drops a path's versions and returns their hashes, so
+// the caller can remove blobs nothing references any more.
+func (dao *Dao) DelFileVersions(path string) (hashes []string, err error) {
+	rows, err := dao.db.Query("select `hash` from `file_versions` where `path` = ?", path)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var h string
+		if err := rows.Scan(&h); err != nil {
+			rows.Close()
+
+			return nil, err
+		}
+		hashes = append(hashes, h)
+	}
+	rows.Close()
+	if len(hashes) == 0 {
+		return nil, nil
+	}
+	_, err = dao.db.Exec("delete from `file_versions` where `path` = ?", path)
+
+	return hashes, err
+}
+
+// HashReferenced is whether any current file or kept version still uses
+// this content - the check before a blob is removed from disk.
+func (dao *Dao) HashReferenced(hash string) (bool, error) {
+	var n int
+	err := dao.db.QueryRow("select (select count(*) from `files` where `hash` = ?) + (select count(*) from `file_versions` where `hash` = ?)", hash, hash).Scan(&n)
+
+	return n > 0, err
 }
 
 func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (files []*pb.File, err error) {

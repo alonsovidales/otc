@@ -41,6 +41,39 @@ create table files
   INDEX USING BTREE (`cloud_id`)
 ) engine=InnoDB;
 
+-- Issue #132: folders nobody can delete from. A path (always with its
+-- trailing slash) listed here, and everything under it, refuses DelFile;
+-- a second upload to a path that already exists there keeps the old
+-- content in file_versions instead of replacing or refusing it. The
+-- owner flags a folder from the Files section (SetUploadOnly) and can
+-- clear it the same way.
+create table upload_only_folders
+(
+  `path` varchar(768) not null,
+
+  primary key (`path`)
+) engine=InnoDB;
+
+-- Issue #132: the older contents of a path in an upload-only folder, one
+-- row per replaced version (`replaced` is when it stopped being current).
+-- Blobs on disk are shared by hash with `files`, so a hash referenced
+-- here keeps its blob and tags even once no current file uses it; a
+-- path's versions go with the path when it is finally deleted (after the
+-- folder is no longer upload only).
+create table file_versions
+(
+  `path` varchar(768) not null,
+  `hash` varchar(64) not null,
+  `mime` varchar(150) not null,
+  `size` int not null,
+  `created` datetime not null,
+  `modified` datetime not null,
+  `replaced` datetime not null,
+
+  key (`path`),
+  key (`hash`)
+) engine=InnoDB;
+
 create table file_tags
 (
   `hash` varchar(64) not null,
