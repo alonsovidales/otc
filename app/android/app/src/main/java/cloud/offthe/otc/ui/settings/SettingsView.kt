@@ -212,9 +212,10 @@ fun SettingsView(secrets: SecretsStore) {
                 RowButton("Authorize Photos Access") { permission.launch(mediaPermissions()) }
             }
 
-            Section("Sync") {
+            Section("Sync", "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.") {
                 RowButton("Sync Now") { secrets.persist(); PhotoSync.runForegroundAsync() }
                 RowButton("Sync All") { secrets.persist(); PhotoSync.lastSyncMs = 0; PhotoSync.runForegroundAsync() }
+                RowButton("Sync From Now") { secrets.persist(); PhotoSync.lastSyncMs = System.currentTimeMillis() }
             }
 
             UpdateSection()

@@ -455,7 +455,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
+                Section(footer: Text("Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.")) {
                     Button("Sync Now") {
                         Task {
                             secrets.persist()
@@ -465,9 +465,17 @@ struct SettingsView: View {
                     Button("Sync All") {
                         Task {
                             secrets.persist()
-                            UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+                            // The watermark PhotoSync syncs from - cleared,
+                            // so the run below starts at the beginning
+                            // (it used to be set to now here, which made
+                            // this button sync nothing at all).
+                            UserDefaults.standard.removeObject(forKey: "lastSyncDate")
                             try? await PhotoSync.shared.runForeground()
                         }
+                    }
+                    Button("Sync From Now") {
+                        secrets.persist()
+                        UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
                     }
                 }
 
