@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection, clearPersistedToken } from "../net/pwCrypto";
-import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
+import { pushSupported, isPushSubscribed, enablePush, disablePush, unregisterPushOnSignOut } from "../net/webPush";
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
 import UpdatePanel from "./UpdatePanel";
@@ -480,6 +480,14 @@ export default function SettingsForm() {
             // tab's storage stops working right now rather than whenever
             // its TTL happens to run out. Best-effort — clearing this
             // browser's own storage and reloading happens either way.
+            // Issue #131: and forget this browser's push subscription,
+            // so the device stops pushing to a browser no longer signed
+            // in. Before the tokens go, since it needs the session.
+            try {
+              await unregisterPushOnSignOut();
+            } catch (err) {
+              console.error("Could not unregister push on sign out:", err);
+            }
             try {
               await useWS.request((e: Partial<ReqEnvelope>) => {
                 (e as any).payload = { $case: "reqRevokeSessionToken", reqRevokeSessionToken: {} };

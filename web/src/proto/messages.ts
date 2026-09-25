@@ -1362,6 +1362,21 @@ export interface RegisterApnsToken {
   token: string;
 }
 
+/**
+ * Issue #131: the reverse of the two registrations above, sent best effort
+ * by Log Out (iOS) and Sign Out (web) before the phone or browser forgets
+ * the device, so the device - and through it the bridge - stops pushing to
+ * a client that is no longer signed in to it. Answers with the generic Ack;
+ * unregistering something the device never had is not an error.
+ */
+export interface UnregisterApnsToken {
+  token: string;
+}
+
+export interface UnregisterWebPush {
+  endpoint: string;
+}
+
 export interface GetVapidPublicKey {
 }
 
@@ -1981,6 +1996,10 @@ export interface ReqEnvelope {
     | //
     /** Issue #132. Answers with resp_file_versions. */
     { $case: "reqListFileVersions"; reqListFileVersions: ListFileVersions }
+    | //
+    /** Issue #131. Both answer with the generic Ack. */
+    { $case: "reqUnregisterApnsToken"; reqUnregisterApnsToken: UnregisterApnsToken }
+    | { $case: "reqUnregisterWebPush"; reqUnregisterWebPush: UnregisterWebPush }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -10004,6 +10023,122 @@ export const RegisterApnsToken: MessageFns<RegisterApnsToken> = {
   },
 };
 
+function createBaseUnregisterApnsToken(): UnregisterApnsToken {
+  return { token: "" };
+}
+
+export const UnregisterApnsToken: MessageFns<UnregisterApnsToken> = {
+  encode(message: UnregisterApnsToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UnregisterApnsToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUnregisterApnsToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UnregisterApnsToken {
+    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
+  },
+
+  toJSON(message: UnregisterApnsToken): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UnregisterApnsToken>, I>>(base?: I): UnregisterApnsToken {
+    return UnregisterApnsToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UnregisterApnsToken>, I>>(object: I): UnregisterApnsToken {
+    const message = createBaseUnregisterApnsToken();
+    message.token = object.token ?? "";
+    return message;
+  },
+};
+
+function createBaseUnregisterWebPush(): UnregisterWebPush {
+  return { endpoint: "" };
+}
+
+export const UnregisterWebPush: MessageFns<UnregisterWebPush> = {
+  encode(message: UnregisterWebPush, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.endpoint !== "") {
+      writer.uint32(10).string(message.endpoint);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UnregisterWebPush {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUnregisterWebPush();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.endpoint = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UnregisterWebPush {
+    return { endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "" };
+  },
+
+  toJSON(message: UnregisterWebPush): unknown {
+    const obj: any = {};
+    if (message.endpoint !== "") {
+      obj.endpoint = message.endpoint;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UnregisterWebPush>, I>>(base?: I): UnregisterWebPush {
+    return UnregisterWebPush.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UnregisterWebPush>, I>>(object: I): UnregisterWebPush {
+    const message = createBaseUnregisterWebPush();
+    message.endpoint = object.endpoint ?? "";
+    return message;
+  },
+};
+
 function createBaseGetVapidPublicKey(): GetVapidPublicKey {
   return {};
 }
@@ -14583,6 +14718,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqListFileVersions":
         ListFileVersions.encode(message.payload.reqListFileVersions, writer.uint32(842).fork()).join();
         break;
+      case "reqUnregisterApnsToken":
+        UnregisterApnsToken.encode(message.payload.reqUnregisterApnsToken, writer.uint32(850).fork()).join();
+        break;
+      case "reqUnregisterWebPush":
+        UnregisterWebPush.encode(message.payload.reqUnregisterWebPush, writer.uint32(858).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -15475,6 +15616,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 106: {
+          if (tag !== 850) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqUnregisterApnsToken",
+            reqUnregisterApnsToken: UnregisterApnsToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 107: {
+          if (tag !== 858) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqUnregisterWebPush",
+            reqUnregisterWebPush: UnregisterWebPush.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -15804,6 +15967,16 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqSetUploadOnly", reqSetUploadOnly: SetUploadOnly.fromJSON(object.reqSetUploadOnly) }
         : isSet(object.reqListFileVersions)
         ? { $case: "reqListFileVersions", reqListFileVersions: ListFileVersions.fromJSON(object.reqListFileVersions) }
+        : isSet(object.reqUnregisterApnsToken)
+        ? {
+          $case: "reqUnregisterApnsToken",
+          reqUnregisterApnsToken: UnregisterApnsToken.fromJSON(object.reqUnregisterApnsToken),
+        }
+        : isSet(object.reqUnregisterWebPush)
+        ? {
+          $case: "reqUnregisterWebPush",
+          reqUnregisterWebPush: UnregisterWebPush.fromJSON(object.reqUnregisterWebPush),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -16016,6 +16189,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqSetUploadOnly = SetUploadOnly.toJSON(message.payload.reqSetUploadOnly);
     } else if (message.payload?.$case === "reqListFileVersions") {
       obj.reqListFileVersions = ListFileVersions.toJSON(message.payload.reqListFileVersions);
+    } else if (message.payload?.$case === "reqUnregisterApnsToken") {
+      obj.reqUnregisterApnsToken = UnregisterApnsToken.toJSON(message.payload.reqUnregisterApnsToken);
+    } else if (message.payload?.$case === "reqUnregisterWebPush") {
+      obj.reqUnregisterWebPush = UnregisterWebPush.toJSON(message.payload.reqUnregisterWebPush);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -16808,6 +16985,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqListFileVersions",
             reqListFileVersions: ListFileVersions.fromPartial(object.payload.reqListFileVersions),
+          };
+        }
+        break;
+      }
+      case "reqUnregisterApnsToken": {
+        if (object.payload?.reqUnregisterApnsToken !== undefined && object.payload?.reqUnregisterApnsToken !== null) {
+          message.payload = {
+            $case: "reqUnregisterApnsToken",
+            reqUnregisterApnsToken: UnregisterApnsToken.fromPartial(object.payload.reqUnregisterApnsToken),
+          };
+        }
+        break;
+      }
+      case "reqUnregisterWebPush": {
+        if (object.payload?.reqUnregisterWebPush !== undefined && object.payload?.reqUnregisterWebPush !== null) {
+          message.payload = {
+            $case: "reqUnregisterWebPush",
+            reqUnregisterWebPush: UnregisterWebPush.fromPartial(object.payload.reqUnregisterWebPush),
           };
         }
         break;

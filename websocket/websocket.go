@@ -2517,6 +2517,30 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			go ch.mg.syncPushRegistrationsToBridge()
 		}
 
+	// Issue #131: Log Out / Sign Out forget the device, so the device (and
+	// the bridge, through the sync) forgets the client.
+	case *pb.ReqEnvelope_ReqUnregisterApnsToken:
+		log.Info("Unregister APNs token")
+		if err := ch.mg.dao.DeleteApnsToken(p.ReqUnregisterApnsToken.Token); err != nil {
+			log.Error("error unregistering APNs token:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			go ch.mg.syncPushRegistrationsToBridge()
+		}
+
+	case *pb.ReqEnvelope_ReqUnregisterWebPush:
+		log.Info("Unregister web push subscription")
+		if err := ch.mg.dao.DeleteWebPushSubscription(p.ReqUnregisterWebPush.Endpoint); err != nil {
+			log.Error("error unregistering web push subscription:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			go ch.mg.syncPushRegistrationsToBridge()
+		}
+
 	case *pb.ReqEnvelope_ReqRegisterApnsToken:
 		log.Info("Register APNs token")
 		err := ch.mg.dao.SaveApnsToken(p.ReqRegisterApnsToken.Token)

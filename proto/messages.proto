@@ -899,6 +899,19 @@ message RegisterApnsToken {
   string token = 1;
 }
 
+// Issue #131: the reverse of the two registrations above, sent best effort
+// by Log Out (iOS) and Sign Out (web) before the phone or browser forgets
+// the device, so the device - and through it the bridge - stops pushing to
+// a client that is no longer signed in to it. Answers with the generic Ack;
+// unregistering something the device never had is not an error.
+message UnregisterApnsToken {
+  string token = 1;
+}
+
+message UnregisterWebPush {
+  string endpoint = 1;
+}
+
 message GetVapidPublicKey {
 }
 
@@ -1459,6 +1472,9 @@ message ReqEnvelope {
     SetUploadOnly req_set_upload_only = 104;
     // Issue #132. Answers with resp_file_versions.
     ListFileVersions req_list_file_versions = 105;
+    // Issue #131. Both answer with the generic Ack.
+    UnregisterApnsToken req_unregister_apns_token = 106;
+    UnregisterWebPush req_unregister_web_push = 107;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

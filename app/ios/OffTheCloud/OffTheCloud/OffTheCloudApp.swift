@@ -98,6 +98,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        // Issue #131: kept so Log Out can hand the device the same token
+        // back to unregister (removePersistentDomain there clears it).
+        UserDefaults.standard.set(token, forKey: "apnsToken")
         // This can fire very early in app launch - possibly before
         // OTCConnection has finished its own first connect+auth (which
         // itself needs SecretsStore already populated) - so a single

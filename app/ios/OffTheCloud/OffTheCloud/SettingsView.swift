@@ -543,6 +543,23 @@ extension SettingsView {
     /// stores. RootView shows onboarding the moment the secrets clear, and
     /// MainView going away takes every per-tab view model with it.
     fileprivate func logOut() {
+        Task {
+            // Issue #131: tell the device to forget this phone's push
+            // token first, best effort - it goes on pushing to a phone
+            // that is no longer signed in otherwise. Everything below
+            // happens either way.
+            if let token = UserDefaults.standard.string(forKey: "apnsToken"), !token.isEmpty {
+                _ = try? await OTCConnection.shared.request { req in
+                    var un = Msg_UnregisterApnsToken()
+                    un.token = token
+                    req.payload = .reqUnregisterApnsToken(un)
+                }
+            }
+            finishLogOut()
+        }
+    }
+
+    private func finishLogOut() {
         status.stop()
         device.stopPollingReprocessStatus()
         NotificationsModel.shared.reset()

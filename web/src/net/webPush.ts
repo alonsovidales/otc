@@ -85,6 +85,26 @@ export async function disablePush(): Promise<void> {
   // reads this subscription server-side until then anyway.
 }
 
+/** Issue #131: tells the device to forget this browser's subscription
+ * (and, through the device, the bridge), then drops it locally. For Sign
+ * Out, where the lazy 404/410 cleanup above would never get its chance:
+ * the browser is about to forget the device, so the device must forget
+ * the browser now. Best effort - a device that never had it says ok too. */
+export async function unregisterPushOnSignOut(): Promise<void> {
+  if (!pushSupported()) return;
+  const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return;
+  try {
+    await useWS.request((e) => {
+      (e as any).payload = { $case: "reqUnregisterWebPush", reqUnregisterWebPush: { endpoint: sub.endpoint } };
+    });
+  } catch (err) {
+    console.error("Could not unregister push on sign out:", err);
+  }
+  await sub.unsubscribe();
+}
+
 // Ask once, proactively, right after sign-in, rather than requiring the
 // user to find "Enable Notifications" in Settings themselves — the
 // browser's native Allow/Block prompt still can't be skipped (no API does
