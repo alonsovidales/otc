@@ -88,7 +88,10 @@ object SocialFeedViewModel {
         cacheFile.delete()
     }
 
-    private fun startAutoLoad() {
+    /** Also what a new sign-in calls (issue #133): Log Out cancels this, and
+     *  `init` only ever ran once per process, so the feed after signing in
+     *  again sat on "No social posts" until the app was killed. */
+    fun startAutoLoad() {
         if (pollJob != null) return
         pollJob = scope.launch {
             while (isActive) {

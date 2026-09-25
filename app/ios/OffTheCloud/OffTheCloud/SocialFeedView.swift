@@ -192,7 +192,10 @@ final class SocialFeedViewModel: ObservableObject {
     /// couple of seconds" just reproduced the bug. This only stops once the
     /// server actually answers (even with zero publications); it doesn't
     /// stop just because a request throws.
-    private func startAutoLoad() {
+    /// Also what a new sign-in calls (issue #133): Log Out cancels this,
+    /// and `init` only ever ran once per process, so the feed after
+    /// signing in again sat on "No social posts" until the app was killed.
+    func startAutoLoad() {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while let self, !Task.isCancelled {
@@ -515,7 +518,7 @@ struct SocialFeedView: View {
                         VStack(spacing: 14) {
                             Text("No social posts")
                                 .font(.system(size: 30, weight: .heavy))
-                            Text("Share a photo or a video with your friends - it stays on your own device.")
+                            Text("Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between.")
                                 .font(.body)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)

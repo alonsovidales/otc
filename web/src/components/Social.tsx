@@ -911,7 +911,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
         {authenticated && loaded && feed.length === 0 && (
           <div className="sv-empty">
             <h2>No social posts</h2>
-            <p>Share a photo or a video with your friends — it stays on your own device.</p>
+            <p>Share a photo or a video with your friends — it goes from your device to theirs, with no cloud in between.</p>
             <button className="sv-empty-new" onClick={() => setPickerOpen(true)} aria-label="New post">
               {/* Drawn, not typed: a text "+" sits on the font's baseline,
                   visibly below centre in a circle this size. */}

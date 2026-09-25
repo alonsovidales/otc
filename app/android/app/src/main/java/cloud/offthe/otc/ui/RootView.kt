@@ -21,6 +21,7 @@ import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.compose.mediaPermissions
+import cloud.offthe.otc.ui.social.SocialFeedViewModel
 
 // Port of RootView.swift: onboarding until the connection is configured,
 // then the tabs; foreground/background transitions drive the photo sync
@@ -58,6 +59,10 @@ fun RootView() {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    // Issue #133: a no-op on first launch (the model's init already started
+    // it), the restart after Log Out + sign in.
+    LaunchedEffect(configured) { if (configured) SocialFeedViewModel.startAutoLoad() }
 
     if (configured) {
         MainView(secrets = secrets)

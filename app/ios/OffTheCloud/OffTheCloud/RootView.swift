@@ -35,6 +35,9 @@ struct RootView: View {
                     .onAppear {
                         SyncScheduler.scheduleNext() // schedule background sync
                         notifications.startPolling()
+                        // Issue #133: a no-op on first launch (init already
+                        // started it), the restart after Log Out + sign in.
+                        social.startAutoLoad()
                     }
             } else {
                 OnboardingView()

@@ -255,7 +255,7 @@ private fun EmptyFeed(onNewPost: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
         Text("No social posts", fontSize = 30.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(14.dp))
-        Text("Share a photo or a video with your friends - it stays on your own device.",
+        Text("Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between.",
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp))
         Spacer(Modifier.height(24.dp))
         Box(Modifier.size(96.dp).shadow(12.dp, CircleShape).background(Ember, CircleShape).clickable(onClick = onNewPost), contentAlignment = Alignment.Center) {
