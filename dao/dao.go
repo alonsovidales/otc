@@ -1272,6 +1272,8 @@ func (dao *Dao) notificationTypeToStr(t pb.NotificationType) string {
 		return "FriendRequest"
 	case pb.NotificationType_NotificationFriendAccepted:
 		return "FriendAccepted"
+	case pb.NotificationType_NotificationError:
+		return "Error"
 	}
 	return ""
 }
@@ -1288,8 +1290,48 @@ func (dao *Dao) strToNotificationType(s string) pb.NotificationType {
 		return pb.NotificationType_NotificationFriendRequest
 	case "FriendAccepted":
 		return pb.NotificationType_NotificationFriendAccepted
+	case "Error":
+		return pb.NotificationType_NotificationError
 	}
 	return pb.NotificationType_NotificationLikePublication
+}
+
+// errorNotificationWindow is how long a group of errors stays open
+// (issue #64): an error within this much of the group's first one joins
+// it rather than adding a row of its own.
+const errorNotificationWindow = "5 minute"
+
+// AddErrorNotification (issue #64) records a device-side error - a photo
+// that could not be processed, a file that never made it to disk - as an
+// Error notification. Grouped so the list is never flooded: if an Error
+// row was opened within the last five minutes this joins it (its line is
+// appended to details, occurrences goes up, and the row is unread again);
+// otherwise a new row starts with title as its one-liner.
+func (dao *Dao) AddErrorNotification(title, detail string) error {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	line := time.Now().Format("15:04") + " " + title
+	if detail != "" {
+		line += ": " + detail
+	}
+	var id string
+	err = tx.QueryRow("select `uuid` from `notifications` where `type` = 'Error' and `dt` >= now() - interval " + errorNotificationWindow + " order by `dt` desc limit 1 for update").Scan(&id)
+	switch {
+	case err == nil:
+		_, err = tx.Exec("update `notifications` set `details` = concat(coalesce(`details`, ''), '\n', ?), `occurrences` = `occurrences` + 1, `acknowledged` = 0 where `uuid` = ?", line, id)
+	case err == sql.ErrNoRows:
+		_, err = tx.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Error', 'This device', '', ?, ?, 1)",
+			uuid.New(), title, line)
+	}
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // NewNotification (issue #78) records one row in the owner-facing
@@ -1319,7 +1361,7 @@ func (dao *Dao) NewNotification(notifType pb.NotificationType, actorName, actorD
 // social.GetPublications' identical split for feed posts' own thumbnails).
 func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, thumbHashes map[string]string, err error) {
 	rows, err := dao.db.Query(
-		"select n.uuid, n.dt, n.type, n.actor_name, n.actor_domain, n.pub_uuid, n.comment_uuid, n.acknowledged, f.image, pf.hash "+
+		"select n.uuid, n.dt, n.type, n.actor_name, n.actor_domain, n.pub_uuid, n.comment_uuid, n.acknowledged, f.image, pf.hash, n.title, n.details, n.occurrences "+
 			"from `notifications` n "+
 			"left join `social_friendship` f on f.domain = n.actor_domain "+
 			"left join `social_publications_files` pf on pf.uuid = n.pub_uuid and pf.pos = 0 "+
@@ -1337,11 +1379,13 @@ func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, 
 		n := new(pb.Notification)
 		var dt time.Time
 		var typeStr string
-		var pubUuid, commentUuid, thumbHash sql.NullString
+		var pubUuid, commentUuid, thumbHash, title, details sql.NullString
 		var actorImage []byte
-		if err := rows.Scan(&n.Uuid, &dt, &typeStr, &n.ActorName, &n.ActorDomain, &pubUuid, &commentUuid, &n.Acknowledged, &actorImage, &thumbHash); err != nil {
+		if err := rows.Scan(&n.Uuid, &dt, &typeStr, &n.ActorName, &n.ActorDomain, &pubUuid, &commentUuid, &n.Acknowledged, &actorImage, &thumbHash, &title, &details, &n.Occurrences); err != nil {
 			return nil, nil, err
 		}
+		n.Title = title.String
+		n.Details = details.String
 		n.Dt = timestamppb.New(dt)
 		n.Type = dao.strToNotificationType(typeStr)
 		n.PubUuid = pubUuid.String

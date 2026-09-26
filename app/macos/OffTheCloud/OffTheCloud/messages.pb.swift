@@ -260,6 +260,13 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
   case notificationNewComment // = 2
   case notificationFriendRequest // = 3
   case notificationFriendAccepted // = 4
+
+  /// Issue #64: something went wrong on the device outside any request - a
+  /// photo that could not be processed, a file that never made it to disk.
+  /// Grouped: errors within five minutes of the first share one
+  /// notification (see dao.AddErrorNotification), so the list is never
+  /// flooded. actor fields are unused; title/details/occurrences carry it.
+  case notificationError // = 5
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -273,6 +280,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     case 2: self = .notificationNewComment
     case 3: self = .notificationFriendRequest
     case 4: self = .notificationFriendAccepted
+    case 5: self = .notificationError
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -284,6 +292,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     case .notificationNewComment: return 2
     case .notificationFriendRequest: return 3
     case .notificationFriendAccepted: return 4
+    case .notificationError: return 5
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -295,6 +304,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     .notificationNewComment,
     .notificationFriendRequest,
     .notificationFriendAccepted,
+    .notificationError,
   ]
 
 }
@@ -2891,6 +2901,15 @@ public nonisolated struct Msg_Notification: Sendable {
   /// Clears the value of `thumbnail`. Subsequent reads from it will return its default value.
   public mutating func clearThumbnail() {self._thumbnail = nil}
 
+  /// Issue #64, NotificationError only: the one line shown in the list (the
+  /// first error's), every error's line in arrival order (shown on hover or
+  /// tap), and how many errors the row stands for.
+  public var title: String = String()
+
+  public var details: String = String()
+
+  public var occurrences: Int32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -4692,7 +4711,7 @@ nonisolated extension Msg_BridgeOnboardErrorType: SwiftProtobuf._ProtoNameProvid
 }
 
 nonisolated extension Msg_NotificationType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0\u{1}NotificationError\0")
 }
 
 nonisolated extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -9466,7 +9485,7 @@ nonisolated extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 
 nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0\u{3}actor_image\0\u{1}thumbnail\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0\u{3}actor_image\0\u{1}thumbnail\0\u{1}title\0\u{1}details\0\u{1}occurrences\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -9484,6 +9503,9 @@ nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 8: try { try decoder.decodeSingularBoolField(value: &self.acknowledged) }()
       case 9: try { try decoder.decodeSingularBytesField(value: &self._actorImage) }()
       case 10: try { try decoder.decodeSingularBytesField(value: &self._thumbnail) }()
+      case 11: try { try decoder.decodeSingularStringField(value: &self.title) }()
+      case 12: try { try decoder.decodeSingularStringField(value: &self.details) }()
+      case 13: try { try decoder.decodeSingularInt32Field(value: &self.occurrences) }()
       default: break
       }
     }
@@ -9524,6 +9546,15 @@ nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._Me
     try { if let v = self._thumbnail {
       try visitor.visitSingularBytesField(value: v, fieldNumber: 10)
     } }()
+    if !self.title.isEmpty {
+      try visitor.visitSingularStringField(value: self.title, fieldNumber: 11)
+    }
+    if !self.details.isEmpty {
+      try visitor.visitSingularStringField(value: self.details, fieldNumber: 12)
+    }
+    if self.occurrences != 0 {
+      try visitor.visitSingularInt32Field(value: self.occurrences, fieldNumber: 13)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -9538,6 +9569,9 @@ nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.acknowledged != rhs.acknowledged {return false}
     if lhs._actorImage != rhs._actorImage {return false}
     if lhs._thumbnail != rhs._thumbnail {return false}
+    if lhs.title != rhs.title {return false}
+    if lhs.details != rhs.details {return false}
+    if lhs.occurrences != rhs.occurrences {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

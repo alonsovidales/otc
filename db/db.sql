@@ -282,6 +282,14 @@ create table notifications
   -- highlight the specific comment once the post is open.
   `comment_uuid` varchar(64) default null,
   `acknowledged` tinyint(1) not null default 0,
+  -- Issue #64, type Error only (release 12): the first error's one-liner,
+  -- every error's line (one per row of the group, newest last), and how
+  -- many errors the row stands for. An error raised within five minutes
+  -- of the row's `dt` joins it (dao.AddErrorNotification) instead of
+  -- adding a row - so a batch of failing uploads is one notification.
+  `title` varchar(255) default null,
+  `details` text default null,
+  `occurrences` int not null default 1,
 
   unique(`uuid`),
   INDEX USING BTREE (`acknowledged`),

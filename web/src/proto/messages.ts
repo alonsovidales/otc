@@ -299,6 +299,14 @@ export const NotificationType = {
   NotificationNewComment: 2,
   NotificationFriendRequest: 3,
   NotificationFriendAccepted: 4,
+  /**
+   * NotificationError - Issue #64: something went wrong on the device outside any request - a
+   * photo that could not be processed, a file that never made it to disk.
+   * Grouped: errors within five minutes of the first share one
+   * notification (see dao.AddErrorNotification), so the list is never
+   * flooded. actor fields are unused; title/details/occurrences carry it.
+   */
+  NotificationError: 5,
   UNRECOGNIZED: -1,
 } as const;
 
@@ -310,6 +318,7 @@ export namespace NotificationType {
   export type NotificationNewComment = typeof NotificationType.NotificationNewComment;
   export type NotificationFriendRequest = typeof NotificationType.NotificationFriendRequest;
   export type NotificationFriendAccepted = typeof NotificationType.NotificationFriendAccepted;
+  export type NotificationError = typeof NotificationType.NotificationError;
   export type UNRECOGNIZED = typeof NotificationType.UNRECOGNIZED;
 }
 
@@ -330,6 +339,9 @@ export function notificationTypeFromJSON(object: any): NotificationType {
     case 4:
     case "NotificationFriendAccepted":
       return NotificationType.NotificationFriendAccepted;
+    case 5:
+    case "NotificationError":
+      return NotificationType.NotificationError;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -349,6 +361,8 @@ export function notificationTypeToJSON(object: NotificationType): string {
       return "NotificationFriendRequest";
     case NotificationType.NotificationFriendAccepted:
       return "NotificationFriendAccepted";
+    case NotificationType.NotificationError:
+      return "NotificationError";
     case NotificationType.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -1683,7 +1697,17 @@ export interface Notification {
    * points to (pub_uuid's first file), shown at the right of the row -
    * unset for FriendRequest/FriendAccepted, which point at no post.
    */
-  thumbnail?: Uint8Array | undefined;
+  thumbnail?:
+    | Uint8Array
+    | undefined;
+  /**
+   * Issue #64, NotificationError only: the one line shown in the list (the
+   * first error's), every error's line in arrival order (shown on hover or
+   * tap), and how many errors the row stands for.
+   */
+  title: string;
+  details: string;
+  occurrences: number;
 }
 
 export interface ReqListNotifications {
@@ -12737,6 +12761,9 @@ function createBaseNotification(): Notification {
     acknowledged: false,
     actorImage: undefined,
     thumbnail: undefined,
+    title: "",
+    details: "",
+    occurrences: 0,
   };
 }
 
@@ -12771,6 +12798,15 @@ export const Notification: MessageFns<Notification> = {
     }
     if (message.thumbnail !== undefined) {
       writer.uint32(82).bytes(message.thumbnail);
+    }
+    if (message.title !== "") {
+      writer.uint32(90).string(message.title);
+    }
+    if (message.details !== "") {
+      writer.uint32(98).string(message.details);
+    }
+    if (message.occurrences !== 0) {
+      writer.uint32(104).int32(message.occurrences);
     }
     return writer;
   },
@@ -12862,6 +12898,30 @@ export const Notification: MessageFns<Notification> = {
           message.thumbnail = reader.bytes();
           continue;
         }
+        case 11: {
+          if (tag !== 90) {
+            break;
+          }
+
+          message.title = reader.string();
+          continue;
+        }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.details = reader.string();
+          continue;
+        }
+        case 13: {
+          if (tag !== 104) {
+            break;
+          }
+
+          message.occurrences = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12883,6 +12943,9 @@ export const Notification: MessageFns<Notification> = {
       acknowledged: isSet(object.acknowledged) ? globalThis.Boolean(object.acknowledged) : false,
       actorImage: isSet(object.actorImage) ? bytesFromBase64(object.actorImage) : undefined,
       thumbnail: isSet(object.thumbnail) ? bytesFromBase64(object.thumbnail) : undefined,
+      title: isSet(object.title) ? globalThis.String(object.title) : "",
+      details: isSet(object.details) ? globalThis.String(object.details) : "",
+      occurrences: isSet(object.occurrences) ? globalThis.Number(object.occurrences) : 0,
     };
   },
 
@@ -12918,6 +12981,15 @@ export const Notification: MessageFns<Notification> = {
     if (message.thumbnail !== undefined) {
       obj.thumbnail = base64FromBytes(message.thumbnail);
     }
+    if (message.title !== "") {
+      obj.title = message.title;
+    }
+    if (message.details !== "") {
+      obj.details = message.details;
+    }
+    if (message.occurrences !== 0) {
+      obj.occurrences = Math.round(message.occurrences);
+    }
     return obj;
   },
 
@@ -12936,6 +13008,9 @@ export const Notification: MessageFns<Notification> = {
     message.acknowledged = object.acknowledged ?? false;
     message.actorImage = object.actorImage ?? undefined;
     message.thumbnail = object.thumbnail ?? undefined;
+    message.title = object.title ?? "";
+    message.details = object.details ?? "";
+    message.occurrences = object.occurrences ?? 0;
     return message;
   },
 };

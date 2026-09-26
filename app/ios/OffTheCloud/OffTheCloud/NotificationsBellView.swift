@@ -27,9 +27,13 @@ struct NotificationsListView: View {
         case .notificationNewComment: return "commented on your post"
         case .notificationFriendRequest: return "sent you a friend request"
         case .notificationFriendAccepted: return "accepted your friend request"
-        case .UNRECOGNIZED: return ""
+        case .notificationError, .UNRECOGNIZED: return ""
         }
     }
+
+    // Issue #64: which error rows show their full list of errors - a tap
+    // toggles it, the phone's counterpart of the web's hover.
+    @State private var expandedErrors: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -40,6 +44,9 @@ struct NotificationsListView: View {
                     Text("Nothing yet").foregroundStyle(.secondary)
                 } else {
                     List(model.notifications, id: \.uuid) { n in
+                        if n.type == .notificationError {
+                            errorRow(n)
+                        } else {
                         Button {
                             model.handleTap(n)
                         } label: {
@@ -78,6 +85,7 @@ struct NotificationsListView: View {
                             .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
                         }
                         .buttonStyle(.plain)
+                        }
                     }
                     .listStyle(.plain)
                     .refreshable { await model.openPanel() }
@@ -86,5 +94,47 @@ struct NotificationsListView: View {
             .navigationTitle("Notifications")
         }
         .task { await model.openPanel() }
+    }
+
+    /// Issue #64: a device error, or a group of them. One line (the first
+    /// error's) plus "+N more"; a tap shows every error's line.
+    @ViewBuilder
+    private func errorRow(_ n: Msg_Notification) -> some View {
+        let expanded = expandedErrors.contains(n.uuid)
+        Button {
+            if expanded { expandedErrors.remove(n.uuid) } else { expandedErrors.insert(n.uuid) }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .font(.title3)
+                    .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    (Text(n.title).bold()
+                        + Text(n.occurrences > 1 ? " +\(n.occurrences - 1) more" : "").foregroundStyle(.secondary))
+                        .foregroundStyle(.primary)
+                        .font(.subheadline)
+                    if n.hasDt {
+                        Text(Self.relativeFormatter.localizedString(for: n.dt.date, relativeTo: Date()))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if expanded, !n.details.isEmpty {
+                        Text(n.details)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .padding(.top, 4)
+                    }
+                }
+                Spacer()
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(n.title), \(n.occurrences) error\(n.occurrences == 1 ? "" : "s"), \(expanded ? "collapse" : "expand")")
     }
 }

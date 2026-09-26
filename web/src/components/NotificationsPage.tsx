@@ -36,6 +36,7 @@ function formatWhen(d?: Date): string {
 // specifics stay local" spirit as push/push.go's own notification text.
 function describe(n: PbNotification): string {
   switch (n.type) {
+    case NotificationType.NotificationError: return "";
     case NotificationType.NotificationLikePublication: return "liked your post";
     case NotificationType.NotificationLikeComment: return "liked your comment";
     case NotificationType.NotificationNewComment: return "commented on your post";
@@ -88,6 +89,9 @@ export default function NotificationsPage({
   onAcknowledged: () => void;
 }) {
   const [notifications, setNotifications] = useState<PbNotification[] | null>(null);
+  // Issue #64: an error row's full list of errors shows on hover; a click
+  // pins it open, for touch screens and for copying the text.
+  const [pinnedDetails, setPinnedDetails] = useState<Record<string, boolean>>({});
 
   // Issue #78 follow-up: an avatar on the left (who did this) and, when
   // the notification points at a post/comment, a small thumbnail on the
@@ -133,6 +137,10 @@ export default function NotificationsPage({
   }, []);
 
   const onClickNotification = (n: PbNotification) => {
+    if (n.type === NotificationType.NotificationError) {
+      setPinnedDetails((p) => ({ ...p, [n.uuid]: !p[n.uuid] }));
+      return;
+    }
     if (n.type === NotificationType.NotificationFriendRequest || n.type === NotificationType.NotificationFriendAccepted) {
       onOpenFriendRequests();
     } else if (n.pubUuid) {
@@ -150,20 +158,42 @@ export default function NotificationsPage({
         <ul className="np-list">
           {notifications.map(n => {
             const { avatar, thumb } = images.get(n.uuid) ?? { avatar: null, thumb: null };
+            const isError = n.type === NotificationType.NotificationError;
             return (
               <li
                 key={n.uuid}
-                className={`np-item${n.acknowledged ? "" : " np-unacknowledged"}`}
+                className={`np-item${n.acknowledged ? "" : " np-unacknowledged"}${isError ? " np-error" : ""}${pinnedDetails[n.uuid] ? " np-pinned" : ""}`}
                 onClick={() => onClickNotification(n)}
+                title={isError ? undefined : undefined}
               >
-                {avatar ? (
+                {isError ? (
+                  <div className="np-avatar np-avatar-placeholder np-error-icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24">
+                      <path d="M12 3 2 21h20L12 3z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                      <path d="M12 10v5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <circle cx="12" cy="18" r="1.2" fill="currentColor" />
+                    </svg>
+                  </div>
+                ) : avatar ? (
                   <img src={avatar} className="np-avatar" alt="" />
                 ) : (
                   <div className="np-avatar np-avatar-placeholder">👤</div>
                 )}
                 <span className="np-item-text">
-                  <strong>{n.actorName || n.actorDomain}</strong> {describe(n)}
+                  {isError ? (
+                    <>
+                      {/* Issue #64: one line in the list; the whole list of
+                          errors on hover (or pinned by a click). */}
+                      <strong>{n.title}</strong>
+                      {n.occurrences > 1 && <span className="np-more"> +{n.occurrences - 1} more</span>}
+                    </>
+                  ) : (
+                    <><strong>{n.actorName || n.actorDomain}</strong> {describe(n)}</>
+                  )}
                   <span className="np-item-when"> · {formatWhen(n.dt)}</span>
+                  {isError && n.details && (
+                    <pre className="np-popover">{n.details}</pre>
+                  )}
                 </span>
                 {thumb && <img src={thumb} className="np-thumb" alt="" />}
               </li>

@@ -37,6 +37,7 @@ import (
 	//"net/http"
 	"github.com/gabriel-vasile/mimetype"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -311,6 +312,19 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 	}
 
 	return files, nil
+}
+
+// alert (issue #64) is how background processing tells the owner about a
+// file it could not handle: an Error notification in the Alerts section
+// (grouped by dao.AddErrorNotification so a failing batch is one row),
+// plus the server log as before. what completes "<file name> ..." - e.g.
+// "could not be processed".
+func (mg *Manager) alert(what string, path string, err error) {
+	log.Error(what+":", path, err)
+	title := filepath.Base(path) + " " + what
+	if e := mg.dao.AddErrorNotification(title, err.Error()); e != nil {
+		log.Error("error recording the alert:", e)
+	}
 }
 
 // ErrUploadOnly is the refusal for a delete under an upload-only folder
@@ -1001,7 +1015,9 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		// loudly and bailing out of the rest of this file's processing is
 		// the best that can be done here today.
 		if err := os.WriteFile(targetPath, session.Encrypt(content), 0644); err != nil { // perms: rw-r--r--
-			log.Error("error writing uploaded file to disk, upload not actually persisted:", targetPath, err)
+			// Issue #63/#64: the client was already told "saved" - this
+			// alert is the after-the-fact channel that was missing.
+			mg.alert("could not be saved to disk", file.Path, err)
 			return
 		}
 		log.Debug("Time writting file:", time.Since(start), targetPath)
@@ -1057,7 +1073,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			}
 			content, err = mg.heicToJpeg(content, 90, orientation)
 			if err != nil {
-				log.Error("error converting from HEIC to JPEG:", err)
+				mg.alert("could not be converted from HEIC", file.Path, err)
 				return
 			}
 		}
@@ -1068,7 +1084,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 
 		img, _, err := image.Decode(bytes.NewReader(content))
 		if err != nil {
-			log.Error("error decoding the image:", err)
+			mg.alert("could not be processed", file.Path, err)
 			return
 		}
 
@@ -1091,7 +1107,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 
 		tags, err := mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
 		if err != nil {
-			log.Error("Error processing tags:", err)
+			mg.alert("could not be tagged", file.Path, err)
 		}
 		tags = append(tags, locationTags(exif)...)
 		log.Debug("Tags:", tags)
@@ -1120,11 +1136,11 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 		// post with that photo in it then failed to ever find.
 		var buf bytes.Buffer
 		if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-			log.Error("error encoding thumbnail:", err)
+			mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
 		} else {
 			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
 			if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
-				log.Error("Error generating thumbnail:", err)
+				mg.alert("has no thumbnail (it could not be written)", file.Path, err)
 			}
 		}
 		log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
@@ -1141,7 +1157,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 
 		frames, err := extractVideoFrames(content, cVideoSampleFrames)
 		if err != nil {
-			log.Error("error extracting video frames:", err)
+			mg.alert("could not be processed", file.Path, err)
 			return
 		}
 
@@ -1177,11 +1193,11 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 		thumbImg := thumbnailSource(frames[0], maxWidth)
 		var buf bytes.Buffer
 		if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-			log.Error("error encoding video thumbnail:", err)
+			mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
 		} else {
 			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
 			if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
-				log.Error("Error generating video thumbnail:", err)
+				mg.alert("has no thumbnail (it could not be written)", file.Path, err)
 			}
 		}
 		log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)

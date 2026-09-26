@@ -1177,6 +1177,12 @@ enum NotificationType {
   NotificationNewComment = 2;
   NotificationFriendRequest = 3;
   NotificationFriendAccepted = 4;
+  // Issue #64: something went wrong on the device outside any request - a
+  // photo that could not be processed, a file that never made it to disk.
+  // Grouped: errors within five minutes of the first share one
+  // notification (see dao.AddErrorNotification), so the list is never
+  // flooded. actor fields are unused; title/details/occurrences carry it.
+  NotificationError = 5;
 }
 
 message Notification {
@@ -1203,6 +1209,12 @@ message Notification {
   // points to (pub_uuid's first file), shown at the right of the row -
   // unset for FriendRequest/FriendAccepted, which point at no post.
   optional bytes thumbnail = 10;
+  // Issue #64, NotificationError only: the one line shown in the list (the
+  // first error's), every error's line in arrival order (shown on hover or
+  // tap), and how many errors the row stands for.
+  string title = 11;
+  string details = 12;
+  int32 occurrences = 13;
 }
 
 message ReqListNotifications {

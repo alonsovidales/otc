@@ -120,8 +120,14 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
   `file_tags`, `social_publications` + likes/comments, `social_friendship`, `settings`, `profile`,
   `shared_links`, `vault`, `events`, `people`, `faces`, `image_groups` + `image_group_files`,
-  `upload_only_folders` + `file_versions`). Business logic in other packages should go
-  through `dao`, not raw SQL.
+  `upload_only_folders` + `file_versions`, `notifications`). Business logic in other packages should go
+  through `dao`, not raw SQL. Issue #64: a device-side error the owner should know about (a
+  photo that could not be processed, an upload that never reached the disk) goes into
+  `notifications` as type `Error` through `dao.AddErrorNotification` - grouped, so an error
+  within five minutes of an open Error row joins it (`details` gains a line, `occurrences`
+  goes up, the row is unread again) rather than adding a row; `files_manager.alert` is the
+  one call site helper. The clients show one line per row and the full list on hover (web)
+  or tap (iOS/Android). Never push-notify these.
 - `files_manager` — file storage, hashing, dedup on disk. Issue #132's upload-only folders live
   here: `upload_only_folders` (paths with their trailing slash, checked by prefix) refuse
   `DelPath` for anything under them with `ErrUploadOnly` (`RespEnvelope.error_code =

@@ -52,6 +52,10 @@ import cloud.offthe.otc.proto.NotificationType
 import cloud.offthe.otc.ui.common.decodeBitmap
 import cloud.offthe.otc.ui.common.relativeTime
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.ui.text.font.FontFamily
 
 // Port of NotificationsBellView.swift (issue #78): the Alerts tab.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +80,10 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
                     Text("Nothing yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
-                    items(list, key = { it.uuid }) { n -> NotificationRow(n) { model.handleTap(n) } }
+                    items(list, key = { it.uuid }) { n ->
+                        if (n.type == NotificationType.NotificationError) ErrorRow(n)
+                        else NotificationRow(n) { model.handleTap(n) }
+                    }
                 }
             }
         }
@@ -117,6 +124,39 @@ private fun NotificationRow(n: Notification, onTap: () -> Unit) {
                     modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)))
             }
         }
+    }
+}
+
+/** Issue #64: a device error, or a group of them (port of errorRow in
+ *  NotificationsBellView.swift). One line (the first error's) plus "+N
+ *  more"; a tap shows every error's line, the phone's hover. */
+@Composable
+private fun ErrorRow(n: Notification) {
+    var expanded by remember(n.uuid) { mutableStateOf(false) }
+    val bg = if (n.acknowledged) Color.Transparent else Color(0x14FFEB3B)
+    Row(
+        Modifier.fillMaxWidth().background(bg).clickable { expanded = !expanded }.padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Warning, null, tint = Color(0xFFFF9800), modifier = Modifier.size(26.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(n.title) }
+                if (n.occurrences > 1) withStyle(SpanStyle(color = Color.Gray)) { append(" +${n.occurrences - 1} more") }
+            }, style = MaterialTheme.typography.bodyMedium)
+            if (n.hasDt()) {
+                Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (expanded && n.details.isNotEmpty()) {
+                Text(n.details, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+        Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, if (expanded) "Collapse" else "Expand",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
