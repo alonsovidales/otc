@@ -63,8 +63,18 @@
 /* Issue #64: device errors in the list. One line per group; the full list
    of errors pops over the row on hover, or stays open once clicked. */
 .np-item { position: relative; }
-.np-item.np-error, .np-item.np-error:focus { outline: none; border-color: var(--line); }
-.np-error-icon { color: var(--ember); }
+/* An error row is plain text in the list: no box, no tint, no outline -
+   not on hover, not while unread, not when its pop-over is pinned. */
+.np-item.np-error, .np-item.np-error:hover, .np-item.np-error:focus, .np-item.np-error.np-unacknowledged, .np-item.np-error.np-pinned {
+  background: transparent;
+  outline: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+.np-item.np-error:last-child { border-bottom: 0; }
+.np-error-icon { color: var(--ember); background: transparent; }
 .np-more { color: var(--mist-dim); font-size: 13px; }
 .np-popover {
   display: none;
@@ -75,10 +85,10 @@
   z-index: 20;
   margin: 0;
   padding: 10px 12px;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: var(--ink-3);
+  border: 1px solid rgba(234, 242, 239, 0.25);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .55);
   color: var(--mist);
   font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre-wrap;
