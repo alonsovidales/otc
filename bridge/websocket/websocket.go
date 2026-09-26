@@ -397,7 +397,7 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 	mg = &Manager{
 		baseUrl:          baseUrl,
 		dao:              dao,
-		openRegistration: cfg.GetStr("accounts", "open-registration") == "true",
+		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
 		upgrader: gorilla.Upgrader{
 			// In production, set a proper origin check!
 			CheckOrigin: func(r *http.Request) bool { return true },

@@ -103,7 +103,7 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		dao:              d,
 		secret:           sessionSecret,
 		tld:              tld,
-		openRegistration: cfg.GetStr("accounts", "open-registration") == "true",
+		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
 		providers:        map[string]*provider{},
 		failures:         map[string][]time.Time{},
 	}

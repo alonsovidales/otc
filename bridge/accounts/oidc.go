@@ -53,6 +53,11 @@ type provider struct {
 }
 
 func (a *Accounts) loadProviders() {
+	// A bridge without an [accounts] section runs with accounts on (no
+	// open registration) and no providers - the section is optional.
+	if !cfg.HasSection("accounts") {
+		return
+	}
 	if id := cfg.GetStr("accounts", "google-client-id"); id != "" {
 		a.providers["google"] = &provider{
 			name: "google", authURL: "https://accounts.google.com/o/oauth2/v2/auth", tokenURL: "https://oauth2.googleapis.com/token",
