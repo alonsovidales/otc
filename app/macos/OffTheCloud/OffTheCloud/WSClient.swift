@@ -115,9 +115,11 @@ final class WSClient {
 
                 case .waiting(let error):
                     // Path not currently available — notify, then let state machine proceed.
+                    print("WSClient: waiting: \(error)")
                     self.onDisconnect?(error)
 
                 case .failed(let error):
+                    print("WSClient: failed: \(error)")
                     self.isOpen = false
                     self.flushAndFail(error)
                     self.onDisconnect?(error)
@@ -260,6 +262,7 @@ final class WSClient {
                     if let cont = self.waiters.removeValue(forKey: resp.id) {
                         cont.resume(returning: resp)
                     } else {
+                        print("WSClient: message \(resp.id) (\(whole.count) bytes) has no waiter; \(self.waiters.count) pending")
                         self.onPush?(resp)
                     }
                 } else {

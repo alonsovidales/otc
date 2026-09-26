@@ -749,6 +749,8 @@ final class SyncModel: ObservableObject {
         let remotePrefix = folder.remotePath.hasSuffix("/") ? folder.remotePath : folder.remotePath + "/"
 
         do {
+            let listingStart = Date()
+            syncLog.info("two-way \(folder.remotePath, privacy: .public): listing")
             let resp = try await ws.request { req in
                 var lf = ListFiles()
                 lf.path = remotePrefix
@@ -756,10 +758,12 @@ final class SyncModel: ObservableObject {
                 req.payload = .reqListFiles(lf)
             }
             if resp.error {
+                syncLog.error("two-way \(folder.remotePath, privacy: .public): listing refused: \(resp.errorMessage, privacy: .public)")
                 updateRemoteState(folder.id, .error(resp.errorMessage.isEmpty ? "Could not list remote files" : resp.errorMessage))
                 scheduleRemoteErrorRetry(for: folder)
                 return
             }
+            syncLog.info("two-way \(folder.remotePath, privacy: .public): listing answered in \(Date().timeIntervalSince(listingStart), format: .fixed(precision: 1))s")
             var remoteByRelative: [String: Msg_File] = [:]
             if case .respListOfFiles(let lof) = resp.payload {
                 for file in lof.files {
@@ -902,6 +906,7 @@ final class SyncModel: ObservableObject {
             lastSyncedByRemoteFolder[folder.id] = newSynced
             updateRemoteState(folder.id, .watching)
         } catch {
+            syncLog.error("two-way \(folder.remotePath, privacy: .public): failed: \(error.localizedDescription, privacy: .public)")
             updateRemoteState(folder.id, .error(error.localizedDescription))
             scheduleRemoteErrorRetry(for: folder)
         }
