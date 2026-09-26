@@ -97,6 +97,8 @@ CONFIG = {
 }
 
 NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
+# Issue #135: the bridge's country list, fetched once per run.
+COUNTRIES = {}
 STEP_RE = re.compile(r"\[otc-install\] \[(\d+)/(\d+)\] (.*)")
 ERROR_RE = re.compile(r"\[otc-install\] ERROR: (.*)")
 INFO_RE = re.compile(r"\[otc-install\] (.*)")
@@ -658,6 +660,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, {"networks": scan_wifi(rescan)})
         elif path == "/api/disks":
             self.send_json(200, {"disks": list_disks(), "recovery": detect_recovery()})
+        elif path == "/api/countries":
+            # Issue #135: the country picker of the account step. Fetched
+            # through the device, not by the phone's browser - the page is
+            # served from the hotspot's address, so a direct call to the
+            # bridge is cross-origin (and, on the captive portal, may not
+            # even reach it), which left the list empty.
+            global COUNTRIES
+            if not COUNTRIES:
+                try:
+                    status, data = bridge_get("/api/account/countries")
+                    if status == 200 and isinstance(data, dict):
+                        COUNTRIES = data
+                except Exception as e:  # noqa: BLE001
+                    self.send_json(502, {"error": f"could not reach {CONFIG['bridge']}: {e}"})
+                    return
+            self.send_json(200, COUNTRIES)
         elif path == "/api/name":
             name = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("name", [""])[0].strip().lower()
             if not NAME_RE.match(name):
@@ -1000,7 +1018,7 @@ function renderAccount(){const a=state.account||{};const m=acct.mode;
   else body={action:'code',setup_token:$('#a-code').value};
   const r=await post('/api/account',body);if(!r.ok){acct.msg=r.error||'Could not sign in';render();return}
   acct.msg='';acct.mode='login';await refresh();step=4;render()}}
-async function loadCountries(){if(!acct.countries){try{const r=await fetch(`https://${state.bridge}/api/account/countries`,{cache:'no-store'});acct.countries=await r.json()}catch(e){acct.countries={}}}
+async function loadCountries(){if(!acct.countries){const r=await api('/api/countries');if(r.ok){delete r.ok;delete r.status;acct.countries=r}else{$('#amsg').textContent=r.error||'Could not load the country list - check the device is online';$('#amsg').className='msg bad';return}}
  const sel=$('#a-country');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">Choose…</option>'+Object.entries(acct.countries).sort((x,y)=>x[1].localeCompare(y[1])).map(([c,n])=>`<option value="${c}" ${c===cur?'selected':''}>${esc(n)}</option>`).join('')}
 function renderName(rebind){const a=state.account||{};
  if(a.skip_bridge&&!rebind){view.innerHTML=`<h2>4 · No bridge</h2><p class="hint">You chose to continue without an account, so the device gets no internet address. On your home network it answers as <b>otc.local</b>.</p>
