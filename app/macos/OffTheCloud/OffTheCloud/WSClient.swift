@@ -41,6 +41,16 @@ final class WSClient {
 
     private let queue = DispatchQueue(label: "wsclient.serial")
     private var waiters: [Int32 : CheckedContinuation<Resp, Error>] = [:]
+    // A message Network.framework hands over in more than one piece
+    // (isComplete false until the last) is assembled here - a big folder
+    // listing used to be parsed piece by piece, fail silently, and leave
+    // its request waiting forever.
+    private var partial = Data()
+    // How long a request may wait for its reply - the same bound as
+    // otc-sync's requestTimeout. A lost reply then fails the request (and
+    // the folder pass retries) instead of hanging it, and with it every
+    // later pass of that folder, until the app is relaunched.
+    private let requestTimeout: TimeInterval = 30 * 60
     private var isOpen = false
 
     // Reconnect control
@@ -167,6 +177,12 @@ final class WSClient {
 
                     // Store the waiter before sending
                     self.waiters[req.id] = cont
+                    let id = req.id
+                    self.queue.asyncAfter(deadline: .now() + self.requestTimeout) { [weak self] in
+                        guard let self, let c = self.waiters.removeValue(forKey: id) else { return }
+                        c.resume(throwing: NSError(domain: "ws", code: -2,
+                                                   userInfo: [NSLocalizedDescriptionKey: "The device did not answer in time"]))
+                    }
 
                     // Binary WS frame
                     let meta = NWProtocolWebSocket.Metadata(opcode: .binary)
@@ -222,11 +238,12 @@ final class WSClient {
 
     // MARK: Receive loop
     private func receiveLoop() {
-        conn?.receiveMessage { [weak self] (data, ctx, _, error) in
+        conn?.receiveMessage { [weak self] (data, ctx, isComplete, error) in
             guard let self else { return }
 
             if let error = error {
                 self.isOpen = false
+                self.partial = Data()
                 self.flushAndFail(error)
                 self.onDisconnect?(error)
                 self.scheduleReconnect()
@@ -234,12 +251,19 @@ final class WSClient {
             }
 
             if let data = data, !data.isEmpty {
-                if let resp = try? Resp(serializedData: data) {
+                self.partial.append(data)
+            }
+            if isComplete && !self.partial.isEmpty {
+                let whole = self.partial
+                self.partial = Data()
+                if let resp = try? Resp(serializedData: whole) {
                     if let cont = self.waiters.removeValue(forKey: resp.id) {
                         cont.resume(returning: resp)
                     } else {
                         self.onPush?(resp)
                     }
+                } else {
+                    print("WSClient: could not decode a \(whole.count)-byte message")
                 }
             }
 
