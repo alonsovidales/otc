@@ -58,6 +58,19 @@ CREATE TABLE IF NOT EXISTS oauth_states (
   KEY (`created`)
 ) ENGINE=InnoDB;
 
-ALTER TABLE devices ADD COLUMN IF NOT EXISTS `account_id` varchar(36) DEFAULT NULL;
-ALTER TABLE devices ADD COLUMN IF NOT EXISTS `created` datetime DEFAULT NULL;
-ALTER TABLE devices ADD INDEX IF NOT EXISTS `account_id` (`account_id`);
+-- The two new devices columns. MySQL (the production bridge) has no ADD
+-- COLUMN IF NOT EXISTS - MariaDB does - so a procedure checks first.
+DROP PROCEDURE IF EXISTS otc_accounts_migrate;
+DELIMITER //
+CREATE PROCEDURE otc_accounts_migrate()
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'devices' AND column_name = 'account_id') THEN
+    ALTER TABLE devices ADD COLUMN `account_id` varchar(36) DEFAULT NULL, ADD INDEX `account_id` (`account_id`);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'devices' AND column_name = 'created') THEN
+    ALTER TABLE devices ADD COLUMN `created` datetime DEFAULT NULL;
+  END IF;
+END //
+DELIMITER ;
+CALL otc_accounts_migrate();
+DROP PROCEDURE otc_accounts_migrate;
