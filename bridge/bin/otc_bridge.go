@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/api"
 	"github.com/alonsovidales/otc/bridge/dao"
@@ -50,11 +51,15 @@ func main() {
 	}
 
 	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao)
+	// Issue #124: user accounts, sharing the admin panel's session secret
+	// (a different cookie, the same signing key).
+	acc := accounts.Init(dao, sessionSecret(), cfg.GetStr("otc-api", "tld"))
 
 	api.Init(
 		webSocket,
 		dao,
 		adm,
+		acc,
 		cfg.GetStr("otc-api", "static"),
 		int(cfg.GetInt("otc-api", "port")),
 		int(cfg.GetInt("otc-api", "ssl-port")),

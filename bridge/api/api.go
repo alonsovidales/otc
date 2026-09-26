@@ -5,6 +5,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/dao"
@@ -21,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -74,6 +77,8 @@ type API struct {
 	staticPath string
 	dao        *dao.Dao
 	admin      *admin.Admin
+	// accounts is issue #124; nil (tests) behaves like open registration.
+	accounts *accounts.Accounts
 
 	muxHTTPServer *http.ServeMux
 
@@ -88,11 +93,12 @@ type API struct {
 
 // Init Initializes the API and starts listening on the specified ports serving
 // both the HTTP API and the static content
-func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
+func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
+		accounts:          acc,
 		muxHTTPServer:     http.NewServeMux(),
 		staticPath:        staticPath,
 		lastContactByAddr: map[string]time.Time{},
@@ -136,6 +142,31 @@ func (api *API) registerAPIs() {
 	// it, not a failed bridge registration after a 20-minute install.
 	api.muxHTTPServer.HandleFunc("GET /api/name-available", api.nameAvailable)
 	api.muxHTTPServer.HandleFunc("POST /api/claim", api.claimName)
+
+	// Issue #124: accounts. Identity and sessions live in package
+	// accounts; the domains an account owns are handled here, next to the
+	// claim, since they share the name rules.
+	if api.accounts != nil {
+		acc := api.accounts
+		api.muxHTTPServer.HandleFunc("POST /api/account/signup", acc.Signup)
+		api.muxHTTPServer.HandleFunc("POST /api/account/login", acc.Login)
+		api.muxHTTPServer.HandleFunc("POST /api/account/logout", acc.Logout)
+		api.muxHTTPServer.HandleFunc("GET /api/account/me", acc.RequireAuth(acc.Me))
+		api.muxHTTPServer.HandleFunc("PUT /api/account/me", acc.RequireAuth(acc.UpdateProfile))
+		api.muxHTTPServer.HandleFunc("PUT /api/account/password", acc.RequireAuth(acc.SetPassword))
+		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token", acc.RequireAuth(acc.SetupToken))
+		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token-info", acc.SetupTokenInfo)
+		api.muxHTTPServer.HandleFunc("GET /api/account/continue", acc.RequireAuth(acc.ContinueSetup))
+		api.muxHTTPServer.HandleFunc("GET /api/account/countries", acc.CountryList)
+		api.muxHTTPServer.HandleFunc("GET /api/account/providers", acc.Providers)
+		api.muxHTTPServer.HandleFunc("GET /api/account/domains", acc.RequireAuth(api.accountDomains))
+		api.muxHTTPServer.HandleFunc("POST /api/account/domains", acc.RequireAuth(api.accountAddDomain))
+		api.muxHTTPServer.HandleFunc("POST /api/account/domains/{domain}/identity", acc.RequireAuth(api.accountNewIdentity))
+		api.muxHTTPServer.HandleFunc("DELETE /api/account/domains/{domain}", acc.RequireAuth(api.accountReleaseDomain))
+		api.muxHTTPServer.HandleFunc("GET /account/auth/{provider}/start", acc.OAuthStart)
+		api.muxHTTPServer.HandleFunc("GET /account/auth/{provider}/callback", acc.OAuthCallback)
+		api.muxHTTPServer.HandleFunc("POST /account/auth/{provider}/callback", acc.OAuthCallback)
+	}
 	api.muxHTTPServer.HandleFunc("GET /api/device-online", api.deviceOnline)
 	api.muxHTTPServer.HandleFunc("POST /api/setup-beacon", api.setupBeacon)
 	api.muxHTTPServer.HandleFunc("GET /api/setup-lookup", api.setupLookup)
@@ -438,14 +469,27 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 // time an unknown device dials in, only before the device exists. From
 // then on the device authenticates with that owner_uuid + secret like any
 // other; nothing else about it is special. 409 if the name is taken.
+//
+// Issue #124: the claim names its account, with a setup token (the body's
+// setup_token, or "Authorization: Bearer <token>") or the account page's
+// own session. A name the same account already owns is handed to the new
+// identity - that is how a lost device is replaced: run setup again,
+// signed in, pick the same name. Without an account the claim is refused
+// (401 login_required) unless [accounts] open-registration is on.
 func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name      string `json:"name"`
-		OwnerUUID string `json:"owner_uuid"`
-		Secret    string `json:"secret"`
+		Name       string `json:"name"`
+		OwnerUUID  string `json:"owner_uuid"`
+		Secret     string `json:"secret"`
+		SetupToken string `json:"setup_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	accountID := api.claimAccount(r, body.SetupToken)
+	if accountID == "" && (api.accounts != nil && !api.accounts.OpenRegistration()) {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "sign in to register a name", "code": "login_required"})
 		return
 	}
 	name := strings.ToLower(strings.TrimSpace(body.Name))
@@ -477,17 +521,38 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	api.claimMu.Unlock()
 
 	domain := api.deviceDomain(name)
-	registered, err := api.dao.IsDomainRegistered(domain)
+	owner, registered, err := api.dao.DomainAccount(domain)
 	if err != nil {
 		log.Error("error checking name before claim:", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 		return
 	}
 	if registered {
+		if accountID != "" && owner == accountID {
+			// The account's own name on a new device: the old device's
+			// identity stops working, this one takes over.
+			if ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, body.OwnerUUID, body.Secret); err != nil || !ok {
+				log.Error("error handing", domain, "to a new device:", err)
+				writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
+				return
+			}
+			log.Info("name handed to a new device by its account:", domain, "from", remoteAddr)
+			writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "replaced": true})
+			return
+		}
 		writeJSONErr(w, http.StatusConflict, "that name is already taken")
 		return
 	}
-	if err := api.dao.RegistreDevice(body.OwnerUUID, domain, body.Secret); err != nil {
+	if accountID != "" {
+		if code, msg := api.domainLimitReached(accountID); code != 0 {
+			writeJSON(w, code, map[string]any{"error": msg, "code": "domain_limit"})
+			return
+		}
+		err = api.dao.RegisterAccountDevice(accountID, body.OwnerUUID, domain, body.Secret)
+	} else {
+		err = api.dao.RegistreDevice(body.OwnerUUID, domain, body.Secret)
+	}
+	if err != nil {
 		// Lost a race with another claim for the same name, most likely.
 		log.Error("error claiming name", domain, ":", err)
 		writeJSONErr(w, http.StatusConflict, "that name is already taken")
@@ -495,6 +560,161 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Info("name claimed by the setup wizard:", domain, "from", remoteAddr)
 	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
+}
+
+// claimAccount is the account behind a claim: a setup token from the
+// body or the Authorization header, or the account page's own session.
+func (api *API) claimAccount(r *http.Request, bodyToken string) string {
+	if api.accounts == nil {
+		return ""
+	}
+	token := bodyToken
+	if auth := r.Header.Get("Authorization"); token == "" && strings.HasPrefix(auth, "Bearer ") {
+		token = strings.TrimPrefix(auth, "Bearer ")
+	}
+	if token != "" {
+		if id, ok := api.accounts.AccountForSetupToken(token); ok {
+			return id
+		}
+		return ""
+	}
+	if id, ok := api.accounts.AccountFromRequest(r); ok {
+		return id
+	}
+
+	return ""
+}
+
+// domainLimitReached is the terms' cap (accounts.MaxDomains): 0 when the
+// account may add one, else the status and message to answer with.
+func (api *API) domainLimitReached(accountID string) (int, string) {
+	n, err := api.dao.CountAccountDomains(accountID)
+	if err != nil {
+		log.Error("error counting an account's domains:", err)
+		return http.StatusInternalServerError, "could not check your account right now"
+	}
+	if n >= accounts.MaxDomains {
+		return http.StatusForbidden, fmt.Sprintf("an account can register up to %d domains - for more, write to %s", accounts.MaxDomains, accounts.ContactEmail)
+	}
+
+	return 0, ""
+}
+
+// --- Issue #124: the account page's domains ---
+
+type accountDomainJSON struct {
+	Domain   string    `json:"domain"`
+	Created  time.Time `json:"created"`
+	Disabled bool      `json:"disabled"`
+	Online   bool      `json:"online"`
+}
+
+func (api *API) accountDomainList(accountID string) ([]accountDomainJSON, error) {
+	domains, err := api.dao.ListAccountDomains(accountID)
+	if err != nil {
+		return nil, err
+	}
+	out := []accountDomainJSON{}
+	for _, d := range domains {
+		out = append(out, accountDomainJSON{Domain: d.Domain, Created: d.Created, Disabled: d.Disabled, Online: api.websocket != nil && api.websocket.IsOnline(d.Domain)})
+	}
+
+	return out, nil
+}
+
+// accountDomains lists the signed-in account's domains, with whether each
+// device is connected right now. GET /api/account/domains.
+func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID string) {
+	out, err := api.accountDomainList(accountID)
+	if err != nil {
+		log.Error("error listing an account's domains:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not list your domains right now")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"domains": out, "max_domains": accounts.MaxDomains})
+}
+
+// accountAddDomain registers a name for a device installed by hand (the
+// install script rather than the wizard): the identity is generated here
+// and shown once, for the installer's environment file. POST
+// /api/account/domains {name}.
+func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	name := strings.ToLower(strings.TrimSpace(body.Name))
+	if !cNamePattern.MatchString(name) || cReservedNames[name] {
+		writeJSONErr(w, http.StatusBadRequest, "a name is lower-case letters, digits and hyphens, up to 63 characters")
+		return
+	}
+	domain := api.deviceDomain(name)
+	if _, registered, err := api.dao.DomainAccount(domain); err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
+		return
+	} else if registered {
+		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		return
+	}
+	if code, msg := api.domainLimitReached(accountID); code != 0 {
+		writeJSON(w, code, map[string]any{"error": msg, "code": "domain_limit"})
+		return
+	}
+	owner, secret := uuid.New().String(), newSecret()
+	if err := api.dao.RegisterAccountDevice(accountID, owner, domain, secret); err != nil {
+		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		return
+	}
+	log.Info("name registered from the account page:", domain)
+	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
+}
+
+// accountNewIdentity gives one of the account's domains a fresh owner
+// uuid and secret, shown once: the old device is locked out the moment
+// this answers. For a device installed by hand; the wizard does the same
+// on its own when setup runs again with the same name. POST
+// /api/account/domains/{domain}/identity.
+func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accountID string) {
+	domain := r.PathValue("domain")
+	owner, secret := uuid.New().String(), newSecret()
+	ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, owner, secret)
+	if err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "could not re-issue that domain right now")
+		return
+	}
+	if !ok {
+		writeJSONErr(w, http.StatusNotFound, "that domain is not yours")
+		return
+	}
+	log.Info("domain re-issued from the account page:", domain)
+	writeJSON(w, http.StatusOK, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
+}
+
+// accountReleaseDomain deletes one of the account's domains; the device
+// behind it loses the bridge, the name becomes free. DELETE
+// /api/account/domains/{domain}.
+func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, accountID string) {
+	domain := r.PathValue("domain")
+	ok, err := api.dao.DeleteAccountDomain(accountID, domain)
+	if err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "could not release that domain right now")
+		return
+	}
+	if !ok {
+		writeJSONErr(w, http.StatusNotFound, "that domain is not yours")
+		return
+	}
+	log.Info("domain released from the account page:", domain)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// newSecret is a device's bridge secret as the wizard makes them: 48 hex
+// characters.
+func newSecret() string {
+	return strings.ReplaceAll(uuid.New().String()+uuid.New().String(), "-", "")[:48]
 }
 
 // deviceOnline (issue #38) answers {"online": bool} for ?name= - whether

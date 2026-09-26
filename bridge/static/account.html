@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Off The Cloud — your account</title>
+  <meta name="description" content="Sign in to see the domains registered to your Off The Cloud account, release them, replace a lost device, and get a setup code for a new one." />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    :root{
+      --ink:#10231f; --ink-2:#0b1815; --ember:#ff6b4a; --gold:#ffc857; --mist:#eaf2ef; --mist-dim:#b9c9c4;
+      --line:rgba(234,242,239,.12); --panel:rgba(234,242,239,.05); --panel-solid:#132a25; --ok:#7fd1a5; --bad:#f28b82;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.55 'Manrope',system-ui,-apple-system,sans-serif;color:var(--mist);background:var(--ink)}
+    a{color:var(--gold)}
+    header{border-bottom:1px solid var(--line);background:var(--ink-2)}
+    .nav{max-width:960px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{display:flex;align-items:center;gap:10px;color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+    .brand svg{width:28px;height:28px}
+    .nav .who{color:var(--mist-dim);font-size:14px;display:flex;gap:14px;align-items:center}
+    main{max-width:960px;margin:0 auto;padding:28px 20px 60px}
+    h1{font-family:'Unbounded',sans-serif;font-size:1.5rem;margin:0 0 6px;letter-spacing:-.01em}
+    h2{font-family:'Unbounded',sans-serif;font-size:1.05rem;margin:0 0 10px}
+    p.lead{color:var(--mist-dim);margin:0 0 22px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    @media (max-width:760px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px}
+    .card.wide{grid-column:1 / -1}
+    label{display:block;font-size:13px;color:var(--mist-dim);margin:12px 0 4px}
+    input,select{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--ink-2);color:var(--mist)}
+    input:focus,select:focus{outline:2px solid var(--ember);border-color:transparent}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .row > *{flex:1}
+    .btn{font:inherit;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid transparent;background:var(--ember);color:var(--ink-2);cursor:pointer;margin-top:14px}
+    .btn.ghost{background:transparent;color:var(--mist);border-color:var(--line)}
+    .btn.danger{background:transparent;color:var(--bad);border-color:rgba(242,139,130,.5)}
+    .btn.small{padding:6px 12px;font-size:13px;margin-top:0;flex:none}
+    .btn:disabled{opacity:.5;cursor:default}
+    .msg{margin-top:10px;font-size:14px;min-height:1.2em}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+    .hint{color:var(--mist-dim);font-size:14px;margin:0 0 8px}
+    .providers{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .providers a{flex:1;text-align:center;text-decoration:none;color:var(--mist);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
+    .providers a:hover{border-color:var(--gold)}
+    .terms{font-size:13px;color:var(--mist-dim);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px}
+    .terms b{color:var(--mist)}
+    .check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px}
+    .check input{width:auto;margin-top:3px}
+    ul.domains{list-style:none;margin:0;padding:0}
+    ul.domains li{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+    ul.domains li:first-child{border-top:0}
+    .dom{font-family:'JetBrains Mono',monospace;font-size:15px;flex:1;min-width:200px}
+    .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--mist-dim);margin-right:8px;vertical-align:1px}
+    .dot.on{background:var(--ok)}.dot.off{background:var(--bad)}
+    small{color:var(--mist-dim)}
+    .code{font-family:'JetBrains Mono',monospace;font-size:2rem;letter-spacing:.18em;text-align:center;padding:16px;border:1px dashed var(--gold);border-radius:12px;margin:12px 0 6px;user-select:all}
+    .secret{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--ink-2);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-all;user-select:all;margin-top:10px}
+    .banner{border:1px solid rgba(242,139,130,.5);color:var(--bad);border-radius:10px;padding:10px 12px;margin-bottom:18px}
+    .muted{color:var(--mist-dim)}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a class="brand" href="/">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#ffc857"/><path d="M22 46 Q22 41 26 38 L46 22 Q50 19 54 22 L74 38 Q78 41 78 46 L78 52 Q78 55 75 55 L25 55 Q22 55 22 52 Z" fill="#10231f"/><circle cx="50" cy="72" r="11" fill="#ff6b4a"/></svg>
+        Off The Cloud
+      </a>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <main>
+    <div id="banner"></div>
+    <div id="view"><p class="hint">Loading…</p></div>
+  </main>
+  <script>
+  // Issue #124: the account page. Everything here talks to /api/account/*
+  // with the session cookie; the shape of each answer is documented next
+  // to its handler in bridge/accounts and bridge/api.
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const params = new URLSearchParams(location.search);
+  const api = async (method, path, body) => {
+    const r = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin', cache: 'no-store' });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    return { ok: r.ok, status: r.status, ...j };
+  };
+  let me = null, domains = [], providers = [], terms = {}, countries = {}, maxDomains = 5;
+
+  const termsHTML = () => `<div class="terms"><b>The terms, in short.</b> The bridge is free for the first <b>${esc(terms.free_years)} years</b> after you sign up; after that it costs <b>${esc(terms.price_per_year_eur)} € a year</b> (we will email you before then - there is nothing to pay today). An account can register up to <b>${esc(terms.max_domains)} domains</b>; extra ones are ${esc(terms.extra_domain_eur)} € each a year - write to <a href="mailto:${esc(terms.contact)}">${esc(terms.contact)}</a>. An account unused for ${esc(terms.inactive_months)} months is removed and its domains released. We keep only your name, country of residence and email.</div>`;
+  const providerButtons = (ret) => providers.length ? `<div class="providers">${providers.map(p => `<a href="/account/auth/${p}/start${ret ? '?return=' + encodeURIComponent(ret) : ''}">Continue with ${p === 'google' ? 'Google' : 'Apple'}</a>`).join('')}</div>` : '';
+  const countryOptions = (sel) => `<option value="">Choose…</option>` + Object.entries(countries).sort((a, b) => a[1].localeCompare(b[1])).map(([c, n]) => `<option value="${c}" ${c === sel ? 'selected' : ''}>${esc(n)}</option>`).join('');
+
+  function banner(text, kind) { $('#banner').innerHTML = text ? `<div class="banner" style="${kind === 'ok' ? 'color:var(--ok);border-color:rgba(127,209,165,.5)' : ''}">${esc(text)}</div>` : ''; }
+
+  async function load() {
+    const [p, c] = await Promise.all([api('GET', '/api/account/providers'), api('GET', '/api/account/countries')]);
+    providers = p.providers || []; terms = p.terms || {}; countries = c.ok ? c : {};
+    delete countries.ok; delete countries.status;
+    const r = await api('GET', '/api/account/me');
+    me = r.ok ? r.account : null;
+    if (me) { const d = await api('GET', '/api/account/domains'); domains = d.domains || []; maxDomains = d.max_domains || 5; }
+    if (params.get('error')) banner(params.get('error'));
+    render();
+  }
+
+  function render() {
+    $('#who').innerHTML = me ? `<span>${esc(me.email)}</span><button class="btn ghost small" id="out">Sign out</button>` : '';
+    const out = $('#out'); if (out) out.onclick = async () => { await api('POST', '/api/account/logout'); location.href = '/account'; };
+    if (!me) return renderSignedOut();
+    if (!me.profile_complete || params.get('complete') === '1') return renderComplete();
+    renderAccount();
+  }
+
+  function renderSignedOut() {
+    const signup = params.get('signup') === '1';
+    $('#view').innerHTML = `<h1>Your Off The Cloud account</h1>
+      <p class="lead">One account holds the domains of your devices: sign in here to see them, replace a lost device, or get a code for setting up a new one.</p>
+      <div class="grid">
+        <div class="card"><h2>Sign in</h2>
+          <label>Email</label><input id="li-email" type="email" autocomplete="email">
+          <label>Password</label><input id="li-pass" type="password" autocomplete="current-password">
+          <button class="btn" id="li-go">Sign in</button><div class="msg" id="li-msg"></div>
+          ${providerButtons('')}
+        </div>
+        <div class="card"><h2>Create an account</h2>
+          <div class="row"><div><label>Name</label><input id="su-name" autocomplete="given-name"></div><div><label>Surname</label><input id="su-surname" autocomplete="family-name"></div></div>
+          <label>Country of residence</label><select id="su-country">${countryOptions('')}</select>
+          <label>Email</label><input id="su-email" type="email" autocomplete="email">
+          <label>Password <small>(8 characters or more)</small></label><input id="su-pass" type="password" autocomplete="new-password">
+          ${termsHTML()}
+          <label class="check"><input type="checkbox" id="su-terms"> <span>I accept the terms above.</span></label>
+          <button class="btn" id="su-go">Create account</button><div class="msg" id="su-msg"></div>
+          ${providers.length ? `<p class="hint" style="margin-top:12px">Or create it with a sign-in provider:</p>${providerButtons('')}` : ''}
+        </div>
+      </div>`;
+    if (signup) $('#su-name').focus(); else $('#li-email').focus();
+    $('#li-go').onclick = async () => {
+      $('#li-msg').textContent = ''; $('#li-go').disabled = true;
+      const r = await api('POST', '/api/account/login', { email: $('#li-email').value, password: $('#li-pass').value });
+      $('#li-go').disabled = false;
+      if (!r.ok) { $('#li-msg').textContent = r.error || 'Could not sign in'; $('#li-msg').className = 'msg bad'; return; }
+      location.href = '/account' + (params.get('return') ? '?complete=0&return=' + encodeURIComponent(params.get('return')) : '');
+    };
+    $('#li-pass').onkeydown = (e) => { if (e.key === 'Enter') $('#li-go').click(); };
+    $('#su-go').onclick = async () => {
+      $('#su-msg').textContent = ''; $('#su-go').disabled = true;
+      const r = await api('POST', '/api/account/signup', { name: $('#su-name').value, surname: $('#su-surname').value, country: $('#su-country').value, email: $('#su-email').value, password: $('#su-pass').value, accept_terms: $('#su-terms').checked });
+      $('#su-go').disabled = false;
+      if (!r.ok) { $('#su-msg').textContent = r.error || 'Could not create the account'; $('#su-msg').className = 'msg bad'; return; }
+      location.href = '/account';
+    };
+  }
+
+  function renderComplete() {
+    const ret = params.get('return') || '';
+    $('#view').innerHTML = `<h1>${me.profile_complete ? 'Your details' : 'Almost there'}</h1>
+      <p class="lead">${me.profile_complete ? 'Update the details on your account.' : 'We need a name and your country of residence to finish creating the account.'}</p>
+      <div class="card" style="max-width:520px">
+        <div class="row"><div><label>Name</label><input id="c-name" value="${esc(me.name)}"></div><div><label>Surname</label><input id="c-surname" value="${esc(me.surname)}"></div></div>
+        <label>Country of residence</label><select id="c-country">${countryOptions(me.country)}</select>
+        <label>Email</label><input value="${esc(me.email)}" disabled>
+        ${me.profile_complete ? '' : termsHTML()}
+        <button class="btn" id="c-go">${ret ? 'Save and continue the setup' : 'Save'}</button>
+        ${me.profile_complete ? '<button class="btn ghost" id="c-back">Back</button>' : ''}
+        <div class="msg" id="c-msg"></div>
+      </div>`;
+    $('#c-go').onclick = async () => {
+      $('#c-go').disabled = true;
+      const r = await api('PUT', '/api/account/me', { name: $('#c-name').value, surname: $('#c-surname').value, country: $('#c-country').value });
+      $('#c-go').disabled = false;
+      if (!r.ok) { $('#c-msg').textContent = r.error || 'Could not save'; $('#c-msg').className = 'msg bad'; return; }
+      if (ret) { location.href = '/api/account/continue?return=' + encodeURIComponent(ret); return; }
+      location.href = '/account';
+    };
+    const back = $('#c-back'); if (back) back.onclick = () => { location.href = '/account'; };
+  }
+
+  function renderAccount() {
+    const free = me.free_until ? new Date(me.free_until).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    $('#view').innerHTML = `<h1>Hello, ${esc(me.name)}</h1>
+      <p class="lead">${esc(domains.length)} of ${esc(maxDomains)} domains registered · free until <b>${esc(free)}</b> · <a href="/account?complete=1">your details</a></p>
+      <div class="grid">
+        <div class="card"><h2>Setting up a device?</h2>
+          <p class="hint">Flash the image, join its "Off The Cloud" WiFi and follow the setup. At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes.</p>
+          <div id="code"></div>
+          <button class="btn" id="code-go">Get a setup code</button>
+          <p class="hint" style="margin-top:12px">Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.</p>
+        </div>
+        <div class="card"><h2>Installing by hand?</h2>
+          <p class="hint">For a device installed with the install script rather than the image: register its name here and put the identity you get into <code>/etc/otc/otc-install.env</code> before running the script (it is shown once).</p>
+          <label>Name</label><div class="row"><input id="add-name" placeholder="e.g. casa" autocapitalize="none" spellcheck="false"><span class="muted" style="flex:none">.${esc(location.hostname)}</span></div>
+          <button class="btn ghost" id="add-go" ${domains.length >= maxDomains ? 'disabled' : ''}>Register the name</button><div class="msg" id="add-msg"></div>
+          <div id="add-out"></div>
+        </div>
+        <div class="card wide"><h2>Your domains</h2>
+          ${domains.length ? `<ul class="domains">${domains.map(d => `<li>
+              <span class="dom"><span class="dot ${d.online ? 'on' : 'off'}" title="${d.online ? 'connected' : 'not connected'}"></span>${esc(d.domain)}</span>
+              <small>${d.online ? 'connected' : 'not connected'}${d.disabled ? ' · disabled' : ''}${d.created && !d.created.startsWith('0001') ? ' · since ' + new Date(d.created).toLocaleDateString() : ''}</small>
+              <button class="btn ghost small" data-identity="${esc(d.domain)}">New identity</button>
+              <button class="btn danger small" data-release="${esc(d.domain)}">Release</button>
+            </li>`).join('')}</ul>` : '<p class="hint">No domains yet. Set up a device with a setup code, or register a name for a manual install.</p>'}
+          <div id="dom-out"></div>
+        </div>
+        <div class="card wide">${termsHTML()}</div>
+      </div>`;
+    $('#code-go').onclick = async () => {
+      const r = await api('GET', '/api/account/setup-token');
+      if (!r.ok) { $('#code').innerHTML = `<div class="msg bad">${esc(r.error || 'Could not make a code')}</div>`; return; }
+      $('#code').innerHTML = `<div class="code">${esc(r.setup_token)}</div><p class="hint">Expires in ${Math.round(r.expires_in_seconds / 60)} minutes.</p>`;
+    };
+    $('#add-go').onclick = async () => {
+      $('#add-msg').textContent = ''; $('#add-go').disabled = true;
+      const r = await api('POST', '/api/account/domains', { name: $('#add-name').value });
+      $('#add-go').disabled = false;
+      if (!r.ok) { $('#add-msg').textContent = r.error || 'Could not register that name'; $('#add-msg').className = 'msg bad'; return; }
+      $('#add-out').innerHTML = identityBlock(r);
+      const d = await api('GET', '/api/account/domains'); domains = d.domains || []; renderDomainsOnly();
+    };
+    bindDomainButtons();
+  }
+
+  const identityBlock = (r) => `<p class="hint" style="margin-top:12px"><b>${esc(r.domain)}</b> is yours. Copy this now - it is not shown again:</p><div class="secret">DEVICE_UUID=${esc(r.owner_uuid)}\nBRIDGE_SECRET=${esc(r.secret)}</div>`;
+
+  function renderDomainsOnly() { render(); }
+
+  function bindDomainButtons() {
+    document.querySelectorAll('[data-identity]').forEach((b) => b.onclick = async () => {
+      const domain = b.dataset.identity;
+      if (!confirm(`Give ${domain} a new identity? The device using it now will be locked out of the bridge until it is set up with the new one.`)) return;
+      const r = await api('POST', `/api/account/domains/${encodeURIComponent(domain)}/identity`);
+      $('#dom-out').innerHTML = r.ok ? identityBlock(r) : `<div class="msg bad">${esc(r.error || 'Could not re-issue that domain')}</div>`;
+    });
+    document.querySelectorAll('[data-release]').forEach((b) => b.onclick = async () => {
+      const domain = b.dataset.release;
+      if (!confirm(`Release ${domain}? Its device loses the bridge and anyone can register that name.`)) return;
+      const r = await api('DELETE', `/api/account/domains/${encodeURIComponent(domain)}`);
+      if (!r.ok) { $('#dom-out').innerHTML = `<div class="msg bad">${esc(r.error || 'Could not release that domain')}</div>`; return; }
+      const d = await api('GET', '/api/account/domains'); domains = d.domains || []; render();
+    });
+  }
+
+  load();
+  </script>
+</body>
+</html>

@@ -18,10 +18,80 @@ create table devices
   -- left that can tell a visitor *why* the domain suddenly can't be
   -- reached, rather than a generic connection failure.
   `disabled` tinyint(1) not null default 0,
+  -- Issue #124: the account this domain belongs to (accounts.id), set by
+  -- the setup wizard's signed-in claim or the account page; NULL only for
+  -- domains from before accounts existed, or registered by a device
+  -- dialling in while [accounts] open-registration is on.
+  `account_id` varchar(36) default null,
+  `created` datetime default null,
 
   key (`owner_uuid`),
   unique (`domain`),
-  key (`domain`)
+  key (`domain`),
+  key (`account_id`)
+) engine=InnoDB;
+
+-- Issue #124: user accounts. Every domain registered belongs to one (up to
+-- 5 per account, more on request); the owner sees, releases and re-issues
+-- them at https://<bridge>/account, and replaces a lost device by running
+-- setup again, signed in, with the same name. The bridge is free for two
+-- years from sign-up (free_until); billing comes later and reads it.
+-- bridge/db/migrations/001-accounts.sql adds these to an existing bridge.
+create table accounts
+(
+  `id` varchar(36) not null,
+  `email` varchar(255) not null,
+  `name` varchar(150) not null default '',
+  `surname` varchar(150) not null default '',
+  -- ISO 3166-1 alpha-2, the country of residence; empty until a provider
+  -- sign-up completes its profile.
+  `country` varchar(2) not null default '',
+  -- bcrypt; null for an account that only ever signed in with a provider.
+  `password_hash` varchar(255) default null,
+  `created` datetime not null,
+  `last_seen` datetime not null,
+  `free_until` datetime not null,
+
+  primary key (`id`),
+  unique (`email`)
+) engine=InnoDB;
+
+-- A sign-in provider's identity for an account (google/apple + the
+-- provider's stable subject). One account can have several.
+create table account_logins
+(
+  `provider` varchar(16) not null,
+  `subject` varchar(255) not null,
+  `account_id` varchar(36) not null,
+
+  primary key (`provider`, `subject`),
+  key (`account_id`)
+) engine=InnoDB;
+
+-- One-time, short-lived tokens: purpose "setup" is what the setup wizard
+-- presents with /api/claim to say which account a new domain belongs to
+-- (also typed by hand as a setup code).
+create table account_tokens
+(
+  `token` varchar(128) not null,
+  `account_id` varchar(36) not null,
+  `purpose` varchar(16) not null,
+  `expires` datetime not null,
+
+  primary key (`token`),
+  key (`expires`)
+) engine=InnoDB;
+
+-- OAuth "state" for an in-flight provider sign-in, with where to send the
+-- browser afterwards.
+create table oauth_states
+(
+  `state` varchar(64) not null,
+  `return_url` varchar(1024) not null default '',
+  `created` datetime not null,
+
+  primary key (`state`),
+  key (`created`)
 ) engine=InnoDB;
 
 -- Bridge admin panel (issue #7): a single (or a few) operator accounts that

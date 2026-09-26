@@ -354,15 +354,35 @@ def write_env_file(identity):
     os.chmod(env_path, 0o600)
 
 
-def claim_name(name):
-    """Reserve name on the bridge with a fresh identity. Returns
-    (domain, identity) or raises with a message for the page."""
+def claim_name(name, setup_token):
+    """Reserve name on the bridge with a fresh identity, for the account
+    behind setup_token (issue #124). Returns (domain, identity) or raises
+    with a message for the page. A name the account already owns is handed
+    to this device - that is how a lost device is replaced."""
     identity = new_identity()
     status, data = bridge_post("/api/claim", {
-        "name": name, "owner_uuid": identity["DEVICE_UUID"], "secret": identity["BRIDGE_SECRET"]})
+        "name": name, "owner_uuid": identity["DEVICE_UUID"], "secret": identity["BRIDGE_SECRET"],
+        "setup_token": setup_token})
     if status != 201:
         raise RuntimeError(data.get("error", "could not reserve that name"))
     return data.get("domain", f"{name}.{CONFIG['bridge']}"), identity
+
+
+def account_sign_in(action, body):
+    """Issue #124: sign in or sign up on the bridge for the person setting
+    up, from here rather than the phone's browser - the hotspot's captive
+    DNS only lets the device itself reach the bridge. Returns (status, data):
+    data carries setup_token on success, error otherwise."""
+    return bridge_post(f"/api/account/{action}?for=setup", body)
+
+
+def setup_token_owner(token):
+    """Who a typed setup code belongs to, or None."""
+    try:
+        status, data = bridge_get("/api/account/setup-token-info?token=" + urllib.parse.quote(token))
+    except Exception:  # noqa: BLE001
+        return None
+    return data if status == 200 else None
 
 
 def db_query(sql):
@@ -442,6 +462,10 @@ class Install:
     def _run(self, name, disks):
         env = dict(os.environ)
         env["OTC_RAID_CONFIRM_WIPE"] = "yes"
+        # Issue #124: no account, no bridge - the device stays on the home
+        # network (install.sh's OTC_BRIDGE_ADDR="").
+        if load_state().get("skip_bridge"):
+            env["OTC_BRIDGE_ADDR"] = ""
         if len(disks) == 2:
             env["OTC_DISK1"], env["OTC_DISK2"] = disks
         elif len(disks) == 1:
@@ -483,6 +507,12 @@ class Install:
 
     def verify(self):
         """Wait for the device to show up on the bridge under its domain."""
+        if load_state().get("skip_bridge"):
+            # Nothing to wait for: a local-only device never dials in.
+            with self.lock:
+                self.phase = "online"
+            self.finish()
+            return
         with self.lock:
             self.phase = "verifying"
             self.detail = ""
@@ -566,6 +596,7 @@ def state_snapshot():
     join = read_json(CONFIG["join_result"], {})
     return {
         "online": bridge_reachable(),
+        "account": {"email": st.get("account_email", ""), "skip_bridge": bool(st.get("skip_bridge"))},
         "ssid": current_ssid(),
         "lan_addr": lan_address(),
         "token": setup_token(),
@@ -686,6 +717,44 @@ class Handler(BaseHTTPRequestHandler):
             threading.Thread(target=later, daemon=True).start()
             self.send_json(202, {"ok": True, "delay_s": CONFIG["join_delay_s"]})
 
+        elif path == "/api/account":
+            # Issue #124: sign in / sign up / a typed setup code / skip.
+            action = str(body.get("action", ""))
+            st = load_state()
+            if action == "skip":
+                st.update({"skip_bridge": True, "setup_token": "", "account_email": ""})
+                save_state(st)
+                self.send_json(200, {"ok": True})
+                return
+            if action == "code":
+                token = str(body.get("setup_token", "")).strip()
+                who = setup_token_owner(token)
+                if not who:
+                    self.send_json(404, {"error": "that setup code is not valid or has expired"})
+                    return
+                st.update({"skip_bridge": False, "setup_token": token, "account_email": who.get("email", "")})
+                save_state(st)
+                self.send_json(200, {"email": who.get("email", "")})
+                return
+            if action not in ("login", "signup"):
+                self.send_json(400, {"error": "unknown action"})
+                return
+            fields = {k: str(body.get(k, ""))[:255] for k in ("email", "password", "name", "surname", "country")}
+            if action == "signup":
+                fields["accept_terms"] = bool(body.get("accept_terms"))
+            try:
+                status, data = account_sign_in(action, fields)
+            except Exception as e:  # noqa: BLE001
+                self.send_json(502, {"error": f"could not reach {CONFIG['bridge']}: {e}"})
+                return
+            if status not in (200, 201) or not data.get("setup_token"):
+                self.send_json(status if status >= 400 else 502, {"error": data.get("error", "could not sign in")})
+                return
+            st.update({"skip_bridge": False, "setup_token": data["setup_token"],
+                       "account_email": (data.get("account") or {}).get("email", fields["email"])})
+            save_state(st)
+            self.send_json(200, {"email": st["account_email"]})
+
         elif path == "/api/name":
             name = str(body.get("name", "")).strip().lower()
             if not NAME_RE.match(name):
@@ -697,8 +766,11 @@ class Handler(BaseHTTPRequestHandler):
             if not rebind and st.get("name") == name and st.get("domain"):
                 self.send_json(200, {"domain": st["domain"]})
                 return
+            if not st.get("setup_token"):
+                self.send_json(401, {"error": "sign in to your Off The Cloud account first", "code": "login_required"})
+                return
             try:
-                domain, identity = claim_name(name)
+                domain, identity = claim_name(name, st["setup_token"])
                 if rebind:
                     if not CONFIG["dry_run"]:
                         rebind_recovered_device(domain, identity)
@@ -717,6 +789,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(409, {"error": str(e)})
                 return
             self.send_json(200, {"domain": domain})
+
+        elif path == "/api/local-name":
+            # Issue #124: no bridge - the device is "otc" on the home
+            # network; an identity is still written so install.sh has one.
+            st = load_state()
+            if not st.get("skip_bridge"):
+                self.send_json(400, {"error": "an account was chosen"})
+                return
+            identity = new_identity()
+            write_env_file(identity)
+            st.update({"name": "otc", "domain": ""})
+            save_state(st)
+            self.send_json(200, {"domain": ""})
 
         elif path == "/api/install":
             st = load_state()
@@ -804,22 +889,22 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding
 a{color:var(--ember)}
 </style></head><body><main>
 <h1>Off The Cloud</h1><p class="lead">Let's set up your device.</p>
-<ol class="steps"><li id="s1"></li><li id="s2"></li><li id="s3"></li><li id="s4"></li></ol>
+<ol class="steps"><li id="s1"></li><li id="s2"></li><li id="s3"></li><li id="s4"></li><li id="s5"></li></ol>
 <div id="view" class="card">Loading…</div>
 </main>
 <script>
 const $=s=>document.querySelector(s);const view=$('#view');
-let state=null,step=1,wifi={list:[],sel:null,joining:false},name={val:'',ok:null,domain:'',msg:''},disks={list:[],sel:[],recovery:null,loaded:false,wipe:false};
+let state=null,step=1,wifi={list:[],sel:null,joining:false},name={val:'',ok:null,domain:'',msg:''},disks={list:[],sel:[],recovery:null,loaded:false,wipe:false},acct={mode:'login',msg:'',busy:false,countries:null};
 const api=async(p,o)=>{const r=await fetch(p,Object.assign({cache:'no-store'},o||{}));let j={};try{j=await r.json()}catch(e){}return{ok:r.ok,status:r.status,...j}};
 const post=(p,b)=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function marks(){for(let i=1;i<=4;i++){const li=$('#s'+i);li.className=i<step?'done':i===step?'on':''}}
+function marks(){for(let i=1;i<=5;i++){const li=$('#s'+i);li.className=i<step?'done':i===step?'on':''}}
 let lastKey='';
 async function refresh(){let st;try{st=await api('/api/state')}catch(e){return}
  const first=state===null;state=st;
  const ph=state.install.phase;const jr=state.join_result||{};
- if(state.already_installed&&ph==='idle'){step=5}
- else if(ph!=='idle'){step=4}
+ if(state.already_installed&&ph==='idle'){step=6}
+ else if(ph!=='idle'){step=5}
  else if(step===1&&state.online&&(wifi.joining||(first&&jr.ok))){wifi.joining=false;step=2;if(!disks.loaded)loadDisks()}
  // Only touch the page when something it shows has changed - a re-render
  // while someone is typing a password throws their focus away.
@@ -831,7 +916,7 @@ async function refresh(){let st;try{st=await api('/api/state')}catch(e){return}
  render()}
 function typing(){const a=document.activeElement;return a&&(a.tagName==='INPUT')&&view.contains(a)&&a.value!==''}
 function render(){marks();
- if(step===1)return renderWifi();if(step===2)return renderDisks();if(step===3)return renderName(false);if(step===4)return renderInstall();
+ if(step===1)return renderWifi();if(step===2)return renderDisks();if(step===3)return renderAccount();if(step===4)return renderName(false);if(step===5)return renderInstall();
  view.innerHTML=`<h2>Already set up</h2><p class="hint">This device has finished its setup.</p><p><a href="https://${esc(state.domain||state.bridge)}">Open ${esc(state.domain||'the app')}</a></p>`}
 function renderWifi(){const online=state&&state.online;const cur=state&&state.ssid;const jr=state&&state.join_result;
  view.innerHTML=`<h2>1 · Connect to your WiFi</h2><p class="hint">${online?`The device is online${cur?' via <b>'+esc(cur)+'</b>':''}. You can continue, or join a different network.`:'Choose the network the device should use (2.4 GHz networks are listed; it can move to 5 GHz once set up).'}</p>
@@ -877,28 +962,74 @@ function renderDisks(){const two=disks.sel.length===2;const rec=disks.recovery;
  document.querySelectorAll('#dl li[data-p]').forEach(li=>li.onclick=()=>{const p=li.dataset.p;disks.sel=disks.sel.includes(p)?disks.sel.filter(x=>x!==p):disks.sel.length<2?[...disks.sel,p]:disks.sel;render()});
  $('#rescan').onclick=loadDisks;const bk=$('#back');if(bk)bk.onclick=()=>{disks.wipe=false;disks.sel=[];render()};
  $('#go').onclick=()=>{step=3;render()}}
-function renderName(rebind){const n=rebind?3:3;
- view.innerHTML=`<h2>${rebind?'Name your recovered device':'3 · Name your device'}</h2><p class="hint">${rebind?`The device is back, but it isn't reaching the bridge as <b>${esc(state.install.domain||'its old name')}</b> - that name may have been released. Choose a name to register it again; everything else is already recovered.`:'This becomes its address on the internet, for you and for friends. Letters, digits and hyphens.'}</p>
+// Issue #124: the account step. The bridge - reaching the device from
+// anywhere, friends, sharing, push - needs an account that the device's
+// name is registered to; the device itself works without one. Sign in or
+// sign up goes through the device (the hotspot's captive DNS lets only it
+// reach the bridge); Google/Apple accounts get a setup code from the
+// account page on another device instead.
+function renderAccount(){const a=state.account||{};const m=acct.mode;
+ if(a.email&&m!=='change'){view.innerHTML=`<h2>3 · Your account</h2><p class="hint">Signed in as <b>${esc(a.email)}</b>. The device's name will be registered to this account.</p>
+  <div class="row"><button id="next">Continue</button><button class="ghost" id="change">Use another account</button></div>`;
+  $('#next').onclick=()=>{step=4;render()};$('#change').onclick=()=>{acct.mode='change';render()};return}
+ const tabs=`<div class="row" style="margin-bottom:6px"><button class="ghost" id="t-login" style="${m==='login'?'border-color:var(--ember);color:var(--ink)':''}">Sign in</button><button class="ghost" id="t-signup" style="${m==='signup'?'border-color:var(--ember);color:var(--ink)':''}">Create account</button><button class="ghost" id="t-code" style="${m==='code'?'border-color:var(--ember);color:var(--ink)':''}">I have a setup code</button></div>`;
+ const terms=`<div class="hint" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px">Free for the first <b>2 years</b>, then 19.99 € a year (we email you before, nothing to pay today). Up to <b>5 domains</b> per account, extra ones 5 € a year each - write to info@off-the.cloud. An account unused for 6 months is removed. We keep only your name, country of residence and email.</div>`;
+ let form='';
+ if(m==='login')form=`<label>Email</label><input type="text" id="a-email" autocapitalize="none" autocomplete="email" inputmode="email"><label>Password</label><input type="password" id="a-pass" autocomplete="current-password">
+  <div class="row"><button id="a-go">Sign in</button></div><p class="hint" style="margin-top:10px">Signed up with Google or Apple? Open <b>${esc(state.bridge)}/account</b> on another device, get a setup code and choose "I have a setup code".</p>`;
+ else if(m==='signup')form=`<div class="row"><div style="flex:1"><label>Name</label><input type="text" id="a-name" autocomplete="given-name"></div><div style="flex:1"><label>Surname</label><input type="text" id="a-surname" autocomplete="family-name"></div></div>
+  <label>Country of residence</label><select id="a-country" style="width:100%;font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><option value="">Loading…</option></select>
+  <label>Email</label><input type="text" id="a-email" autocapitalize="none" autocomplete="email" inputmode="email"><label>Password (8 characters or more)</label><input type="password" id="a-pass" autocomplete="new-password">${terms}
+  <label style="display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:.95rem"><input type="checkbox" id="a-terms" style="width:auto;margin-top:4px">I accept the terms above.</label>
+  <div class="row"><button id="a-go">Create account</button></div>`;
+ else form=`<label>Setup code</label><input type="text" id="a-code" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="e.g. K7PX2M4Q" style="font-family:ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase">
+  <p class="hint">On any device, open <b>${esc(state.bridge)}/account</b>, sign in (with your password, Google or Apple) and tap <b>Get a setup code</b>.</p><div class="row"><button id="a-go">Use this code</button></div>`;
+ view.innerHTML=`<h2>3 · Your Off The Cloud account</h2><p class="hint">An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost.</p>${tabs}${form}
+  <div class="msg ${acct.msg?'bad':''}" id="amsg">${esc(acct.msg)}</div>
+  <details style="margin-top:14px"><summary style="color:var(--dim);cursor:pointer">Continue without an account</summary>
+   <p class="hint" style="margin-top:8px">Without an account the device does not use the bridge. It still works as a NAS on your home network: files, photo backup from the apps and the sync clients while at home, the photo gallery, tags and people. What needs the bridge: reaching the device from outside your home, the social features (friends, posts, comments), share links that work from anywhere, and push notifications. You can create an account later and set the device up again.</p>
+   <div class="row"><button class="ghost" id="a-skip">Continue without an account</button></div></details>
+  <div class="row" style="margin-top:6px"><button class="ghost" id="back">Back</button></div>`;
+ $('#t-login').onclick=()=>{acct.mode='login';acct.msg='';render()};$('#t-signup').onclick=()=>{acct.mode='signup';acct.msg='';render()};$('#t-code').onclick=()=>{acct.mode='code';acct.msg='';render()};
+ $('#back').onclick=()=>{step=2;render()};
+ if(m==='signup')loadCountries();
+ $('#a-skip').onclick=async()=>{const r=await post('/api/account',{action:'skip'});if(!r.ok){acct.msg=r.error||'Could not continue';render();return}step=4;refresh();render()};
+ $('#a-go').onclick=async()=>{const b=$('#a-go');b.disabled=true;$('#amsg').innerHTML='<span class="spin"></span>One moment…';$('#amsg').className='msg';let body;
+  if(m==='login')body={action:'login',email:$('#a-email').value,password:$('#a-pass').value};
+  else if(m==='signup')body={action:'signup',email:$('#a-email').value,password:$('#a-pass').value,name:$('#a-name').value,surname:$('#a-surname').value,country:$('#a-country').value,accept_terms:$('#a-terms').checked};
+  else body={action:'code',setup_token:$('#a-code').value};
+  const r=await post('/api/account',body);if(!r.ok){acct.msg=r.error||'Could not sign in';render();return}
+  acct.msg='';acct.mode='login';await refresh();step=4;render()}}
+async function loadCountries(){if(!acct.countries){try{const r=await fetch(`https://${state.bridge}/api/account/countries`,{cache:'no-store'});acct.countries=await r.json()}catch(e){acct.countries={}}}
+ const sel=$('#a-country');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">Choose…</option>'+Object.entries(acct.countries).sort((x,y)=>x[1].localeCompare(y[1])).map(([c,n])=>`<option value="${c}" ${c===cur?'selected':''}>${esc(n)}</option>`).join('')}
+function renderName(rebind){const a=state.account||{};
+ if(a.skip_bridge&&!rebind){view.innerHTML=`<h2>4 · No bridge</h2><p class="hint">You chose to continue without an account, so the device gets no internet address. On your home network it answers as <b>otc.local</b>.</p>
+  <div class="row"><button id="claim">Install</button><button class="ghost" id="back">Back</button></div><div class="msg" id="nmsg"></div>`;
+  $('#back').onclick=()=>{step=3;render()};
+  $('#claim').onclick=async()=>{$('#claim').disabled=true;const r=await post('/api/local-name',{});if(!r.ok){$('#nmsg').textContent=r.error||'Could not continue';$('#nmsg').className='msg bad';$('#claim').disabled=false;return}
+   const i=await post('/api/install',{mode:'fresh',disks:disks.sel,confirm_wipe:true});if(!i.ok){$('#nmsg').textContent=i.error||'Could not start the install';$('#nmsg').className='msg bad';$('#claim').disabled=false;return}step=5;refresh()};return}
+ view.innerHTML=`<h2>${rebind?'Name your recovered device':'4 · Name your device'}</h2><p class="hint">${rebind?`The device is back, but it isn't reaching the bridge as <b>${esc(state.install.domain||'its old name')}</b> - that name may have been released. Choose a name to register it again; everything else is already recovered.`:'This becomes its address on the internet, for you and for friends. Letters, digits and hyphens.'}</p>
  <label>Device name</label><div class="row"><input type="text" id="nm" value="${esc(name.val)}" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. casa" style="flex:1"><span class="detail" style="white-space:nowrap">.${esc(state.bridge)}</span></div>
  <div class="msg ${name.ok===true?'ok':name.ok===false?'bad':''}" id="nmsg">${esc(name.msg)}</div>
  <div class="row"><button id="claim" ${name.ok?'':'disabled'}>${rebind?'Register':'Continue'}</button>${rebind?'':'<button class="ghost" id="back">Back</button>'}</div>`;
  const inp=$('#nm');inp.focus();let t;inp.oninput=()=>{name.val=inp.value.trim().toLowerCase();name.ok=null;name.msg='';clearTimeout(t);if(!name.val)return render();t=setTimeout(check,400)};
- const bk=$('#back');if(bk)bk.onclick=()=>{step=2;render()};
+ const bk=$('#back');if(bk)bk.onclick=()=>{step=3;render()};
  $('#claim').onclick=async()=>{$('#claim').disabled=true;$('#nmsg').innerHTML='<span class="spin"></span>Reserving…';const r=await post('/api/name',{name:name.val});
-  if(!r.ok){name.ok=false;name.msg=r.error||'Could not reserve that name';render();return}
+  if(!r.ok){name.ok=false;name.msg=r.error||'Could not reserve that name';if(r.code==='login_required'){step=3;acct.msg=r.error}render();return}
   name.domain=r.domain;if(rebind){refresh();return}
-  const i=await post('/api/install',{mode:'fresh',disks:disks.sel,confirm_wipe:true});if(!i.ok){name.msg=i.error||'Could not start the install';name.ok=false;render();return}step=4;refresh()}}
-async function check(){const v=name.val;const r=await api('/api/name?name='+encodeURIComponent(v));if(name.val!==v)return;if(!r.ok){name.ok=false;name.msg=r.error||'Could not check that name'}else{name.ok=r.available;name.msg=r.available?`${r.domain} is available`:`${r.domain} is already taken`}render()}
+  const i=await post('/api/install',{mode:'fresh',disks:disks.sel,confirm_wipe:true});if(!i.ok){name.msg=i.error||'Could not start the install';name.ok=false;render();return}step=5;refresh()}}
+async function check(){const v=name.val;const r=await api('/api/name?name='+encodeURIComponent(v));if(name.val!==v)return;if(!r.ok){name.ok=false;name.msg=r.error||'Could not check that name'}else{name.ok=r.available;name.msg=r.available?`${r.domain} is available`:`${r.domain} is already taken - if it is one of your own, continuing moves it to this device`;if(!r.available)name.ok=true}render()}
 function renderInstall(){const i=state.install;const pct=i.total?Math.round(100*i.step/i.total):0;const dom=i.domain||state.domain||name.domain;
+ if(i.phase==='online'&&!dom){view.innerHTML=`<h2>Ready 🎉</h2><p class="hint">Everything is installed. On your home network the device answers at</p><p style="font-size:1.2rem"><a href="http://otc.local:8080"><b>http://otc.local:8080</b></a></p><p class="hint">Open that address from any device at home - it will ask you to choose the owner password first. Want it reachable from anywhere later? Create an account at ${esc(state.bridge)} and run the setup again.</p><p class="hint">The "Off The Cloud" hotspot switches off in a minute.</p>`;return}
  if(i.phase==='online'){view.innerHTML=`<h2>Ready 🎉</h2><p class="hint">${i.recovery?'Your device is back, with everything it had.':'Everything is installed.'} From now on it lives at</p><p style="font-size:1.2rem"><a href="https://${esc(dom)}"><b>https://${esc(dom)}</b></a></p><p class="hint">Open that address in your browser - remember it, it is how you reach your device from anywhere.${i.recovery?'':' It will ask you to choose the owner password first.'}</p><p class="hint">The "Off The Cloud" hotspot switches off in a minute.</p>`;return}
  if(i.phase==='needs_name'){renderName(true);return}
- if(i.phase==='verifying'){view.innerHTML=`<h2>4 · Almost there</h2><p class="hint">Installed. Waiting for the device to connect to the bridge${dom?' as <b>'+esc(dom)+'</b>':''}…</p><div class="bar"><div style="width:100%"></div></div><div class="step"><span class="spin"></span>Checking with ${esc(state.bridge)}</div>`;return}
- if(i.phase==='offline'){view.innerHTML=`<h2>4 · Installed, but not reachable yet</h2><p class="hint">The install finished, but ${esc(state.bridge)} doesn't see <b>${esc(dom)}</b> connected. Usually this just needs a moment more.</p>
+ if(i.phase==='verifying'){view.innerHTML=`<h2>5 · Almost there</h2><p class="hint">Installed. Waiting for the device to connect to the bridge${dom?' as <b>'+esc(dom)+'</b>':''}…</p><div class="bar"><div style="width:100%"></div></div><div class="step"><span class="spin"></span>Checking with ${esc(state.bridge)}</div>`;return}
+ if(i.phase==='offline'){view.innerHTML=`<h2>5 · Installed, but not reachable yet</h2><p class="hint">The install finished, but ${esc(state.bridge)} doesn't see <b>${esc(dom)}</b> connected. Usually this just needs a moment more.</p>
   <div class="row"><button id="again">Check again</button><button class="ghost" id="anyway">Open it anyway</button></div>
   <details style="margin-top:14px"><summary style="color:var(--dim);cursor:pointer">Log</summary><pre>${esc((i.log_tail||[]).join('\n'))}</pre></details>`;
   $('#again').onclick=async()=>{await post('/api/verify');refresh()};$('#anyway').onclick=async()=>{await post('/api/finish');location.href='https://'+dom};return}
  const failed=i.phase==='failed';
- view.innerHTML=`<h2>4 · ${i.recovery?'Recovering':'Installing'}</h2><p class="hint">Downloading and setting everything up. This takes a while on a Raspberry Pi - keep the device powered.</p>
+ view.innerHTML=`<h2>5 · ${i.recovery?'Recovering':'Installing'}</h2><p class="hint">Downloading and setting everything up. This takes a while on a Raspberry Pi - keep the device powered.</p>
  ${dom&&!failed?`<p style="padding:10px 12px;border:1px solid var(--ok);border-radius:10px"><b>You can close this window and disconnect now.</b> The installation takes about 20 minutes. When it is complete, open <b>https://${esc(dom)}</b> from any network. To check the progress meanwhile, connect to the "Off The Cloud" WiFi again and this page comes back.</p>`:''}
  <div class="bar"><div style="width:${failed?100:pct}%;${failed?'background:var(--bad)':''}"></div></div>
  <div class="step">${failed?'Failed':'<span class="spin"></span>'+esc(i.text||'Starting…')} <small style="color:var(--dim)">${i.step}/${i.total}</small></div>

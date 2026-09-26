@@ -204,6 +204,36 @@ lets a device running an older build still work correctly through the bridge. `b
 holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
 independently of a device's web build.
 
+### Bridge accounts (`bridge/accounts`, issue #124)
+
+Every domain registered on the bridge belongs to an account (`devices.account_id`). The package
+owns identity and sessions: email+password sign-up/sign-in (bcrypt, per-address throttling),
+Google and Apple as plain OpenID Connect authorization-code flows in `oidc.go` (no SDK: the
+provider's JWKS is fetched and cached, the id_token verified with `golang-jwt/jwt/v5`; Apple's
+client secret is an ES256 JWT signed with the team's .p8), HMAC-signed session cookies like the
+admin panel's (`otc_account`, path `/`, same signing secret), and **setup tokens** - 8-character
+codes from an unambiguous alphabet, 15 minutes, in `account_tokens` - which are the only link
+between a wizard's claim and an account. The domains themselves are handled in `bridge/api`
+next to the claim (`accountDomains`, `accountAddDomain`, `accountNewIdentity`,
+`accountReleaseDomain`), since they share the name rules: `claimName` takes the token from the
+body or `Authorization: Bearer`, refuses with `401 login_required` when there is none (unless
+`[accounts] open-registration=true`), hands a name the same account already owns to the new
+identity (`dao.ReplaceDeviceIdentity` - how a lost device is replaced), and caps an account at
+`accounts.MaxDomains` (403 `domain_limit`). `websocket.go`'s `ReqBridgeRegister` no longer
+registers an unknown domain on dial-in unless open registration is on. The account page is
+`bridge/static/account.html` (plain JS over `/api/account/*`). The wizard's account step goes
+through the device (`/api/account` in `setup_wizard.py` proxies sign-in/sign-up with
+`?for=setup`, which returns a setup token; a typed code is checked with
+`/api/account/setup-token-info`) because the hotspot's captive DNS only lets the device reach
+the bridge - so Google/Apple users get a setup code from the account page on another device.
+"Continue without an account" sets `skip_bridge`, and `install.sh` gets `OTC_BRIDGE_ADDR=""`
+(local-only, name `otc`). Schema: `bridge/db/db.sql` + `bridge/db/migrations/001-accounts.sql`
+for an existing bridge (no updater on the bridge: run it by hand, it is idempotent). Test bed: the
+Lima VM `otc` has MariaDB; load `bridge/db/db.sql` with `mysql -f`, the migration, a
+`/tmp/etc/otc_test.ini` with `tld=bridge.test:8081` and a self-signed cert, run a linux/arm64
+build of `otc_bridge` there, and curl with `-H "Host: bridge.test:8081"` (Lima forwards the
+port; Chrome needs `--host-resolver-rules="MAP bridge.test 127.0.0.1"`).
+
 ### Desktop sync client (`app/desktop`, issues #119 and #120)
 
 `otc-sync` is the Windows and Linux counterpart of the macOS menu bar app, written in Go inside

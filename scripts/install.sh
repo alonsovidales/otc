@@ -112,7 +112,10 @@ MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
 FACE_DETECTOR_ONNX=$MODEL_DIR/face_detection_yunet_2023mar.onnx
 FACE_RECOGNIZER_ONNX=$MODEL_DIR/face_recognition_sface_2021dec_int8.onnx
 OPENCV_ZOO_RAW=https://github.com/opencv/opencv_zoo/raw/main/models
-BRIDGE_ADDR=off-the.cloud
+# Issue #124: OTC_BRIDGE_ADDR="" installs a local-only device - no bridge,
+# no domain: reachable on the home network only (the setup wizard's
+# "continue without an account"). Any other value is the bridge to use.
+BRIDGE_ADDR="${OTC_BRIDGE_ADDR-off-the.cloud}"
 STORAGE_PATH=/mnt/storage/
 UNENC_PATH=/mnt/storage/unencrypted/
 ENVIRONMENT=dev
@@ -127,10 +130,16 @@ MOUNT_POINT=/mnt/storage
 SKIP_RAID="${OTC_SKIP_RAID:-0}"
 
 SUBDOMAIN="${1:-}"
-if [ -z "$SUBDOMAIN" ]; then
+if [ -z "$SUBDOMAIN" ] && [ -n "$BRIDGE_ADDR" ]; then
     read -rp "Choose a subdomain for this device (e.g. 'pit' for pit.$BRIDGE_ADDR): " SUBDOMAIN
 fi
-[[ "$SUBDOMAIN" =~ ^[a-z0-9-]+$ ]] || die "subdomain must be lowercase letters/digits/hyphens only"
+if [ -n "$BRIDGE_ADDR" ]; then
+    [[ "$SUBDOMAIN" =~ ^[a-z0-9-]+$ ]] || die "subdomain must be lowercase letters/digits/hyphens only"
+else
+    # Local-only: the settings row still wants a name; "otc" is what the
+    # device answers to on the home network (otc.local).
+    SUBDOMAIN="${SUBDOMAIN:-otc}"
+fi
 
 # ---------------------------------------------------------------------------
 # 1. OS packages
@@ -582,9 +591,11 @@ if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; th
     done
 fi
 
+# Local-only (no bridge): the subdomain is the bare name, no ".<bridge>".
+FULL_DOMAIN="${SUBDOMAIN}${BRIDGE_ADDR:+.$BRIDGE_ADDR}"
 mysql otc <<SQL
 INSERT INTO settings (device_uuid, subdomain, bridge_secret)
-SELECT '${DEVICE_UUID}', '${SUBDOMAIN}.${BRIDGE_ADDR}', '${BRIDGE_SECRET}'
+SELECT '${DEVICE_UUID}', '${FULL_DOMAIN}', '${BRIDGE_SECRET}'
 WHERE NOT EXISTS (SELECT 1 FROM settings);
 SQL
 
@@ -729,7 +740,7 @@ echo ""
 echo "=========================================================="
 echo " OTC installed and running."
 echo " Local web UI: http://${IP:-<this-machine>}:$HTTP_PORT/"
-echo " Bridge address: ${SUBDOMAIN}.${BRIDGE_ADDR}"
+if [ -n "$BRIDGE_ADDR" ]; then echo " Bridge address: ${FULL_DOMAIN}"; else echo " Local only (no bridge): http://otc.local:${HTTP_PORT}"; fi
 echo " First 'Sign In' sets your password permanently — see README.md."
 echo " Device identity/secrets: $ENV_FILE (never share or commit it)."
 echo " Storage: $([ "$SKIP_RAID" = "1" ] && echo "$MOUNT_POINT (single disk, OTC_SKIP_RAID=1)" || echo "RAID1 on $DISK1 + $DISK2, mounted at $MOUNT_POINT")"

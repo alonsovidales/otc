@@ -179,17 +179,19 @@ func TestClaimNameReservesAFreeNameAndRefusesATakenOne(t *testing.T) {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	defer db.Close()
-	// First claim: free, inserted.
-	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+	// First claim: free, inserted (no accounts wired here, so the claim
+	// is an open registration - issue #124's account path is exercised
+	// against a real database, see the integration notes in CLAUDE.md).
+	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
 		WithArgs("newpi.off-the.cloud").
-		WillReturnRows(sqlmock.NewRows([]string{"1"}))
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectExec("insert into `devices`").
 		WithArgs("11111111-2222-3333-4444-555555555555", "newpi.off-the.cloud", "0123456789abcdef0123456789abcdef01234567").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	// Second claim (another address): already there.
-	mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
 		WithArgs("newpi.off-the.cloud").
-		WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow(nil))
 
 	api := &API{
 		muxHTTPServer:   http.NewServeMux(),

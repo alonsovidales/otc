@@ -553,3 +553,229 @@ func (dao *Dao) DeleteApnsTokenForDomain(domain, token string) (err error) {
 	_, err = dao.db.Exec("delete from `push_apns_tokens` where `domain` = ? and `token` = ?", domain, token)
 	return
 }
+
+// ---------------------------------------------------------------------
+// Issue #124: user accounts and the domains they own
+// ---------------------------------------------------------------------
+
+// Account is a row of the accounts table; PasswordHash is empty for an
+// account that only ever signed in with a provider.
+type Account struct {
+	ID           string
+	Email        string
+	Name         string
+	Surname      string
+	Country      string
+	PasswordHash string
+	Created      time.Time
+	LastSeen     time.Time
+	FreeUntil    time.Time
+}
+
+// AccountDomain is one of an account's registered domains, as the account
+// page lists them.
+type AccountDomain struct {
+	Domain   string
+	Created  time.Time
+	Disabled bool
+}
+
+func (dao *Dao) CreateAccount(a Account) error {
+	_, err := dao.db.Exec(
+		"insert into `accounts` (`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		a.ID, a.Email, a.Name, a.Surname, a.Country, sql.NullString{String: a.PasswordHash, Valid: a.PasswordHash != ""}, a.Created, a.LastSeen, a.FreeUntil)
+
+	return err
+}
+
+func (dao *Dao) scanAccount(row *sql.Row) (*Account, error) {
+	a := &Account{}
+	var hash sql.NullString
+	err := row.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &hash, &a.Created, &a.LastSeen, &a.FreeUntil)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	a.PasswordHash = hash.String
+
+	return a, nil
+}
+
+const cAccountColumns = "`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`"
+
+// GetAccount is nil, nil for an id nobody has.
+func (dao *Dao) GetAccount(id string) (*Account, error) {
+	return dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+" from `accounts` where `id` = ?", id))
+}
+
+// GetAccountByEmail is nil, nil for an email nobody has.
+func (dao *Dao) GetAccountByEmail(email string) (*Account, error) {
+	return dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+" from `accounts` where `email` = ?", email))
+}
+
+// GetAccountByLogin is the account a provider identity is linked to, or
+// nil, nil.
+func (dao *Dao) GetAccountByLogin(provider, subject string) (*Account, error) {
+	return dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+" from `accounts` where `id` = (select `account_id` from `account_logins` where `provider` = ? and `subject` = ?)", provider, subject))
+}
+
+func (dao *Dao) LinkAccountLogin(provider, subject, accountID string) error {
+	_, err := dao.db.Exec("insert ignore into `account_logins` (`provider`, `subject`, `account_id`) values (?, ?, ?)", provider, subject, accountID)
+
+	return err
+}
+
+func (dao *Dao) UpdateAccountProfile(id, name, surname, country string) error {
+	_, err := dao.db.Exec("update `accounts` set `name` = ?, `surname` = ?, `country` = ? where `id` = ?", name, surname, country, id)
+
+	return err
+}
+
+func (dao *Dao) SetAccountPassword(id, passwordHash string) error {
+	_, err := dao.db.Exec("update `accounts` set `password_hash` = ? where `id` = ?", passwordHash, id)
+
+	return err
+}
+
+// TouchAccount records activity (the terms release an account after six
+// months without any).
+func (dao *Dao) TouchAccount(id string) error {
+	_, err := dao.db.Exec("update `accounts` set `last_seen` = ? where `id` = ?", time.Now(), id)
+
+	return err
+}
+
+// SaveAccountToken stores a one-time token (see account_tokens in db.sql).
+func (dao *Dao) SaveAccountToken(token, accountID, purpose string, expires time.Time) error {
+	_, err := dao.db.Exec("insert into `account_tokens` (`token`, `account_id`, `purpose`, `expires`) values (?, ?, ?, ?)", token, accountID, purpose, expires)
+
+	return err
+}
+
+// AccountForToken is the account a live token of that purpose belongs to;
+// found is false for an unknown or expired token. Not consumed: a setup
+// token stays usable for its whole life, so a claim that fails on a taken
+// name can be retried with another name.
+func (dao *Dao) AccountForToken(token, purpose string) (accountID string, found bool, err error) {
+	err = dao.db.QueryRow("select `account_id` from `account_tokens` where `token` = ? and `purpose` = ? and `expires` > ?", token, purpose, time.Now()).Scan(&accountID)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+
+	return accountID, true, nil
+}
+
+func (dao *Dao) PruneAccountTokens() error {
+	if _, err := dao.db.Exec("delete from `account_tokens` where `expires` < ?", time.Now()); err != nil {
+		return err
+	}
+	_, err := dao.db.Exec("delete from `oauth_states` where `created` < ?", time.Now().Add(-time.Hour))
+
+	return err
+}
+
+func (dao *Dao) SaveOAuthState(state, returnURL string) error {
+	_, err := dao.db.Exec("insert into `oauth_states` (`state`, `return_url`, `created`) values (?, ?, ?)", state, returnURL, time.Now())
+
+	return err
+}
+
+// ConsumeOAuthState takes a state out and returns where its sign-in
+// should return to; found is false for an unknown or stale one.
+func (dao *Dao) ConsumeOAuthState(state string) (returnURL string, found bool, err error) {
+	var created time.Time
+	err = dao.db.QueryRow("select `return_url`, `created` from `oauth_states` where `state` = ?", state).Scan(&returnURL, &created)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	if _, err := dao.db.Exec("delete from `oauth_states` where `state` = ?", state); err != nil {
+		return "", false, err
+	}
+	if time.Since(created) > 15*time.Minute {
+		return "", false, nil
+	}
+
+	return returnURL, true, nil
+}
+
+func (dao *Dao) ListAccountDomains(accountID string) (domains []AccountDomain, err error) {
+	rows, err := dao.db.Query("select `domain`, `created`, `disabled` from `devices` where `account_id` = ? order by `created`, `domain`", accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	domains = []AccountDomain{}
+	for rows.Next() {
+		var d AccountDomain
+		var created sql.NullTime
+		if err := rows.Scan(&d.Domain, &created, &d.Disabled); err != nil {
+			return nil, err
+		}
+		d.Created = created.Time
+		domains = append(domains, d)
+	}
+
+	return domains, rows.Err()
+}
+
+func (dao *Dao) CountAccountDomains(accountID string) (n int, err error) {
+	err = dao.db.QueryRow("select count(*) from `devices` where `account_id` = ?", accountID).Scan(&n)
+
+	return
+}
+
+// DomainAccount is who owns a registered domain: registered is false for
+// a free name, accountID is empty for a domain that predates accounts.
+func (dao *Dao) DomainAccount(domain string) (accountID string, registered bool, err error) {
+	var id sql.NullString
+	err = dao.db.QueryRow("select `account_id` from `devices` where `domain` = ?", domain).Scan(&id)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+
+	return id.String, true, nil
+}
+
+// RegisterAccountDevice is RegistreDevice for a domain that belongs to an
+// account (issue #124).
+func (dao *Dao) RegisterAccountDevice(accountID, owner, domain, secret string) error {
+	_, err := dao.db.Exec("insert into `devices` (`owner_uuid`, `domain`, `secret`, `account_id`, `created`) values (?, ?, ?, ?, ?)", owner, domain, secret, accountID, time.Now())
+
+	return err
+}
+
+// ReplaceDeviceIdentity hands a domain to a new device: the owner uuid
+// and secret the old one presented stop working the moment this commits.
+// Only the owning account gets here (a lost device replaced by running
+// setup again, or "new identity" on the account page).
+func (dao *Dao) ReplaceDeviceIdentity(accountID, domain, owner, secret string) (ok bool, err error) {
+	res, err := dao.db.Exec("update `devices` set `owner_uuid` = ?, `secret` = ? where `domain` = ? and `account_id` = ?", owner, secret, domain, accountID)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+
+	return n > 0, err
+}
+
+// DeleteAccountDomain releases a domain, but only the owning account's.
+func (dao *Dao) DeleteAccountDomain(accountID, domain string) (ok bool, err error) {
+	res, err := dao.db.Exec("delete from `devices` where `domain` = ? and `account_id` = ?", domain, accountID)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+
+	return n > 0, err
+}

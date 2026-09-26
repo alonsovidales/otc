@@ -589,6 +589,46 @@ If you have configured the bridge you should be able to connect in: https://<dom
 
 **When clicking in "Sign In" it will ask you for a password, be careful because the first time, sice the password is not set, whatever you set will be your password.**
 
+## Bridge accounts
+
+Issue #124: every domain on the bridge belongs to an **account**. The setup wizard asks for it
+right before the device's name (step 3 of 5): sign in or create an account with an email and
+password, or type a **setup code** - an 8-character code from the account page, good for 15
+minutes, which is also how an account created with Google or Apple is used from the wizard (the
+hotspot's captive portal only lets the device itself reach the bridge, so the wizard never sends
+the phone off to a sign-in provider). An account keeps only a name, surname, country of residence
+and email.
+
+The terms, shown at sign-up: free for the first two years, then 19.99 € a year (an email goes out
+before the two years are up; nothing is charged today, there is no payment system yet); up to
+five domains per account, extra ones 5 € a year each by writing to info@off-the.cloud; an account
+unused for six months is removed and its domains released.
+
+**The account page**, `https://off-the.cloud/account`: sign in (password, Google or Apple where
+the bridge has them configured), see the domains with whether each device is connected, get a
+setup code, **release** a domain, or give one a **new identity** (a fresh owner uuid and bridge
+secret, shown once - the old device is locked out). For a device installed by hand with the
+install script rather than the image, register its name there first and put the identity shown
+into `/etc/otc/otc-install.env` before running the script.
+
+**A lost device** is replaced by setting up the new one signed in to the same account and giving
+it the **same name**: the name moves to the new device (a fresh identity, the old one refused
+from then on), and with the old disks recovered (see "Replacing a dead Pi") nothing else changes.
+
+**Without an account** the wizard offers "Continue without an account": the device installs
+with no bridge (`OTC_BRIDGE_ADDR=""` for the install script) and lives on the home network only,
+as `otc.local`. Everything local works - files, photo backup from the apps and the sync clients
+while at home, the gallery, tags, people. What needs the bridge: reaching the device from
+outside, the social features (friends, posts, comments), share links that work from anywhere,
+and push notifications. Setting the device up again with an account adds them later.
+
+A device that dials in with a domain no account registered is refused (the bridge tells it to
+create an account), unless the bridge runs with `[accounts] open-registration=true` - the
+pre-accounts rule, meant for forks and development. Sign in with Google / Apple needs their
+credentials in `[accounts]` (see `bridge/cfg/otc_dev.ini`); without them the account page simply
+offers email and password only. `bridge/db/migrations/001-accounts.sql` adds the tables to an
+existing bridge.
+
 ## Bridge admin panel
 
 The bridge (`bridge/`, deployed separately - see `bridge/makefile`) has a small admin panel at

@@ -382,17 +382,22 @@ func (d *deviceRelay) Close() error {
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
 type Manager struct {
-	baseUrl   string
-	dao       *dao.Dao
-	upgrader  gorilla.Upgrader
-	bridges   map[string]*bridgePool // The domain is the key and the value the pool of connections
-	bridgesMu sync.RWMutex           // guards the bridges map itself, not each pool's own contents (pool.lock does that)
+	baseUrl string
+	dao     *dao.Dao
+	// openRegistration is [accounts] open-registration (issue #124): an
+	// unknown device dialling in registers its domain on the spot. Off in
+	// production, where domains come from accounts.
+	openRegistration bool
+	upgrader         gorilla.Upgrader
+	bridges          map[string]*bridgePool // The domain is the key and the value the pool of connections
+	bridgesMu        sync.RWMutex           // guards the bridges map itself, not each pool's own contents (pool.lock does that)
 }
 
 func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 	mg = &Manager{
-		baseUrl: baseUrl,
-		dao:     dao,
+		baseUrl:          baseUrl,
+		dao:              dao,
+		openRegistration: cfg.GetStr("accounts", "open-registration") == "true",
 		upgrader: gorilla.Upgrader{
 			// In production, set a proper origin check!
 			CheckOrigin: func(r *http.Request) bool { return true },
@@ -813,7 +818,26 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// Check if we have the device already registered and if the pass is ok
 				defined, validSecret, err := mg.dao.IsValidDevice(p.ReqBridgeRegister.OwnerUuid, domain, p.ReqBridgeRegister.Secret)
 				if !defined {
-					err = mg.dao.RegistreDevice(p.ReqBridgeRegister.OwnerUuid, domain, p.ReqBridgeRegister.Secret)
+					// Issue #124: a domain is registered by its account -
+					// the setup wizard's claim or the account page - not
+					// by whoever dials in first with it. Only [accounts]
+					// open-registration keeps the old first-come rule.
+					if mg.openRegistration {
+						err = mg.dao.RegistreDevice(p.ReqBridgeRegister.OwnerUuid, domain, p.ReqBridgeRegister.Secret)
+					} else {
+						log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(), "- the domain is not registered to any account")
+						resp.Error = true
+						resp.ErrorMessage = "This domain is not registered: create an account at https://" + mg.baseHost() + "/account and add it there, or run the setup again signed in"
+						if logErr := mg.dao.LogAuthEvent(uuid.New().String(), domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "unregistered_domain"); logErr != nil {
+							log.Error("error logging auth event:", logErr)
+						}
+						respBin, _ := proto.Marshal(resp)
+						if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+							log.Error("error responding:", err)
+						}
+						conn.Close()
+						return
+					}
 				}
 
 				mg.bridgesMu.RLock()
@@ -1253,4 +1277,10 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			}
 		}
 	}
+}
+
+// baseHost is the bridge's own host ([otc-api] tld), for the account page
+// address in messages to devices.
+func (mg *Manager) baseHost() string {
+	return cfg.GetStr("otc-api", "tld")
 }
