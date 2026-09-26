@@ -239,9 +239,14 @@ func folderTitle(f config.FolderStatus) string {
 	case string(engine.StateError):
 		state = "⚠ " + f.Error
 	default:
-		if f.CurrentFile != "" {
+		switch {
+		case f.CurrentFile != "" && f.Progress > 0:
 			state = fmt.Sprintf("%d%% · %s", int(f.Progress*100), f.CurrentFile)
-		} else {
+		case f.CurrentFile != "":
+			// Issue #138: "Checking 12/300 · name" while hashing - no
+			// percentage, that is not a transfer.
+			state = f.CurrentFile
+		default:
 			state = "Checking…"
 		}
 	}

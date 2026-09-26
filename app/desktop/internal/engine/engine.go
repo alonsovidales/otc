@@ -738,7 +738,15 @@ func (e *Engine) reconcile(f config.Folder) {
 	}
 	localRemote := map[string]bool{}
 	var toUpload []uploadItem
-	for _, p := range local {
+	// Issue #138 (as SyncModel.reconcile): say which file is being checked,
+	// once a second at most - most files are answered from the hash cache
+	// in no time, the new ones are what takes a while.
+	var lastShown time.Time
+	for i, p := range local {
+		if time.Since(lastShown) > time.Second {
+			lastShown = time.Now()
+			e.setFolderState(f.ID, FolderState{Kind: StateScanning, CurrentFile: fmt.Sprintf("Checking %d/%d · %s", i+1, len(local), filepath.Base(p))})
+		}
 		rp := e.remotePathFor(p)
 		localRemote[rp] = true
 		h, err := e.cachedHash(f.ID, p)
@@ -889,13 +897,19 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// treating it as "not here" would fetch (and overwrite) something that
 	// is here, just unreadable - an evicted cloud-drive placeholder, say.
 	unreadable := map[string]bool{}
-	for _, p := range local {
+	var lastShown time.Time
+	for i, p := range local {
 		rel, err := filepath.Rel(f.LocalPath, p)
 		if err != nil {
 			continue
 		}
 		rel = filepath.ToSlash(rel)
 		localByRel[rel] = p
+		// Issue #138: which file is being checked, see reconcile().
+		if time.Since(lastShown) > time.Second {
+			lastShown = time.Now()
+			e.setRemoteState(f.ID, FolderState{Kind: StateScanning, CurrentFile: fmt.Sprintf("Checking %d/%d · %s", i+1, len(local), filepath.Base(p))})
+		}
 		if h, err := e.cachedHash(f.ID, p); err == nil {
 			localHashes[rel] = h
 		} else {
@@ -1325,6 +1339,10 @@ func Describe(st config.FolderStatus) string {
 	case string(StateError):
 		return "error: " + st.Error
 	default:
+		if st.CurrentFile != "" && st.Progress == 0 {
+			// The hashing pass: "Checking 12/400 · name" (#138).
+			return st.CurrentFile
+		}
 		if st.CurrentFile != "" {
 			return fmt.Sprintf("%d%% %s", int(st.Progress*100), st.CurrentFile)
 		}

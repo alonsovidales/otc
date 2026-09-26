@@ -587,7 +587,15 @@ final class SyncModel: ObservableObject {
             // underway. The progress bar below is reserved for real
             // mismatches only.
             var toUpload: [(url: URL, remotePath: String, hash: String, size: Int64)] = []
-            for fileURL in localFiles {
+            // Issue #138: say which file is being checked (a few times a
+            // second at most - most files are answered from the hash
+            // cache in no time, the new ones are what takes a while).
+            var lastShown = Date.distantPast
+            for (i, fileURL) in localFiles.enumerated() {
+                if Date().timeIntervalSince(lastShown) > 0.3 {
+                    lastShown = Date()
+                    updateState(folder.id, .scanning(progress: 0, currentFile: "Checking \(i + 1)/\(localFiles.count) · \(fileURL.lastPathComponent)"))
+                }
                 let remotePath = remotePathFor(fileURL.path)
                 let localHash = try? await cachedHash(for: fileURL, folderId: folder.id)
                 guard let localHash, remoteMap[remotePath] != localHash else { continue }
@@ -792,7 +800,15 @@ final class SyncModel: ObservableObject {
             // (and overwrite) something that is here, just unreadable.
             var localHashes: [String: String] = [:]
             var unreadable: Set<String> = []
+            var lastShown = Date.distantPast
+            var checked = 0
             for (relative, url) in localByRelative {
+                checked += 1
+                // Issue #138: which file is being checked, see reconcile().
+                if Date().timeIntervalSince(lastShown) > 0.3 {
+                    lastShown = Date()
+                    updateRemoteState(folder.id, .scanning(progress: 0, currentFile: "Checking \(checked)/\(localByRelative.count) · \(url.lastPathComponent)"))
+                }
                 do {
                     localHashes[relative] = try await cachedHash(for: url, folderId: folder.id)
                 } catch {
