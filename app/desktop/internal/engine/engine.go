@@ -139,6 +139,8 @@ type Engine struct {
 	// size + mtime, so the minute-by-minute two-way poll doesn't re-read
 	// a whole tree that hasn't changed (see SyncModel's localHashCache).
 	hashCache  map[string]map[string]hashEntry
+	hashDirty  map[string]bool // folders whose cache changed since it was last saved
+	hashLoaded map[string]bool // folders whose cache file has been read
 	folderBusy map[string]bool
 	onChange   func()
 	hostname   string
@@ -170,6 +172,8 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		remoteRetry:  map[string]*time.Timer{},
 		folderBusy:   map[string]bool{},
 		hashCache:    map[string]map[string]hashEntry{},
+		hashDirty:    map[string]bool{},
+		hashLoaded:   map[string]bool{},
 		onChange:     onChange,
 		hostname:     host,
 	}
@@ -298,7 +302,7 @@ func (e *Engine) dropFolderLocked(id string) {
 	}
 	delete(e.remoteHashes, id)
 	delete(e.folderStates, id)
-	delete(e.hashCache, id)
+	e.dropHashCacheLocked(id)
 	if t := e.errorRetry[id]; t != nil {
 		t.Stop()
 		delete(e.errorRetry, id)
@@ -320,7 +324,7 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 	}
 	delete(e.lastSynced, id)
 	delete(e.remoteStates, id)
-	delete(e.hashCache, id)
+	e.dropHashCacheLocked(id)
 }
 
 func (e *Engine) applySettings() {
@@ -685,6 +689,7 @@ type uploadItem struct {
 }
 
 func (e *Engine) reconcile(f config.Folder) {
+	defer e.saveHashCache(f.ID)
 	if !e.ws.IsConnected() {
 		return
 	}
@@ -831,6 +836,7 @@ type action struct {
 }
 
 func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
+	defer e.saveHashCache(f.ID)
 	if !e.ws.IsConnected() {
 		return
 	}
@@ -987,7 +993,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		if remoteWins {
 			if remoteFile != nil {
-				actions = append(actions, action{rel, actDownload, ""})
+				actions = append(actions, action{rel, actDownload, remoteHash})
 				newSynced[rel] = remoteHash
 			} else {
 				actions = append(actions, action{rel, actDeleteLocal, ""})
@@ -1018,7 +1024,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				err = e.upload(localPath, remotePath, a.hash, fi)
 			}
 		case actDownload:
-			err = e.download(remotePath, localPath)
+			err = e.download(remotePath, localPath, a.hash)
 		case actDeleteRemote:
 			err = e.deleteRemote(remotePath)
 		case actDeleteLocal:
@@ -1166,7 +1172,12 @@ func (e *Engine) upload(path, remotePath, hash string, fi os.FileInfo) error {
 	return wsclient.RespError(resp, "upload rejected")
 }
 
-func (e *Engine) download(remotePath, dest string) error {
+// expectedHash is the hash the listing gave for this path: the content
+// is checked against it before anything touches the disk (as
+// SyncModel.download: a device whose blob had gone missing used to answer
+// with empty content and no error, and the 0-byte file that made went
+// back up over the device's row on the next pass).
+func (e *Engine) download(remotePath, dest, expectedHash string) error {
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqGetFile{ReqGetFile: &pb.GetFile{Path: remotePath}}
 	})
@@ -1179,6 +1190,12 @@ func (e *Engine) download(remotePath, dest string) error {
 	file, ok := resp.Payload.(*pb.RespEnvelope_RespFile)
 	if !ok {
 		return errors.New("unexpected response")
+	}
+	if expectedHash != "" {
+		sum := sha256.Sum256(file.RespFile.Content)
+		if got := hex.EncodeToString(sum[:]); got != expectedHash {
+			return fmt.Errorf("the device sent %d bytes that don't match the file's hash - not written", len(file.RespFile.Content))
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil { // perms: rwxr-xr-x
 		return err
@@ -1298,6 +1315,7 @@ func (e *Engine) cachedHash(folderID, p string) (string, error) {
 		return "", err
 	}
 	e.mu.Lock()
+	e.loadHashCacheLocked(folderID)
 	hit, ok := e.hashCache[folderID][p]
 	e.mu.Unlock()
 	if ok && hit.size == fi.Size() && hit.modTime.Equal(fi.ModTime()) {
@@ -1312,6 +1330,7 @@ func (e *Engine) cachedHash(folderID, p string) (string, error) {
 		e.hashCache[folderID] = map[string]hashEntry{}
 	}
 	e.hashCache[folderID][p] = hashEntry{size: fi.Size(), modTime: fi.ModTime(), hash: h}
+	e.hashDirty[folderID] = true
 	e.mu.Unlock()
 
 	return h, nil

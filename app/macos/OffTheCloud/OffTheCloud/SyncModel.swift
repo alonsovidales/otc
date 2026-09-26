@@ -167,8 +167,16 @@ final class SyncModel: ObservableObject {
     // reconciled every minute, and hashing a 30 GB tree each time (as it
     // did) kept the disk and CPU busy for nothing. Only files that
     // changed since the last pass are read again.
-    private struct HashEntry { let size: Int; let modified: Date; let hash: String }
+    // The cache also lives on disk (Application Support/hashes/<folder
+    // id>.json, same shape as otc-sync's), so a relaunch doesn't start
+    // from nothing: without it every launch re-read the whole folder - 66
+    // GB on the reference Mac, minutes of "Checking i/N" - just to confirm
+    // nothing changed. Loaded the first time a folder is checked, written
+    // at the end of a pass that changed it, removed with the folder.
+    private struct HashEntry: Codable { let size: Int; let modified: Date; let hash: String }
     private var localHashCache: [UUID: [String: HashEntry]] = [:]
+    private var hashCacheLoaded: Set<UUID> = []
+    private var hashCacheDirty: Set<UUID> = []
 
     /// The content hash of `url`, from the cache when size and date still
     /// match, else freshly computed (off the main actor) and cached.
@@ -177,12 +185,49 @@ final class SyncModel: ObservableObject {
         let size = values.fileSize ?? -1
         let modified = values.contentModificationDate ?? .distantPast
         let key = url.standardizedFileURL.path
-        if let hit = localHashCache[folderId]?[key], hit.size == size, hit.modified == modified {
+        loadHashCacheIfNeeded(folderId)
+        // A date survives the JSON round trip to the microsecond, not
+        // the nanosecond, hence the tolerance rather than ==.
+        if let hit = localHashCache[folderId]?[key], hit.size == size, abs(hit.modified.timeIntervalSince(modified)) < 0.001 {
             return hit.hash
         }
         let hash = try await Task.detached(priority: .utility) { try Self.sha256Hex(of: url) }.value
         localHashCache[folderId, default: [:]][key] = HashEntry(size: size, modified: modified, hash: hash)
+        hashCacheDirty.insert(folderId)
         return hash
+    }
+
+    private static func hashCacheURL(_ folderId: UUID) -> URL? {
+        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let dir = base.appendingPathComponent("OffTheCloud/hashes", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        return dir.appendingPathComponent(folderId.uuidString + ".json")
+    }
+
+    private func loadHashCacheIfNeeded(_ folderId: UUID) {
+        guard !hashCacheLoaded.contains(folderId) else { return }
+        hashCacheLoaded.insert(folderId)
+        guard let url = Self.hashCacheURL(folderId), let data = try? Data(contentsOf: url),
+              let stored = try? JSONDecoder().decode([String: HashEntry].self, from: data) else { return }
+        localHashCache[folderId] = stored
+    }
+
+    /// Writes the folder's cache if this pass changed it; the end of
+    /// every reconcile pass calls it.
+    private func saveHashCache(_ folderId: UUID) {
+        guard hashCacheDirty.remove(folderId) != nil, let url = Self.hashCacheURL(folderId),
+              let entries = localHashCache[folderId] else { return }
+        Task.detached(priority: .utility) {
+            guard let data = try? JSONEncoder().encode(entries) else { return }
+            try? data.write(to: url, options: [.atomic, .completeFileProtection])
+        }
+    }
+
+    private func dropHashCache(_ folderId: UUID) {
+        localHashCache.removeValue(forKey: folderId)
+        hashCacheLoaded.remove(folderId)
+        hashCacheDirty.remove(folderId)
+        if let url = Self.hashCacheURL(folderId) { try? FileManager.default.removeItem(at: url) }
     }
 
     init() {
@@ -325,7 +370,7 @@ final class SyncModel: ObservableObject {
         errorRetryTasks[f.id]?.cancel()
         errorRetryTasks.removeValue(forKey: f.id)
 
-        localHashCache.removeValue(forKey: f.id)
+        dropHashCache(f.id)
         f.url.stopAccessingSecurityScopedResource()
         folders.removeAll { $0.id == f.id }
 
@@ -406,7 +451,7 @@ final class SyncModel: ObservableObject {
         remoteErrorRetryTasks[f.id]?.cancel()
         remoteErrorRetryTasks.removeValue(forKey: f.id)
 
-        localHashCache.removeValue(forKey: f.id)
+        dropHashCache(f.id)
         f.localURL.stopAccessingSecurityScopedResource()
         remoteFolders.removeAll { $0.id == f.id }
 
@@ -657,6 +702,7 @@ final class SyncModel: ObservableObject {
             updateState(folder.id, .error(error.localizedDescription))
             scheduleErrorRetry(for: folder)
         }
+        saveHashCache(folder.id)
     }
 
     // A failure here is almost always transient (a dropped connection
@@ -874,7 +920,7 @@ final class SyncModel: ObservableObject {
                 }
                 if remoteWins {
                     if let remoteHash {
-                        actions.append((relative, .download, Int(remoteFile?.size ?? 0), nil))
+                        actions.append((relative, .download, Int(remoteFile?.size ?? 0), remoteHash))
                         newSynced[relative] = remoteHash
                     } else {
                         actions.append((relative, .deleteLocal, 0, nil))
@@ -901,7 +947,7 @@ final class SyncModel: ObservableObject {
                     do {
                         switch action.kind {
                         case .upload: try await upload(localURL, to: remotePath, knownHash: action.hash)
-                        case .download: try await download(remotePath, to: localURL)
+                        case .download: try await download(remotePath, to: localURL, expectedHash: action.hash)
                         case .deleteRemote: try await delete(remotePath)
                         case .deleteLocal: try FileManager.default.removeItem(at: localURL)
                         }
@@ -926,6 +972,7 @@ final class SyncModel: ObservableObject {
             updateRemoteState(folder.id, .error(error.localizedDescription))
             scheduleRemoteErrorRetry(for: folder)
         }
+        saveHashCache(folder.id)
     }
 
     private func startRemoteWatcher(for folder: RemoteFolder) {
@@ -961,7 +1008,12 @@ final class SyncModel: ObservableObject {
         }
     }
 
-    private func download(_ remotePath: String, to dest: URL) async throws {
+    /// `expectedHash` is the hash the listing gave for this path: the
+    /// content is checked against it before anything touches the disk. A
+    /// device whose blob for the file had gone missing used to answer with
+    /// empty content and no error; written as a 0-byte file, the next
+    /// pass uploaded that emptiness back over the device's row.
+    private func download(_ remotePath: String, to dest: URL, expectedHash: String? = nil) async throws {
         let resp = try await ws.request { req in
             var gf = Msg_GetFile()
             gf.path = remotePath
@@ -974,6 +1026,12 @@ final class SyncModel: ObservableObject {
             throw NSError(domain: "sync.download", code: 2, userInfo: [NSLocalizedDescriptionKey: "unexpected response"])
         }
         try await Task.detached(priority: .utility) {
+            if let expectedHash, !expectedHash.isEmpty {
+                let got = SHA256.hash(data: file.content).map { String(format: "%02x", $0) }.joined()
+                if got != expectedHash {
+                    throw NSError(domain: "sync.download", code: 3, userInfo: [NSLocalizedDescriptionKey: "the device sent \(file.content.count) bytes that don't match the file's hash - not written"])
+                }
+            }
             try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
             try file.content.write(to: dest, options: .atomic)
             // Issue #134: the file keeps the dates it has on the device

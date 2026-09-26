@@ -720,13 +720,22 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 		file, err = mg.dao.GetFileByPath(path)
 	}
 	if err == nil {
-		encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), file.Hash))
+		// These used to be logged and swallowed - the inner err shadowed
+		// this one - so a blob missing from the disk came back as a File
+		// with empty content and no error. A two-way sync client wrote
+		// that as a 0-byte file and, on its next pass, uploaded the empty
+		// file back over the row. The owner hears about it (#64) and the
+		// client gets an error it can retry.
+		var encContent, content []byte
+		encContent, err = os.ReadFile(blobPath(file.Hash))
 		if err != nil {
-			log.Error("error reading file from:", path, err)
+			mg.alert("could not be read", path, err)
+			return nil, fmt.Errorf("the content of %s is missing on this device", path)
 		}
-		content, err := session.Decrypt(encContent)
+		content, err = session.Decrypt(encContent)
 		if err != nil {
-			log.Error("error decryptinig the data", err)
+			mg.alert("could not be decrypted", path, err)
+			return nil, fmt.Errorf("the content of %s is unreadable on this device", path)
 		}
 
 		// Issue #44: the thumbnail is already a JPEG (converted at upload
@@ -1228,6 +1237,14 @@ func (mg *Manager) HasFile(hash, cloudID string) (exists bool, err error) {
 	if err != nil {
 		return false, err
 	}
+	// A row whose blob is gone from the disk must answer "no", or the
+	// client links its path to nothing and never sends the bytes that
+	// would repair it - which is exactly how a folder stayed unreadable
+	// for days: every sync pass found the hash "already on the device".
+	if !mg.hasBlob(hash) {
+		log.Error("hash known but its content is missing, asking for an upload:", hash)
+		return false, nil
+	}
 	if err := mg.dao.SetCloudIDForHash(hash, cloudID); err != nil {
 		log.Error("error recording the cloud id:", err)
 	}
@@ -1239,7 +1256,33 @@ func (mg *Manager) HasFile(hash, cloudID string) (exists bool, err error) {
 // answered as cloud id -> hash so the client can LinkFile without ever
 // downloading the asset.
 func (mg *Manager) HasCloudIDs(ids []string) (map[string]string, error) {
-	return mg.dao.FindCloudIDs(ids)
+	found, err := mg.dao.FindCloudIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	// As HasFile: content that is not on the disk is not "already here".
+	for id, hash := range found {
+		if !mg.hasBlob(hash) {
+			log.Error("hash known but its content is missing, asking for an upload:", hash)
+			delete(found, id)
+		}
+	}
+
+	return found, nil
+}
+
+// blobPath is where the encrypted content for hash lives.
+func blobPath(hash string) string {
+	return fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
+}
+
+// hasBlob is whether the content for hash is actually on the disk, not
+// just in the database. An empty blob counts as missing: even empty
+// content encrypts to a nonce and a tag.
+func (mg *Manager) hasBlob(hash string) bool {
+	fi, err := os.Stat(blobPath(hash))
+
+	return err == nil && fi.Size() > 0
 }
 
 // LinkFile registers path as pointing at content this device already has
@@ -1256,6 +1299,9 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	}
 	if err != nil {
 		return nil, err
+	}
+	if !mg.hasBlob(hash) {
+		return nil, errors.New("the content for that hash is missing on this device: upload it instead")
 	}
 
 	if created == nil {

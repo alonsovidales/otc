@@ -138,7 +138,13 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   goes up, the row is unread again) rather than adding a row; `files_manager.alert` is the
   one call site helper. The clients show one line per row and the full list on hover (web)
   or tap (iOS/Android). Never push-notify these.
-- `files_manager` — file storage, hashing, dedup on disk. Issue #132's upload-only folders live
+- `files_manager` — file storage, hashing, dedup on disk. Content is keyed by hash, and the
+  hash-first upload (`HasFile`/`HasCloudIds` then `LinkFile`) only skips the bytes when the blob is
+  really on the disk (`hasBlob`: present and non-empty) - a database row alone once made a device
+  claim content whose blob was gone, so no client ever re-sent it and every `GetFile` came back
+  empty; `GetFile` now returns the read/decrypt error (and raises a #64 alert) instead of a File
+  with no content. The sync clients verify a download's hash before writing it, for the same
+  reason. Issue #132's upload-only folders live
   here: `upload_only_folders` (paths with their trailing slash, checked by prefix) refuse
   `DelPath` for anything under them with `ErrUploadOnly` (`RespEnvelope.error_code =
   "upload_only"`, which the sync clients treat as done rather than retry), and a second
@@ -263,7 +269,11 @@ of the upload time) and set them back on a downloaded file (`SyncModel.download`
 `engine.download` via `times_*.go` - creation time only where the platform can set one:
 macOS and Windows; Linux has no birth time to read or set, so there `created` is the mtime).
 The two-way conflict rule compares local mtime with the device's `modified`, which is why a
-downloaded file must carry the device's time and not "now". Test on Linux with the Lima VM `otc` (`limactl shell otc`, `limactl copy
+downloaded file must carry the device's time and not "now". Both keep their local hash cache on
+disk too (`Application Support/OffTheCloud/hashes/<folder id>.json` on macOS, `<config
+dir>/hashes/<folder id>.json` for otc-sync; path -> size, mtime, hash), so a relaunch doesn't
+re-read every file - the reference two-way folder is 66 GB - just to confirm nothing changed;
+the checking pass shows "Checking i/N · name" while it runs (#138). Test on Linux with the Lima VM `otc` (`limactl shell otc`, `limactl copy
 dist/otc-sync-linux-arm64 otc:/tmp/`); the tray needs a real desktop - the Lima VM is headless, so the
 Linux tray is tested on a real machine. Windows is tested in the QEMU VM under `~/VMs/win11`
 (`./run.sh` starts it: Windows 11 ARM64, user `otc`, SSH on `127.0.0.1:2222` with the Mac's key,

@@ -4,6 +4,16 @@ import SwiftUI
 
 @main
 struct CloudSyncApp: App {
+    init() {
+        // Connect and start syncing at launch. This used to happen in
+        // PopoverView.onAppear, and MenuBarExtra doesn't build its content
+        // until the icon is clicked - so after login the app sat idle,
+        // not even connected, until someone opened the popover.
+        Task { @MainActor in
+            SyncModel.shared.bind(settings: SettingsStore.shared)
+        }
+    }
+
     var body: some Scene {
         // One popover-only UI in the menu bar. PopoverView reads
         // SettingsStore.shared/SyncModel.shared directly as @ObservedObject,
