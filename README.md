@@ -155,6 +155,13 @@ an "old image": whatever you flash installs today's release.
    from your phone: the "sign in to network" sheet opens the wizard (or open a browser and go to
    any address). Wired into your router instead? Open the address your router shows for a device
    called `otc` (or `http://otc.local/` where that resolves).
+
+   **Or use the app** (issue #137): on the iOS or Android app's welcome screen, tap **Set up a
+   new device**. Until it is set up the Pi also announces itself over Bluetooth, and the app runs
+   the very same wizard over it - the steps below are identical, your phone stays on its own
+   WiFi, and when the install is done the app offers to connect to the new device straight
+   away (the first sign in sets the owner password). Already signed into another device? Log
+   out first, in Settings; the app then belongs to the device you set up.
 4. The wizard walks through four steps:
    - **WiFi**: pick your network (2.4 GHz networks are listed; the Pi can move to 5 GHz once it
      is set up) and enter its password. The Pi joins it while keeping its own hotspot up. The
@@ -214,7 +221,7 @@ and the few things listed here:
   `journalctl -u otc-setup`, and an update's is `/var/log/otc/update.log` (its current state is in
   `/var/lib/otc/update-status.json`).
 
-To build and publish the image yourself (only needed when the wizard or hotspot scripts change -
+To build and publish the image yourself (only needed when the wizard, hotspot or Bluetooth setup scripts change -
 the software it installs always comes from `main`), with `TARGET` in `makefile` pointing at any
 arm64 Linux box you can SSH to as `otc` (a Pi is fine):
 

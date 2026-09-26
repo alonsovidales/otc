@@ -92,18 +92,21 @@ cp /etc/resolv.conf "$MNT/etc/resolv.conf"
 # is what makes http://otc.local/ resolve once the person is back on
 # their own network after the WiFi step took the hotspot down. dnsmasq is
 # what NetworkManager runs DHCP + the captive-portal DNS with on the
-# hotspot.
+# hotspot. python3-dbus and python3-gi are what setup_ble.py talks to
+# BlueZ with (issue #137: the same wizard over Bluetooth LE for the apps);
+# bluez itself is already in the base image.
 chroot "$MNT" /bin/bash -c "
     set -e
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
-    apt-get install -y --no-install-recommends mdadm avahi-daemon dnsmasq-base
+    apt-get install -y --no-install-recommends mdadm avahi-daemon dnsmasq-base python3-dbus python3-gi
     systemctl enable avahi-daemon.service
 "
 
 echo "=== [4/7] Scripts, units, hostname ==="
 install -m 0755 "$SRC_REPO/scripts/setup_wizard.py"  "$MNT/usr/local/bin/setup_wizard.py"
 install -m 0755 "$SRC_REPO/scripts/network_setup.py" "$MNT/usr/local/bin/network_setup.py"
+install -m 0755 "$SRC_REPO/scripts/setup_ble.py"      "$MNT/usr/local/bin/setup_ble.py"
 
 cat > "$MNT/etc/systemd/system/network-setup.service" <<'EOF'
 [Unit]
@@ -141,6 +144,27 @@ User=root
 WantedBy=multi-user.target
 EOF
 
+# Issue #137: the wizard over Bluetooth LE, for the iOS and Android apps.
+# Same lifetime as the wizard: gone once the install is complete, and it
+# stops itself on the setup-done marker like the hotspot does.
+cat > "$MNT/etc/systemd/system/otc-setup-ble.service" <<'EOF'
+[Unit]
+Description=OTC first-boot setup over Bluetooth (issue #137)
+After=bluetooth.service otc-setup.service
+Wants=bluetooth.service otc-setup.service
+ConditionPathExists=!/etc/otc/.install-complete
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/setup_ble.py
+Restart=on-failure
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 # NetworkManager's own WiFi switch ships off on stock Raspberry Pi OS
 # (Imager/raspi-config turn it on when a country is set); network_setup.py
 # turns it on at runtime too, this just makes the first boot start right.
@@ -152,7 +176,7 @@ sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$HOSTNAME/" "$MNT/etc/hosts"
 grep -q "^127.0.1.1" "$MNT/etc/hosts" || printf '127.0.1.1\t%s\n' "$HOSTNAME" >> "$MNT/etc/hosts"
 
 echo "=== [5/7] Enable/disable services in the chroot ==="
-chroot "$MNT" systemctl enable network-setup.service otc-setup.service
+chroot "$MNT" systemctl enable network-setup.service otc-setup.service otc-setup-ble.service
 # Stock Raspberry Pi OS's own first-boot flow prompts *interactively on the
 # console* to create a user account when nothing pre-answered it (Imager's
 # Customisation step normally writes /boot/firmware/userconf.txt). This

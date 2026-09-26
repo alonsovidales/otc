@@ -32,6 +32,19 @@ struct OnboardingView: View {
                     }
                     .disabled(endpoint.isEmpty || password.isEmpty)
                 }
+                // Issue #137: a brand-new device is set up from here over
+                // Bluetooth; when it is done its address lands in the form
+                // above and the first sign in sets the owner password.
+                Section(footer: Text("For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.")) {
+                    NavigationLink {
+                        BluetoothSetupView { newEndpoint in
+                            endpoint = newEndpoint
+                            password = ""
+                        }
+                    } label: {
+                        Label("Set up a new device", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                }
             }
             .navigationTitle("Welcome")
         }

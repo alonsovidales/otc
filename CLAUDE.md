@@ -57,7 +57,22 @@ device: it assembles any existing RAID1 array (`mdadm` is the one package baked 
 and, if it holds an OTC database, offers recovery - `install.sh` reassembles instead of wiping and
 the identity in that database wins, so no name is asked; after installing it polls the bridge's
 `/api/device-online` and only asks for a name if the recovered device never shows up. It contains
-no otc code, so it only needs rebuilding when those two scripts change. The image has no SSH; its
+no otc code, so it only needs rebuilding when those scripts change. Issue #137: `scripts/setup_ble.py`
+(unit `otc-setup-ble.service`, same lifetime as the wizard, needs the image's `python3-dbus` +
+`python3-gi`) offers the *same* wizard over Bluetooth LE for the apps - one GATT service
+(`0f7c5e70-…-0001`; write chunks of a JSON request in, notify chunks of a raw-DEFLATE JSON
+answer out, MTU-3 per chunk) that forwards every request to the wizard on 127.0.0.1:80.
+`BluetoothSetupView` (iOS `.swift` / Android `.kt`) shows the wizard's page in a web view: the
+page itself comes through a scheme handler / `shouldInterceptRequest`, and a script injected
+into `<head>` swaps `fetch()` for a call into the app (`WKScriptMessageHandlerWithReply` /
+`@JavascriptInterface`), because neither web view hands POST bodies to an interceptor
+reliably. The view watches `/api/state` for `install.phase == "online"` and then offers "Use
+this device", which fills the onboarding form's endpoint (bridge name → wss, no bridge →
+`ws://otc.local:8080/ws`). `python3 scripts/setup_ble.py --selftest` checks the framing and
+forwarding without Bluetooth; for the phones, `scratchpad`'s `blesim.swift` (a CoreBluetooth
+peripheral on the Mac forwarding to a dry-run wizard, e.g. the Lima VM's on port 8090) stands
+in for a device - it needs Bluetooth permission for the terminal, which macOS prompts for. Like
+the hotspot, the Bluetooth setup is open by design and only exists before the install completes. The image has no SSH; its
 console login is `otc-debug` / `off-the-cloud` (with sudo), set in `build_image.sh` and documented
 in README.md under "Console access" - the only way into a device like Cala short of enabling SSH
 from that console.

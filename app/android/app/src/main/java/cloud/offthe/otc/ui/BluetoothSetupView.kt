@@ -1,0 +1,193 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+package cloud.offthe.otc.ui
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.net.Uri
+import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.net.BLESetupTransport
+import java.io.ByteArrayInputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+
+// Port of BluetoothSetupView.swift (issue #137): the device's own setup
+// wizard, shown in a WebView whose requests travel over Bluetooth LE to
+// scripts/setup_ble.py on the device. The page itself comes through
+// shouldInterceptRequest; its fetch() calls go through a JavaScript
+// interface (a WebView interceptor never sees POST bodies), the same
+// split as the iOS script bridge. Once the wizard reports the install
+// online, "Use this device" hands the address back to the onboarding
+// form; the first sign in sets the owner password.
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BluetoothSetupView(onUseDevice: (String) -> Unit, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val transport = remember { BLESetupTransport(context) }
+    val phase by transport.phase.collectAsState()
+    val readyDomain by transport.readyDomain.collectAsState()
+    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { transport.start() }
+    LaunchedEffect(Unit) {
+        if (BLESetupTransport.hasPermissions(context)) transport.start() else permissions.launch(BLESetupTransport.permissions())
+    }
+    DisposableEffect(Unit) { onDispose { transport.stop() } }
+
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text("Set up a new device") },
+            navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+        )
+    }) { pad ->
+        Column(Modifier.padding(pad).fillMaxSize()) {
+            if (phase is BLESetupTransport.Phase.Ready) {
+                AndroidView(factory = { makeWebView(it, transport, scope) }, modifier = Modifier.weight(1f).fillMaxWidth())
+            } else {
+                Waiting(phase, Modifier.weight(1f))
+            }
+            readyDomain?.let { domain ->
+                Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (domain.isEmpty()) "The device is ready on your home network." else "The device is ready as $domain.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Button(onClick = { onUseDevice(endpointForDomain(domain)) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Use this device in the app")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Waiting(phase: BLESetupTransport.Phase, modifier: Modifier) {
+    Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(Modifier.weight(1f))
+        val (title, hint) = when (phase) {
+            is BLESetupTransport.Phase.Connecting -> "Connecting…" to ""
+            is BLESetupTransport.Phase.Off -> "Bluetooth is off" to "Turn Bluetooth on to find the device."
+            is BLESetupTransport.Phase.Unauthorized -> "Bluetooth access is needed" to "Allow nearby devices for Off The Cloud in Settings to set a device up this way."
+            else -> "Looking for a device to set up…" to "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it."
+        }
+        if (phase is BLESetupTransport.Phase.Off || phase is BLESetupTransport.Phase.Unauthorized) Spacer(Modifier.height(8.dp)) else CircularProgressIndicator()
+        Spacer(Modifier.height(14.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        if (hint.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        }
+        Spacer(Modifier.weight(1f))
+        Text(
+            "No Bluetooth? Join the device's own \"Off The Cloud\" WiFi instead and the same setup opens in the browser.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** A bridge domain becomes the usual wss endpoint; without the bridge the device answers as otc.local. */
+fun endpointForDomain(domain: String): String = when {
+    domain.isEmpty() -> "ws://otc.local:8080/ws"
+    domain.endsWith("." + SecretsStore.bridgeDomain) -> SecretsStore.bridgeEndpoint(domain.dropLast(SecretsStore.bridgeDomain.length + 1))
+    else -> "wss://$domain/ws"
+}
+
+/** What the page runs before its own script: fetch() → the app. */
+private const val FETCH_OVERRIDE = "<script>window.__otcId=0;window.__otcCb={};" +
+    "window.__otcAnswer=function(id,j){var cb=window.__otcCb[id];delete window.__otcCb[id];if(cb)cb(JSON.parse(j))};" +
+    "window.fetch=function(u,o){o=o||{};var m=(o.method||'GET').toUpperCase();var b=o.body?String(o.body):'';" +
+    "return new Promise(function(res){var id=++window.__otcId;window.__otcCb[id]=function(r){res(new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}}))};" +
+    "OTCSetup.request(id,m,String(u),b)})};</script>"
+
+private fun pathOf(url: String): String =
+    if (url.contains("://")) Uri.parse(url).let { (it.encodedPath.orEmpty().ifEmpty { "/" }) + (it.encodedQuery?.let { q -> "?$q" } ?: "") } else url
+
+private class Bridge(private val webView: WebView, private val transport: BLESetupTransport, private val scope: CoroutineScope) {
+    @JavascriptInterface
+    fun request(id: Int, method: String, url: String, body: String) {
+        scope.launch(Dispatchers.IO) {
+            val reply = try {
+                val a = transport.request(method, pathOf(url), body.ifEmpty { null })
+                JSONObject().put("s", a.status).put("t", a.contentType).put("b", a.body)
+            } catch (e: Exception) {
+                JSONObject().put("s", 503).put("t", "application/json").put("b", JSONObject().put("error", e.message ?: "failed").toString())
+            }
+            withContext(Dispatchers.Main) { webView.evaluateJavascript("window.__otcAnswer($id, ${JSONObject.quote(reply.toString())})", null) }
+        }
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+private fun makeWebView(context: Context, transport: BLESetupTransport, scope: CoroutineScope): WebView = WebView(context).apply {
+    settings.javaScriptEnabled = true
+    settings.domStorageEnabled = true
+    setBackgroundColor(0xFF1E1F22.toInt()) // the wizard's own background
+    addJavascriptInterface(Bridge(this, transport, scope), "OTCSetup")
+    webViewClient = object : WebViewClient() {
+        // Runs on a background thread, so blocking on the round trip is fine.
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+            if (request.url.host != "device") return null
+            val path = pathOf(request.url.toString())
+            val a = try {
+                runBlocking { transport.request(request.method, path, null) }
+            } catch (e: Exception) {
+                BLESetupTransport.Answer(503, "application/json", JSONObject().put("error", e.message ?: "failed").toString())
+            }
+            var body = a.body
+            if (a.contentType.startsWith("text/html")) body = body.replaceFirst("<head>", "<head>$FETCH_OVERRIDE")
+            val mime = a.contentType.substringBefore(';').trim()
+            return WebResourceResponse(mime, "utf-8", a.status, reason(a.status), mapOf("Cache-Control" to "no-store"), ByteArrayInputStream(body.toByteArray()))
+        }
+    }
+    loadUrl("https://device/")
+}
+
+private fun reason(status: Int): String = when (status) {
+    200 -> "OK"; 202 -> "Accepted"; 400 -> "Bad Request"; 404 -> "Not Found"; 409 -> "Conflict"; 503 -> "Service Unavailable"
+    else -> "Status $status"
+}

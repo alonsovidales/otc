@@ -33,6 +33,14 @@ import cloud.offthe.otc.ui.common.ConnectionEndpointFields
 fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     var endpoint by remember { mutableStateOf(secrets.endpoint.value) }
     var password by remember { mutableStateOf(secrets.password.value) }
+    // Issue #137: a brand-new device is set up from here over Bluetooth;
+    // when it is done its address lands in the form and the first sign in
+    // sets the owner password.
+    var setupOpen by remember { mutableStateOf(false) }
+    if (setupOpen) {
+        BluetoothSetupView(onUseDevice = { endpoint = it; password = ""; setupOpen = false }, onClose = { setupOpen = false })
+        return
+    }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Welcome") }) }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize().padding(16.dp)) {
@@ -57,6 +65,15 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 enabled = endpoint.isNotEmpty() && password.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Save & Continue") }
+            Spacer(Modifier.height(28.dp))
+            androidx.compose.material3.OutlinedButton(onClick = { setupOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Set up a new device")
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
