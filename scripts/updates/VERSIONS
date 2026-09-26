@@ -52,3 +52,4 @@
 11	-	69ba3da7e5c1c9f5c6c20eb2b023986cc264c5dcb825405e8f1ec23072f33431	Signing out of the web app, or logging out of the iOS app, now tells the device to stop sending push notifications to that browser or phone (#131)
 12	6d5384d1a3ce5bb0450f4b4662e5af0c67c4430f762b932b274d2eb49e3ee425	52335df8440562fef79e456cd5c27a9b0dd5aa4411b62bfff737f4da68d7282f	Errors while processing uploaded photos and videos now show up in Alerts, grouped so a failing batch is one entry with the full list on hover or tap (#64)
 13	-	b069f93a2b89261abb53f65bbbc1269b2fa29b2cffca7cd03e0cb875520bb234	Web: the full list of errors behind an Alerts entry now shows on hover (#64)
+14	-	a5169ae3baf0907181944afd50a58b5b889084616787a87b9e6837365d656497	Web: Alerts error entries are plain rows and their pop-over is readable (#64)
