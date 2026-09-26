@@ -13,8 +13,13 @@
   background: var(--ink-2);
   border: 1px solid var(--line);
   border-radius: 10px;
-  overflow: hidden;
+  /* Not hidden: issue #64's pop-over hangs below its row, past the list's
+     edge for the last one. The corners are kept by the first/last rows. */
+  overflow: visible;
 }
+.np-item:first-child { border-radius: 9px 9px 0 0; }
+.np-item:last-child { border-radius: 0 0 9px 9px; }
+.np-item:only-child { border-radius: 9px; }
 .np-item {
   display: flex;
   align-items: center;
@@ -58,6 +63,7 @@
 /* Issue #64: device errors in the list. One line per group; the full list
    of errors pops over the row on hover, or stays open once clicked. */
 .np-item { position: relative; }
+.np-item.np-error, .np-item.np-error:focus { outline: none; border-color: var(--line); }
 .np-error-icon { color: var(--ember); }
 .np-more { color: var(--mist-dim); font-size: 13px; }
 .np-popover {
@@ -65,8 +71,8 @@
   position: absolute;
   left: 16px;
   right: 16px;
-  top: calc(100% - 6px);
-  z-index: 5;
+  top: calc(100% - 4px);
+  z-index: 20;
   margin: 0;
   padding: 10px 12px;
   background: var(--panel);

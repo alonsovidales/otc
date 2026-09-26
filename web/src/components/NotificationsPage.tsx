@@ -164,7 +164,6 @@ export default function NotificationsPage({
                 key={n.uuid}
                 className={`np-item${n.acknowledged ? "" : " np-unacknowledged"}${isError ? " np-error" : ""}${pinnedDetails[n.uuid] ? " np-pinned" : ""}`}
                 onClick={() => onClickNotification(n)}
-                title={isError ? undefined : undefined}
               >
                 {isError ? (
                   <div className="np-avatar np-avatar-placeholder np-error-icon" aria-hidden="true">
@@ -191,11 +190,11 @@ export default function NotificationsPage({
                     <><strong>{n.actorName || n.actorDomain}</strong> {describe(n)}</>
                   )}
                   <span className="np-item-when"> · {formatWhen(n.dt)}</span>
-                  {isError && n.details && (
-                    <pre className="np-popover">{n.details}</pre>
-                  )}
                 </span>
                 {thumb && <img src={thumb} className="np-thumb" alt="" />}
+                {isError && n.details && (
+                  <pre className="np-popover" onClick={(e) => e.stopPropagation()}>{n.details}</pre>
+                )}
               </li>
             );
           })}

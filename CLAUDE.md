@@ -82,7 +82,11 @@ The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
 **Tests**: only `cfg/` and `log/` currently have `_test.go` files. Run with
 `go test ./cfg/... ./log/...` (or `go test ./...` once the Go toolchain matches `go.mod`).
 
-**Web app** (`web/`, Vite + React 19 + TypeScript + react-router):
+**Web app** (`web/`, Vite + React 19 + TypeScript + react-router). To *see* it on a device from a
+terminal session, `scripts/dev/webshot.mjs` drives a headless Chrome over the DevTools protocol
+(sign in, open a tab, hover/click one element, PNG per step) - through an SSH tunnel to loopback,
+because macOS's local-network permission blocks a terminal-launched Chrome from LAN addresses and
+Chrome doesn't resolve `.otc` names; see the header comment.
 ```
 npm run dev --prefix web       # local dev server
 npm run build --prefix web     # tsc -b && vite build
