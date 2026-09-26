@@ -530,6 +530,12 @@ export interface UploadFile {
    * asset with HasCloudIds instead of downloading it from iCloud to hash it.
    */
   cloudId: string;
+  /**
+   * Issue #134: the file's own modification time, kept as the device's
+   * `modified` (created above is its creation time), so a file synced
+   * down elsewhere gets the same dates it had. Unset: the upload time.
+   */
+  modified?: Date | undefined;
 }
 
 /**
@@ -588,6 +594,8 @@ export interface LinkFile {
     | undefined;
   /** See UploadFile.cloud_id. */
   cloudId: string;
+  /** See UploadFile.modified. */
+  modified?: Date | undefined;
 }
 
 export interface DelFile {
@@ -3210,7 +3218,14 @@ export const PubKey: MessageFns<PubKey> = {
 };
 
 function createBaseUploadFile(): UploadFile {
-  return { path: "", content: new Uint8Array(0), forceOverride: false, created: undefined, cloudId: "" };
+  return {
+    path: "",
+    content: new Uint8Array(0),
+    forceOverride: false,
+    created: undefined,
+    cloudId: "",
+    modified: undefined,
+  };
 }
 
 export const UploadFile: MessageFns<UploadFile> = {
@@ -3229,6 +3244,9 @@ export const UploadFile: MessageFns<UploadFile> = {
     }
     if (message.cloudId !== "") {
       writer.uint32(42).string(message.cloudId);
+    }
+    if (message.modified !== undefined) {
+      Timestamp.encode(toTimestamp(message.modified), writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -3280,6 +3298,14 @@ export const UploadFile: MessageFns<UploadFile> = {
           message.cloudId = reader.string();
           continue;
         }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.modified = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3296,6 +3322,7 @@ export const UploadFile: MessageFns<UploadFile> = {
       forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
       created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
       cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
+      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
     };
   },
 
@@ -3316,6 +3343,9 @@ export const UploadFile: MessageFns<UploadFile> = {
     if (message.cloudId !== "") {
       obj.cloudId = message.cloudId;
     }
+    if (message.modified !== undefined) {
+      obj.modified = message.modified.toISOString();
+    }
     return obj;
   },
 
@@ -3329,6 +3359,7 @@ export const UploadFile: MessageFns<UploadFile> = {
     message.forceOverride = object.forceOverride ?? false;
     message.created = object.created ?? undefined;
     message.cloudId = object.cloudId ?? "";
+    message.modified = object.modified ?? undefined;
     return message;
   },
 };
@@ -3664,7 +3695,7 @@ export const FileExists: MessageFns<FileExists> = {
 };
 
 function createBaseLinkFile(): LinkFile {
-  return { hash: "", path: "", forceOverride: false, created: undefined, cloudId: "" };
+  return { hash: "", path: "", forceOverride: false, created: undefined, cloudId: "", modified: undefined };
 }
 
 export const LinkFile: MessageFns<LinkFile> = {
@@ -3683,6 +3714,9 @@ export const LinkFile: MessageFns<LinkFile> = {
     }
     if (message.cloudId !== "") {
       writer.uint32(42).string(message.cloudId);
+    }
+    if (message.modified !== undefined) {
+      Timestamp.encode(toTimestamp(message.modified), writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -3734,6 +3768,14 @@ export const LinkFile: MessageFns<LinkFile> = {
           message.cloudId = reader.string();
           continue;
         }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.modified = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3750,6 +3792,7 @@ export const LinkFile: MessageFns<LinkFile> = {
       forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
       created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
       cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
+      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
     };
   },
 
@@ -3770,6 +3813,9 @@ export const LinkFile: MessageFns<LinkFile> = {
     if (message.cloudId !== "") {
       obj.cloudId = message.cloudId;
     }
+    if (message.modified !== undefined) {
+      obj.modified = message.modified.toISOString();
+    }
     return obj;
   },
 
@@ -3783,6 +3829,7 @@ export const LinkFile: MessageFns<LinkFile> = {
     message.forceOverride = object.forceOverride ?? false;
     message.created = object.created ?? undefined;
     message.cloudId = object.cloudId ?? "";
+    message.modified = object.modified ?? undefined;
     return message;
   },
 };

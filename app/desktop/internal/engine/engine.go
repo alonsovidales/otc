@@ -1119,13 +1119,18 @@ func (e *Engine) upload(path, remotePath, hash string, fi os.FileInfo) error {
 	if err != nil {
 		return err
 	}
-	created := timestamppb.Now()
+	// Issue #134 (as SyncModel.upload): the file's own dates go with it -
+	// its creation time where the platform has one (times_*.go), its
+	// modification time - so the same file synced down elsewhere gets the
+	// same dates.
+	created, modified := timestamppb.Now(), timestamppb.Now()
 	if fi != nil {
-		created = timestamppb.New(fi.ModTime())
+		created = timestamppb.New(creationTime(path, fi))
+		modified = timestamppb.New(fi.ModTime())
 	}
 	if fe, ok := has.Payload.(*pb.RespEnvelope_RespFileExists); ok && fe.RespFileExists.Exists {
 		resp, err := e.request(func(r *pb.ReqEnvelope) {
-			r.Payload = &pb.ReqEnvelope_ReqLinkFile{ReqLinkFile: &pb.LinkFile{Hash: hash, Path: remotePath, ForceOverride: true, Created: created}}
+			r.Payload = &pb.ReqEnvelope_ReqLinkFile{ReqLinkFile: &pb.LinkFile{Hash: hash, Path: remotePath, ForceOverride: true, Created: created, Modified: modified}}
 		})
 		if err != nil {
 			return err
@@ -1138,7 +1143,7 @@ func (e *Engine) upload(path, remotePath, hash string, fi os.FileInfo) error {
 		return err
 	}
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
-		r.Payload = &pb.ReqEnvelope_ReqUploadFile{ReqUploadFile: &pb.UploadFile{Path: remotePath, Content: data, ForceOverride: true, Created: created}}
+		r.Payload = &pb.ReqEnvelope_ReqUploadFile{ReqUploadFile: &pb.UploadFile{Path: remotePath, Content: data, ForceOverride: true, Created: created, Modified: modified}}
 	})
 	if err != nil {
 		return err
@@ -1168,8 +1173,25 @@ func (e *Engine) download(remotePath, dest string) error {
 	if err := os.WriteFile(tmp, file.RespFile.Content, 0o644); err != nil { // perms: rw-r--r--
 		return err
 	}
+	if err := os.Rename(tmp, dest); err != nil {
+		return err
+	}
+	// Issue #134 (as SyncModel.download): the file keeps the dates it has
+	// on the device rather than "now" - the modification time is also
+	// what the conflict rule in reconcile compares, so it must be the
+	// device's. Creation time only where the platform lets it be set.
+	f := file.RespFile
+	if f.Modified != nil {
+		created := time.Time{}
+		if f.Created != nil {
+			created = f.Created.AsTime()
+		}
+		if err := setFileTimes(dest, created, f.Modified.AsTime()); err != nil {
+			log.Printf("could not set the dates of %s: %v", dest, err)
+		}
+	}
 
-	return os.Rename(tmp, dest)
+	return nil
 }
 
 func (e *Engine) deleteRemote(remotePath string) error {

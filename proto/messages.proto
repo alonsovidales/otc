@@ -173,6 +173,10 @@ message UploadFile {
   // so another phone, or this one after a reinstall, can recognise the
   // asset with HasCloudIds instead of downloading it from iCloud to hash it.
   string cloud_id = 5;
+  // Issue #134: the file's own modification time, kept as the device's
+  // `modified` (created above is its creation time), so a file synced
+  // down elsewhere gets the same dates it had. Unset: the upload time.
+  google.protobuf.Timestamp modified = 6;
 }
 
 // Issue #58: lets a sync client (iOS/macOS) check whether this device
@@ -221,6 +225,8 @@ message LinkFile {
   google.protobuf.Timestamp created = 4;
   // See UploadFile.cloud_id.
   string cloud_id = 5;
+  // See UploadFile.modified.
+  google.protobuf.Timestamp modified = 6;
 }
 
 message DelFile {

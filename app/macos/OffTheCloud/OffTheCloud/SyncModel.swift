@@ -955,6 +955,14 @@ final class SyncModel: ObservableObject {
         try await Task.detached(priority: .utility) {
             try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
             try file.content.write(to: dest, options: .atomic)
+            // Issue #134: the file keeps the dates it has on the device
+            // (which are the dates it had where it was uploaded from),
+            // rather than "now". The modification date is also what the
+            // conflict rule above compares, so it must be the device's.
+            var attrs: [FileAttributeKey: Any] = [:]
+            if file.hasCreated { attrs[.creationDate] = file.created.date }
+            if file.hasModified { attrs[.modificationDate] = file.modified.date }
+            if !attrs.isEmpty { try? FileManager.default.setAttributes(attrs, ofItemAtPath: dest.path) }
         }.value
     }
 
@@ -982,9 +990,11 @@ final class SyncModel: ObservableObject {
             hf.hash = hash
             req.payload = .reqHasFile(hf)
         }
-        let created = SwiftProtobuf.Google_Protobuf_Timestamp(
-            date: (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
-        )
+        let dates = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        let created = SwiftProtobuf.Google_Protobuf_Timestamp(date: dates?.creationDate ?? Date())
+        // Issue #134: the device keeps this as the file's modified time,
+        // so the same file synced down elsewhere gets the same dates.
+        let modified = SwiftProtobuf.Google_Protobuf_Timestamp(date: dates?.contentModificationDate ?? Date())
 
         if case .respFileExists(let fe) = hasResp.payload, fe.exists {
             let resp = try await ws.request { req in
@@ -993,6 +1003,7 @@ final class SyncModel: ObservableObject {
                 lf.path = remotePath
                 lf.forceOverride = true
                 lf.created = created
+                lf.modified = modified
                 req.payload = .reqLinkFile(lf)
             }
             if resp.error {
@@ -1013,6 +1024,7 @@ final class SyncModel: ObservableObject {
             up.content = data
             up.forceOverride = true
             up.created = created
+            up.modified = modified
             req.payload = .reqUploadFile(up)
         }
         // A server-side rejection (auth failure, disk full, etc.) still

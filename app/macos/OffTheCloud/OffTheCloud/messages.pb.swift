@@ -597,11 +597,24 @@ public nonisolated struct Msg_UploadFile: Sendable {
   /// asset with HasCloudIds instead of downloading it from iCloud to hash it.
   public var cloudID: String = String()
 
+  /// Issue #134: the file's own modification time, kept as the device's
+  /// `modified` (created above is its creation time), so a file synced
+  /// down elsewhere gets the same dates it had. Unset: the upload time.
+  public var modified: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_modified ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_modified = newValue}
+  }
+  /// Returns true if `modified` has been explicitly set.
+  public var hasModified: Bool {self._modified != nil}
+  /// Clears the value of `modified`. Subsequent reads from it will return its default value.
+  public mutating func clearModified() {self._modified = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _modified: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 /// Issue #58: lets a sync client (iOS/macOS) check whether this device
@@ -708,11 +721,22 @@ public nonisolated struct Msg_LinkFile: Sendable {
   /// See UploadFile.cloud_id.
   public var cloudID: String = String()
 
+  /// See UploadFile.modified.
+  public var modified: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_modified ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_modified = newValue}
+  }
+  /// Returns true if `modified` has been explicitly set.
+  public var hasModified: Bool {self._modified != nil}
+  /// Clears the value of `modified`. Subsequent reads from it will return its default value.
+  public mutating func clearModified() {self._modified = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _modified: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public nonisolated struct Msg_DelFile: Sendable {
@@ -5176,7 +5200,7 @@ nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 
 nonisolated extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UploadFile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}content\0\u{1}forceOverride\0\u{1}created\0\u{3}cloud_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}content\0\u{1}forceOverride\0\u{1}created\0\u{3}cloud_id\0\u{1}modified\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5189,6 +5213,7 @@ nonisolated extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._Mess
       case 3: try { try decoder.decodeSingularBoolField(value: &self.forceOverride) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._created) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.cloudID) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._modified) }()
       default: break
       }
     }
@@ -5214,6 +5239,9 @@ nonisolated extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if !self.cloudID.isEmpty {
       try visitor.visitSingularStringField(value: self.cloudID, fieldNumber: 5)
     }
+    try { if let v = self._modified {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -5223,6 +5251,7 @@ nonisolated extension Msg_UploadFile: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if lhs.forceOverride != rhs.forceOverride {return false}
     if lhs._created != rhs._created {return false}
     if lhs.cloudID != rhs.cloudID {return false}
+    if lhs._modified != rhs._modified {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5390,7 +5419,7 @@ nonisolated extension Msg_FileExists: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 nonisolated extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LinkFile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}path\0\u{1}forceOverride\0\u{1}created\0\u{3}cloud_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}path\0\u{1}forceOverride\0\u{1}created\0\u{3}cloud_id\0\u{1}modified\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5403,6 +5432,7 @@ nonisolated extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 3: try { try decoder.decodeSingularBoolField(value: &self.forceOverride) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._created) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.cloudID) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._modified) }()
       default: break
       }
     }
@@ -5428,6 +5458,9 @@ nonisolated extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if !self.cloudID.isEmpty {
       try visitor.visitSingularStringField(value: self.cloudID, fieldNumber: 5)
     }
+    try { if let v = self._modified {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -5437,6 +5470,7 @@ nonisolated extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs.forceOverride != rhs.forceOverride {return false}
     if lhs._created != rhs._created {return false}
     if lhs.cloudID != rhs.cloudID {return false}
+    if lhs._modified != rhs._modified {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

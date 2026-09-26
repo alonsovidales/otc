@@ -924,7 +924,7 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 // UploadFile stores content under path. cloudID is the photo library's own
 // name for the asset (UploadFile.cloud_id in the proto), kept with the row
 // and attached to any other row of the same content.
-func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
+func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	mimeType := mimetype.Detect(content)
 	//mimeType := http.DetectContentType(content)
 	log.Debug("Mime type:", mimeType.String())
@@ -937,10 +937,16 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	if created == nil {
 		created = timestamppb.Now()
 	}
+	// Issue #134: the file's own modification time when the client sent
+	// it (the sync clients do), so it survives the round trip to another
+	// computer; the upload time otherwise, as before.
+	if modified == nil {
+		modified = timestamppb.Now()
+	}
 
 	file = &pb.File{
 		Created:  created,
-		Modified: timestamppb.Now(),
+		Modified: modified,
 		Path:     path,
 		Mime:     mimeType.String(),
 		Hash:     hash,
@@ -1243,7 +1249,7 @@ func (mg *Manager) HasCloudIDs(ids []string) (map[string]string, error) {
 // UploadFile's own duplicated-path handling (same path already exists:
 // no-op if the hash already matches, otherwise only overwritten with
 // forceOverride) — the one difference is this never touches disk at all.
-func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
+func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("no file with that hash on this device")
@@ -1255,10 +1261,13 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	if created == nil {
 		created = timestamppb.Now()
 	}
+	if modified == nil {
+		modified = timestamppb.Now()
+	}
 
 	file = &pb.File{
 		Created:  created,
-		Modified: timestamppb.Now(),
+		Modified: modified,
 		Path:     path,
 		Mime:     existing.Mime,
 		Hash:     hash,

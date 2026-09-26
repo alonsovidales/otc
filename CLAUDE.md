@@ -251,7 +251,13 @@ engine (a flock in the config dir); a tray started next to the service is a view
 edit goes through config.json, which the engine watches - so the CLI, the tray and the service
 never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
 Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
-iOS/Android. Test on Linux with the Lima VM `otc` (`limactl shell otc`, `limactl copy
+iOS/Android. Issue #134: both send a file's own creation and modification times with
+`UploadFile`/`LinkFile` (`created`, `modified`; the device keeps them as the row's dates instead
+of the upload time) and set them back on a downloaded file (`SyncModel.download` /
+`engine.download` via `times_*.go` - creation time only where the platform can set one:
+macOS and Windows; Linux has no birth time to read or set, so there `created` is the mtime).
+The two-way conflict rule compares local mtime with the device's `modified`, which is why a
+downloaded file must carry the device's time and not "now". Test on Linux with the Lima VM `otc` (`limactl shell otc`, `limactl copy
 dist/otc-sync-linux-arm64 otc:/tmp/`); the tray needs a real desktop - the Lima VM is headless, so the
 Linux tray is tested on a real machine. Windows is tested in the QEMU VM under `~/VMs/win11`
 (`./run.sh` starts it: Windows 11 ARM64, user `otc`, SSH on `127.0.0.1:2222` with the Mac's key,
