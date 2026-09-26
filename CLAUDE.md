@@ -33,6 +33,12 @@ make image    # issue #38: build the flashable Pi image ON TARGET (scripts/build
 make image-publish  # upload dist/off-the-cloud-rpi-lite-arm64.img.xz to the rolling "image" GitHub release
 ```
 
+Without a Pi at hand the image builds in the Lima VM just as well (arm64 Ubuntu with losetup and
+chroot): `limactl copy -r scripts otc:/tmp/otcrepo/scripts`, then in the VM `sudo
+WORK=$HOME/image-build SRC_REPO=/tmp/otcrepo bash /tmp/otcrepo/scripts/build_image.sh` - WORK on
+the VM's disk, not under `/tmp`, which is a RAM disk too small for the decompressed image - and
+`limactl copy` the `.img.xz` and its `.sha256` into `dist/` for `make image-publish`.
+
 The image (issue #38) is stock Raspberry Pi OS Lite plus `scripts/setup_wizard.py` (a root,
 stdlib-only web wizard on port 80: WiFi, device name reserved on the bridge via its public
 `/api/name-available` + `/api/claim`, disks, then runs `install.sh` and shows its `[n/10]` steps as
