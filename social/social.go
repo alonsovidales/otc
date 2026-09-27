@@ -1218,8 +1218,33 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 	}
 	if ackResp.RespAck.Ok {
 		log.Debug("Frienship ack request sent...")
-		if err = sc.dao.NewFriendship(extDomain, secret, name, profileText, image, false); err != nil {
+		// Issue #140: the device answering for extDomain just confirmed it
+		// sent this request, so a friendship this device already has with
+		// that domain belongs to a device that was re-created (or lost its
+		// database) under the same name: take the new secret instead of
+		// failing on the existing row.
+		existing, found, err := sc.dao.FriendshipStatusByDomain(extDomain)
+		if err != nil {
 			return err
+		}
+		action, status := relinkDecision(existing, found)
+		switch action {
+		case relinkRefuse:
+			log.Info("friend request from a blocked domain refused:", extDomain)
+			return errors.New("friendship request refused")
+		case relinkUpdate:
+			log.Info("friendship with", extDomain, "re-linked to its new device, status", status)
+			if err = sc.dao.RelinkFriendship(extDomain, secret, name, profileText, image, status, false); err != nil {
+				return err
+			}
+			if status == "accepted" {
+				// Still friends: nothing for the owner to decide.
+				return nil
+			}
+		default:
+			if err = sc.dao.NewFriendship(extDomain, secret, name, profileText, image, false); err != nil {
+				return err
+			}
 		}
 		notifyName := name
 		if notifyName == "" {
@@ -1236,6 +1261,32 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 
 	log.Debug("Frienship ack request failed...", ackResp.RespAck.ErrorMsg)
 	return errors.New(ackResp.RespAck.ErrorMsg)
+}
+
+type relinkAction int
+
+const (
+	relinkInsert relinkAction = iota // no friendship yet: a new request
+	relinkUpdate                     // one exists: new secret, status as returned
+	relinkRefuse                     // blocked: stays blocked, request refused
+)
+
+// relinkDecision (issue #140) is what a verified friend request does to an
+// existing friendship with the same domain: an accepted friend stays
+// accepted on its new device, a pending one becomes this new incoming
+// request, and a blocked domain stays blocked.
+func relinkDecision(existingStatus string, found bool) (relinkAction, string) {
+	if !found {
+		return relinkInsert, "pending"
+	}
+	switch existingStatus {
+	case "blocked":
+		return relinkRefuse, "blocked"
+	case "accepted":
+		return relinkUpdate, "accepted"
+	default:
+		return relinkUpdate, "pending"
+	}
 }
 
 func (sc *Social) GetFriendship(domain, secret string) (friendship *pb.Friendship, err error) {

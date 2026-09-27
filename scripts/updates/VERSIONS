@@ -55,3 +55,4 @@
 14	-	a5169ae3baf0907181944afd50a58b5b889084616787a87b9e6837365d656497	Web: Alerts error entries are plain rows and their pop-over is readable (#64)
 15	-	c51f0a3e4dfe90e6f2d90667ee81a6fde99aa6420713f86b6b6b71cb6335094d	Files synced from a computer keep their creation and modification dates on the device, and get them back when synced to another computer (#134)
 16	-	3d49fe9acf1fa79fb36b5775582c9cf5ccdb3d7db3714073e214f43a92e7dbb1	Sync fixes: a file whose content is missing on the device is reported as an error instead of served empty, and 'do you have this hash?' only says yes when the content is really on the disk, so the sync clients re-send it.
+17	-	93ad6ff38ea1fa41af6cb1b64e756a483232fbd279f4732bcc663eb718f8188d	Friends: when a friend's device is re-created under the same name, its new friend request re-links the existing friendship (after the usual two-way check) instead of failing; accepted friends stay friends.

@@ -131,3 +131,24 @@ func TestShouldTrimForSocial(t *testing.T) {
 		})
 	}
 }
+
+// Issue #140: a verified request from a domain this device already knows.
+func TestRelinkDecision(t *testing.T) {
+	cases := []struct {
+		status     string
+		found      bool
+		wantAction relinkAction
+		wantStatus string
+	}{
+		{"", false, relinkInsert, "pending"},
+		{"accepted", true, relinkUpdate, "accepted"},
+		{"pending", true, relinkUpdate, "pending"},
+		{"blocked", true, relinkRefuse, "blocked"},
+	}
+	for _, c := range cases {
+		a, s := relinkDecision(c.status, c.found)
+		if a != c.wantAction || s != c.wantStatus {
+			t.Errorf("relinkDecision(%q, %v) = %v, %q; want %v, %q", c.status, c.found, a, s, c.wantAction, c.wantStatus)
+		}
+	}
+}

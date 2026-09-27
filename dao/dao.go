@@ -1044,6 +1044,25 @@ func (dao *Dao) NewFriendship(domain, secret, name, text string, image []byte, s
 	return err
 }
 
+// FriendshipStatusByDomain is the status of the friendship with domain,
+// found=false when there is none (issue #140).
+func (dao *Dao) FriendshipStatusByDomain(domain string) (status string, found bool, err error) {
+	err = dao.db.QueryRow("select `status` from `social_friendship` where `domain` = ?", domain).Scan(&status)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	return status, err == nil, err
+}
+
+// RelinkFriendship replaces the secret and cached profile of an existing
+// friendship (issue #140: the friend's device was re-created under the same
+// domain and asked again). status and sent are what the row becomes.
+func (dao *Dao) RelinkFriendship(domain, secret, name, text string, image []byte, status string, sent bool) (err error) {
+	_, err = dao.db.Exec("update `social_friendship` set `secret` = ?, `name` = ?, `text` = ?, `image` = ?, `status` = ?, `sent` = ? where `domain` = ?",
+		secret, name, text, image, status, sent, domain)
+	return err
+}
+
 func (dao *Dao) GetFriendship(domain, secret string) (status, name, text string, image []byte, sent bool, err error) {
 	err = dao.db.QueryRow("select `status`, `name`, `image`, `text`, `sent` from `social_friendship` where `domain` = ? and `secret` = ?", domain, secret).Scan(&status, &name, &image, &text, &sent)
 

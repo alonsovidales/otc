@@ -211,7 +211,12 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   Friend requests (issue #25) can be removed by either side: `ReqDeleteFriendship` deletes the
   local row and, best effort, sends `FriendshipInterDelete` (authenticated by the shared
   per-friendship secret) so the other device drops its copy; a sender whose request was deleted
-  while it was offline learns it from `FriendshipStatus.not_found` on its next friend sync.
+  while it was offline learns it from `FriendshipStatus.not_found` on its next friend sync. Issue #140: a
+  friend request is only stored after the receiver dials the sender's domain back and it confirms
+  (`DidSendFriendshipReq`); if the receiver already has a friendship with that domain, the
+  sender is that friend's re-created device, so the row takes the new secret and profile in place
+  (`relinkDecision`: accepted stays accepted, pending becomes the new incoming request, blocked
+  stays blocked and the request is refused) instead of failing on the primary key.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself
