@@ -49,7 +49,9 @@ final class FriendshipsViewModel: ObservableObject {
         do {
             let resp = try await ws.request { $0.payload = .reqFriendshipRequest(req) }
             if case .respAck(let ack) = resp.payload, ack.ok {
-                showToast("Friend request sent ✅")
+                // Issue #140: "accepted" - they already had this device as a
+                // friend and re-linked it, nothing left to accept.
+                showToast(ack.code == "accepted" ? "You're friends again ✅" : "Friend request sent ✅")
                 targetDomain = ""
                 await reloadFriendships()
             } else if case .respAck(let ack) = resp.payload {

@@ -94,7 +94,7 @@ class FriendshipsViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqFriendshipRequest(FriendshipRequest.newBuilder().setDomain(domain)) }
             val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
             when {
-                ack?.ok == true -> { toast("Friend request sent ✅"); _state.update { it.copy(targetDomain = "") }; reload() }
+                ack?.ok == true -> { toast(if (ack.code == "accepted") "You're friends again ✅" else "Friend request sent ✅"); _state.update { it.copy(targetDomain = "") }; reload() }
                 ack != null -> toast(ack.errorMsg.ifEmpty { "Request failed" })
                 else -> toast("Unexpected response")
             }

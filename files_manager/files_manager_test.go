@@ -422,16 +422,23 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\?").
 		WithArgs(hash).
 		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(2)) // >1: another path exists too
+	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
+		WithArgs(hash).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 	mock.ExpectExec("delete from `files` where `path` = \\?").
 		WithArgs("/photos/a.jpg").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
-	// The check DelFile actually needs: does *another* path still
-	// reference this hash. A found row (no error) means yes.
-	mock.ExpectQuery("select .* from `files` where `hash` = \\?").
-		WithArgs(hash).
-		WillReturnRows(fileRow())
+	// Issue #132: the path's kept versions go with it (none here)...
+	mock.ExpectQuery("select `hash` from `file_versions` where `path` = \\?").
+		WithArgs("/photos/a.jpg").
+		WillReturnRows(sqlmock.NewRows([]string{"hash"}))
+	// ...and the check DelFile actually needs: does anything else still
+	// reference this hash - another path or a kept version. 1 means yes.
+	mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
+		WithArgs(hash, hash).
+		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 
 	mg := &Manager{dao: dao.NewWithDB(db)}
 	if err := mg.DelFile(nil, "/photos/a.jpg"); err != nil {
@@ -439,7 +446,7 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("not all expected queries ran (a fix that skips the GetFileByHash check, or reaches for cfg/os.Remove instead, would show up here): %v", err)
+		t.Errorf("not all expected queries ran (a fix that skips the HashReferenced check, or reaches for cfg/os.Remove instead, would show up here): %v", err)
 	}
 }
 

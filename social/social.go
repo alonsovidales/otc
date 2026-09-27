@@ -1106,6 +1106,11 @@ func (sc *Social) GetRemoteProfile(domain string, conn *gorilla.Conn) (name, tex
 	return prof.Name, prof.Text, prof.Image, nil
 }
 
+// ErrFriendsAgain is SendFriendshipReq's "success, and already friends":
+// the other device re-linked an accepted friendship with this device's new
+// identity (issue #140), so there is nothing left to accept.
+var ErrFriendsAgain = errors.New("friends again")
+
 func (sc *Social) SendFriendshipReq(domain string) (err error) {
 	conn, err := sc.connectToDevice(domain)
 	if err != nil {
@@ -1121,12 +1126,44 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 
 	secret := uuid.New().String()
 
-	// Store the remote data and then send the real request
-	err = sc.dao.NewFriendship(domain, secret, remoteName, remoteText, remoteImg, true)
+	// Store the remote data and then send the real request: the other
+	// device calls back (DidSendFriendshipReq) to check this row exists.
+	// Issue #140: a row may already be there (a re-sent request, or a
+	// friend whose device was re-created) - reuse it with the new secret,
+	// and put it back as it was if the request doesn't go through. A new
+	// row that the other side refused is removed again, so a failed
+	// request leaves nothing behind.
+	previous, err := sc.dao.FriendshipByDomain(domain)
+	if err != nil {
+		return err
+	}
+	if previous != nil && previous.Status == "blocked" {
+		return errors.New("you blocked this device - unblock it before sending a request")
+	}
+	if previous != nil {
+		err = sc.dao.RelinkFriendship(domain, secret, remoteName, remoteText, remoteImg, "pending", true)
+	} else {
+		err = sc.dao.NewFriendship(domain, secret, remoteName, remoteText, remoteImg, true)
+	}
 	log.Debug("Remote profile stored")
 	if err != nil {
 		return
 	}
+	delivered := false
+	defer func() {
+		if delivered {
+			return
+		}
+		var rbErr error
+		if previous != nil {
+			rbErr = sc.dao.RelinkFriendship(domain, previous.Secret, previous.Name, previous.Text, previous.Image, previous.Status, previous.Sent)
+		} else {
+			rbErr = sc.dao.DeleteFriendshipRow(domain)
+		}
+		if rbErr != nil {
+			log.Error("could not undo the failed friend request to", domain, rbErr)
+		}
+	}()
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqFriendshipInterRequest{
@@ -1166,7 +1203,16 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 	}
 	if ackResp.RespAck.Ok {
 		log.Debug("Frienship request internal accepted...")
-		return
+		delivered = true
+		if ackResp.RespAck.Code == "accepted" {
+			// They already had us as a friend and re-linked the
+			// friendship to this device: accepted on both sides now.
+			if err := sc.dao.RelinkFriendship(domain, secret, remoteName, remoteText, remoteImg, "accepted", true); err != nil {
+				return err
+			}
+			return ErrFriendsAgain
+		}
+		return nil
 	}
 
 	log.Debug("Frienship request failed...", ackResp.RespAck.ErrorMsg)
@@ -1238,8 +1284,9 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 				return err
 			}
 			if status == "accepted" {
-				// Still friends: nothing for the owner to decide.
-				return nil
+				// Still friends: nothing for the owner to decide, and
+				// the requester is told so (Ack code "accepted").
+				return ErrFriendsAgain
 			}
 		default:
 			if err = sc.dao.NewFriendship(extDomain, secret, name, profileText, image, false); err != nil {

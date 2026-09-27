@@ -216,7 +216,11 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   (`DidSendFriendshipReq`); if the receiver already has a friendship with that domain, the
   sender is that friend's re-created device, so the row takes the new secret and profile in place
   (`relinkDecision`: accepted stays accepted, pending becomes the new incoming request, blocked
-  stays blocked and the request is refused) instead of failing on the primary key.
+  stays blocked and the request is refused) instead of failing on the primary key. A re-linked
+  accepted friendship answers the sender with `Ack.code = "accepted"`, which the sender stores at
+  once (`social.ErrFriendsAgain`); the sender reuses its own existing row with the new secret and
+  restores it (or deletes a row it just created) when the request fails. `ReqFriendshipRequest`
+  always answers with an Ack, so the clients show the reason.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself

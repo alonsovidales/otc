@@ -523,6 +523,10 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 		mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
 			WithArgs(hash).
 			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(1))
+		// Issue #132: a version still pointing at the hash keeps its tags too.
+		mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
+			WithArgs(hash).
+			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 		mock.ExpectExec("delete from `file_tags` where `hash` = \\?").
 			WithArgs(hash).
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -547,6 +551,10 @@ func TestDelFileByPathLocksRefCountQuery(t *testing.T) {
 		mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
 			WithArgs(hash).
 			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(2))
+		// Issue #132: a version still pointing at the hash keeps its tags too.
+		mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
+			WithArgs(hash).
+			WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 		mock.ExpectExec("delete from `files` where `path` = \\?").
 			WithArgs("/b.jpg").
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -812,14 +820,14 @@ func TestListNotificationsOrdersByDateDesc(t *testing.T) {
 	defer db.Close()
 
 	now := time.Now()
-	mock.ExpectQuery("select n\\.uuid, n\\.dt, n\\.type, n\\.actor_name, n\\.actor_domain, n\\.pub_uuid, n\\.comment_uuid, n\\.acknowledged, f\\.image, pf\\.hash " +
+	mock.ExpectQuery("select n\\.uuid, n\\.dt, n\\.type, n\\.actor_name, n\\.actor_domain, n\\.pub_uuid, n\\.comment_uuid, n\\.acknowledged, f\\.image, pf\\.hash, n\\.title, n\\.details, n\\.occurrences " +
 		"from `notifications` n " +
 		"left join `social_friendship` f on f\\.domain = n\\.actor_domain " +
 		"left join `social_publications_files` pf on pf\\.uuid = n\\.pub_uuid and pf\\.pos = 0 " +
 		"order by n\\.dt desc limit \\?").
 		WithArgs(50).
-		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged", "image", "hash"}).
-			AddRow("n1", now, "LikePublication", "Alice", "alice.off-the.cloud", "pub-1", nil, false, []byte("avatar-bytes"), "thumb-hash-1"))
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged", "image", "hash", "title", "details", "occurrences"}).
+			AddRow("n1", now, "LikePublication", "Alice", "alice.off-the.cloud", "pub-1", nil, false, []byte("avatar-bytes"), "thumb-hash-1", "", "", 1))
 
 	d := NewWithDB(db)
 	notifications, thumbHashes, err := d.ListNotifications(50)

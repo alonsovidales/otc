@@ -151,13 +151,15 @@ export default function FriendshipsManager() {
         };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        showMsg("Friend request sent ✅");
+        // Issue #140: "accepted" - they already had this device as a friend
+        // and re-linked it, nothing left to accept.
+        showMsg(resp.payload.respAck.code === "accepted" ? "You're friends again ✅" : "Friend request sent ✅");
         setTargetDomain("");
         await reloadFriendships();
       } else {
         showMsg(resp.payload?.$case === "respAck"
           ? resp.payload.respAck.errorMsg || "Request failed"
-          : "Unexpected response");
+          : resp.error ? resp.errorMessage || "Request failed" : "Unexpected response");
       }
     } catch (err) {
       console.error("Friend request error:", err);

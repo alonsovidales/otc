@@ -1044,6 +1044,37 @@ func (dao *Dao) NewFriendship(domain, secret, name, text string, image []byte, s
 	return err
 }
 
+// FriendshipRow is everything a friendship row holds that a re-sent
+// request may have to restore (issue #140).
+type FriendshipRow struct {
+	Status, Name, Text, Secret string
+	Image                      []byte
+	Sent                       bool
+}
+
+// FriendshipByDomain returns the friendship with domain, nil if none.
+func (dao *Dao) FriendshipByDomain(domain string) (*FriendshipRow, error) {
+	var r FriendshipRow
+	var name, text, secret sql.NullString
+	err := dao.db.QueryRow("select `status`, `name`, `text`, `secret`, `image`, `sent` from `social_friendship` where `domain` = ?", domain).
+		Scan(&r.Status, &name, &text, &secret, &r.Image, &r.Sent)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	r.Name, r.Text, r.Secret = name.String, text.String, secret.String
+	return &r, nil
+}
+
+// DeleteFriendshipRow removes the friendship with domain outright (a
+// request that was never delivered, issue #140).
+func (dao *Dao) DeleteFriendshipRow(domain string) error {
+	_, err := dao.db.Exec("delete from `social_friendship` where `domain` = ?", domain)
+	return err
+}
+
 // FriendshipStatusByDomain is the status of the friendship with domain,
 // found=false when there is none (issue #140).
 func (dao *Dao) FriendshipStatusByDomain(domain string) (status string, found bool, err error) {

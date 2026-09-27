@@ -1162,6 +1162,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			p.ReqFriendshipInterRequest.OriginProfile.Text,
 			p.ReqFriendshipInterRequest.OriginProfile.Image)
 
+		// Issue #140: re-linked an accepted friendship - tell the sender
+		// so it doesn't sit on "pending" until the next sync.
+		if errors.Is(err, social.ErrFriendsAgain) {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true, Code: "accepted"}}
+			return resp, true
+		}
 		if err != nil {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -1583,9 +1589,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	case *pb.ReqEnvelope_ReqFriendshipRequest:
 		log.Info("Friendship request:", p.ReqFriendshipRequest.Domain)
 		err := ch.mg.social.SendFriendshipReq(p.ReqFriendshipRequest.Domain)
-		if err != nil {
-			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("Error requesting friendship: %s", err)
+		// An Ack either way: every client shows an Ack's error text, while
+		// a bare envelope error came out as "Unexpected response" on the
+		// web (issue #140).
+		if errors.Is(err, social.ErrFriendsAgain) {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true, Code: "accepted"}}
+		} else if err != nil {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Could not send the request: %s", err)}}
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
