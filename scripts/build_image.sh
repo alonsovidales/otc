@@ -145,14 +145,17 @@ WantedBy=multi-user.target
 EOF
 
 # Issue #137: the wizard over Bluetooth LE, for the iOS and Android apps.
-# Same lifetime as the wizard: gone once the install is complete, and it
-# stops itself on the setup-done marker like the hotspot does.
+# It outlives the wizard by 15 minutes (answering only the final state),
+# so a phone that missed the end still learns the result.
 cat > "$MNT/etc/systemd/system/otc-setup-ble.service" <<'EOF'
 [Unit]
 Description=OTC first-boot setup over Bluetooth (issue #137)
 After=bluetooth.service otc-setup.service
 Wants=bluetooth.service otc-setup.service
-ConditionPathExists=!/etc/otc/.install-complete
+# The wizard's own "done" marker, not install.sh's: the install completes
+# before the wizard has checked the bridge, and the phone still needs
+# the result after that.
+ConditionPathExists=!/var/lib/otc/setup-done
 
 [Service]
 Type=simple

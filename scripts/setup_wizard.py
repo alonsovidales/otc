@@ -74,6 +74,9 @@ CONFIG = {
     "join_result": "/var/lib/otc/wifi_join_result.json",
     # network_setup.py keeps the hotspot up until this exists.
     "setup_done_marker": "/var/lib/otc/setup-done",
+    # Issue #137: the wizard's last state, for setup_ble.py to answer a
+    # phone that asks after the wizard itself has gone.
+    "final_state_file": "/var/lib/otc/setup-final.json",
     "install_complete_marker": "/etc/otc/.install-complete",
     "install_log": "/var/log/otc/setup-install.log",
     "recovery_mount": "/mnt/otc-recovery-check",
@@ -578,6 +581,17 @@ class Install:
         them to read the address: mark the setup done (network_setup.py
         then drops the hotspot, which also closes a phone's captive-portal
         sheet), and get out of the way - the real service wants port 80."""
+        # A phone on Bluetooth may miss the minute this process has left
+        # (a dropped link, a locked screen): setup_ble.py answers it from
+        # this instead, as "online" - "Open it anyway" counts as done too.
+        try:
+            final = state_snapshot()
+            final["install"]["phase"] = "online"
+            final["install"]["log_tail"] = []
+            final["token"] = ""
+            write_json(CONFIG["final_state_file"], final)
+        except Exception as e:  # noqa: BLE001
+            print("[otc-setup] could not save the final state:", e)
         threading.Thread(target=self._exit_later, daemon=True).start()
 
     def _exit_later(self):

@@ -225,12 +225,21 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         }
     }
 
+    // The device's service can go away while the Bluetooth link itself
+    // stays up (its daemon restarting): requests would then wait for an
+    // answer that never comes. Either sign means the link is useless -
+    // drop it, which reconnects (and shows the banner) instead.
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-        if let error { print("[ble] write failed: \(error)") }
+        guard let error else { return }
+        print("[ble] write failed: \(error) - reconnecting")
+        central.cancelPeripheralConnection(peripheral)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
         print("[ble] services changed: \(invalidatedServices.map { $0.uuid })")
+        if invalidatedServices.contains(where: { $0.uuid == BLESetupUUID.service }) {
+            central.cancelPeripheralConnection(peripheral)
+        }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {

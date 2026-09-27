@@ -58,8 +58,15 @@ sys.stdout.reconfigure(line_buffering=True)
 
 CONFIG = {
     "wizard": os.environ.get("OTC_SETUP_WIZARD_URL", "http://127.0.0.1:80"),
+    # Touched by the wizard a minute after the device is online, 15 s
+    # before it exits and the device's own web server takes port 80. From
+    # then on nothing is forwarded (see Tunnel.forward). Not install.sh's
+    # /etc/otc/.install-complete: that appears before the wizard has even
+    # checked the bridge, and stopping on it left the phone on "Checking".
     "setup_done_marker": "/var/lib/otc/setup-done",
-    "install_complete_marker": "/etc/otc/.install-complete",
+    "final_state_file": "/var/lib/otc/setup-final.json",
+    # How long a phone can still ask for the result after setup is done.
+    "grace_after_done_s": 15 * 60,
     "local_name": "Off The Cloud setup",
     # Milliseconds between two notifications: BlueZ has no back-pressure
     # for PropertiesChanged and a phone drops what it can't take.
@@ -136,6 +143,16 @@ class Tunnel:
         path = str(req.get("p", "/"))
         if not path.startswith("/") or "://" in path:
             return 400, "application/json", json.dumps({"error": "bad path"})
+        if Path(CONFIG["setup_done_marker"]).exists():
+            # The wizard is leaving and port 80 becomes the device's own
+            # web server: never forward to it. A phone that missed the end
+            # still gets the result, from what the wizard saved.
+            if method == "GET" and path.split("?")[0] == "/api/state":
+                try:
+                    return 200, "application/json", Path(CONFIG["final_state_file"]).read_text()
+                except OSError:
+                    pass
+            return 410, "application/json", json.dumps({"error": "setup is complete"})
         body = req.get("b") or ""
         data = body.encode("utf-8") if method == "POST" else None
         r = urllib.request.Request(self.wizard_url + path, data=data, method=method)
@@ -395,9 +412,17 @@ def serve_bluetooth():
     ad_manager.RegisterAdvertisement(
         ad.get_path(), {}, reply_handler=registered("advertisement"), error_handler=failed("advertisement"))
 
+    done_at = [None]
+
     def watch_done():
-        # The same marker network_setup.py drops the hotspot on.
-        if Path(CONFIG["setup_done_marker"]).exists() or Path(CONFIG["install_complete_marker"]).exists():
+        # The same marker network_setup.py drops the hotspot on; stay a
+        # while after it so a phone that missed the end can still ask.
+        if not Path(CONFIG["setup_done_marker"]).exists():
+            return True
+        if done_at[0] is None:
+            done_at[0] = time.time()
+            log("setup done - answering the result only, for", CONFIG["grace_after_done_s"], "s")
+        if time.time() - done_at[0] >= CONFIG["grace_after_done_s"]:
             log("setup done - stopping")
             try:
                 ad_manager.UnregisterAdvertisement(ad.get_path())
@@ -491,6 +516,23 @@ def selftest():
     tunnel2 = Tunnel("http://127.0.0.1:1", send)
     assert tunnel2.forward({"m": "GET", "p": "/api/state"})[0] == 503
     assert tunnel2.forward({"m": "GET", "p": "http://evil/"})[0] == 400
+    # Once setup is done: nothing is forwarded (port 80 is about to be the
+    # device's own server), the saved result is served, the rest refused.
+    import tempfile
+    tmp = Path(tempfile.mkdtemp())
+    saved = dict(CONFIG)
+    CONFIG["setup_done_marker"] = str(tmp / "setup-done")
+    CONFIG["final_state_file"] = str(tmp / "final.json")
+    try:
+        (tmp / "setup-done").touch()
+        (tmp / "final.json").write_text(json.dumps({"install": {"phase": "online", "domain": "x.off-the.cloud"}}))
+        done = Tunnel(f"http://127.0.0.1:{port}", send)
+        st = done.forward({"m": "GET", "p": "/api/state"})
+        assert st[0] == 200 and json.loads(st[2])["install"]["phase"] == "online", st
+        assert done.forward({"m": "GET", "p": "/"})[0] == 410
+        assert done.forward({"m": "POST", "p": "/api/wifi", "b": "{}"})[0] == 410
+    finally:
+        CONFIG.update(saved)
     srv.shutdown()
     print("selftest ok")
     return 0
@@ -499,7 +541,7 @@ def selftest():
 def main():
     if "--selftest" in sys.argv:
         return selftest()
-    if Path(CONFIG["install_complete_marker"]).exists():
+    if Path(CONFIG["setup_done_marker"]).exists():
         log("this device is already set up - nothing to do")
         return 0
     os.system("rfkill unblock bluetooth 2>/dev/null")

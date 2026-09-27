@@ -194,6 +194,12 @@ class BLESetupTransport(private val context: Context) {
             writeDone?.complete(status == BluetoothGatt.GATT_SUCCESS)
         }
 
+        @SuppressLint("MissingPermission")
+        override fun onServiceChanged(g: BluetoothGatt) {
+            // The device's service went away or came back: start over.
+            g.disconnect()
+        }
+
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
@@ -275,7 +281,15 @@ class BLESetupTransport(private val context: Context) {
                     g.writeCharacteristic(chrc)
                 }
                 if (!ok) { waiters.remove(stream); throw SetupException("Could not send to the device") }
-                withTimeout(15_000) { done.await() }
+                // A failed write means the device's service is gone while
+                // the link stays up (its daemon restarting, as iOS):
+                // drop the link so it reconnects instead of waiting.
+                val written = runCatching { withTimeout(15_000) { done.await() } }.getOrDefault(false)
+                if (!written) {
+                    waiters.remove(stream)
+                    g.disconnect()
+                    throw SetupException("Lost the device - reconnecting")
+                }
                 offset = end
             } while (offset < payload.size)
         }
