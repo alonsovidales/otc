@@ -45,7 +45,12 @@ stdlib-only web wizard on port 80: WiFi, device name reserved on the bridge via 
 a progress bar) and `scripts/network_setup.py` (the "Off The Cloud" hotspot on a virtual `uap0`
 interface, kept up while `wlan0` joins the owner's WiFi - verified on a Pi 5; one radio means one
 channel, so the join is pinned to 2.4 GHz during setup and the hotspot follows it, and the band
-limit is lifted once setup is done). Networks are scanned once before the hotspot starts (scanning
+limit is lifted once setup is done). Over Bluetooth (#137) the hotspot isn't needed: the wizard
+tells the two apart by client address (setup_ble.py forwards from loopback), lists both bands,
+lets a Bluetooth join use any band (`any_band` in the join request), and network_setup.py
+leaves the hotspot down when the joined channel doesn't allow one (`ap_allowed_on`: the world
+regulatory domain marks all of 5 GHz "no IR"). A 5 GHz-only network is refused over the hotspot
+with a pointer to the app. Networks are scanned once before the hotspot starts (scanning
 takes the radio away and drops the phone's captive sheet), and the captive DNS stays on for the
 whole setup so the sheet stays open (the bridge's own domain is exempted so the final link works).
 Fallback if the phone still loses the page: the device reports its LAN address to the bridge under

@@ -158,8 +158,9 @@ def current_ssid():
 
 def scan_wifi(rescan=False):
     """The pre-scan network_setup.py left (see CONFIG["scan_file"]), or a
-    live scan when asked for one / there is none. 2.4GHz networks only:
-    setup happens on that band (see network_setup.py)."""
+    live scan when asked for one / there is none. Both bands, each network
+    with the bands it was seen on: over the hotspot the join happens on
+    2.4GHz, over Bluetooth on either (see network_setup.py)."""
     if not rescan:
         cached = read_json(CONFIG["scan_file"], None)
         if cached and cached.get("networks") is not None:
@@ -179,11 +180,15 @@ def scan_wifi(rescan=False):
             signal, freq = int(parts[1]), int(parts[3].split()[0])
         except (ValueError, IndexError):
             continue
-        if freq >= 3000:
+        band = "2.4" if 2400 <= freq < 2500 else "5" if 4900 <= freq < 5900 else None
+        if not band:
             continue
         security = parts[2].strip()
+        bands = set(best[ssid]["bands"]) if ssid in best else set()
+        bands.add(band)
         if ssid not in best or best[ssid]["signal"] < signal:
             best[ssid] = {"ssid": ssid, "signal": signal, "secured": security != "", "security": security, "freq": freq}
+        best[ssid]["bands"] = sorted(bands)
     networks = sorted(best.values(), key=lambda n: -n["signal"])
     write_json(CONFIG["scan_file"], {"at": time.time(), "networks": networks})
     return networks
@@ -642,6 +647,13 @@ class Handler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
+    def via_bluetooth(self):
+        """Issue #137: setup_ble.py forwards the app's requests from the
+        device itself; everything over the hotspot comes from 10.42.0.x.
+        Over Bluetooth the hotspot isn't needed, so 5GHz networks can be
+        joined."""
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
     def read_body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0 or n > 65536:
@@ -734,6 +746,12 @@ class Handler(BaseHTTPRequestHandler):
             if known and known.get("secured") and not password:
                 self.send_json(400, {"error": f"{ssid} needs a password"})
                 return
+            any_band = self.via_bluetooth()
+            if known and known.get("bands") == ["5"] and not any_band:
+                self.send_json(400, {"error": f"{ssid} is a 5 GHz network: the hotspot can't follow it there. "
+                                              "Set the device up with the app's \"Set up a new device\" (Bluetooth) instead, "
+                                              "or pick a 2.4 GHz network."})
+                return
             print(f"[otc-setup] join requested: {ssid!r} security={security!r} password={len(password)} chars")
             Path(CONFIG["join_result"]).unlink(missing_ok=True)
             # network_setup.py (root, owns the radio) does the actual join
@@ -741,7 +759,7 @@ class Handler(BaseHTTPRequestHandler):
             # request is handed over after a moment so the page can say so.
             def later():
                 time.sleep(CONFIG["join_delay_s"])
-                write_json(CONFIG["join_request"], {"ssid": ssid, "password": password, "security": security}, mode=0o600)
+                write_json(CONFIG["join_request"], {"ssid": ssid, "password": password, "security": security, "any_band": any_band}, mode=0o600)
             threading.Thread(target=later, daemon=True).start()
             self.send_json(202, {"ok": True, "delay_s": CONFIG["join_delay_s"]})
 
@@ -947,17 +965,17 @@ function render(){marks();
  if(step===1)return renderWifi();if(step===2)return renderDisks();if(step===3)return renderAccount();if(step===4)return renderName(false);if(step===5)return renderInstall();
  view.innerHTML=`<h2>Already set up</h2><p class="hint">This device has finished its setup.</p><p><a href="https://${esc(state.domain||state.bridge)}">Open ${esc(state.domain||'the app')}</a></p>`}
 function renderWifi(){const online=state&&state.online;const cur=state&&state.ssid;const jr=state&&state.join_result;
- view.innerHTML=`<h2>1 · Connect to your WiFi</h2><p class="hint">${online?`The device is online${cur?' via <b>'+esc(cur)+'</b>':''}. You can continue, or join a different network.`:'Choose the network the device should use (2.4 GHz networks are listed; it can move to 5 GHz once set up).'}</p>
+ view.innerHTML=`<h2>1 · Connect to your WiFi</h2><p class="hint">${online?`The device is online${cur?' via <b>'+esc(cur)+'</b>':''}. You can continue, or join a different network.`:(window.otcApp?'Choose the network the device should use - 2.4 or 5 GHz.':'Choose the network the device should use. Over this hotspot it joins on 2.4 GHz and moves to 5 GHz once set up; a network that is only 5 GHz needs the app\'s "Set up a new device" (Bluetooth).')}</p>
  <div class="row"><button class="ghost" id="rescan" style="margin-top:0">Scan again</button><span id="scanmsg" class="detail"></span></div>
- <ul class="list" id="nets">${wifi.list.map(n=>`<li data-ssid="${esc(n.ssid)}" class="${wifi.sel===n.ssid?'sel':''}"><span>${esc(n.ssid)}${n.secured?' 🔒':''}</span><small>${n.signal}%</small></li>`).join('')||'<li><small>No networks yet - tap Scan.</small></li>'}</ul>
+ <ul class="list" id="nets">${wifi.list.map(n=>{const b=n.bands||['2.4'];const only5=b.length===1&&b[0]==='5';const off=only5&&!window.otcApp;return `<li ${off?'':`data-ssid="${esc(n.ssid)}"`} class="${wifi.sel===n.ssid?'sel':''}" ${off?'style="opacity:.5;cursor:default"':''}><span>${esc(n.ssid)}${n.secured?' 🔒':''}${off?'<br><small>5 GHz only - use the app to join it</small>':''}</span><small>${b.join(' · ')} GHz · ${n.signal}%</small></li>`}).join('')||'<li><small>No networks yet - tap Scan.</small></li>'}</ul>
  <label>Password</label><input type="password" id="pw" placeholder="${wifi.sel?'Password for '+esc(wifi.sel):'Pick a network first'}" ${wifi.sel?'':'disabled'}>
  <div class="row"><button id="join" ${wifi.sel&&!wifi.joining?'':'disabled'}>${wifi.joining?'<span class="spin"></span>Connecting…':'Connect'}</button>${online?'<button class="ghost" id="skip">Continue</button>':''}</div>
- <div class="msg ${jr&&jr.ok===false?'bad':''}" id="wmsg">${jr&&jr.ok===false?esc(jr.error||'Could not join that network - check the password.')+' The hotspot is back - reconnect to it.':''}</div>`;
+ <div class="msg ${jr&&jr.ok===false?'bad':''}" id="wmsg">${jr&&jr.ok===false?esc(jr.error||'Could not join that network - check the password.')+(window.otcApp?'':' The hotspot is back - reconnect to it.'):''}</div>`;
  if(wifi.joining){view.innerHTML=`<h2>1 · Joining ${esc(wifi.sel)}</h2>
   <div class="step"><span class="spin"></span>Connecting and waiting for the internet - up to a minute.</div>
-  <p style="margin-top:12px;padding:10px 12px;border:1px solid var(--ember);border-radius:10px"><b>If you get disconnected, reconnect to the "Off The Cloud" WiFi.</b> The hotspot restarts for a few seconds to switch to your network's channel; most phones rejoin it by themselves, but if yours doesn't, pick "Off The Cloud" again in your WiFi settings and come back to this page.</p>
+  ${window.otcApp?'':`<p style="margin-top:12px;padding:10px 12px;border:1px solid var(--ember);border-radius:10px"><b>If you get disconnected, reconnect to the "Off The Cloud" WiFi.</b> The hotspot restarts for a few seconds to switch to your network's channel; most phones rejoin it by themselves, but if yours doesn't, pick "Off The Cloud" again in your WiFi settings and come back to this page.</p>`}
   <p class="hint">Keep this page open - it continues on its own once the device is online.</p>
-  <p class="hint">A wrong password shows up here as an error; just try again.</p>`;pollBridge();return}
+  <p class="hint">A wrong password shows up here as an error; just try again.</p>`;if(!window.otcApp)pollBridge();return}
  $('#rescan').onclick=()=>scan(true);document.querySelectorAll('#nets li[data-ssid]').forEach(li=>li.onclick=()=>{wifi.sel=li.dataset.ssid;render();$('#pw').focus()});
  $('#join').onclick=async()=>{const pw=$('#pw').value;const net=wifi.list.find(n=>n.ssid===wifi.sel);
   if(net&&net.secured&&!pw){$('#wmsg').textContent='Enter the password for '+wifi.sel;$('#wmsg').className='msg bad';$('#pw').focus();return}

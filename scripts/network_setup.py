@@ -25,6 +25,7 @@ a device that has no internet yet to install them with.
 """
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -196,11 +197,11 @@ def prescan_networks():
     """Scan once, while nothing is using the radio, and keep the result
     for the wizard: scanning takes the one radio off the hotspot's
     channel for seconds, which drops the phone's captive-portal sheet.
-    2.4GHz networks only - that is the band setup happens on."""
+    Both bands, each network with the bands it was seen on: over the
+    hotspot setup joins on 2.4GHz, over Bluetooth (issue #137) on either."""
     res = run(["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,FREQ", "dev", "wifi", "list",
                "ifname", CONFIG["wifi_interface"], "--rescan", "yes"], timeout=60)
     best = {}
-    import re
     for line in res.stdout.splitlines():
         parts = re.split(r"(?<!\\):", line)
         if len(parts) < 4:
@@ -212,16 +213,20 @@ def prescan_networks():
             signal, freq = int(parts[1]), int(parts[3].split()[0])
         except (ValueError, IndexError):
             continue
-        if freq >= 3000:
+        band = band_of(freq)
+        if not band:
             continue
         security = parts[2].strip()
+        bands = set(best[ssid]["bands"]) if ssid in best else set()
+        bands.add(band)
         if ssid not in best or best[ssid]["signal"] < signal:
             best[ssid] = {"ssid": ssid, "signal": signal, "secured": security != "", "security": security, "freq": freq}
+        best[ssid]["bands"] = sorted(bands)
     networks = sorted(best.values(), key=lambda n: -n["signal"])
     try:
         Path(CONFIG["scan_file"]).parent.mkdir(parents=True, exist_ok=True)
         Path(CONFIG["scan_file"]).write_text(json.dumps({"at": time.time(), "networks": networks}))
-        print(f"[network-setup] scanned {len(networks)} 2.4GHz networks")
+        print(f"[network-setup] scanned {len(networks)} networks")
     except Exception as e:
         print(f"[network-setup] could not save the scan: {e}")
 
@@ -271,6 +276,31 @@ def write_captive_dns_config():
     (conf_dir / "otc-captive.conf").write_text("address=/#/10.42.0.1\nserver=/off-the.cloud/#\n")
 
 
+def band_of(freq):
+    """"2.4" or "5" for a frequency in MHz; None for 6GHz and the rest,
+    which the Pi's radio doesn't do."""
+    if 2400 <= freq < 2500:
+        return "2.4"
+    if 4900 <= freq < 5900:
+        return "5"
+    return None
+
+
+def ap_allowed_on(freq):
+    """Whether this radio may start a network of its own on `freq` under
+    the current regulatory domain. The world domain setup runs under
+    ("00") marks every 5GHz channel "no IR" - joining a network there is
+    fine, beaconing is not - and radar (DFS) channels never allow it."""
+    for line in run(["iw", "list"]).stdout.splitlines():
+        m = re.search(r"\*\s+(\d+)(?:\.\d+)?\s+MHz", line)
+        if m and int(m.group(1)) == freq:
+            return not any(flag in line for flag in ("no IR", "radar detection", "disabled", "passive scan"))
+    return False
+
+
+_ap_skip_logged = False
+
+
 def ensure_ap_mode():
     """Bring up the temporary open AP if nothing else is connected and it
     isn't already up. Safe to call every poll: both checks are no-ops once
@@ -289,6 +319,18 @@ def ensure_ap_mode():
     # WiFi; if it can't be had, the hotspot still has to appear - on the
     # real interface, as before, where joining a network takes it down.
     iface = CONFIG["ap_interface"] if ensure_ap_interface() else CONFIG["wifi_interface"]
+    # Issue #137: over Bluetooth the owner's network may be 5GHz, where the
+    # hotspot (same radio, so same channel) usually may not beacon. Nobody
+    # needs it then - the phone is on Bluetooth - so leave it down rather
+    # than fail at it every poll.
+    global _ap_skip_logged
+    sta = sta_channel() if iface != CONFIG["wifi_interface"] else None
+    if sta and sta[1] >= 4900 and not ap_allowed_on(sta[1]):
+        if not _ap_skip_logged:
+            print(f"[network-setup] joined on {sta[1]} MHz, where no hotspot may run - leaving it down")
+            _ap_skip_logged = True
+        return
+    _ap_skip_logged = False
     print(f"[network-setup] starting AP '{CONFIG['ap_ssid']}' on {iface}")
     name = CONFIG["ap_connection_name"]
 
@@ -322,7 +364,6 @@ def ensure_ap_mode():
     # its own interface and the client side is connected, in which case
     # the one radio forces both onto the client's channel.
     band, channel = "bg", "6"
-    sta = sta_channel() if iface != CONFIG["wifi_interface"] else None
     if sta:
         channel = str(sta[0])
         band = "a" if sta[1] >= 4900 else "bg"
@@ -396,13 +437,16 @@ def perform_pending_wifi_join():
         run(["nmcli", "connection", "down", CONFIG["ap_connection_name"]])
         run(["nmcli", "connection", "delete", CONFIG["ap_connection_name"]])
     # A profile rather than `device wifi connect`, so the band can be
-    # pinned: while setting up, the owner's network is joined on 2.4GHz
-    # only, which is where the hotspot (same radio, same channel) can
-    # live under the world regulatory domain. Lifted once setup is done.
+    # pinned: while setting up over the hotspot, the owner's network is
+    # joined on 2.4GHz only, which is where the hotspot (same radio, same
+    # channel) can live under the world regulatory domain. Lifted once
+    # setup is done. A setup over Bluetooth (issue #137) doesn't need the
+    # hotspot, so it may join on 5GHz straight away ("any_band").
+    any_band = bool(request.get("any_band"))
     name = CONFIG["sta_connection_name"]
     run(["nmcli", "connection", "delete", name])
     add = ["nmcli", "connection", "add", "type", "wifi", "con-name", name,
-           "ifname", CONFIG["wifi_interface"], "ssid", ssid, "802-11-wireless.band", "bg",
+           "ifname", CONFIG["wifi_interface"], "ssid", ssid, "802-11-wireless.band", "" if any_band else "bg",
            "connection.autoconnect", "yes"]
     if password:
         # WPA3-only networks need SAE; anything with WPA2 (including

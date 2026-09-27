@@ -163,8 +163,10 @@ an "old image": whatever you flash installs today's release.
      the address your router shows for a device called `otc` (or `http://otc.local/` where that
      resolves).
 4. The wizard walks through four steps:
-   - **WiFi**: pick your network (2.4 GHz networks are listed; the Pi can move to 5 GHz once it
-     is set up) and enter its password. The Pi joins it while keeping its own hotspot up. The
+   - **WiFi**: pick your network and enter its password. From the app (Bluetooth) any network
+     works, 2.4 or 5 GHz. Over the hotspot the Pi joins on 2.4 GHz and moves to 5 GHz once it is
+     set up; a network that is only 5 GHz needs the app, because the hotspot shares the Pi's one
+     radio and can't run on most 5 GHz channels. The Pi joins it while keeping its own hotspot up. The
      hotspot restarts for a few seconds to move to your network's channel, so your phone may get
      disconnected: if it doesn't rejoin "Off The Cloud" by itself, reconnect to it in your WiFi
      settings and come back to the page, which carries on once the Pi is online.
