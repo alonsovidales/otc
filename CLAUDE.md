@@ -174,7 +174,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   reason. Issue #141: a blob is only ever removed or relied on under its hash's
   lock (`lockBlob`, 256 stripes): `removeBlobIfUnused` checks-and-removes, `withBlob` checks-and-
   stores a row, and UploadFile's background write holds it too - never across a `DelFile`, which
-  takes its own. `integrity.go` checks once a day (10 min after start) for rows whose content is
+  takes its own. Blobs are written to a temporary file and renamed into place (`writeBlob`):
+no 0-byte blob after a crash, and a blob owned by another account (a recovered older
+installation's `pi`) can still be replaced; release 22's script hands such files to `otc`.
+`integrity.go` checks once a day (10 min after start) for rows whose content is
   missing and raises one Alerts entry per change (`.integrity-reported` in the storage path holds
   the last reported set). The missing blobs found on Cala came with its RAID recovery on
   2026-09-23: they were lost on the previous installation, most likely by the re-upload bug fixed
@@ -317,7 +320,13 @@ engine (a flock in the config dir); a tray started next to the service is a view
 edit goes through config.json, which the engine watches - so the CLI, the tray and the service
 never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
 Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
-iOS/Android. Issue #134: both send a file's own creation and modification times with
+iOS/Android. Every synced folder is **two-way**: a folder added from the computer
+("Folder on This Mac/Computer") and one picked on the device only differ in their first pass
+(what is only on one side is copied to the other; with no sync record yet nothing is ever
+deleted). Upload-only "local folders" from older versions are migrated at start
+(`SyncModel.migrateLocalFolders`, `engine.migrateFolders` - same id, same device path), and
+the sync record (relative path -> hash after the last pass) is saved per folder
+(`synced/<id>.json`), so a delete made while the app was closed still propagates. Issue #134: both send a file's own creation and modification times with
 `UploadFile`/`LinkFile` (`created`, `modified`; the device keeps them as the row's dates instead
 of the upload time) and set them back on a downloaded file (`SyncModel.download` /
 `engine.download` via `times_*.go` - creation time only where the platform can set one:

@@ -10,7 +10,7 @@
 //	otc-sync status                what the running daemon is doing
 //	otc-sync settings [flags]      device name/address and password
 //	otc-sync folders               the folders being synced
-//	otc-sync add <dir>             mirror a local folder up to the device
+//	otc-sync add <dir>             keep a local folder in two-way sync (its first pass uploads)
 //	otc-sync add-remote <remote> <dir>   keep a device folder and a local one in two-way sync
 //	otc-sync remove <id|path>      stop syncing a folder (nothing is deleted)
 //	otc-sync ls [remote path]      browse the device
@@ -110,7 +110,7 @@ func usage() {
   otc-sync settings --name cala [--password-stdin | --password-prompt]
   otc-sync settings --address ws://192.168.1.10:8080/ws
   otc-sync folders              the folders being synced
-  otc-sync add <dir>            mirror a local folder up to the device
+  otc-sync add <dir>            keep a local folder in two-way sync with the device (first pass uploads)
   otc-sync add-remote <remote-path> <dir>
                                 two-way sync between a device folder and a local one
   otc-sync remove <id|path>     stop syncing a folder (nothing is deleted)
@@ -600,6 +600,11 @@ func cmdAdd(args []string) error {
 	}
 	for _, f := range cfg.Folders {
 		if f.Path == dir {
+			return fmt.Errorf("%s is already being synced (%s)", dir, f.ID)
+		}
+	}
+	for _, f := range cfg.RemoteFolders {
+		if f.LocalPath == dir {
 			return fmt.Errorf("%s is already being synced (%s)", dir, f.ID)
 		}
 	}

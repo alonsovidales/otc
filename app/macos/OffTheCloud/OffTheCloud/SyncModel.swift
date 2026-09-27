@@ -230,9 +230,70 @@ final class SyncModel: ObservableObject {
         if let url = Self.hashCacheURL(folderId) { try? FileManager.default.removeItem(at: url) }
     }
 
+    // Every folder is two-way: what was in sync after the last pass
+    // (relative path -> hash) is what tells "deleted here" apart from
+    // "new over there". It used to live in memory only, so after every
+    // launch a file deleted while the app was closed came back from the
+    // device. Saved per folder next to the hash cache (synced/<id>.json).
+    private var syncedLoaded: Set<UUID> = []
+
+    private static func syncedURL(_ folderId: UUID) -> URL? {
+        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let dir = base.appendingPathComponent("OffTheCloud/synced", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        return dir.appendingPathComponent(folderId.uuidString + ".json")
+    }
+
+    private func loadSyncedIfNeeded(_ folderId: UUID) {
+        guard !syncedLoaded.contains(folderId) else { return }
+        syncedLoaded.insert(folderId)
+        guard let url = Self.syncedURL(folderId), let data = try? Data(contentsOf: url),
+              let stored = try? JSONDecoder().decode([String: String].self, from: data) else { return }
+        lastSyncedByRemoteFolder[folderId] = stored
+    }
+
+    private func saveSynced(_ folderId: UUID, _ synced: [String: String]) {
+        guard let url = Self.syncedURL(folderId) else { return }
+        Task.detached(priority: .utility) {
+            guard let data = try? JSONEncoder().encode(synced) else { return }
+            try? data.write(to: url, options: [.atomic, .completeFileProtection])
+        }
+    }
+
+    private func dropSynced(_ folderId: UUID) {
+        lastSyncedByRemoteFolder.removeValue(forKey: folderId)
+        syncedLoaded.remove(folderId)
+        if let url = Self.syncedURL(folderId) { try? FileManager.default.removeItem(at: url) }
+    }
+
+    /// Folders added from this Mac used to be upload-only mirrors; every
+    /// folder is two-way now, the only difference being how it started
+    /// (its first pass uploads what is here). Moved over once, keeping
+    /// the folder's id - and with it its hash cache - and the device path
+    /// it has always synced to. With no sync record yet the first pass
+    /// deletes nothing: what is only on the device comes down, what is
+    /// only here goes up.
+    private func migrateLocalFolders() {
+        let stored = existingStored()
+        guard !stored.isEmpty else { return }
+        var remote = existingStoredRemote()
+        for item in stored {
+            guard let folder = folders.first(where: { $0.id == item.id }) else { continue }
+            let remotePath = remotePathFor(folder.url.path)
+            if !remote.contains(where: { $0.id == item.id }) {
+                remote.append(StoredRemoteFolder(id: item.id, remotePath: remotePath, bookmark: item.bookmark))
+                remoteFolders.append(RemoteFolder(id: item.id, remotePath: remotePath, localURL: folder.url))
+            }
+        }
+        persistRemoteFolders(bookmarks: remote)
+        persistFolders(bookmarks: [])
+        folders = []
+    }
+
     init() {
         restoreFolders()
         restoreRemoteFolders()
+        migrateLocalFolders()
 
         ws.onConnect = { [weak self] in
             Task { @MainActor in
@@ -338,28 +399,10 @@ final class SyncModel: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         if panel.runModal() == .OK, let url = panel.url {
-            do {
-                // create a security-scoped bookmark
-                let bookmark = try url.bookmarkData(
-                    options: [.withSecurityScope],
-                    includingResourceValuesForKeys: nil,
-                    relativeTo: nil
-                )
-                _ = url.startAccessingSecurityScopedResource() // keep access for this session
-
-                let tf = TrackedFolder(id: UUID(), url: url)
-                folders.append(tf)
-
-                var stored = existingStored()
-                stored.append(StoredFolder(id: tf.id, bookmark: bookmark))
-                persistFolders(bookmarks: stored)
-
-                if settings?.ready == true {
-                    Task { await self.setupFolder(tf) }
-                }
-            } catch {
-                print("Bookmark creation failed:", error)
-            }
+            // Two-way like every folder: it syncs to this Mac's own place
+            // on the device, and with nothing there yet its first pass
+            // uploads what the folder holds.
+            addRemoteFolder(remotePath: remotePathFor(url.path), localURL: url)
         }
     }
 
@@ -447,7 +490,7 @@ final class SyncModel: ObservableObject {
         remoteFolderWatchers.removeValue(forKey: f.id)
         remoteFolderDebounce[f.id]?.cancel()
         remoteFolderDebounce.removeValue(forKey: f.id)
-        lastSyncedByRemoteFolder.removeValue(forKey: f.id)
+        dropSynced(f.id)
         remoteErrorRetryTasks[f.id]?.cancel()
         remoteErrorRetryTasks.removeValue(forKey: f.id)
 
@@ -866,6 +909,7 @@ final class SyncModel: ObservableObject {
             }
             syncLog.info("two-way \(folder.remotePath, privacy: .public): remote=\(remoteByRelative.count) local=\(localByRelative.count) hashed=\(localHashes.count) unreadable=\(unreadable.count) baseline=\(self.lastSyncedByRemoteFolder[folder.id]?.count ?? 0)")
 
+            loadSyncedIfNeeded(folder.id)
             let lastSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
             let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
 
@@ -965,6 +1009,7 @@ final class SyncModel: ObservableObject {
                 }
             }
 
+            if newSynced != lastSynced { saveSynced(folder.id, newSynced) }
             lastSyncedByRemoteFolder[folder.id] = newSynced
             updateRemoteState(folder.id, .watching)
         } catch {

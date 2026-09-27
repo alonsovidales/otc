@@ -126,6 +126,7 @@ type Engine struct {
 	remoteStates map[string]FolderState
 	remoteHashes map[string]map[string]string // folder id -> remote path -> hash
 	lastSynced   map[string]map[string]string // remote folder id -> relative path -> hash
+	savedSynced  map[string]map[string]string // what is on disk (twoway.go)
 	watchers     map[string]*Watcher
 	remoteWatch  map[string]*Watcher
 	debounce     map[string]*time.Timer // per changed path (upload folders)
@@ -164,6 +165,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		remoteStates: map[string]FolderState{},
 		remoteHashes: map[string]map[string]string{},
 		lastSynced:   map[string]map[string]string{},
+		savedSynced:  map[string]map[string]string{},
 		watchers:     map[string]*Watcher{},
 		remoteWatch:  map[string]*Watcher{},
 		debounce:     map[string]*time.Timer{},
@@ -177,6 +179,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		onChange:     onChange,
 		hostname:     host,
 	}
+	e.migrateFolders(cfg)
 	for _, f := range cfg.Folders {
 		e.folderStates[f.ID] = FolderState{Kind: StateScanning}
 	}
@@ -250,6 +253,7 @@ func (e *Engine) Stop() {
 // edits) feeds back in: new folders start, removed ones stop, changed
 // credentials reconnect.
 func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
+	e.migrateFolders(cfg)
 	e.mu.Lock()
 	old := e.cfg
 	oldPw := e.password
@@ -263,16 +267,26 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 			e.folderStates[f.ID] = FolderState{Kind: StateScanning}
 		}
 	}
-	for _, f := range old.Folders {
-		if !keep[f.ID] {
-			e.dropFolderLocked(f.ID)
-		}
-	}
 	keepR := map[string]bool{}
 	for _, f := range cfg.RemoteFolders {
 		keepR[f.ID] = true
 		if _, ok := e.remoteStates[f.ID]; !ok {
 			e.remoteStates[f.ID] = FolderState{Kind: StateScanning}
+		}
+	}
+	for _, f := range old.Folders {
+		if keepR[f.ID] {
+			// Became two-way (migrateFolders): only the upload side stops;
+			// the hash cache under the same id carries on.
+			if w := e.watchers[f.ID]; w != nil {
+				w.Stop()
+				delete(e.watchers, f.ID)
+			}
+			delete(e.folderStates, f.ID)
+			continue
+		}
+		if !keep[f.ID] {
+			e.dropFolderLocked(f.ID)
 		}
 	}
 	for _, f := range old.RemoteFolders {
@@ -322,7 +336,7 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 		t.Stop()
 		delete(e.remoteRetry, id)
 	}
-	delete(e.lastSynced, id)
+	e.dropSyncedLocked(id)
 	delete(e.remoteStates, id)
 	e.dropHashCacheLocked(id)
 }
@@ -927,6 +941,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 
 	e.mu.Lock()
+	e.loadSyncedLocked(f.ID)
 	last := e.lastSynced[f.ID]
 	e.mu.Unlock()
 	if last == nil {
@@ -1045,6 +1060,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	e.mu.Lock()
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
+	e.saveSynced(f.ID, newSynced)
 	if len(unreadable) > 0 {
 		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d file(s) could not be read", len(unreadable))})
 

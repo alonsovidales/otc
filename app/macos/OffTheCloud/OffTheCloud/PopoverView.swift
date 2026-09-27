@@ -111,10 +111,12 @@ struct PopoverView: View {
 
             HStack {
                 Menu {
-                    Button("Local Folder…") {
+                    // Both kinds sync both ways; they only differ in which
+                    // side the first pass copies from.
+                    Button("Folder on This Mac…") {
                         sync.addFolder()
                     }
-                    Button("Remote Folder…") {
+                    Button("Folder on the Device…") {
                         showRemotePicker = true
                     }
                 } label: {
@@ -204,10 +206,11 @@ struct RemoteFolderRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "folder.fill.badge.minus")
+            Image(systemName: "folder.fill")
                 .foregroundStyle(Color.accentColor)
                 .overlay(alignment: .bottomTrailing) {
-                    Image(systemName: "arrow.down.circle.fill")
+                    // Every folder is two-way.
+                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
                         .font(.system(size: 9))
                         .foregroundStyle(.blue)
                         .background(Circle().fill(.white))

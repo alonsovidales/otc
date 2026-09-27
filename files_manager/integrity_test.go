@@ -3,6 +3,7 @@
 package filesmanager
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -43,5 +44,26 @@ func TestIntegrityReportCapsTheList(t *testing.T) {
 	title, detail := integrityReport(missing, paths)
 	if title != "20 files have lost their content" || !strings.Contains(detail, "; and 5 more.") {
 		t.Errorf("title %q detail %q", title, detail)
+	}
+}
+
+// Issue #141: a blob is replaced whole even when the old file can't be
+// written to (an older installation's, owned by another account).
+func TestWriteBlobReplacesAReadOnlyFile(t *testing.T) {
+	dir := t.TempDir()
+	target := dir + "/abc"
+	if err := os.WriteFile(target, nil, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeBlob(target, []byte("content")); err != nil {
+		t.Fatalf("writeBlob: %v", err)
+	}
+	got, _ := os.ReadFile(target)
+	if string(got) != "content" {
+		t.Fatalf("content = %q", got)
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 1 {
+		t.Fatalf("temporary files left behind: %v", entries)
 	}
 }

@@ -1046,7 +1046,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		// it can't remove the blob between this write and the row that
 		// now references it being seen.
 		unlock := lockBlob(file.Hash)
-		err := os.WriteFile(targetPath, session.Encrypt(content), 0644) // perms: rw-r--r--
+		err := writeBlob(targetPath, session.Encrypt(content))
 		unlock()
 		if err != nil {
 			// Issue #63/#64: the client was already told "saved" - this
@@ -1336,6 +1336,35 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	}
 	os.Remove(fullPath + "_thumbnail")
 	return nil
+}
+
+// writeBlob stores a blob by writing a temporary file next to it and
+// renaming it into place (issue #141). Two things the in-place write got
+// wrong: a crash or power cut mid-write left a 0-byte blob behind - the
+// empty files found on Cala - and a blob left by an older installation,
+// owned by another account, could not be overwritten at all ("permission
+// denied"), so its content could never be restored. A rename needs write
+// access to the directory only, and readers see either the old file or
+// the whole new one.
+func writeBlob(target string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(target), ".upload-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // a no-op once renamed
+	if _, err = tmp.Write(data); err == nil {
+		err = tmp.Sync()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o644) // perms: rw-r--r--, as before
+	}
+	if err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), target)
 }
 
 // blobPath is where the encrypted content for hash lives.

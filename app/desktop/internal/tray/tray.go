@@ -122,8 +122,10 @@ func (u *ui) build(folders []config.FolderStatus) {
 		u.empty.Hide()
 	}
 	systray.AddSeparator()
-	u.addLocal = systray.AddMenuItem("Add Local Folder…", "Mirror a folder on this computer to the device")
-	u.addRem = systray.AddMenuItem("Add Remote Folder…", "Keep a device folder in sync with a local one")
+	// Both kinds are two-way; they only differ in which side the first
+	// pass copies from (same as the macOS app's Add Folder menu).
+	u.addLocal = systray.AddMenuItem("Add Folder on This Computer…", "Keep a folder on this computer in two-way sync with the device")
+	u.addRem = systray.AddMenuItem("Add Folder on the Device…", "Keep a device folder in two-way sync with one on this computer")
 	u.settings = systray.AddMenuItem("Settings…", "Device and password")
 	u.autost = systray.AddMenuItemCheckbox("Start at login", "", u.c.AutostartEnabled())
 	systray.AddSeparator()

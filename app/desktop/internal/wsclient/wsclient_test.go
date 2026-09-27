@@ -91,7 +91,9 @@ func TestReconnectsWhenTheSessionIsGone(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	resp, err := c.Request(ctx, func(r *pb.ReqEnvelope) { r.Payload = &pb.ReqEnvelope_ReqListFiles{ReqListFiles: &pb.ListFiles{Path: "/"}} })
+	resp, err := c.Request(ctx, func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqListFiles{ReqListFiles: &pb.ListFiles{Path: "/"}}
+	})
 	if err != nil || resp.GetRespAck().GetCode() != "not_authenticated" {
 		t.Fatalf("first request: %v %v", resp, err)
 	}
@@ -102,7 +104,9 @@ func TestReconnectsWhenTheSessionIsGone(t *testing.T) {
 	}
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()
-	resp, err = c.Request(ctx2, func(r *pb.ReqEnvelope) { r.Payload = &pb.ReqEnvelope_ReqListFiles{ReqListFiles: &pb.ListFiles{Path: "/"}} })
+	resp, err = c.Request(ctx2, func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqListFiles{ReqListFiles: &pb.ListFiles{Path: "/"}}
+	})
 	if err != nil || !resp.GetRespAck().GetOk() {
 		t.Fatalf("request after reconnecting: %v %v", resp, err)
 	}
