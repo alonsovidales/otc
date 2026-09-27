@@ -51,6 +51,7 @@ func main() {
 	}
 
 	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao)
+	adm.IsOnline = webSocket.IsOnline
 	// Issue #124: user accounts, sharing the admin panel's session secret
 	// (a different cookie, the same signing key).
 	acc := accounts.Init(dao, sessionSecret(), cfg.GetStr("otc-api", "tld"))

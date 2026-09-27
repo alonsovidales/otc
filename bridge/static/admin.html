@@ -29,7 +29,7 @@
       background:var(--bg);
     }
     a{color:var(--brand)}
-    .wrap{max-width:1000px;margin:0 auto;padding:24px}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
     header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
     header h1{font-size:18px;margin:0;font-weight:700}
     header h1 span{color:var(--muted);font-weight:400}
@@ -72,6 +72,22 @@
     #messages-badge:empty{display:none}
     tr.unread td{font-weight:600}
     td.message-cell{max-width:320px;white-space:pre-wrap;word-break:break-word}
+    /* Issue #139: devices with owner/usage, the accounts tab */
+    .scroll-x{overflow-x:auto}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--panel-2);border:1px solid var(--border);vertical-align:1px}
+    .dot.on{background:var(--ok);border-color:var(--ok)}
+    .tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;font-size:11px;border:1px solid var(--border);color:var(--muted)}
+    .tag.warn{color:var(--warn);border-color:rgba(245,158,11,.4)}
+    .linkish{background:none;border:none;padding:0;color:var(--brand);cursor:pointer;font:inherit;text-align:left}
+    .linkish:hover{text-decoration:underline}
+    tr.clickable{cursor:pointer}
+    tr.clickable:hover td{background:var(--panel-2)}
+    tr.open td{background:var(--panel-2)}
+    tr.detail>td{background:var(--panel-2);padding:14px 16px 18px}
+    dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0 0 14px;font-size:14px}
+    dl.facts dt{color:var(--muted)}
+    dl.facts dd{margin:0;word-break:break-all}
   </style>
 </head>
 <body>
@@ -102,6 +118,7 @@
 
       <div class="tabs">
         <div class="tab active" data-tab="devices">Devices</div>
+        <div class="tab" data-tab="accounts">Accounts</div>
         <div class="tab" data-tab="metrics">Metrics</div>
         <div class="tab" data-tab="security">Security</div>
         <div class="tab" data-tab="messages">Messages<span id="messages-badge"></span></div>
@@ -110,10 +127,13 @@
       <section id="tab-devices">
         <div class="card">
           <div id="devices-msg"></div>
-          <table>
-            <thead><tr><th>Domain</th><th>Owner UUID</th><th></th></tr></thead>
-            <tbody id="devices-body"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody>
-          </table>
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Domain</th><th>Owner</th><th>Last client</th><th class="num" title="The last full hour plus the current one">1 h</th><th class="num">24 h</th><th class="num">30 days</th><th></th></tr></thead>
+              <tbody id="devices-body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <p class="muted" style="margin:10px 0 0;font-size:12px">Green dot: dialled in to the bridge now. Last client: the last time anyone reached the device through the bridge. Traffic is relayed bytes in + out.</p>
         </div>
         <div class="card">
           <h3 style="margin-top:0">Add a device</h3>
@@ -137,6 +157,18 @@
               </div>
             </div>
           </form>
+        </div>
+      </section>
+
+      <section id="tab-accounts" hidden>
+        <div class="card">
+          <div id="accounts-msg"></div>
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th>Country</th><th>Sign-in</th><th class="num">Devices</th><th>Created</th><th>Last seen</th></tr></thead>
+              <tbody id="accounts-body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -270,9 +302,10 @@
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        ['devices', 'metrics', 'security', 'messages'].forEach(name => {
+        ['devices', 'accounts', 'metrics', 'security', 'messages'].forEach(name => {
           document.getElementById(`tab-${name}`).hidden = name !== tab.dataset.tab;
         });
+        if (tab.dataset.tab === 'accounts') refreshAccounts();
         if (tab.dataset.tab === 'metrics') refreshMetrics();
         if (tab.dataset.tab === 'security') refreshSecurity();
         if (tab.dataset.tab === 'messages') refreshMessages();
@@ -282,26 +315,139 @@
     // ---- Devices ----
     let knownDomains = [];
 
+    // "3 min ago" for a timestamp, "never" for none.
+    function fmtAgo(ts) {
+      if (!ts) return 'never';
+      const t = new Date(ts);
+      const s = Math.max(0, (Date.now() - t.getTime()) / 1000);
+      let rel;
+      if (s < 60) rel = 'just now';
+      else if (s < 3600) rel = `${Math.floor(s / 60)} min ago`;
+      else if (s < 86400) rel = `${Math.floor(s / 3600)} h ago`;
+      else if (s < 86400 * 60) rel = `${Math.floor(s / 86400)} days ago`;
+      else rel = t.toLocaleDateString();
+      return `<span title="${escapeHtml(t.toLocaleString())}">${rel}</span>`;
+    }
+    function fmtDate(ts) {
+      return ts ? escapeHtml(new Date(ts).toLocaleDateString()) : '—';
+    }
+
+    // One device row, shared by the Devices tab and an account's detail.
+    function deviceRow(d, { owner = true, remove = true } = {}) {
+      const ownerCell = !owner ? '' : `<td>${d.AccountID
+        ? `<button class="linkish" data-account="${escapeHtml(d.AccountID)}">${escapeHtml(d.AccountName || d.AccountEmail)}</button>${d.AccountName ? `<br><span class="muted" style="font-size:12px">${escapeHtml(d.AccountEmail)}</span>` : ''}`
+        : `<span class="muted" title="Owner UUID ${escapeHtml(d.OwnerUuid)}">No account</span>`}</td>`;
+      return `
+        <tr>
+          <td><span class="dot ${d.Online ? 'on' : ''}" title="${d.Online ? 'Online' : 'Offline'}"></span>${escapeHtml(d.Domain)}${d.Disabled ? '<span class="tag warn">disabled</span>' : ''}</td>
+          ${ownerCell}
+          <td>${fmtAgo(d.LastClient)}</td>
+          <td class="num">${fmtBytes(d.BytesHour)}</td>
+          <td class="num">${fmtBytes(d.BytesDay)}</td>
+          <td class="num">${fmtBytes(d.BytesMonth)}</td>
+          ${remove ? `<td><button class="btn danger" data-domain="${escapeHtml(d.Domain)}">Remove</button></td>` : ''}
+        </tr>`;
+    }
+
     async function refreshDevices() {
       const devices = await api.call('GET', '/admin/api/devices');
       knownDomains = devices.map(d => d.Domain);
       const body = document.getElementById('devices-body');
       if (devices.length === 0) {
-        body.innerHTML = '<tr><td colspan="3" class="muted">No devices registered yet.</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" class="muted">No devices registered yet.</td></tr>';
       } else {
-        body.innerHTML = devices.map(d => `
-          <tr>
-            <td>${escapeHtml(d.Domain)}</td>
-            <td><code>${escapeHtml(d.OwnerUuid)}</code></td>
-            <td><button class="btn danger" data-domain="${escapeHtml(d.Domain)}">Remove</button></td>
-          </tr>
-        `).join('');
+        body.innerHTML = devices.map(d => deviceRow(d)).join('');
         body.querySelectorAll('button[data-domain]').forEach(btn => {
           btn.addEventListener('click', () => removeDevice(btn.dataset.domain));
+        });
+        body.querySelectorAll('button[data-account]').forEach(btn => {
+          btn.addEventListener('click', () => showAccount(btn.dataset.account));
         });
       }
       populateDomainSelect('metrics-domain', devices);
       populateDomainSelect('security-domain', devices);
+    }
+
+    // ---- Accounts (issue #139) ----
+    let openAccount = null;
+
+    function signInLabel(a) {
+      const ways = [...(a.HasPassword ? ['password'] : []), ...(a.Providers || [])];
+      return ways.length ? ways.map(escapeHtml).join(', ') : '—';
+    }
+
+    async function refreshAccounts() {
+      const body = document.getElementById('accounts-body');
+      let accounts;
+      try {
+        accounts = await api.call('GET', '/admin/api/accounts');
+      } catch (err) {
+        showMsg(document.getElementById('accounts-msg'), err.message, 'error');
+        return;
+      }
+      showMsg(document.getElementById('accounts-msg'), '', '');
+      if (accounts.length === 0) {
+        body.innerHTML = '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>';
+        return;
+      }
+      body.innerHTML = accounts.map(a => `
+        <tr class="clickable ${openAccount === a.ID ? 'open' : ''}" data-id="${escapeHtml(a.ID)}">
+          <td>${escapeHtml(`${a.Name} ${a.Surname}`.trim() || '—')}</td>
+          <td>${escapeHtml(a.Email)}</td>
+          <td>${escapeHtml(a.Country || '—')}</td>
+          <td>${signInLabel(a)}</td>
+          <td class="num">${a.Domains}</td>
+          <td>${fmtDate(a.Created)}</td>
+          <td>${fmtAgo(a.LastSeen)}</td>
+        </tr>`).join('');
+      body.querySelectorAll('tr[data-id]').forEach(tr => {
+        tr.addEventListener('click', () => toggleAccount(tr.dataset.id));
+      });
+      if (openAccount) await expandAccount(openAccount);
+    }
+
+    async function toggleAccount(id) {
+      openAccount = openAccount === id ? null : id;
+      document.querySelectorAll('#accounts-body tr.detail').forEach(r => r.remove());
+      document.querySelectorAll('#accounts-body tr[data-id]').forEach(r => r.classList.toggle('open', r.dataset.id === openAccount));
+      if (openAccount) await expandAccount(openAccount);
+    }
+
+    async function expandAccount(id) {
+      const row = document.querySelector(`#accounts-body tr[data-id="${CSS.escape(id)}"]`);
+      if (!row) return;
+      const detail = document.createElement('tr');
+      detail.className = 'detail';
+      detail.innerHTML = '<td colspan="7" class="muted">Loading…</td>';
+      row.after(detail);
+      try {
+        const { Account: a, Devices: devices } = await api.call('GET', `/admin/api/accounts/${encodeURIComponent(id)}`);
+        detail.innerHTML = `<td colspan="7">
+          <dl class="facts">
+            <dt>Name</dt><dd>${escapeHtml(`${a.Name} ${a.Surname}`.trim() || '—')}</dd>
+            <dt>Email</dt><dd>${escapeHtml(a.Email)}</dd>
+            <dt>Country</dt><dd>${escapeHtml(a.Country || '—')}</dd>
+            <dt>Sign-in</dt><dd>${signInLabel(a)}</dd>
+            <dt>Created</dt><dd>${escapeHtml(new Date(a.Created).toLocaleString())}</dd>
+            <dt>Last seen</dt><dd>${escapeHtml(new Date(a.LastSeen).toLocaleString())}</dd>
+            <dt>Free until</dt><dd>${fmtDate(a.FreeUntil)}</dd>
+            <dt>Account ID</dt><dd><code>${escapeHtml(a.ID)}</code></dd>
+          </dl>
+          ${devices.length === 0 ? '<p class="muted" style="margin:0">No devices.</p>' : `
+          <div class="scroll-x"><table>
+            <thead><tr><th>Domain</th><th>Last client</th><th class="num">1 h</th><th class="num">24 h</th><th class="num">30 days</th></tr></thead>
+            <tbody>${devices.map(d => deviceRow(d, { owner: false, remove: false })).join('')}</tbody>
+          </table></div>`}
+        </td>`;
+      } catch (err) {
+        detail.innerHTML = `<td colspan="7" class="reason">${escapeHtml(err.message)}</td>`;
+      }
+    }
+
+    // From an owner in the Devices tab: open that account.
+    async function showAccount(id) {
+      openAccount = id;
+      document.querySelector('.tab[data-tab="accounts"]').click();
     }
 
     function populateDomainSelect(id, devices) {

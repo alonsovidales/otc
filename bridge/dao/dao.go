@@ -10,6 +10,8 @@ import (
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/push"
 	_ "github.com/go-sql-driver/mysql"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,6 +28,11 @@ const (
 type Dao struct {
 	db            *sql.DB
 	stopLogPruner chan struct{}
+
+	// Issue #139: when devices.last_client_at was last written per
+	// domain, so relayed traffic touches that row at most once a minute.
+	lastClientMu sync.Mutex
+	lastClient   map[string]time.Time
 }
 
 // NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
@@ -263,6 +270,7 @@ func (dao *Dao) SetAdminPassword(username, passwordHash string) (err error) {
 // RecordDeviceActivity adds one request's worth of traffic to the current
 // hour's bucket for domain.
 func (dao *Dao) RecordDeviceActivity(domain string, bytesIn, bytesOut int64) (err error) {
+	dao.touchLastClient(domain)
 	_, err = dao.db.Exec(
 		"insert into `device_metrics` (`domain`, `hour_bucket`, `requests`, `bytes_in`, `bytes_out`) "+
 			"values (?, date_format(now(), '%Y-%m-%d %H:00:00'), 1, ?, ?) "+
@@ -778,4 +786,148 @@ func (dao *Dao) DeleteAccountDomain(accountID, domain string) (ok bool, err erro
 	n, err := res.RowsAffected()
 
 	return n > 0, err
+}
+
+// cLastClientEvery is how often, at most, relayed traffic updates a
+// device's last_client_at (issue #139).
+const cLastClientEvery = time.Minute
+
+// touchLastClient records that somebody reached domain through the bridge
+// just now - the admin panel's "last client" column. Throttled per domain
+// in memory, best effort like the traffic metrics themselves.
+func (dao *Dao) touchLastClient(domain string) {
+	now := time.Now()
+	dao.lastClientMu.Lock()
+	if dao.lastClient == nil {
+		dao.lastClient = map[string]time.Time{}
+	}
+	if now.Sub(dao.lastClient[domain]) < cLastClientEvery {
+		dao.lastClientMu.Unlock()
+		return
+	}
+	dao.lastClient[domain] = now
+	dao.lastClientMu.Unlock()
+	// Written from Go in UTC, like every other time the bridge stores: the
+	// driver reads datetimes back as UTC, and the database's own now() is
+	// the server's local time, which need not be.
+	if _, err := dao.db.Exec("update `devices` set `last_client_at` = ? where `domain` = ?", now.UTC(), domain); err != nil {
+		log.Error("error recording the last client of", domain, err)
+	}
+}
+
+// AdminDevice is one row of the admin panel's device list (issue #139):
+// the device, who owns it, when a client last reached it through the
+// bridge and how much traffic it relayed. Online is filled in by the
+// admin package from the live relay pool.
+type AdminDevice struct {
+	Domain       string
+	OwnerUuid    string
+	AccountID    string
+	AccountEmail string
+	AccountName  string
+	Disabled     bool
+	Created      *time.Time
+	LastClient   *time.Time
+	Online       bool
+	// In + out bytes: the last full clock hour plus the current one (the
+	// metrics are hourly buckets), the last 24 hours and the last 30 days.
+	BytesHour  int64
+	BytesDay   int64
+	BytesMonth int64
+}
+
+// ListAdminDevices returns every device, or only accountID's when it is
+// not empty.
+func (dao *Dao) ListAdminDevices(accountID string) (devices []AdminDevice, err error) {
+	q := "select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, ''), coalesce(a.`email`, ''), " +
+		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))), d.`disabled`, d.`created`, d.`last_client_at`, " +
+		"coalesce(sum(case when m.`hour_bucket` >= date_format(now() - interval 1 hour, '%Y-%m-%d %H:00:00') then m.`bytes_in` + m.`bytes_out` end), 0), " +
+		"coalesce(sum(case when m.`hour_bucket` >= now() - interval 1 day then m.`bytes_in` + m.`bytes_out` end), 0), " +
+		"coalesce(sum(m.`bytes_in` + m.`bytes_out`), 0) " +
+		"from `devices` d left join `accounts` a on a.`id` = d.`account_id` " +
+		"left join `device_metrics` m on m.`domain` = d.`domain` and m.`hour_bucket` >= now() - interval 30 day "
+	args := []any{}
+	if accountID != "" {
+		q += "where d.`account_id` = ? "
+		args = append(args, accountID)
+	}
+	q += "group by d.`domain`, d.`owner_uuid`, d.`account_id`, a.`email`, a.`name`, a.`surname`, d.`disabled`, d.`created`, d.`last_client_at` " +
+		"order by d.`domain`"
+	rows, err := dao.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	devices = []AdminDevice{}
+	for rows.Next() {
+		var d AdminDevice
+		var created, lastClient sql.NullTime
+		if err := rows.Scan(&d.Domain, &d.OwnerUuid, &d.AccountID, &d.AccountEmail, &d.AccountName, &d.Disabled,
+			&created, &lastClient, &d.BytesHour, &d.BytesDay, &d.BytesMonth); err != nil {
+			return nil, err
+		}
+		if created.Valid {
+			d.Created = &created.Time
+		}
+		if lastClient.Valid {
+			d.LastClient = &lastClient.Time
+		}
+		devices = append(devices, d)
+	}
+
+	return devices, rows.Err()
+}
+
+// AdminAccount is one row of the admin panel's accounts list (issue #139).
+// Never the password hash - only whether there is one.
+type AdminAccount struct {
+	ID          string
+	Email       string
+	Name        string
+	Surname     string
+	Country     string
+	HasPassword bool
+	Providers   []string
+	Created     time.Time
+	LastSeen    time.Time
+	FreeUntil   time.Time
+	Domains     int
+}
+
+// ListAdminAccounts returns every account, newest first, or only the one
+// with id when it is not empty.
+func (dao *Dao) ListAdminAccounts(id string) (accounts []AdminAccount, err error) {
+	q := "select a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash` is not null, " +
+		"a.`created`, a.`last_seen`, a.`free_until`, count(distinct d.`domain`), coalesce(group_concat(distinct l.`provider` order by l.`provider`), '') " +
+		"from `accounts` a left join `devices` d on d.`account_id` = a.`id` left join `account_logins` l on l.`account_id` = a.`id` "
+	args := []any{}
+	if id != "" {
+		q += "where a.`id` = ? "
+		args = append(args, id)
+	}
+	q += "group by a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash`, a.`created`, a.`last_seen`, a.`free_until` " +
+		"order by a.`created` desc"
+	rows, err := dao.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	accounts = []AdminAccount{}
+	for rows.Next() {
+		var a AdminAccount
+		var providers string
+		if err := rows.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &a.HasPassword,
+			&a.Created, &a.LastSeen, &a.FreeUntil, &a.Domains, &providers); err != nil {
+			return nil, err
+		}
+		a.Providers = []string{}
+		if providers != "" {
+			a.Providers = strings.Split(providers, ",")
+		}
+		accounts = append(accounts, a)
+	}
+
+	return accounts, rows.Err()
 }

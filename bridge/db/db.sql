@@ -24,6 +24,9 @@ create table devices
   -- dialling in while [accounts] open-registration is on.
   `account_id` varchar(36) default null,
   `created` datetime default null,
+  -- Issue #139: when a client last reached this device through the bridge
+  -- (updated at most once a minute), for the admin panel.
+  `last_client_at` datetime default null,
 
   key (`owner_uuid`),
   unique (`domain`),

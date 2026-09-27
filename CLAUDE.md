@@ -267,7 +267,12 @@ through the device (`/api/account` in `setup_wizard.py` proxies sign-in/sign-up 
 the bridge - so Google/Apple users get a setup code from the account page on another device.
 "Continue without an account" sets `skip_bridge`, and `install.sh` gets `OTC_BRIDGE_ADDR=""`
 (local-only, name `otc`). Schema: `bridge/db/db.sql` + `bridge/db/migrations/001-accounts.sql`
-for an existing bridge (no updater on the bridge: run it by hand, it is idempotent). Test bed: the
+for an existing bridge (no updater on the bridge: run it by hand, it is idempotent). Issue #139: the admin
+panel's Devices tab shows each device's owner, whether it is dialled in (`Admin.IsOnline`, set
+from the websocket manager in main), when a client last reached it (`devices.last_client_at`,
+written from Go in UTC at most once a minute per domain by `RecordDeviceActivity`; migration
+`002-last-client.sql`) and relayed traffic over 1 h / 24 h / 30 days from `device_metrics`; an
+Accounts tab lists accounts and opens one with its devices (`/admin/api/accounts[/{id}]`). Test bed: the
 Lima VM `otc` has MariaDB; load `bridge/db/db.sql` with `mysql -f`, the migration, a
 `/tmp/etc/otc_test.ini` with `tld=bridge.test:8081` and a self-signed cert, run a linux/arm64
 build of `otc_bridge` there, and curl with `-H "Host: bridge.test:8081"` (Lima forwards the

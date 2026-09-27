@@ -42,6 +42,10 @@ type Admin struct {
 	sessionSecret []byte
 	// Issue #99: per-IP login throttling, see ratelimit.go.
 	loginLimiter *loginLimiter
+	// IsOnline reports whether a device is dialled in right now (the
+	// relay pool, set by main once the websocket manager exists). Nil
+	// means unknown - every device shows offline.
+	IsOnline func(domain string) bool
 }
 
 // Init builds the admin manager. sessionSecret signs session tokens, so it
@@ -224,14 +228,63 @@ func (a *Admin) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // ListDevices returns every registered device.
+// ListDevices is the Devices tab (issue #139): owner, online now, last
+// client connection and relayed traffic per device.
 func (a *Admin) ListDevices(w http.ResponseWriter, r *http.Request) {
-	devices, err := a.dao.ListDevices()
+	devices, err := a.adminDevices("")
 	if err != nil {
 		log.Error("error listing devices:", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, devices)
+}
+
+func (a *Admin) adminDevices(accountID string) ([]dao.AdminDevice, error) {
+	devices, err := a.dao.ListAdminDevices(accountID)
+	if err != nil {
+		return nil, err
+	}
+	if a.IsOnline != nil {
+		for i := range devices {
+			devices[i].Online = a.IsOnline(devices[i].Domain)
+		}
+	}
+	return devices, nil
+}
+
+// ListAccounts is the Accounts tab (issue #139).
+func (a *Admin) ListAccounts(w http.ResponseWriter, r *http.Request) {
+	accounts, err := a.dao.ListAdminAccounts("")
+	if err != nil {
+		log.Error("error listing accounts:", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, accounts)
+}
+
+// GetAccount is one account with its devices, what the Accounts tab shows
+// when a row is opened.
+func (a *Admin) GetAccount(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	accounts, err := a.dao.ListAdminAccounts(id)
+	if err != nil {
+		log.Error("error reading account", id, err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if len(accounts) == 0 {
+		writeError(w, http.StatusNotFound, "no such account")
+		return
+	}
+	devices, err := a.adminDevices(id)
+	if err != nil {
+		log.Error("error listing the devices of account", id, err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"Account": accounts[0], "Devices": devices})
 }
 
 // cMinRelaySecretLen is the shortest secret AddDevice will accept. The
