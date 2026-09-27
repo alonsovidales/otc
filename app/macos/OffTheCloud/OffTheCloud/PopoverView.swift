@@ -123,7 +123,18 @@ struct PopoverView: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
                 Spacer()
-                // status / version | optional
+                // App Store review: a menu bar app (LSUIElement - no Dock
+                // icon, no app menu) must still offer a way to quit, and
+                // this popover is its only UI. ⌘Q works while it is open,
+                // as in any app. Same as the tray's "Quit" in otc-sync.
+                Button {
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    Label("Quit Off The Cloud", systemImage: "power")
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut("q", modifiers: .command)
+                .help("Quit Off The Cloud - folders stop syncing until it is opened again")
             }
         }
         .padding(12)
