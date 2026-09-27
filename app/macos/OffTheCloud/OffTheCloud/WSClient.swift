@@ -265,6 +265,20 @@ final class WSClient {
                         print("WSClient: message \(resp.id) (\(whole.count) bytes) has no waiter; \(self.waiters.count) pending")
                         self.onPush?(resp)
                     }
+                    // The device no longer knows this session - it
+                    // restarted (an update) while the bridge kept this
+                    // socket, pairing it with a fresh, signed-out
+                    // connection. Every request would fail with "not
+                    // authenticated" under a green "Connected" until
+                    // something reconnected: cancel, and the .cancelled
+                    // handler reconnects and signs in again. Same as
+                    // otc-sync's wsclient.
+                    if case .respAck(let ack) = resp.payload, ack.code == "not_authenticated", self.isOpen {
+                        print("WSClient: the device no longer knows this session - reconnecting to sign in again")
+                        self.isOpen = false
+                        self.conn?.cancel()
+                        return
+                    }
                 } else {
                     print("WSClient: could not decode a \(whole.count)-byte message")
                 }

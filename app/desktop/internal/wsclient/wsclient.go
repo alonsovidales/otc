@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"sync"
@@ -269,6 +270,16 @@ func (c *Client) readLoop(conn *websocket.Conn, gen int64) {
 		c.mu.Unlock()
 		if ch != nil {
 			ch <- resp
+		}
+		// The device no longer knows this session - it restarted (an
+		// update) while the bridge kept this socket, pairing it with a
+		// fresh, signed-out connection. Every request would now fail with
+		// "not authenticated" until something reconnected: close, and the
+		// read error above reconnects and signs in again. Same as
+		// WSClient.swift.
+		if ack := resp.GetRespAck(); ack != nil && ack.Code == "not_authenticated" {
+			log.Printf("the device no longer knows this session - reconnecting to sign in again")
+			_ = conn.Close()
 		}
 	}
 }
