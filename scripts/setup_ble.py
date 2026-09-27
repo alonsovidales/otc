@@ -27,9 +27,12 @@ message is the payload of its chunks in order. A request is UTF-8 JSON
 {"m": "GET"|"POST", "p": "/api/state", "b": "<body, may be empty>"}; an
 answer is raw DEFLATE (no zlib header - what iOS's Compression framework
 and Android's Inflater(nowrap) both take as-is) of JSON {"s": <status>,
-"t": "<content type>", "b": "<body text>"}. Chunks are MTU-3 bytes, the
-MTU being what BlueZ reports with each write, so a phone that negotiated
-a large MTU gets the 50 KB page in a few seconds.
+"t": "<content type>", "b": "<body text>"}. Chunks are MTU-3 bytes, the MTU
+being what BlueZ reports with each write, capped at 512 - the most an
+attribute value can hold, whatever the MTU: BlueZ negotiates 517 with an
+iPhone and a 514-byte notification arrives clipped to 512, which is how
+the page first reached a phone 2 bytes short per chunk. A request may
+also carry "c", the chunk size the phone would rather have.
 
 Like the hotspot, this is deliberately open: it only exists on a device
 that has not been set up yet (the unit has the same ConditionPathExists
@@ -95,9 +98,11 @@ class Tunnel:
         self.partial = {}
         self.lock = threading.Lock()
 
+    MAX_CHUNK = 512  # an attribute value's ceiling (Bluetooth Core, ATT)
+
     def set_chunk_size(self, n):
         # 20 is what a 23-byte default MTU leaves; never go under it.
-        self.chunk_size = max(20, int(n))
+        self.chunk_size = min(self.MAX_CHUNK, max(20, int(n)))
 
     def handle_chunk(self, data):
         data = bytes(data)
@@ -119,6 +124,8 @@ class Tunnel:
     def _serve(self, stream, message):
         try:
             req = json.loads(message.decode("utf-8"))
+            if isinstance(req.get("c"), int) and req["c"] < self.chunk_size:
+                self.set_chunk_size(req["c"])
             status, ctype, body = self.forward(req)
         except Exception as e:  # noqa: BLE001
             status, ctype, body = 502, "application/json", json.dumps({"error": f"bad request: {e}"})
@@ -447,6 +454,8 @@ def selftest():
                     done.set()
 
     tunnel = Tunnel(f"http://127.0.0.1:{port}", send, chunk_size=20)
+    tunnel.set_chunk_size(514)  # what BlueZ's 517-byte MTU leaves...
+    assert tunnel.chunk_size == 512  # ...but never more than an attribute holds
     tunnel.set_chunk_size(182)  # what an iPhone's 185-byte MTU leaves
     for c in Tunnel.frame_request(1, {"m": "GET", "p": "/"}, 20):
         tunnel.handle_chunk(c)

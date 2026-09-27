@@ -78,16 +78,24 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
 
     // MARK: requests
 
+    @MainActor
     func request(method: String, path: String, body: Data?) async throws -> BLESetupAnswer {
-        guard let peripheral, let requestChrc, isReady else { throw BLESetupError.notConnected }
+        guard let peripheral, let requestChrc, isReady else {
+            print("[ble] \(method) \(path): not connected (phase \(phase))")
+            throw BLESetupError.notConnected
+        }
         nextStream &+= 1
         let stream = nextStream
-        var message: [String: String] = ["m": method, "p": path]
+        var message: [String: Any] = ["m": method, "p": path]
         if let body, !body.isEmpty { message["b"] = String(decoding: body, as: UTF8.self) }
+        // The biggest notification this phone takes whole: MTU-3, and
+        // never more than the 512 bytes an attribute value can hold.
+        message["c"] = min(512, peripheral.maximumWriteValueLength(for: .withoutResponse))
         let payload = try JSONSerialization.data(withJSONObject: message)
         // CoreBluetooth queues writes-with-response in order, so all the
         // chunks can go out at once; stream ids keep answers apart.
         let size = max(18, peripheral.maximumWriteValueLength(for: .withResponse) - 2)
+        print("[ble] → \(method) \(path) stream \(stream): \(payload.count) bytes in chunks of \(size)")
         var offset = 0
         repeat {
             let end = min(offset + size, payload.count)
@@ -98,25 +106,26 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
             offset = end
         } while offset < payload.count
 
-        let raw: Data = try await withThrowingTaskGroup(of: Data.self) { group in
-            group.addTask { @MainActor in
-                try await withCheckedThrowingContinuation { cont in
-                    self.waiters[stream] = cont
-                }
-            }
-            group.addTask {
-                try await Task.sleep(for: .seconds(90))
-                throw BLESetupError.timeout
-            }
-            let first = try await group.next()!
-            group.cancelAll()
-            await MainActor.run { _ = self.waiters.removeValue(forKey: stream) }
-            return first
+        // The answer arrives chunk by chunk in didUpdateValueFor, which
+        // resumes the waiter; a timer resumes it with an error instead if
+        // the device never answers.
+        let timeout = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(90))
+            await MainActor.run { self?.waiters.removeValue(forKey: stream)?.resume(throwing: BLESetupError.timeout) }
         }
-        guard let inflated = try? (raw as NSData).decompressed(using: .zlib) as Data,
-              let obj = try? JSONSerialization.jsonObject(with: inflated) as? [String: Any] else {
+        let raw: Data = try await withCheckedThrowingContinuation { cont in
+            waiters[stream] = cont
+        }
+        timeout.cancel()
+        guard let inflated = try? (raw as NSData).decompressed(using: .zlib) as Data else {
+            print("[ble] ← stream \(stream): \(raw.count) bytes that don't inflate: \(raw.prefix(16).map { String(format: "%02x", $0) }.joined())")
             throw BLESetupError.badAnswer
         }
+        guard let obj = try? JSONSerialization.jsonObject(with: inflated) as? [String: Any] else {
+            print("[ble] ← stream \(stream): \(inflated.count) inflated bytes that aren't JSON: \(String(decoding: inflated.prefix(80), as: UTF8.self))")
+            throw BLESetupError.badAnswer
+        }
+        print("[ble] ← \(method) \(path) stream \(stream): \(raw.count) bytes, status \(obj["s"] ?? "?")")
         let bodyText = obj["b"] as? String ?? ""
         let answer = BLESetupAnswer(status: obj["s"] as? Int ?? 502, contentType: obj["t"] as? String ?? "application/octet-stream", body: Data(bodyText.utf8))
         if path.hasPrefix("/api/state"), answer.status == 200 { noteState(bodyText) }
@@ -205,9 +214,18 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+        print("[ble] notify state for \(characteristic.uuid): \(characteristic.isNotifying) \(error.map { "error \($0)" } ?? "")")
         if characteristic.uuid == BLESetupUUID.response, characteristic.isNotifying, requestChrc != nil, !isReady {
             phase = .ready(peripheral.name ?? "Off The Cloud")
         }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
+        if let error { print("[ble] write failed: \(error)") }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
+        print("[ble] services changed: \(invalidatedServices.map { $0.uuid })")
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
@@ -218,7 +236,10 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
             }
             return
         }
-        guard characteristic.uuid == BLESetupUUID.response, value.count >= 2 else { return }
+        guard characteristic.uuid == BLESetupUUID.response, value.count >= 2 else {
+            print("[ble] value for \(characteristic.uuid): \(value.count) bytes \(error.map { "error \($0)" } ?? "")")
+            return
+        }
         let stream = value[value.startIndex]
         let last = value[value.startIndex + 1] & 1 == 1
         partial[stream, default: Data()].append(value.dropFirst(2))
@@ -266,10 +287,11 @@ final class BLESetupSchemeHandler: NSObject, WKURLSchemeHandler {
         guard let url = request.url else { return }
         var path = url.path.isEmpty ? "/" : url.path
         if let q = url.query, !q.isEmpty { path += "?" + q }
+        print("[ble] page request \(request.httpMethod ?? "GET") \(path)")
         Task { @MainActor in
             do {
                 let a = try await transport.request(method: request.httpMethod ?? "GET", path: path, body: request.httpBody)
-                guard live.contains(id) else { return }
+                guard live.contains(id) else { print("[ble] page request \(path) answered after the web view gave up"); return }
                 var body = a.body
                 if a.contentType.hasPrefix("text/html"), let html = String(data: body, encoding: .utf8), let r = html.range(of: "<head>") {
                     body = Data(html.replacingCharacters(in: r, with: "<head>" + Self.fetchOverride).utf8)
@@ -280,6 +302,7 @@ final class BLESetupSchemeHandler: NSObject, WKURLSchemeHandler {
                 task.didReceive(body)
                 task.didFinish()
             } catch {
+                print("[ble] page request \(path) failed: \(error)")
                 guard live.contains(id) else { return }
                 task.didFailWithError(error)
             }

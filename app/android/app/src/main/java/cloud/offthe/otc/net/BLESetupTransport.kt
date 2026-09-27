@@ -242,12 +242,15 @@ class BLESetupTransport(private val context: Context) {
         val stream = synchronized(this) { nextStream = (nextStream + 1) and 0xff; nextStream }
         val msg = JSONObject().put("m", method).put("p", path)
         if (!body.isNullOrEmpty()) msg.put("b", body)
+        // The biggest notification this phone takes whole: MTU-3, and
+        // never more than the 512 bytes an attribute value can hold.
+        msg.put("c", minOf(512, mtu - 3))
         val payload = msg.toString().toByteArray(Charsets.UTF_8)
         val waiter = CompletableDeferred<ByteArray>()
         waiters[stream] = waiter
         // Android takes one write at a time: wait for its callback before
         // the next chunk, and let requests take turns at the characteristic.
-        val size = maxOf(18, mtu - 3 - 2)
+        val size = maxOf(18, minOf(512, mtu - 3) - 2)
         writeLock.withLock {
             var offset = 0
             do {
