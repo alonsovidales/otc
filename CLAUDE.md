@@ -171,7 +171,14 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   claim content whose blob was gone, so no client ever re-sent it and every `GetFile` came back
   empty; `GetFile` now returns the read/decrypt error (and raises a #64 alert) instead of a File
   with no content. The sync clients verify a download's hash before writing it, for the same
-  reason. Issue #132's upload-only folders live
+  reason. Issue #141: a blob is only ever removed or relied on under its hash's
+  lock (`lockBlob`, 256 stripes): `removeBlobIfUnused` checks-and-removes, `withBlob` checks-and-
+  stores a row, and UploadFile's background write holds it too - never across a `DelFile`, which
+  takes its own. `integrity.go` checks once a day (10 min after start) for rows whose content is
+  missing and raises one Alerts entry per change (`.integrity-reported` in the storage path holds
+  the last reported set). The missing blobs found on Cala came with its RAID recovery on
+  2026-09-23: they were lost on the previous installation, most likely by the re-upload bug fixed
+  on 2026-09-03 (34a8c7d), which deleted the old blob while the row kept its hash. Issue #132's upload-only folders live
   here: `upload_only_folders` (paths with their trailing slash, checked by prefix) refuse
   `DelPath` for anything under them with `ErrUploadOnly` (`RespEnvelope.error_code =
   "upload_only"`, which the sync clients treat as done rather than retry), and a second

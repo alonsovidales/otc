@@ -529,6 +529,25 @@ func (dao *Dao) DelFileVersions(path string) (hashes []string, err error) {
 	return hashes, err
 }
 
+// ContentPaths maps every hash a file or kept version uses to the paths
+// using it (issue #141: the storage integrity check).
+func (dao *Dao) ContentPaths() (map[string][]string, error) {
+	rows, err := dao.db.Query("select `hash`, `path` from `files` union all select `hash`, `path` from `file_versions`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string][]string{}
+	for rows.Next() {
+		var hash, path string
+		if err := rows.Scan(&hash, &path); err != nil {
+			return nil, err
+		}
+		out[hash] = append(out[hash], path)
+	}
+	return out, rows.Err()
+}
+
 // HashReferenced is whether any current file or kept version still uses
 // this content - the check before a blob is removed from disk.
 func (dao *Dao) HashReferenced(hash string) (bool, error) {

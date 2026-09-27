@@ -178,6 +178,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 
 	go mg.tokenCollector()
 	go mg.sharedLinksSweeper()
+	// Issue #141: rows whose content is missing from the disk, reported
+	// to the owner once a day when there are new ones.
+	go mg.integrityChecker()
 
 	// Issue #73 follow-up: a fresh process can't possibly have a
 	// reprocess goroutine already running, so a "running" reprocess_state
@@ -913,18 +916,9 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 		return err
 	}
 	for _, h := range append([]string{hash}, versionHashes...) {
-		referenced, refErr := mg.dao.HashReferenced(h)
-		if refErr != nil {
-			return refErr
-		}
-		if referenced {
-			continue
-		}
-		fullPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), h)
-		if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+		if err := mg.removeBlobIfUnused(h); err != nil {
 			return err
 		}
-		os.Remove(fmt.Sprintf("%s_thumbnail", fullPath))
 	}
 
 	return nil
@@ -1029,7 +1023,14 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		// to tell the client after the fact (see issue #63) - logging
 		// loudly and bailing out of the rest of this file's processing is
 		// the best that can be done here today.
-		if err := os.WriteFile(targetPath, session.Encrypt(content), 0644); err != nil { // perms: rw-r--r--
+		// Under the hash's lock (issue #141): a DelFile of another path
+		// with this content checks-and-removes under the same lock, so
+		// it can't remove the blob between this write and the row that
+		// now references it being seen.
+		unlock := lockBlob(file.Hash)
+		err := os.WriteFile(targetPath, session.Encrypt(content), 0644) // perms: rw-r--r--
+		unlock()
+		if err != nil {
 			// Issue #63/#64: the client was already told "saved" - this
 			// alert is the after-the-fact channel that was missing.
 			mg.alert("could not be saved to disk", file.Path, err)
@@ -1271,6 +1272,54 @@ func (mg *Manager) HasCloudIDs(ids []string) (map[string]string, error) {
 	return found, nil
 }
 
+// Issue #141: removing a blob is "is anything still using this hash? no ->
+// delete the file", and linking one is "is the file there? yes -> add a
+// row using it". Run concurrently for the same hash, the removal could
+// check, the link add its row, and the removal then delete content that
+// row needs - a row pointing at nothing. Both sides, and the upload's own
+// write, hold the hash's lock for their check-and-act. Striped (256
+// locks) so memory stays flat however many hashes there are.
+var blobLocks [256]sync.Mutex
+
+func lockBlob(hash string) (unlock func()) {
+	var stripe byte
+	if len(hash) >= 2 {
+		if b, err := hex.DecodeString(hash[:2]); err == nil {
+			stripe = b[0]
+		}
+	}
+	blobLocks[stripe].Lock()
+	return blobLocks[stripe].Unlock
+}
+
+// withBlob runs fn (which stores a row using hash) only while the blob is
+// on disk, and with no removal of it able to interleave.
+func (mg *Manager) withBlob(hash string, fn func() error) error {
+	unlock := lockBlob(hash)
+	defer unlock()
+	if !mg.hasBlob(hash) {
+		return errors.New("the content for that hash is missing on this device: upload it instead")
+	}
+	return fn()
+}
+
+// removeBlobIfUnused deletes hash's blob and thumbnail once no file or
+// kept version uses it any more.
+func (mg *Manager) removeBlobIfUnused(hash string) error {
+	unlock := lockBlob(hash)
+	defer unlock()
+	referenced, err := mg.dao.HashReferenced(hash)
+	if err != nil || referenced {
+		return err
+	}
+	fullPath := blobPath(hash)
+	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	os.Remove(fullPath + "_thumbnail")
+	return nil
+}
+
 // blobPath is where the encrypted content for hash lives.
 func blobPath(hash string) string {
 	return fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
@@ -1300,10 +1349,6 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	if err != nil {
 		return nil, err
 	}
-	if !mg.hasBlob(hash) {
-		return nil, errors.New("the content for that hash is missing on this device: upload it instead")
-	}
-
 	if created == nil {
 		created = timestamppb.Now()
 	}
@@ -1320,8 +1365,11 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		Size:     existing.Size,
 	}
 
-	duplicated, err := mg.dao.StoreNewFile(file, cloudID)
-	if err != nil {
+	var duplicated bool
+	if err := mg.withBlob(hash, func() (err error) {
+		duplicated, err = mg.dao.StoreNewFile(file, cloudID)
+		return err
+	}); err != nil {
 		return nil, err
 	}
 	if err := mg.dao.SetCloudIDForHash(hash, cloudID); err != nil {
@@ -1343,7 +1391,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 			return nil, err
 		}
 		if uploadOnly {
-			if err := mg.dao.ReplaceFileKeepingVersion(file, cloudID); err != nil {
+			if err := mg.withBlob(hash, func() error { return mg.dao.ReplaceFileKeepingVersion(file, cloudID) }); err != nil {
 				return nil, err
 			}
 
@@ -1352,10 +1400,12 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		if !forceOverride {
 			return nil, errors.New("Duplicated file")
 		}
+		// Not under the lock: DelFile takes the locks of the hashes it
+		// may remove, and one of them could share this hash's stripe.
 		if err := mg.DelFile(session, path); err != nil {
 			return nil, err
 		}
-		if _, err := mg.dao.StoreNewFile(file, cloudID); err != nil {
+		if err := mg.withBlob(hash, func() error { _, err := mg.dao.StoreNewFile(file, cloudID); return err }); err != nil {
 			return nil, err
 		}
 	}
