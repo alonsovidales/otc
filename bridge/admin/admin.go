@@ -31,8 +31,6 @@ const (
 	cSessionCookie        = "otc_admin_session"
 	cSessionTTL           = 12 * time.Hour
 	cDefaultMetricsWindow = 7 * 24 * time.Hour
-	cDefaultEventsLimit   = 200
-	cMaxEventsLimit       = 1000
 )
 
 // Admin holds everything the admin HTTP handlers need: DB access and the
@@ -228,47 +226,93 @@ func (a *Admin) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // ListDevices returns every registered device.
+// Issue #143: every list in the panel is paged and searchable, with the
+// same query parameters (q, page from 1, size) and the same answer.
+const (
+	cDefaultPageSize = 25
+	cMaxPageSize     = 200
+)
+
+// Page is one page of a list and how many items match in all.
+type Page struct {
+	Items any
+	Total int
+	Page  int
+	Size  int
+}
+
+// pageParams reads ?q=&page=&size= and returns the search text and the
+// limit/offset to query with.
+func pageParams(r *http.Request) (q string, page, size, offset int) {
+	q = strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(q) > 200 {
+		q = q[:200]
+	}
+	page, size = 1, cDefaultPageSize
+	if n, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && n > 0 {
+		page = n
+	}
+	if n, err := strconv.Atoi(r.URL.Query().Get("size")); err == nil && n > 0 {
+		size = min(n, cMaxPageSize)
+	}
+	return q, page, size, (page - 1) * size
+}
+
 // ListDevices is the Devices tab (issue #139): owner, online now, last
 // client connection and relayed traffic per device.
 func (a *Admin) ListDevices(w http.ResponseWriter, r *http.Request) {
-	devices, err := a.adminDevices("")
+	q, page, size, offset := pageParams(r)
+	devices, total, err := a.adminDevices("", q, size, offset)
 	if err != nil {
 		log.Error("error listing devices:", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, devices)
+	writeJSON(w, http.StatusOK, Page{Items: devices, Total: total, Page: page, Size: size})
 }
 
-func (a *Admin) adminDevices(accountID string) ([]dao.AdminDevice, error) {
-	devices, err := a.dao.ListAdminDevices(accountID)
+// ListDomains is every registered domain, for the Metrics and Security
+// tabs' device pickers (the device list itself is paged).
+func (a *Admin) ListDomains(w http.ResponseWriter, r *http.Request) {
+	domains, err := a.dao.AllDomains()
 	if err != nil {
-		return nil, err
+		log.Error("error listing domains:", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, domains)
+}
+
+func (a *Admin) adminDevices(accountID, q string, limit, offset int) ([]dao.AdminDevice, int, error) {
+	devices, total, err := a.dao.ListAdminDevices(accountID, q, limit, offset)
+	if err != nil {
+		return nil, 0, err
 	}
 	if a.IsOnline != nil {
 		for i := range devices {
 			devices[i].Online = a.IsOnline(devices[i].Domain)
 		}
 	}
-	return devices, nil
+	return devices, total, nil
 }
 
 // ListAccounts is the Accounts tab (issue #139).
 func (a *Admin) ListAccounts(w http.ResponseWriter, r *http.Request) {
-	accounts, err := a.dao.ListAdminAccounts("")
+	q, page, size, offset := pageParams(r)
+	accounts, total, err := a.dao.ListAdminAccounts("", q, size, offset)
 	if err != nil {
 		log.Error("error listing accounts:", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, accounts)
+	writeJSON(w, http.StatusOK, Page{Items: accounts, Total: total, Page: page, Size: size})
 }
 
-// GetAccount is one account with its devices, what the Accounts tab shows
-// when a row is opened.
+// GetAccount is one account with all its devices, what the Accounts tab
+// shows when a row is opened.
 func (a *Admin) GetAccount(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	accounts, err := a.dao.ListAdminAccounts(id)
+	accounts, _, err := a.dao.ListAdminAccounts(id, "", 1, 0)
 	if err != nil {
 		log.Error("error reading account", id, err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -278,7 +322,7 @@ func (a *Admin) GetAccount(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such account")
 		return
 	}
-	devices, err := a.adminDevices(id)
+	devices, _, err := a.adminDevices(id, "", 0, 0)
 	if err != nil {
 		log.Error("error listing the devices of account", id, err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -387,40 +431,30 @@ func (a *Admin) Metrics(w http.ResponseWriter, r *http.Request) {
 // ?domain=, capped by ?limit= (default 200, max 1000).
 func (a *Admin) AuthEvents(w http.ResponseWriter, r *http.Request) {
 	domain := r.URL.Query().Get("domain")
-	limit := cDefaultEventsLimit
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= cMaxEventsLimit {
-			limit = n
-		}
-	}
-
-	events, err := a.dao.GetAuthEvents(domain, limit)
+	q, page, size, offset := pageParams(r)
+	events, total, err := a.dao.GetAuthEvents(domain, q, size, offset)
 	if err != nil {
 		log.Error("error reading auth events:", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, events)
+	writeJSON(w, http.StatusOK, Page{Items: events, Total: total, Page: page, Size: size})
 }
 
 // ContactRequests returns the most recent public-site contact form
 // submissions (issue #57), optionally capped by ?limit= (default 200, max
 // 1000, same convention as AuthEvents).
 func (a *Admin) ContactRequests(w http.ResponseWriter, r *http.Request) {
-	limit := cDefaultEventsLimit
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= cMaxEventsLimit {
-			limit = n
-		}
-	}
-
-	requests, err := a.dao.ListContactRequests(limit)
+	q, page, size, offset := pageParams(r)
+	requests, total, unread, err := a.dao.ListContactRequests(q, size, offset)
 	if err != nil {
 		log.Error("error reading contact requests:", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, requests)
+	// Unread counts every message, whatever the page or search: it is the
+	// tab's badge.
+	writeJSON(w, http.StatusOK, map[string]any{"Items": requests, "Total": total, "Page": page, "Size": size, "Unread": unread})
 }
 
 // SetContactRequestRead marks a contact request read/unread (path:

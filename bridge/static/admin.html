@@ -88,6 +88,12 @@
     dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0 0 14px;font-size:14px}
     dl.facts dt{color:var(--muted)}
     dl.facts dd{margin:0;word-break:break-all}
+    /* Issue #143: search + pager on every list */
+    .list-toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+    .list-toolbar input[type=search]{flex:1;min-width:220px;max-width:420px}
+    .pager{display:flex;gap:8px;align-items:center;font-size:13px}
+    .pager .btn{padding:5px 10px;font-size:13px}
+    .pager .count{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
   </style>
 </head>
 <body>
@@ -127,6 +133,10 @@
       <section id="tab-devices">
         <div class="card">
           <div id="devices-msg"></div>
+          <div class="list-toolbar">
+            <input type="search" id="devices-search" placeholder="Search domain, owner UUID, owner name or email" aria-label="Search domain, owner UUID, owner name or email" />
+            <div class="pager" id="devices-pager"></div>
+          </div>
           <div class="scroll-x">
             <table>
               <thead><tr><th>Domain</th><th>Owner</th><th>Last client</th><th class="num" title="The last full hour plus the current one">1 h</th><th class="num">24 h</th><th class="num">30 days</th><th></th></tr></thead>
@@ -163,6 +173,10 @@
       <section id="tab-accounts" hidden>
         <div class="card">
           <div id="accounts-msg"></div>
+          <div class="list-toolbar">
+            <input type="search" id="accounts-search" placeholder="Search name, email, country or account ID" aria-label="Search name, email, country or account ID" />
+            <div class="pager" id="accounts-pager"></div>
+          </div>
           <div class="scroll-x">
             <table>
               <thead><tr><th>Name</th><th>Email</th><th>Country</th><th>Sign-in</th><th class="num">Devices</th><th>Created</th><th>Last seen</th></tr></thead>
@@ -203,6 +217,10 @@
             </div>
           </div>
           <p class="muted" style="margin-top:-8px">Failed bridge-registration attempts - a device (or someone impersonating one) that sent the wrong owner UUID or secret for a claimed domain.</p>
+          <div class="list-toolbar">
+            <input type="search" id="security-search" placeholder="Search domain, owner UUID, address or reason" aria-label="Search domain, owner UUID, address or reason" />
+            <div class="pager" id="security-pager"></div>
+          </div>
           <table>
             <thead><tr><th>Time</th><th>Domain</th><th>Owner UUID attempted</th><th>Remote address</th><th>Reason</th></tr></thead>
             <tbody id="security-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
@@ -213,6 +231,10 @@
       <section id="tab-messages" hidden>
         <div class="card">
           <p class="muted" style="margin-top:-8px">Submissions from the public site's contact form - general enquiries and bridge-access requests.</p>
+          <div class="list-toolbar">
+            <input type="search" id="messages-search" placeholder="Search name, email, reason or message" aria-label="Search name, email, reason or message" />
+            <div class="pager" id="messages-pager"></div>
+          </div>
           <table>
             <thead><tr><th></th><th>When</th><th>From</th><th>Reason</th><th>Message</th><th></th></tr></thead>
             <tbody id="messages-body"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
@@ -349,12 +371,72 @@
         </tr>`;
     }
 
+    // ---- Paged, searchable lists (issue #143) ----
+    const lists = {};
+    function listState(name) {
+      return lists[name] || (lists[name] = { q: '', page: 1, size: 25 });
+    }
+    function listQuery(name, extra = {}) {
+      const s = listState(name);
+      const params = { ...extra, page: s.page, size: s.size };
+      if (s.q) params.q = s.q;
+      return new URLSearchParams(params).toString();
+    }
+    // Returns false when the page asked for is past the end (after a
+    // removal, say) and it has stepped back and reloaded instead.
+    function renderPager(name, resp, reload) {
+      const s = listState(name);
+      const last = Math.max(1, Math.ceil(resp.Total / resp.Size));
+      if (resp.Items.length === 0 && s.page > 1) {
+        s.page = last;
+        reload();
+        return false;
+      }
+      const from = resp.Total === 0 ? 0 : (resp.Page - 1) * resp.Size + 1;
+      const to = Math.min(resp.Page * resp.Size, resp.Total);
+      const el = document.getElementById(`${name}-pager`);
+      el.innerHTML = `<span class="count">${from}–${to} of ${resp.Total}</span>
+        <button class="btn" data-go="-1" ${resp.Page <= 1 ? 'disabled' : ''}>‹ Previous</button>
+        <button class="btn" data-go="1" ${resp.Page >= last ? 'disabled' : ''}>Next ›</button>`;
+      el.querySelectorAll('button[data-go]').forEach(b => b.addEventListener('click', () => {
+        s.page += Number(b.dataset.go);
+        reload();
+      }));
+      return true;
+    }
+    function emptyRow(name, cols, noneText) {
+      return `<tr><td colspan="${cols}" class="muted">${listState(name).q ? 'Nothing matches the search.' : noneText}</td></tr>`;
+    }
+    function wireSearch(name, reload) {
+      const input = document.getElementById(`${name}-search`);
+      let timer = null;
+      input.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          const s = listState(name);
+          s.q = input.value.trim();
+          s.page = 1;
+          reload();
+        }, 300);
+      });
+    }
+
+    async function refreshDomainPickers() {
+      try {
+        const domains = await api.call('GET', '/admin/api/domains');
+        knownDomains = domains;
+        populateDomainSelect('metrics-domain', domains);
+        populateDomainSelect('security-domain', domains);
+      } catch (e) { /* the pickers keep what they had */ }
+    }
+
     async function refreshDevices() {
-      const devices = await api.call('GET', '/admin/api/devices');
-      knownDomains = devices.map(d => d.Domain);
+      const resp = await api.call('GET', `/admin/api/devices?${listQuery('devices')}`);
+      if (!renderPager('devices', resp, refreshDevices)) return;
+      const devices = resp.Items;
       const body = document.getElementById('devices-body');
       if (devices.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" class="muted">No devices registered yet.</td></tr>';
+        body.innerHTML = emptyRow('devices', 7, 'No devices registered yet.');
       } else {
         body.innerHTML = devices.map(d => deviceRow(d)).join('');
         body.querySelectorAll('button[data-domain]').forEach(btn => {
@@ -364,8 +446,6 @@
           btn.addEventListener('click', () => showAccount(btn.dataset.account));
         });
       }
-      populateDomainSelect('metrics-domain', devices);
-      populateDomainSelect('security-domain', devices);
     }
 
     // ---- Accounts (issue #139) ----
@@ -378,16 +458,18 @@
 
     async function refreshAccounts() {
       const body = document.getElementById('accounts-body');
-      let accounts;
+      let resp;
       try {
-        accounts = await api.call('GET', '/admin/api/accounts');
+        resp = await api.call('GET', `/admin/api/accounts?${listQuery('accounts')}`);
       } catch (err) {
         showMsg(document.getElementById('accounts-msg'), err.message, 'error');
         return;
       }
       showMsg(document.getElementById('accounts-msg'), '', '');
+      if (!renderPager('accounts', resp, refreshAccounts)) return;
+      const accounts = resp.Items;
       if (accounts.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" class="muted">No accounts yet.</td></tr>';
+        body.innerHTML = emptyRow('accounts', 7, 'No accounts yet.');
         return;
       }
       body.innerHTML = accounts.map(a => `
@@ -445,17 +527,22 @@
     }
 
     // From an owner in the Devices tab: open that account.
+    // Searched for by its ID, so it is on the page whatever the paging.
     async function showAccount(id) {
       openAccount = id;
+      const s = listState('accounts');
+      s.q = id;
+      s.page = 1;
+      document.getElementById('accounts-search').value = id;
       document.querySelector('.tab[data-tab="accounts"]').click();
     }
 
-    function populateDomainSelect(id, devices) {
+    function populateDomainSelect(id, domains) {
       const sel = document.getElementById(id);
       const current = sel.value;
-      sel.innerHTML = sel.options[0].outerHTML + devices.map(d =>
-        `<option value="${escapeHtml(d.Domain)}">${escapeHtml(d.Domain)}</option>`).join('');
-      if (devices.some(d => d.Domain === current)) sel.value = current;
+      sel.innerHTML = sel.options[0].outerHTML + domains.map(d =>
+        `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+      if (domains.includes(current)) sel.value = current;
     }
 
     async function removeDevice(domain) {
@@ -463,6 +550,7 @@
       try {
         await api.call('DELETE', `/admin/api/devices/${encodeURIComponent(domain)}`);
         await refreshDevices();
+        refreshDomainPickers();
       } catch (err) {
         showMsg(document.getElementById('devices-msg'), err.message, 'error');
       }
@@ -494,6 +582,7 @@
         showMsg(msgEl, `Added ${created.domain}. Owner UUID: ${created.ownerUuid} — Secret: ${secret} (copy this now, it won't be shown again)`, 'ok');
         e.target.reset();
         await refreshDevices();
+        refreshDomainPickers();
       } catch (err) {
         showMsg(msgEl, err.message, 'error');
       }
@@ -528,15 +617,16 @@
     }
 
     // ---- Security ----
-    document.getElementById('security-domain').addEventListener('change', refreshSecurity);
+    document.getElementById('security-domain').addEventListener('change', () => { listState('security').page = 1; refreshSecurity(); });
 
     async function refreshSecurity() {
       const domain = document.getElementById('security-domain').value;
-      const qs = domain ? `?${new URLSearchParams({ domain })}` : '';
-      const events = await api.call('GET', `/admin/api/auth-events${qs}`);
+      const resp = await api.call('GET', `/admin/api/auth-events?${listQuery('security', domain ? { domain } : {})}`);
+      if (!renderPager('security', resp, refreshSecurity)) return;
+      const events = resp.Items;
       const body = document.getElementById('security-body');
       body.innerHTML = events.length === 0
-        ? '<tr><td colspan="5" class="muted">No auth failures logged.</td></tr>'
+        ? emptyRow('security', 5, 'No auth failures logged.')
         : events.map(e => `
           <tr>
             <td>${escapeHtml(new Date(e.Dt).toLocaleString())}</td>
@@ -550,10 +640,13 @@
 
     // ---- Messages ----
     async function refreshMessages() {
-      const requests = await api.call('GET', '/admin/api/contact-requests');
+      const resp = await api.call('GET', `/admin/api/contact-requests?${listQuery('messages')}`);
+      updateMessagesBadge(resp.Unread);
+      if (!renderPager('messages', resp, refreshMessages)) return;
+      const requests = resp.Items;
       const body = document.getElementById('messages-body');
       body.innerHTML = requests.length === 0
-        ? '<tr><td colspan="6" class="muted">No messages yet.</td></tr>'
+        ? emptyRow('messages', 6, 'No messages yet.')
         : requests.map(r => `
           <tr class="${r.IsRead ? '' : 'unread'}" data-id="${r.Id}">
             <td>${r.IsRead ? '' : '🔵'}</td>
@@ -567,7 +660,6 @@
       body.querySelectorAll('button[data-toggle]').forEach(btn => {
         btn.addEventListener('click', () => toggleMessageRead(btn.dataset.toggle, btn.dataset.read !== '1'));
       });
-      updateMessagesBadge(requests.filter(r => !r.IsRead).length);
     }
 
     async function toggleMessageRead(id, read) {
@@ -583,7 +675,15 @@
       document.getElementById('messages-badge').textContent = n > 0 ? String(n) : '';
     }
 
-    tryEnterPanel().then(() => { refreshMessages().catch(() => {}); });
+    wireSearch('devices', refreshDevices);
+    wireSearch('accounts', () => { openAccount = null; refreshAccounts(); });
+    wireSearch('security', refreshSecurity);
+    wireSearch('messages', refreshMessages);
+
+    tryEnterPanel().then(() => {
+      refreshDomainPickers();
+      refreshMessages().catch(() => {});
+    });
   </script>
 </body>
 </html>

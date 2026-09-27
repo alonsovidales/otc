@@ -369,14 +369,27 @@ type ContactRequest struct {
 	IsRead  bool
 }
 
-// ListContactRequests returns the most recent contact requests, newest
-// first, capped at limit.
-func (dao *Dao) ListContactRequests(limit int) (requests []ContactRequest, err error) {
-	rows, err := dao.db.Query(
-		"select `id`, `name`, `email`, `reason`, `message`, `created`, `is_read` from `contact_requests` order by `created` desc limit ?",
-		limit)
+// ListContactRequests returns a page of contact requests, newest first,
+// matching q in the name, email, reason or message, how many match in all,
+// and how many are unread overall (the tab's badge).
+func (dao *Dao) ListContactRequests(q string, limit, offset int) (requests []ContactRequest, total, unread int, err error) {
+	where := ""
+	args := []any{}
+	if q != "" {
+		where = " where (`name` like ? or `email` like ? or `reason` like ? or `message` like ?)"
+		l := likeArg(q)
+		args = append(args, l, l, l, l)
+	}
+	if err = dao.db.QueryRow("select count(*) from `contact_requests`"+where, args...).Scan(&total); err != nil {
+		return nil, 0, 0, err
+	}
+	if err = dao.db.QueryRow("select count(*) from `contact_requests` where not `is_read`").Scan(&unread); err != nil {
+		return nil, 0, 0, err
+	}
+	tail, targs := pageClause(limit, offset)
+	rows, err := dao.db.Query("select `id`, `name`, `email`, `reason`, `message`, `created`, `is_read` from `contact_requests`"+where+" order by `created` desc"+tail, append(args, targs...)...)
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
 	defer rows.Close()
 
@@ -384,12 +397,12 @@ func (dao *Dao) ListContactRequests(limit int) (requests []ContactRequest, err e
 	for rows.Next() {
 		var c ContactRequest
 		if err := rows.Scan(&c.Id, &c.Name, &c.Email, &c.Reason, &c.Message, &c.Created, &c.IsRead); err != nil {
-			return nil, err
+			return nil, 0, 0, err
 		}
 		requests = append(requests, c)
 	}
 
-	return requests, rows.Err()
+	return requests, total, unread, rows.Err()
 }
 
 // SetContactRequestRead marks a contact request read/unread.
@@ -415,17 +428,28 @@ type AuthEvent struct {
 	Reason             string
 }
 
-// GetAuthEvents returns the most recent auth events, newest first, for
-// domain (or across every device if domain is empty), capped at limit.
-func (dao *Dao) GetAuthEvents(domain string, limit int) (events []AuthEvent, err error) {
-	var rows *sql.Rows
-	if domain == "" {
-		rows, err = dao.db.Query("select `domain`, `owner_uuid_attempted`, `remote_addr`, `dt`, `reason` from `auth_events` order by `dt` desc limit ?", limit)
-	} else {
-		rows, err = dao.db.Query("select `domain`, `owner_uuid_attempted`, `remote_addr`, `dt`, `reason` from `auth_events` where `domain` = ? order by `dt` desc limit ?", domain, limit)
+// GetAuthEvents returns a page of auth events, newest first, for domain
+// (or every device if empty) matching q in the domain, attempted owner
+// UUID, remote address or reason, and how many match in all.
+func (dao *Dao) GetAuthEvents(domain, q string, limit, offset int) (events []AuthEvent, total int, err error) {
+	where := " where 1=1"
+	args := []any{}
+	if domain != "" {
+		where += " and `domain` = ?"
+		args = append(args, domain)
 	}
+	if q != "" {
+		where += " and (`domain` like ? or `owner_uuid_attempted` like ? or `remote_addr` like ? or `reason` like ?)"
+		l := likeArg(q)
+		args = append(args, l, l, l, l)
+	}
+	if err = dao.db.QueryRow("select count(*) from `auth_events`"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	tail, targs := pageClause(limit, offset)
+	rows, err := dao.db.Query("select `domain`, `owner_uuid_attempted`, `remote_addr`, `dt`, `reason` from `auth_events`"+where+" order by `dt` desc"+tail, append(args, targs...)...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -433,12 +457,12 @@ func (dao *Dao) GetAuthEvents(domain string, limit int) (events []AuthEvent, err
 	for rows.Next() {
 		var e AuthEvent
 		if err := rows.Scan(&e.Domain, &e.OwnerUuidAttempted, &e.RemoteAddr, &e.Dt, &e.Reason); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		events = append(events, e)
 	}
 
-	return events, rows.Err()
+	return events, total, rows.Err()
 }
 
 // SetPushRegistrations replaces the full push-registration snapshot for
@@ -836,26 +860,39 @@ type AdminDevice struct {
 	BytesMonth int64
 }
 
-// ListAdminDevices returns every device, or only accountID's when it is
-// not empty.
-func (dao *Dao) ListAdminDevices(accountID string) (devices []AdminDevice, err error) {
-	q := "select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, ''), coalesce(a.`email`, ''), " +
+// ListAdminDevices returns a page of devices (all of accountID's when it
+// is not empty) matching q in the domain, owner UUID or the owner's email
+// or name, and how many match in all.
+func (dao *Dao) ListAdminDevices(accountID, q string, limit, offset int) (devices []AdminDevice, total int, err error) {
+	where := " where 1=1"
+	args := []any{}
+	if accountID != "" {
+		where += " and d.`account_id` = ?"
+		args = append(args, accountID)
+	}
+	if q != "" {
+		where += " and (d.`domain` like ? or d.`owner_uuid` like ? or a.`email` like ? or concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, '')) like ?)"
+		l := likeArg(q)
+		args = append(args, l, l, l, l)
+	}
+	if err = dao.db.QueryRow("select count(*) from `devices` d left join `accounts` a on a.`id` = d.`account_id`"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := "select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, ''), coalesce(a.`email`, ''), " +
 		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))), d.`disabled`, d.`created`, d.`last_client_at`, " +
 		"coalesce(sum(case when m.`hour_bucket` >= date_format(now() - interval 1 hour, '%Y-%m-%d %H:00:00') then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(case when m.`hour_bucket` >= now() - interval 1 day then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(m.`bytes_in` + m.`bytes_out`), 0) " +
 		"from `devices` d left join `accounts` a on a.`id` = d.`account_id` " +
-		"left join `device_metrics` m on m.`domain` = d.`domain` and m.`hour_bucket` >= now() - interval 30 day "
-	args := []any{}
-	if accountID != "" {
-		q += "where d.`account_id` = ? "
-		args = append(args, accountID)
-	}
-	q += "group by d.`domain`, d.`owner_uuid`, d.`account_id`, a.`email`, a.`name`, a.`surname`, d.`disabled`, d.`created`, d.`last_client_at` " +
-		"order by d.`domain`"
-	rows, err := dao.db.Query(q, args...)
+		"left join `device_metrics` m on m.`domain` = d.`domain` and m.`hour_bucket` >= now() - interval 30 day" +
+		where +
+		" group by d.`domain`, d.`owner_uuid`, d.`account_id`, a.`email`, a.`name`, a.`surname`, d.`disabled`, d.`created`, d.`last_client_at`" +
+		" order by d.`domain`"
+	tail, targs := pageClause(limit, offset)
+	rows, err := dao.db.Query(query+tail, append(args, targs...)...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -865,7 +902,7 @@ func (dao *Dao) ListAdminDevices(accountID string) (devices []AdminDevice, err e
 		var created, lastClient sql.NullTime
 		if err := rows.Scan(&d.Domain, &d.OwnerUuid, &d.AccountID, &d.AccountEmail, &d.AccountName, &d.Disabled,
 			&created, &lastClient, &d.BytesHour, &d.BytesDay, &d.BytesMonth); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if created.Valid {
 			d.Created = &created.Time
@@ -876,7 +913,25 @@ func (dao *Dao) ListAdminDevices(accountID string) (devices []AdminDevice, err e
 		devices = append(devices, d)
 	}
 
-	return devices, rows.Err()
+	return devices, total, rows.Err()
+}
+
+// AllDomains lists every registered domain, for the panel's device pickers.
+func (dao *Dao) AllDomains() (domains []string, err error) {
+	rows, err := dao.db.Query("select `domain` from `devices` order by `domain`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	domains = []string{}
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return nil, err
+		}
+		domains = append(domains, d)
+	}
+	return domains, rows.Err()
 }
 
 // AdminAccount is one row of the admin panel's accounts list (issue #139).
@@ -895,22 +950,35 @@ type AdminAccount struct {
 	Domains     int
 }
 
-// ListAdminAccounts returns every account, newest first, or only the one
-// with id when it is not empty.
-func (dao *Dao) ListAdminAccounts(id string) (accounts []AdminAccount, err error) {
-	q := "select a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash` is not null, " +
-		"a.`created`, a.`last_seen`, a.`free_until`, count(distinct d.`domain`), coalesce(group_concat(distinct l.`provider` order by l.`provider`), '') " +
-		"from `accounts` a left join `devices` d on d.`account_id` = a.`id` left join `account_logins` l on l.`account_id` = a.`id` "
+// ListAdminAccounts returns a page of accounts, newest first, matching q
+// in the name, email, country or id - or only the one with id when it is
+// not empty - and how many match in all.
+func (dao *Dao) ListAdminAccounts(id, q string, limit, offset int) (accounts []AdminAccount, total int, err error) {
+	where := " where 1=1"
 	args := []any{}
 	if id != "" {
-		q += "where a.`id` = ? "
+		where += " and a.`id` = ?"
 		args = append(args, id)
 	}
-	q += "group by a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash`, a.`created`, a.`last_seen`, a.`free_until` " +
-		"order by a.`created` desc"
-	rows, err := dao.db.Query(q, args...)
+	if q != "" {
+		where += " and (concat(a.`name`, ' ', a.`surname`) like ? or a.`email` like ? or a.`country` like ? or a.`id` like ?)"
+		l := likeArg(q)
+		args = append(args, l, l, l, l)
+	}
+	if err = dao.db.QueryRow("select count(*) from `accounts` a"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := "select a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash` is not null, " +
+		"a.`created`, a.`last_seen`, a.`free_until`, count(distinct d.`domain`), coalesce(group_concat(distinct l.`provider` order by l.`provider`), '') " +
+		"from `accounts` a left join `devices` d on d.`account_id` = a.`id` left join `account_logins` l on l.`account_id` = a.`id`" +
+		where +
+		" group by a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash`, a.`created`, a.`last_seen`, a.`free_until`" +
+		" order by a.`created` desc"
+	tail, targs := pageClause(limit, offset)
+	rows, err := dao.db.Query(query+tail, append(args, targs...)...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -920,7 +988,7 @@ func (dao *Dao) ListAdminAccounts(id string) (accounts []AdminAccount, err error
 		var providers string
 		if err := rows.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &a.HasPassword,
 			&a.Created, &a.LastSeen, &a.FreeUntil, &a.Domains, &providers); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		a.Providers = []string{}
 		if providers != "" {
@@ -929,5 +997,23 @@ func (dao *Dao) ListAdminAccounts(id string) (accounts []AdminAccount, err error
 		accounts = append(accounts, a)
 	}
 
-	return accounts, rows.Err()
+	return accounts, total, rows.Err()
+}
+
+// Issue #143: the admin panel's lists are paged and searchable.
+
+// likeArg turns a search box's text into a LIKE pattern that matches it
+// anywhere, with LIKE's own wildcards escaped so they match literally.
+func likeArg(q string) string {
+	r := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
+	return "%" + r.Replace(q) + "%"
+}
+
+// pageClause is the limit/offset tail of a paged query; limit <= 0 means
+// everything (an account's own devices, which are few).
+func pageClause(limit, offset int) (string, []any) {
+	if limit <= 0 {
+		return "", nil
+	}
+	return " limit ? offset ?", []any{limit, offset}
 }

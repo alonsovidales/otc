@@ -201,6 +201,7 @@ func (api *API) registerAdminAPIs() {
 	api.muxHTTPServer.HandleFunc("DELETE /admin/api/devices/{domain}", api.admin.RequireAuth(api.admin.DeleteDevice))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/metrics", api.admin.RequireAuth(api.admin.Metrics))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/accounts", api.admin.RequireAuth(api.admin.ListAccounts))
+	api.muxHTTPServer.HandleFunc("GET /admin/api/domains", api.admin.RequireAuth(api.admin.ListDomains))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/accounts/{id}", api.admin.RequireAuth(api.admin.GetAccount))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/auth-events", api.admin.RequireAuth(api.admin.AuthEvents))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/contact-requests", api.admin.RequireAuth(api.admin.ContactRequests))

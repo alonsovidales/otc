@@ -282,10 +282,16 @@ from the websocket manager in main), when a client last reached it (`devices.las
 written from Go in UTC at most once a minute per domain by `RecordDeviceActivity`; migration
 `002-last-client.sql`) and relayed traffic over 1 h / 24 h / 30 days from `device_metrics`; an
 Accounts tab lists accounts and opens one with its devices (`/admin/api/accounts[/{id}]`). Test bed: the
-Lima VM `otc` has MariaDB; load `bridge/db/db.sql` with `mysql -f`, the migration, a
-`/tmp/etc/otc_test.ini` with `tld=bridge.test:8081` and a self-signed cert, run a linux/arm64
-build of `otc_bridge` there, and curl with `-H "Host: bridge.test:8081"` (Lima forwards the
-port; Chrome needs `--host-resolver-rules="MAP bridge.test 127.0.0.1"`).
+Lima VM `otc` has MariaDB with `bridge/db/db.sql` and the migrations loaded, and a test bridge
+in `~/btest` (not `/tmp`, which the VM loses on every restart): `etc/otc_test.ini` with
+`tld=bridge.test:8081` and `static=$HOME/btest/static/` (the trailing slash matters), a
+self-signed cert, and `run.sh` to (re)start it; copy a linux/arm64 build of `otc_bridge` and
+`bridge/static` in, the admin login is `admin` / `test-admin-pw`. curl with `-H "Host:
+bridge.test:8081"` (Lima forwards the port); Chrome needs `--host-resolver-rules="MAP
+bridge.test 127.0.0.1"`. Issue #143: every admin list (`/admin/api/devices`, `accounts`,
+`auth-events`, `contact-requests`) takes `q`, `page`, `size` (25 by default, 200 at most) and
+answers `{Items, Total, Page, Size}` (+ `Unread` for messages); searches escape LIKE's
+wildcards (`likeArg`), and `/admin/api/domains` feeds the device pickers.
 
 ### Desktop sync client (`app/desktop`, issues #119 and #120)
 
