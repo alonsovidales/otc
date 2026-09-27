@@ -146,6 +146,35 @@ fi
 # ---------------------------------------------------------------------------
 log "[1/10] apt-get update + base packages"
 export DEBIAN_FRONTEND=noninteractive
+
+# A Raspberry Pi has no battery-backed clock: until network time syncs it
+# runs on whatever date it last saved, and apt then rejects every
+# repository as "not live until <date>" (signed in its future) and the
+# install dies here with code 100. Give NTP a minute, then fall back to
+# the Date header of an HTTPS server whose certificate still verifies
+# (a clock a day or two off doesn't break TLS). The clock only ever moves
+# forward this way, so nobody on the path can push it into the past to
+# replay old, validly signed package lists.
+ensure_clock() {
+    timedatectl set-ntp true 2>/dev/null || true
+    for _ in $(seq 1 30); do
+        [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ] && return 0
+        sleep 2
+    done
+    local now url stamp remote
+    now=$(date -u +%s)
+    for url in https://deb.debian.org/ https://archive.raspberrypi.com/ https://github.com/; do
+        stamp=$(curl -fsSI --max-time 10 "$url" 2>/dev/null | tr -d '\r' | awk 'tolower($1)=="date:"{sub(/^[^:]*: */,"");print;exit}')
+        [ -n "$stamp" ] || continue
+        remote=$(date -u -d "$stamp" +%s 2>/dev/null) || continue
+        if [ "$remote" -gt "$now" ]; then
+            date -u -s "@$remote" >/dev/null && log "clock was behind - set from $url to $(date -u)"
+        fi
+        return 0
+    done
+    log "WARNING: could not confirm the clock (now $(date -u)); apt may reject the repositories"
+}
+ensure_clock
 apt-get update
 # libopencv-dev + pkg-config (issue #52): face recognition builds against
 # gocv, which needs OpenCV's real headers/libs at compile time, found via
