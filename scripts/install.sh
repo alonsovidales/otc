@@ -128,6 +128,9 @@ DISK2="${OTC_DISK2:-/dev/sdb}"
 RAID_DEV=/dev/md0
 MOUNT_POINT=/mnt/storage
 SKIP_RAID="${OTC_SKIP_RAID:-0}"
+# Set by the setup wizard's "Recover": an existing array must be found and
+# used; building a fresh one (which wipes the disks) is refused outright.
+RECOVERY="${OTC_RECOVERY:-0}"
 
 SUBDOMAIN="${1:-}"
 if [ -z "$SUBDOMAIN" ] && [ -n "$BRIDGE_ADDR" ]; then
@@ -228,10 +231,38 @@ else
         log "No $RAID_DEV yet - checking for an existing array on $DISK1/$DISK2..."
         mdadm --assemble --scan 2>/dev/null || true
     fi
+    if [ ! -e "$RAID_DEV" ]; then
+        # Assembled without an mdadm.conf (a fresh image, or the setup
+        # wizard's own recovery check), the array comes up as /dev/md127 or
+        # similar, not md0. Take over any active array built on these disks
+        # and bring it back as $RAID_DEV, which fstab, raid-watch and the
+        # rest of the system name.
+        for md in $(awk '/^md[0-9]+ *: *active/{print $1}' /proc/mdstat); do
+            members=$(awk -v md="$md" '$1==md{for(i=3;i<=NF;i++)if($i~/\[[0-9]+\]/){sub(/\[[0-9]+\].*/,"",$i);print "/dev/"$i}}' /proc/mdstat)
+            case " $(echo $members) " in
+                *" $DISK1"*|*" $DISK2"*) ;;
+                *) continue ;;
+            esac
+            log "Found the existing array as /dev/$md ($(echo $members)) - reassembling it as $RAID_DEV."
+            umount "/dev/$md" 2>/dev/null || true
+            mdadm --stop "/dev/$md"
+            # shellcheck disable=SC2086
+            mdadm --assemble "$RAID_DEV" $members
+            break
+        done
+    fi
     if [ -e "$RAID_DEV" ]; then
         log "$RAID_DEV exists (existing array assembled) - skipping wipe."
         mountpoint -q "$MOUNT_POINT" || mount "$RAID_DEV" "$MOUNT_POINT" 2>/dev/null || true
     else
+        [ "$RECOVERY" = "1" ] && die "recovery was asked for, but no existing RAID1 array could be assembled from $DISK1/$DISK2 - nothing was wiped. Check both disks are connected and try again."
+        # Last line of defence: a disk that still carries a RAID superblock
+        # belongs to an array, and wiping it is never done implicitly.
+        for d in "$DISK1" "$DISK2"; do
+            if mdadm --examine "$d" >/dev/null 2>&1; then
+                die "$d still holds a RAID array that could not be assembled - refusing to wipe it. To really start over, run: mdadm --zero-superblock $d"
+            fi
+        done
         [ "${OTC_RAID_CONFIRM_WIPE:-}" = "yes" ] || die "no existing RAID1 array found on $DISK1/$DISK2 (checked via mdadm --assemble --scan). If these are brand-new disks, re-run with OTC_RAID_CONFIRM_WIPE=yes to build a fresh array there (WIPES BOTH DISKS). For a single-disk device, use OTC_SKIP_RAID=1 instead. To point at different disks, set OTC_DISK1/OTC_DISK2."
         log "Building a fresh RAID1 array on $DISK1 + $DISK2 (WIPES BOTH DISKS)..."
         wipefs -a "$DISK1"

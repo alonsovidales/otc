@@ -463,7 +463,17 @@ class Install:
 
     def _run(self, name, disks):
         env = dict(os.environ)
-        env["OTC_RAID_CONFIRM_WIPE"] = "yes"
+        if self.recovery:
+            # Recovering must never wipe: install.sh refuses to build a
+            # fresh array in this mode and stops instead. (It used to get
+            # the wipe confirmation here too, and when it missed the array
+            # the wizard had assembled as /dev/md127 it went for the disks.)
+            env["OTC_RECOVERY"] = "1"
+        else:
+            # A fresh install on disks the person picked; an old array on
+            # them was already taken apart by wipe_array() after they
+            # confirmed it.
+            env["OTC_RAID_CONFIRM_WIPE"] = "yes"
         # Issue #124: no account, no bridge - the device stays on the home
         # network (install.sh's OTC_BRIDGE_ADDR="").
         if load_state().get("skip_bridge"):
