@@ -32,6 +32,10 @@ final class WSClient {
     /// password because this address made too many attempts (issue #117).
     var onAuthFailed: ((String, _ retryAfter: Int?) -> Void)?
     var onPush: ((Resp) -> Void)? // unsolicited server messages
+    /// The bridge could not reach the device (switched off, offline) - not
+    /// a wrong password: the client keeps retrying with backoff and signs
+    /// in once the device is back. Same as otc-sync's OnUnreachable.
+    var onUnreachable: ((String) -> Void)?
 
     // MARK: Internal state
     private var conn: NWConnection?
@@ -108,8 +112,10 @@ final class WSClient {
                 guard let self else { return }
                 switch state {
                 case .ready:
+                    // backoffSeconds is reset once signed in, not here: the
+                    // bridge answers even when the device is offline, and
+                    // resetting on every socket would retry each second.
                     self.isOpen = true
-                    self.backoffSeconds = 1
                     self.receiveLoop()
                     self.authenticateThenAnnounce()
 
@@ -215,6 +221,9 @@ final class WSClient {
             req.payload = .reqGetPubKey(Msg_GetPubKey())
         }
         guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
+            if case .respAck(let ack) = pubKeyResp.payload, ack.code == "device_unreachable" || ack.code == "device_disabled" {
+                throw UnreachableError(message: ack.errorMsg)
+            }
             throw NSError(domain: "auth", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch the connection's public key"])
         }
         let encryptedKey = try PwCrypto.encryptPassword(key, pubKeyDER: pubKey.publicKey)
@@ -231,6 +240,10 @@ final class WSClient {
                             retryAfter: ack.code == "too_many_attempts" ? Int(ack.retryAfterSeconds) : nil)
         }
         return false
+    }
+
+    struct UnreachableError: Error {
+        let message: String
     }
 
     struct AuthError: Error {
@@ -297,9 +310,18 @@ final class WSClient {
             guard let self else { return }
             do {
                 if try await self.auth(key: key) {
+                    self.queue.async { self.backoffSeconds = 1 }
                     self.onConnect?()
                 } else {
                     self.failAuth("The device rejected the password", retryAfter: nil)
+                }
+            } catch let err as UnreachableError {
+                // Close and let the .cancelled handler reconnect with a
+                // growing delay.
+                self.onUnreachable?(err.message)
+                self.queue.async {
+                    self.isOpen = false
+                    self.conn?.cancel()
                 }
             } catch let err as AuthError {
                 self.failAuth(err.message, retryAfter: err.retryAfter)

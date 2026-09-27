@@ -193,12 +193,16 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	}
 	e.ws.OnDisconnect = func(err error) {
 		e.mu.Lock()
-		wrongPassword := e.status == "Wrong password" || strings.HasPrefix(e.status, "Too many attempts")
+		wrongPassword := e.status == "Wrong password" || strings.HasPrefix(e.status, "Too many attempts") || e.status == "Device offline - retrying"
 		e.mu.Unlock()
 		if !wrongPassword {
 			e.setStatus("Disconnected")
 		}
 		e.stopRaidPolling()
+	}
+	e.ws.OnUnreachable = func(msg string) {
+		log.Printf("device unreachable: %s", msg)
+		e.setStatus("Device offline - retrying")
 	}
 	e.ws.OnAuthFailed = func(msg string, retryAfter int) {
 		log.Printf("authentication failed: %s", msg)

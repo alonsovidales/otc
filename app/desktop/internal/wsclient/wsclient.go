@@ -44,6 +44,10 @@ type Client struct {
 	// refused to even check it because this address made too many attempts
 	// (the device's rate limit, issue #117).
 	OnAuthFailed func(msg string, retryAfter int)
+	// OnUnreachable reports that the bridge could not reach the device
+	// (switched off, offline): not a wrong password - the client keeps
+	// retrying with backoff and signs in once the device is back.
+	OnUnreachable func(msg string)
 
 	mu        sync.Mutex
 	url       string
@@ -154,12 +158,24 @@ func (c *Client) dial(gen int64) {
 	}
 	c.conn = conn
 	c.open = true
-	c.backoff = initialBackoff
 	c.mu.Unlock()
 
 	go c.readLoop(conn, gen)
 
-	if err := c.auth(); err != nil {
+	err = c.auth()
+	var ue *UnreachableError
+	if errors.As(err, &ue) {
+		// The bridge is up, the device isn't: say so and close - the read
+		// loop's error path reconnects with a growing delay (reset only
+		// after a sign-in succeeds, so this doesn't retry every second).
+		if c.OnUnreachable != nil {
+			c.OnUnreachable(ue.Message)
+		}
+		_ = conn.Close()
+
+		return
+	}
+	if err != nil {
 		if c.OnAuthFailed != nil {
 			var ae *AuthError
 			retry := 0
@@ -184,6 +200,9 @@ func (c *Client) dial(gen int64) {
 
 		return
 	}
+	c.mu.Lock()
+	c.backoff = initialBackoff
+	c.mu.Unlock()
 	if c.OnConnect != nil {
 		c.OnConnect()
 	}
@@ -198,6 +217,9 @@ func (c *Client) auth() error {
 	}
 	pub, ok := pk.Payload.(*pb.RespEnvelope_RespPubKey)
 	if !ok {
+		if ack := pk.GetRespAck(); ack != nil && (ack.Code == "device_unreachable" || ack.Code == "device_disabled") {
+			return &UnreachableError{Message: ack.ErrorMsg}
+		}
 		return errors.New("unable to fetch the connection's public key")
 	}
 	c.mu.Lock()
@@ -230,6 +252,11 @@ func (c *Client) auth() error {
 
 	return nil
 }
+
+// UnreachableError is the bridge answering for a device it can't reach.
+type UnreachableError struct{ Message string }
+
+func (e *UnreachableError) Error() string { return e.Message }
 
 // AuthError is the device's answer to a password it did not accept.
 type AuthError struct {

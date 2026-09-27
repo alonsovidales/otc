@@ -111,3 +111,51 @@ func TestReconnectsWhenTheSessionIsGone(t *testing.T) {
 		t.Fatalf("request after reconnecting: %v %v", resp, err)
 	}
 }
+
+// A device the bridge can't reach is not a wrong password: the client says
+// so and keeps retrying (issue #141 follow-up - an offline Pit left the
+// apps stopped for good).
+func TestKeepsRetryingWhileTheDeviceIsOffline(t *testing.T) {
+	var conns atomic.Int32
+	up := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		conns.Add(1)
+		for {
+			_, data, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			req := &pb.ReqEnvelope{}
+			if proto.Unmarshal(data, req) != nil {
+				return
+			}
+			resp := &pb.RespEnvelope{Id: req.Id, Error: true, Payload: &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: false, ErrorMsg: "offline", Code: "device_unreachable"}}}
+			b, _ := proto.Marshal(resp)
+			if c.WriteMessage(websocket.BinaryMessage, b) != nil {
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	c := New()
+	c.Configure("ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", "test", "secret")
+	var unreachable, authFailed atomic.Int32
+	c.OnUnreachable = func(string) { unreachable.Add(1) }
+	c.OnAuthFailed = func(string, int) { authFailed.Add(1) }
+	c.Connect()
+	defer c.Disconnect()
+
+	deadline := time.Now().Add(8 * time.Second)
+	for conns.Load() < 3 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if conns.Load() < 3 || unreachable.Load() < 2 || authFailed.Load() != 0 {
+		t.Fatalf("connections %d, unreachable %d, auth failures %d - want retries and no auth failure", conns.Load(), unreachable.Load(), authFailed.Load())
+	}
+}

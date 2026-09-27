@@ -305,9 +305,15 @@ final class SyncModel: ObservableObject {
             Task { @MainActor in
                 // A rejected password is its own state; a plain drop
                 // must not overwrite it with "Disconnected".
-                if self?.overallStatus != "Wrong password" {
+                if self?.overallStatus != "Wrong password", self?.overallStatus != "Device offline - retrying" {
                     self?.overallStatus = "Disconnected"
                 }
+                self?.stopRaidPolling()
+            }
+        }
+        ws.onUnreachable = { [weak self] _ in
+            Task { @MainActor in
+                self?.overallStatus = "Device offline - retrying"
                 self?.stopRaidPolling()
             }
         }
