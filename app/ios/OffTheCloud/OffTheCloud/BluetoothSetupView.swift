@@ -51,6 +51,10 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     /// Set from the wizard's /api/state once the install is online: the
     /// device's domain, or "" for a device set up without the bridge.
     @Published var readyDomain: String?
+    /// Whether the wizard has been reached once: from then on a dropped
+    /// link keeps the page on screen (with a banner) while it reconnects,
+    /// instead of throwing the install's progress away.
+    @Published var everReady = false
 
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
@@ -217,6 +221,7 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         print("[ble] notify state for \(characteristic.uuid): \(characteristic.isNotifying) \(error.map { "error \($0)" } ?? "")")
         if characteristic.uuid == BLESetupUUID.response, characteristic.isNotifying, requestChrc != nil, !isReady {
             phase = .ready(peripheral.name ?? "Off The Cloud")
+            everReady = true
         }
     }
 
@@ -271,7 +276,7 @@ final class BLESetupSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "otc-setup"
     /// What the page runs before its own script: fetch() → the app.
     static let fetchOverride = """
-    <script>window.fetch=function(u,o){o=o||{};const m=(o.method||'GET').toUpperCase();const b=o.body?String(o.body):'';return window.webkit.messageHandlers.otcSetup.postMessage({m:m,p:String(u),b:b}).then(function(r){return new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}})})};</script>
+    <script>window.otcApp=1;window.fetch=function(u,o){o=o||{};const m=(o.method||'GET').toUpperCase();const b=o.body?String(o.body):'';return window.webkit.messageHandlers.otcSetup.postMessage({m:m,p:String(u),b:b}).then(function(r){return new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}})})};</script>
     """
     private let transport: BLESetupTransport
     private var live: Set<ObjectIdentifier> = []
@@ -365,7 +370,19 @@ struct BluetoothSetupView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if transport.isReady {
+            if transport.everReady {
+                if !transport.isReady {
+                    // The page stays; its 3-second state poll picks up
+                    // where it left off once the link is back.
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Connection to the device lost - reconnecting. Keep the phone next to it.")
+                            .font(.footnote)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(10)
+                    .background(Color.orange.opacity(0.25))
+                }
                 BLESetupWebView(transport: transport)
                     .ignoresSafeArea(edges: .bottom)
             } else {
@@ -390,7 +407,13 @@ struct BluetoothSetupView: View {
         }
         .navigationTitle("Set up a new device")
         .navigationBarTitleDisplayMode(.inline)
-        .onDisappear { transport.stop() }
+        // The install takes about 20 minutes: a locked phone suspends the
+        // app and drops the Bluetooth link, so keep the screen on here.
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            transport.stop()
+        }
     }
 
     private var waiting: some View {

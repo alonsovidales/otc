@@ -69,6 +69,7 @@ fun BluetoothSetupView(onUseDevice: (String) -> Unit, onClose: () -> Unit) {
     val transport = remember { BLESetupTransport(context) }
     val phase by transport.phase.collectAsState()
     val readyDomain by transport.readyDomain.collectAsState()
+    val everReady by transport.everReady.collectAsState()
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { transport.start() }
     LaunchedEffect(Unit) {
         if (BLESetupTransport.hasPermissions(context)) transport.start() else permissions.launch(BLESetupTransport.permissions())
@@ -82,8 +83,20 @@ fun BluetoothSetupView(onUseDevice: (String) -> Unit, onClose: () -> Unit) {
         )
     }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
-            if (phase is BLESetupTransport.Phase.Ready) {
-                AndroidView(factory = { makeWebView(it, transport, scope) }, modifier = Modifier.weight(1f).fillMaxWidth())
+            if (everReady) {
+                if (phase !is BLESetupTransport.Phase.Ready) {
+                    // The page stays; its 3-second state poll picks up
+                    // where it left off once the link is back.
+                    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "Connection to the device lost - reconnecting. Keep the phone next to it.",
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp),
+                        )
+                    }
+                }
+                // The install takes about 20 minutes: keepScreenOn stops a
+                // locked phone from dropping the Bluetooth link.
+                AndroidView(factory = { makeWebView(it, transport, scope).apply { keepScreenOn = true } }, modifier = Modifier.weight(1f).fillMaxWidth())
             } else {
                 Waiting(phase, Modifier.weight(1f))
             }
@@ -138,7 +151,7 @@ fun endpointForDomain(domain: String): String = when {
 }
 
 /** What the page runs before its own script: fetch() → the app. */
-private const val FETCH_OVERRIDE = "<script>window.__otcId=0;window.__otcCb={};" +
+private const val FETCH_OVERRIDE = "<script>window.otcApp=1;window.__otcId=0;window.__otcCb={};" +
     "window.__otcAnswer=function(id,j){var cb=window.__otcCb[id];delete window.__otcCb[id];if(cb)cb(JSON.parse(j))};" +
     "window.fetch=function(u,o){o=o||{};var m=(o.method||'GET').toUpperCase();var b=o.body?String(o.body):'';" +
     "return new Promise(function(res){var id=++window.__otcId;window.__otcCb[id]=function(r){res(new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}}))};" +

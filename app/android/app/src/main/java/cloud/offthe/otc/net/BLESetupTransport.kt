@@ -62,6 +62,10 @@ class BLESetupTransport(private val context: Context) {
     private val _readyDomain = MutableStateFlow<String?>(null)
     val readyDomain: StateFlow<String?> = _readyDomain
 
+    /** Whether the wizard has been reached once: a dropped link then keeps the page (as iOS). */
+    private val _everReady = MutableStateFlow(false)
+    val everReady: StateFlow<Boolean> = _everReady
+
     private val adapter: BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     private var gatt: BluetoothGatt? = null
@@ -181,6 +185,7 @@ class BLESetupTransport(private val context: Context) {
         override fun onDescriptorWrite(g: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             if (descriptor.characteristic.uuid == RESPONSE && requestChrc != null) {
                 _phase.value = Phase.Ready(g.device.name ?: "Off The Cloud")
+                _everReady.value = true
                 g.getService(SERVICE)?.getCharacteristic(INFO)?.let { g.readCharacteristic(it) }
             }
         }

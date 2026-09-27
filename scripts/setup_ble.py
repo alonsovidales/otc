@@ -310,10 +310,15 @@ def serve_bluetooth():
 
         @dbus.service.method(AD_IFACE)
         def Release(self):
-            log("advertisement released")
+            # BlueZ dropped the advertisement (adapter reset, power
+            # cycle): nobody can find the device any more, so start over.
+            log("advertisement released - restarting")
+            lost[0] = True
+            mainloop.quit()
 
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
+    lost = [False]
 
     adapter = None
     objects = dbus.Interface(bus.get_object(BLUEZ, "/"), OM_IFACE).GetManagedObjects()
@@ -403,9 +408,21 @@ def serve_bluetooth():
         return True
 
     GLib.timeout_add_seconds(5, watch_done)
+
+    # bluetoothd restarting forgets our service and advertisement while
+    # this process lives on, invisible: exit and let systemd start over
+    # (Restart=on-failure), so a phone can find the device again.
+    def bluez_owner_changed(name, old, new):
+        if name == BLUEZ and old and old != new:
+            log("bluetoothd restarted - restarting")
+            lost[0] = True
+            mainloop.quit()
+
+    bus.add_signal_receiver(bluez_owner_changed, signal_name="NameOwnerChanged",
+                            dbus_interface="org.freedesktop.DBus", arg0=BLUEZ)
     log("advertising", CONFIG["local_name"], "on", adapter, "- wizard at", CONFIG["wizard"])
     mainloop.run()
-    return 0
+    return 1 if lost[0] else 0
 
 
 # ---------------------------------------------------------------------------
