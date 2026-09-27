@@ -260,9 +260,15 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/inst
           <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ Download the image (≈ 530 MB)</a>
           <ol>
             <li><strong>Flash it</strong> to the MicroSD card with <a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a>: "Use custom", pick the file, write. Skip Imager's own customisation step.</li>
-            <li><strong>Plug in</strong> the disks, insert the card and power the Pi on. After a minute it opens a WiFi network called <strong>Off The Cloud</strong>.</li>
-            <li><strong>Join it</strong> from your phone: the setup page opens by itself. It asks for your WiFi, a name for the device and how to use the disks, then installs the software - about 20 minutes.</li>
-            <li><strong>Open</strong> <code>https://&lt;name&gt;.off-the.cloud</code> when it's done and choose your password.</li>
+            <li><strong>Plug in</strong> the disks, insert the card and power the Pi on. After a minute it announces itself over Bluetooth and opens a WiFi network called <strong>Off The Cloud</strong>.</li>
+            <li><strong>Set it up from your phone</strong>, either way:
+              <ul>
+                <li><strong>With the app</strong> (iOS or Android): on the welcome screen tap <strong>Set up a new device</strong>. It finds the Pi over Bluetooth and runs the setup right there - your phone stays on its own WiFi.</li>
+                <li><strong>With the browser</strong>: join the <strong>Off The Cloud</strong> WiFi and the setup page opens by itself.</li>
+              </ul>
+              Same setup both ways: it asks for your WiFi, a name for the device and how to use the disks, then installs the software - about 20 minutes.
+            </li>
+            <li><strong>Sign in</strong> when it's done and choose your password: the app offers to connect to the new device by itself, or open <code>https://&lt;name&gt;.off-the.cloud</code> in a browser.</li>
           </ol>
           <p>The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: <a href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz.sha256">.sha256</a>.</p>
         </div>
@@ -418,7 +424,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/inst
           </details>
           <details>
             <summary>Is there a pre-built image I can just flash?</summary>
-            <p>Yes — for a Raspberry Pi 5 with at least 8 GB of RAM: see the <a href="#install">Raspberry Pi 5 image</a> tab at the top. Flash it, power the Pi on, join its "Off The Cloud" WiFi from your phone and follow the setup page. For any other Debian/Ubuntu machine, use the install script.</p>
+            <p>Yes — for a Raspberry Pi 5 with at least 8 GB of RAM: see the <a href="#install">Raspberry Pi 5 image</a> tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth, or join its "Off The Cloud" WiFi and follow the setup page in the browser. For any other Debian/Ubuntu machine, use the install script.</p>
           </details>
         </div>
       </div>

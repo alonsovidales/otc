@@ -151,17 +151,17 @@ an "old image": whatever you flash installs today's release.
    "Use custom", pick the downloaded `.img.xz` file, select your card, and write. Don't use Imager's
    own `Customisation` step - the wizard handles WiFi and identity itself.
 3. Plug in the USB disks you want to use (two for RAID1), put the card in the Pi and power it on.
-   After a minute it opens its own WiFi network called **"Off The Cloud"** (no password). Join it
-   from your phone: the "sign in to network" sheet opens the wizard (or open a browser and go to
-   any address). Wired into your router instead? Open the address your router shows for a device
-   called `otc` (or `http://otc.local/` where that resolves).
-
-   **Or use the app** (issue #137): on the iOS or Android app's welcome screen, tap **Set up a
-   new device**. Until it is set up the Pi also announces itself over Bluetooth, and the app runs
-   the very same wizard over it - the steps below are identical, your phone stays on its own
-   WiFi, and when the install is done the app offers to connect to the new device straight
-   away (the first sign in sets the owner password). Already signed into another device? Log
-   out first, in Settings; the app then belongs to the device you set up.
+   After a minute it announces itself over Bluetooth and opens its own WiFi network called
+   **"Off The Cloud"** (no password). Set it up from your phone, either way - the wizard is the
+   same one:
+   - **With the app** (iOS or Android): on the welcome screen tap **Set up a new device**. The
+     app finds the Pi over Bluetooth and runs the wizard right there; your phone stays on its
+     own WiFi. Already signed into another device? Log out first, in Settings - the app then
+     belongs to the device you set up.
+   - **With the browser**: join the "Off The Cloud" WiFi; the "sign in to network" sheet opens
+     the wizard (or open a browser and go to any address). Wired into your router instead? Open
+     the address your router shows for a device called `otc` (or `http://otc.local/` where that
+     resolves).
 4. The wizard walks through four steps:
    - **WiFi**: pick your network (2.4 GHz networks are listed; the Pi can move to 5 GHz once it
      is set up) and enter its password. The Pi joins it while keeping its own hotspot up. The
@@ -179,8 +179,9 @@ an "old image": whatever you flash installs today's release.
      complete, open `https://<name>.off-the.cloud` from any network. To check the progress
      meanwhile, connect to the "Off The Cloud" WiFi again and the page comes back.
 5. When it finishes, the wizard waits until the bridge sees the device connected, then shows its
-   address, `https://<name>.off-the.cloud` - open it in your browser; the app asks you to choose
-   the owner password and set up your profile. The hotspot switches off a minute later and the
+   address, `https://<name>.off-the.cloud`. In the app, tap **Use this device in the app** and
+   sign in; in the browser, open that address. Either way the first sign in sets the owner
+   password, and then you set up your profile. The hotspot switches off a minute later and the
    setup wizard with it; the hotspot only comes back if the device ever loses its network.
 
 **Replacing a dead Pi**: if the Pi died but its two disks didn't, flash a new card with the same
