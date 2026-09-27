@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import cloud.offthe.otc.data.SecretsStore
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -87,8 +88,12 @@ class FriendshipsViewModel : ViewModel() {
     }
 
     suspend fun sendRequest() {
-        val domain = _state.value.targetDomain.trim()
-        if (domain.isEmpty()) return
+        if (_state.value.targetDomain.isBlank()) return
+        val domain = friendDomain(_state.value.targetDomain)
+        if (domain == null) {
+            toast("Enter the device's name, like pit - letters, digits and dashes.")
+            return
+        }
         _state.update { it.copy(sendingRequest = true) }
         try {
             val resp = OTCConnection.request { it.setReqFriendshipRequest(FriendshipRequest.newBuilder().setDomain(domain)) }
@@ -148,12 +153,14 @@ fun FriendshipsView(onDone: () -> Unit) {
                 item {
                     Text("Add a friend", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // Issue #142: the name only; the suffix is fixed.
                         OTCTextField(
                             value = st.targetDomain, onValueChange = vm::setTarget, singleLine = true,
-                            placeholder = { Text("friend-domain.example") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None),
+                            placeholder = { Text("name") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
                             modifier = Modifier.weight(1f),
                         )
+                        Text(".${SecretsStore.bridgeDomain}", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
                         TextButton(onClick = { scope.launch { vm.sendRequest() } }, enabled = !st.sendingRequest && st.targetDomain.isNotBlank()) { Text("Send") }
                     }
                 }
@@ -217,4 +224,21 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") } },
         )
     }
+}
+
+private val friendNamePattern = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
+
+/**
+ * Issue #142: friends are always <name>.off-the.cloud (the device refuses
+ * anything else), so the box takes only the name. Accepts a bare name, the
+ * full domain or a link to it; null when it isn't a device name. Same rule
+ * as FriendshipsView.swift's friendDomain and the web's friendDomain.ts.
+ */
+fun friendDomain(input: String): String? {
+    var s = input.trim().lowercase()
+    s.indexOf("://").takeIf { it >= 0 }?.let { s = s.substring(it + 3) }
+    s = s.takeWhile { it != '/' && it != '?' && it != '#' }
+    val tld = "." + SecretsStore.bridgeDomain
+    if (s.endsWith(tld)) s = s.dropLast(tld.length)
+    return if (friendNamePattern.matches(s)) s + tld else null
 }

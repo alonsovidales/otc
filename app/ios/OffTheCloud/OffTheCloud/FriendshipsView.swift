@@ -39,9 +39,26 @@ final class FriendshipsViewModel: ObservableObject {
         }
     }
 
+    /// Issue #142: friends are always <name>.off-the.cloud (the device
+    /// refuses anything else), so the box takes only the name. Accepts a
+    /// bare name, the full domain or a link to it; nil when it isn't a
+    /// device name. Same rule as the web's friendDomain.ts and Android's.
+    static func friendDomain(_ input: String) -> String? {
+        var s = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let r = s.range(of: "://") { s = String(s[r.upperBound...]) }
+        s = String(s.prefix { $0 != "/" && $0 != "?" && $0 != "#" })
+        let tld = "." + SecretsStore.bridgeDomain
+        if s.hasSuffix(tld) { s = String(s.dropLast(tld.count)) }
+        guard s.range(of: "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", options: .regularExpression) != nil else { return nil }
+        return s + tld
+    }
+
     func sendFriendRequest() async {
-        let domain = targetDomain.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !domain.isEmpty else { return }
+        guard !targetDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard let domain = Self.friendDomain(targetDomain) else {
+            showToast("Enter the device's name, like pit - letters, digits and dashes.")
+            return
+        }
         sendingRequest = true
         defer { sendingRequest = false }
         var req = Msg_FriendshipRequest()
@@ -123,9 +140,16 @@ struct FriendshipsView: View {
             List {
                 Section("Add a friend") {
                     HStack {
-                        TextField("friend-domain.example", text: $vm.targetDomain)
+                        // Issue #142: the name only; the suffix is fixed.
+                        TextField("name", text: $vm.targetDomain)
                             .autocapitalization(.none)
+                            .disableAutocorrection(true)
                             .keyboardType(.URL)
+                            .multilineTextAlignment(.trailing)
+                        Text(".\(SecretsStore.bridgeDomain)")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .fixedSize()
                         Button("Send") { Task { await vm.sendFriendRequest() } }
                             .disabled(vm.sendingRequest || vm.targetDomain.trimmingCharacters(in: .whitespaces).isEmpty)
                     }

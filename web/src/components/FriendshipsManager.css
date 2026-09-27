@@ -23,11 +23,20 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--mist); }
    .avatar). */
 
 .add-friend { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.add-friend input {
+/* Issue #142: one field - the name, then the fixed .off-the.cloud. */
+.friend-domain-field {
+  display: flex; align-items: center; min-width: 0;
   background: var(--ink-2);
   border: 1px solid var(--line);
-  border-radius: 8px; padding: 8px; color: inherit;
+  border-radius: 8px; cursor: text;
 }
+.friend-domain-field:focus-within { border-color: var(--ember); }
+.add-friend .friend-domain-field input {
+  flex: 1; min-width: 0;
+  background: transparent; border: none; outline: none;
+  padding: 8px 2px 8px 8px; color: inherit; font: inherit; text-align: right;
+}
+.friend-domain-suffix { padding: 8px 8px 8px 0; color: var(--mist-dim, #9aa); white-space: nowrap; }
 .add-friend button, .refresh, .fr-btn {
   background: var(--ember);
   border: none; color: var(--ember-ink); font-weight: 600; padding: 8px 12px; border-radius: 8px; cursor: pointer;

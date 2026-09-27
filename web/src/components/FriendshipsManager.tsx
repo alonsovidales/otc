@@ -10,6 +10,7 @@ import type {
 import "./FriendshipsManager.css";
 import { FriendShipStatus } from "../proto/messages";
 import { useWS } from "../net/useWS";
+import { friendDomain, FRIEND_TLD } from "../net/friendDomain";
 
 function bytesToObjectURL(bytes?: Uint8Array, mime = "image/png"): string | undefined {
   if (!bytes || bytes.length === 0) return undefined;
@@ -140,8 +141,12 @@ export default function FriendshipsManager() {
   };
 
   const sendFriendRequest = async () => {
-    const domain = targetDomain.trim();
-    if (!domain) return;
+    if (!targetDomain.trim()) return;
+    const domain = friendDomain(targetDomain);
+    if (!domain) {
+      showMsg("Enter the device's name, like pit - letters, digits and dashes.");
+      return;
+    }
     setSendingReq(true);
     try {
       const resp = await useWS.request((e) => {
@@ -232,15 +237,23 @@ export default function FriendshipsManager() {
       <section className="card">
         <h2>Add a friend</h2>
         <div className="add-friend">
-          <input
-            type="text"
-            placeholder="friend-domain.example"
-            value={targetDomain}
-            onChange={(e) => setTargetDomain(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void sendFriendRequest();
-            }}
-          />
+          {/* Issue #142: the name only; the suffix is fixed. */}
+          <label className="friend-domain-field">
+            <input
+              type="text"
+              placeholder="name"
+              aria-label={`Friend's device name, before .${FRIEND_TLD}`}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={targetDomain}
+              onChange={(e) => setTargetDomain(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void sendFriendRequest();
+              }}
+            />
+            <span className="friend-domain-suffix">.{FRIEND_TLD}</span>
+          </label>
           <button onClick={sendFriendRequest} disabled={sendingReq || !targetDomain.trim()}>
             {sendingReq ? "Sending…" : "Send request"}
           </button>
