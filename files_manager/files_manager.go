@@ -312,6 +312,14 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 	for _, f := range files {
 		f.UploadOnly = underUploadOnly(f.Path, f.Mime == "inode/directory", folders)
 		f.Versions = versions[f.Path]
+		// Issue #141: a file whose content is missing (or empty) on the
+		// disk is listed with no hash, so a sync client that has the file
+		// sees a difference and sends it again - which restores it (see
+		// UploadFile). Listed with its real hash, every client thought it
+		// was in sync and the loss was permanent.
+		if f.Mime != "inode/directory" && f.Hash != "" && !mg.hasBlob(f.Hash) {
+			f.Hash = ""
+		}
 	}
 
 	return files, nil
@@ -964,6 +972,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		log.Error("error recording the cloud id:", err)
 	}
 
+	restoring := false
 	if duplicated {
 		// Bug fix: this used to reassign `file` itself to the *existing*
 		// row (old hash/size/mime), then re-store that same stale `file`
@@ -979,9 +988,18 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 			return nil, err
 		}
 		if existing.Hash == hash {
-			log.Debug("Same file with same content for:", path, hash)
-			return existing, nil
+			if mg.hasBlob(hash) {
+				log.Debug("Same file with same content for:", path, hash)
+				return existing, nil
+			}
+			// Issue #141: the row is right but its content was missing (or
+			// empty) on the disk - this upload brings it back; nothing
+			// about the row changes, only the write below happens.
+			log.Info("restoring the missing content of", path, "from this upload")
+			restoring = true
 		}
+	}
+	if duplicated && !restoring {
 		// Issue #132: in an upload-only folder the old content is kept as
 		// a version and the new one becomes current - whether or not the
 		// client asked to override, nothing there is ever lost.
