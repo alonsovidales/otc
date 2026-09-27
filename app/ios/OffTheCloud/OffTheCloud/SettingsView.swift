@@ -544,15 +544,26 @@ extension SettingsView {
     /// MainView going away takes every per-tab view model with it.
     fileprivate func logOut() {
         Task {
+            // A photo sync in progress owns the connection: stop it first,
+            // or the request below queues behind its uploads and Log Out
+            // looks like it does nothing.
+            PhotoSync.shared.cancel()
             // Issue #131: tell the device to forget this phone's push
             // token first, best effort - it goes on pushing to a phone
             // that is no longer signed in otherwise. Everything below
-            // happens either way.
+            // happens either way, and within seconds.
             if let token = UserDefaults.standard.string(forKey: "apnsToken"), !token.isEmpty {
-                _ = try? await OTCConnection.shared.request { req in
-                    var un = Msg_UnregisterApnsToken()
-                    un.token = token
-                    req.payload = .reqUnregisterApnsToken(un)
+                _ = try? await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask {
+                        _ = try await OTCConnection.shared.request { req in
+                            var un = Msg_UnregisterApnsToken()
+                            un.token = token
+                            req.payload = .reqUnregisterApnsToken(un)
+                        }
+                    }
+                    group.addTask { try await Task.sleep(for: .seconds(5)) }
+                    try await group.next()
+                    group.cancelAll()
                 }
             }
             finishLogOut()

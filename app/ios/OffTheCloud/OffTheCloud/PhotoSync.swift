@@ -261,13 +261,29 @@ final class PhotoSync: NSObject {
         return (data, filename, mime)
     }
     
+    /// The sync in progress, so Log Out can stop it (`cancel()`): the
+    /// callers' own Tasks are theirs, this child is ours, and the
+    /// Task.isCancelled checks between chunks below see either.
+    private var currentSync: Task<Void, Error>?
+
+    /// Log Out: stop the sync in progress at the next chunk boundary.
+    func cancel() {
+        currentSync?.cancel()
+    }
+
     func runForeground() async throws {
         guard beginSyncIfNotAlreadyRunning() else {
             print("Sync already running, skipping overlapping request")
             return
         }
         defer { endSync() }
+        let sync = Task { try await self.syncOnce() }
+        currentSync = sync
+        defer { currentSync = nil }
+        try await sync.value
+    }
 
+    private func syncOnce() async throws {
         try await ensureAuth()
         let secrets = SecretsStore.loadOrCreate()
         let ws = OTCConnection.shared

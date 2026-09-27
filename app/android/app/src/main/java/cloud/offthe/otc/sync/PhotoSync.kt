@@ -24,6 +24,7 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -56,7 +57,16 @@ object PhotoSync {
         return imgs || partial
     }
 
-    fun runForegroundAsync() { scope.launch { try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") } } }
+    // The sync in progress, so Log Out can stop it (as PhotoSync.swift's
+    // cancel()): every network call in it is a suspension point.
+    private var currentSync: Job? = null
+
+    fun runForegroundAsync() {
+        currentSync = scope.launch { try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") } }
+    }
+
+    /** Log Out: stop the sync in progress. */
+    fun cancel() { currentSync?.cancel() }
 
     fun fetchNewAssets(includeVideos: Boolean, sinceMs: Long, limit: Int = 0, newestFirst: Boolean = false): List<Asset> {
         val cr = OTCApp.instance.contentResolver

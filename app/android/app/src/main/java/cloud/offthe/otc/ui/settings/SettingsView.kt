@@ -269,6 +269,7 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
  * a wipe of the stores can't reach.
  */
 private fun logOut(context: Context, secrets: SecretsStore) {
+    PhotoSync.cancel() // a sync in progress must not outlive the session
     NotificationsModel.reset()
     UploadModel.reset()
     SocialFeedViewModel.reset()
