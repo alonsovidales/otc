@@ -71,7 +71,7 @@
     @media (max-width:760px){ .navlinks{display:none} }
 
     /* Hero */
-    .hero{padding:88px 24px 64px;display:grid;gap:22px}
+    .hero{padding:88px 24px 64px;display:grid;gap:22px;justify-items:center;text-align:center}
     .hero > *{min-width:0}
     .hero .pill{
       display:inline-flex;align-items:center;gap:8px;width:fit-content;
@@ -80,8 +80,9 @@
     }
     .hero h1{font-size:clamp(37.5px,5.4vw,64px);line-height:1.06;margin:6px 0 4px}
     .hero h1 em{font-style:normal;color:var(--ember)}
-    .hero p.lead{font-size:clamp(17.5px,1.9vw,21px);color:var(--mist-dim);max-width:72ch;margin:0}
-    .hero-install{display:grid;gap:10px;margin-top:8px;max-width:760px}
+    .hero p.lead{font-size:clamp(17.5px,1.9vw,21px);color:var(--mist-dim);max-width:1100px;margin:0 auto}
+    /* The install block is centred as a block; its steps read left-aligned. */
+    .hero-install{display:grid;gap:10px;margin-top:8px;width:100%;max-width:960px;text-align:left}
     .hero-install-label{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16.5px}
     .hero-install-alt{font-size:15px;color:var(--mist-dim);text-decoration:none;width:fit-content}
     .hero-install-alt:hover{color:var(--gold)}
@@ -100,7 +101,7 @@
 
     section{padding:60px 0;border-top:1px solid var(--line)}
     section:first-of-type{border-top:none}
-    .section-head{max-width:880px;margin-bottom:36px}
+    .section-head{max-width:1000px;margin:0 auto 36px;text-align:center}
     .section-head h2{font-size:clamp(26.5px,3.4vw,35px);margin:8px 0 10px}
     .section-head p{color:var(--mist-dim);margin:0;font-size:17px}
 
@@ -130,7 +131,7 @@
 
     /* Get started */
     .code-card{
-      max-width:680px;
+      max-width:100%;
       background:var(--ink-2);border:1px solid var(--line);border-radius:16px;overflow:hidden;
       min-width:0;
     }
@@ -148,7 +149,7 @@
       padding:5px 10px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Manrope',sans-serif;
     }
     .copy-btn:hover{color:var(--mist);border-color:var(--mist-dim)}
-    .steps{display:grid;gap:14px;max-width:880px}
+    .steps{display:grid;gap:14px;max-width:960px;margin:0 auto}
     .step{display:flex;gap:12px;align-items:flex-start}
     .step .num{
       flex:none;width:26px;height:26px;border-radius:999px;display:grid;place-items:center;
@@ -158,12 +159,12 @@
     .step strong{color:var(--mist);font-size:16.5px}
     .note{
       background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
-      color:var(--mist-dim);font-size:15.5px;line-height:1.6;margin-top:24px;max-width:880px;
+      color:var(--mist-dim);font-size:15.5px;line-height:1.6;margin:24px auto 0;max-width:960px;
     }
     .note strong{color:var(--mist)}
 
     /* FAQ */
-    .faq{display:grid;gap:10px;max-width:1040px}
+    .faq{display:grid;gap:10px;max-width:1040px;margin:0 auto}
     details{
       background:var(--panel);border:1px solid var(--line);border-radius:12px;
       padding:4px 18px;
