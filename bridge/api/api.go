@@ -159,6 +159,7 @@ func (api *API) registerAPIs() {
 		api.muxHTTPServer.HandleFunc("GET /api/account/continue", acc.RequireAuth(acc.ContinueSetup))
 		api.muxHTTPServer.HandleFunc("GET /api/account/countries", acc.CountryList)
 		api.muxHTTPServer.HandleFunc("GET /api/account/providers", acc.Providers)
+		api.muxHTTPServer.HandleFunc("POST /api/account/app-exchange", acc.AppExchange)
 		api.muxHTTPServer.HandleFunc("GET /api/account/domains", acc.RequireAuth(api.accountDomains))
 		api.muxHTTPServer.HandleFunc("POST /api/account/domains", acc.RequireAuth(api.accountAddDomain))
 		api.muxHTTPServer.HandleFunc("POST /api/account/domains/{domain}/identity", acc.RequireAuth(api.accountNewIdentity))

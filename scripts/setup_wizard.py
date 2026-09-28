@@ -696,6 +696,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, {"networks": scan_wifi(rescan)})
         elif path == "/api/disks":
             self.send_json(200, {"disks": list_disks(), "recovery": detect_recovery()})
+        elif path == "/api/providers":
+            # The sign-in providers the bridge offers ("google", "apple"):
+            # inside the app (Bluetooth setup) they get a button - the app
+            # runs the sign-in in the phone's own browser sheet, which has
+            # internet, and hands back a setup code (issue #137).
+            try:
+                status, data = bridge_get("/api/account/providers")
+                providers = data.get("providers", []) if status == 200 and isinstance(data, dict) else []
+            except Exception:  # noqa: BLE001
+                providers = []
+            self.send_json(200, {"providers": [p for p in providers if p in ("google", "apple")]})
         elif path == "/api/countries":
             # Issue #135: the country picker of the account step. Fetched
             # through the device, not by the phone's browser - the page is
@@ -1028,7 +1039,9 @@ function renderDisks(){const two=disks.sel.length===2;const rec=disks.recovery;
 // sign up goes through the device (the hotspot's captive DNS lets only it
 // reach the bridge); Google/Apple accounts get a setup code from the
 // account page on another device instead.
-function renderAccount(){const a=state.account||{};const m=acct.mode;
+async function loadProviders(){if(acct.providers)return;acct.providers=[];if(!window.otcApp||!window.otcSetupSignIn)return;try{const r=await api('/api/providers');acct.providers=r.providers||[];if(step===3)render()}catch(e){}}
+async function providerSignIn(p){acct.msg='';try{const tok=await window.otcSetupSignIn(p);if(!tok)return;const r=await post('/api/account',{action:'code',setup_token:tok});if(!r.ok){acct.msg=r.error||'Could not sign in';render();return}acct.mode='login';await refresh();render()}catch(e){acct.msg=String(e&&e.message||e||'Sign-in cancelled');render()}}
+function renderAccount(){const a=state.account||{};const m=acct.mode;loadProviders();
  if(a.email&&m!=='change'){view.innerHTML=`<h2>3 · Your account</h2><p class="hint">Signed in as <b>${esc(a.email)}</b>. The device's name will be registered to this account.</p>
   <div class="row"><button id="next">Continue</button><button class="ghost" id="change">Use another account</button></div>`;
   $('#next').onclick=()=>{step=4;render()};$('#change').onclick=()=>{acct.mode='change';render()};return}
@@ -1036,7 +1049,7 @@ function renderAccount(){const a=state.account||{};const m=acct.mode;
  const terms=`<div class="hint" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px">Creating an account is only necessary to use our bridge: you will get up to <b>5 domains</b> like <i>name</i>.${esc(state.bridge)} to connect to your device and also connect with the devices of your friends and family. If you only want to use this device in your local network as a NAS or with Tailscale Funnel, skip the creation of the account.<br><br>An account for up to 5 domains is <b>free for the first two years</b>, and after this period will cost 19.99 euros a year (we will e-mail you before the period ends). If you need more domains, please contact us at <b>info@off-the.cloud</b>.</div>`;
  let form='';
  if(m==='login')form=`<label>Email</label><input type="text" id="a-email" autocapitalize="none" autocomplete="email" inputmode="email"><label>Password</label><input type="password" id="a-pass" autocomplete="current-password">
-  <div class="row"><button id="a-go">Sign in</button></div><p class="hint" style="margin-top:10px">Signed up with Google or Apple? Open <b>${esc(state.bridge)}/account</b> on another device, get a setup code and choose "I have a setup code".</p>`;
+  <div class="row"><button id="a-go">Sign in</button></div>${(acct.providers||[]).length?'':`<p class="hint" style="margin-top:10px">Signed up with Google or Apple? Open <b>${esc(state.bridge)}/account</b> on another device, get a setup code and choose "I have a setup code".</p>`}`;
  else if(m==='signup')form=`<div class="row"><div style="flex:1"><label>Name</label><input type="text" id="a-name" autocomplete="given-name"></div><div style="flex:1"><label>Surname</label><input type="text" id="a-surname" autocomplete="family-name"></div></div>
   <label>Country of residence</label><select id="a-country" style="width:100%;font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><option value="">Loading…</option></select>
   <label>Email</label><input type="text" id="a-email" autocapitalize="none" autocomplete="email" inputmode="email"><label>Password (8 characters or more)</label><input type="password" id="a-pass" autocomplete="new-password">${terms}
@@ -1044,12 +1057,14 @@ function renderAccount(){const a=state.account||{};const m=acct.mode;
   <div class="row"><button id="a-go">Create account</button></div>`;
  else form=`<label>Setup code</label><input type="text" id="a-code" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="e.g. K7PX2M4Q" style="font-family:ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase">
   <p class="hint">On any device, open <b>${esc(state.bridge)}/account</b>, sign in (with your password, Google or Apple) and tap <b>Get a setup code</b>.</p><div class="row"><button id="a-go">Use this code</button></div>`;
- view.innerHTML=`<h2>3 · Your Off The Cloud account</h2><p class="hint">An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost.</p>${tabs}${form}
+ const provs=(acct.providers||[]).length?`<div class="row" style="margin-bottom:10px">${acct.providers.map(p=>`<button class="ghost" data-provider="${p}" style="flex:1">Continue with ${p==='apple'?'Apple':'Google'}</button>`).join('')}</div><p class="hint" style="margin:0 0 6px">Or with your email:</p>`:'';
+ view.innerHTML=`<h2>3 · Your Off The Cloud account</h2><p class="hint">An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost.</p>${provs}${tabs}${form}
   <div class="msg ${acct.msg?'bad':''}" id="amsg">${esc(acct.msg)}</div>
   <details style="margin-top:14px"><summary style="color:var(--dim);cursor:pointer">Continue without an account</summary>
    <p class="hint" style="margin-top:8px">Without an account the device does not use the bridge. It still works as a NAS on your home network: files, photo backup from the apps and the sync clients while at home, the photo gallery, tags and people. What needs the bridge: reaching the device from outside your home, the social features (friends, posts, comments), share links that work from anywhere, and push notifications. You can create an account later and set the device up again.</p>
    <div class="row"><button class="ghost" id="a-skip">Continue without an account</button></div></details>
   <div class="row" style="margin-top:6px"><button class="ghost" id="back">Back</button></div>`;
+ document.querySelectorAll('button[data-provider]').forEach(b=>b.onclick=()=>providerSignIn(b.dataset.provider));
  $('#t-login').onclick=()=>{acct.mode='login';acct.msg='';render()};$('#t-signup').onclick=()=>{acct.mode='signup';acct.msg='';render()};$('#t-code').onclick=()=>{acct.mode='code';acct.msg='';render()};
  $('#back').onclick=()=>{step=2;render()};
  if(m==='signup')loadCountries();

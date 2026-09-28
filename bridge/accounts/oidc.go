@@ -123,6 +123,14 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, ErrInvalidReturn.Error(), http.StatusBadRequest)
 		return
 	}
+	// An app's sign-in (appsignin.go): its address, always with a PKCE
+	// challenge.
+	if u, err := url.Parse(returnURL); err == nil && isAppReturn(u) {
+		if returnURL, ok = appReturnWithChallenge(r.URL.Query().Get("challenge")); !ok {
+			http.Error(w, "an app sign-in needs a valid challenge", http.StatusBadRequest)
+			return
+		}
+	}
 	buf := make([]byte, 24)
 	if _, err := rand.Read(buf); err != nil {
 		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)
@@ -243,6 +251,9 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 	if returnURL == "" {
 		return "/account"
+	}
+	if u, err := url.Parse(returnURL); err == nil && isAppReturn(u) {
+		return a.appRedirect(accountID, returnURL)
 	}
 	tok, err := a.IssueSetupToken(accountID)
 	if err != nil {

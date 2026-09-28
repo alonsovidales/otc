@@ -20,8 +20,10 @@
 //  {s, t, b}. The Android port is BluetoothSetupView.kt.
 //
 
+import AuthenticationServices
 import Compression
 import CoreBluetooth
+import CryptoKit
 import SwiftUI
 import WebKit
 
@@ -285,7 +287,7 @@ final class BLESetupSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "otc-setup"
     /// What the page runs before its own script: fetch() → the app.
     static let fetchOverride = """
-    <script>window.otcApp=1;window.fetch=function(u,o){o=o||{};const m=(o.method||'GET').toUpperCase();const b=o.body?String(o.body):'';return window.webkit.messageHandlers.otcSetup.postMessage({m:m,p:String(u),b:b}).then(function(r){return new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}})})};</script>
+    <script>window.otcApp=1;window.otcSetupSignIn=function(p){return window.webkit.messageHandlers.otcSignIn.postMessage({p:String(p)})};window.fetch=function(u,o){o=o||{};const m=(o.method||'GET').toUpperCase();const b=o.body?String(o.body):'';return window.webkit.messageHandlers.otcSetup.postMessage({m:m,p:String(u),b:b}).then(function(r){return new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}})})};</script>
     """
     private let transport: BLESetupTransport
     private var live: Set<ObjectIdentifier> = []
@@ -361,6 +363,7 @@ struct BLESetupWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(BLESetupSchemeHandler(transport: transport), forURLScheme: BLESetupSchemeHandler.scheme)
         config.userContentController.addScriptMessageHandler(BLESetupScriptBridge(transport: transport), contentWorld: .page, name: "otcSetup")
+        config.userContentController.addScriptMessageHandler(BLESetupSignIn(), contentWorld: .page, name: "otcSignIn")
         let view = WKWebView(frame: .zero, configuration: config)
         view.isOpaque = false
         view.backgroundColor = UIColor(red: 0.118, green: 0.122, blue: 0.133, alpha: 1) // the wizard's own background
@@ -463,5 +466,78 @@ struct BluetoothSetupView: View {
             return SecretsStore.bridgeEndpoint(forName: String(domain.dropLast(SecretsStore.bridgeDomain.count + 1)))
         }
         return "wss://" + domain + "/ws"
+    }
+}
+
+
+/// "Continue with Apple/Google" in the setup wizard (issue #137): the phone
+/// has internet while it sets a device up over Bluetooth, so it runs the
+/// bridge's sign-in in the system sign-in sheet and hands the wizard a
+/// setup token - no code copied from another device. PKCE (see the
+/// bridge's appsignin.go): only a challenge goes out; the redirect back to
+/// otcsetup://done carries a one-time code, redeemed here with the secret
+/// verifier. Android: BLESetupSignIn in BluetoothSetupView.kt.
+final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuthenticationPresentationContextProviding {
+    private var session: ASWebAuthenticationSession?
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping (Any?, String?) -> Void) {
+        guard let body = message.body as? [String: Any], let provider = body["p"] as? String,
+              provider == "apple" || provider == "google" else {
+            return replyHandler(nil, "Unknown sign-in provider")
+        }
+        let verifier = Self.randomVerifier()
+        let challenge = Data(SHA256.hash(data: Data(verifier.utf8))).base64URLEncoded
+        var start = URLComponents(string: "https://\(SecretsStore.bridgeDomain)/account/auth/\(provider)/start")!
+        start.queryItems = [URLQueryItem(name: "return", value: "otcsetup://done"), URLQueryItem(name: "challenge", value: challenge)]
+        let session = ASWebAuthenticationSession(url: start.url!, callbackURLScheme: "otcsetup") { [weak self] callback, error in
+            self?.session = nil
+            if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
+                return replyHandler(nil, "Sign-in cancelled")
+            }
+            guard let callback, let code = URLComponents(url: callback, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "code" })?.value else {
+                return replyHandler(nil, error?.localizedDescription ?? "The sign-in did not finish")
+            }
+            Task {
+                do {
+                    replyHandler(try await Self.exchange(code: code, verifier: verifier), nil)
+                } catch {
+                    replyHandler(nil, error.localizedDescription)
+                }
+            }
+        }
+        session.presentationContextProvider = self
+        session.prefersEphemeralWebBrowserSession = false // remember the Apple ID / Google account
+        self.session = session
+        session.start()
+    }
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first ?? ASPresentationAnchor()
+    }
+
+    private static func randomVerifier() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return Data(bytes).base64URLEncoded
+    }
+
+    private static func exchange(code: String, verifier: String) async throws -> String {
+        var req = URLRequest(url: URL(string: "https://\(SecretsStore.bridgeDomain)/api/account/app-exchange")!)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["code": code, "verifier": verifier])
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard (resp as? HTTPURLResponse)?.statusCode == 200, let token = obj?["setup_token"] as? String else {
+            throw NSError(domain: "signin", code: 1, userInfo: [NSLocalizedDescriptionKey: obj?["error"] as? String ?? "Could not finish the sign-in"])
+        }
+        return token
+    }
+}
+
+private extension Data {
+    var base64URLEncoded: String {
+        base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
     }
 }

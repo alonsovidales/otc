@@ -36,6 +36,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Issue #137: the end of "Continue with Apple/Google" in the Bluetooth
+             setup - only a one-time code arrives here (SetupSignIn.kt). -->
+        <activity
+            android:name=".ui.SetupSignInCallbackActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="otcsetup" android:host="done" />
+            </intent-filter>
+        </activity>
         <!-- Shares fetched files with viewers/share targets (the Files tab's
              preview, the gallery's share) without exposing the app's storage. -->
         <provider

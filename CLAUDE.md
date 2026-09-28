@@ -284,7 +284,13 @@ through the device (`/api/account` in `setup_wizard.py` proxies sign-in/sign-up 
 `?for=setup`, which returns a setup token; a typed code is checked with
 `/api/account/setup-token-info`) because the hotspot's captive DNS only lets the device reach
 the bridge - so Google/Apple users get a setup code from the account page on another device.
-"Continue without an account" sets `skip_bridge`, and `install.sh` gets `OTC_BRIDGE_ADDR=""`
+Inside the apps' Bluetooth setup the phone has its own internet, so the
+account step also offers "Continue with Apple/Google" (the wizard's `/api/providers`): the app
+runs `/account/auth/<p>/start?return=otcsetup://done&challenge=…` in the system sign-in sheet
+(`ASWebAuthenticationSession` / a Custom Tab + `SetupSignInCallbackActivity`) and, PKCE-style,
+the redirect carries only a one-time code that `POST /api/account/app-exchange` trades with the
+app's verifier for a setup token (`bridge/accounts/appsignin.go`) - a custom scheme can be
+claimed by any Android app. "Continue without an account" sets `skip_bridge`, and `install.sh` gets `OTC_BRIDGE_ADDR=""`
 (local-only, name `otc`). Schema: `bridge/db/db.sql` + `bridge/db/migrations/001-accounts.sql`
 for an existing bridge (no updater on the bridge: run it by hand, it is idempotent). Issue #139: the admin
 panel's Devices tab shows each device's owner, whether it is dialled in (`Admin.IsOnline`, set

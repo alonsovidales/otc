@@ -155,12 +155,26 @@ private const val FETCH_OVERRIDE = "<script>window.otcApp=1;window.__otcId=0;win
     "window.__otcAnswer=function(id,j){var cb=window.__otcCb[id];delete window.__otcCb[id];if(cb)cb(JSON.parse(j))};" +
     "window.fetch=function(u,o){o=o||{};var m=(o.method||'GET').toUpperCase();var b=o.body?String(o.body):'';" +
     "return new Promise(function(res){var id=++window.__otcId;window.__otcCb[id]=function(r){res(new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}}))};" +
-    "OTCSetup.request(id,m,String(u),b)})};</script>"
+    "OTCSetup.request(id,m,String(u),b)})};" +
+    "window.otcSetupSignIn=function(p){return new Promise(function(res,rej){var id=++window.__otcId;window.__otcCb[id]=function(r){if(r.ok)res(r.token);else rej(new Error(r.error))};OTCSetup.signIn(id,String(p))})};</script>"
 
 private fun pathOf(url: String): String =
     if (url.contains("://")) Uri.parse(url).let { (it.encodedPath.orEmpty().ifEmpty { "/" }) + (it.encodedQuery?.let { q -> "?$q" } ?: "") } else url
 
 private class Bridge(private val webView: WebView, private val transport: BLESetupTransport, private val scope: CoroutineScope) {
+    /** "Continue with Apple/Google" (issue #137) - see SetupSignIn. */
+    @JavascriptInterface
+    fun signIn(id: Int, provider: String) {
+        scope.launch(Dispatchers.Main) {
+            val reply = try {
+                JSONObject().put("ok", true).put("token", SetupSignIn.run(webView.context, provider))
+            } catch (e: Exception) {
+                JSONObject().put("ok", false).put("error", e.message ?: "The sign-in did not finish")
+            }
+            webView.evaluateJavascript("window.__otcAnswer($id, ${JSONObject.quote(reply.toString())})", null)
+        }
+    }
+
     @JavascriptInterface
     fun request(id: Int, method: String, url: String, body: String) {
         scope.launch(Dispatchers.IO) {

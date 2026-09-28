@@ -49,6 +49,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.3")
     implementation("androidx.core:core-ktx:1.17.0")
+    // Issue #137: "Continue with Apple/Google" in the Bluetooth setup opens a Custom Tab.
+    implementation("androidx.browser:browser:1.9.0")
     // The same protobuf envelope protocol as every other client; lite
     // runtime for the generated code (protoc --java_out / --kotlin_out).
     implementation("com.google.protobuf:protobuf-kotlin-lite:4.36.2")

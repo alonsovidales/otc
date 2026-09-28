@@ -588,6 +588,14 @@ func validReturnURL(raw string) (string, bool) {
 		return "", true
 	}
 	u, err := url.Parse(raw)
+	if err == nil && isAppReturn(u) {
+		// The apps' own address (appsignin.go) - only ever with a PKCE
+		// challenge, which OAuthStart adds and checks.
+		if _, ok := appReturnWithChallenge(u.Query().Get("challenge")); ok || u.RawQuery == "" {
+			return raw, true
+		}
+		return "", false
+	}
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", false
 	}
