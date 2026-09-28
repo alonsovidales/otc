@@ -588,9 +588,19 @@ func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err erro
 }
 
 func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (content []byte, err error) {
-	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash))
+	content, err = mg.readThumbnail(session, file)
 	if err != nil {
 		log.Error("error reading thumbnail from:", file.Path, err)
+	}
+
+	return content, err
+}
+
+// readThumbnail is GetThumbnail without the logging, for callers where a
+// thumbnail that doesn't exist yet is expected (os.IsNotExist on err).
+func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byte, error) {
+	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash))
+	if err != nil {
 		return nil, err
 	}
 
@@ -665,29 +675,37 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		log.Debug("New Token:", token)
 	}
 
+	// Issue #147: a photo or video shows up only once it is processed -
+	// its thumbnail is the last thing processing writes, so a file
+	// without one (just uploaded, still queued) is left out rather than
+	// drawn as an empty box. The page is filled from further down the
+	// results instead, so it stays full; a later search (the gallery's
+	// refresh) picks the file up once it's ready. A missing thumbnail is
+	// a plain failed read here, not a scan of the whole result set.
 	toReturn := int(cfg.GetInt("tagger", "max-images-search"))
-	if len(files) > toReturn {
-		mg.searchTokens.Store(token, files[toReturn:])
+	page := make([]*pb.File, 0, toReturn)
+	next := 0
+	for ; next < len(files) && len(page) < toReturn; next++ {
+		file := files[next]
+		content, thumbErr := mg.readThumbnail(session, file)
+		if thumbErr != nil {
+			if !os.IsNotExist(thumbErr) {
+				log.Error("error reading the thumbnail of:", file.Path, thumbErr)
+			}
+			continue
+		}
+		file.Content = content
+		page = append(page, file)
+	}
+	if next < len(files) {
+		mg.searchTokens.Store(token, files[next:])
 		mg.tokensToExpire.Store(token, time.Now())
-		files = files[:toReturn]
 	} else {
 		log.Debug("End for token:", token)
 		token = "" // We reached the end
 	}
 
-	// A file without a thumbnail (never processed, or a document that
-	// slipped into the results) is returned without one; it must not turn
-	// into the whole page's error, which is what a leaked err here did.
-	for _, file := range files {
-		content, thumbErr := mg.GetThumbnail(session, file)
-		if thumbErr != nil {
-			log.Error("error decryptinig the data", thumbErr)
-			continue
-		}
-		file.Content = content
-	}
-
-	return files, token, nil
+	return page, token, nil
 }
 
 // PhotoDateBuckets (issue #77) answers "how many photos per month" for the
