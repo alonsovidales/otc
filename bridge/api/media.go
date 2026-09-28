@@ -89,28 +89,63 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	end := offset + int64(len(content)) - 1
-	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", offset, end, total))
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(content)), 10))
+	// The whole range that was asked for, never less: AVFoundation (every
+	// iPhone video) treats a shorter answer to its range as an error -
+	// "content range mismatch" and a crossed-out play button - even
+	// though HTTP allows it. It is still streaming: the rest comes from
+	// the device a span at a time and goes out as it arrives, so playback
+	// starts after the first span, and a player that hangs up early stops
+	// the fetching.
+	last := total - 1
+	if spec.hasEnd && spec.end < last {
+		last = spec.end
+	}
+	if total == 0 || offset > last {
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", total))
+		w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
+		return
+	}
+	if int64(len(content)) > last-offset+1 {
+		content = content[:last-offset+1]
+	}
+	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", offset, last, total))
+	w.Header().Set("Content-Length", strconv.FormatInt(last-offset+1, 10))
 	w.WriteHeader(http.StatusPartialContent)
-	w.Write(content)
+	api.writeSpan(w, r, token, offset, content, last)
 }
 
-// writeWholeFile continues a no-Range response past the first span. Best
-// effort: a client that goes away mid-file just ends the loop.
+// writeWholeFile continues a no-Range response past the first span.
 func (api *API) writeWholeFile(w http.ResponseWriter, r *http.Request, token string, first []byte, total int64) {
+	api.writeSpan(w, r, token, 0, first, total-1)
+}
+
+// writeSpan writes first (the bytes from offset on) and then the rest up to
+// last, inclusive, fetched from the device a span at a time and flushed as
+// each arrives. Best effort: a client that goes away, or a device that
+// stops answering, ends it.
+func (api *API) writeSpan(w http.ResponseWriter, r *http.Request, token string, offset int64, first []byte, last int64) {
+	flusher, _ := w.(http.Flusher)
 	if _, err := w.Write(first); err != nil {
 		return
 	}
-	for offset := int64(len(first)); offset < total; {
-		content, _, _, ok := api.fetchMediaRange(nil, r, token, offset, maxProxiedRange)
+	if flusher != nil {
+		flusher.Flush()
+	}
+	for pos := offset + int64(len(first)); pos <= last; {
+		content, _, _, ok := api.fetchMediaRange(nil, r, token, pos, min(maxProxiedRange, last-pos+1))
 		if !ok || len(content) == 0 {
 			return
+		}
+		if int64(len(content)) > last-pos+1 {
+			content = content[:last-pos+1]
 		}
 		if _, err := w.Write(content); err != nil {
 			return
 		}
-		offset += int64(len(content))
+		if flusher != nil {
+			flusher.Flush()
+		}
+		pos += int64(len(content))
 	}
 }
 

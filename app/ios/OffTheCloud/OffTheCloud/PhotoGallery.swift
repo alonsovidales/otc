@@ -946,9 +946,13 @@ final class PhotoGalleryVM: ObservableObject {
         // small enough that streaming wouldn't pay for itself is declined
         // by the device, and falls through to the download below.
         if let streamURL = await MediaStream.url(forPath: it.path) {
-            self.videoPlayer = AVPlayer(url: streamURL)
+            print("[video] streaming \(it.path) from \(streamURL.absoluteString)")
+            let player = AVPlayer(url: streamURL)
+            Self.logFailure(of: player, what: "stream")
+            self.videoPlayer = player
             return
         }
+        print("[video] no stream URL for \(it.path) - downloading the whole file")
 
         do {
             let resp = try await ws.request { e in
@@ -973,8 +977,27 @@ final class PhotoGalleryVM: ObservableObject {
                 .appendingPathComponent(UUID().uuidString)
                 .appendingPathExtension(ext)
             try f.content.write(to: tmp)
-            self.videoPlayer = AVPlayer(url: tmp)
-        } catch { /* leave the poster in place */ }
+            print("[video] downloaded \(it.path): \(f.content.count) bytes, \(f.mime), .\(ext)")
+            let player = AVPlayer(url: tmp)
+            Self.logFailure(of: player, what: "download")
+            self.videoPlayer = player
+        } catch {
+            print("[video] download of \(it.path) failed: \(error)")
+        }
+    }
+
+    /// Prints why a video didn't play - AVPlayer only shows a crossed-out
+    /// play icon otherwise.
+    private static var failureObservers: [NSKeyValueObservation] = []
+    private static func logFailure(of player: AVPlayer, what: String) {
+        guard let item = player.currentItem else { return }
+        failureObservers.append(item.observe(\.status, options: [.new]) { item, _ in
+            if item.status == .failed {
+                print("[video] \(what) failed: \(item.error.map { String(describing: $0) } ?? "no error")")
+            } else if item.status == .readyToPlay {
+                print("[video] \(what) ready to play")
+            }
+        })
     }
 
     // MARK: Selection (no checkbox; long-press toggles)
