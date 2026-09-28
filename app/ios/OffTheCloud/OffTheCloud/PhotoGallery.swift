@@ -1829,7 +1829,17 @@ private struct ImageModal: View {
                     // Issue #106: plays in the viewer, filling it the same
                     // way a photo does, starting on its own.
                     VideoPlayer(player: player)
-                        .onAppear { player.play() }
+                        .onAppear {
+                            // The app starts in .ambient (for the muted
+                            // feed), which the ringer switch silences - a
+                            // video opened here is meant to be heard.
+                            Task.detached(priority: .userInitiated) {
+                                let session = AVAudioSession.sharedInstance()
+                                try? session.setCategory(.playback)
+                                try? session.setActive(true)
+                            }
+                            player.play()
+                        }
                         .onDisappear { player.pause() }
                 } else if let img = vm.hiResImages[item.path] ?? thumb(item) {
                     Image(uiImage: img)
