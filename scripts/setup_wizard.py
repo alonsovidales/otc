@@ -1112,7 +1112,11 @@ function renderInstall(){const i=state.install;const pct=i.total?Math.round(100*
  ${failed?'<div class="row"><button id="retry">Try again</button></div>':''}
  <details style="margin-top:14px"><summary style="color:var(--dim);cursor:pointer">Log</summary><pre>${esc((i.log_tail||[]).join('\n'))}</pre></details>`;
  const rt=$('#retry');if(rt)rt.onclick=async()=>{await post('/api/install',i.recovery?{mode:'recover'}:{mode:'fresh',disks:disks.sel,confirm_wipe:true});refresh()}}
-(async()=>{await refresh();if(step===1)scan(false);setInterval(refresh,3000)})();
+// The WiFi list on opening: in the app (Bluetooth) a fresh scan straight
+// away - nothing to lose there. Over the hotspot the list saved before it
+// started, since scanning takes the one radio off the hotspot and drops
+// the phone's page - unless that list is empty, then a fresh one anyway.
+(async()=>{await refresh();if(step===1){await scan(!!window.otcApp);if(!window.otcApp&&!wifi.list.length)await scan(true)}setInterval(refresh,3000)})();
 </script></body></html>
 """
 
