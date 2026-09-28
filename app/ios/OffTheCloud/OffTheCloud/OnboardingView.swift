@@ -37,9 +37,14 @@ struct OnboardingView: View {
                 // above and the first sign in sets the owner password.
                 Section(footer: Text("For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.")) {
                     NavigationLink {
-                        BluetoothSetupView { newEndpoint in
+                        BluetoothSetupView { newEndpoint, newPassword in
+                            // Straight in: the root view switches to the
+                            // app as soon as both are saved.
                             endpoint = newEndpoint
-                            password = ""
+                            password = newPassword
+                            secrets.endpoint = newEndpoint
+                            secrets.password = newPassword
+                            secrets.persist()
                         }
                     } label: {
                         Label("Set up a new device", systemImage: "antenna.radiowaves.left.and.right")

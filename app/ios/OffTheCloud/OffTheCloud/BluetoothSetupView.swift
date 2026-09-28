@@ -53,6 +53,8 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     /// Set from the wizard's /api/state once the install is online: the
     /// device's domain, or "" for a device set up without the bridge.
     @Published var readyDomain: String?
+    /// The device came from a recovered array: it keeps its password.
+    @Published var readyRecovery = false
     /// Whether the wizard has been reached once: from then on a dropped
     /// link keeps the page on screen (with a banner) while it reconnects,
     /// instead of throwing the install's progress away.
@@ -144,6 +146,8 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
               let install = st["install"] as? [String: Any], install["phase"] as? String == "online" else { return }
         let domain = (install["domain"] as? String ?? "").isEmpty ? (st["domain"] as? String ?? "") : install["domain"] as? String ?? ""
         if readyDomain != domain { readyDomain = domain }
+        let recovery = install["recovery"] as? Bool ?? false
+        if readyRecovery != recovery { readyRecovery = recovery }
     }
 
     private func failAll(_ error: Error) {
@@ -376,7 +380,11 @@ struct BLESetupWebView: UIViewRepresentable {
 
 struct BluetoothSetupView: View {
     /// Called with the endpoint the app should use for the new device.
-    let onUseDevice: (String) -> Void
+    /// The new device's address and its password: the app signs in with
+    /// them right away (the first sign-in sets the owner password).
+    let onUseDevice: (String, String) -> Void
+    @State private var password = ""
+    @State private var confirm = ""
     @Environment(\.dismiss) private var dismiss
     @StateObject private var transport = BLESetupTransport()
 
@@ -402,16 +410,35 @@ struct BluetoothSetupView: View {
             }
             if let domain = transport.readyDomain {
                 let endpoint = Self.endpoint(forDomain: domain)
-                VStack(spacing: 6) {
+                let recovery = transport.readyRecovery
+                let valid = recovery ? !password.isEmpty : (password.count >= 8 && password == confirm)
+                VStack(alignment: .leading, spacing: 8) {
                     Text(domain.isEmpty ? "The device is ready on your home network." : "The device is ready as \(domain).")
                         .font(.footnote).foregroundStyle(.secondary)
+                    // Issue #137: the password is chosen here, in the app,
+                    // which then signs in with it straight away - the first
+                    // sign-in to a new device sets it. A recovered device
+                    // keeps the one it had.
+                    Text(recovery ? "Enter the device's password" : "Choose your device's password").font(.headline)
+                    SecureField(recovery ? "Password" : "Password (8 characters or more)", text: $password)
+                        .textContentType(recovery ? .password : .newPassword)
+                        .textFieldStyle(.roundedBorder)
+                    if !recovery {
+                        SecureField("Repeat the password", text: $confirm)
+                            .textContentType(.newPassword)
+                            .textFieldStyle(.roundedBorder)
+                        Text(!confirm.isEmpty && confirm != password ? "The two passwords don't match." : "It encrypts everything on the device and can't be recovered - keep it somewhere safe.")
+                            .font(.caption)
+                            .foregroundStyle(!confirm.isEmpty && confirm != password ? Color.red : Color.secondary)
+                    }
                     Button {
-                        onUseDevice(endpoint)
+                        onUseDevice(endpoint, password)
                         dismiss()
                     } label: {
-                        Text("Use this device in the app").frame(maxWidth: .infinity)
+                        Text("Open my device").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(!valid)
                 }
                 .padding()
                 .background(.bar)

@@ -62,6 +62,10 @@ class BLESetupTransport(private val context: Context) {
     private val _readyDomain = MutableStateFlow<String?>(null)
     val readyDomain: StateFlow<String?> = _readyDomain
 
+    /** The device came from a recovered array: it keeps its password. */
+    private val _readyRecovery = MutableStateFlow(false)
+    val readyRecovery: StateFlow<Boolean> = _readyRecovery
+
     /** Whether the wizard has been reached once: a dropped link then keeps the page (as iOS). */
     private val _everReady = MutableStateFlow(false)
     val everReady: StateFlow<Boolean> = _everReady
@@ -314,6 +318,7 @@ class BLESetupTransport(private val context: Context) {
         if (install.optString("phase") != "online") return
         val domain = install.optString("domain").ifEmpty { st.optString("domain") }
         if (_readyDomain.value != domain) _readyDomain.value = domain
+        _readyRecovery.value = install.optBoolean("recovery", false)
     }
 
     private fun inflate(data: ByteArray): ByteArray {

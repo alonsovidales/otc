@@ -37,6 +37,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -63,12 +66,15 @@ import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BluetoothSetupView(onUseDevice: (String) -> Unit, onClose: () -> Unit) {
+fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val transport = remember { BLESetupTransport(context) }
     val phase by transport.phase.collectAsState()
     val readyDomain by transport.readyDomain.collectAsState()
+    val readyRecovery by transport.readyRecovery.collectAsState()
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
     val everReady by transport.everReady.collectAsState()
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { transport.start() }
     LaunchedEffect(Unit) {
@@ -107,9 +113,42 @@ fun BluetoothSetupView(onUseDevice: (String) -> Unit, onClose: () -> Unit) {
                             if (domain.isEmpty()) "The device is ready on your home network." else "The device is ready as $domain.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        // Issue #137: the password is chosen here, in the app,
+                        // which then signs in with it straight away - the
+                        // first sign-in to a new device sets it. A recovered
+                        // device keeps the one it had (as iOS).
+                        Spacer(Modifier.height(8.dp))
+                        Text(if (readyRecovery) "Enter the device's password" else "Choose your device's password", style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth())
                         Spacer(Modifier.height(6.dp))
-                        Button(onClick = { onUseDevice(endpointForDomain(domain)) }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Use this device in the app")
+                        cloud.offthe.otc.ui.common.OTCTextField(
+                            value = password, onValueChange = { password = it }, singleLine = true,
+                            placeholder = { Text(if (readyRecovery) "Password" else "Password (8 characters or more)") },
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        if (!readyRecovery) {
+                            Spacer(Modifier.height(6.dp))
+                            cloud.offthe.otc.ui.common.OTCTextField(
+                                value = confirm, onValueChange = { confirm = it }, singleLine = true,
+                                placeholder = { Text("Repeat the password") },
+                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            val mismatch = confirm.isNotEmpty() && confirm != password
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                if (mismatch) "The two passwords don't match." else "It encrypts everything on the device and can't be recovered - keep it somewhere safe.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (mismatch) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        val valid = if (readyRecovery) password.isNotEmpty() else password.length >= 8 && password == confirm
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { onUseDevice(endpointForDomain(domain), password) }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
+                            Text("Open my device")
                         }
                     }
                 }

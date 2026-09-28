@@ -38,7 +38,17 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     // sets the owner password.
     var setupOpen by remember { mutableStateOf(false) }
     if (setupOpen) {
-        BluetoothSetupView(onUseDevice = { endpoint = it; password = ""; setupOpen = false }, onClose = { setupOpen = false })
+        BluetoothSetupView(
+            onUseDevice = { newEndpoint, newPassword ->
+                // Straight in, as iOS: save both and open the app.
+                secrets.setEndpoint(newEndpoint)
+                secrets.setPassword(newPassword)
+                secrets.persist()
+                setupOpen = false
+                onSaved()
+            },
+            onClose = { setupOpen = false },
+        )
         return
     }
 
