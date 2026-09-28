@@ -41,7 +41,7 @@ export default function SettingsForm() {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
 
-  // Face recognition / People search (issue #52) - off by default. Turning
+  // Face recognition / People search (issue #52) - on by default. Turning
   // it on only affects photos uploaded from that point on; it never scans
   // whatever's already in the library.
   const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(false);
@@ -367,8 +367,8 @@ export default function SettingsForm() {
         <h3>Face Recognition</h3>
         <p className="sf-hint">
           Detect faces in newly uploaded photos so you can search by person, like other photo
-          apps. Off by default. Turning this on only affects photos uploaded from now on — it
-          never scans photos you already have, even after you enable it.
+          apps. On by default, and faces never leave the device. It only affects photos uploaded
+          while it is on — it never scans photos you already have, even after you enable it.
         </p>
         <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
           {faceRecognitionBusy ? "Working…" : faceRecognitionEnabled ? "Disable Face Recognition" : "Enable Face Recognition"}

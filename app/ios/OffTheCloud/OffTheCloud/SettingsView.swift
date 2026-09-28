@@ -30,7 +30,7 @@ final class DeviceSettingsViewModel: ObservableObject {
 
     @Published var toast: String?
 
-    // Issue #52: off by default - see db.sql's settings.face_recognition_
+    // Issue #52: on by default - see db.sql's settings.face_recognition_
     // enabled doc comment for why turning this on never retroactively
     // processes anything already in the library.
     @Published var faceRecognitionEnabled = false
@@ -341,7 +341,7 @@ struct SettingsView: View {
 
                 Section(
                     header: Text("People"),
-                    footer: Text("Detect faces in newly uploaded photos so you can search by person. Off by default. Turning this on only affects photos uploaded from now on — it never scans photos you already have, even after you enable it.")
+                    footer: Text("Detect faces in newly uploaded photos so you can search by person. On by default, and faces never leave the device. It only affects photos uploaded while it is on — it never scans photos you already have, even after you enable it.")
                 ) {
                     Toggle(
                         "Face Recognition",

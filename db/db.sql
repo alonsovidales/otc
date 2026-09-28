@@ -214,12 +214,12 @@ create table settings
   -- needed, unlike APNs.
   `vapid_public_key` varchar(255) default null,
   `vapid_private_key` varchar(255) default null,
-  -- Issue #52: off by default, opt-in - gates whether a NEWLY uploaded
+  -- Issue #52: on by default (it used to be opt-in) - gates whether a NEWLY uploaded
   -- photo gets run through face detection at all. Read once, at upload
   -- time, by files_manager's background processing goroutine - a photo
   -- uploaded while this was off is never revisited later just because it
   -- gets turned on afterward (see people/faces' own doc comment below).
-  `face_recognition_enabled` tinyint(1) not null default 0
+  `face_recognition_enabled` tinyint(1) not null default 1
 ) engine=InnoDB;
 
 create table profile

@@ -142,7 +142,7 @@ fun SettingsView(secrets: SecretsStore) {
                 RowButton(if (dst.savingSecret) "Saving…" else "Save Secret", enabled = !dst.savingSecret && dst.newBridgeSecret.isNotBlank()) { scope.launch { device.saveBridgeSecret() } }
             }
 
-            Section("People", "Detect faces in newly uploaded photos so you can search by person. Off by default. Turning this on only affects photos uploaded from now on — it never scans photos you already have, even after you enable it.") {
+            Section("People", "Detect faces in newly uploaded photos so you can search by person. On by default, and faces never leave the device. It only affects photos uploaded while it is on — it never scans photos you already have, even after you enable it.") {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Face Recognition", Modifier.weight(1f))
                     Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })

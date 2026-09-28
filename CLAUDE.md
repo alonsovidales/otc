@@ -196,7 +196,7 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   requires CGO + libonnxruntime at runtime (see Build section).
 - `face_recognition` — issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)
   via `gocv`, humans only. `files_manager.processFaces` (called from `UploadFile`'s background
-  goroutine) gates this on `settings.face_recognition_enabled` (off by default) checked *at upload
+  goroutine) gates this on `settings.face_recognition_enabled` (on by default since release 24; it was opt-in) checked *at upload
   time* - enabling it later never retroactively processes anything already in the library, by
   design (see the `faces` table's doc comment in `db.sql`). Requires CGO + a real OpenCV install at
   build time (see Build section); optional at runtime like APNs - a device with `[faces]`

@@ -103,7 +103,7 @@ MODEL_ONNX=$MODEL_DIR/ram_plus_swin_large_14m.int8.onnx
 MODEL_TAGS=$MODEL_DIR/tag_list_4585.txt
 MODEL_THRESHOLDS=$MODEL_DIR/tag_list_4585_thresholds.txt
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
-# Issue #52: face recognition ("People" search), humans only - off by
+# Issue #52: face recognition ("People" search), humans only - on by
 # default (settings.face_recognition_enabled), but both models are small
 # enough (~230KB + ~10MB) to just always fetch here rather than making that
 # a second, deferred download the first time someone enables the feature.
@@ -534,7 +534,7 @@ apply_schema_migrations() {
     # statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
     # install too (where db.sql just created them already).
     mysql "$db" <<'SQL'
-    ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 1;
     -- Issue #92: ends a friend's notification catch-up suppression once their
     -- pre-existing backlog is fully replayed (see social.go's
     -- updateFriendEvents) - defaulting to 0 on an upgrade is fine even for
