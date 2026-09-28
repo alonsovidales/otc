@@ -55,6 +55,9 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     @Published var readyDomain: String?
     /// The device came from a recovered array: it keeps its password.
     @Published var readyRecovery = false
+    /// The owner password chosen in the wizard, handed over by its page
+    /// (memory only): the app signs in with it at the end.
+    @Published var chosenPassword = ""
     /// Whether the wizard has been reached once: from then on a dropped
     /// link keeps the page on screen (with a banner) while it reconnects,
     /// instead of throwing the install's progress away.
@@ -291,7 +294,7 @@ final class BLESetupSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "otc-setup"
     /// What the page runs before its own script: fetch() → the app.
     static let fetchOverride = """
-    <script>window.otcApp=1;window.otcSetupSignIn=function(p){return window.webkit.messageHandlers.otcSignIn.postMessage({p:String(p)})};window.fetch=function(u,o){o=o||{};const m=(o.method||'GET').toUpperCase();const b=o.body?String(o.body):'';return window.webkit.messageHandlers.otcSetup.postMessage({m:m,p:String(u),b:b}).then(function(r){return new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}})})};</script>
+    <script>window.otcApp=1;window.otcSetupPassword=function(p){window.webkit.messageHandlers.otcPassword.postMessage(String(p))};window.otcSetupSignIn=function(p){return window.webkit.messageHandlers.otcSignIn.postMessage({p:String(p)})};window.fetch=function(u,o){o=o||{};const m=(o.method||'GET').toUpperCase();const b=o.body?String(o.body):'';return window.webkit.messageHandlers.otcSetup.postMessage({m:m,p:String(u),b:b}).then(function(r){return new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}})})};</script>
     """
     private let transport: BLESetupTransport
     private var live: Set<ObjectIdentifier> = []
@@ -368,6 +371,7 @@ struct BLESetupWebView: UIViewRepresentable {
         config.setURLSchemeHandler(BLESetupSchemeHandler(transport: transport), forURLScheme: BLESetupSchemeHandler.scheme)
         config.userContentController.addScriptMessageHandler(BLESetupScriptBridge(transport: transport), contentWorld: .page, name: "otcSetup")
         config.userContentController.addScriptMessageHandler(BLESetupSignIn(), contentWorld: .page, name: "otcSignIn")
+        config.userContentController.add(BLESetupPasswordHandler(transport: transport), contentWorld: .page, name: "otcPassword")
         let view = WKWebView(frame: .zero, configuration: config)
         view.isOpaque = false
         view.backgroundColor = UIColor(red: 0.118, green: 0.122, blue: 0.133, alpha: 1) // the wizard's own background
@@ -384,7 +388,6 @@ struct BluetoothSetupView: View {
     /// them right away (the first sign-in sets the owner password).
     let onUseDevice: (String, String) -> Void
     @State private var password = ""
-    @State private var confirm = ""
     @Environment(\.dismiss) private var dismiss
     @StateObject private var transport = BLESetupTransport()
 
@@ -410,8 +413,11 @@ struct BluetoothSetupView: View {
             }
             if let domain = transport.readyDomain {
                 let endpoint = Self.endpoint(forDomain: domain)
-                let recovery = transport.readyRecovery
-                let valid = recovery ? !password.isEmpty : (password.count >= 8 && password == confirm)
+                // The password chosen in the wizard, when the page handed it
+                // over; otherwise (a recovered device, or the app restarted
+                // mid-setup) the owner types the device's password.
+                let known = transport.chosenPassword
+                let valid = !known.isEmpty || !password.isEmpty
                 VStack(alignment: .leading, spacing: 8) {
                     Text(domain.isEmpty ? "The device is ready on your home network." : "The device is ready as \(domain).")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -419,20 +425,17 @@ struct BluetoothSetupView: View {
                     // which then signs in with it straight away - the first
                     // sign-in to a new device sets it. A recovered device
                     // keeps the one it had.
-                    Text(recovery ? "Enter the device's password" : "Choose your device's password").font(.headline)
-                    SecureField(recovery ? "Password" : "Password (8 characters or more)", text: $password)
-                        .textContentType(recovery ? .password : .newPassword)
-                        .textFieldStyle(.roundedBorder)
-                    if !recovery {
-                        SecureField("Repeat the password", text: $confirm)
-                            .textContentType(.newPassword)
+                    if known.isEmpty {
+                        Text("Enter the device's password").font(.headline)
+                        SecureField("Password", text: $password)
+                            .textContentType(.password)
                             .textFieldStyle(.roundedBorder)
-                        Text(!confirm.isEmpty && confirm != password ? "The two passwords don't match." : "It encrypts everything on the device and can't be recovered - keep it somewhere safe.")
-                            .font(.caption)
-                            .foregroundStyle(!confirm.isEmpty && confirm != password ? Color.red : Color.secondary)
+                    } else {
+                        Text("Signing in with the password you chose in the setup.")
+                            .font(.footnote).foregroundStyle(.secondary)
                     }
                     Button {
-                        onUseDevice(endpoint, password)
+                        onUseDevice(endpoint, known.isEmpty ? password : known)
                         dismiss()
                     } label: {
                         Text("Open my device").frame(maxWidth: .infinity)
@@ -566,5 +569,21 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
 private extension Data {
     var base64URLEncoded: String {
         base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+    }
+}
+
+
+/// The wizard page's window.otcSetupPassword: the owner password it just
+/// sealed for the device, kept in memory for the sign-in at the end.
+final class BLESetupPasswordHandler: NSObject, WKScriptMessageHandler {
+    private weak var transport: BLESetupTransport?
+
+    init(transport: BLESetupTransport) {
+        self.transport = transport
+    }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let pw = message.body as? String, pw.count >= 8 else { return }
+        Task { @MainActor in self.transport?.chosenPassword = pw }
     }
 }

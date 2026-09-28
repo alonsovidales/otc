@@ -62,6 +62,9 @@ class BLESetupTransport(private val context: Context) {
     private val _readyDomain = MutableStateFlow<String?>(null)
     val readyDomain: StateFlow<String?> = _readyDomain
 
+    /** The owner password chosen in the wizard, handed over by its page (memory only). */
+    val chosenPassword = MutableStateFlow("")
+
     /** The device came from a recovered array: it keeps its password. */
     private val _readyRecovery = MutableStateFlow(false)
     val readyRecovery: StateFlow<Boolean> = _readyRecovery

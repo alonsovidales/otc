@@ -804,6 +804,19 @@ install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local
 install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service
 install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.path" /etc/systemd/system/otc-update.path
 
+# The owner password chosen in the setup wizard (a root-only file it hands
+# over in OTC_OWNER_PASSWORD_FILE): set before the service first starts, as
+# the otc user so the log keeps its owner. A recovered device already has
+# one, which the command leaves alone. The file goes either way.
+if [ -n "${OTC_OWNER_PASSWORD_FILE:-}" ] && [ -f "$OTC_OWNER_PASSWORD_FILE" ]; then
+    log "Setting the owner password chosen in the setup wizard"
+    if ! runuser -u otc -- /usr/bin/otc "$ENVIRONMENT" init-owner-password < "$OTC_OWNER_PASSWORD_FILE"; then
+        shred -u "$OTC_OWNER_PASSWORD_FILE" 2>/dev/null || rm -f "$OTC_OWNER_PASSWORD_FILE"
+        die "could not set the owner password"
+    fi
+    shred -u "$OTC_OWNER_PASSWORD_FILE" 2>/dev/null || rm -f "$OTC_OWNER_PASSWORD_FILE"
+fi
+
 systemctl daemon-reload
 systemctl enable otc.service
 systemctl enable --now otc-update.path
@@ -815,7 +828,7 @@ echo "=========================================================="
 echo " OTC installed and running."
 echo " Local web UI: http://${IP:-<this-machine>}:$HTTP_PORT/"
 if [ -n "$BRIDGE_ADDR" ]; then echo " Bridge address: ${FULL_DOMAIN}"; else echo " Local only (no bridge): http://otc.local:${HTTP_PORT}"; fi
-echo " First 'Sign In' sets your password permanently — see README.md."
+if [ -n "${OTC_OWNER_PASSWORD_FILE:-}" ]; then echo " Sign in with the password you chose during setup."; else echo " First 'Sign In' sets your password permanently — see README.md."; fi
 echo " Device identity/secrets: $ENV_FILE (never share or commit it)."
 echo " Storage: $([ "$SKIP_RAID" = "1" ] && echo "$MOUNT_POINT (single disk, OTC_SKIP_RAID=1)" || echo "RAID1 on $DISK1 + $DISK2, mounted at $MOUNT_POINT")"
 echo "=========================================================="

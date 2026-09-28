@@ -170,8 +170,11 @@ an "old image": whatever you flash installs today's release.
      hotspot restarts for a few seconds to move to your network's channel, so your phone may get
      disconnected: if it doesn't rejoin "Off The Cloud" by itself, reconnect to it in your WiFi
      settings and come back to the page, which carries on once the Pi is online.
-   - **Name**: the device's `<name>.off-the.cloud` address, checked as you type and reserved on the
-     bridge the moment you continue.
+   - **Name and password**: the device's `<name>.off-the.cloud` address, checked as you type and
+     reserved on the bridge the moment you continue, and the device's password (twice, 8
+     characters or more). The password encrypts everything on the device and can't be recovered;
+     the page encrypts it before it leaves your phone, and the install sets it. A recovered device
+     keeps the password it had.
    - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
      wiped), or none to keep everything on the SD card for now.
    - **Install**: a progress bar over the install script's steps, with what it is doing under it
@@ -181,9 +184,9 @@ an "old image": whatever you flash installs today's release.
      complete, open `https://<name>.off-the.cloud` from any network. To check the progress
      meanwhile, connect to the "Off The Cloud" WiFi again and the page comes back.
 5. When it finishes, the wizard waits until the bridge sees the device connected, then shows its
-   address, `https://<name>.off-the.cloud`. In the app, tap **Use this device in the app** and
-   sign in; in the browser, open that address. Either way the first sign in sets the owner
-   password, and then you set up your profile. The hotspot switches off a minute later and the
+   address, `https://<name>.off-the.cloud`. In the app, tap **Open my device** and it signs in with
+   the password you chose; in the browser, open that address and sign in with it. Then you set up
+   your profile. The hotspot switches off a minute later and the
    setup wizard with it; the hotspot only comes back if the device ever loses its network.
 
 **Replacing a dead Pi**: if the Pi died but its two disks didn't, flash a new card with the same

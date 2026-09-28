@@ -42,6 +42,8 @@ has completed (systemd also refuses to start it again once
 /etc/otc/.install-complete exists).
 """
 
+import base64
+import hashlib
 import json
 import os
 import re
@@ -70,6 +72,9 @@ CONFIG = {
     # identity the device later presents are the same thing.
     "env_file": "/etc/otc/otc-install.env",
     "state_file": "/var/lib/otc/setup-state.json",
+    # The owner password, decrypted, for install.sh (root-only, tmpfs); it
+    # shreds it once set.
+    "owner_password_file": "/run/otc-setup/owner-password",
     "join_request": "/var/lib/otc/wifi_join_request.json",
     "join_result": "/var/lib/otc/wifi_join_result.json",
     # network_setup.py keeps the hotspot up until this exists.
@@ -291,6 +296,106 @@ def wipe_array(arr):
 # Bridge name + identity
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Sealing the owner password (the page encrypts it before it leaves the
+# phone): the hotspot is an open WiFi network and the Bluetooth link is not
+# paired, so a password sent as is could be read by anyone nearby. The page
+# has no WebCrypto (not a secure context over plain HTTP), so both sides
+# are hand-written: RSA-2048 with OAEP (SHA-256, MGF1-SHA-256, empty
+# label) - a one-off key pair made when the wizard starts, stdlib only.
+# ---------------------------------------------------------------------------
+
+_SMALL_PRIMES = [p for p in range(3, 2000) if all(p % q for q in range(2, int(p ** 0.5) + 1))]
+
+
+def _probable_prime(n, rounds=40):
+    if n < 2:
+        return False
+    for p in _SMALL_PRIMES:
+        if n % p == 0:
+            return n == p
+    d, r = n - 1, 0
+    while d % 2 == 0:
+        d //= 2
+        r += 1
+    for _ in range(rounds):
+        a = secrets.randbelow(n - 3) + 2
+        x = pow(a, d, n)
+        if x in (1, n - 1):
+            continue
+        for _ in range(r - 1):
+            x = pow(x, 2, n)
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
+
+
+def _prime(bits):
+    while True:
+        c = secrets.randbits(bits) | (1 << (bits - 1)) | (1 << (bits - 2)) | 1
+        if _probable_prime(c):
+            return c
+
+
+def _mgf1(seed, length):
+    out, counter = b"", 0
+    while len(out) < length:
+        out += hashlib.sha256(seed + counter.to_bytes(4, "big")).digest()
+        counter += 1
+    return out[:length]
+
+
+class SealKey:
+    """RSA-2048 for OAEP-SHA-256; generated in the background at start."""
+
+    def __init__(self):
+        self.ready = threading.Event()
+        threading.Thread(target=self._generate, daemon=True).start()
+
+    def _generate(self):
+        e = 65537
+        while True:
+            p, q = _prime(1024), _prime(1024)
+            phi = (p - 1) * (q - 1)
+            if p != q and phi % e and (p * q).bit_length() == 2048:
+                break
+        self.n, self.e, self.d = p * q, e, pow(e, -1, phi)
+        self.ready.set()
+
+    def public(self):
+        self.ready.wait(60)
+        return {"n": format(self.n, "x"), "e": self.e}
+
+    def open(self, sealed_b64):
+        """The plaintext bytes, or None when it isn't a valid seal for this key."""
+        self.ready.wait(60)
+        try:
+            c = int.from_bytes(base64.b64decode(sealed_b64), "big")
+        except Exception:  # noqa: BLE001
+            return None
+        k = (self.n.bit_length() + 7) // 8
+        if c >= self.n:
+            return None
+        em = pow(c, self.d, self.n).to_bytes(k, "big")
+        h = 32
+        if em[0] != 0:
+            return None
+        masked_seed, masked_db = em[1:1 + h], em[1 + h:]
+        seed = bytes(a ^ b for a, b in zip(masked_seed, _mgf1(masked_db, h)))
+        db = bytes(a ^ b for a, b in zip(masked_db, _mgf1(seed, k - h - 1)))
+        if db[:h] != hashlib.sha256(b"").digest():
+            return None
+        rest = db[h:].lstrip(b"\x00")
+        if not rest or rest[0] != 1:
+            return None
+        return rest[1:]
+
+
+SEAL = None  # the SealKey, made in main()
+
+
 def setup_token():
     """One random token per setup, kept in the state file so a wizard
     restart doesn't orphan the page that already holds it."""
@@ -471,6 +576,8 @@ class Install:
 
     def _run(self, name, disks):
         env = dict(os.environ)
+        if not self.recovery and Path(CONFIG["owner_password_file"]).exists():
+            env["OTC_OWNER_PASSWORD_FILE"] = CONFIG["owner_password_file"]
         if self.recovery:
             # Recovering must never wipe: install.sh refuses to build a
             # fresh array in this mode and stops instead. (It used to get
@@ -696,6 +803,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, {"networks": scan_wifi(rescan)})
         elif path == "/api/disks":
             self.send_json(200, {"disks": list_disks(), "recovery": detect_recovery()})
+        elif path == "/api/pubkey":
+            # The key the page seals the owner password with.
+            self.send_json(200, SEAL.public())
         elif path == "/api/providers":
             # The sign-in providers the bridge offers ("google", "apple"):
             # inside the app (Bluetooth setup) they get a button - the app
@@ -894,6 +1004,27 @@ class Handler(BaseHTTPRequestHandler):
                 if not st.get("name"):
                     self.send_json(400, {"error": "choose the device's name first"})
                     return
+                # The owner password, sealed by the page (see SealKey). Kept
+                # for install.sh in a root-only file on tmpfs; a retry that
+                # doesn't send it again uses the one already there.
+                sealed = body.get("owner_password")
+                if sealed:
+                    pw = SEAL.open(str(sealed))
+                    try:
+                        pw = pw.decode("utf-8") if pw is not None else None
+                    except UnicodeDecodeError:
+                        pw = None
+                    if pw is None:
+                        self.send_json(400, {"error": "the password could not be read - reload the page and try again"})
+                        return
+                    if len(pw) < 8 or "\n" in pw or "\r" in pw:
+                        self.send_json(400, {"error": "the password must have 8 characters or more"})
+                        return
+                    pf = Path(CONFIG["owner_password_file"])
+                    pf.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                    fd = os.open(str(pf), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                    with os.fdopen(fd, "w") as fh:
+                        fh.write(pw + "\n")
                 known = {d["path"] for d in list_disks()}
                 if len(disks) not in (0, 2) or any(d not in known for d in disks) or len(set(disks)) != len(disks):
                     self.send_json(400, {"error": "choose two disks for RAID1, or none"})
@@ -970,6 +1101,32 @@ a{color:var(--ember)}
 </main>
 <script>
 const $=s=>document.querySelector(s);const view=$('#view');
+// The owner password (issue #137 follow-up): chosen with the device's name,
+// sealed with the wizard's one-off RSA key before it leaves the phone - the
+// hotspot is open WiFi and Bluetooth isn't paired - and handed to the app
+// too, in the app, so it signs in by itself at the end.
+const SHA256=(()=>{const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+const r=(x,n)=>(x>>>n)|(x<<(32-n));
+return b=>{const l=b.length,bl=((l+9+63)>>6)<<6,m=new Uint8Array(bl);m.set(b);m[l]=0x80;const bits=l*8;m[bl-4]=bits>>>24;m[bl-3]=bits>>>16;m[bl-2]=bits>>>8;m[bl-1]=bits;m[bl-5]=Math.floor(bits/2**32);
+let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];const w=new Uint32Array(64);
+for(let o=0;o<bl;o+=64){for(let i=0;i<16;i++)w[i]=(m[o+4*i]<<24)|(m[o+4*i+1]<<16)|(m[o+4*i+2]<<8)|m[o+4*i+3];
+for(let i=16;i<64;i++){const s0=r(w[i-15],7)^r(w[i-15],18)^(w[i-15]>>>3),s1=r(w[i-2],17)^r(w[i-2],19)^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0}
+let[a,b2,c,d,e,f,g,h]=H;for(let i=0;i<64;i++){const S1=r(e,6)^r(e,11)^r(e,25),ch=(e&f)^(~e&g),t1=(h+S1+ch+K[i]+w[i])|0,S0=r(a,2)^r(a,13)^r(a,22),mj=(a&b2)^(a&c)^(b2&c),t2=(S0+mj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b2;b2=a;a=(t1+t2)|0}
+H=[(H[0]+a)|0,(H[1]+b2)|0,(H[2]+c)|0,(H[3]+d)|0,(H[4]+e)|0,(H[5]+f)|0,(H[6]+g)|0,(H[7]+h)|0]}
+const out=new Uint8Array(32);H.forEach((v,i)=>{out[4*i]=v>>>24;out[4*i+1]=v>>>16;out[4*i+2]=v>>>8;out[4*i+3]=v});return out}})();
+function mgf1(seed,len){const out=new Uint8Array(len+32);let c=0,o=0;while(o<len){const b=new Uint8Array(seed.length+4);b.set(seed);b[seed.length]=c>>>24;b[seed.length+1]=c>>>16;b[seed.length+2]=c>>>8;b[seed.length+3]=c;out.set(SHA256(b),o);o+=32;c++}return out.slice(0,len)}
+function modPow(b,e,m){let r=1n;b%=m;while(e>0n){if(e&1n)r=r*b%m;b=b*b%m;e>>=1n}return r}
+function sealWith(pk,pw){const n=BigInt('0x'+pk.n),e=BigInt(pk.e),k=Math.ceil(pk.n.length/2),h=32,msg=new TextEncoder().encode(pw);if(msg.length>k-2*h-2)throw new Error('password too long');
+const db=new Uint8Array(k-h-1);db.set(SHA256(new Uint8Array(0)));db[db.length-msg.length-1]=1;db.set(msg,db.length-msg.length);
+const seed=crypto.getRandomValues(new Uint8Array(h)),dm=mgf1(seed,db.length);for(let i=0;i<db.length;i++)db[i]^=dm[i];const sm=mgf1(db,h);for(let i=0;i<h;i++)seed[i]^=sm[i];
+const em=new Uint8Array(k);em.set(seed,1);em.set(db,1+h);let x=0n;for(const v of em)x=(x<<8n)|BigInt(v);let c=modPow(x,e,n);const out=new Uint8Array(k);for(let i=k-1;i>=0;i--){out[i]=Number(c&255n);c>>=8n}
+let s='';for(const v of out)s+=String.fromCharCode(v);return btoa(s)}
+
+let owner={pw:'',pw2:''};
+const ownerValid=()=>owner.pw.length>=8&&owner.pw===owner.pw2;
+async function installBody(){const b={mode:'fresh',disks:disks.sel,confirm_wipe:true};if(owner.pw){b.owner_password=sealWith(await api('/api/pubkey'),owner.pw);if(window.otcSetupPassword)window.otcSetupPassword(owner.pw)}return b}
+function ownerFields(){return `<label>Device password</label><input type="password" id="opw" autocomplete="new-password" value="${esc(owner.pw)}"><label>Repeat the password</label><input type="password" id="opw2" autocomplete="new-password" value="${esc(owner.pw2)}"><p class="hint" id="ohint" style="margin-top:8px">8 characters or more. It encrypts everything on the device and can't be recovered - keep it somewhere safe. You sign in to the device with it.</p>`}
+function wireOwner(update){const a=$('#opw'),b=$('#opw2');if(!a)return;const on=()=>{owner.pw=a.value;owner.pw2=b.value;const h=$('#ohint');const mis=owner.pw2&&owner.pw!==owner.pw2;h.textContent=mis?"The two passwords don't match.":(owner.pw&&owner.pw.length<8?'8 characters or more.':"8 characters or more. It encrypts everything on the device and can't be recovered - keep it somewhere safe. You sign in to the device with it.");h.className=mis||(owner.pw&&owner.pw.length<8)?'hint bad':'hint';h.style.color=mis?'var(--bad)':'';update()};a.oninput=on;b.oninput=on}
 let state=null,step=1,wifi={list:[],sel:null,joining:false},name={val:'',ok:null,domain:'',msg:''},disks={list:[],sel:[],recovery:null,loaded:false,wipe:false},acct={mode:'login',msg:'',busy:false,countries:null,email:false};
 const api=async(p,o)=>{const r=await fetch(p,Object.assign({cache:'no-store'},o||{}));let j={};try{j=await r.json()}catch(e){}return{ok:r.ok,status:r.status,...j}};
 const post=(p,b)=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
@@ -1093,20 +1250,24 @@ async function loadCountries(){if(!acct.countries){const r=await api('/api/count
  const sel=$('#a-country');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">Choose…</option>'+Object.entries(acct.countries).sort((x,y)=>x[1].localeCompare(y[1])).map(([c,n])=>`<option value="${c}" ${c===cur?'selected':''}>${esc(n)}</option>`).join('')}
 function renderName(rebind){const a=state.account||{};
  if(a.skip_bridge&&!rebind){view.innerHTML=`<h2>4 · No bridge</h2><p class="hint">You chose to continue without an account, so the device gets no internet address. On your home network it answers as <b>otc.local</b>.</p>
-  <div class="row"><button id="claim">Install</button><button class="ghost" id="back">Back</button></div><div class="msg" id="nmsg"></div>`;
+  ${ownerFields()}
+  <div class="row"><button id="claim" ${ownerValid()?'':'disabled'}>Install</button><button class="ghost" id="back">Back</button></div><div class="msg" id="nmsg"></div>`;
+  wireOwner(()=>{$('#claim').disabled=!ownerValid()});
   $('#back').onclick=()=>{step=3;render()};
   $('#claim').onclick=async()=>{$('#claim').disabled=true;const r=await post('/api/local-name',{});if(!r.ok){$('#nmsg').textContent=r.error||'Could not continue';$('#nmsg').className='msg bad';$('#claim').disabled=false;return}
-   const i=await post('/api/install',{mode:'fresh',disks:disks.sel,confirm_wipe:true});if(!i.ok){$('#nmsg').textContent=i.error||'Could not start the install';$('#nmsg').className='msg bad';$('#claim').disabled=false;return}step=5;refresh()};return}
+   const i=await post('/api/install',await installBody());if(!i.ok){$('#nmsg').textContent=i.error||'Could not start the install';$('#nmsg').className='msg bad';$('#claim').disabled=false;return}step=5;refresh()};return}
  view.innerHTML=`<h2>${rebind?'Name your recovered device':'4 · Name your device'}</h2><p class="hint">${rebind?`The device is back, but it isn't reaching the bridge as <b>${esc(state.install.domain||'its old name')}</b> - that name may have been released. Choose a name to register it again; everything else is already recovered.`:'This becomes its address on the internet, for you and for friends. Letters, digits and hyphens.'}</p>
  <label>Device name</label><div class="row"><input type="text" id="nm" value="${esc(name.val)}" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. casa" style="flex:1"><span class="detail" style="white-space:nowrap">.${esc(state.bridge)}</span></div>
  <div class="msg ${name.ok===true?'ok':name.ok===false?'bad':''}" id="nmsg">${esc(name.msg)}</div>
- <div class="row"><button id="claim" ${name.ok?'':'disabled'}>${rebind?'Register':'Continue'}</button>${rebind?'':'<button class="ghost" id="back">Back</button>'}</div>`;
+ ${rebind?'':ownerFields()}
+ <div class="row"><button id="claim" ${name.ok&&(rebind||ownerValid())?'':'disabled'}>${rebind?'Register':'Continue'}</button>${rebind?'':'<button class="ghost" id="back">Back</button>'}</div>`;
  const inp=$('#nm');inp.focus();let t;inp.oninput=()=>{name.val=inp.value.trim().toLowerCase();name.ok=null;name.msg='';clearTimeout(t);if(!name.val)return render();t=setTimeout(check,400)};
+ if(!rebind)wireOwner(()=>{$('#claim').disabled=!(name.ok&&ownerValid())});
  const bk=$('#back');if(bk)bk.onclick=()=>{step=3;render()};
  $('#claim').onclick=async()=>{$('#claim').disabled=true;$('#nmsg').innerHTML='<span class="spin"></span>Reserving…';const r=await post('/api/name',{name:name.val});
   if(!r.ok){name.ok=false;name.msg=r.error||'Could not reserve that name';if(r.code==='login_required'){step=3;acct.msg=r.error}render();return}
   name.domain=r.domain;if(rebind){refresh();return}
-  const i=await post('/api/install',{mode:'fresh',disks:disks.sel,confirm_wipe:true});if(!i.ok){name.msg=i.error||'Could not start the install';name.ok=false;render();return}step=5;refresh()}}
+  const i=await post('/api/install',await installBody());if(!i.ok){name.msg=i.error||'Could not start the install';name.ok=false;render();return}step=5;refresh()}}
 async function check(){const v=name.val;const r=await api('/api/name?name='+encodeURIComponent(v));if(name.val!==v)return;if(!r.ok){name.ok=false;name.msg=r.error||'Could not check that name'}else{name.ok=r.available;name.msg=r.available?`${r.domain} is available`:`${r.domain} is already taken - if it is one of your own, continuing moves it to this device`;if(!r.available)name.ok=true}render()}
 function renderInstall(){const i=state.install;const pct=i.total?Math.round(100*i.step/i.total):0;const dom=i.domain||state.domain||name.domain;
  if(i.phase==='online'&&!dom){view.innerHTML=`<h2>Ready 🎉</h2><p class="hint">Everything is installed. On your home network the device answers at</p><p style="font-size:1.2rem"><a href="http://otc.local:8080"><b>http://otc.local:8080</b></a></p><p class="hint">Open that address from any device at home - it will ask you to choose the owner password first. Want it reachable from anywhere later? Create an account at ${esc(state.bridge)} and run the setup again.</p><p class="hint">The "Off The Cloud" hotspot switches off in a minute.</p>`;return}
@@ -1126,7 +1287,7 @@ function renderInstall(){const i=state.install;const pct=i.total?Math.round(100*
  <div class="detail">${esc(failed?(i.error||''):(i.detail||''))}</div>
  ${failed?'<div class="row"><button id="retry">Try again</button></div>':''}
  <details style="margin-top:14px"><summary style="color:var(--dim);cursor:pointer">Log</summary><pre>${esc((i.log_tail||[]).join('\n'))}</pre></details>`;
- const rt=$('#retry');if(rt)rt.onclick=async()=>{await post('/api/install',i.recovery?{mode:'recover'}:{mode:'fresh',disks:disks.sel,confirm_wipe:true});refresh()}}
+ const rt=$('#retry');if(rt)rt.onclick=async()=>{await post('/api/install',i.recovery?{mode:'recover'}:await installBody());refresh()}}
 // The WiFi list on opening: in the app (Bluetooth) a fresh scan straight
 // away - nothing to lose there. Over the hotspot the list saved before it
 // started, since scanning takes the one radio off the hotspot and drops
@@ -1140,6 +1301,8 @@ def main():
     if Path(CONFIG["install_complete_marker"]).exists() and not CONFIG["dry_run"]:
         print("[otc-setup] this device is already set up - nothing to do")
         return
+    global SEAL
+    SEAL = SealKey()
     Path(CONFIG["state_file"]).parent.mkdir(parents=True, exist_ok=True)
     threading.Thread(target=beacon_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", CONFIG["port"]), Handler)

@@ -34,6 +34,14 @@ func main() {
 
 	dao := dao.Init()
 
+	// `otc <env> init-owner-password` (the password on stdin): the setup
+	// wizard's password, set before the service first starts - the same as
+	// the first sign-in would, with nothing else loaded. A password that is
+	// already set (a recovered device) is left alone.
+	if len(os.Args) > 2 && os.Args[2] == "init-owner-password" {
+		os.Exit(initOwnerPassword(dao))
+	}
+
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"), dao)
 
 	// Issue #82: multiple OTC "users" on one device. A spawned child has

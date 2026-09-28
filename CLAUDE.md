@@ -84,7 +84,15 @@ this device", which fills the onboarding form's endpoint (bridge name → wss, n
 forwarding without Bluetooth; for the phones, `scratchpad`'s `blesim.swift` (a CoreBluetooth
 peripheral on the Mac forwarding to a dry-run wizard, e.g. the Lima VM's on port 8090) stands
 in for a device - it needs Bluetooth permission for the terminal, which macOS prompts for. Like
-the hotspot, the Bluetooth setup is open by design and only exists before the install completes. The image has no SSH; its
+the hotspot, the Bluetooth setup is open by design and only exists before the install completes.
+The owner password is chosen on the wizard's name step, and since both channels are readable by
+anyone nearby it never travels in the clear: the wizard makes a one-off RSA-2048 key at start
+(`SealKey`, stdlib Miller-Rabin), the page seals the password with RSA-OAEP-SHA-256 written in
+plain JS (`sealWith` - no WebCrypto on a plain-HTTP page), the wizard opens it into a root-only
+tmpfs file, and `install.sh` feeds it to `otc <env> init-owner-password` (as `otc`, before the
+service first starts; `bin/ownerpassword.go` - a device that already has one keeps it) and
+shreds the file. In the app the page also hands it to the app (`window.otcSetupPassword`,
+memory only), so "Open my device" signs in without typing. The image has no SSH; its
 console login is `otc-debug` / `off-the-cloud` (with sudo), set in `build_image.sh` and documented
 in README.md under "Console access" - the only way into a device like Cala short of enabling SSH
 from that console.

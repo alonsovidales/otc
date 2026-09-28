@@ -72,9 +72,8 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     val transport = remember { BLESetupTransport(context) }
     val phase by transport.phase.collectAsState()
     val readyDomain by transport.readyDomain.collectAsState()
-    val readyRecovery by transport.readyRecovery.collectAsState()
+    val chosenPassword by transport.chosenPassword.collectAsState()
     var password by remember { mutableStateOf("") }
-    var confirm by remember { mutableStateOf("") }
     val everReady by transport.everReady.collectAsState()
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { transport.start() }
     LaunchedEffect(Unit) {
@@ -117,37 +116,26 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                         // which then signs in with it straight away - the
                         // first sign-in to a new device sets it. A recovered
                         // device keeps the one it had (as iOS).
+                        // The password chosen in the wizard, when the page
+                        // handed it over; otherwise (a recovered device, or
+                        // the app restarted mid-setup) the owner types it.
                         Spacer(Modifier.height(8.dp))
-                        Text(if (readyRecovery) "Enter the device's password" else "Choose your device's password", style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth())
-                        Spacer(Modifier.height(6.dp))
-                        cloud.offthe.otc.ui.common.OTCTextField(
-                            value = password, onValueChange = { password = it }, singleLine = true,
-                            placeholder = { Text(if (readyRecovery) "Password" else "Password (8 characters or more)") },
-                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        if (!readyRecovery) {
+                        if (chosenPassword.isEmpty()) {
+                            Text("Enter the device's password", style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(6.dp))
                             cloud.offthe.otc.ui.common.OTCTextField(
-                                value = confirm, onValueChange = { confirm = it }, singleLine = true,
-                                placeholder = { Text("Repeat the password") },
+                                value = password, onValueChange = { password = it }, singleLine = true,
+                                placeholder = { Text("Password") },
                                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            val mismatch = confirm.isNotEmpty() && confirm != password
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                if (mismatch) "The two passwords don't match." else "It encrypts everything on the device and can't be recovered - keep it somewhere safe.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (mismatch) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                        } else {
+                            Text("Signing in with the password you chose in the setup.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
                         }
-                        val valid = if (readyRecovery) password.isNotEmpty() else password.length >= 8 && password == confirm
+                        val valid = chosenPassword.isNotEmpty() || password.isNotEmpty()
                         Spacer(Modifier.height(8.dp))
-                        Button(onClick = { onUseDevice(endpointForDomain(domain), password) }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { onUseDevice(endpointForDomain(domain), chosenPassword.ifEmpty { password }) }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
                             Text("Open my device")
                         }
                     }
@@ -195,12 +183,19 @@ private const val FETCH_OVERRIDE = "<script>window.otcApp=1;window.__otcId=0;win
     "window.fetch=function(u,o){o=o||{};var m=(o.method||'GET').toUpperCase();var b=o.body?String(o.body):'';" +
     "return new Promise(function(res){var id=++window.__otcId;window.__otcCb[id]=function(r){res(new Response(r.b,{status:r.s,headers:{'Content-Type':r.t}}))};" +
     "OTCSetup.request(id,m,String(u),b)})};" +
+    "window.otcSetupPassword=function(p){OTCSetup.password(String(p))};" +
     "window.otcSetupSignIn=function(p){return new Promise(function(res,rej){var id=++window.__otcId;window.__otcCb[id]=function(r){if(r.ok)res(r.token);else rej(new Error(r.error))};OTCSetup.signIn(id,String(p))})};</script>"
 
 private fun pathOf(url: String): String =
     if (url.contains("://")) Uri.parse(url).let { (it.encodedPath.orEmpty().ifEmpty { "/" }) + (it.encodedQuery?.let { q -> "?$q" } ?: "") } else url
 
 private class Bridge(private val webView: WebView, private val transport: BLESetupTransport, private val scope: CoroutineScope) {
+    /** The owner password the page just sealed for the device (as iOS). */
+    @JavascriptInterface
+    fun password(pw: String) {
+        if (pw.length >= 8) transport.chosenPassword.value = pw
+    }
+
     /** "Continue with Apple/Google" (issue #137) - see SetupSignIn. */
     @JavascriptInterface
     fun signIn(id: Int, provider: String) {
