@@ -18,7 +18,7 @@
       --mist-dim:#b9c9c4;
       --line:rgba(234,242,239,.12);
       --panel:rgba(234,242,239,.04);
-      --max:1120px;
+      --max:1360px;
     }
     *{box-sizing:border-box}
     /* overflow-x here (not on body) is deliberate: setting overflow-x alone
@@ -30,7 +30,7 @@
     html,body{height:100%}
     body{
       margin:0;
-      font:16px/1.6 'Manrope', system-ui, -apple-system, sans-serif;
+      font:17.5px/1.6 'Manrope', system-ui, -apple-system, sans-serif;
       color:var(--mist);
       background:var(--ink);
     }
@@ -40,7 +40,7 @@
     .container{max-width:var(--max);margin:0 auto;padding:0 24px}
     h1,h2,h3{font-family:'Unbounded',sans-serif;letter-spacing:-0.01em;text-wrap:balance}
     .eyebrow{
-      font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.14em;
+      font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.14em;
       text-transform:uppercase;color:var(--ember);
     }
 
@@ -53,14 +53,14 @@
     .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 0;gap:16px}
     .nav > *{min-width:0}
     .brand{display:flex;align-items:center;gap:10px;flex:none}
-    .brand svg{width:32px;height:32px}
-    .brand span{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16px}
+    .brand img{width:40px;height:40px;border-radius:10px}
+    .brand span{font-family:'Unbounded',sans-serif;font-weight:700;font-size:17.5px}
     .navlinks{display:flex;gap:26px;align-items:center}
-    .navlinks a{color:var(--mist-dim);font-size:14px;font-weight:600;text-decoration:none}
+    .navlinks a{color:var(--mist-dim);font-size:15.5px;font-weight:600;text-decoration:none}
     .navlinks a:hover{color:var(--mist)}
     .btn{
       appearance:none;border:0;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
-      padding:12px 20px;border-radius:12px;font-weight:700;font-size:14.5px;
+      padding:12px 20px;border-radius:12px;font-weight:700;font-size:16px;
       color:var(--ink);background:var(--gold);
       transition:transform .08s ease, filter .15s ease;
     }
@@ -71,130 +71,132 @@
     @media (max-width:760px){ .navlinks{display:none} }
 
     /* Hero */
-    .hero{padding:88px 0 64px;display:grid;gap:20px;max-width:800px}
+    .hero{padding:88px 24px 64px;display:grid;gap:22px}
     .hero > *{min-width:0}
     .hero .pill{
       display:inline-flex;align-items:center;gap:8px;width:fit-content;
-      font-size:13px;color:var(--mist-dim);border:1px solid var(--line);border-radius:999px;
+      font-size:14.5px;color:var(--mist-dim);border:1px solid var(--line);border-radius:999px;
       padding:6px 14px;background:var(--panel);
     }
-    .hero h1{font-size:clamp(34px,5.4vw,58px);line-height:1.06;margin:6px 0 4px}
+    .hero h1{font-size:clamp(37.5px,5.4vw,64px);line-height:1.06;margin:6px 0 4px}
     .hero h1 em{font-style:normal;color:var(--ember)}
-    .hero p.lead{font-size:clamp(16px,1.9vw,19px);color:var(--mist-dim);max-width:62ch;margin:0}
-    .hero-install{display:grid;gap:10px;margin-top:8px;max-width:560px}
-    .hero-install-label{font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
-    .hero-install-alt{font-size:13.5px;color:var(--mist-dim);text-decoration:none;width:fit-content}
+    .hero p.lead{font-size:clamp(17.5px,1.9vw,21px);color:var(--mist-dim);max-width:72ch;margin:0}
+    .hero-install{display:grid;gap:10px;margin-top:8px;max-width:760px}
+    .hero-install-label{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16.5px}
+    .hero-install-alt{font-size:15px;color:var(--mist-dim);text-decoration:none;width:fit-content}
     .hero-install-alt:hover{color:var(--gold)}
     .install-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:12px}
     .install-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;
-      padding:10px 14px;font:inherit;font-weight:700;font-size:14px;color:var(--mist-dim);cursor:pointer}
+      padding:10px 14px;font:inherit;font-weight:700;font-size:15.5px;color:var(--mist-dim);cursor:pointer}
     .install-tab:hover{color:var(--mist)}
     .install-tab[aria-selected="true"]{color:var(--mist);border-bottom-color:var(--ember)}
     .install-panel{display:none;gap:10px}
     .install-panel.on{display:grid}
-    .install-panel p{margin:0;font-size:14px;color:var(--mist-dim)}
-    .install-panel ol{margin:0;padding-left:20px;font-size:14px;color:var(--mist-dim);display:grid;gap:6px}
+    .install-panel p{margin:0;font-size:15.5px;color:var(--mist-dim)}
+    .install-panel ol{margin:0;padding-left:20px;font-size:15.5px;color:var(--mist-dim);display:grid;gap:6px}
     .install-panel ol strong{color:var(--mist)}
     .install-panel .btn{width:fit-content}
-    .install-req{font-size:13px;color:var(--mist-dim);border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel)}
+    .install-req{font-size:14.5px;color:var(--mist-dim);border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel)}
 
     section{padding:60px 0;border-top:1px solid var(--line)}
     section:first-of-type{border-top:none}
-    .section-head{max-width:640px;margin-bottom:36px}
-    .section-head h2{font-size:clamp(24px,3.4vw,32px);margin:8px 0 10px}
-    .section-head p{color:var(--mist-dim);margin:0;font-size:15.5px}
+    .section-head{max-width:880px;margin-bottom:36px}
+    .section-head h2{font-size:clamp(26.5px,3.4vw,35px);margin:8px 0 10px}
+    .section-head p{color:var(--mist-dim);margin:0;font-size:17px}
 
     /* What it is / value props */
-    .value-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .value-grid{display:grid;gap:16px;grid-template-columns:repeat(3,1fr)}
+    @media (max-width:980px){ .value-grid{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:620px){ .value-grid{grid-template-columns:1fr} }
     .value-card{
       background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;
       display:grid;gap:8px;
     }
-    .value-card .ico{font-size:22px}
-    .value-card h3{font-size:16px;margin:0}
-    .value-card p{margin:0;color:var(--mist-dim);font-size:14.5px;line-height:1.55}
+    .value-card .ico{font-size:24px}
+    .value-card h3{font-size:17.5px;margin:0}
+    .value-card p{margin:0;color:var(--mist-dim);font-size:16px;line-height:1.55}
 
     /* Screenshots */
     .shot-group{margin-bottom:40px}
     .shot-group:last-child{margin-bottom:0}
-    .shot-group h3{font-size:15px;margin:0 0 14px;color:var(--mist-dim);font-family:'Manrope',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+    .shot-group h3{font-size:16.5px;margin:0 0 14px;color:var(--mist-dim);font-family:'Manrope',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
     .shot-row{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
     .shot{
       border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--ink-2);
       height:180px;display:flex;align-items:center;justify-content:center;
     }
     .shot img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
-    .shot.wide{height:240px;max-width:420px;justify-self:start}
+    .shot.wide{height:280px;max-width:520px;justify-self:start}
 
     /* Get started */
     .code-card{
-      max-width:560px;
+      max-width:680px;
       background:var(--ink-2);border:1px solid var(--line);border-radius:16px;overflow:hidden;
       min-width:0;
     }
     .code-card .code-head{
       display:flex;align-items:center;justify-content:space-between;
-      padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--mist-dim);
+      padding:12px 16px;border-bottom:1px solid var(--line);font-size:14.5px;color:var(--mist-dim);
     }
     .code-card pre{
       margin:0;padding:18px 16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;
-      font-size:13.5px;line-height:1.6;color:var(--mist);
+      font-size:15px;line-height:1.6;color:var(--mist);
     }
     .code-card .comment{color:var(--mist-dim)}
     .copy-btn{
       appearance:none;border:1px solid var(--line);background:transparent;color:var(--mist-dim);
-      padding:5px 10px;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Manrope',sans-serif;
+      padding:5px 10px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Manrope',sans-serif;
     }
     .copy-btn:hover{color:var(--mist);border-color:var(--mist-dim)}
-    .steps{display:grid;gap:14px;max-width:640px}
+    .steps{display:grid;gap:14px;max-width:880px}
     .step{display:flex;gap:12px;align-items:flex-start}
     .step .num{
       flex:none;width:26px;height:26px;border-radius:999px;display:grid;place-items:center;
-      background:var(--gold);color:var(--ink);font-weight:800;font-size:13px;
+      background:var(--gold);color:var(--ink);font-weight:800;font-size:14.5px;
     }
-    .step p{margin:2px 0 0;color:var(--mist-dim);font-size:14.5px;line-height:1.5}
-    .step strong{color:var(--mist);font-size:15px}
+    .step p{margin:2px 0 0;color:var(--mist-dim);font-size:16px;line-height:1.5}
+    .step strong{color:var(--mist);font-size:16.5px}
     .note{
       background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
-      color:var(--mist-dim);font-size:14px;line-height:1.6;margin-top:24px;max-width:640px;
+      color:var(--mist-dim);font-size:15.5px;line-height:1.6;margin-top:24px;max-width:880px;
     }
     .note strong{color:var(--mist)}
 
     /* FAQ */
-    .faq{display:grid;gap:10px;max-width:800px}
+    .faq{display:grid;gap:10px;max-width:1040px}
     details{
       background:var(--panel);border:1px solid var(--line);border-radius:12px;
       padding:4px 18px;
     }
     details summary{
-      cursor:pointer;padding:16px 0;font-weight:700;font-size:15.5px;list-style:none;
+      cursor:pointer;padding:16px 0;font-weight:700;font-size:17px;list-style:none;
       display:flex;align-items:center;justify-content:space-between;gap:12px;
     }
     details summary::-webkit-details-marker{display:none}
-    details summary::after{content:'+';font-size:20px;color:var(--gold);flex:none}
+    details summary::after{content:'+';font-size:22px;color:var(--gold);flex:none}
     details[open] summary::after{content:'−'}
-    details p{margin:0 0 16px;color:var(--mist-dim);font-size:14.5px;line-height:1.6}
+    details p{margin:0 0 16px;color:var(--mist-dim);font-size:16px;line-height:1.6}
 
     /* Contact */
     .contact-wrap{display:grid;gap:28px;grid-template-columns:1fr 1fr}
     @media (max-width:860px){ .contact-wrap{grid-template-columns:1fr} }
     form{display:grid;gap:14px}
     .field{display:grid;gap:6px}
-    label{font-size:13px;font-weight:700;color:var(--mist-dim)}
+    label{font-size:14.5px;font-weight:700;color:var(--mist-dim)}
     input,textarea,select{
-      width:100%;padding:12px 14px;border-radius:10px;font-family:'Manrope',sans-serif;font-size:14.5px;
+      width:100%;padding:12px 14px;border-radius:10px;font-family:'Manrope',sans-serif;font-size:16px;
       border:1px solid var(--line);background:var(--ink-2);color:var(--mist);outline:none;
     }
     input:focus,textarea:focus,select:focus{border-color:var(--gold)}
     textarea{min-height:120px;resize:vertical}
     .honeypot{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-    .form-msg{font-size:14px;padding:10px 14px;border-radius:10px;display:none}
+    .form-msg{font-size:15.5px;padding:10px 14px;border-radius:10px;display:none}
     .form-msg.ok{display:block;background:rgba(255,200,87,.12);color:var(--gold);border:1px solid rgba(255,200,87,.3)}
     .form-msg.error{display:block;background:rgba(255,107,74,.12);color:var(--ember);border:1px solid rgba(255,107,74,.3)}
     .contact-side{display:grid;gap:14px;align-content:start}
-    .contact-side .value-card h3{font-size:15px}
+    .contact-side .value-card h3{font-size:16.5px}
 
-    footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);font-size:13.5px}
+    footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);font-size:15px}
     .footer-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
     .footer-links{display:flex;gap:18px}
     .footer-links a{color:var(--mist-dim);text-decoration:none;font-weight:600}
@@ -206,11 +208,7 @@
   <header>
     <div class="container nav">
       <div class="brand" aria-label="Off The Cloud">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect width="100" height="100" rx="22" fill="#ffc857"/>
-          <path d="M22 46 Q22 41 26 38 L46 22 Q50 19 54 22 L74 38 Q78 41 78 46 L78 52 Q78 55 75 55 L25 55 Q22 55 22 52 Z" fill="#10231f"/>
-          <circle cx="50" cy="72" r="11" fill="#ff6b4a"/>
-        </svg>
+        <img src="/logo.png" alt="" width="40" height="40">
         <span>Off The Cloud</span>
       </div>
       <nav class="navlinks">
