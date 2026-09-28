@@ -22,6 +22,11 @@ struct DeviceUnreachableView: View {
     /// that one is permanent until the owner acts, not a "try again later".
     let code: String
 
+    /// Leave this device for the connection screen - how a phone moves on
+    /// from a device that died (to set up a new one, or re-image it).
+    var onClose: (() -> Void)? = nil
+    @State private var confirmClose = false
+
     private var disabled: Bool { code == "account_disabled" }
 
     var body: some View {
@@ -57,6 +62,25 @@ struct DeviceUnreachableView: View {
         .padding(28)
         .frame(maxWidth: 360)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(alignment: .topTrailing) {
+            if onClose != nil {
+                Button {
+                    confirmClose = true
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(14)
+                }
+                .accessibilityLabel("Close and leave this device")
+            }
+        }
+        .alert("Leave this device?", isPresented: $confirmClose) {
+            Button("Leave", role: .destructive) { onClose?() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and this phone can connect to it again later.")
+        }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.background.opacity(0.92))

@@ -92,7 +92,9 @@ struct MainView: View {
         // interruption.
         .overlay {
             if let code = connection.statusCode {
-                DeviceUnreachableView(message: connection.lastError ?? "", code: code)
+                DeviceUnreachableView(message: connection.lastError ?? "", code: code) {
+                    AppLogOut.run(secrets: secrets, unregisterPush: false)
+                }
                     .transition(.opacity)
             } else if connection.connectionFailed {
                 // Everything else that stops the app connecting - a wrong

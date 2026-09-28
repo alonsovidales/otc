@@ -543,6 +543,20 @@ extension SettingsView {
     /// stores. RootView shows onboarding the moment the secrets clear, and
     /// MainView going away takes every per-tab view model with it.
     fileprivate func logOut() {
+        status.stop()
+        device.stopPollingReprocessStatus()
+        AppLogOut.run(secrets: secrets)
+    }
+}
+
+/// Log Out, shared by Settings and the "device isn't available" card
+/// (whose close button is how a phone leaves a device that died, to set a
+/// new one up): stop everything that talks to the device, forget what it
+/// told us, wipe what this phone stores. RootView shows the connection
+/// screen the moment the secrets clear. Same as LogOut.kt.
+@MainActor
+enum AppLogOut {
+    static func run(secrets: SecretsStore, unregisterPush: Bool = true) {
         Task {
             // A photo sync in progress owns the connection: stop it first,
             // or the request below queues behind its uploads and Log Out
@@ -551,8 +565,9 @@ extension SettingsView {
             // Issue #131: tell the device to forget this phone's push
             // token first, best effort - it goes on pushing to a phone
             // that is no longer signed in otherwise. Everything below
-            // happens either way, and within seconds.
-            if let token = UserDefaults.standard.string(forKey: "apnsToken"), !token.isEmpty {
+            // happens either way, and within seconds. Skipped when the
+            // device can't be reached anyway.
+            if unregisterPush, let token = UserDefaults.standard.string(forKey: "apnsToken"), !token.isEmpty {
                 _ = try? await withThrowingTaskGroup(of: Void.self) { group in
                     group.addTask {
                         _ = try await OTCConnection.shared.request { req in
@@ -566,21 +581,15 @@ extension SettingsView {
                     group.cancelAll()
                 }
             }
-            finishLogOut()
+            NotificationsModel.shared.reset()
+            UploadModel.shared.reset()
+            SocialFeedViewModel.shared.reset()
+            OTCConnection.shared.reset()
+            MediaStream.reset()
+            SyncScheduler.cancel()
+            AssetSyncCache.shared.clear()
+            secrets.logOut()
         }
-    }
-
-    private func finishLogOut() {
-        status.stop()
-        device.stopPollingReprocessStatus()
-        NotificationsModel.shared.reset()
-        UploadModel.shared.reset()
-        SocialFeedViewModel.shared.reset()
-        OTCConnection.shared.reset()
-        MediaStream.reset()
-        SyncScheduler.cancel()
-        AssetSyncCache.shared.clear()
-        secrets.logOut()
     }
 }
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.settings
 
+import cloud.offthe.otc.ui.logOut
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -268,20 +269,6 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
  * activity-scoped view models (gallery, files, settings) are the one thing
  * a wipe of the stores can't reach.
  */
-private fun logOut(context: Context, secrets: SecretsStore) {
-    PhotoSync.cancel() // a sync in progress must not outlive the session
-    NotificationsModel.reset()
-    UploadModel.reset()
-    SocialFeedViewModel.reset()
-    OTCConnection.reset()
-    MediaStream.reset()
-    SyncScheduler.cancel()
-    AssetSyncCache.clear()
-    secrets.logOut()
-    val activity = context as? Activity ?: return
-    activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
-    activity.finish()
-}
 
 @Composable
 private fun ProfileEditorSection() {
