@@ -8,6 +8,7 @@ import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
 import UpdatePanel from "./UpdatePanel";
 import TailscalePanel from "./TailscalePanel";
+import BridgePanel from "./BridgePanel";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -25,6 +26,9 @@ function reprocessPercent(s: { total: number; processed: number }): number {
 export default function SettingsForm() {
   // Loaded settings
   const [currentBridgeSecret, setCurrentBridgeSecret] = useState("");
+  // Issue #145: unknown (null) until BridgePanel says; the secret section
+  // is hidden only on a device known to be off the bridge.
+  const [bridgeEnabled, setBridgeEnabled] = useState<boolean | null>(null);
 
   // Domain form
 
@@ -359,6 +363,9 @@ export default function SettingsForm() {
         </section>
       )}
 
+      {/* Issue #145: joining the bridge after a setup without it. */}
+      <BridgePanel onStatus={setBridgeEnabled} />
+
       {/* Issue #80: Tailscale Funnel as an alternative to the bridge.
           Primary-only too - Funnel publishes the whole machine. */}
       <TailscalePanel />
@@ -379,6 +386,8 @@ export default function SettingsForm() {
           instance - see UpdatePanel. */}
       <UpdatePanel />
 
+      {/* Only means something on the bridge (issue #145). */}
+      {bridgeEnabled !== false && (
       <section className="sf-section">
         <h3>Bridge Shared Secret</h3>
         <p className="sf-hint">
@@ -396,6 +405,7 @@ export default function SettingsForm() {
           {regeneratingSecret ? "Regenerating…" : "Regenerate"}
         </button>
       </section>
+      )}
 
       <section className="sf-section">
         <h3>Reprocess Media</h3>

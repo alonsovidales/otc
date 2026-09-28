@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Issue #145: the Bridge access panel in Settings. */
+
+.bp-providers { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 14px; }
+
+.bp-sso {
+  flex: 1 1 200px;
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bp-apple { background: #000; color: #fff; border-color: #000; }
+.bp-google { background: #fff; color: #1f1f1f; border-color: #dadce0; }
+.bp-sso:disabled { opacity: 0.6; cursor: default; }
+
+/* The bridge's part of the address sits outside the field (issue #142's
+   rule): only the name is typed. */
+.bp-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bp-name .sf-input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; }
+.bp-tld { color: var(--mist); opacity: 0.75; font-family: ui-monospace, monospace; white-space: nowrap; }
+
+.bp-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}

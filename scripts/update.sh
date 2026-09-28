@@ -184,6 +184,17 @@ go build -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
 status running "Restarting"
 install -m 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary"
 
+# Issue #145: the root side of switching the bridge on from Settings, for
+# devices installed before it existed (install.sh sets it up on new ones).
+# From the staged release, so it is only installed by a release that has it.
+if [ -f "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" ]; then
+    install -m 0755 "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" /usr/local/bin/otc-bridge-runner
+    install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.service" /etc/systemd/system/otc-bridge.service
+    install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.path" /etc/systemd/system/otc-bridge.path
+    systemctl daemon-reload
+    systemctl enable --now otc-bridge.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-bridge.path"
+fi
+
 # The web app ships prebuilt, attached to the release. Devices have no
 # Node - the bundle is built once, by whoever cuts the release, rather
 # than on every Raspberry Pi in existence. The binary is still built here,

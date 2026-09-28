@@ -960,6 +960,57 @@ export interface ReqSetupTailscale {
 export interface ReqGetTailscaleStatus {
 }
 
+/**
+ * Issue #145: turning on the bridge after a setup that went without it.
+ * Owner-device only, like the Tailscale switch above. The flow: sign in to
+ * an Off The Cloud account (ReqBridgeSignIn, or a provider sign-in in the
+ * browser that comes back with a setup code), then ReqEnableBridge with a
+ * name - the device reserves it and restarts itself on the bridge.
+ */
+export interface ReqGetBridgeAccess {
+}
+
+export interface RespBridgeAccess {
+  /** The device is on the bridge (it has a bridge configured). */
+  enabled: boolean;
+  /** Its address there, e.g. "cala.off-the.cloud"; empty when not enabled. */
+  domain: string;
+  /** The bridge a local-only device would join, e.g. "off-the.cloud". */
+  bridge: string;
+  /** A name is reserved and the device is restarting onto the bridge. */
+  pending: boolean;
+  /** Why the last attempt to switch it on failed, if it did. */
+  error: string;
+  /**
+   * The account sign-ins the bridge offers besides email ("apple",
+   * "google"), for the web app's buttons.
+   */
+  providers: string[];
+}
+
+/**
+ * Either email + password, or a setup code (from the bridge's account
+ * page, or handed back by a provider sign-in). Answers with
+ * RespBridgeSignedIn.
+ */
+export interface ReqBridgeSignIn {
+  email: string;
+  password: string;
+  setupCode: string;
+}
+
+export interface RespBridgeSignedIn {
+  /** Short-lived; only good for ReqEnableBridge. */
+  setupToken: string;
+  email: string;
+}
+
+/** Answers with RespBridgeAccess (pending), then the device restarts. */
+export interface ReqEnableBridge {
+  name: string;
+  setupToken: string;
+}
+
 export interface RespTailscaleStatus {
   installed: boolean;
   loggedIn: boolean;
@@ -2033,6 +2084,11 @@ export interface ReqEnvelope {
     { $case: "reqUnregisterApnsToken"; reqUnregisterApnsToken: UnregisterApnsToken }
     | { $case: "reqUnregisterWebPush"; reqUnregisterWebPush: UnregisterWebPush }
     | //
+    /** Issue #145. */
+    { $case: "reqGetBridgeAccess"; reqGetBridgeAccess: ReqGetBridgeAccess }
+    | { $case: "reqBridgeSignIn"; reqBridgeSignIn: ReqBridgeSignIn }
+    | { $case: "reqEnableBridge"; reqEnableBridge: ReqEnableBridge }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2136,6 +2192,10 @@ export interface RespEnvelope {
     { $case: "respDomainAvailable"; respDomainAvailable: RespDomainAvailable }
     | { $case: "respCloudIdsFound"; respCloudIdsFound: CloudIdsFound }
     | { $case: "respFileVersions"; respFileVersions: FileVersions }
+    | //
+    /** Issue #145. */
+    { $case: "respBridgeAccess"; respBridgeAccess: RespBridgeAccess }
+    | { $case: "respBridgeSignedIn"; respBridgeSignedIn: RespBridgeSignedIn }
     | undefined;
 }
 
@@ -6450,6 +6510,435 @@ export const ReqGetTailscaleStatus: MessageFns<ReqGetTailscaleStatus> = {
   },
   fromPartial<I extends Exact<DeepPartial<ReqGetTailscaleStatus>, I>>(_: I): ReqGetTailscaleStatus {
     const message = createBaseReqGetTailscaleStatus();
+    return message;
+  },
+};
+
+function createBaseReqGetBridgeAccess(): ReqGetBridgeAccess {
+  return {};
+}
+
+export const ReqGetBridgeAccess: MessageFns<ReqGetBridgeAccess> = {
+  encode(_: ReqGetBridgeAccess, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqGetBridgeAccess {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqGetBridgeAccess();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqGetBridgeAccess {
+    return {};
+  },
+
+  toJSON(_: ReqGetBridgeAccess): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqGetBridgeAccess>, I>>(base?: I): ReqGetBridgeAccess {
+    return ReqGetBridgeAccess.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqGetBridgeAccess>, I>>(_: I): ReqGetBridgeAccess {
+    const message = createBaseReqGetBridgeAccess();
+    return message;
+  },
+};
+
+function createBaseRespBridgeAccess(): RespBridgeAccess {
+  return { enabled: false, domain: "", bridge: "", pending: false, error: "", providers: [] };
+}
+
+export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
+  encode(message: RespBridgeAccess, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.bridge !== "") {
+      writer.uint32(26).string(message.bridge);
+    }
+    if (message.pending !== false) {
+      writer.uint32(32).bool(message.pending);
+    }
+    if (message.error !== "") {
+      writer.uint32(42).string(message.error);
+    }
+    for (const v of message.providers) {
+      writer.uint32(50).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespBridgeAccess {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespBridgeAccess();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.bridge = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.pending = reader.bool();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.error = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.providers.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespBridgeAccess {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      bridge: isSet(object.bridge) ? globalThis.String(object.bridge) : "",
+      pending: isSet(object.pending) ? globalThis.Boolean(object.pending) : false,
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+      providers: globalThis.Array.isArray(object?.providers)
+        ? object.providers.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: RespBridgeAccess): unknown {
+    const obj: any = {};
+    if (message.enabled !== false) {
+      obj.enabled = message.enabled;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.bridge !== "") {
+      obj.bridge = message.bridge;
+    }
+    if (message.pending !== false) {
+      obj.pending = message.pending;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    if (message.providers?.length) {
+      obj.providers = message.providers;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespBridgeAccess>, I>>(base?: I): RespBridgeAccess {
+    return RespBridgeAccess.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespBridgeAccess>, I>>(object: I): RespBridgeAccess {
+    const message = createBaseRespBridgeAccess();
+    message.enabled = object.enabled ?? false;
+    message.domain = object.domain ?? "";
+    message.bridge = object.bridge ?? "";
+    message.pending = object.pending ?? false;
+    message.error = object.error ?? "";
+    message.providers = object.providers?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseReqBridgeSignIn(): ReqBridgeSignIn {
+  return { email: "", password: "", setupCode: "" };
+}
+
+export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
+  encode(message: ReqBridgeSignIn, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.email !== "") {
+      writer.uint32(10).string(message.email);
+    }
+    if (message.password !== "") {
+      writer.uint32(18).string(message.password);
+    }
+    if (message.setupCode !== "") {
+      writer.uint32(26).string(message.setupCode);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqBridgeSignIn {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqBridgeSignIn();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.email = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.password = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.setupCode = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqBridgeSignIn {
+    return {
+      email: isSet(object.email) ? globalThis.String(object.email) : "",
+      password: isSet(object.password) ? globalThis.String(object.password) : "",
+      setupCode: isSet(object.setupCode) ? globalThis.String(object.setupCode) : "",
+    };
+  },
+
+  toJSON(message: ReqBridgeSignIn): unknown {
+    const obj: any = {};
+    if (message.email !== "") {
+      obj.email = message.email;
+    }
+    if (message.password !== "") {
+      obj.password = message.password;
+    }
+    if (message.setupCode !== "") {
+      obj.setupCode = message.setupCode;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqBridgeSignIn>, I>>(base?: I): ReqBridgeSignIn {
+    return ReqBridgeSignIn.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqBridgeSignIn>, I>>(object: I): ReqBridgeSignIn {
+    const message = createBaseReqBridgeSignIn();
+    message.email = object.email ?? "";
+    message.password = object.password ?? "";
+    message.setupCode = object.setupCode ?? "";
+    return message;
+  },
+};
+
+function createBaseRespBridgeSignedIn(): RespBridgeSignedIn {
+  return { setupToken: "", email: "" };
+}
+
+export const RespBridgeSignedIn: MessageFns<RespBridgeSignedIn> = {
+  encode(message: RespBridgeSignedIn, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.setupToken !== "") {
+      writer.uint32(10).string(message.setupToken);
+    }
+    if (message.email !== "") {
+      writer.uint32(18).string(message.email);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RespBridgeSignedIn {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRespBridgeSignedIn();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.setupToken = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.email = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RespBridgeSignedIn {
+    return {
+      setupToken: isSet(object.setupToken) ? globalThis.String(object.setupToken) : "",
+      email: isSet(object.email) ? globalThis.String(object.email) : "",
+    };
+  },
+
+  toJSON(message: RespBridgeSignedIn): unknown {
+    const obj: any = {};
+    if (message.setupToken !== "") {
+      obj.setupToken = message.setupToken;
+    }
+    if (message.email !== "") {
+      obj.email = message.email;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RespBridgeSignedIn>, I>>(base?: I): RespBridgeSignedIn {
+    return RespBridgeSignedIn.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RespBridgeSignedIn>, I>>(object: I): RespBridgeSignedIn {
+    const message = createBaseRespBridgeSignedIn();
+    message.setupToken = object.setupToken ?? "";
+    message.email = object.email ?? "";
+    return message;
+  },
+};
+
+function createBaseReqEnableBridge(): ReqEnableBridge {
+  return { name: "", setupToken: "" };
+}
+
+export const ReqEnableBridge: MessageFns<ReqEnableBridge> = {
+  encode(message: ReqEnableBridge, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.setupToken !== "") {
+      writer.uint32(18).string(message.setupToken);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqEnableBridge {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqEnableBridge();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.setupToken = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqEnableBridge {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      setupToken: isSet(object.setupToken) ? globalThis.String(object.setupToken) : "",
+    };
+  },
+
+  toJSON(message: ReqEnableBridge): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.setupToken !== "") {
+      obj.setupToken = message.setupToken;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqEnableBridge>, I>>(base?: I): ReqEnableBridge {
+    return ReqEnableBridge.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqEnableBridge>, I>>(object: I): ReqEnableBridge {
+    const message = createBaseReqEnableBridge();
+    message.name = object.name ?? "";
+    message.setupToken = object.setupToken ?? "";
     return message;
   },
 };
@@ -14846,6 +15335,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqUnregisterWebPush":
         UnregisterWebPush.encode(message.payload.reqUnregisterWebPush, writer.uint32(858).fork()).join();
         break;
+      case "reqGetBridgeAccess":
+        ReqGetBridgeAccess.encode(message.payload.reqGetBridgeAccess, writer.uint32(866).fork()).join();
+        break;
+      case "reqBridgeSignIn":
+        ReqBridgeSignIn.encode(message.payload.reqBridgeSignIn, writer.uint32(874).fork()).join();
+        break;
+      case "reqEnableBridge":
+        ReqEnableBridge.encode(message.payload.reqEnableBridge, writer.uint32(882).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -15760,6 +16258,39 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 108: {
+          if (tag !== 866) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetBridgeAccess",
+            reqGetBridgeAccess: ReqGetBridgeAccess.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 109: {
+          if (tag !== 874) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqBridgeSignIn",
+            reqBridgeSignIn: ReqBridgeSignIn.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 110: {
+          if (tag !== 882) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqEnableBridge",
+            reqEnableBridge: ReqEnableBridge.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -16099,6 +16630,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqUnregisterWebPush",
           reqUnregisterWebPush: UnregisterWebPush.fromJSON(object.reqUnregisterWebPush),
         }
+        : isSet(object.reqGetBridgeAccess)
+        ? { $case: "reqGetBridgeAccess", reqGetBridgeAccess: ReqGetBridgeAccess.fromJSON(object.reqGetBridgeAccess) }
+        : isSet(object.reqBridgeSignIn)
+        ? { $case: "reqBridgeSignIn", reqBridgeSignIn: ReqBridgeSignIn.fromJSON(object.reqBridgeSignIn) }
+        : isSet(object.reqEnableBridge)
+        ? { $case: "reqEnableBridge", reqEnableBridge: ReqEnableBridge.fromJSON(object.reqEnableBridge) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -16315,6 +16852,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqUnregisterApnsToken = UnregisterApnsToken.toJSON(message.payload.reqUnregisterApnsToken);
     } else if (message.payload?.$case === "reqUnregisterWebPush") {
       obj.reqUnregisterWebPush = UnregisterWebPush.toJSON(message.payload.reqUnregisterWebPush);
+    } else if (message.payload?.$case === "reqGetBridgeAccess") {
+      obj.reqGetBridgeAccess = ReqGetBridgeAccess.toJSON(message.payload.reqGetBridgeAccess);
+    } else if (message.payload?.$case === "reqBridgeSignIn") {
+      obj.reqBridgeSignIn = ReqBridgeSignIn.toJSON(message.payload.reqBridgeSignIn);
+    } else if (message.payload?.$case === "reqEnableBridge") {
+      obj.reqEnableBridge = ReqEnableBridge.toJSON(message.payload.reqEnableBridge);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -17129,6 +17672,33 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetBridgeAccess": {
+        if (object.payload?.reqGetBridgeAccess !== undefined && object.payload?.reqGetBridgeAccess !== null) {
+          message.payload = {
+            $case: "reqGetBridgeAccess",
+            reqGetBridgeAccess: ReqGetBridgeAccess.fromPartial(object.payload.reqGetBridgeAccess),
+          };
+        }
+        break;
+      }
+      case "reqBridgeSignIn": {
+        if (object.payload?.reqBridgeSignIn !== undefined && object.payload?.reqBridgeSignIn !== null) {
+          message.payload = {
+            $case: "reqBridgeSignIn",
+            reqBridgeSignIn: ReqBridgeSignIn.fromPartial(object.payload.reqBridgeSignIn),
+          };
+        }
+        break;
+      }
+      case "reqEnableBridge": {
+        if (object.payload?.reqEnableBridge !== undefined && object.payload?.reqEnableBridge !== null) {
+          message.payload = {
+            $case: "reqEnableBridge",
+            reqEnableBridge: ReqEnableBridge.fromPartial(object.payload.reqEnableBridge),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -17345,6 +17915,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respFileVersions":
         FileVersions.encode(message.payload.respFileVersions, writer.uint32(442).fork()).join();
+        break;
+      case "respBridgeAccess":
+        RespBridgeAccess.encode(message.payload.respBridgeAccess, writer.uint32(450).fork()).join();
+        break;
+      case "respBridgeSignedIn":
+        RespBridgeSignedIn.encode(message.payload.respBridgeSignedIn, writer.uint32(458).fork()).join();
         break;
     }
     return writer;
@@ -17826,6 +18402,28 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 56: {
+          if (tag !== 450) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respBridgeAccess",
+            respBridgeAccess: RespBridgeAccess.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 57: {
+          if (tag !== 458) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respBridgeSignedIn",
+            respBridgeSignedIn: RespBridgeSignedIn.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -17963,6 +18561,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respCloudIdsFound", respCloudIdsFound: CloudIdsFound.fromJSON(object.respCloudIdsFound) }
         : isSet(object.respFileVersions)
         ? { $case: "respFileVersions", respFileVersions: FileVersions.fromJSON(object.respFileVersions) }
+        : isSet(object.respBridgeAccess)
+        ? { $case: "respBridgeAccess", respBridgeAccess: RespBridgeAccess.fromJSON(object.respBridgeAccess) }
+        : isSet(object.respBridgeSignedIn)
+        ? { $case: "respBridgeSignedIn", respBridgeSignedIn: RespBridgeSignedIn.fromJSON(object.respBridgeSignedIn) }
         : undefined,
     };
   },
@@ -18075,6 +18677,10 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respCloudIdsFound = CloudIdsFound.toJSON(message.payload.respCloudIdsFound);
     } else if (message.payload?.$case === "respFileVersions") {
       obj.respFileVersions = FileVersions.toJSON(message.payload.respFileVersions);
+    } else if (message.payload?.$case === "respBridgeAccess") {
+      obj.respBridgeAccess = RespBridgeAccess.toJSON(message.payload.respBridgeAccess);
+    } else if (message.payload?.$case === "respBridgeSignedIn") {
+      obj.respBridgeSignedIn = RespBridgeSignedIn.toJSON(message.payload.respBridgeSignedIn);
     }
     return obj;
   },
@@ -18476,6 +19082,24 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respFileVersions",
             respFileVersions: FileVersions.fromPartial(object.payload.respFileVersions),
+          };
+        }
+        break;
+      }
+      case "respBridgeAccess": {
+        if (object.payload?.respBridgeAccess !== undefined && object.payload?.respBridgeAccess !== null) {
+          message.payload = {
+            $case: "respBridgeAccess",
+            respBridgeAccess: RespBridgeAccess.fromPartial(object.payload.respBridgeAccess),
+          };
+        }
+        break;
+      }
+      case "respBridgeSignedIn": {
+        if (object.payload?.respBridgeSignedIn !== undefined && object.payload?.respBridgeSignedIn !== null) {
+          message.payload = {
+            $case: "respBridgeSignedIn",
+            respBridgeSignedIn: RespBridgeSignedIn.fromPartial(object.payload.respBridgeSignedIn),
           };
         }
         break;

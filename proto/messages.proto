@@ -525,6 +525,50 @@ message ReqSetupTailscale {
 
 message ReqGetTailscaleStatus {}
 
+// Issue #145: turning on the bridge after a setup that went without it.
+// Owner-device only, like the Tailscale switch above. The flow: sign in to
+// an Off The Cloud account (ReqBridgeSignIn, or a provider sign-in in the
+// browser that comes back with a setup code), then ReqEnableBridge with a
+// name - the device reserves it and restarts itself on the bridge.
+message ReqGetBridgeAccess {}
+
+message RespBridgeAccess {
+  // The device is on the bridge (it has a bridge configured).
+  bool enabled = 1;
+  // Its address there, e.g. "cala.off-the.cloud"; empty when not enabled.
+  string domain = 2;
+  // The bridge a local-only device would join, e.g. "off-the.cloud".
+  string bridge = 3;
+  // A name is reserved and the device is restarting onto the bridge.
+  bool pending = 4;
+  // Why the last attempt to switch it on failed, if it did.
+  string error = 5;
+  // The account sign-ins the bridge offers besides email ("apple",
+  // "google"), for the web app's buttons.
+  repeated string providers = 6;
+}
+
+// Either email + password, or a setup code (from the bridge's account
+// page, or handed back by a provider sign-in). Answers with
+// RespBridgeSignedIn.
+message ReqBridgeSignIn {
+  string email = 1;
+  string password = 2;
+  string setup_code = 3;
+}
+
+message RespBridgeSignedIn {
+  // Short-lived; only good for ReqEnableBridge.
+  string setup_token = 1;
+  string email = 2;
+}
+
+// Answers with RespBridgeAccess (pending), then the device restarts.
+message ReqEnableBridge {
+  string name = 1;
+  string setup_token = 2;
+}
+
 message RespTailscaleStatus {
   bool installed = 1;
   bool logged_in = 2;
@@ -1493,6 +1537,10 @@ message ReqEnvelope {
     // Issue #131. Both answer with the generic Ack.
     UnregisterApnsToken req_unregister_apns_token = 106;
     UnregisterWebPush req_unregister_web_push = 107;
+    // Issue #145.
+    ReqGetBridgeAccess req_get_bridge_access = 108;
+    ReqBridgeSignIn req_bridge_sign_in = 109;
+    ReqEnableBridge req_enable_bridge = 110;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1576,5 +1624,8 @@ message RespEnvelope {
     RespDomainAvailable resp_domain_available = 46;
     CloudIdsFound resp_cloud_ids_found = 54;
     FileVersions resp_file_versions = 55;
+    // Issue #145.
+    RespBridgeAccess resp_bridge_access = 56;
+    RespBridgeSignedIn resp_bridge_signed_in = 57;
   }
 }

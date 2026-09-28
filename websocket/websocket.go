@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/alonsovidales/otc/bridgeaccess"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
@@ -383,6 +384,23 @@ func bridgeConfigured() bool {
 		return false
 	}
 	return cfg.GetStr("otc", "bridge-addr") != ""
+}
+
+// bridgeAccess is issue #145's status answer. withProviders asks the
+// bridge which account sign-ins it offers - only worth the round trip when
+// the device isn't on it yet.
+func (mg *Manager) bridgeAccess(withProviders bool) *pb.RespBridgeAccess {
+	out := &pb.RespBridgeAccess{Enabled: bridgeaccess.Enabled(), Bridge: bridgeaccess.Bridge()}
+	if out.Enabled {
+		out.Domain = mg.settings.Domain
+		return out
+	}
+	out.Pending, out.Error = bridgeaccess.Status()
+	if withProviders && !out.Pending {
+		out.Providers = bridgeaccess.Providers()
+	}
+
+	return out
 }
 
 func (mg *Manager) openBridgeConn() {
@@ -2373,6 +2391,79 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		resp.Payload = &pb.RespEnvelope_RespTailscaleStatus{
 			RespTailscaleStatus: tailscaleStatusResponse(state, errMessage),
 		}
+
+	// Issue #145: switching the bridge on after a setup without it.
+	// Machine-level, like the Tailscale switch: the primary instance only.
+	case *pb.ReqEnvelope_ReqGetBridgeAccess:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(true)}
+
+	case *pb.ReqEnvelope_ReqBridgeSignIn:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		in := p.ReqBridgeSignIn
+		var token, email string
+		var err error
+		if code := strings.TrimSpace(in.SetupCode); code != "" {
+			token = code
+			email, err = bridgeaccess.CodeOwner(code)
+		} else {
+			token, email, err = bridgeaccess.SignIn(strings.TrimSpace(in.Email), in.Password)
+		}
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespBridgeSignedIn{
+			RespBridgeSignedIn: &pb.RespBridgeSignedIn{SetupToken: token, Email: email},
+		}
+
+	case *pb.ReqEnvelope_ReqEnableBridge:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		if bridgeaccess.Enabled() {
+			resp.Error = true
+			resp.ErrorMessage = "this device is already on the bridge"
+			break
+		}
+		// Checked before the name is reserved, so a device that can't
+		// finish the switch doesn't take a name it won't use.
+		if err := bridgeaccess.CanSwitchOn(); err != nil {
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		id, err := bridgeaccess.Claim(p.ReqEnableBridge.Name, p.ReqEnableBridge.SetupToken)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		if err := ch.mg.dao.SetBridgeIdentity(id.DeviceUuid, id.Domain, id.Secret); err != nil {
+			log.Error("error storing the bridge identity:", err)
+			resp.Error = true
+			resp.ErrorMessage = "could not store the device's new identity"
+			break
+		}
+		ch.mg.settings.DeviceUuid, ch.mg.settings.Domain, ch.mg.settings.BridgeSecret = id.DeviceUuid, id.Domain, id.Secret
+		if err := bridgeaccess.RequestSwitchOn(); err != nil {
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		log.Info("bridge access requested as", id.Domain)
+		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(false)}
 
 	case *pb.ReqEnvelope_ReqCheckUpdate:
 		// Issue #94: machine-level, so primary-only for the same reason

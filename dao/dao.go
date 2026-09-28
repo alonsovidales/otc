@@ -125,6 +125,14 @@ func (dao *Dao) UpdateBridgeSecret(secret string) (err error) {
 	return
 }
 
+// SetBridgeIdentity gives the device a new identity on the bridge - the
+// name it holds there and the credentials it registers with - all at once
+// (issue #145: switching the bridge on after a setup without it).
+func (dao *Dao) SetBridgeIdentity(deviceUuid, subdomain, secret string) (err error) {
+	_, err = dao.db.Exec("update `settings` set `device_uuid` = ?, `subdomain` = ?, `bridge_secret` = ?", deviceUuid, subdomain, secret)
+	return
+}
+
 func (dao *Dao) UpdateSecret(encCheck []byte, salt []byte) (err error) {
 	_, err = dao.db.Exec("update `vault` set `secret` = ?, `salt` = ?", encCheck, salt)
 	return

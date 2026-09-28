@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Switches the bridge on as root. Started by otc-bridge.path when the
+# device (running unprivileged, see otc.service's NoNewPrivileges) drops
+# /var/lib/otc/bridge.request - see otc-bridge-runner.sh.
+[Unit]
+Description=Off The Cloud bridge switch-on
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/otc-bridge-runner
+# It ends by restarting otc.service; a unit of its own so that restart
+# doesn't take this script down with it.
+KillMode=process

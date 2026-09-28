@@ -116,6 +116,9 @@ OPENCV_ZOO_RAW=https://github.com/opencv/opencv_zoo/raw/main/models
 # no domain: reachable on the home network only (the setup wizard's
 # "continue without an account"). Any other value is the bridge to use.
 BRIDGE_ADDR="${OTC_BRIDGE_ADDR-off-the.cloud}"
+# Issue #145: the bridge a local-only device joins if its owner switches
+# the bridge on later, from Settings.
+BRIDGE_DEFAULT="${OTC_BRIDGE_DEFAULT:-${BRIDGE_ADDR:-off-the.cloud}}"
 STORAGE_PATH=/mnt/storage/
 UNENC_PATH=/mnt/storage/unencrypted/
 ENVIRONMENT=dev
@@ -676,6 +679,7 @@ SQL
 cat > "/etc/otc_${ENVIRONMENT}.ini" <<EOF
 [otc]
 bridge-addr=$BRIDGE_ADDR
+bridge-default=$BRIDGE_DEFAULT
 storage-path=$STORAGE_PATH
 unenc-storage-path=$UNENC_PATH
 max-thumbnail-width-px=1000
@@ -804,6 +808,13 @@ install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local
 install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service
 install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.path" /etc/systemd/system/otc-update.path
 
+# Issue #145: switching the bridge on later from Settings - the same
+# trigger-file shape, see scripts/bridge-runner/otc-bridge-runner.sh.
+log "Bridge switch-on trigger (otc-bridge.path)"
+install -m 0755 "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" /usr/local/bin/otc-bridge-runner
+install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.service" /etc/systemd/system/otc-bridge.service
+install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.path" /etc/systemd/system/otc-bridge.path
+
 # The owner password chosen in the setup wizard (a root-only file it hands
 # over in OTC_OWNER_PASSWORD_FILE): set before the service first starts, as
 # the otc user so the log keeps its owner. A recovered device already has
@@ -820,6 +831,7 @@ fi
 systemctl daemon-reload
 systemctl enable otc.service
 systemctl enable --now otc-update.path
+systemctl enable --now otc-bridge.path
 systemctl restart otc.service
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
