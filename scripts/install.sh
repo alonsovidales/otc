@@ -397,6 +397,20 @@ chmod 755 /var/log/otc
 # ---------------------------------------------------------------------------
 # 5. Database + config (device identity generated once, first run only)
 # ---------------------------------------------------------------------------
+# WiFi power saving off: the Raspberry Pi's WiFi driver starts with it on,
+# and it makes the WiFi drop at random until a restart (release 23 does the
+# same on devices installed before this).
+if [ -d /etc/NetworkManager ]; then
+    mkdir -p /etc/NetworkManager/conf.d
+    printf '# Off The Cloud: WiFi power saving off (2 = disable).\n[connection]\nwifi.powersave = 2\n' > /etc/NetworkManager/conf.d/otc-wifi-powersave.conf
+    nmcli general reload conf >/dev/null 2>&1 || true
+fi
+if command -v iw >/dev/null 2>&1; then
+    for dev in $(iw dev 2>/dev/null | awk '$1 == "Interface" {print $2}'); do
+        iw dev "$dev" set power_save off 2>/dev/null || true
+    done
+fi
+
 log "[10/10] Database, config, and the systemd service"
 # Point MariaDB's datadir at the RAID array (mirrors Makefile.pi's `mariadb`
 # target) before touching it any further below - a recovered array already

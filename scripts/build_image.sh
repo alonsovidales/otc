@@ -173,6 +173,10 @@ EOF
 # turns it on at runtime too, this just makes the first boot start right.
 mkdir -p "$MNT/var/lib/NetworkManager"
 printf '[main]\nNetworkingEnabled=true\nWirelessEnabled=true\nWWANEnabled=true\n' > "$MNT/var/lib/NetworkManager/NetworkManager.state"
+# WiFi power saving off from the first boot (the setup hotspot and the join
+# included): it makes the Raspberry Pi's WiFi drop at random.
+mkdir -p "$MNT/etc/NetworkManager/conf.d"
+printf '# Off The Cloud: WiFi power saving off (2 = disable).\n[connection]\nwifi.powersave = 2\n' > "$MNT/etc/NetworkManager/conf.d/otc-wifi-powersave.conf"
 
 echo "$HOSTNAME" > "$MNT/etc/hostname"
 sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$HOSTNAME/" "$MNT/etc/hosts"
