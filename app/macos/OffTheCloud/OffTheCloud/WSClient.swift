@@ -326,7 +326,16 @@ final class WSClient {
             } catch let err as AuthError {
                 self.failAuth(err.message, retryAfter: err.retryAfter)
             } catch {
-                self.failAuth(error.localizedDescription, retryAfter: nil)
+                // Not an answer about the password - a timeout, or the
+                // socket dropping mid sign-in (a busy device, another
+                // folder's upload filling the link). Treating it as a
+                // wrong password stopped the app for good; close and let
+                // the .cancelled handler reconnect with a growing delay.
+                print("WSClient: sign-in did not complete (\(error.localizedDescription)) - reconnecting")
+                self.queue.async {
+                    self.isOpen = false
+                    self.conn?.cancel()
+                }
             }
         }
     }

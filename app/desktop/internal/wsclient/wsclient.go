@@ -175,14 +175,19 @@ func (c *Client) dial(gen int64) {
 
 		return
 	}
+	var ae *AuthError
+	if err != nil && !errors.As(err, &ae) {
+		// Not an answer about the password - a timeout, or the socket
+		// dropping mid sign-in (a busy device, another folder's upload
+		// filling the link). Reporting that as a wrong password stopped
+		// the client for good; close and let the read loop reconnect.
+		_ = conn.Close()
+
+		return
+	}
 	if err != nil {
 		if c.OnAuthFailed != nil {
-			var ae *AuthError
-			retry := 0
-			if errors.As(err, &ae) {
-				retry = ae.RetryAfter
-			}
-			c.OnAuthFailed(err.Error(), retry)
+			c.OnAuthFailed(err.Error(), ae.RetryAfter)
 		}
 		// A wrong password is not a reason to hammer the device: the
 		// socket stays down until the settings change and Connect is
