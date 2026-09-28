@@ -958,6 +958,11 @@ ul.list li:last-child{border-bottom:0}ul.list li.sel{background:rgba(240,122,90,
 pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:.8rem;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--dim);border-top-color:var(--ember);border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}@keyframes s{to{transform:rotate(360deg)}}
 a{color:var(--ember)}
+.sso{display:flex;align-items:center;gap:12px;width:100%;margin-top:10px;padding:12px 16px;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer}
+.sso svg{width:22px;height:22px;flex:none}.sso span{flex:1;text-align:center;margin-right:34px}
+.sso.apple{background:#000;color:#fff;border:1px solid #5a5b62}
+.sso.google,.sso.email{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.sso-or{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:.85rem;margin:14px 0 2px}.sso-or:before,.sso-or:after{content:"";flex:1;border-top:1px solid var(--line)}
 </style></head><body><main>
 <h1>Off The Cloud</h1><p class="lead">Let's set up your device.</p>
 <ol class="steps"><li id="s1"></li><li id="s2"></li><li id="s3"></li><li id="s4"></li><li id="s5"></li></ol>
@@ -965,7 +970,7 @@ a{color:var(--ember)}
 </main>
 <script>
 const $=s=>document.querySelector(s);const view=$('#view');
-let state=null,step=1,wifi={list:[],sel:null,joining:false},name={val:'',ok:null,domain:'',msg:''},disks={list:[],sel:[],recovery:null,loaded:false,wipe:false},acct={mode:'login',msg:'',busy:false,countries:null};
+let state=null,step=1,wifi={list:[],sel:null,joining:false},name={val:'',ok:null,domain:'',msg:''},disks={list:[],sel:[],recovery:null,loaded:false,wipe:false},acct={mode:'login',msg:'',busy:false,countries:null,email:false};
 const api=async(p,o)=>{const r=await fetch(p,Object.assign({cache:'no-store'},o||{}));let j={};try{j=await r.json()}catch(e){}return{ok:r.ok,status:r.status,...j}};
 const post=(p,b)=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1057,18 +1062,27 @@ function renderAccount(){const a=state.account||{};const m=acct.mode;loadProvide
   <div class="row"><button id="a-go">Create account</button></div>`;
  else form=`<label>Setup code</label><input type="text" id="a-code" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="e.g. K7PX2M4Q" style="font-family:ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase">
   <p class="hint">On any device, open <b>${esc(state.bridge)}/account</b>, sign in (with your password, Google or Apple) and tap <b>Get a setup code</b>.</p><div class="row"><button id="a-go">Use this code</button></div>`;
- const provs=(acct.providers||[]).length?`<div class="row" style="margin-bottom:10px">${acct.providers.map(p=>`<button class="ghost" data-provider="${p}" style="flex:1">Continue with ${p==='apple'?'Apple':'Google'}</button>`).join('')}</div><p class="hint" style="margin:0 0 6px">Or with your email:</p>`:'';
- view.innerHTML=`<h2>3 · Your Off The Cloud account</h2><p class="hint">An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost.</p>${provs}${tabs}${form}
+ // In the app: Apple / Google as the main way in, email behind its own
+ // button (issue #137) - the look sign-in pages use, Apple's logo and all.
+ const APPLE='<svg viewBox="0 0 814 1000" fill="currentColor" aria-hidden="true"><path d="M788 341c-6 4-107 61-107 188 0 147 129 199 133 200-1 3-21 71-68 141-43 61-87 122-155 122s-86-40-164-40c-76 0-104 41-166 41s-106-57-155-127C49 784 0 646 0 515 0 305 137 193 271 193c72 0 131 47 176 47 43 0 110-50 192-50 31 0 143 3 149 151zM535 150c34-40 58-96 58-152 0-8-1-15-2-22-55 2-121 37-160 83-31 35-60 91-60 148 0 9 2 17 2 20 4 1 10 2 16 2 50 0 112-33 146-79z"/></svg>';
+ const GOOGLE='<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.2C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 6.8-10.1 6.8-17.5z"/><path fill="#FBBC05" d="M10.5 28.8c-.5-1.4-.8-3-.8-4.8s.3-3.3.8-4.8l-7.9-6.2C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.9l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.2 0-11.5-4.2-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>';
+ const EMAIL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>';
+ const hasProv=(acct.providers||[]).length>0;
+ const provs=hasProv?`${acct.providers.slice().sort((a,b)=>a==='apple'?-1:b==='apple'?1:0).map(p=>`<button class="sso ${p}" data-provider="${p}">${p==='apple'?APPLE:GOOGLE}<span>Continue with ${p==='apple'?'Apple':'Google'}</span></button>`).join('')}${acct.email?'<div class="sso-or">or with your email</div>':`<button class="sso email" id="a-email-open">${EMAIL}<span>Continue with Email</span></button>`}`:'';
+ view.innerHTML=`<h2>3 · Your Off The Cloud account</h2><p class="hint">An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost.</p>${provs}${!hasProv||acct.email?tabs+form:''}
   <div class="msg ${acct.msg?'bad':''}" id="amsg">${esc(acct.msg)}</div>
   <details style="margin-top:14px"><summary style="color:var(--dim);cursor:pointer">Continue without an account</summary>
    <p class="hint" style="margin-top:8px">Without an account the device does not use the bridge. It still works as a NAS on your home network: files, photo backup from the apps and the sync clients while at home, the photo gallery, tags and people. What needs the bridge: reaching the device from outside your home, the social features (friends, posts, comments), share links that work from anywhere, and push notifications. You can create an account later and set the device up again.</p>
    <div class="row"><button class="ghost" id="a-skip">Continue without an account</button></div></details>
   <div class="row" style="margin-top:6px"><button class="ghost" id="back">Back</button></div>`;
  document.querySelectorAll('button[data-provider]').forEach(b=>b.onclick=()=>providerSignIn(b.dataset.provider));
- $('#t-login').onclick=()=>{acct.mode='login';acct.msg='';render()};$('#t-signup').onclick=()=>{acct.mode='signup';acct.msg='';render()};$('#t-code').onclick=()=>{acct.mode='code';acct.msg='';render()};
+ const eo=$('#a-email-open');if(eo)eo.onclick=()=>{acct.email=true;acct.msg='';render()};
  $('#back').onclick=()=>{step=2;render()};
- if(m==='signup')loadCountries();
  $('#a-skip').onclick=async()=>{const r=await post('/api/account',{action:'skip'});if(!r.ok){acct.msg=r.error||'Could not continue';render();return}step=4;refresh();render()};
+ // In the app the email options only exist once "Continue with Email" is chosen.
+ if(!$('#t-login'))return;
+ $('#t-login').onclick=()=>{acct.mode='login';acct.msg='';render()};$('#t-signup').onclick=()=>{acct.mode='signup';acct.msg='';render()};$('#t-code').onclick=()=>{acct.mode='code';acct.msg='';render()};
+ if(m==='signup')loadCountries();
  $('#a-go').onclick=async()=>{const b=$('#a-go');b.disabled=true;$('#amsg').innerHTML='<span class="spin"></span>One moment…';$('#amsg').className='msg';let body;
   if(m==='login')body={action:'login',email:$('#a-email').value,password:$('#a-pass').value};
   else if(m==='signup')body={action:'signup',email:$('#a-email').value,password:$('#a-pass').value,name:$('#a-name').value,surname:$('#a-surname').value,country:$('#a-country').value,accept_terms:$('#a-terms').checked};
