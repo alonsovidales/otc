@@ -28,13 +28,21 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   const [token, setToken] = useState("");
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
+  // In a ref, not only in state: the observer and the group change can
+  // both ask for a page in the same tick, and a state flag read from a
+  // closure is stale by then - the same page went out three times.
+  const busy = useRef(false);
+  // Every thumbnail URL made, revoked on close. Revoking the previous
+  // render's URLs whenever `items` changed (as this did) blanked every
+  // tile already shown each time a new page arrived.
+  const urls = useRef<string[]>([]);
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const gen = useRef(0);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => () => items.forEach(i => i.url && URL.revokeObjectURL(i.url)), [items]);
+  useEffect(() => () => urls.current.forEach(u => URL.revokeObjectURL(u)), []);
 
   useEffect(() => {
     void (async () => {
@@ -46,8 +54,9 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   }, []);
 
   const fetchPage = useCallback(async (fresh: boolean) => {
-    if (loading || (!fresh && done)) return;
+    if (!fresh && (busy.current || done)) return;
     const my = fresh ? ++gen.current : gen.current;
+    busy.current = true;
     setLoading(true);
     try {
       const resp: RespEnvelope = await useWS.request(e => {
@@ -59,13 +68,17 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
       if (my !== gen.current || resp.payload?.$case !== "respListOfFiles") return;
       const lof = resp.payload.respListOfFiles;
       const added = (lof.files ?? []).map(f => ({ f, url: thumbURL(f) }));
+      added.forEach(a => a.url && urls.current.push(a.url));
       setItems(prev => (fresh ? added : prev.concat(added)));
       setToken(lof.token || "");
       setDone(!lof.token);
     } finally {
-      if (my === gen.current) setLoading(false);
+      if (my === gen.current) {
+        busy.current = false;
+        setLoading(false);
+      }
     }
-  }, [group, token, done, loading]);
+  }, [group, token, done]);
 
   // A new group starts the grid over.
   useEffect(() => {

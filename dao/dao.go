@@ -35,7 +35,11 @@ func Init() (dao *Dao) {
 	dao = new(Dao)
 
 	dsn := fmt.Sprintf(
-		"%s:%s@tcp(127.0.0.1:%d)/%s?parseTime=true&charset=utf8mb4,utf8",
+		// time_zone UTC: now() in SQL follows the session's zone,
+		// the system one otherwise - Europe/London on the Pi image - while
+		// parseTime reads every DATETIME back as UTC, so whatever SQL
+		// stamped came out an hour ahead ("in 49 min" on a new alert).
+		"%s:%s@tcp(127.0.0.1:%d)/%s?parseTime=true&charset=utf8mb4,utf8&time_zone=%%27%%2B00%%3A00%%27",
 		cfg.GetStr("mysql", "user"),
 		cfg.GetStr("mysql", "pass"),
 		cfg.GetInt("mysql", "port"),
