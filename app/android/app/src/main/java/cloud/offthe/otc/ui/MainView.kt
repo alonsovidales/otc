@@ -58,6 +58,21 @@ fun MainView(secrets: SecretsStore) {
     val lastError by OTCConnection.lastError.collectAsState()
     val connectionFailed by OTCConnection.connectionFailed.collectAsState()
 
+    // Issue #151: one failed attempt is not a connection problem - at
+    // launch the first try often goes out before the network is up, and
+    // the next one works. The card with the connection settings is shown
+    // only once connecting has kept failing for a few seconds, retried
+    // meanwhile.
+    var showConnectionProblem by remember { mutableStateOf(false) }
+    LaunchedEffect(connectionFailed) {
+        if (!connectionFailed) { showConnectionProblem = false; return@LaunchedEffect }
+        repeat(3) {
+            kotlinx.coroutines.delay(2_500)
+            try { OTCConnection.ensureConnected(); return@LaunchedEffect } catch (_: Exception) {}
+        }
+        showConnectionProblem = OTCConnection.connectionFailed.value
+    }
+
     val alertsRequested by NotificationsModel.alertsRequested.collectAsState()
     val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
 
@@ -105,7 +120,7 @@ fun MainView(secrets: SecretsStore) {
             val context = androidx.compose.ui.platform.LocalContext.current
             if (code != null) {
                 DeviceUnreachableView(message = lastError ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false) })
-            } else if (connectionFailed) {
+            } else if (showConnectionProblem) {
                 ConnectionProblemView(secrets = secrets, onLeave = { logOut(context, secrets, unregisterPush = false) })
             }
         }

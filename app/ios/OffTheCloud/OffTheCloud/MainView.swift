@@ -19,6 +19,9 @@ struct MainView: View {
     // at all. Observed rather than stored so this clears itself as soon as
     // OTCConnection's own reconnect succeeds.
     @ObservedObject private var connection = OTCConnection.shared
+    /// Issue #151: set once connecting has kept failing for a few seconds -
+    /// see the .task below.
+    @State private var showConnectionProblem = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -96,7 +99,7 @@ struct MainView: View {
                     AppLogOut.run(secrets: secrets, unregisterPush: false)
                 }
                     .transition(.opacity)
-            } else if connection.connectionFailed {
+            } else if showConnectionProblem {
                 // Everything else that stops the app connecting - a wrong
                 // address or password, an unreachable host - with the
                 // settings to fix it. See ConnectionProblemView.
@@ -107,7 +110,21 @@ struct MainView: View {
             }
         }
         .animation(.default, value: connection.statusCode)
-        .animation(.default, value: connection.connectionFailed)
+        .animation(.default, value: showConnectionProblem)
+        // Issue #151: one failed attempt is not a connection problem - at
+        // launch the first try often goes out before the network is up,
+        // and the next one works. The card with the connection settings
+        // is shown only once connecting has kept failing for a few
+        // seconds, retried meanwhile.
+        .task(id: connection.connectionFailed) {
+            guard connection.connectionFailed else { showConnectionProblem = false; return }
+            for _ in 0..<3 {
+                try? await Task.sleep(for: .seconds(2.5))
+                if Task.isCancelled || !connection.connectionFailed { return }
+                _ = try? await OTCConnection.shared.ensureConnected()
+            }
+            if !Task.isCancelled { showConnectionProblem = connection.connectionFailed }
+        }
     }
 
 }
