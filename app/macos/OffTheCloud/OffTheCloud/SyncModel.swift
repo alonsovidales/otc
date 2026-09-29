@@ -1043,7 +1043,21 @@ final class SyncModel: ObservableObject {
 
             syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote")
             if !actions.isEmpty {
-                let total = actions.count
+                // Of the whole folder, as reconcile(): every path on either
+                // side counts, and what already agrees is done - "610 of
+                // 6,398" and a bar by bytes, not "4 of" this pass's actions.
+                func bytes(_ relative: String) -> Int64 {
+                    if let url = localByRelative[relative],
+                       let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                        return Int64(size)
+                    }
+                    return Int64(remoteByRelative[relative]?.size ?? 0)
+                }
+                let folderPaths = Set(localByRelative.keys).union(remoteByRelative.keys)
+                let folderCount = max(folderPaths.count, actions.count)
+                let alreadyAgree = folderCount - actions.count
+                let totalBytes = max(folderPaths.reduce(Int64(0)) { $0 + bytes($1) }, 1)
+                var bytesDone = totalBytes - actions.reduce(Int64(0)) { $0 + bytes($1.relative) }
                 for (i, action) in actions.enumerated() {
                     // As reconcile(): a dropped link ends the pass; what's
                     // left keeps its baseline and goes on reconnect.
@@ -1057,7 +1071,8 @@ final class SyncModel: ObservableObject {
                         saveHashCache(folder.id)
                         return
                     }
-                    updateRemoteState(folder.id, .scanning(progress: Double(i) / Double(total), currentFile: "\(i + 1)/\(total) · " + (action.relative as NSString).lastPathComponent))
+                    updateRemoteState(folder.id, .scanning(progress: Double(max(bytesDone, 0)) / Double(totalBytes), currentFile: "\(alreadyAgree + i + 1)/\(folderCount) · " + (action.relative as NSString).lastPathComponent))
+                    defer { bytesDone += bytes(action.relative) }
                     let localURL = folder.localURL.appendingPathComponent(action.relative)
                     let remotePath = remotePrefix + action.relative
                     do {

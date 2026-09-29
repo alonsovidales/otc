@@ -1084,6 +1084,38 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 	}
 
+	// Of the whole folder, as SyncModel.reconcileRemoteFolder: every path
+	// on either side counts and what already agrees is done.
+	bytesOf := func(rel string) int64 {
+		if p, ok := localByRel[rel]; ok {
+			if fi, err := os.Stat(p); err == nil {
+				return fi.Size()
+			}
+		}
+		if rf := remoteByRel[rel]; rf != nil {
+			return int64(rf.Size)
+		}
+		return 0
+	}
+	folderPaths := map[string]bool{}
+	for k := range localByRel {
+		folderPaths[k] = true
+	}
+	for k := range remoteByRel {
+		folderPaths[k] = true
+	}
+	folderCount := max(len(folderPaths), len(actions))
+	alreadyAgree := folderCount - len(actions)
+	var totalBytes int64
+	for k := range folderPaths {
+		totalBytes += bytesOf(k)
+	}
+	totalBytes = max(totalBytes, 1)
+	bytesDone := totalBytes
+	for _, a := range actions {
+		bytesDone -= bytesOf(a.relative)
+	}
+
 	for i, a := range actions {
 		// As reconcile(): a dropped link ends the pass; what's left keeps
 		// its baseline and goes on reconnect.
@@ -1103,7 +1135,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 			return
 		}
-		e.setRemoteState(f.ID, FolderState{Kind: StateScanning, Progress: float64(i) / float64(len(actions)), CurrentFile: fmt.Sprintf("%d/%d · %s", i+1, len(actions), baseName(a.relative))})
+		e.setRemoteState(f.ID, FolderState{Kind: StateScanning, Progress: float64(max(bytesDone, 0)) / float64(totalBytes), CurrentFile: fmt.Sprintf("%d/%d · %s", alreadyAgree+i+1, folderCount, baseName(a.relative))})
+		bytesDone += bytesOf(a.relative)
 		localPath := filepath.Join(f.LocalPath, filepath.FromSlash(a.relative))
 		remotePath := remotePrefix + a.relative
 		var err error
