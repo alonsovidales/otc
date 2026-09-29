@@ -573,18 +573,10 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	return
 }
 
-// linkKeys opens a share link's archive with the key from its secret - the
-// segmented format, or (a link made before it) one seal over the zip.
+// linkKeys opens a share link's archive with the key from its secret.
 type linkKeys struct{ aead cipher.AEAD }
 
 func (k linkKeys) AEAD() cipher.AEAD { return k.aead }
-func (k linkKeys) Decrypt(b []byte) ([]byte, error) {
-	n := k.aead.NonceSize()
-	if len(b) < n {
-		return nil, errors.New("ciphertext too short")
-	}
-	return k.aead.Open(nil, b[:n], b[n:], nil)
-}
 
 func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err error) {
 	data, _, err := mg.OpenSharedLinkRange(uuid, secret, 0, -1)

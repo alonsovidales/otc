@@ -7,29 +7,14 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-// keys mimics a session: the segmented format uses the AEAD directly, the
-// old one was nonce | seal(content).
 type keys struct{ aead cipher.AEAD }
 
 func (k keys) AEAD() cipher.AEAD { return k.aead }
-func (k keys) Decrypt(b []byte) ([]byte, error) {
-	n := k.aead.NonceSize()
-	if len(b) < n {
-		return nil, errors.New("short")
-	}
-	return k.aead.Open(nil, b[:n], b[n:], nil)
-}
-func (k keys) legacy(content []byte) []byte {
-	nonce := make([]byte, k.aead.NonceSize())
-	rand.Read(nonce)
-	return k.aead.Seal(nonce, nonce, content, nil)
-}
 
 func newKeys() keys {
 	key := make([]byte, 32)
@@ -39,36 +24,46 @@ func newKeys() keys {
 	return keys{aead}
 }
 
-func TestOldFilesReadAndConvert(t *testing.T) {
+func TestWriteOpenAndCommitAs(t *testing.T) {
 	k := newKeys()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "abc")
 	content := bytes.Repeat([]byte("photo "), 400000) // > 2 segments
-	if err := os.WriteFile(path, k.legacy(content), 0o644); err != nil {
+	path := filepath.Join(dir, "abc")
+	if err := WriteBytes(path, k, content); err != nil {
 		t.Fatal(err)
 	}
-	// Read in the old format...
 	if got, err := ReadAll(path, k); err != nil || !bytes.Equal(got, content) {
-		t.Fatalf("old format read: %v", err)
+		t.Fatalf("read back: %v", err)
 	}
-	// ...converted in place...
-	if ok, err := Convert(path, k); err != nil || !ok {
-		t.Fatalf("Convert: %v %v", ok, err)
+
+	// An upload: sealed as it arrives, named only at the end.
+	w, err := Create(filepath.Join(dir, ".pending"), k)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if seg, _ := IsSegmented(path); !seg {
-		t.Fatal("not segmented after Convert")
+	for p := content; len(p) > 0; {
+		n := min(len(p), 100000)
+		w.Write(p[:n])
+		p = p[n:]
 	}
-	if got, err := ReadAll(path, k); err != nil || !bytes.Equal(got, content) {
-		t.Fatalf("read after conversion: %v", err)
+	if err := w.Seal(); err != nil {
+		t.Fatal(err)
 	}
-	// ...and a second conversion is a no-op.
-	if ok, err := Convert(path, k); err != nil || ok {
-		t.Fatalf("second Convert: %v %v", ok, err)
+	final := filepath.Join(dir, "byhash")
+	if err := w.CommitAs(final); err != nil {
+		t.Fatal(err)
 	}
-	// A file under another key is left alone.
-	other := filepath.Join(dir, "zip")
-	os.WriteFile(other, newKeys().legacy([]byte("x")), 0o644)
-	if _, err := Convert(other, k); err == nil {
-		t.Error("a file under another key was converted")
+	if got, err := ReadAll(final, k); err != nil || !bytes.Equal(got, content) {
+		t.Fatalf("committed upload: %v", err)
+	}
+	// Nothing left behind but the two files.
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 2 {
+		t.Errorf("%d files in the directory, want 2", len(entries))
+	}
+
+	// Another key can't open it.
+	if _, err := ReadAll(path, newKeys()); err == nil {
+		t.Error("opened with the wrong key")
 	}
 }

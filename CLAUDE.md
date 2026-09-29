@@ -200,13 +200,13 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   with `upload_only` and `versions`, `ListFileVersions` lists them, and `GetFile.hash` serves
   one. The web, iOS and Android explorers show the lock on folders (a toggle, `SetUploadOnly`)
   and the versions badge that opens the pop-up.
-  **Storage format and chunked transfers** (security advisory on memory exhaustion, release 40):
+  **Storage format and chunked transfers** (security advisory on memory exhaustion, releases 40-42):
   every blob and thumbnail is encrypted in 1 MiB segments (`segcrypt`: header `OTS1` + a 7-byte
   nonce prefix, each segment AES-GCM with nonce prefix|index|last-flag and the header as AAD -
   no reordering, swapping or truncation), read and written through `blobstore` (`Open` gives a
   `ReaderAt` that decrypts only the segments a read covers; `Create`/`CommitAs` seal as data
-  arrives). Files from before are still opened (whole) and converted once, at the first
-  sign-in after the update (`ConvertToSegments`, before the thumbnail backfill). Files move in
+  arrives). There is no other format: devices from before release 40 were reinstalled rather
+  than converted (release 42 removed the whole-seal reader). Files move in
   chunks of at most 4 MiB: `ReadFile` (original bytes by range - `GetFile` remains only to show
   a photo, converting HEIC), `BeginUpload`/`UploadChunk`/`FinishUpload` (encrypted as it arrives,
   SHA-256 checked at the end, then `registerUpload` - the same bookkeeping as `UploadFile`),

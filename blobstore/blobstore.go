@@ -9,7 +9,6 @@
 package blobstore
 
 import (
-	"bytes"
 	"crypto/cipher"
 	"errors"
 	"fmt"
@@ -20,10 +19,10 @@ import (
 	"github.com/alonsovidales/otc/segcrypt"
 )
 
-// Keys is what opening and sealing need from a signed-in session.
+// Keys is what opening and sealing need from a signed-in session: its
+// data-key cipher.
 type Keys interface {
 	AEAD() cipher.AEAD
-	Decrypt([]byte) ([]byte, error)
 }
 
 // Blob is an open encrypted file: its content, readable at any offset.
@@ -40,10 +39,6 @@ type segBlob struct {
 
 func (b *segBlob) Close() error { return b.f.Close() }
 
-type memBlob struct{ *bytes.Reader }
-
-func (memBlob) Close() error { return nil }
-
 // Open opens the encrypted file at path.
 func Open(path string, k Keys) (Blob, error) {
 	f, err := os.Open(path)
@@ -55,27 +50,12 @@ func Open(path string, k Keys) (Blob, error) {
 		f.Close()
 		return nil, err
 	}
-	head := make([]byte, 4)
-	if _, err := f.ReadAt(head, 0); err == nil && segcrypt.IsSegmented(head) {
-		r, err := segcrypt.NewReader(f, info.Size(), k.AEAD())
-		if err != nil {
-			f.Close()
-			return nil, err
-		}
-		return &segBlob{Reader: r, f: f}, nil
-	}
-	// The old format: one seal over everything, so it can only be opened
-	// whole. Converted to segments by Convert.
-	enc, err := io.ReadAll(f)
-	f.Close()
+	r, err := segcrypt.NewReader(f, info.Size(), k.AEAD())
 	if err != nil {
-		return nil, err
+		f.Close()
+		return nil, fmt.Errorf("opening %s: %w", filepath.Base(path), err)
 	}
-	plain, err := k.Decrypt(enc)
-	if err != nil {
-		return nil, fmt.Errorf("decrypting %s: %w", filepath.Base(path), err)
-	}
-	return memBlob{bytes.NewReader(plain)}, nil
+	return &segBlob{Reader: r, f: f}, nil
 }
 
 // ReadAll is the whole content of the encrypted file at path - for what
@@ -176,37 +156,4 @@ func WriteBytes(target string, k Keys, content []byte) error {
 		return err
 	}
 	return w.Commit()
-}
-
-// IsSegmented reports whether the file at path is already in the
-// segmented format.
-func IsSegmented(path string) (bool, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return false, err
-	}
-	defer f.Close()
-	head := make([]byte, 4)
-	if _, err := io.ReadFull(f, head); err != nil {
-		return false, nil
-	}
-	return segcrypt.IsSegmented(head), nil
-}
-
-// Convert rewrites a file in the old whole-seal format as segments (in
-// place, atomically); a no-op for one already converted.
-func Convert(path string, k Keys) (converted bool, err error) {
-	seg, err := IsSegmented(path)
-	if err != nil || seg {
-		return false, err
-	}
-	enc, err := os.ReadFile(path)
-	if err != nil {
-		return false, err
-	}
-	plain, err := k.Decrypt(enc)
-	if err != nil {
-		return false, fmt.Errorf("decrypting %s: %w", filepath.Base(path), err)
-	}
-	return true, WriteBytes(path, k, plain)
 }

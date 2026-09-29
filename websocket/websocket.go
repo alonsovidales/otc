@@ -189,12 +189,7 @@ type Manager struct {
 // see BackfillMissingThumbnails for what it repairs and why it exists.
 func (mg *Manager) startBackfillOnce(ses *session.Session) {
 	mg.backfillOnce.Do(func() {
-		go func() {
-			// Old whole-seal files become segmented first, so the
-			// backfill (and everything after) reads the new format.
-			mg.filesManager.ConvertToSegments(ses)
-			mg.filesManager.BackfillMissingThumbnails(ses)
-		}()
+		go mg.filesManager.BackfillMissingThumbnails(ses)
 	})
 }
 
