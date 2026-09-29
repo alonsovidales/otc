@@ -42,6 +42,10 @@ struct PopoverView: View {
                 onSyncDevice: { showAddChooser = false; showRemotePicker = true },
                 onCancel: { showAddChooser = false }
             )
+            // The main panel's own margins and width, which the chooser
+            // lacked - its header ran into the window's edges.
+            .padding(12)
+            .frame(width: 360)
         } else if showRemotePicker {
             RemoteFolderPickerView(
                 onChoose: { remotePath in
