@@ -248,6 +248,41 @@ struct FolderStateView: View {
     let state: SyncModel.FolderState
     let watchingLabel: String
 
+    /// "165/6420 · IMG_4513.jpg" as "165 of 6,420" in full and the file
+    /// name shortened in the middle: shortening the whole string cut the
+    /// count and the name alike ("165/6…513.jpg").
+    @ViewBuilder
+    private func fileLabel(_ text: String, font: Font) -> some View {
+        let parts = text.components(separatedBy: " · ")
+        HStack(spacing: 4) {
+            if parts.count == 2 {
+                Text(Self.countText(parts[0]))
+                    .monospacedDigit()
+                    .fixedSize()
+            }
+            Text(parts.count == 2 ? parts[1] : text)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .font(font)
+        .foregroundStyle(.secondary)
+    }
+
+    /// "Checking 12/340" -> "Checking 12 of 340"; "165/6420" -> "165 of 6,420".
+    private static func countText(_ raw: String) -> String {
+        var prefix = ""
+        var nums = raw
+        if let sp = raw.lastIndex(of: " ") {
+            prefix = String(raw[...sp])
+            nums = String(raw[raw.index(after: sp)...])
+        }
+        let bits = nums.split(separator: "/")
+        guard bits.count == 2, let n = Int(bits[0]), let total = Int(bits[1]) else { return raw }
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return prefix + "\(f.string(from: n as NSNumber) ?? "\(n)") of \(f.string(from: total as NSNumber) ?? "\(total)")"
+    }
+
     var body: some View {
         switch state {
         case .scanning(let progress, let currentFile) where progress == 0:
@@ -259,12 +294,8 @@ struct FolderStateView: View {
             HStack(spacing: 6) {
                 ProgressView()
                     .controlSize(.small)
-                Text(currentFile ?? "Checking…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: 140, alignment: .trailing)
+                fileLabel(currentFile ?? "Checking…", font: .caption)
+                    .frame(maxWidth: 170, alignment: .trailing)
             }
         case .scanning(let progress, let currentFile):
             VStack(alignment: .trailing, spacing: 2) {
@@ -289,13 +320,9 @@ struct FolderStateView: View {
                     HStack(spacing: 4) {
                         ProgressView()
                             .controlSize(.mini)
-                        Text(currentFile)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                        fileLabel(currentFile, font: .caption2)
                     }
-                    .frame(maxWidth: 140, alignment: .trailing)
+                    .frame(maxWidth: 170, alignment: .trailing)
                 }
             }
         case .watching:

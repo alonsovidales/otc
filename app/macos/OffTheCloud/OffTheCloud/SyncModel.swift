@@ -743,7 +743,7 @@ final class SyncModel: ObservableObject {
                 let totalBytes = max(toUpload.reduce(0) { $0 + $1.size }, 1)
                 var bytesDone: Int64 = 0
 
-                for item in toUpload {
+                for (k, item) in toUpload.enumerated() {
                     // The link went (device offline, restarting): stop
                     // here rather than "fail" every remaining file in a
                     // second each, which raced the bar to 100% with
@@ -759,7 +759,7 @@ final class SyncModel: ObservableObject {
                     // without this the UI just sits on the previous
                     // file's number the whole time, which is exactly what
                     // looked like "stuck" before (issue #37).
-                    updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: item.url.lastPathComponent))
+                    updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: "\(k + 1)/\(toUpload.count) · \(item.url.lastPathComponent)"))
 
                     do {
                         remoteMap[item.remotePath] = try await upload(item.url, to: item.remotePath, knownHash: item.hash, folderId: folder.id)
