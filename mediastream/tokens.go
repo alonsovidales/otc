@@ -26,6 +26,7 @@ package mediastream
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/alonsovidales/otc/blobstore"
 	"sync"
 	"time"
 )
@@ -60,11 +61,10 @@ type Resource struct {
 	Hash    string
 	Mime    string
 	Size    int64
-	// Decrypt turns the on-disk bytes into plaintext for
-	// KindLibraryFile. Held as a function rather than the *session it
-	// came from so this package doesn't depend on session at all, and so
-	// a token can never be used to reach anything else that session can.
-	Decrypt func([]byte) ([]byte, error)
+	// Keys open a library file (segmented encryption, blobstore) - the
+	// session that asked for the token. Nil for publication media, which
+	// is stored unencrypted.
+	Keys blobstore.Keys
 }
 
 type entry struct {
@@ -116,6 +116,14 @@ func (s *Store) Resolve(token string) (Resource, bool) {
 	}
 
 	return e.res, true
+}
+
+// Revoke ends a token before its expiry - one minted for the device's own
+// processing (ffmpeg reading a video over loopback), once it's done.
+func (s *Store) Revoke(token string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	delete(s.tokens, token)
 }
 
 // purgeExpiredLocked keeps the map from growing without bound. Called on

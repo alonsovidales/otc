@@ -1840,6 +1840,175 @@ public nonisolated struct Msg_Settings: Sendable {
   public init() {}
 }
 
+/// Chunked transfers: every file moves in pieces of at most 4 MB, so no
+/// message - and no device or bridge memory - ever holds a whole file.
+///
+/// ReadFile answers with FileChunk: up to `length` bytes (max 4 MB) of the
+/// file's original content from `offset` (never converted: a HEIC stays a
+/// HEIC; GetFile is what converts, for showing a photo). `hash` reads an
+/// older version.
+public nonisolated struct Msg_ReadFile: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var hash: String = String()
+
+  public var offset: Int64 = 0
+
+  public var length: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_FileChunk: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var hash: String = String()
+
+  public var mime: String = String()
+
+  /// The whole file's size (not this chunk's).
+  public var size: Int64 = 0
+
+  public var offset: Int64 = 0
+
+  public var data: Data = Data()
+
+  public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_created = newValue}
+  }
+  /// Returns true if `created` has been explicitly set.
+  public var hasCreated: Bool {self._created != nil}
+  /// Clears the value of `created`. Subsequent reads from it will return its default value.
+  public mutating func clearCreated() {self._created = nil}
+
+  public var modified: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_modified ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_modified = newValue}
+  }
+  /// Returns true if `modified` has been explicitly set.
+  public var hasModified: Bool {self._modified != nil}
+  /// Clears the value of `modified`. Subsequent reads from it will return its default value.
+  public mutating func clearModified() {self._modified = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _modified: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// BeginUpload starts an upload of `size` bytes to `path` (answers with
+/// UploadStarted); the content follows in UploadChunk messages, in order
+/// (each answered with UploadProgress), and FinishUpload - with the
+/// content's SHA-256, checked - makes it the file (answers with File, like
+/// UploadFile). An upload untouched for 30 minutes is dropped.
+public nonisolated struct Msg_BeginUpload: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var size: Int64 = 0
+
+  public var created: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_created ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_created = newValue}
+  }
+  /// Returns true if `created` has been explicitly set.
+  public var hasCreated: Bool {self._created != nil}
+  /// Clears the value of `created`. Subsequent reads from it will return its default value.
+  public mutating func clearCreated() {self._created = nil}
+
+  public var modified: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_modified ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_modified = newValue}
+  }
+  /// Returns true if `modified` has been explicitly set.
+  public var hasModified: Bool {self._modified != nil}
+  /// Clears the value of `modified`. Subsequent reads from it will return its default value.
+  public mutating func clearModified() {self._modified = nil}
+
+  public var forceOverride: Bool = false
+
+  public var cloudID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _modified: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public nonisolated struct Msg_UploadStarted: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uploadID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_UploadChunk: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uploadID: String = String()
+
+  /// Must be the next byte the device expects (UploadProgress.received):
+  /// after a lost reply, a client resends from there.
+  public var offset: Int64 = 0
+
+  public var data: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_UploadProgress: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var received: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_FinishUpload: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var uploadID: String = String()
+
+  public var sha256: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// Issue #153: sets Settings.social_storage_limit_mb; posts past a lowered
 /// limit are removed right away. Answers with the generic Ack.
 public nonisolated struct Msg_SetSocialStorageLimit: Sendable {
@@ -2751,6 +2920,13 @@ public nonisolated struct Msg_DownloadSharedLink: Sendable {
   public var uuid: String = String()
 
   public var secret: String = String()
+
+  /// Chunked: with a length (at most 4 MB) the answer is a FileChunk of the
+  /// archive from offset (size = the whole archive's); without one, the
+  /// whole archive as SharedFiles (being phased out).
+  public var offset: Int64 = 0
+
+  public var length: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -4249,6 +4425,39 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqSetSocialStorageLimit(newValue)}
   }
 
+  /// Chunked transfers.
+  public var reqReadFile: Msg_ReadFile {
+    get {
+      if case .reqReadFile(let v)? = payload {return v}
+      return Msg_ReadFile()
+    }
+    set {payload = .reqReadFile(newValue)}
+  }
+
+  public var reqBeginUpload: Msg_BeginUpload {
+    get {
+      if case .reqBeginUpload(let v)? = payload {return v}
+      return Msg_BeginUpload()
+    }
+    set {payload = .reqBeginUpload(newValue)}
+  }
+
+  public var reqUploadChunk: Msg_UploadChunk {
+    get {
+      if case .reqUploadChunk(let v)? = payload {return v}
+      return Msg_UploadChunk()
+    }
+    set {payload = .reqUploadChunk(newValue)}
+  }
+
+  public var reqFinishUpload: Msg_FinishUpload {
+    get {
+      if case .reqFinishUpload(let v)? = payload {return v}
+      return Msg_FinishUpload()
+    }
+    set {payload = .reqFinishUpload(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -4420,6 +4629,11 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqUnregisterFcmToken(Msg_UnregisterFcmToken)
     /// Issue #153.
     case reqSetSocialStorageLimit(Msg_SetSocialStorageLimit)
+    /// Chunked transfers.
+    case reqReadFile(Msg_ReadFile)
+    case reqBeginUpload(Msg_BeginUpload)
+    case reqUploadChunk(Msg_UploadChunk)
+    case reqFinishUpload(Msg_FinishUpload)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -4868,6 +5082,31 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respBridgeSignedIn(newValue)}
   }
 
+  /// Chunked transfers.
+  public var respFileChunk: Msg_FileChunk {
+    get {
+      if case .respFileChunk(let v)? = _storage._payload {return v}
+      return Msg_FileChunk()
+    }
+    set {_uniqueStorage()._payload = .respFileChunk(newValue)}
+  }
+
+  public var respUploadStarted: Msg_UploadStarted {
+    get {
+      if case .respUploadStarted(let v)? = _storage._payload {return v}
+      return Msg_UploadStarted()
+    }
+    set {_uniqueStorage()._payload = .respUploadStarted(newValue)}
+  }
+
+  public var respUploadProgress: Msg_UploadProgress {
+    get {
+      if case .respUploadProgress(let v)? = _storage._payload {return v}
+      return Msg_UploadProgress()
+    }
+    set {_uniqueStorage()._payload = .respUploadProgress(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Payload: Equatable, Sendable {
@@ -4933,6 +5172,10 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     /// Issue #145.
     case respBridgeAccess(Msg_RespBridgeAccess)
     case respBridgeSignedIn(Msg_RespBridgeSignedIn)
+    /// Chunked transfers.
+    case respFileChunk(Msg_FileChunk)
+    case respUploadStarted(Msg_UploadStarted)
+    case respUploadProgress(Msg_UploadProgress)
 
   }
 
@@ -7804,6 +8047,314 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
+nonisolated extension Msg_ReadFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReadFile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}hash\0\u{1}offset\0\u{1}length\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.length) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 2)
+    }
+    if self.offset != 0 {
+      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 3)
+    }
+    if self.length != 0 {
+      try visitor.visitSingularInt32Field(value: self.length, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ReadFile, rhs: Msg_ReadFile) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.hash != rhs.hash {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.length != rhs.length {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_FileChunk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FileChunk"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}hash\0\u{1}mime\0\u{1}size\0\u{1}offset\0\u{1}data\0\u{1}created\0\u{1}modified\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.hash) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.mime) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.size) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
+      case 6: try { try decoder.decodeSingularBytesField(value: &self.data) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._created) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._modified) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.hash.isEmpty {
+      try visitor.visitSingularStringField(value: self.hash, fieldNumber: 2)
+    }
+    if !self.mime.isEmpty {
+      try visitor.visitSingularStringField(value: self.mime, fieldNumber: 3)
+    }
+    if self.size != 0 {
+      try visitor.visitSingularInt64Field(value: self.size, fieldNumber: 4)
+    }
+    if self.offset != 0 {
+      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 5)
+    }
+    if !self.data.isEmpty {
+      try visitor.visitSingularBytesField(value: self.data, fieldNumber: 6)
+    }
+    try { if let v = self._created {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._modified {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_FileChunk, rhs: Msg_FileChunk) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.hash != rhs.hash {return false}
+    if lhs.mime != rhs.mime {return false}
+    if lhs.size != rhs.size {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.data != rhs.data {return false}
+    if lhs._created != rhs._created {return false}
+    if lhs._modified != rhs._modified {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_BeginUpload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BeginUpload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}size\0\u{1}created\0\u{1}modified\0\u{3}force_override\0\u{3}cloud_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.size) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._created) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._modified) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.forceOverride) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.cloudID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if self.size != 0 {
+      try visitor.visitSingularInt64Field(value: self.size, fieldNumber: 2)
+    }
+    try { if let v = self._created {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._modified {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if self.forceOverride != false {
+      try visitor.visitSingularBoolField(value: self.forceOverride, fieldNumber: 5)
+    }
+    if !self.cloudID.isEmpty {
+      try visitor.visitSingularStringField(value: self.cloudID, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_BeginUpload, rhs: Msg_BeginUpload) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.size != rhs.size {return false}
+    if lhs._created != rhs._created {return false}
+    if lhs._modified != rhs._modified {return false}
+    if lhs.forceOverride != rhs.forceOverride {return false}
+    if lhs.cloudID != rhs.cloudID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_UploadStarted: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UploadStarted"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}upload_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uploadID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.uploadID.isEmpty {
+      try visitor.visitSingularStringField(value: self.uploadID, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_UploadStarted, rhs: Msg_UploadStarted) -> Bool {
+    if lhs.uploadID != rhs.uploadID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_UploadChunk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UploadChunk"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}upload_id\0\u{1}offset\0\u{1}data\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uploadID) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self.data) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.uploadID.isEmpty {
+      try visitor.visitSingularStringField(value: self.uploadID, fieldNumber: 1)
+    }
+    if self.offset != 0 {
+      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 2)
+    }
+    if !self.data.isEmpty {
+      try visitor.visitSingularBytesField(value: self.data, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_UploadChunk, rhs: Msg_UploadChunk) -> Bool {
+    if lhs.uploadID != rhs.uploadID {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.data != rhs.data {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_UploadProgress: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UploadProgress"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}received\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt64Field(value: &self.received) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.received != 0 {
+      try visitor.visitSingularInt64Field(value: self.received, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_UploadProgress, rhs: Msg_UploadProgress) -> Bool {
+    if lhs.received != rhs.received {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_FinishUpload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FinishUpload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}upload_id\0\u{1}sha256\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.uploadID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sha256) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.uploadID.isEmpty {
+      try visitor.visitSingularStringField(value: self.uploadID, fieldNumber: 1)
+    }
+    if !self.sha256.isEmpty {
+      try visitor.visitSingularStringField(value: self.sha256, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_FinishUpload, rhs: Msg_FinishUpload) -> Bool {
+    if lhs.uploadID != rhs.uploadID {return false}
+    if lhs.sha256 != rhs.sha256 {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Msg_SetSocialStorageLimit: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetSocialStorageLimit"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mb\0")
@@ -9535,7 +10086,7 @@ nonisolated extension Msg_ShareLink: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_DownloadSharedLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DownloadSharedLink"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}secret\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}secret\0\u{1}offset\0\u{1}length\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -9545,6 +10096,8 @@ nonisolated extension Msg_DownloadSharedLink: SwiftProtobuf.Message, SwiftProtob
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.uuid) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.secret) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.length) }()
       default: break
       }
     }
@@ -9557,12 +10110,20 @@ nonisolated extension Msg_DownloadSharedLink: SwiftProtobuf.Message, SwiftProtob
     if !self.secret.isEmpty {
       try visitor.visitSingularStringField(value: self.secret, fieldNumber: 2)
     }
+    if self.offset != 0 {
+      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 3)
+    }
+    if self.length != 0 {
+      try visitor.visitSingularInt32Field(value: self.length, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_DownloadSharedLink, rhs: Msg_DownloadSharedLink) -> Bool {
     if lhs.uuid != rhs.uuid {return false}
     if lhs.secret != rhs.secret {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.length != rhs.length {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10852,7 +11413,7 @@ nonisolated extension Msg_RespStaticAsset: SwiftProtobuf.Message, SwiftProtobuf.
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -12174,6 +12735,58 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqSetSocialStorageLimit(v)
         }
       }()
+      case 114: try {
+        var v: Msg_ReadFile?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqReadFile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqReadFile(v)
+        }
+      }()
+      case 115: try {
+        var v: Msg_BeginUpload?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqBeginUpload(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqBeginUpload(v)
+        }
+      }()
+      case 116: try {
+        var v: Msg_UploadChunk?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqUploadChunk(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqUploadChunk(v)
+        }
+      }()
+      case 117: try {
+        var v: Msg_FinishUpload?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqFinishUpload(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqFinishUpload(v)
+        }
+      }()
       default: break
       }
     }
@@ -12592,6 +13205,22 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqSetSocialStorageLimit(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 113)
     }()
+    case .reqReadFile?: try {
+      guard case .reqReadFile(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 114)
+    }()
+    case .reqBeginUpload?: try {
+      guard case .reqBeginUpload(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 115)
+    }()
+    case .reqUploadChunk?: try {
+      guard case .reqUploadChunk(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 116)
+    }()
+    case .reqFinishUpload?: try {
+      guard case .reqFinishUpload(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 117)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -12607,7 +13236,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -13276,6 +13905,45 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
             _storage._payload = .respBridgeSignedIn(v)
           }
         }()
+        case 58: try {
+          var v: Msg_FileChunk?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFileChunk(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFileChunk(v)
+          }
+        }()
+        case 59: try {
+          var v: Msg_UploadStarted?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respUploadStarted(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respUploadStarted(v)
+          }
+        }()
+        case 60: try {
+          var v: Msg_UploadProgress?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respUploadProgress(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respUploadProgress(v)
+          }
+        }()
         default: break
         }
       }
@@ -13492,6 +14160,18 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       case .respBridgeSignedIn?: try {
         guard case .respBridgeSignedIn(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 57)
+      }()
+      case .respFileChunk?: try {
+        guard case .respFileChunk(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 58)
+      }()
+      case .respUploadStarted?: try {
+        guard case .respUploadStarted(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 59)
+      }()
+      case .respUploadProgress?: try {
+        guard case .respUploadProgress(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 60)
       }()
       case nil: break
       }

@@ -167,6 +167,13 @@ func FromVideo(content []byte) (*Info, error) {
 		return nil, fmt.Errorf("closing temp video: %w", err)
 	}
 
+	return FromVideoSource(tmpPath)
+}
+
+// FromVideoSource reads a video's container metadata from src - a file
+// path or a URL ffprobe can read with ranges (a stored video's loopback
+// stream, so nothing is loaded whole).
+func FromVideoSource(tmpPath string) (*Info, error) {
 	out, err := exec.Command(
 		"ffprobe", "-v", "error",
 		"-show_entries", "format_tags=location,location-eng,creation_time",

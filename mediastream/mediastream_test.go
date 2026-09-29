@@ -4,8 +4,11 @@ package mediastream
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/blobstore"
 	"os"
 	"testing"
 	"time"
@@ -143,32 +146,40 @@ func TestRangeRefusesAnUnknownToken(t *testing.T) {
 	}
 }
 
-// A library file is encrypted at rest, and decrypting it for every range
-// a player asks for would re-decrypt the whole video on every seek.
-func TestLibraryPlaintextIsDecryptedOncePerFile(t *testing.T) {
+// testKeys is a session's data key for the tests.
+type testKeys struct{ aead cipher.AEAD }
+
+func (k testKeys) AEAD() cipher.AEAD { return k.aead }
+func (k testKeys) Decrypt(b []byte) ([]byte, error) {
+	return nil, errors.New("legacy format not used here")
+}
+
+// A library file is stored in segments: a range reads only the segments
+// it covers, and what comes back is the plaintext at that offset - also
+// across a segment boundary.
+func TestLibraryRangesReadTheSegmentedFile(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(fmt.Sprintf("%s/%s", dir, "enc1"), []byte("ENCRYPTED"), 0o600); err != nil {
-		t.Fatalf("writing fixture: %v", err)
+	key := make([]byte, 32)
+	block, _ := aes.NewCipher(key)
+	aead, _ := cipher.NewGCM(block)
+	keys := testKeys{aead}
+	plain := make([]byte, 3<<20+777)
+	for i := range plain {
+		plain[i] = byte(i * 7)
 	}
-
-	decrypts := 0
+	if err := blobstore.WriteBytes(fmt.Sprintf("%s/%s", dir, "vid"), keys, plain); err != nil {
+		t.Fatal(err)
+	}
 	sv := NewServer(NewStore(), dir, t.TempDir())
-	token, _, _ := sv.Store().Issue(Resource{
-		Kind: KindLibraryFile,
-		Hash: "enc1",
-		Decrypt: func(b []byte) ([]byte, error) {
-			decrypts++
-			return []byte("plaintext!"), nil
-		},
-	})
+	token, _, _ := sv.Store().Issue(Resource{Kind: KindLibraryFile, Hash: "vid", Keys: keys})
 
-	for range 3 {
-		if _, _, _, err := sv.Range(token, 0, 4); err != nil {
-			t.Fatalf("Range: %v", err)
-		}
+	off := int64(1<<20 - 100) // straddles the first boundary
+	got, total, _, err := sv.Range(token, off, 300)
+	if err != nil {
+		t.Fatalf("Range: %v", err)
 	}
-	if decrypts != 1 {
-		t.Errorf("decrypted %d times, want exactly 1 - the rest must come from the cache", decrypts)
+	if total != int64(len(plain)) || !bytes.Equal(got, plain[off:off+300]) {
+		t.Errorf("Range(%d, 300): total %d, bytes differ: %v", off, total, !bytes.Equal(got, plain[off:off+300]))
 	}
 }
 

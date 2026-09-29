@@ -45,6 +45,14 @@ func extractVideoFrames(videoContent []byte, n int) ([]image.Image, error) {
 		return nil, fmt.Errorf("closing temp video: %w", err)
 	}
 
+	return extractVideoFramesFrom(tmpPath, n)
+}
+
+// extractVideoFramesFrom samples n frames of the video at src - a file
+// path, or a URL ffmpeg reads with range requests (the device's own
+// loopback stream of a stored video: only the parts it seeks to are
+// decrypted, see videoSource).
+func extractVideoFramesFrom(tmpPath string, n int) ([]image.Image, error) {
 	duration, err := probeVideoDuration(tmpPath)
 	if err != nil {
 		return nil, fmt.Errorf("probing video duration: %w", err)

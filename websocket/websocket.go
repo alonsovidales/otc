@@ -189,7 +189,12 @@ type Manager struct {
 // see BackfillMissingThumbnails for what it repairs and why it exists.
 func (mg *Manager) startBackfillOnce(ses *session.Session) {
 	mg.backfillOnce.Do(func() {
-		go mg.filesManager.BackfillMissingThumbnails(ses)
+		go func() {
+			// Old whole-seal files become segmented first, so the
+			// backfill (and everything after) reads the new format.
+			mg.filesManager.ConvertToSegments(ses)
+			mg.filesManager.BackfillMissingThumbnails(ses)
+		}()
 	})
 }
 
@@ -261,6 +266,24 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// simply never exist at all for a device that registered tokens before
 	// this feature shipped.
 	go mg.syncPushRegistrationsToBridge()
+
+	// Stored videos reach ffmpeg (thumbnails, tags, metadata) through this
+	// device's own stream on loopback: a short-lived media token over the
+	// segmented file, so ffmpeg's range requests decrypt only what they
+	// read - never the whole video in memory, never a plaintext temp file.
+	if filesManager != nil && cfg.HasSection("otc-api") {
+		port := cfg.GetInt("otc-api", "port")
+		filesManager.SetVideoSource(func(ses *session.Session, file *pb.File) (string, func(), error) {
+			token, _, err := mg.media.Store().Issue(mediastream.Resource{
+				Kind: mediastream.KindLibraryFile, Path: file.Path, Hash: file.Hash,
+				Mime: file.Mime, Size: int64(file.Size), Keys: ses,
+			})
+			if err != nil {
+				return "", func() {}, err
+			}
+			return fmt.Sprintf("http://127.0.0.1:%d/media/%s", port, token), func() { mg.media.Store().Revoke(token) }, nil
+		})
+	}
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -948,12 +971,12 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 			return "", 0, "", 0, fmt.Errorf("file not found")
 		}
 		res = mediastream.Resource{
-			Kind:    mediastream.KindLibraryFile,
-			Path:    req.Path,
-			Hash:    file.Hash,
-			Mime:    file.Mime,
-			Size:    int64(file.Size),
-			Decrypt: ses.Decrypt,
+			Kind: mediastream.KindLibraryFile,
+			Path: req.Path,
+			Hash: file.Hash,
+			Mime: file.Mime,
+			Size: int64(file.Size),
+			Keys: ses,
 		}
 
 	default:
@@ -1381,6 +1404,18 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
 		log.Info("Download link")
 
+		if r := p.ReqDownloadSharedLink; r.Length > 0 {
+			data, size, err := ch.mg.filesManager.OpenSharedLinkRange(r.Uuid, r.Secret, r.Offset, int(r.Length))
+			if err != nil {
+				resp.Error = true
+				resp.ErrorMessage = fmt.Sprintf("error trying to download file: %s", err)
+				break
+			}
+			resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{
+				Mime: "application/zip", Size: size, Offset: r.Offset, Data: data,
+			}}
+			break
+		}
 		fileContent, err := ch.mg.filesManager.OpenSharedLink(p.ReqDownloadSharedLink.Uuid, p.ReqDownloadSharedLink.Secret)
 
 		if err != nil {
@@ -1714,6 +1749,53 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 				RespFile: pbFile,
 			}
 		}
+
+	// Chunked transfers: a file moves in pieces of at most 4 MB, so no
+	// message holds a whole file (see files_manager/chunked.go).
+	case *pb.ReqEnvelope_ReqReadFile:
+		r := p.ReqReadFile
+		file, data, size, err := ch.mg.filesManager.ReadFile(ses, r.Path, r.Hash, r.Offset, int(r.Length))
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error reading file: %s", err)
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{
+			Path: file.Path, Hash: file.Hash, Mime: file.Mime, Size: size, Offset: r.Offset, Data: data,
+			Created: file.Created, Modified: file.Modified,
+		}}
+
+	case *pb.ReqEnvelope_ReqBeginUpload:
+		r := p.ReqBeginUpload
+		log.Info("Chunked upload of", r.Path, "-", r.Size, "bytes")
+		id, err := ch.mg.filesManager.BeginUpload(ses, r.Path, r.Size, r.ForceOverride, r.Created, r.Modified, r.CloudId)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error starting the upload: %s", err)
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id}}
+
+	case *pb.ReqEnvelope_ReqUploadChunk:
+		r := p.ReqUploadChunk
+		received, err := ch.mg.filesManager.UploadChunk(ses, r.UploadId, r.Offset, r.Data)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error receiving the upload: %s", err)
+			if errors.Is(err, filesmanager.ErrOutOfOrder) {
+				resp.ErrorCode = "out_of_order"
+			}
+		}
+		resp.Payload = &pb.RespEnvelope_RespUploadProgress{RespUploadProgress: &pb.UploadProgress{Received: received}}
+
+	case *pb.ReqEnvelope_ReqFinishUpload:
+		file, err := ch.mg.filesManager.FinishUpload(ses, p.ReqFinishUpload.UploadId, p.ReqFinishUpload.Sha256)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error finishing the upload: %s", err)
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: file}
 
 	case *pb.ReqEnvelope_ReqHasFile:
 		exists, err := ch.mg.filesManager.HasFile(p.ReqHasFile.Hash, p.ReqHasFile.CloudId)

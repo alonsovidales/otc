@@ -1163,6 +1163,73 @@ export interface Settings {
 }
 
 /**
+ * Chunked transfers: every file moves in pieces of at most 4 MB, so no
+ * message - and no device or bridge memory - ever holds a whole file.
+ *
+ * ReadFile answers with FileChunk: up to `length` bytes (max 4 MB) of the
+ * file's original content from `offset` (never converted: a HEIC stays a
+ * HEIC; GetFile is what converts, for showing a photo). `hash` reads an
+ * older version.
+ */
+export interface ReadFile {
+  path: string;
+  hash: string;
+  offset: bigint;
+  length: number;
+}
+
+export interface FileChunk {
+  path: string;
+  hash: string;
+  mime: string;
+  /** The whole file's size (not this chunk's). */
+  size: bigint;
+  offset: bigint;
+  data: Uint8Array;
+  created?: Date | undefined;
+  modified?: Date | undefined;
+}
+
+/**
+ * BeginUpload starts an upload of `size` bytes to `path` (answers with
+ * UploadStarted); the content follows in UploadChunk messages, in order
+ * (each answered with UploadProgress), and FinishUpload - with the
+ * content's SHA-256, checked - makes it the file (answers with File, like
+ * UploadFile). An upload untouched for 30 minutes is dropped.
+ */
+export interface BeginUpload {
+  path: string;
+  size: bigint;
+  created?: Date | undefined;
+  modified?: Date | undefined;
+  forceOverride: boolean;
+  cloudId: string;
+}
+
+export interface UploadStarted {
+  uploadId: string;
+}
+
+export interface UploadChunk {
+  uploadId: string;
+  /**
+   * Must be the next byte the device expects (UploadProgress.received):
+   * after a lost reply, a client resends from there.
+   */
+  offset: bigint;
+  data: Uint8Array;
+}
+
+export interface UploadProgress {
+  received: bigint;
+}
+
+export interface FinishUpload {
+  uploadId: string;
+  sha256: string;
+}
+
+/**
  * Issue #153: sets Settings.social_storage_limit_mb; posts past a lowered
  * limit are removed right away. Answers with the generic Ack.
  */
@@ -1657,6 +1724,13 @@ export interface ShareLink {
 export interface DownloadSharedLink {
   uuid: string;
   secret: string;
+  /**
+   * Chunked: with a length (at most 4 MB) the answer is a FileChunk of the
+   * archive from offset (size = the whole archive's); without one, the
+   * whole archive as SharedFiles (being phased out).
+   */
+  offset: bigint;
+  length: number;
 }
 
 export interface NewSocial {
@@ -2132,6 +2206,12 @@ export interface ReqEnvelope {
     /** Issue #153. */
     { $case: "reqSetSocialStorageLimit"; reqSetSocialStorageLimit: SetSocialStorageLimit }
     | //
+    /** Chunked transfers. */
+    { $case: "reqReadFile"; reqReadFile: ReadFile }
+    | { $case: "reqBeginUpload"; reqBeginUpload: BeginUpload }
+    | { $case: "reqUploadChunk"; reqUploadChunk: UploadChunk }
+    | { $case: "reqFinishUpload"; reqFinishUpload: FinishUpload }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2239,6 +2319,11 @@ export interface RespEnvelope {
     /** Issue #145. */
     { $case: "respBridgeAccess"; respBridgeAccess: RespBridgeAccess }
     | { $case: "respBridgeSignedIn"; respBridgeSignedIn: RespBridgeSignedIn }
+    | //
+    /** Chunked transfers. */
+    { $case: "respFileChunk"; respFileChunk: FileChunk }
+    | { $case: "respUploadStarted"; respUploadStarted: UploadStarted }
+    | { $case: "respUploadProgress"; respUploadProgress: UploadProgress }
     | undefined;
 }
 
@@ -8650,6 +8735,737 @@ export const Settings: MessageFns<Settings> = {
   },
 };
 
+function createBaseReadFile(): ReadFile {
+  return { path: "", hash: "", offset: 0n, length: 0 };
+}
+
+export const ReadFile: MessageFns<ReadFile> = {
+  encode(message: ReadFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(24).int64(message.offset);
+    }
+    if (message.length !== 0) {
+      writer.uint32(32).int32(message.length);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReadFile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReadFile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.length = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReadFile {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      length: isSet(object.length) ? globalThis.Number(object.length) : 0,
+    };
+  },
+
+  toJSON(message: ReadFile): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.length !== 0) {
+      obj.length = Math.round(message.length);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReadFile>, I>>(base?: I): ReadFile {
+    return ReadFile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReadFile>, I>>(object: I): ReadFile {
+    const message = createBaseReadFile();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    message.offset = object.offset ?? 0n;
+    message.length = object.length ?? 0;
+    return message;
+  },
+};
+
+function createBaseFileChunk(): FileChunk {
+  return {
+    path: "",
+    hash: "",
+    mime: "",
+    size: 0n,
+    offset: 0n,
+    data: new Uint8Array(0),
+    created: undefined,
+    modified: undefined,
+  };
+}
+
+export const FileChunk: MessageFns<FileChunk> = {
+  encode(message: FileChunk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.hash !== "") {
+      writer.uint32(18).string(message.hash);
+    }
+    if (message.mime !== "") {
+      writer.uint32(26).string(message.mime);
+    }
+    if (message.size !== 0n) {
+      if (BigInt.asIntN(64, message.size) !== message.size) {
+        throw new globalThis.Error("value provided for field message.size of type int64 too large");
+      }
+      writer.uint32(32).int64(message.size);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(40).int64(message.offset);
+    }
+    if (message.data.length !== 0) {
+      writer.uint32(50).bytes(message.data);
+    }
+    if (message.created !== undefined) {
+      Timestamp.encode(toTimestamp(message.created), writer.uint32(58).fork()).join();
+    }
+    if (message.modified !== undefined) {
+      Timestamp.encode(toTimestamp(message.modified), writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FileChunk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFileChunk();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.mime = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.size = reader.int64() as bigint;
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.data = reader.bytes();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.modified = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FileChunk {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
+      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
+      size: isSet(object.size) ? BigInt(object.size) : 0n,
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
+      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
+    };
+  },
+
+  toJSON(message: FileChunk): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.hash !== "") {
+      obj.hash = message.hash;
+    }
+    if (message.mime !== "") {
+      obj.mime = message.mime;
+    }
+    if (message.size !== 0n) {
+      obj.size = message.size.toString();
+    }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.data.length !== 0) {
+      obj.data = base64FromBytes(message.data);
+    }
+    if (message.created !== undefined) {
+      obj.created = message.created.toISOString();
+    }
+    if (message.modified !== undefined) {
+      obj.modified = message.modified.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FileChunk>, I>>(base?: I): FileChunk {
+    return FileChunk.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FileChunk>, I>>(object: I): FileChunk {
+    const message = createBaseFileChunk();
+    message.path = object.path ?? "";
+    message.hash = object.hash ?? "";
+    message.mime = object.mime ?? "";
+    message.size = object.size ?? 0n;
+    message.offset = object.offset ?? 0n;
+    message.data = object.data ?? new Uint8Array(0);
+    message.created = object.created ?? undefined;
+    message.modified = object.modified ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBeginUpload(): BeginUpload {
+  return { path: "", size: 0n, created: undefined, modified: undefined, forceOverride: false, cloudId: "" };
+}
+
+export const BeginUpload: MessageFns<BeginUpload> = {
+  encode(message: BeginUpload, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.size !== 0n) {
+      if (BigInt.asIntN(64, message.size) !== message.size) {
+        throw new globalThis.Error("value provided for field message.size of type int64 too large");
+      }
+      writer.uint32(16).int64(message.size);
+    }
+    if (message.created !== undefined) {
+      Timestamp.encode(toTimestamp(message.created), writer.uint32(26).fork()).join();
+    }
+    if (message.modified !== undefined) {
+      Timestamp.encode(toTimestamp(message.modified), writer.uint32(34).fork()).join();
+    }
+    if (message.forceOverride !== false) {
+      writer.uint32(40).bool(message.forceOverride);
+    }
+    if (message.cloudId !== "") {
+      writer.uint32(50).string(message.cloudId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BeginUpload {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBeginUpload();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.size = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.modified = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.forceOverride = reader.bool();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.cloudId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BeginUpload {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      size: isSet(object.size) ? BigInt(object.size) : 0n,
+      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
+      forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
+      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
+    };
+  },
+
+  toJSON(message: BeginUpload): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.size !== 0n) {
+      obj.size = message.size.toString();
+    }
+    if (message.created !== undefined) {
+      obj.created = message.created.toISOString();
+    }
+    if (message.modified !== undefined) {
+      obj.modified = message.modified.toISOString();
+    }
+    if (message.forceOverride !== false) {
+      obj.forceOverride = message.forceOverride;
+    }
+    if (message.cloudId !== "") {
+      obj.cloudId = message.cloudId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BeginUpload>, I>>(base?: I): BeginUpload {
+    return BeginUpload.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BeginUpload>, I>>(object: I): BeginUpload {
+    const message = createBaseBeginUpload();
+    message.path = object.path ?? "";
+    message.size = object.size ?? 0n;
+    message.created = object.created ?? undefined;
+    message.modified = object.modified ?? undefined;
+    message.forceOverride = object.forceOverride ?? false;
+    message.cloudId = object.cloudId ?? "";
+    return message;
+  },
+};
+
+function createBaseUploadStarted(): UploadStarted {
+  return { uploadId: "" };
+}
+
+export const UploadStarted: MessageFns<UploadStarted> = {
+  encode(message: UploadStarted, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uploadId !== "") {
+      writer.uint32(10).string(message.uploadId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UploadStarted {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUploadStarted();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uploadId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UploadStarted {
+    return { uploadId: isSet(object.uploadId) ? globalThis.String(object.uploadId) : "" };
+  },
+
+  toJSON(message: UploadStarted): unknown {
+    const obj: any = {};
+    if (message.uploadId !== "") {
+      obj.uploadId = message.uploadId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UploadStarted>, I>>(base?: I): UploadStarted {
+    return UploadStarted.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UploadStarted>, I>>(object: I): UploadStarted {
+    const message = createBaseUploadStarted();
+    message.uploadId = object.uploadId ?? "";
+    return message;
+  },
+};
+
+function createBaseUploadChunk(): UploadChunk {
+  return { uploadId: "", offset: 0n, data: new Uint8Array(0) };
+}
+
+export const UploadChunk: MessageFns<UploadChunk> = {
+  encode(message: UploadChunk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uploadId !== "") {
+      writer.uint32(10).string(message.uploadId);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(16).int64(message.offset);
+    }
+    if (message.data.length !== 0) {
+      writer.uint32(26).bytes(message.data);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UploadChunk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUploadChunk();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uploadId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.data = reader.bytes();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UploadChunk {
+    return {
+      uploadId: isSet(object.uploadId) ? globalThis.String(object.uploadId) : "",
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: UploadChunk): unknown {
+    const obj: any = {};
+    if (message.uploadId !== "") {
+      obj.uploadId = message.uploadId;
+    }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.data.length !== 0) {
+      obj.data = base64FromBytes(message.data);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UploadChunk>, I>>(base?: I): UploadChunk {
+    return UploadChunk.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UploadChunk>, I>>(object: I): UploadChunk {
+    const message = createBaseUploadChunk();
+    message.uploadId = object.uploadId ?? "";
+    message.offset = object.offset ?? 0n;
+    message.data = object.data ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseUploadProgress(): UploadProgress {
+  return { received: 0n };
+}
+
+export const UploadProgress: MessageFns<UploadProgress> = {
+  encode(message: UploadProgress, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.received !== 0n) {
+      if (BigInt.asIntN(64, message.received) !== message.received) {
+        throw new globalThis.Error("value provided for field message.received of type int64 too large");
+      }
+      writer.uint32(8).int64(message.received);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UploadProgress {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUploadProgress();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.received = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UploadProgress {
+    return { received: isSet(object.received) ? BigInt(object.received) : 0n };
+  },
+
+  toJSON(message: UploadProgress): unknown {
+    const obj: any = {};
+    if (message.received !== 0n) {
+      obj.received = message.received.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UploadProgress>, I>>(base?: I): UploadProgress {
+    return UploadProgress.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UploadProgress>, I>>(object: I): UploadProgress {
+    const message = createBaseUploadProgress();
+    message.received = object.received ?? 0n;
+    return message;
+  },
+};
+
+function createBaseFinishUpload(): FinishUpload {
+  return { uploadId: "", sha256: "" };
+}
+
+export const FinishUpload: MessageFns<FinishUpload> = {
+  encode(message: FinishUpload, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uploadId !== "") {
+      writer.uint32(10).string(message.uploadId);
+    }
+    if (message.sha256 !== "") {
+      writer.uint32(18).string(message.sha256);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FinishUpload {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFinishUpload();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uploadId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.sha256 = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FinishUpload {
+    return {
+      uploadId: isSet(object.uploadId) ? globalThis.String(object.uploadId) : "",
+      sha256: isSet(object.sha256) ? globalThis.String(object.sha256) : "",
+    };
+  },
+
+  toJSON(message: FinishUpload): unknown {
+    const obj: any = {};
+    if (message.uploadId !== "") {
+      obj.uploadId = message.uploadId;
+    }
+    if (message.sha256 !== "") {
+      obj.sha256 = message.sha256;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FinishUpload>, I>>(base?: I): FinishUpload {
+    return FinishUpload.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FinishUpload>, I>>(object: I): FinishUpload {
+    const message = createBaseFinishUpload();
+    message.uploadId = object.uploadId ?? "";
+    message.sha256 = object.sha256 ?? "";
+    return message;
+  },
+};
+
 function createBaseSetSocialStorageLimit(): SetSocialStorageLimit {
   return { mb: 0 };
 }
@@ -12402,7 +13218,7 @@ export const ShareLink: MessageFns<ShareLink> = {
 };
 
 function createBaseDownloadSharedLink(): DownloadSharedLink {
-  return { uuid: "", secret: "" };
+  return { uuid: "", secret: "", offset: 0n, length: 0 };
 }
 
 export const DownloadSharedLink: MessageFns<DownloadSharedLink> = {
@@ -12412,6 +13228,15 @@ export const DownloadSharedLink: MessageFns<DownloadSharedLink> = {
     }
     if (message.secret !== "") {
       writer.uint32(18).string(message.secret);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(24).int64(message.offset);
+    }
+    if (message.length !== 0) {
+      writer.uint32(32).int32(message.length);
     }
     return writer;
   },
@@ -12439,6 +13264,22 @@ export const DownloadSharedLink: MessageFns<DownloadSharedLink> = {
           message.secret = reader.string();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.length = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12452,6 +13293,8 @@ export const DownloadSharedLink: MessageFns<DownloadSharedLink> = {
     return {
       uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
       secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      length: isSet(object.length) ? globalThis.Number(object.length) : 0,
     };
   },
 
@@ -12463,6 +13306,12 @@ export const DownloadSharedLink: MessageFns<DownloadSharedLink> = {
     if (message.secret !== "") {
       obj.secret = message.secret;
     }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.length !== 0) {
+      obj.length = Math.round(message.length);
+    }
     return obj;
   },
 
@@ -12473,6 +13322,8 @@ export const DownloadSharedLink: MessageFns<DownloadSharedLink> = {
     const message = createBaseDownloadSharedLink();
     message.uuid = object.uuid ?? "";
     message.secret = object.secret ?? "";
+    message.offset = object.offset ?? 0n;
+    message.length = object.length ?? 0;
     return message;
   },
 };
@@ -15678,6 +16529,18 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetSocialStorageLimit":
         SetSocialStorageLimit.encode(message.payload.reqSetSocialStorageLimit, writer.uint32(906).fork()).join();
         break;
+      case "reqReadFile":
+        ReadFile.encode(message.payload.reqReadFile, writer.uint32(914).fork()).join();
+        break;
+      case "reqBeginUpload":
+        BeginUpload.encode(message.payload.reqBeginUpload, writer.uint32(922).fork()).join();
+        break;
+      case "reqUploadChunk":
+        UploadChunk.encode(message.payload.reqUploadChunk, writer.uint32(930).fork()).join();
+        break;
+      case "reqFinishUpload":
+        FinishUpload.encode(message.payload.reqFinishUpload, writer.uint32(938).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -16658,6 +17521,38 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 114: {
+          if (tag !== 914) {
+            break;
+          }
+
+          message.payload = { $case: "reqReadFile", reqReadFile: ReadFile.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 115: {
+          if (tag !== 922) {
+            break;
+          }
+
+          message.payload = { $case: "reqBeginUpload", reqBeginUpload: BeginUpload.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 116: {
+          if (tag !== 930) {
+            break;
+          }
+
+          message.payload = { $case: "reqUploadChunk", reqUploadChunk: UploadChunk.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 117: {
+          if (tag !== 938) {
+            break;
+          }
+
+          message.payload = { $case: "reqFinishUpload", reqFinishUpload: FinishUpload.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -17015,6 +17910,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqSetSocialStorageLimit",
           reqSetSocialStorageLimit: SetSocialStorageLimit.fromJSON(object.reqSetSocialStorageLimit),
         }
+        : isSet(object.reqReadFile)
+        ? { $case: "reqReadFile", reqReadFile: ReadFile.fromJSON(object.reqReadFile) }
+        : isSet(object.reqBeginUpload)
+        ? { $case: "reqBeginUpload", reqBeginUpload: BeginUpload.fromJSON(object.reqBeginUpload) }
+        : isSet(object.reqUploadChunk)
+        ? { $case: "reqUploadChunk", reqUploadChunk: UploadChunk.fromJSON(object.reqUploadChunk) }
+        : isSet(object.reqFinishUpload)
+        ? { $case: "reqFinishUpload", reqFinishUpload: FinishUpload.fromJSON(object.reqFinishUpload) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -17243,6 +18146,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqUnregisterFcmToken = UnregisterFcmToken.toJSON(message.payload.reqUnregisterFcmToken);
     } else if (message.payload?.$case === "reqSetSocialStorageLimit") {
       obj.reqSetSocialStorageLimit = SetSocialStorageLimit.toJSON(message.payload.reqSetSocialStorageLimit);
+    } else if (message.payload?.$case === "reqReadFile") {
+      obj.reqReadFile = ReadFile.toJSON(message.payload.reqReadFile);
+    } else if (message.payload?.$case === "reqBeginUpload") {
+      obj.reqBeginUpload = BeginUpload.toJSON(message.payload.reqBeginUpload);
+    } else if (message.payload?.$case === "reqUploadChunk") {
+      obj.reqUploadChunk = UploadChunk.toJSON(message.payload.reqUploadChunk);
+    } else if (message.payload?.$case === "reqFinishUpload") {
+      obj.reqFinishUpload = FinishUpload.toJSON(message.payload.reqFinishUpload);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -18113,6 +19024,39 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqReadFile": {
+        if (object.payload?.reqReadFile !== undefined && object.payload?.reqReadFile !== null) {
+          message.payload = { $case: "reqReadFile", reqReadFile: ReadFile.fromPartial(object.payload.reqReadFile) };
+        }
+        break;
+      }
+      case "reqBeginUpload": {
+        if (object.payload?.reqBeginUpload !== undefined && object.payload?.reqBeginUpload !== null) {
+          message.payload = {
+            $case: "reqBeginUpload",
+            reqBeginUpload: BeginUpload.fromPartial(object.payload.reqBeginUpload),
+          };
+        }
+        break;
+      }
+      case "reqUploadChunk": {
+        if (object.payload?.reqUploadChunk !== undefined && object.payload?.reqUploadChunk !== null) {
+          message.payload = {
+            $case: "reqUploadChunk",
+            reqUploadChunk: UploadChunk.fromPartial(object.payload.reqUploadChunk),
+          };
+        }
+        break;
+      }
+      case "reqFinishUpload": {
+        if (object.payload?.reqFinishUpload !== undefined && object.payload?.reqFinishUpload !== null) {
+          message.payload = {
+            $case: "reqFinishUpload",
+            reqFinishUpload: FinishUpload.fromPartial(object.payload.reqFinishUpload),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -18335,6 +19279,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respBridgeSignedIn":
         RespBridgeSignedIn.encode(message.payload.respBridgeSignedIn, writer.uint32(458).fork()).join();
+        break;
+      case "respFileChunk":
+        FileChunk.encode(message.payload.respFileChunk, writer.uint32(466).fork()).join();
+        break;
+      case "respUploadStarted":
+        UploadStarted.encode(message.payload.respUploadStarted, writer.uint32(474).fork()).join();
+        break;
+      case "respUploadProgress":
+        UploadProgress.encode(message.payload.respUploadProgress, writer.uint32(482).fork()).join();
         break;
     }
     return writer;
@@ -18838,6 +19791,36 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 58: {
+          if (tag !== 466) {
+            break;
+          }
+
+          message.payload = { $case: "respFileChunk", respFileChunk: FileChunk.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 59: {
+          if (tag !== 474) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respUploadStarted",
+            respUploadStarted: UploadStarted.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 60: {
+          if (tag !== 482) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respUploadProgress",
+            respUploadProgress: UploadProgress.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -18979,6 +19962,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respBridgeAccess", respBridgeAccess: RespBridgeAccess.fromJSON(object.respBridgeAccess) }
         : isSet(object.respBridgeSignedIn)
         ? { $case: "respBridgeSignedIn", respBridgeSignedIn: RespBridgeSignedIn.fromJSON(object.respBridgeSignedIn) }
+        : isSet(object.respFileChunk)
+        ? { $case: "respFileChunk", respFileChunk: FileChunk.fromJSON(object.respFileChunk) }
+        : isSet(object.respUploadStarted)
+        ? { $case: "respUploadStarted", respUploadStarted: UploadStarted.fromJSON(object.respUploadStarted) }
+        : isSet(object.respUploadProgress)
+        ? { $case: "respUploadProgress", respUploadProgress: UploadProgress.fromJSON(object.respUploadProgress) }
         : undefined,
     };
   },
@@ -19095,6 +20084,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respBridgeAccess = RespBridgeAccess.toJSON(message.payload.respBridgeAccess);
     } else if (message.payload?.$case === "respBridgeSignedIn") {
       obj.respBridgeSignedIn = RespBridgeSignedIn.toJSON(message.payload.respBridgeSignedIn);
+    } else if (message.payload?.$case === "respFileChunk") {
+      obj.respFileChunk = FileChunk.toJSON(message.payload.respFileChunk);
+    } else if (message.payload?.$case === "respUploadStarted") {
+      obj.respUploadStarted = UploadStarted.toJSON(message.payload.respUploadStarted);
+    } else if (message.payload?.$case === "respUploadProgress") {
+      obj.respUploadProgress = UploadProgress.toJSON(message.payload.respUploadProgress);
     }
     return obj;
   },
@@ -19514,6 +20509,33 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respBridgeSignedIn",
             respBridgeSignedIn: RespBridgeSignedIn.fromPartial(object.payload.respBridgeSignedIn),
+          };
+        }
+        break;
+      }
+      case "respFileChunk": {
+        if (object.payload?.respFileChunk !== undefined && object.payload?.respFileChunk !== null) {
+          message.payload = {
+            $case: "respFileChunk",
+            respFileChunk: FileChunk.fromPartial(object.payload.respFileChunk),
+          };
+        }
+        break;
+      }
+      case "respUploadStarted": {
+        if (object.payload?.respUploadStarted !== undefined && object.payload?.respUploadStarted !== null) {
+          message.payload = {
+            $case: "respUploadStarted",
+            respUploadStarted: UploadStarted.fromPartial(object.payload.respUploadStarted),
+          };
+        }
+        break;
+      }
+      case "respUploadProgress": {
+        if (object.payload?.respUploadProgress !== undefined && object.payload?.respUploadProgress !== null) {
+          message.payload = {
+            $case: "respUploadProgress",
+            respUploadProgress: UploadProgress.fromPartial(object.payload.respUploadProgress),
           };
         }
         break;

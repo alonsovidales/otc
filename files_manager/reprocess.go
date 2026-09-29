@@ -5,7 +5,8 @@ package filesmanager
 import (
 	"context"
 	"fmt"
-	"os"
+	"github.com/alonsovidales/otc/blobstore"
+	"strings"
 
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
@@ -207,14 +208,13 @@ func (mg *Manager) runReprocess(ctx context.Context, ses *session.Session, lastH
 // down the rest" reasoning as DetectFaces' own per-face handling.
 func (mg *Manager) reprocessOneFile(ses *session.Session, file *pb.File, storagePath string) {
 	targetPath := fmt.Sprintf("%s/%s", storagePath, file.Hash)
-	encContent, err := os.ReadFile(targetPath)
-	if err != nil {
-		log.Error("reprocess: error reading", file.Path, ":", err)
+	if strings.HasPrefix(file.Mime, "video/") && mg.videoSourceFn != nil {
+		mg.processMediaContent(ses, file, targetPath, nil) // streamed, not loaded
 		return
 	}
-	content, err := ses.Decrypt(encContent)
+	content, err := blobstore.ReadAll(targetPath, ses)
 	if err != nil {
-		log.Error("reprocess: error decrypting", file.Path, ":", err)
+		log.Error("reprocess: error reading", file.Path, ":", err)
 		return
 	}
 	mg.processMediaContent(ses, file, targetPath, content)

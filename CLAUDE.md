@@ -200,6 +200,20 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   with `upload_only` and `versions`, `ListFileVersions` lists them, and `GetFile.hash` serves
   one. The web, iOS and Android explorers show the lock on folders (a toggle, `SetUploadOnly`)
   and the versions badge that opens the pop-up.
+  **Storage format and chunked transfers** (security advisory on memory exhaustion, release 40):
+  every blob and thumbnail is encrypted in 1 MiB segments (`segcrypt`: header `OTS1` + a 7-byte
+  nonce prefix, each segment AES-GCM with nonce prefix|index|last-flag and the header as AAD -
+  no reordering, swapping or truncation), read and written through `blobstore` (`Open` gives a
+  `ReaderAt` that decrypts only the segments a read covers; `Create`/`CommitAs` seal as data
+  arrives). Files from before are still opened (whole) and converted once, at the first
+  sign-in after the update (`ConvertToSegments`, before the thumbnail backfill). Files move in
+  chunks of at most 4 MiB: `ReadFile` (original bytes by range - `GetFile` remains only to show
+  a photo, converting HEIC), `BeginUpload`/`UploadChunk`/`FinishUpload` (encrypted as it arrives,
+  SHA-256 checked at the end, then `registerUpload` - the same bookkeeping as `UploadFile`),
+  `DownloadSharedLink` with offset/length. Stored videos reach ffmpeg/ffprobe over the device's
+  own loopback stream (`SetVideoSource`: a short-lived media token), so processing, reprocess
+  and the info panel never load a video whole nor write it out in plaintext; share-link zips
+  are streamed into a segmented file under the link's key.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
 - `face_recognition` — issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)

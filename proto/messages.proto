@@ -718,6 +718,67 @@ message Settings {
   int64 social_storage_used_bytes = 5;
 }
 
+// Chunked transfers: every file moves in pieces of at most 4 MB, so no
+// message - and no device or bridge memory - ever holds a whole file.
+//
+// ReadFile answers with FileChunk: up to `length` bytes (max 4 MB) of the
+// file's original content from `offset` (never converted: a HEIC stays a
+// HEIC; GetFile is what converts, for showing a photo). `hash` reads an
+// older version.
+message ReadFile {
+  string path = 1;
+  string hash = 2;
+  int64 offset = 3;
+  int32 length = 4;
+}
+
+message FileChunk {
+  string path = 1;
+  string hash = 2;
+  string mime = 3;
+  // The whole file's size (not this chunk's).
+  int64 size = 4;
+  int64 offset = 5;
+  bytes data = 6;
+  google.protobuf.Timestamp created = 7;
+  google.protobuf.Timestamp modified = 8;
+}
+
+// BeginUpload starts an upload of `size` bytes to `path` (answers with
+// UploadStarted); the content follows in UploadChunk messages, in order
+// (each answered with UploadProgress), and FinishUpload - with the
+// content's SHA-256, checked - makes it the file (answers with File, like
+// UploadFile). An upload untouched for 30 minutes is dropped.
+message BeginUpload {
+  string path = 1;
+  int64 size = 2;
+  google.protobuf.Timestamp created = 3;
+  google.protobuf.Timestamp modified = 4;
+  bool force_override = 5;
+  string cloud_id = 6;
+}
+
+message UploadStarted {
+  string upload_id = 1;
+}
+
+message UploadChunk {
+  string upload_id = 1;
+  // Must be the next byte the device expects (UploadProgress.received):
+  // after a lost reply, a client resends from there.
+  int64 offset = 2;
+  bytes data = 3;
+}
+
+message UploadProgress {
+  int64 received = 1;
+}
+
+message FinishUpload {
+  string upload_id = 1;
+  string sha256 = 2;
+}
+
 // Issue #153: sets Settings.social_storage_limit_mb; posts past a lowered
 // limit are removed right away. Answers with the generic Ack.
 message SetSocialStorageLimit {
@@ -1153,6 +1214,11 @@ message ShareLink {
 message DownloadSharedLink {
   string uuid = 1;
   string secret = 2;
+  // Chunked: with a length (at most 4 MB) the answer is a FileChunk of the
+  // archive from offset (size = the whole archive's); without one, the
+  // whole archive as SharedFiles (being phased out).
+  int64 offset = 3;
+  int32 length = 4;
 }
 
 message NewSocial {
@@ -1574,6 +1640,11 @@ message ReqEnvelope {
     UnregisterFcmToken req_unregister_fcm_token = 112;
     // Issue #153.
     SetSocialStorageLimit req_set_social_storage_limit = 113;
+    // Chunked transfers.
+    ReadFile req_read_file = 114;
+    BeginUpload req_begin_upload = 115;
+    UploadChunk req_upload_chunk = 116;
+    FinishUpload req_finish_upload = 117;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1660,5 +1731,9 @@ message RespEnvelope {
     // Issue #145.
     RespBridgeAccess resp_bridge_access = 56;
     RespBridgeSignedIn resp_bridge_signed_in = 57;
+    // Chunked transfers.
+    FileChunk resp_file_chunk = 58;
+    UploadStarted resp_upload_started = 59;
+    UploadProgress resp_upload_progress = 60;
   }
 }

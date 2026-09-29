@@ -3,14 +3,12 @@
 package mediastream
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/blobstore"
 	"io"
 	"os"
 	"strings"
-	"sync"
-	"time"
 )
 
 var (
@@ -37,18 +35,6 @@ const (
 	// path, and this is the threshold that decides.
 	MinStreamableSize int64 = 8 << 20 // 8 MiB
 
-	// maxCachedPlaintext bounds what decrypting for playback can cost in
-	// memory. Note the comparison point: today's non-streaming path
-	// already holds the ciphertext, the plaintext AND a protobuf frame
-	// of the same file in memory at once, so one cached plaintext is
-	// strictly less than what playing the same video costs now.
-	maxCachedPlaintext int64 = 512 << 20 // 512 MiB
-
-	// plaintextTTL is how long a decrypted file stays cached after its
-	// last use. Long enough that seeking around a video doesn't decrypt
-	// it again each time, short enough that a finished video doesn't sit
-	// in memory.
-	plaintextTTL = 2 * time.Minute
 )
 
 // IsStreamable reports whether this kind of media is worth serving as a
@@ -95,14 +81,6 @@ type Server struct {
 	store       *Store
 	storagePath string
 	unencPath   string
-
-	mutex sync.Mutex
-	cache map[string]*cachedPlaintext
-}
-
-type cachedPlaintext struct {
-	content  []byte
-	lastUsed time.Time
 }
 
 func NewServer(store *Store, storagePath, unencPath string) *Server {
@@ -110,7 +88,6 @@ func NewServer(store *Store, storagePath, unencPath string) *Server {
 		store:       store,
 		storagePath: storagePath,
 		unencPath:   unencPath,
-		cache:       make(map[string]*cachedPlaintext),
 	}
 }
 
@@ -141,11 +118,17 @@ func (sv *Server) Open(token string) (*Stream, error) {
 		return &Stream{Size: size, Mime: res.Mime, rs: f, closer: f}, nil
 	}
 
-	content, err := sv.plaintext(res)
-	if err != nil {
-		return nil, err
+	// A library file: opened in its segmented encryption, so a range
+	// decrypts only the segments it covers - never the whole file (which
+	// used to be decrypted, and cached, whole: gigabytes for a long video).
+	if res.Keys == nil {
+		return nil, errors.New("no way to decrypt this file")
 	}
-	return &Stream{Size: int64(len(content)), Mime: res.Mime, rs: bytes.NewReader(content)}, nil
+	blob, err := blobstore.Open(fmt.Sprintf("%s/%s", sv.storagePath, res.Hash), res.Keys)
+	if err != nil {
+		return nil, fmt.Errorf("opening stored file: %w", err)
+	}
+	return &Stream{Size: blob.Size(), Mime: res.Mime, rs: io.NewSectionReader(blob, 0, blob.Size()), closer: blob}, nil
 }
 
 // Range reads up to length bytes from offset, clamped to MaxRangeBytes
@@ -181,73 +164,4 @@ func (sv *Server) Range(token string, offset, length int64) (content []byte, tot
 	}
 
 	return buf[:n], stream.Size, stream.Mime, nil
-}
-
-// plaintext returns the decrypted bytes of a library file, decrypting it
-// at most once per plaintextTTL rather than on every range request - a
-// player seeking around a video would otherwise re-decrypt the whole
-// thing for each jump.
-func (sv *Server) plaintext(res Resource) ([]byte, error) {
-	sv.mutex.Lock()
-	if c, ok := sv.cache[res.Hash]; ok {
-		c.lastUsed = time.Now()
-		content := c.content
-		sv.mutex.Unlock()
-		return content, nil
-	}
-	sv.mutex.Unlock()
-
-	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", sv.storagePath, res.Hash))
-	if err != nil {
-		return nil, fmt.Errorf("reading stored file: %w", err)
-	}
-	if res.Decrypt == nil {
-		return nil, errors.New("no way to decrypt this file")
-	}
-	content, err := res.Decrypt(encContent)
-	if err != nil {
-		return nil, fmt.Errorf("decrypting stored file: %w", err)
-	}
-
-	sv.mutex.Lock()
-	defer sv.mutex.Unlock()
-	sv.evictLocked()
-	if int64(len(content)) <= maxCachedPlaintext {
-		sv.cache[res.Hash] = &cachedPlaintext{content: content, lastUsed: time.Now()}
-	}
-
-	return content, nil
-}
-
-// evictLocked drops anything untouched for plaintextTTL, then keeps
-// dropping the least recently used until what's left fits in
-// maxCachedPlaintext. Decrypted bytes are held in memory on purpose -
-// writing them to a temp file would put the owner's photos and videos on
-// disk unencrypted, which is the one thing this project's storage design
-// exists to avoid.
-func (sv *Server) evictLocked() {
-	now := time.Now()
-	var total int64
-	for hash, c := range sv.cache {
-		if now.Sub(c.lastUsed) > plaintextTTL {
-			delete(sv.cache, hash)
-			continue
-		}
-		total += int64(len(c.content))
-	}
-
-	for total > maxCachedPlaintext {
-		var oldestHash string
-		var oldest time.Time
-		for hash, c := range sv.cache {
-			if oldestHash == "" || c.lastUsed.Before(oldest) {
-				oldestHash, oldest = hash, c.lastUsed
-			}
-		}
-		if oldestHash == "" {
-			break
-		}
-		total -= int64(len(sv.cache[oldestHash].content))
-		delete(sv.cache, oldestHash)
-	}
 }

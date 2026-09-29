@@ -262,6 +262,10 @@ func (ses *Session) ChangeKey(oldKey, newKey string) (err error) {
 	return
 }
 
+// AEAD is the session's data-key cipher, for the segmented file format
+// (package segcrypt/blobstore).
+func (ses *Session) AEAD() cipher.AEAD { return ses.cipher }
+
 func (ses *Session) Encrypt(content []byte) []byte {
 	// GCM requires a unique nonce per encryption
 	nonce := make([]byte, ses.cipher.NonceSize())

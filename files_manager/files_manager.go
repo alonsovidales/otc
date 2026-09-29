@@ -8,12 +8,12 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/exifinfo"
@@ -75,6 +75,8 @@ type Manager struct {
 	// contentBudget bounds file content held in memory by downloads - see
 	// membudget.go.
 	contentBudget *memBudget
+	// videoSourceFn gives ffmpeg a stored video to read (see videoSource).
+	videoSourceFn VideoSourceFunc
 	// tagger is loaded in the background (see Init) - read it through
 	// waitForTagger, never directly, or an upload arriving in the first
 	// seconds of a boot dereferences a nil.
@@ -502,100 +504,131 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	}
 	files := make([]*pb.File, len(entries))
 	for i, entry := range entries {
-		files[i], err = mg.GetFile(session, entry.Path, "")
+		files[i], err = mg.dao.GetFileByPath(entry.Path)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	// The archive used to name every entry "."+file.Path - each selected
-	// file's full path from the storage root - which reproduces the whole
-	// directory tree down to that file instead of holding just what was
-	// selected. Stripping the directory common to every file in *this*
-	// share keeps the archive flat when everything came from one folder
-	// (the reported case, and the common one), while still not colliding
-	// two same-named files from different folders when a share spans more
-	// than one.
+	// Stripping the directory common to every file in this share keeps
+	// the archive flat when everything came from one folder, while still
+	// not colliding same-named files from different folders.
 	filePaths := make([]string, len(files))
 	for i, file := range files {
 		filePaths[i] = file.Path
 	}
 	prefix := commonDirPrefix(filePaths)
 
-	var buff bytes.Buffer
-	zw := zip.NewWriter(&buff)
-
-	for _, file := range files {
-		h := &zip.FileHeader{
-			Name:   strings.TrimPrefix(file.Path, prefix),
-			Method: zip.Deflate,
-		}
-		// set mod time (zip format stores DOS time; Go handles conversion)
-		h.SetModTime(file.Modified.AsTime())
-		h.SetMode(0644)
-
-		wr, err := zw.CreateHeader(h)
-		if err != nil {
-			return "", err
-		}
-		if _, err := wr.Write(file.Content); err != nil {
-			return "", err
-		}
-	}
-
-	zw.Close()
-
-	zipBytes := buff.Bytes()
+	// The archive is streamed: each file is copied out of its blob a
+	// segment at a time, into a zip that is itself sealed in segments under
+	// the link's own key (the secret in the link, never stored) - nothing
+	// is held whole in memory, whatever the share's size. The files go in
+	// as they are stored (a HEIC stays HEIC).
 	secret := uuid.New().String()
-	cipher := getCipher(secret)
-
-	// GCM requires a unique nonce per encryption
-	nonce := make([]byte, cipher.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		panic(err)
-	}
-
-	encZipBytes := cipher.Seal(nonce, nonce, zipBytes, nil)
-
+	keys := linkKeys{getCipher(secret)}
 	pathUuid := uuid.New().String()
 	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)
-	err = os.WriteFile(targetPath, encZipBytes, 0644) // perms: rw-r--r--
+	out, err := blobstore.Create(targetPath, keys)
 	if err != nil {
 		return "", err
 	}
+	zw := zip.NewWriter(out)
+	for _, file := range files {
+		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zip.Deflate}
+		h.SetModTime(file.Modified.AsTime())
+		h.SetMode(0644)
+		wr, err := zw.CreateHeader(h)
+		if err != nil {
+			out.Abort()
+			return "", err
+		}
+		blob, err := blobstore.Open(blobPath(file.Hash), session)
+		if err != nil {
+			out.Abort()
+			mg.alert("could not be read", file.Path, err)
+			return "", fmt.Errorf("the content of %s is missing or unreadable on this device", file.Path)
+		}
+		_, err = io.Copy(wr, io.NewSectionReader(blob, 0, blob.Size()))
+		blob.Close()
+		if err != nil {
+			out.Abort()
+			return "", err
+		}
+	}
+	if err := zw.Close(); err != nil {
+		out.Abort()
+		return "", err
+	}
+	if err := out.Commit(); err != nil {
+		return "", err
+	}
+	size := 0
+	if info, statErr := os.Stat(targetPath); statErr == nil {
+		size = int(info.Size())
+	}
 
 	link = "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret
-	err = mg.dao.InsertSharedLink(pathUuid, len(encZipBytes))
+	err = mg.dao.InsertSharedLink(pathUuid, size)
 
 	return
 }
 
+// linkKeys opens a share link's archive with the key from its secret - the
+// segmented format, or (a link made before it) one seal over the zip.
+type linkKeys struct{ aead cipher.AEAD }
+
+func (k linkKeys) AEAD() cipher.AEAD { return k.aead }
+func (k linkKeys) Decrypt(b []byte) ([]byte, error) {
+	n := k.aead.NonceSize()
+	if len(b) < n {
+		return nil, errors.New("ciphertext too short")
+	}
+	return k.aead.Open(nil, b[:n], b[n:], nil)
+}
+
 func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err error) {
+	data, _, err := mg.OpenSharedLinkRange(uuid, secret, 0, -1)
+	return data, err
+}
+
+// OpenSharedLinkRange reads length bytes of a share link's archive from
+// offset (length < 0: all of it), and the archive's size. A range decrypts
+// only the segments it covers.
+func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length int) ([]byte, int64, error) {
 	created, err := mg.dao.GetSharedLinkCreated(uuid)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if isSharedLinkExpired(created, time.Now(), mg.sharedLinkTTL) {
 		// Don't wait for the next sweep: drop the content and row now
 		// that we know it's expired, and refuse the download.
 		mg.deleteSharedLink(uuid)
-		return nil, errors.New("shared link has expired")
+		return nil, 0, errors.New("shared link has expired")
 	}
-
-	cipher := getCipher(secret)
-	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), uuid))
+	blob, err := blobstore.Open(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), uuid), linkKeys{getCipher(secret)})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-
-	nonceSize := cipher.NonceSize()
-	if len(encContent) < nonceSize {
-		return nil, errors.New("ciphertext too short")
+	defer blob.Close()
+	size := blob.Size()
+	if offset < 0 || offset > size {
+		return nil, size, fmt.Errorf("offset %d outside the archive", offset)
 	}
-
-	nonce, ciphertext := encContent[:nonceSize], encContent[nonceSize:]
-
-	return cipher.Open(nil, nonce, ciphertext, nil)
+	if length < 0 {
+		length = int(size - offset)
+	}
+	if length > MaxChunk && length != int(size-offset) {
+		length = MaxChunk
+	}
+	if rest := size - offset; int64(length) > rest {
+		length = int(rest)
+	}
+	buf := make([]byte, length)
+	n, err := blob.ReadAt(buf, offset)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, size, err
+	}
+	return buf[:n], size, nil
 }
 
 func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (content []byte, err error) {
@@ -610,12 +643,7 @@ func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (conten
 // readThumbnail is GetThumbnail without the logging, for callers where a
 // thumbnail that doesn't exist yet is expected (os.IsNotExist on err).
 func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byte, error) {
-	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash))
-	if err != nil {
-		return nil, err
-	}
-
-	return session.Decrypt(encContent)
+	return blobstore.ReadAll(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash), session)
 }
 
 // includeVideos (issue #60) only affects the no-filters case below - a
@@ -766,13 +794,12 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 		// that as a 0-byte file and, on its next pass, uploaded the empty
 		// file back over the row. The owner hears about it (#64) and the
 		// client gets an error it can retry.
-		var encContent, content []byte
-		encContent, err = os.ReadFile(blobPath(file.Hash))
-		if err != nil {
+		var content []byte
+		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
+		if errors.Is(err, os.ErrNotExist) {
 			mg.alert("could not be read", path, err)
 			return nil, fmt.Errorf("the content of %s is missing on this device", path)
 		}
-		content, err = session.Decrypt(encContent)
 		if err != nil {
 			mg.alert("could not be decrypted", path, err)
 			return nil, fmt.Errorf("the content of %s is unreadable on this device", path)
@@ -840,16 +867,24 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 	if err != nil {
 		return nil, err
 	}
-	encContent, err := os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), file.Hash))
-	if err != nil {
-		return nil, err
+	var ex *exifinfo.Info
+	if strings.HasPrefix(file.Mime, "video/") && mg.videoSourceFn != nil {
+		// A video's metadata is in its container: ffprobe streams the
+		// parts it needs instead of the video being loaded whole.
+		src, done, srcErr := mg.videoSource(session, file)
+		if srcErr != nil {
+			return nil, srcErr
+		}
+		ex, err = exifinfo.FromVideoSource(src)
+		done()
+	} else {
+		var content []byte
+		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
+		if err != nil {
+			return nil, err
+		}
+		ex, err = extractExif(content, file.Mime, file.Path)
 	}
-	content, err := session.Decrypt(encContent)
-	if err != nil {
-		return nil, err
-	}
-
-	ex, err := extractExif(content, file.Mime, file.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -990,93 +1025,18 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 // and attached to any other row of the same content.
 func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
 	mimeType := mimetype.Detect(content)
-	//mimeType := http.DetectContentType(content)
 	log.Debug("Mime type:", mimeType.String())
 
 	// Calculate the SHA256 of the file to be used as unique hash
 	sum := sha256.Sum256(content)
 	hash := hex.EncodeToString(sum[:])
-	log.Debug("Calculated Hash:", hash)
 
-	if created == nil {
-		created = timestamppb.Now()
-	}
-	// Issue #134: the file's own modification time when the client sent
-	// it (the sync clients do), so it survives the round trip to another
-	// computer; the upload time otherwise, as before.
-	if modified == nil {
-		modified = timestamppb.Now()
+	file, write, err := mg.registerUpload(session, path, hash, mimeType.String(), int64(len(content)), forceOverride, created, modified, cloudID)
+	if err != nil || !write {
+		return file, err
 	}
 
-	file = &pb.File{
-		Created:  created,
-		Modified: modified,
-		Path:     path,
-		Mime:     mimeType.String(),
-		Hash:     hash,
-		Size:     int32(len(content)),
-	}
-
-	duplicated, err := mg.dao.StoreNewFile(file, cloudID)
-	if err != nil {
-		return nil, err
-	}
-	if err := mg.dao.SetCloudIDForHash(hash, cloudID); err != nil {
-		log.Error("error recording the cloud id:", err)
-	}
-
-	restoring := false
-	if duplicated {
-		// Bug fix: this used to reassign `file` itself to the *existing*
-		// row (old hash/size/mime), then re-store that same stale `file`
-		// on the forceOverride path below — silently discarding the new
-		// content's metadata. The DB row kept pointing at the old hash
-		// even though DelFile may have just deleted that hash's on-disk
-		// blob (if this was its last reference), while the real new
-		// content sat orphaned on disk under the new hash nothing
-		// referenced. Every "update an existing path" upload (the normal
-		// case for any sync client — mac, iOS re-uploads, etc.) hit this.
-		existing, err := mg.dao.GetFileByPath(path)
-		if err != nil {
-			return nil, err
-		}
-		if existing.Hash == hash {
-			if mg.hasBlob(hash) {
-				log.Debug("Same file with same content for:", path, hash)
-				return existing, nil
-			}
-			// Issue #141: the row is right but its content was missing (or
-			// empty) on the disk - this upload brings it back; nothing
-			// about the row changes, only the write below happens.
-			log.Info("restoring the missing content of", path, "from this upload")
-			restoring = true
-		}
-	}
-	if duplicated && !restoring {
-		// Issue #132: in an upload-only folder the old content is kept as
-		// a version and the new one becomes current - whether or not the
-		// client asked to override, nothing there is ever lost.
-		uploadOnly, err := mg.isUploadOnly(path, false)
-		if err != nil {
-			return nil, err
-		}
-		switch {
-		case uploadOnly:
-			if err = mg.dao.ReplaceFileKeepingVersion(file, cloudID); err != nil {
-				return nil, err
-			}
-		case forceOverride:
-			mg.DelFile(session, path)
-			_, err = mg.dao.StoreNewFile(file, cloudID)
-			if err != nil {
-				return nil, err
-			}
-		default:
-			return nil, errors.New("Duplicated file")
-		}
-	}
-
-	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
+	targetPath := blobPath(hash)
 
 	// Limit the amounth of concurrent writes
 	mg.maxUploads <- true
@@ -1086,20 +1046,14 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 
 		start := time.Now()
 		// Write to disk the content. This used to be unchecked: the DB row
-		// for the file (StoreNewFile, above, before this goroutine even
-		// starts) is already committed by the time this runs, so a
-		// disk-full/IO error here used to mean the DB silently claimed the
-		// file was safely stored while the bytes never actually landed on
-		// disk - the worst failure mode for a backup product. Still no way
-		// to tell the client after the fact (see issue #63) - logging
-		// loudly and bailing out of the rest of this file's processing is
-		// the best that can be done here today.
-		// Under the hash's lock (issue #141): a DelFile of another path
-		// with this content checks-and-removes under the same lock, so
-		// it can't remove the blob between this write and the row that
-		// now references it being seen.
+		// for the file (registerUpload, above) is already committed by the
+		// time this runs, so a disk-full/IO error here used to mean the DB
+		// silently claimed the file was safely stored while the bytes never
+		// actually landed on disk. Under the hash's lock (issue #141): a
+		// DelFile of another path with this content checks-and-removes
+		// under the same lock.
 		unlock := lockBlob(file.Hash)
-		err := writeBlob(targetPath, session.Encrypt(content))
+		err := blobstore.WriteBytes(targetPath, session, content)
 		unlock()
 		if err != nil {
 			// Issue #63/#64: the client was already told "saved" - this
@@ -1115,6 +1069,87 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	}(targetPath, file, content)
 
 	return
+}
+
+// registerUpload records the row for an upload of path with content hash
+// (the part of an upload that isn't writing the bytes), shared by
+// UploadFile and the chunked upload (FinishUpload). write reports whether
+// the content still has to be written: false when the path already has
+// exactly this content on disk.
+func (mg *Manager) registerUpload(session *session.Session, path, hash, mime string, size int64, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, write bool, err error) {
+	if created == nil {
+		created = timestamppb.Now()
+	}
+	// Issue #134: the file's own modification time when the client sent
+	// it (the sync clients do), so it survives the round trip to another
+	// computer; the upload time otherwise, as before.
+	if modified == nil {
+		modified = timestamppb.Now()
+	}
+
+	file = &pb.File{
+		Created:  created,
+		Modified: modified,
+		Path:     path,
+		Mime:     mime,
+		Hash:     hash,
+		Size:     int32(size),
+	}
+
+	duplicated, err := mg.dao.StoreNewFile(file, cloudID)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := mg.dao.SetCloudIDForHash(hash, cloudID); err != nil {
+		log.Error("error recording the cloud id:", err)
+	}
+
+	restoring := false
+	if duplicated {
+		// Bug fix: this used to reassign `file` itself to the *existing*
+		// row (old hash/size/mime), then re-store that same stale `file`
+		// on the forceOverride path below - silently discarding the new
+		// content's metadata (see git history for the full story).
+		existing, err := mg.dao.GetFileByPath(path)
+		if err != nil {
+			return nil, false, err
+		}
+		if existing.Hash == hash {
+			if mg.hasBlob(hash) {
+				log.Debug("Same file with same content for:", path, hash)
+				return existing, false, nil
+			}
+			// Issue #141: the row is right but its content was missing (or
+			// empty) on the disk - this upload brings it back; nothing
+			// about the row changes, only the write happens.
+			log.Info("restoring the missing content of", path, "from this upload")
+			restoring = true
+		}
+	}
+	if duplicated && !restoring {
+		// Issue #132: in an upload-only folder the old content is kept as
+		// a version and the new one becomes current - whether or not the
+		// client asked to override, nothing there is ever lost.
+		uploadOnly, err := mg.isUploadOnly(path, false)
+		if err != nil {
+			return nil, false, err
+		}
+		switch {
+		case uploadOnly:
+			if err = mg.dao.ReplaceFileKeepingVersion(file, cloudID); err != nil {
+				return nil, false, err
+			}
+		case forceOverride:
+			mg.DelFile(session, path)
+			if _, err = mg.dao.StoreNewFile(file, cloudID); err != nil {
+				return nil, false, err
+			}
+		default:
+			return nil, false, errors.New("Duplicated file")
+		}
+	}
+
+	return file, true, nil
 }
 
 // processMediaContent runs the tag/thumbnail/face pipeline against a
@@ -1238,7 +1273,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
 		} else {
 			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-			if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
+			if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
 				mg.alert("has no thumbnail (it could not be written)", file.Path, err)
 			}
 		}
@@ -1254,16 +1289,37 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 
-		frames, err := extractVideoFrames(content, cVideoSampleFrames)
+		// A stored video (content nil) is read by ffmpeg through the
+		// device's own loopback stream - seeking to the frames it samples,
+		// decrypting only those segments - instead of whole in memory or
+		// as a plaintext temp file.
+		var frames []image.Image
+		var exif *exifinfo.Info
+		var err error
+		if content == nil {
+			src, done, srcErr := mg.videoSource(session, file)
+			if srcErr != nil {
+				mg.alert("could not be processed", file.Path, srcErr)
+				return
+			}
+			frames, err = extractVideoFramesFrom(src, cVideoSampleFrames)
+			if err == nil {
+				exif, _ = exifinfo.FromVideoSource(src)
+			}
+			done()
+		} else {
+			frames, err = extractVideoFrames(content, cVideoSampleFrames)
+			if err == nil {
+				exif, _ = exifinfo.FromVideo(content)
+			}
+		}
 		if err != nil {
 			mg.alert("could not be processed", file.Path, err)
 			return
 		}
-
-		// Issue #42: videos carry GPS in their own container metadata
-		// (e.g. an iPhone's ISO-6709 "location" tag), separate from the
-		// frame images sampled above.
-		exif, err := exifinfo.FromVideo(content)
+		if exif == nil {
+			err = errors.New("no metadata")
+		}
 		if err != nil {
 			log.Debug("no location metadata for", targetPath, ":", err)
 			exif = nil
@@ -1295,7 +1351,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
 		} else {
 			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-			if err := os.WriteFile(fmt.Sprintf("%s_thumbnail", targetPath), session.Encrypt(buf.Bytes()), 0644); err != nil {
+			if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
 				mg.alert("has no thumbnail (it could not be written)", file.Path, err)
 			}
 		}
