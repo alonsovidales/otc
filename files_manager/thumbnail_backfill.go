@@ -84,13 +84,26 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 				return
 			}
 
-			if _, statErr := os.Stat(fmt.Sprintf("%s/%s_thumbnail", storagePath, file.Hash)); statErr == nil {
+			thumb := fmt.Sprintf("%s/%s_thumbnail", storagePath, file.Hash)
+			if _, statErr := os.Stat(thumb); statErr == nil {
+				continue
+			}
+			// Content that already failed once (a GIF, JPEG 2000, TIFF or
+			// PSD the decoder doesn't know, a damaged file) fails the same
+			// way every time: it used to be retried - and alerted about -
+			// on every restart, a burst of work on a device that just
+			// came back. The marker is per content hash, so a new version
+			// of the file is tried afresh.
+			if _, statErr := os.Stat(thumb[:len(thumb)-len("_thumbnail")] + cNoThumbnailSuffix); statErr == nil {
 				continue
 			}
 
 			log.Debug("thumbnail backfill: rebuilding", file.Path)
 			mg.reprocessOneFile(ses, file, storagePath)
 			repaired++
+			if _, statErr := os.Stat(thumb); statErr != nil {
+				_ = os.WriteFile(thumb[:len(thumb)-len("_thumbnail")]+cNoThumbnailSuffix, nil, 0o644) // perms: rw-r--r--
+			}
 			time.Sleep(cBackfillPause)
 		}
 	}
@@ -101,6 +114,11 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 		log.Debug("thumbnail backfill: nothing to do across", scanned, "file(s)")
 	}
 }
+
+// cNoThumbnailSuffix marks content the backfill could not make a
+// thumbnail for (next to its blob, <hash>.nothumb), so it isn't retried on
+// every restart.
+const cNoThumbnailSuffix = ".nothumb"
 
 func (mg *Manager) isReprocessing() bool {
 	mg.reprocessMu.Lock()

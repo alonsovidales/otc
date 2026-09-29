@@ -65,6 +65,9 @@ type Manager struct {
 	baseUrl    string
 	dao        *dao.Dao
 	maxUploads chan bool
+	// contentBudget bounds file content held in memory by downloads - see
+	// membudget.go.
+	contentBudget *memBudget
 	// tagger is loaded in the background (see Init) - read it through
 	// waitForTagger, never directly, or an upload arriving in the first
 	// seconds of a boot dereferences a nil.
@@ -112,6 +115,7 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		baseUrl:        baseUrl,
 		dao:            dao,
 		maxUploads:     make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff and also power issues
+		contentBudget:  newMemBudget(contentBudgetBytes()),
 		sharedLinkTTL:  sharedLinkTTLFromCfg(),
 	}
 
@@ -1353,6 +1357,7 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 		return err
 	}
 	os.Remove(fullPath + "_thumbnail")
+	os.Remove(fullPath + cNoThumbnailSuffix)
 	return nil
 }
 

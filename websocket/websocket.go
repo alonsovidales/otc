@@ -622,11 +622,11 @@ func (mg *Manager) relayMobileToBridge(title, body string, t push.Target) bool {
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqBridgeNotify{
 			ReqBridgeNotify: &pb.BridgeNotify{
-				OwnerUuid: mg.settings.DeviceUuid,
-				Domain:    mg.settings.Domain,
-				Secret:    mg.settings.BridgeSecret,
-				Title:     title,
-				Body:      body,
+				OwnerUuid:   mg.settings.DeviceUuid,
+				Domain:      mg.settings.Domain,
+				Secret:      mg.settings.BridgeSecret,
+				Title:       title,
+				Body:        body,
 				Kind:        t.Kind,
 				PubUuid:     t.PubUUID,
 				CommentUuid: t.CommentUUID,
@@ -3183,6 +3183,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		// hand off - no aliasing with the next iteration's env.
 		go func(env *pb.ReqEnvelope) {
 			defer wg.Done()
+
+			// A download waits here for room in the device's memory
+			// budget, and holds it until its reply is on the wire (see
+			// filesmanager.ReserveForDownload).
+			if gf, ok := env.Payload.(*pb.ReqEnvelope_ReqGetFile); ok && ch.mg.filesManager != nil {
+				release := ch.mg.filesManager.ReserveForDownload(gf.ReqGetFile.Path, gf.ReqGetFile.Hash)
+				defer release()
+			}
 
 			resp, doClose := ch.processMessage(env)
 

@@ -44,7 +44,19 @@ type Session struct {
 // vault's secret blob, salted and stretched with Argon2id so that stealing
 // the encrypted vault (a DB backup, a stolen disk) doesn't reduce cracking
 // the password to plain unsalted-SHA256 speed.
+// deriveSlots caps how many Argon2 derivations run at once. Each takes
+// cArgonMemory (64 MiB) for its duration, and every client sign-in does
+// one: after a device restart its phones, Macs and friends all sign in
+// again within seconds - about twenty at once on Cala, which with the rest
+// of the service came to more memory than the Raspberry Pi has, and the
+// kernel killed the service. The rest wait their turn, a fraction of a
+// second each.
+var deriveSlots = make(chan struct{}, 2)
+
 func deriveWrappingKey(password string, salt []byte) [32]byte {
+	deriveSlots <- struct{}{}
+	defer func() { <-deriveSlots }()
+
 	var key [32]byte
 	copy(key[:], argon2.IDKey([]byte(password), salt, cArgonTime, cArgonMemory, cArgonThreads, cArgonKeyLen))
 	return key

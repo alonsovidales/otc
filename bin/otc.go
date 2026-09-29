@@ -16,6 +16,8 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -54,7 +56,33 @@ func initOwnerPassword(d *dao.Dao) int {
 	return 0
 }
 
+// setMemoryLimit gives the Go runtime a soft limit of 40% of the machine's
+// memory, unless GOMEMLIMIT already sets one. Without it the collector lets
+// the heap grow to twice what is live before collecting, which on an 8 GB
+// Raspberry Pi running a second user's process, MariaDB and the ML models
+// ended in the kernel killing the service. It lives in this file because
+// install.sh and the updater build ./bin/otc.go alone.
+func setMemoryLimit() {
+	if os.Getenv("GOMEMLIMIT") != "" {
+		return
+	}
+	raw, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "MemTotal:" {
+			if kb, err := strconv.ParseInt(fields[1], 10, 64); err == nil && kb > 0 {
+				debug.SetMemoryLimit(kb << 10 * 2 / 5)
+			}
+			return
+		}
+	}
+}
+
 func main() {
+	setMemoryLimit()
 	env := "dev"
 	if len(os.Args) > 1 {
 		env = os.Args[1]
