@@ -318,3 +318,60 @@ func TestThumbnailSourceKeepsANarrowFrameInsteadOfSkippingIt(t *testing.T) {
 		t.Errorf("got %dx%d, want the original 480x270 kept as-is", b.Dx(), b.Dy())
 	}
 }
+
+// An iPhone recording is 10-bit HDR (HLG). Re-encoded as it was, it came
+// out as H.264 "High 10", which Android phones' hardware decoders refuse -
+// so posted videos didn't play there. Whatever the source, a post's video
+// must be 8-bit 4:2:0 High profile in standard colour.
+func TestCompressVideoForSocialOutputsPlayable8BitFromHDR(t *testing.T) {
+	requireFFmpeg(t)
+	tmp, err := os.CreateTemp("", "otc-video-hlg-*.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := tmp.Name()
+	tmp.Close()
+	defer os.Remove(path)
+	gen := exec.Command("ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=2:size=640x360:rate=10",
+		"-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+		"-c:v", "libx264", "-pix_fmt", "yuv420p10le",
+		"-color_primaries", "bt2020", "-color_trc", "arib-std-b67", "-colorspace", "bt2020nc",
+		"-shortest", path)
+	if out, err := gen.CombinedOutput(); err != nil {
+		t.Fatalf("generating an HLG test video: %v\n%s", err, out)
+	}
+	content, _ := os.ReadFile(path)
+
+	mg := &Manager{}
+	out, err := mg.CompressVideoForSocial(content)
+	if err != nil {
+		t.Fatalf("CompressVideoForSocial: %v", err)
+	}
+	outPath := path + "-out.mp4"
+	defer os.Remove(outPath)
+	_ = os.WriteFile(outPath, out, 0o600)
+	probe, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
+		"-show_entries", "stream=profile,pix_fmt,color_transfer", "-of", "default=noprint_wrappers=1", outPath).Output()
+	if err != nil {
+		t.Fatalf("ffprobe: %v", err)
+	}
+	got := string(probe)
+	for _, want := range []string{"profile=High\n", "pix_fmt=yuv420p\n", "color_transfer=bt709"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("output stream is not plain 8-bit High/BT.709 (missing %q):\n%s", strings.TrimSpace(want), got)
+		}
+	}
+}
+
+func TestHdrToSDROnlyForHDR(t *testing.T) {
+	if hdrToSDR(parseProbeColor("color_transfer=bt709\ncolor_primaries=bt709\ncolor_space=bt709\n")) != nil {
+		t.Error("an SDR video must not be tone-mapped")
+	}
+	if hdrToSDR(parseProbeColor("color_transfer=unknown\n")) != nil {
+		t.Error("an untagged video must not be tone-mapped")
+	}
+	chain := hdrToSDR(parseProbeColor("color_transfer=arib-std-b67\ncolor_primaries=bt2020\ncolor_space=bt2020nc\n"))
+	if len(chain) == 0 || !strings.Contains(chain[0], "tin=arib-std-b67") || chain[len(chain)-1] != "format=yuv420p" {
+		t.Errorf("HLG chain = %v", chain)
+	}
+}

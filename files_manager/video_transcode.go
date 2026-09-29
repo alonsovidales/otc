@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -144,30 +145,48 @@ func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale
 		args = append(args, "-t", strconv.FormatFloat(d, 'f', 3, 64))
 	}
 
+	var filters []string
 	if downscale {
 		// scale='if(gt(iw,W),W,iw)':-2 only downscales a video wider than
 		// cSocialVideoMaxWidth - a source already narrower keeps its own
 		// size, never gets upscaled. -2 keeps the computed height even
 		// (required by libx264) while preserving aspect ratio.
-		scaleFilter := fmt.Sprintf("scale='if(gt(iw,%d),%d,iw)':-2", cSocialVideoMaxWidth, cSocialVideoMaxWidth)
-		args = append(args,
-			"-vf", scaleFilter,
-			"-c:v", "libx264", "-preset", "veryfast", "-b:v", cSocialVideoBitrate,
-			"-c:a", "aac", "-b:a", cSocialVideoAudioBitrate,
-		)
-	} else {
-		args = append(args,
-			"-c:v", "libx264", "-preset", "veryfast", "-crf", cSocialTrimCRF,
-			"-c:a", "aac", "-b:a", cSocialVideoAudioBitrate,
-		)
+		filters = append(filters, fmt.Sprintf("scale='if(gt(iw,%d),%d,iw)':-2", cSocialVideoMaxWidth, cSocialVideoMaxWidth))
 	}
-	args = append(args, "-movflags", "+faststart", outPath)
+	rate := []string{"-crf", cSocialTrimCRF}
+	if downscale {
+		rate = []string{"-b:v", cSocialVideoBitrate}
+	}
+	encode := func(color []string) []string {
+		chain := append(append([]string{}, filters...), color...)
+		vf := strings.Join(append(chain, cTagBT709), ",")
+		a := append(append([]string{}, args...), "-vf", vf,
+			"-c:v", "libx264", "-preset", "veryfast")
+		a = append(a, rate...)
+		a = append(a, playableEverywhere...)
+		return append(a, "-c:a", "aac", "-b:a", cSocialVideoAudioBitrate, "-movflags", "+faststart", outPath)
+	}
 
-	cmd := exec.Command("ffmpeg", args...)
+	// An HDR source (every iPhone recording, by default) is brought down
+	// to standard colour first. Without a tone-mapping filter in this
+	// ffmpeg (it needs zscale), the plain 8-bit conversion still plays -
+	// just flatter-looking - which beats a video that doesn't play at all.
+	var runErr error
 	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("ffmpeg transcode: %w: %s", err, stderr.String())
+	for _, color := range [][]string{hdrToSDR(probeColor(inPath)), {"format=yuv420p"}} {
+		if color == nil {
+			continue
+		}
+		stderr.Reset()
+		cmd := exec.Command("ffmpeg", encode(color)...)
+		cmd.Stderr = &stderr
+		if runErr = cmd.Run(); runErr == nil {
+			break
+		}
+		log.Info("ffmpeg transcode failed with", strings.Join(color, ","), "- trying the next conversion:", runErr)
+	}
+	if runErr != nil {
+		return nil, fmt.Errorf("ffmpeg transcode: %w: %s", runErr, stderr.String())
 	}
 
 	out, err := os.ReadFile(outPath)
@@ -245,4 +264,86 @@ func (mg *Manager) GenerateVideoThumbnail(content []byte, maxWidth int) ([]byte,
 		return nil, fmt.Errorf("encoding thumbnail: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// playableEverywhere pins the H.264 a post is re-encoded to (issue: videos
+// not playing on Android). Left to itself libx264 keeps the source's pixel
+// format, so a 10-bit iPhone recording came out as H.264 "High 10" - which
+// iPhones and browsers decode in software, but Android phones' hardware
+// decoders reject outright ("Decoder failed: c2.qti.avc.decoder"). 8-bit
+// 4:2:0 High profile in standard BT.709 colour (cTagBT709) plays on
+// anything.
+var playableEverywhere = []string{"-pix_fmt", "yuv420p", "-profile:v", "high"}
+
+// cTagBT709 ends every filter chain: the frames carry the source's colour
+// tags through the conversion otherwise (an HDR source's HLG tag on what is
+// now standard colour), and the encoder writes the frames' tags, not its
+// own options.
+const cTagBT709 = "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709"
+
+// videoColor is what ffprobe says about a video stream's colour.
+type videoColor struct {
+	Transfer  string // color_transfer, e.g. "arib-std-b67" (HLG) or "smpte2084" (PQ)
+	Primaries string // color_primaries, e.g. "bt2020"
+	Matrix    string // color_space, e.g. "bt2020nc"
+}
+
+// probeColor reads the first video stream's colour tags; an empty result
+// (no ffprobe, no tags) reads as standard colour.
+func probeColor(path string) videoColor {
+	out, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
+		"-show_entries", "stream=color_transfer,color_primaries,color_space",
+		"-of", "default=noprint_wrappers=1", path).Output()
+	if err != nil {
+		return videoColor{}
+	}
+
+	return parseProbeColor(string(out))
+}
+
+func parseProbeColor(out string) videoColor {
+	var c videoColor
+	for _, line := range strings.Split(out, "\n") {
+		k, v, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if !ok || v == "unknown" {
+			continue
+		}
+		switch k {
+		case "color_transfer":
+			c.Transfer = v
+		case "color_primaries":
+			c.Primaries = v
+		case "color_space":
+			c.Matrix = v
+		}
+	}
+
+	return c
+}
+
+// hdrToSDR is the filter chain that tone-maps an HDR video (HLG or PQ) to
+// standard 8-bit BT.709, or nil for a video that isn't HDR.
+func hdrToSDR(c videoColor) []string {
+	if c.Transfer != "arib-std-b67" && c.Transfer != "smpte2084" {
+		return nil
+	}
+	primaries, matrix := c.Primaries, c.Matrix
+	if primaries == "" {
+		primaries = "bt2020"
+	}
+	if matrix == "" {
+		matrix = "bt2020nc"
+	}
+
+	return []string{
+		// Every property of the first step spelled out, input and output:
+		// zscale refuses ("no path between colorspaces") whatever it has
+		// to guess, and phones don't always tag all of them.
+		fmt.Sprintf("zscale=tin=%s:pin=%s:min=%s:rin=tv:t=linear:npl=100:p=%s:m=gbr", c.Transfer, primaries, matrix, primaries),
+		"format=gbrpf32le",
+		"zscale=p=bt709",
+		"tonemap=tonemap=hable:desat=0",
+		"zscale=t=bt709:m=bt709:r=tv",
+		"format=yuv420p",
+	}
 }
