@@ -38,6 +38,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -535,7 +537,13 @@ private fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
     if (confirmDelete) {
         ConfirmDialog("Delete this photo?", null, "Delete Photo", onConfirm = { confirmDelete = false; vm.deleteCurrentPhoto() }, onDismiss = { confirmDelete = false })
     }
-    if (st.infoOpen) ModalBottomSheet(onDismissRequest = { vm.closeInfo() }) { FileInfoView(st.infoLoading, st.infoData) }
+    // Fully open, and scrollable (FileInfoView): half-open, the location
+    // map - the last thing in the sheet - sat below the visible part, so
+    // it was never drawn nor its tiles fetched.
+    if (st.infoOpen) ModalBottomSheet(
+        onDismissRequest = { vm.closeInfo() },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) { FileInfoView(st.infoLoading, st.infoData) }
 }
 
 @Composable
@@ -593,7 +601,7 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
     val context = LocalContext.current
-    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("More Info", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
         when {
