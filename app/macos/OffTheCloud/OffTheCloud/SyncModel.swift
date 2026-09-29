@@ -374,6 +374,20 @@ final class SyncModel: ObservableObject {
 
     // MARK: - UI actions
 
+    /// The Connect button pressed with the settings unchanged: try again
+    /// now. After "Wrong password" the client stops retrying on purpose
+    /// (issue #117's lock-out), and a password changed on the device - or
+    /// a device that is back - needs a way to be retried without editing
+    /// the fields first.
+    func reconnectNow() {
+        guard let settings, settings.ready else { return }
+        authRetryTask?.cancel()
+        overallStatus = "Connecting…"
+        ws.configure(domain: settings.domain, key: settings.password)
+        ws.connect()
+        startSync()
+    }
+
     // MARK: - RAID health (issue #69)
 
     private func startRaidPolling() {

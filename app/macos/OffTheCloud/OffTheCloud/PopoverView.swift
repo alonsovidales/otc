@@ -323,6 +323,7 @@ struct FolderStateView: View {
 
 struct SettingsInlineView: View {
     @ObservedObject private var settings = SettingsStore.shared
+    @ObservedObject private var sync = SyncModel.shared
     // Edited locally and applied with the Connect button - not bound to
     // the store, which would reconnect on every keystroke and spend one
     // of the device's five password attempts per minute per character
@@ -332,7 +333,11 @@ struct SettingsInlineView: View {
     @State private var loaded = false
 
     private var dirty: Bool { domain != settings.domain || password != settings.password }
-    private var canConnect: Bool { !domain.isEmpty && !password.isEmpty && dirty }
+    // Unchanged settings can still be retried while not connected (after
+    // "Wrong password" nothing else would try again).
+    private var canConnect: Bool {
+        !domain.isEmpty && !password.isEmpty && (dirty || sync.overallStatus != "Connected")
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -378,7 +383,11 @@ struct SettingsInlineView: View {
     }
 
     private func apply() {
-        settings.apply(domain: domain, password: password)
+        if dirty {
+            settings.apply(domain: domain, password: password)
+        } else {
+            sync.reconnectNow()
+        }
     }
 }
 
