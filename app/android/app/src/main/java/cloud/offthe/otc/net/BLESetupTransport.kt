@@ -47,6 +47,7 @@ class BLESetupTransport(private val context: Context) {
         object Off : Phase()
         object Unauthorized : Phase()
         object Scanning : Phase()
+        object Choosing : Phase()
         object Connecting : Phase()
         data class Ready(val name: String) : Phase()
         object Lost : Phase()
@@ -73,6 +74,22 @@ class BLESetupTransport(private val context: Context) {
      * whose Bluetooth link never comes back, the device drops it once
      * installed - still finds the device at the next launch.
      */
+    /**
+     * A device in range announcing the setup service: its short ID (the
+     * "OTC 04B6" it advertises; an older image's announces none) and how
+     * strong its signal is, so the owner can tell several apart.
+     */
+    data class Found(val address: String, val shortId: String, val rssi: Int, val device: BluetoothDevice)
+
+    /** Every device found, when there is more than one to choose from. */
+    private val _found = MutableStateFlow<List<Found>>(emptyList())
+    val found: StateFlow<List<Found>> = _found
+
+    /** The device picked (or the only one found): a dropped link reconnects to it and never to another. */
+    @Volatile private var chosen: String? = null
+    private var decideScheduled = false
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
     private val _setupDomain = MutableStateFlow<String?>(null)
     val setupDomain: StateFlow<String?> = _setupDomain
 
@@ -140,6 +157,28 @@ class BLESetupTransport(private val context: Context) {
         scan()
     }
 
+    /** Leaving the setup: a device not yet installing is given back, so another phone can set it up. */
+    suspend fun releaseAndStop() {
+        if (isReady) runCatching { kotlinx.coroutines.withTimeoutOrNull(4000) { request("POST", "/__otc/release", null) } }
+        stop()
+    }
+
+    /** Sets up the device with this address (from [found]). */
+    @SuppressLint("MissingPermission")
+    fun choose(address: String) {
+        val dev = _found.value.firstOrNull { it.address == address } ?: return
+        chosen = address
+        connect(dev.device)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun connect(device: BluetoothDevice) {
+        if (gatt != null || stopped) return
+        if (scanning) { adapter?.bluetoothLeScanner?.stopScan(scanCallback); scanning = false }
+        _phase.value = Phase.Connecting
+        gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+    }
+
     @SuppressLint("MissingPermission")
     fun stop() {
         stopped = true
@@ -152,7 +191,7 @@ class BLESetupTransport(private val context: Context) {
     @SuppressLint("MissingPermission")
     private fun scan() {
         val scanner = adapter?.bluetoothLeScanner ?: run { _phase.value = Phase.Off; return }
-        _phase.value = Phase.Scanning
+        if (chosen == null && _phase.value !is Phase.Choosing) _phase.value = Phase.Scanning
         scanning = true
         scanner.startScan(
             listOf(ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE)).build()),
@@ -165,10 +204,25 @@ class BLESetupTransport(private val context: Context) {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             if (gatt != null || stopped) return
-            adapter?.bluetoothLeScanner?.stopScan(this)
-            scanning = false
-            _phase.value = Phase.Connecting
-            gatt = result.device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+            val address = result.device.address
+            chosen?.let { if (address == it) connect(result.device); return }
+            val name = result.scanRecord?.deviceName ?: ""
+            val shortId = if (name.startsWith("OTC ")) name.removePrefix("OTC ") else ""
+            val list = _found.value
+            val i = list.indexOfFirst { it.address == address }
+            _found.value = if (i >= 0) list.toMutableList().also { it[i] = it[i].copy(rssi = result.rssi, shortId = shortId.ifEmpty { it[i].shortId }) }
+                else list + Found(address, shortId, result.rssi, result.device)
+            // Listen a moment for others: one device is connected to right
+            // away, several are listed for the owner to pick.
+            if (!decideScheduled) {
+                decideScheduled = true
+                main.postDelayed({
+                    if (chosen == null && !stopped) {
+                        val all = _found.value
+                        if (all.size == 1) choose(all[0].address) else _phase.value = Phase.Choosing
+                    }
+                }, 2500)
+            }
         }
 
         override fun onScanFailed(errorCode: Int) { _phase.value = Phase.Off }

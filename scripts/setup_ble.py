@@ -16,10 +16,11 @@ wizard's, and whatever the wizard learns to do next works over Bluetooth
 too.
 
 GATT service (all UUIDs share the 0f7c5e70-0b1e-4b8a-9c2d-5e7a1c0d---- base):
-  ...0001  the service, advertised under the name "Off The Cloud setup"
+  ...0001  the service, advertised under the name "OTC <id>", <id> being
+           device_id() - what the app's list of devices shows
   ...0002  request   write / write-without-response: chunks of a request
   ...0003  response  notify: chunks of the answers
-  ...0004  info      read: {"v": 1, "name": "<hostname>"}
+  ...0004  info      read: {"v": 1, "name": "<hostname>", "id": "<id>"}
 
 Framing, both directions: byte 0 is a stream id the phone picks per
 request, byte 1 is flags (bit 0: last chunk), the rest is payload; a
@@ -70,7 +71,6 @@ CONFIG = {
     "final_state_file": "/var/lib/otc/setup-final.json",
     # How long a phone can still ask for the result after setup is done.
     "grace_after_done_s": 15 * 60,
-    "local_name": "Off The Cloud setup",
     # Milliseconds between two notifications: BlueZ has no back-pressure
     # for PropertiesChanged and a phone drops what it can't take.
     "notify_pace_ms": 6,
@@ -78,6 +78,31 @@ CONFIG = {
     # A request may carry the setup profile's picture (issue #178).
     "max_request_bytes": 256 * 1024,
 }
+
+def device_id():
+    """A short ID for telling devices apart while several are being set up
+    at once: the last 4 hex digits of the Pi's serial number (the machine
+    id elsewhere). The Bluetooth name, the setup page and the app's list
+    of devices all show it."""
+    for path in ("/proc/device-tree/serial-number", "/sys/firmware/devicetree/base/serial-number"):
+        try:
+            s = Path(path).read_text().strip("\x00\n ")
+            if len(s) >= 4:
+                return s[-4:].upper()
+        except OSError:
+            pass
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("Serial") and ":" in line:
+                s = line.split(":", 1)[1].strip()
+                if len(s) >= 4:
+                    return s[-4:].upper()
+    except OSError:
+        pass
+    try:
+        return Path("/etc/machine-id").read_text().strip()[-4:].upper()
+    except OSError:
+        return hashlib.sha256(socket.gethostname().encode()).hexdigest()[-4:].upper()
 
 UUID_BASE = "0f7c5e70-0b1e-4b8a-9c2d-5e7a1c0d{:04x}"
 SERVICE_UUID = UUID_BASE.format(1)
@@ -140,6 +165,32 @@ class Tunnel:
                 return "This device is being set up from another phone. Restart the device to set it up from this one."
         return None
 
+    def release_phone(self, key):
+        """The phone this device is bound to gives it up (the owner backed
+        out of it, say to pick another device from the app's list), so
+        another phone can set it up - unless the install has started."""
+        if not isinstance(key, str):
+            return 400, "application/json", json.dumps({"error": "no key"})
+        digest = hashlib.sha256(key.encode()).hexdigest()
+        lock = Path(CONFIG["phone_lock_file"])
+        with self.lock:
+            try:
+                held = lock.read_text().strip()
+            except OSError:
+                return 200, "application/json", json.dumps({"released": True})
+            if held != digest:
+                return 403, "application/json", json.dumps({"error": "not bound to this phone"})
+            try:
+                with urllib.request.urlopen(self.wizard_url + "/api/state", timeout=10) as resp:
+                    phase = json.loads(resp.read()).get("install", {}).get("phase", "idle")
+            except Exception:  # noqa: BLE001
+                phase = "unknown"
+            if phase not in ("idle", "failed"):
+                return 409, "application/json", json.dumps({"error": "the install has started"})
+            lock.unlink(missing_ok=True)
+        log("setup released by its phone")
+        return 200, "application/json", json.dumps({"released": True})
+
     def set_chunk_size(self, n):
         # 20 is what a 23-byte default MTU leaves; never go under it.
         self.chunk_size = min(self.MAX_CHUNK, max(20, int(n)))
@@ -176,6 +227,8 @@ class Tunnel:
         path = str(req.get("p", "/"))
         if not path.startswith("/") or "://" in path:
             return 400, "application/json", json.dumps({"error": "bad path"})
+        if path == "/__otc/release":
+            return self.release_phone(req.get("k"))
         refused = self.check_phone(req.get("k"))
         if refused:
             return 403, "application/json", json.dumps({"error": refused})
@@ -353,7 +406,7 @@ def serve_bluetooth():
             return {AD_IFACE: {
                 "Type": "peripheral",
                 "ServiceUUIDs": dbus.Array([SERVICE_UUID], signature="s"),
-                "LocalName": dbus.String(CONFIG["local_name"]),
+                "LocalName": dbus.String("OTC " + device_id()),
                 "Discoverable": dbus.Boolean(True),
             }}
 
@@ -425,7 +478,7 @@ def serve_bluetooth():
 
     class InfoChrc(Characteristic):
         def read(self):
-            return json.dumps({"v": PROTOCOL_VERSION, "name": socket.gethostname()}).encode()
+            return json.dumps({"v": PROTOCOL_VERSION, "name": socket.gethostname(), "id": device_id()}).encode()
 
     RequestChrc(bus, service, 1, REQUEST_UUID, ["write", "write-without-response"])
     InfoChrc(bus, service, 2, INFO_UUID, ["read"])
@@ -481,7 +534,7 @@ def serve_bluetooth():
 
     bus.add_signal_receiver(bluez_owner_changed, signal_name="NameOwnerChanged",
                             dbus_interface="org.freedesktop.DBus", arg0=BLUEZ)
-    log("advertising", CONFIG["local_name"], "on", adapter, "- wizard at", CONFIG["wizard"])
+    log("advertising", "OTC " + device_id(), "on", adapter, "- wizard at", CONFIG["wizard"])
     mainloop.run()
     return 1 if lost[0] else 0
 

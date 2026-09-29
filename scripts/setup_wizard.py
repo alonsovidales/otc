@@ -48,6 +48,7 @@ import json
 import os
 import re
 import secrets
+import socket
 import subprocess
 import sys
 import threading
@@ -409,6 +410,60 @@ def setup_token():
     return st["token"]
 
 
+def device_id():
+    """A short ID for telling devices apart while several are being set up
+    at once: the last 4 hex digits of the Pi's serial number (the machine
+    id elsewhere). The Bluetooth name, the setup page and the app's list
+    of devices all show it."""
+    for path in ("/proc/device-tree/serial-number", "/sys/firmware/devicetree/base/serial-number"):
+        try:
+            s = Path(path).read_text().strip("\x00\n ")
+            if len(s) >= 4:
+                return s[-4:].upper()
+        except OSError:
+            pass
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("Serial") and ":" in line:
+                s = line.split(":", 1)[1].strip()
+                if len(s) >= 4:
+                    return s[-4:].upper()
+    except OSError:
+        pass
+    try:
+        return Path("/etc/machine-id").read_text().strip()[-4:].upper()
+    except OSError:
+        return hashlib.sha256(socket.gethostname().encode()).hexdigest()[-4:].upper()
+
+_blinking = threading.Lock()
+
+
+def blink_led(seconds=15):
+    """"Blink its light" on the setup page: flashes the Pi's green activity
+    LED so the owner can tell which box is which when setting up several
+    at once, then puts its usual trigger back."""
+    if not _blinking.acquire(blocking=False):
+        return
+    try:
+        led = next((Path("/sys/class/leds", n) for n in ("ACT", "led0") if Path("/sys/class/leds", n).exists()), None)
+        if led is None:
+            return
+        trigger = (led / "trigger").read_text()
+        previous = trigger.split("[", 1)[1].split("]", 1)[0] if "[" in trigger else "none"
+        (led / "trigger").write_text("none")
+        on = False
+        end = time.time() + seconds
+        while time.time() < end:
+            on = not on
+            (led / "brightness").write_text("1" if on else "0")
+            time.sleep(0.15)
+        (led / "trigger").write_text(previous)
+    except OSError as e:
+        print(f"[otc-setup] blink failed: {e}")
+    finally:
+        _blinking.release()
+
+
 def lan_address():
     """This device's address on the network it uses to reach the bridge."""
     res = run(["ip", "-4", "route", "get", "1.1.1.1"])
@@ -746,6 +801,7 @@ def state_snapshot():
         "join_result": join,
         "name": st.get("name", ""),
         "domain": st.get("domain", ""),
+        "device_id": device_id(),
         "bridge": CONFIG["bridge"],
         "install": install.snapshot(),
         "already_installed": Path(CONFIG["install_complete_marker"]).exists() and not CONFIG["dry_run"],
@@ -873,6 +929,11 @@ class Handler(BaseHTTPRequestHandler):
         body = self.read_body()
         if Path(CONFIG["install_complete_marker"]).exists() and not CONFIG["dry_run"]:
             self.send_json(409, {"error": "this device is already set up"})
+            return
+
+        if path == "/api/identify":
+            threading.Thread(target=blink_led, daemon=True).start()
+            self.send_json(200, {"ok": True})
             return
 
         if path == "/api/wifi":
@@ -1107,6 +1168,8 @@ button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{margin-top:0}
 .crop{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.crop canvas{width:180px;height:180px;border-radius:12px;background:var(--bg);border:1px solid var(--line);touch-action:none;cursor:grab}
 .crop .side{flex:1;min-width:160px}.crop input[type=range]{width:100%}.check{display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:16px}
+.prof{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}.prof h3{margin:0 0 4px}
+.prof+.row{margin-top:32px;padding-top:20px;border-top:1px solid var(--line)}
 ul.list{list-style:none;padding:0;margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;max-height:300px;overflow-y:auto}
 ul.list li{padding:11px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 ul.list li:last-child{border-bottom:0}ul.list li.sel{background:rgba(240,122,90,.15)}ul.list li small{color:var(--dim)}
@@ -1123,7 +1186,7 @@ a{color:var(--ember)}
 .sso.google,.sso.email{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .sso-or{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:.85rem;margin:14px 0 2px}.sso-or:before,.sso-or:after{content:"";flex:1;border-top:1px solid var(--line)}
 </style></head><body><main>
-<h1>Off The Cloud</h1><p class="lead">Let's set up your device.</p>
+<h1>Off The Cloud</h1><p class="lead">Let's set up your device.<span id="devid" hidden> This is device <b id="devidv"></b>. <a href="#" id="blink">Blink its light</a></span></p>
 <ol class="steps"><li id="s1"></li><li id="s2"></li><li id="s3"></li><li id="s4"></li><li id="s5"></li></ol>
 <div id="view" class="card">Loading…</div>
 </main>
@@ -1155,14 +1218,14 @@ let owner={pw:'',pw2:''};
 // optional (Settings has them too). The picture is cropped here to a
 // circle's square, a small JPEG - it travels over Bluetooth with the
 // install request.
-let prof={name:'',text:'',image:'',faces:false,open:false};const crop={img:null,x:0,y:0,z:1};const CROP=240,OUT=320;
-function profileFields(){return `<details id="pd" style="margin-top:16px" ${prof.open?'open':''}><summary style="cursor:pointer">Your profile and face recognition <span class="detail">(optional)</span></summary>
+let prof={name:'',text:'',image:'',faces:false};const crop={img:null,x:0,y:0,z:1};const CROP=240,OUT=320;
+function profileFields(){return `<section class="prof"><h3>Your profile <span class="detail">(optional)</span></h3>
  <label>Your name</label><input type="text" id="pn" maxlength="100" value="${esc(prof.name)}" placeholder="How your friends see you">
  <label>About you</label><input type="text" id="pt" maxlength="500" value="${esc(prof.text)}" placeholder="A line about you">
  <label>Profile picture</label><div class="crop"><canvas id="pc" width="${CROP}" height="${CROP}"></canvas><div class="side"><input type="file" id="pf" accept="image/*"><label>Zoom</label><input type="range" id="pz" min="1" max="4" step="0.01" value="${crop.z}" ${crop.img?'':'disabled'}><p class="hint">Drag the photo to centre your face.</p></div></div>
  <label class="check"><input type="checkbox" id="pfc" ${prof.faces?'checked':''}> Recognise faces in my photos</label>
  <p class="hint">Groups the same people across your photos so you can search by person. It runs only on this device, but it looks at everyone in your photos, not just you. Off unless you tick it.</p>
- <p class="hint">You can set all of this later in Settings.</p></details>`}
+ <p class="hint">All of this is optional - you can set it later in Settings.</p></section>`}
 function cropScale(){const im=crop.img;return crop.z*Math.max(CROP/im.width,CROP/im.height)}
 function cropClamp(){const s=cropScale(),mx=Math.max(0,(crop.img.width*s-CROP)/2),my=Math.max(0,(crop.img.height*s-CROP)/2);crop.x=Math.min(mx,Math.max(-mx,crop.x));crop.y=Math.min(my,Math.max(-my,crop.y))}
 function cropPaint(ctx,size,mask){const k=size/CROP,s=cropScale()*k,w=crop.img.width*s,h=crop.img.height*s;ctx.fillStyle='#1e1f22';ctx.fillRect(0,0,size,size);ctx.drawImage(crop.img,(size-w)/2+crop.x*k,(size-h)/2+crop.y*k,w,h);
@@ -1170,7 +1233,7 @@ function cropPaint(ctx,size,mask){const k=size/CROP,s=cropScale()*k,w=crop.img.w
 function cropDraw(){const c=$('#pc');if(!c)return;const ctx=c.getContext('2d');if(!crop.img){ctx.fillStyle='#1e1f22';ctx.fillRect(0,0,CROP,CROP);return}cropPaint(ctx,CROP,true)}
 function cropSave(){if(!crop.img)return;const o=document.createElement('canvas');o.width=o.height=OUT;cropPaint(o.getContext('2d'),OUT,false);
  for(const q of [.85,.7,.55,.4]){const b64=o.toDataURL('image/jpeg',q).split(',')[1];if(b64.length<=60000||q===.4){prof.image=b64;return}}}
-function wireProfile(){const d=$('#pd');if(!d)return;d.ontoggle=()=>{prof.open=d.open};
+function wireProfile(){if(!$('#pn'))return;
  $('#pn').oninput=e=>{prof.name=e.target.value};$('#pt').oninput=e=>{prof.text=e.target.value};$('#pfc').onchange=e=>{prof.faces=e.target.checked};
  const c=$('#pc'),z=$('#pz');cropDraw();
  $('#pf').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{crop.img=im;crop.z=1;crop.x=0;crop.y=0;z.disabled=false;z.value=1;cropDraw();cropSave()};const r=new FileReader();r.onload=()=>{im.src=r.result};r.readAsDataURL(f)};
@@ -1190,6 +1253,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 function marks(){for(let i=1;i<=5;i++){const li=$('#s'+i);li.className=i<step?'done':i===step?'on':''}}
 let lastKey='';
 async function refresh(){let st;try{st=await api('/api/state')}catch(e){return}
+ if(st.device_id&&$('#devid').hidden){$('#devidv').textContent=st.device_id;$('#devid').hidden=false;$('#blink').onclick=e=>{e.preventDefault();post('/api/identify',{}).catch(()=>{});$('#blink').textContent='Blinking - look for the flashing green light';setTimeout(()=>{$('#blink').textContent='Blink its light'},15000)}}
  const first=state===null;state=st;
  const ph=state.install.phase;const jr=state.join_result||{};
  if(state.already_installed&&ph==='idle'){step=6}

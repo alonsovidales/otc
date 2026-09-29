@@ -104,7 +104,14 @@ recognition checkbox, unticked. The wizard writes them to a root-only tmpfs JSON
 (`OTC_SETUP_PROFILE_FILE`), and `install.sh` feeds it to `otc <env> init-profile` (`bin/otc.go`)
 before the owner password - empty fields keep the defaults, and all of it can be changed later in
 Settings. On Android the setup WebView needs its `WebChromeClient.onShowFileChooser` for the
-picture field; WKWebView handles file inputs itself. The image has no SSH; its
+picture field; WKWebView handles file inputs itself. Several devices can be set up at once from several phones: each advertises
+`OTC <id>` (`device_id()`: the last 4 hex digits of the Pi serial), the setup page shows that ID
+with a "Blink its light" link (`/api/identify` flashes the ACT LED for 15 s), and the apps list
+every device found in the first 2.5 s when there is more than one (strongest signal first),
+connecting straight away when there is only one. A dropped link reconnects only to the device
+picked. Leaving the setup screen sends `/__otc/release` (handled by setup_ble itself), which
+frees the phone binding unless the install has started, so a device opened by mistake can
+still be set up from another phone. The image has no SSH; its
 console login is `otc-debug` / `off-the-cloud` (with sudo), set in `build_image.sh` and documented
 in README.md under "Console access" - the only way into a device like Cala short of enabling SSH
 from that console.

@@ -91,7 +91,11 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     LaunchedEffect(Unit) {
         if (BLESetupTransport.hasPermissions(context)) transport.start() else permissions.launch(BLESetupTransport.permissions())
     }
-    DisposableEffect(Unit) { onDispose { transport.stop() } }
+    DisposableEffect(Unit) {
+        onDispose {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { transport.releaseAndStop() }
+        }
+    }
     // The page's profile-picture field (issue #178): a WebView opens no
     // file picker on its own, so the chooser request comes here.
     val pendingFile = remember { arrayOfNulls<ValueCallback<Array<Uri>>>(1) }
@@ -126,7 +130,7 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                     pickImage.launch("image/*")
                 }.apply { keepScreenOn = true } }, modifier = Modifier.weight(1f).fillMaxWidth())
             } else {
-                Waiting(phase, Modifier.weight(1f))
+                Waiting(phase, transport, Modifier.weight(1f))
             }
             readyDomain?.let { domain ->
                 Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
@@ -169,7 +173,27 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
 }
 
 @Composable
-private fun Waiting(phase: BLESetupTransport.Phase, modifier: Modifier) {
+private fun Waiting(phase: BLESetupTransport.Phase, transport: BLESetupTransport, modifier: Modifier) {
+    if (phase is BLESetupTransport.Phase.Choosing) {
+        val found by transport.found.collectAsState()
+        Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(Modifier.height(24.dp))
+            Text("Which device?", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(16.dp))
+            for (dev in found.sortedByDescending { it.rssi }) {
+                androidx.compose.material3.OutlinedButton(onClick = { transport.choose(dev.address) }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Text(if (dev.shortId.isEmpty()) "Device (older image)" else "Device ${dev.shortId}", modifier = Modifier.weight(1f))
+                    Text(signal(dev.rssi), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        return
+    }
     Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.weight(1f))
         val (title, hint) = when (phase) {
@@ -186,11 +210,13 @@ private fun Waiting(phase: BLESetupTransport.Phase, modifier: Modifier) {
             Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
         Spacer(Modifier.weight(1f))
-        Text(
-            "No Bluetooth? Join the device's own \"Off The Cloud\" WiFi instead and the same setup opens in the browser.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-        )
     }
+}
+
+private fun signal(rssi: Int): String = when {
+    rssi >= -60 -> "Strong signal"
+    rssi >= -75 -> "Good signal"
+    else -> "Weak signal"
 }
 
 /** A bridge domain becomes the usual wss endpoint; without the bridge the device answers as otc.local. */

@@ -60,7 +60,7 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     }()
 
     enum Phase: Equatable {
-        case starting, off, unauthorized, scanning, connecting, ready(String), lost
+        case starting, off, unauthorized, scanning, choosing, connecting, ready(String), lost
     }
 
     @Published var phase: Phase = .starting
@@ -83,6 +83,22 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     /// instead of throwing the install's progress away.
     @Published var everReady = false
 
+    /// A device in range announcing the setup service: its short ID (the
+    /// "OTC 04B6" it advertises; an older image's announces none) and how
+    /// strong its signal is, so the owner can tell several apart.
+    struct Found: Identifiable {
+        let id: UUID
+        var shortID: String
+        var rssi: Int
+        let peripheral: CBPeripheral
+    }
+    /// Every device found, when there is more than one to choose from.
+    @Published var found: [Found] = []
+    /// The device picked (or the only one found): a dropped link
+    /// reconnects to it and never to another one in range.
+    private var chosen: UUID?
+    private var decideScheduled = false
+
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
     private var requestChrc: CBCharacteristic?
@@ -94,6 +110,14 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     override init() {
         super.init()
         central = CBCentralManager(delegate: self, queue: nil)
+    }
+
+    /// Leaving the setup: a device not yet installing is given back, so
+    /// another phone can set it up (it answers only the first one).
+    @MainActor
+    func releaseAndStop() async {
+        if isReady { _ = try? await request(method: "POST", path: "/__otc/release", body: nil) }
+        stop()
     }
 
     func stop() {
@@ -189,8 +213,8 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            phase = .scanning
-            central.scanForPeripherals(withServices: [BLESetupUUID.service], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+            if chosen == nil { phase = .scanning }
+            central.scanForPeripherals(withServices: [BLESetupUUID.service], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
         case .unauthorized: phase = .unauthorized
         case .poweredOff: phase = .off
         default: phase = .starting
@@ -199,11 +223,43 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
         guard self.peripheral == nil else { return }
-        self.peripheral = peripheral
-        peripheral.delegate = self
+        if let chosen {
+            // Reconnecting: only ever to the device picked.
+            if peripheral.identifier == chosen { connect(peripheral) }
+            return
+        }
+        let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? peripheral.name ?? ""
+        let shortID = name.hasPrefix("OTC ") ? String(name.dropFirst(4)) : ""
+        if let i = found.firstIndex(where: { $0.id == peripheral.identifier }) {
+            found[i].rssi = RSSI.intValue
+            if !shortID.isEmpty { found[i].shortID = shortID }
+        } else {
+            found.append(Found(id: peripheral.identifier, shortID: shortID, rssi: RSSI.intValue, peripheral: peripheral))
+        }
+        // Listen a moment for others: one device is connected to right
+        // away, several are listed for the owner to pick.
+        if !decideScheduled {
+            decideScheduled = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                guard let self, self.chosen == nil else { return }
+                if self.found.count == 1 { self.choose(self.found[0].id) } else { self.phase = .choosing }
+            }
+        }
+    }
+
+    /// Sets up the device with this id (from `found`).
+    func choose(_ id: UUID) {
+        guard let dev = found.first(where: { $0.id == id }) else { return }
+        chosen = id
+        connect(dev.peripheral)
+    }
+
+    private func connect(_ p: CBPeripheral) {
+        peripheral = p
+        p.delegate = self
         phase = .connecting
         central.stopScan()
-        central.connect(peripheral)
+        central.connect(p)
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
@@ -225,7 +281,7 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         failAll(BLESetupError.notConnected)
         phase = .lost
         if central.state == .poweredOn {
-            phase = .scanning
+            if chosen == nil { phase = .scanning }
             central.scanForPeripherals(withServices: [BLESetupUUID.service], options: nil)
         }
     }
@@ -507,7 +563,7 @@ struct BluetoothSetupView: View {
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
-            transport.stop()
+            Task { await transport.releaseAndStop() }
         }
     }
 
@@ -520,6 +576,26 @@ struct BluetoothSetupView: View {
                 Text("Looking for a device to set up…").font(.headline)
                 Text("Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it.")
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            case .choosing:
+                Text("Which device?").font(.headline)
+                Text("Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest.")
+                    .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                VStack(spacing: 8) {
+                    ForEach(transport.found.sorted { $0.rssi > $1.rssi }) { dev in
+                        Button { transport.choose(dev.id) } label: {
+                            HStack {
+                                Image(systemName: "externaldrive.connected.to.line.below")
+                                Text(dev.shortID.isEmpty ? "Device (older image)" : "Device \(dev.shortID)").font(.body.monospacedDigit())
+                                Spacer()
+                                Image(systemName: "cellularbars", variableValue: min(1, max(0, Double(dev.rssi + 95) / 45)))
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.15)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             case .connecting:
                 ProgressView()
                 Text("Connecting…").font(.headline)
@@ -535,8 +611,6 @@ struct BluetoothSetupView: View {
                 EmptyView()
             }
             Spacer()
-            Text("No Bluetooth? Join the device's own \"Off The Cloud\" WiFi instead and the same setup opens in the browser.")
-                .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }
         .padding(24)
     }
