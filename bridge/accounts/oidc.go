@@ -186,6 +186,12 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	subject, _ := claims["sub"].(string)
 	email, _ := claims["email"].(string)
 	email, emailOK := validEmail(email)
+	// Linking goes by email, so it must be one the provider verified:
+	// Google says so in email_verified (Apple's are always verified, and
+	// it sends the claim as a string).
+	if v, present := claims["email_verified"]; present && v != true && v != "true" {
+		emailOK = false
+	}
 	if subject == "" || !emailOK {
 		http.Redirect(w, r, "/account?error="+url.QueryEscape("the sign-in did not include an email address"), http.StatusFound)
 		return
@@ -215,6 +221,16 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, "could not sign in right now", http.StatusInternalServerError)
 			return
+		}
+		if acc != nil && acc.PasswordHash != "" {
+			// A password account nobody verified the email of: whoever
+			// signed up with it may not be the person now proving they
+			// own the address. The provider sign-in wins - the password
+			// is cleared (a new one can be set from the account page).
+			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
+				log.Error("could not clear the password of an account being linked:", err)
+			}
+			acc.PasswordHash = ""
 		}
 		if acc == nil {
 			now := time.Now()

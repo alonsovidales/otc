@@ -29,6 +29,9 @@ func TestPruneOldLogsDeletesBothTables(t *testing.T) {
 	mock.ExpectExec("delete from `device_metrics` where `hour_bucket` < \\?").
 		WithArgs(before).
 		WillReturnResult(sqlmock.NewResult(0, 5))
+	// Released names past their 30-day hold.
+	mock.ExpectExec("delete from `released_domains` where `released_at` < \\?").
+		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	d := NewWithDB(db)
 	if err := d.PruneOldLogs(before); err != nil {

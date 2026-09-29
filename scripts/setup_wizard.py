@@ -1305,7 +1305,12 @@ def main():
     SEAL = SealKey()
     Path(CONFIG["state_file"]).parent.mkdir(parents=True, exist_ok=True)
     threading.Thread(target=beacon_loop, daemon=True).start()
-    srv = ThreadingHTTPServer(("0.0.0.0", CONFIG["port"]), Handler)
+    # Security advisory (setup wizard): setup is over Bluetooth only - the
+    # apps reach this through setup_ble.py on this machine. Listening on
+    # every interface, unauthenticated, on an open hotspot let anyone
+    # nearby drive a root installer (down to wiping the disks).
+    bind = os.environ.get("OTC_SETUP_BIND", "127.0.0.1")
+    srv = ThreadingHTTPServer((bind, CONFIG["port"]), Handler)
     print(f"[otc-setup] serving the setup wizard on port {CONFIG['port']}")
     srv.serve_forever()
 

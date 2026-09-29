@@ -41,6 +41,7 @@ import org.json.JSONObject
  * DEFLATE of JSON {s, t, b}.
  */
 class BLESetupTransport(private val context: Context) {
+
     sealed class Phase {
         object Starting : Phase()
         object Off : Phase()
@@ -90,6 +91,21 @@ class BLESetupTransport(private val context: Context) {
     val isReady: Boolean get() = _phase.value is Phase.Ready
 
     companion object {
+        /**
+         * Sent with every request: a device being set up answers only the
+         * first phone that talked to it - this key, not the phone's
+         * Bluetooth address, which changes every few minutes. Kept for the
+         * life of the app install, so reopening the app mid-setup works.
+         */
+        fun setupKey(context: Context): String {
+            val prefs = context.getSharedPreferences("otc_setup", Context.MODE_PRIVATE)
+            prefs.getString("setupKey", null)?.takeIf { it.isNotEmpty() }?.let { return it }
+            val bytes = ByteArray(24).also { java.security.SecureRandom().nextBytes(it) }
+            val key = bytes.joinToString("") { "%02x".format(it) }
+            prefs.edit().putString("setupKey", key).apply()
+            return key
+        }
+
         val SERVICE: UUID = UUID.fromString("0f7c5e70-0b1e-4b8a-9c2d-5e7a1c0d0001")
         val REQUEST: UUID = UUID.fromString("0f7c5e70-0b1e-4b8a-9c2d-5e7a1c0d0002")
         val RESPONSE: UUID = UUID.fromString("0f7c5e70-0b1e-4b8a-9c2d-5e7a1c0d0003")
@@ -258,7 +274,7 @@ class BLESetupTransport(private val context: Context) {
         val chrc = requestChrc
         if (g == null || chrc == null || !isReady) throw SetupException("Not connected to the device")
         val stream = synchronized(this) { nextStream = (nextStream + 1) and 0xff; nextStream }
-        val msg = JSONObject().put("m", method).put("p", path)
+        val msg = JSONObject().put("m", method).put("p", path).put("k", setupKey(context))
         if (!body.isNullOrEmpty()) msg.put("b", body)
         // The biggest notification this phone takes whole: MTU-3, and
         // never more than the 512 bytes an attribute value can hold.

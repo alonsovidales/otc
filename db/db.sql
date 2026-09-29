@@ -199,6 +199,9 @@ create table social_friendship
   -- accepting a long-time-active friend floods the owner with a
   -- notification for every historical like/comment/post at once.
   `notifications_started` tinyint(1) not null default 0,
+  -- When this friend's device was last heard from - a re-link after a
+  -- week of silence is a new request (see social.cRelinkFreshness).
+  `last_seen` datetime null,
 
   primary key (`domain`),
   key (`domain`)

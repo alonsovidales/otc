@@ -689,6 +689,10 @@ func (fr *friendship) updateFriendshipStatus() (err error) {
 	if err != nil {
 		return err
 	}
+	// Heard from: the friend's device answered (see cRelinkFreshness).
+	if err := fr.dao.TouchFriend(fr.data.OriginProfile.Domain); err != nil {
+		log.Error("could not record contact with", fr.data.OriginProfile.Domain, ":", err)
+	}
 	// Issue #25: the receiver deleted our request while we could not be
 	// told (it was off, or we were). Only a still-pending request is
 	// removed on the strength of this - an accepted friendship that the
@@ -1366,7 +1370,8 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		if err != nil {
 			return err
 		}
-		action, status := relinkDecision(existing, found)
+		lastSeen, _ := sc.dao.FriendLastSeen(extDomain)
+		action, status := relinkDecision(existing, found, lastSeen, time.Now())
 		switch action {
 		case relinkRefuse:
 			log.Info("friend request from a blocked domain refused:", extDomain)
@@ -1415,7 +1420,14 @@ const (
 // existing friendship with the same domain: an accepted friend stays
 // accepted on its new device, a pending one becomes this new incoming
 // request, and a blocked domain stays blocked.
-func relinkDecision(existingStatus string, found bool) (relinkAction, string) {
+// cRelinkFreshness: a re-link keeps an accepted friendship only if the
+// friend's device was heard from this recently. A device name can change
+// hands (released and taken by someone else), and a new holder used to
+// inherit the friendship and the friend's posts; after a week of silence
+// the request goes through the normal accept/refuse instead.
+const cRelinkFreshness = 7 * 24 * time.Hour
+
+func relinkDecision(existingStatus string, found bool, lastSeen, now time.Time) (relinkAction, string) {
 	if !found {
 		return relinkInsert, "pending"
 	}
@@ -1423,7 +1435,10 @@ func relinkDecision(existingStatus string, found bool) (relinkAction, string) {
 	case "blocked":
 		return relinkRefuse, "blocked"
 	case "accepted":
-		return relinkUpdate, "accepted"
+		if !lastSeen.IsZero() && now.Sub(lastSeen) <= cRelinkFreshness {
+			return relinkUpdate, "accepted"
+		}
+		return relinkUpdate, "pending"
 	default:
 		return relinkUpdate, "pending"
 	}

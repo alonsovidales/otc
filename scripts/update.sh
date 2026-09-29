@@ -32,7 +32,9 @@ REPO_GH="${OTC_REPO_GH:-https://github.com/alonsovidales/otc}"
 SRC_DIR=/opt/otc-src
 VERSION_FILE=/etc/otc/version
 STATUS_FILE=/var/lib/otc/update-status.json
-LOG_FILE=/var/log/otc/update.log
+# Root's own directory: /var/log/otc belongs to the otc user, and appending
+# there as root would follow a symlink it put in place of the log.
+LOG_FILE=/var/log/otc-update/update.log
 
 mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$LOG_FILE")" /etc/otc
 
@@ -43,7 +45,8 @@ status() {
     local state="$1" message="$2"
     printf '{"state":%s,"message":%s,"version":%s,"updated":%s}\n' \
         "\"$state\"" "\"${message//\"/\\\"}\"" "\"$(cat "$VERSION_FILE" 2>/dev/null || echo unknown)\"" \
-        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" > "$STATUS_FILE"
+        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" > "$STATUS_FILE.tmp.$$" \
+        && chmod 644 "$STATUS_FILE.tmp.$$" && mv -Tf "$STATUS_FILE.tmp.$$" "$STATUS_FILE"
 }
 
 fail() {
@@ -183,6 +186,16 @@ go build -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
 
 status running "Restarting"
 install -m 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary"
+
+# The other root-side scripts, which only install.sh used to put in place -
+# so fixes to them (the symlink-safe status writes, the disk checks before a
+# format) reach devices installed earlier. The update runner has already
+# exec'd into this script, so replacing its file is safe.
+install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
+if [ -f "$SRC_DIR/scripts/raid_watch.py" ] && [ -f /usr/local/bin/raid_watch.py ]; then
+    install -m 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
+    systemctl try-restart raid-watch.service >/dev/null 2>&1 || true
+fi
 
 # Issue #145: the root side of switching the bridge on from Settings, for
 # devices installed before it existed (install.sh sets it up on new ones).

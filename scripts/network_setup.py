@@ -66,6 +66,19 @@ CONFIG = {
 }
 
 
+
+def safe_write(path, text=""):
+    """Root writes into /var/lib/otc, which belongs to the otc user once
+    installed: a temp file renamed into place replaces a symlink planted
+    there instead of following it (a plain write or touch as root would
+    overwrite whatever file it pointed at)."""
+    path = Path(path)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
 def run(cmd, timeout=None):
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -131,7 +144,7 @@ def setup_done():
             try:
                 started = int(res.stdout.split("ActiveEnterTimestampMonotonic=")[1].split()[0]) / 1e6
                 if time.monotonic() - started > CONFIG["post_install_grace_s"]:
-                    Path(CONFIG["setup_done_marker"]).touch()
+                    safe_write(CONFIG["setup_done_marker"])
                     print("[network-setup] install complete and otc running - setup is over")
                     return True
             except (IndexError, ValueError):
@@ -225,7 +238,7 @@ def prescan_networks():
     networks = sorted(best.values(), key=lambda n: -n["signal"])
     try:
         Path(CONFIG["scan_file"]).parent.mkdir(parents=True, exist_ok=True)
-        Path(CONFIG["scan_file"]).write_text(json.dumps({"at": time.time(), "networks": networks}))
+        safe_write(CONFIG["scan_file"], json.dumps({"at": time.time(), "networks": networks}))
         print(f"[network-setup] scanned {len(networks)} networks")
     except Exception as e:
         print(f"[network-setup] could not save the scan: {e}")
@@ -465,7 +478,7 @@ def perform_pending_wifi_join():
     else:
         print(f"[network-setup] Joined {ssid}")
     try:
-        Path(CONFIG["result_file"]).write_text(json.dumps({
+        safe_write(CONFIG["result_file"], json.dumps({
             "ssid": ssid, "ok": ok,
             "error": "" if ok else "Could not join that network - check the password and try again.",
         }))
@@ -492,7 +505,7 @@ def lift_band_limit():
         run(["nmcli", "connection", "modify", name, "802-11-wireless.band", ""])
         run(["nmcli", "connection", "up", name], timeout=90)
         print("[network-setup] setup done - WiFi no longer limited to 2.4GHz")
-    marker.touch()
+    safe_write(marker)
 
 
 def main():
@@ -501,10 +514,13 @@ def main():
     while True:
         ensure_wifi_unblocked()
         perform_pending_wifi_join()
-        ensure_ap_mode()
-        # Once set up, the hotspot is only for a device that has lost its
-        # network - drop it as soon as a real connection is back.
-        if setup_done() and has_connectivity() and ap_is_active():
+        # Security advisory (setup wizard): setup is over Bluetooth only.
+        # The open "Off The Cloud" hotspot - which also came back whenever
+        # a set-up device lost its network - is never raised any more; one
+        # left over from an older image is taken down.
+        if os.environ.get("OTC_ALLOW_HOTSPOT") == "1":
+            ensure_ap_mode()
+        elif ap_is_active():
             teardown_ap_mode()
         if setup_done() and not ap_is_active():
             lift_band_limit()

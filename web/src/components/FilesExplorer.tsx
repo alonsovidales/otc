@@ -37,6 +37,26 @@ const fmtBytes = (n?: number) =>
   return new Date(sec * 1000 + Math.floor(ns / 1e6));
 }*/
 
+// Security advisory (web app, HTML/SVG in the app's origin): a file opened
+// in a tab is a blob: URL of this app's own origin, so an HTML or SVG file
+// opened that way ran with full access to the app (its session token, the
+// window that opened it). Only types that can't run script are opened;
+// everything else is downloaded - never rendered.
+const INLINE_EXT = /\.(pdf|txt|md|csv|log|json|jpe?g|png|gif|webp|bmp|heic|heif|avif|mp4|mov|m4v|webm|mkv|mp3|m4a|aac|wav|ogg|oga|flac)$/i;
+const INLINE_MIME = /^(application\/pdf|text\/plain|text\/csv|text\/markdown|application\/json|image\/(jpeg|png|gif|webp|bmp|heic|heif|avif)|video\/[\w.+-]+|audio\/[\w.+-]+)(;.*)?$/i;
+function canOpenInline(name: string) { return INLINE_EXT.test(name); }
+function safeToOpen(mime: string) { return INLINE_MIME.test(mime || ""); }
+
+function downloadBytes(bytes: Uint8Array, name: string) {
+  // octet-stream: saved, never rendered, whatever the file is.
+  const url = bytesToURL(bytes, "application/octet-stream");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function bytesToURL(bytes: Uint8Array, mime = "application/octet-stream") {
   return URL.createObjectURL(new Blob([bytes], { type: mime }));
 }
@@ -243,7 +263,8 @@ export default function FilesExplorer({
     // browser's native viewer for anything it can render (PDFs chief among
     // them) instead of always forcing a download the way this used to,
     // unconditionally, for every non-image type.
-    const preopenedTab = isImg(f) ? null : window.open("", "_blank");
+    const opensInline = !isImg(f) && canOpenInline(leafName(f.path));
+    const preopenedTab = opensInline ? window.open("", "_blank") : null;
 
     try {
       const fullPath = f.path.includes("/") ? f.path : joinPath(path, f.path);
@@ -254,20 +275,18 @@ export default function FilesExplorer({
         preopenedTab?.close();
         return;
       }
-      const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
-      if (isImg(f)) {
-        setViewer({ name: leafName(f.path), url });
-      } else if (preopenedTab) {
-        preopenedTab.location.href = url;
+      const bytes = resp.payload.respFile.content as Uint8Array;
+      const mime = resp.payload.respFile.mime;
+      // The device's own reading of the content decides too: a ".txt"
+      // that is really HTML is not opened.
+      if (isImg(f) && safeToOpen(mime)) {
+        setViewer({ name: leafName(f.path), url: bytesToURL(bytes, mime) });
+      } else if (preopenedTab && safeToOpen(mime)) {
+        preopenedTab.location.href = bytesToURL(bytes, mime);
       } else {
-        // Popup blocked (or the browser otherwise refused window.open) -
-        // falling all the way back to a forced download beats losing the
-        // file entirely.
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = leafName(f.path);
-        document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(url);
+        // Anything else - and a blocked popup - is downloaded.
+        preopenedTab?.close();
+        downloadBytes(bytes, leafName(f.path));
       }
     } catch {
       preopenedTab?.close();

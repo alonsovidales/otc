@@ -23,7 +23,38 @@ const (
 	// policy before this.
 	cLogRetention  = 90 * 24 * time.Hour
 	cPruneInterval = 24 * time.Hour
+
+	// cNameHold is how long a released device name stays reserved for the
+	// account that held it: whoever took it next used to inherit that
+	// device's friendships (friends' devices accepted the "same" domain).
+	cNameHold = 30 * 24 * time.Hour
 )
+
+// NameHeld reports whether domain was released less than cNameHold ago
+// by an account other than accountID (or by no account) - and so can't be
+// taken by accountID yet.
+func (dao *Dao) NameHeld(domain, accountID string) (bool, error) {
+	var n int
+	err := dao.db.QueryRow(
+		"select count(*) from `released_domains` where `domain` = ? and `released_at` > ? "+
+			"and (`account_id` is null or `account_id` <> ?)",
+		domain, time.Now().Add(-cNameHold), accountID,
+	).Scan(&n)
+	return n > 0, err
+}
+
+// recordRelease holds domain for accountID (empty: for no one) from now.
+func (dao *Dao) recordRelease(domain, accountID string) error {
+	var acc any
+	if accountID != "" {
+		acc = accountID
+	}
+	_, err := dao.db.Exec(
+		"insert into `released_domains` (`domain`, `account_id`, `released_at`) values (?, ?, ?) "+
+			"on duplicate key update `account_id` = values(`account_id`), `released_at` = values(`released_at`)",
+		domain, acc, time.Now())
+	return err
+}
 
 type Dao struct {
 	db            *sql.DB
@@ -117,6 +148,9 @@ func (dao *Dao) PruneOldLogs(before time.Time) (err error) {
 	}
 	if _, err = dao.db.Exec("delete from `device_metrics` where `hour_bucket` < ?", before); err != nil {
 		return fmt.Errorf("pruning device_metrics: %w", err)
+	}
+	if _, err = dao.db.Exec("delete from `released_domains` where `released_at` < ?", time.Now().Add(-cNameHold)); err != nil {
+		return fmt.Errorf("pruning released_domains: %w", err)
 	}
 	return nil
 }
@@ -240,8 +274,15 @@ func (dao *Dao) ListDevices() (devices []Device, err error) {
 }
 
 func (dao *Dao) DeleteDevice(domain string) (err error) {
-	_, err = dao.db.Exec("delete from `devices` where `domain` = ?", domain)
-	return
+	var acc sql.NullString
+	_ = dao.db.QueryRow("select `account_id` from `devices` where `domain` = ?", domain).Scan(&acc)
+	if _, err = dao.db.Exec("delete from `devices` where `domain` = ?", domain); err != nil {
+		return err
+	}
+	if err := dao.recordRelease(domain, acc.String); err != nil {
+		log.Error("could not hold released name", domain, ":", err)
+	}
+	return nil
 }
 
 // GetAdminPasswordHash returns the bcrypt hash for username, and whether
@@ -843,6 +884,11 @@ func (dao *Dao) DeleteAccountDomain(accountID, domain string) (ok bool, err erro
 		return false, err
 	}
 	n, err := res.RowsAffected()
+	if err == nil && n > 0 {
+		if relErr := dao.recordRelease(domain, accountID); relErr != nil {
+			log.Error("could not hold released name", domain, ":", relErr)
+		}
+	}
 
 	return n > 0, err
 }

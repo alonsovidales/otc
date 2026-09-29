@@ -1171,6 +1171,10 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			return resp, true
 		}
 		log.Info("Authenticated as friend")
+		// Heard from (see social.cRelinkFreshness).
+		if err := ch.mg.dao.TouchFriend(p.ReqAuthAsFriend.Domain); err != nil {
+			log.Error("could not record contact with", p.ReqAuthAsFriend.Domain, ":", err)
+		}
 		ch.setFriendProfile(profile.InitFromPb(ch.mg.dao, friendship.OriginProfile))
 
 		resp.Payload = &pb.RespEnvelope_RespAck{

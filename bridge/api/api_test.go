@@ -185,6 +185,9 @@ func TestClaimNameReservesAFreeNameAndRefusesATakenOne(t *testing.T) {
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
 		WithArgs("newpi.off-the.cloud").
 		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	// Not a recently released name (held for its previous account).
+	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").
+		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `devices`").
 		WithArgs("11111111-2222-3333-4444-555555555555", "newpi.off-the.cloud", "0123456789abcdef0123456789abcdef01234567").
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -326,5 +329,69 @@ func TestSetupBeaconHandOff(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// A released name is held for its previous account for 30 days: another
+// account (or an anonymous claim) can't take it.
+func TestClaimRefusesARecentlyReleasedName(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
+		WithArgs("gone.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").
+		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastClaimByAddr: map[string]time.Time{}}
+	req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
+		`{"name":"gone","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))
+	req.RemoteAddr = "203.0.113.9:1111"
+	rec := httptest.NewRecorder()
+	api.claimName(rec, req)
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "30 days") {
+		t.Errorf("a held name was claimable: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// Device sites are same-site subdomains: their pages must not be able to
+// act on the bridge's account or admin endpoints with a visitor's cookie.
+func TestOriginGuard(t *testing.T) {
+	api := &API{tld: "off-the.cloud"}
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	h := api.originGuard(ok)
+	try := func(method, path, origin string, cookie bool) int {
+		req := httptest.NewRequest(method, path, strings.NewReader("{}"))
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		if cookie {
+			req.AddCookie(&http.Cookie{Name: "__Host-otc_account", Value: "x"})
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	cases := []struct {
+		method, path, origin string
+		cookie               bool
+		want                 int
+	}{
+		{"POST", "/api/claim", "https://mallory.off-the.cloud", true, http.StatusForbidden},
+		{"POST", "/api/account/login", "https://mallory.off-the.cloud", false, http.StatusForbidden},
+		{"DELETE", "/admin/api/devices/x", "https://mallory.off-the.cloud", true, http.StatusForbidden},
+		{"POST", "/api/account/domains", "", true, http.StatusForbidden},                      // a cookie without an Origin
+		{"POST", "/api/account/domains", "https://off-the.cloud", true, http.StatusNoContent}, // the account page itself
+		{"POST", "/api/claim", "", false, http.StatusNoContent},                               // the setup wizard (token, no cookie)
+		{"GET", "/api/account/me", "https://mallory.off-the.cloud", true, http.StatusNoContent},
+		{"POST", "/account/auth/apple/callback", "https://appleid.apple.com", false, http.StatusNoContent},
+	}
+	for _, c := range cases {
+		if got := try(c.method, c.path, c.origin, c.cookie); got != c.want {
+			t.Errorf("%s %s from %q (cookie %v): %d, want %d", c.method, c.path, c.origin, c.cookie, got, c.want)
+		}
 	}
 }

@@ -231,8 +231,22 @@ private fun makeWebView(context: Context, transport: BLESetupTransport, scope: C
     addJavascriptInterface(Bridge(this, transport, scope), "OTCSetup")
     webViewClient = object : WebViewClient() {
         // Runs on a background thread, so blocking on the round trip is fine.
+        // The setup page never leaves itself: a link elsewhere opens in the
+        // phone's browser, never in this view, where OTCSetup lives.
+        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+            if (request.url.scheme == "https" && request.url.host == "device") return false
+            if (request.isForMainFrame && (request.url.scheme == "https" || request.url.scheme == "http")) {
+                try { view.context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, request.url)) } catch (_: Exception) {}
+            }
+            return true
+        }
+
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-            if (request.url.host != "device") return null
+            // Nothing but the device loads in here - an embedded frame from
+            // elsewhere would get the OTCSetup interface too.
+            if (request.url.host != "device") {
+                return WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+            }
             val path = pathOf(request.url.toString())
             val a = try {
                 runBlocking { transport.request(request.method, path, null) }

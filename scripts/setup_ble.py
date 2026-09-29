@@ -43,6 +43,7 @@ Needs python3-dbus and python3-gi (baked into the image next to bluez).
 `--selftest` exercises the framing and the forwarding against a local
 stand-in for the wizard and needs neither.
 """
+import hashlib
 import json
 import os
 import socket
@@ -58,6 +59,8 @@ sys.stdout.reconfigure(line_buffering=True)
 
 CONFIG = {
     "wizard": os.environ.get("OTC_SETUP_WIZARD_URL", "http://127.0.0.1:80"),
+    # Which phone this device is being set up from (see check_phone).
+    "phone_lock_file": os.environ.get("OTC_SETUP_PHONE_LOCK", "/run/otc-setup/ble-phone"),
     # Touched by the wizard a minute after the device is online, 15 s
     # before it exits and the device's own web server takes port 80. From
     # then on nothing is forwarded (see Tunnel.forward). Not install.sh's
@@ -107,6 +110,35 @@ class Tunnel:
 
     MAX_CHUNK = 512  # an attribute value's ceiling (Bluetooth Core, ATT)
 
+    def check_phone(self, key):
+        """Security advisory (Bluetooth setup): the device answers only the
+        first phone that talked to it. Each app install sends its own
+        random key ("k"); the first one seen is kept (in /run, so a restart
+        of the Pi - not of this daemon - frees the device again) and any
+        other is refused. Returns why a request is refused, or None."""
+        if not isinstance(key, str) or not 16 <= len(key) <= 128:
+            return "Update the Off The Cloud app to set up this device."
+        digest = hashlib.sha256(key.encode()).hexdigest()
+        lock = Path(CONFIG["phone_lock_file"])
+        with self.lock:
+            try:
+                held = lock.read_text().strip()
+            except OSError:
+                held = ""
+            if not held:
+                try:
+                    lock.parent.mkdir(parents=True, exist_ok=True)
+                    fd = os.open(str(lock), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                    with os.fdopen(fd, "w") as f:
+                        f.write(digest)
+                    log("setup bound to the first phone that connected")
+                    return None
+                except FileExistsError:
+                    held = lock.read_text().strip()
+            if held != digest:
+                return "This device is being set up from another phone. Restart the device to set it up from this one."
+        return None
+
     def set_chunk_size(self, n):
         # 20 is what a 23-byte default MTU leaves; never go under it.
         self.chunk_size = min(self.MAX_CHUNK, max(20, int(n)))
@@ -143,6 +175,9 @@ class Tunnel:
         path = str(req.get("p", "/"))
         if not path.startswith("/") or "://" in path:
             return 400, "application/json", json.dumps({"error": "bad path"})
+        refused = self.check_phone(req.get("k"))
+        if refused:
+            return 403, "application/json", json.dumps({"error": refused})
         if Path(CONFIG["setup_done_marker"]).exists():
             # The wizard is leaving and port 80 becomes the device's own
             # web server: never forward to it. A phone that missed the end
@@ -455,6 +490,8 @@ def serve_bluetooth():
 # ---------------------------------------------------------------------------
 
 def selftest():
+    import tempfile as _tf
+    CONFIG["phone_lock_file"] = str(Path(_tf.mkdtemp()) / "ble-phone")
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     class Stub(BaseHTTPRequestHandler):
@@ -499,11 +536,11 @@ def selftest():
     tunnel.set_chunk_size(514)  # what BlueZ's 517-byte MTU leaves...
     assert tunnel.chunk_size == 512  # ...but never more than an attribute holds
     tunnel.set_chunk_size(182)  # what an iPhone's 185-byte MTU leaves
-    for c in Tunnel.frame_request(1, {"m": "GET", "p": "/"}, 20):
+    for c in Tunnel.frame_request(1, {"k": "phone-one-key-0123456789", "m": "GET", "p": "/"}, 20):
         tunnel.handle_chunk(c)
-    for c in Tunnel.frame_request(7, {"m": "POST", "p": "/api/wifi", "b": json.dumps({"ssid": "home", "password": "pw"})}, 20):
+    for c in Tunnel.frame_request(7, {"k": "phone-one-key-0123456789", "m": "POST", "p": "/api/wifi", "b": json.dumps({"ssid": "home", "password": "pw"})}, 20):
         tunnel.handle_chunk(c)
-    for c in Tunnel.frame_request(9, {"m": "POST", "p": "/api/x", "b": json.dumps({"fail": True})}, 20):
+    for c in Tunnel.frame_request(9, {"k": "phone-one-key-0123456789", "m": "POST", "p": "/api/x", "b": json.dumps({"fail": True})}, 20):
         tunnel.handle_chunk(c)
     assert done.wait(10), "answers did not all arrive"
     assert got[1]["s"] == 200 and got[1]["t"].startswith("text/html") and len(got[1]["b"]) == 3013, got[1]["s"]
@@ -514,8 +551,8 @@ def selftest():
     assert all(len(c) <= 182 for c in chunks) and len(chunks) == 1, len(chunks)
     # A wizard that is not there is an answer too, not a hang.
     tunnel2 = Tunnel("http://127.0.0.1:1", send)
-    assert tunnel2.forward({"m": "GET", "p": "/api/state"})[0] == 503
-    assert tunnel2.forward({"m": "GET", "p": "http://evil/"})[0] == 400
+    assert tunnel2.forward({"k": "phone-one-key-0123456789", "m": "GET", "p": "/api/state"})[0] == 503
+    assert tunnel2.forward({"k": "phone-one-key-0123456789", "m": "GET", "p": "http://evil/"})[0] == 400
     # Once setup is done: nothing is forwarded (port 80 is about to be the
     # device's own server), the saved result is served, the rest refused.
     import tempfile
@@ -527,13 +564,18 @@ def selftest():
         (tmp / "setup-done").touch()
         (tmp / "final.json").write_text(json.dumps({"install": {"phase": "online", "domain": "x.off-the.cloud"}}))
         done = Tunnel(f"http://127.0.0.1:{port}", send)
-        st = done.forward({"m": "GET", "p": "/api/state"})
+        st = done.forward({"k": "phone-one-key-0123456789", "m": "GET", "p": "/api/state"})
         assert st[0] == 200 and json.loads(st[2])["install"]["phase"] == "online", st
-        assert done.forward({"m": "GET", "p": "/"})[0] == 410
-        assert done.forward({"m": "POST", "p": "/api/wifi", "b": "{}"})[0] == 410
+        assert done.forward({"k": "phone-one-key-0123456789", "m": "GET", "p": "/"})[0] == 410
+        assert done.forward({"k": "phone-one-key-0123456789", "m": "POST", "p": "/api/wifi", "b": "{}"})[0] == 410
     finally:
         CONFIG.update(saved)
     srv.shutdown()
+    # Bound to the first phone: another phone's key, or none, is refused.
+    other = Tunnel("http://127.0.0.1:1", send)
+    assert other.forward({"k": "phone-two-key-0123456789", "m": "GET", "p": "/api/state"})[0] == 403
+    assert other.forward({"m": "GET", "p": "/api/state"})[0] == 403
+
     print("selftest ok")
     return 0
 

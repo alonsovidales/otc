@@ -145,10 +145,26 @@ func TestRelinkDecision(t *testing.T) {
 		{"pending", true, relinkUpdate, "pending"},
 		{"blocked", true, relinkRefuse, "blocked"},
 	}
+	now := time.Now()
+	recent := now.Add(-2 * 24 * time.Hour)
 	for _, c := range cases {
-		a, s := relinkDecision(c.status, c.found)
+		a, s := relinkDecision(c.status, c.found, recent, now)
 		if a != c.wantAction || s != c.wantStatus {
 			t.Errorf("relinkDecision(%q, %v) = %v, %q; want %v, %q", c.status, c.found, a, s, c.wantAction, c.wantStatus)
 		}
+	}
+}
+
+// A re-link keeps an accepted friendship only if the friend's device was
+// heard from within the last week; otherwise it's a normal request.
+func TestRelinkAfterSilenceNeedsAcceptingAgain(t *testing.T) {
+	now := time.Now()
+	for _, seen := range []time.Time{{}, now.Add(-8 * 24 * time.Hour)} {
+		if a, s := relinkDecision("accepted", true, seen, now); a != relinkUpdate || s != "pending" {
+			t.Errorf("last seen %v: got %v, %q; want a pending request", seen, a, s)
+		}
+	}
+	if _, s := relinkDecision("accepted", true, now.Add(-6*24*time.Hour), now); s != "accepted" {
+		t.Errorf("seen 6 days ago: got %q, want accepted", s)
 	}
 }

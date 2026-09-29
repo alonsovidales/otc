@@ -28,7 +28,8 @@ import (
 )
 
 const (
-	cSessionCookie        = "otc_admin_session"
+	// __Host- (so Path must be /): see accounts.cSessionCookie.
+	cSessionCookie        = "__Host-otc_admin"
 	cSessionTTL           = 12 * time.Hour
 	cDefaultMetricsWindow = 7 * 24 * time.Hour
 )
@@ -154,10 +155,10 @@ func (a *Admin) sessionCookie(token string, now time.Time, secure bool) *http.Co
 	return &http.Cookie{
 		Name:     cSessionCookie,
 		Value:    token,
-		Path:     "/admin",
+		Path:     "/",
 		Expires:  now.Add(cSessionTTL),
 		HttpOnly: true,
-		Secure:   secure,
+		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	}
 }

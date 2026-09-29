@@ -32,6 +32,7 @@ import re
 import sys
 import time
 import json
+import stat
 import glob
 import shlex
 import signal
@@ -353,6 +354,23 @@ def _safe_to_wipe(dev):
     devices, but this runs as root off a request that ultimately came from
     a web form, so it re-checks independently rather than trusting that
     filtering held all the way through."""
+    # Security advisory (storage setup): the path comes from the otc user,
+    # so it must be one of this machine's real whole disks - not a regular
+    # file (loop-mounted, and later edited offline to plant a setuid
+    # binary) nor anything with odd characters (an injected fstab line).
+    if not re.fullmatch(r"/dev/sd[a-z]{1,2}", dev or ""):
+        _fail_bootstrap(f"{dev!r} is not a disk this device can use")
+        return False
+    try:
+        if not stat.S_ISBLK(os.stat(dev).st_mode):
+            _fail_bootstrap(f"{dev} is not a block device")
+            return False
+    except OSError as e:
+        _fail_bootstrap(f"{dev}: {e}")
+        return False
+    if dev not in {d for d, _ in list_block_disks()}:
+        _fail_bootstrap(f"{dev} is not one of this device's disks")
+        return False
     root_base = root_base_disk()
     if root_base and base_disk(dev) == root_base:
         _fail_bootstrap(f"{dev} is the boot disk, refusing to touch it")
@@ -364,7 +382,11 @@ def _safe_to_wipe(dev):
     return True
 
 def _append_fstab(dev, mount_point):
-    line = f"{dev}   {mount_point}   ext4   defaults   0   0"
+    # nosuid,nodev: nothing on the data disks is ever a program to run as
+    # root, nor a device node.
+    if "\n" in dev or "\n" in mount_point:
+        raise ValueError("bad fstab entry")
+    line = f"{dev}   {mount_point}   ext4   defaults,nosuid,nodev   0   0"
     fstab = Path("/etc/fstab").read_text()
     if dev not in fstab:
         with open("/etc/fstab", "a") as f:
@@ -429,7 +451,7 @@ def perform_pending_storage_setup():
         if not _run_step(["mkfs.ext4", "-F", dev]):
             return
         os.makedirs(mount_point, exist_ok=True)
-        if not _run_step(["mount", dev, mount_point]):
+        if not _run_step(["mount", "-o", "nosuid,nodev", dev, mount_point]):
             return
         os.makedirs(unenc_path, exist_ok=True)
         _append_fstab(dev, mount_point)
@@ -449,7 +471,7 @@ def perform_pending_storage_setup():
         if not _run_step(["mkfs.ext4", "-F", raid_dev]):
             return
         os.makedirs(mount_point, exist_ok=True)
-        if not _run_step(["mount", raid_dev, mount_point]):
+        if not _run_step(["mount", "-o", "nosuid,nodev", raid_dev, mount_point]):
             return
         os.makedirs(unenc_path, exist_ok=True)
         scan = run([CONFIG["paths"]["mdadm"], "--detail", "--scan"])

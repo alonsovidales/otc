@@ -225,3 +225,14 @@ create table auth_events
   key (`domain`),
   key (`dt`)
 ) engine=InnoDB;
+
+-- A released device name is held for its last account for 30 days (see
+-- migrations/004-released-domains.sql).
+create table released_domains
+(
+  `domain`      varchar(150) not null,
+  `account_id`  varchar(64) default null,
+  `released_at` datetime not null,
+
+  primary key (`domain`)
+) engine=InnoDB;

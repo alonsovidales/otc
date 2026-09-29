@@ -1147,6 +1147,23 @@ func (dao *Dao) FriendshipStatusByDomain(domain string) (status string, found bo
 	return status, err == nil, err
 }
 
+// FriendLastSeen is when domain's device was last heard from (it signed
+// in to this device, or this device's sync reached it); zero if never.
+func (dao *Dao) FriendLastSeen(domain string) (time.Time, error) {
+	var t sql.NullTime
+	err := dao.db.QueryRow("select `last_seen` from `social_friendship` where `domain` = ?", domain).Scan(&t)
+	if err == sql.ErrNoRows {
+		return time.Time{}, nil
+	}
+	return t.Time, err
+}
+
+// TouchFriend records that domain's device was just heard from.
+func (dao *Dao) TouchFriend(domain string) error {
+	_, err := dao.db.Exec("update `social_friendship` set `last_seen` = ? where `domain` = ?", time.Now(), domain)
+	return err
+}
+
 // RelinkFriendship replaces the secret and cached profile of an existing
 // friendship (issue #140: the friend's device was re-created under the same
 // domain and asked again). status and sent are what the row becomes.

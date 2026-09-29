@@ -24,11 +24,16 @@ DEFAULT_BRIDGE=off-the.cloud
 
 rm -f "$REQUEST"
 
+# Written to a fresh temp file and moved into place: the directory is the
+# otc user's, and a plain "> $STATUS_FILE" as root followed a symlink it
+# could have put there - to overwrite (or chmod) any file on the system.
+# mv replaces a symlink rather than following it.
 status() {
-    mkdir -p "$(dirname "$STATUS_FILE")"
+    local tmp
+    tmp="$(mktemp "$STATUS_FILE.XXXXXX")" || return 1
     printf '{"state":"%s","message":"%s","updated":"%s"}\n' \
-        "$1" "${2//\"/\\\"}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
-    chmod 644 "$STATUS_FILE"
+        "$1" "${2//\"/\\\"}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
+    chmod 644 "$tmp" && mv -Tf "$tmp" "$STATUS_FILE"
 }
 
 ini_value() {

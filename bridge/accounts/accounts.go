@@ -39,7 +39,10 @@ import (
 )
 
 const (
-	cSessionCookie = "otc_account"
+	// __Host-: only this exact host can set it - a device's page on a
+	// subdomain (same site) used to be able to plant its own account
+	// cookie for the whole domain. Always Secure (a __Host- requirement).
+	cSessionCookie = "__Host-otc_account"
 	cSessionTTL    = 30 * 24 * time.Hour
 	// A setup token (also typed as a setup code) is good for this long.
 	cSetupTokenTTL = 15 * time.Minute
@@ -174,12 +177,12 @@ func (a *Accounts) setSession(w http.ResponseWriter, r *http.Request, accountID 
 	now := time.Now()
 	http.SetCookie(w, &http.Cookie{
 		Name: cSessionCookie, Value: a.sessionToken(accountID, now), Path: "/",
-		Expires: now.Add(cSessionTTL), HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode,
+		Expires: now.Add(cSessionTTL), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func (a *Accounts) clearSession(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{Name: cSessionCookie, Value: "", Path: "/", Expires: time.Unix(0, 0), HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: cSessionCookie, Value: "", Path: "/", Expires: time.Unix(0, 0), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode})
 }
 
 // AccountFromRequest is the signed-in account, if the request carries a

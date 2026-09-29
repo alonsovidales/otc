@@ -109,14 +109,14 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	api.registerAPIs()
 	go func() {
 		log.Info("Starting http API server on port:", httpPort, cert, key)
-		err := http.ListenAndServe(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer)
+		err := http.ListenAndServe(fmt.Sprintf(":%d", httpPort), api.originGuard(api.muxHTTPServer))
 		if err != nil {
 			log.Fatal("Error:", err)
 		}
 	}()
 	go func() {
 		log.Info("Starting https API server on port:", httpsPort, cert, key)
-		err := http.ListenAndServeTLS(fmt.Sprintf(":%d", httpsPort), cert, key, api.muxHTTPServer)
+		err := http.ListenAndServeTLS(fmt.Sprintf(":%d", httpsPort), cert, key, api.originGuard(api.muxHTTPServer))
 		if err != nil {
 			log.Fatal("Error:", err)
 		}
@@ -465,6 +465,13 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusInternalServerError, "could not check that name right now")
 		return
 	}
+	// A recently released name is held for its last account: not
+	// available to anyone asking anonymously.
+	if !registered {
+		if held, err := api.dao.NameHeld(api.deviceDomain(name), ""); err == nil && held {
+			registered = true
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"available": !registered, "domain": api.deviceDomain(name)})
 }
 
@@ -545,6 +552,12 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		return
+	}
+	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
+		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
+	} else if held {
+		writeJSONErr(w, http.StatusConflict, "that name was released recently and is held for its previous owner for 30 days")
 		return
 	}
 	if accountID != "" {
@@ -661,6 +674,12 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 		return
 	} else if registered {
 		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		return
+	}
+	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
+		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
+	} else if held {
+		writeJSONErr(w, http.StatusConflict, "that name was released recently and is held for its previous owner for 30 days")
 		return
 	}
 	if code, msg := api.domainLimitReached(accountID); code != 0 {
@@ -808,4 +827,42 @@ func writeJSONErr(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// originGuard refuses state-changing requests to the bridge's own pages
+// (accounts, claims, admin) from any other origin. Device sites live on
+// subdomains - the same site - so a device's page could otherwise post to
+// them with a visitor's cookie (SameSite doesn't stop same-site requests):
+// re-pointing the visitor's device name, or signing them into another
+// account. Browsers send Origin with every such request; a request with a
+// session cookie must come from the bridge's own origin.
+func (api *API) originGuard(next http.Handler) http.Handler {
+	own := "https://" + api.tld
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+		p := r.URL.Path
+		guarded := strings.HasPrefix(p, "/api/account") || p == "/api/claim" || strings.HasPrefix(p, "/admin")
+		if !guarded || strings.HasPrefix(p, "/account/auth/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		origin := r.Header.Get("Origin")
+		withCookie := false
+		for _, c := range r.Cookies() {
+			if strings.HasPrefix(c.Name, "__Host-otc_") || strings.HasPrefix(c.Name, "otc_") {
+				withCookie = true
+				break
+			}
+		}
+		if (origin != "" && origin != own) || (withCookie && origin != own) {
+			log.Info("refused a cross-origin", r.Method, p, "from origin", origin)
+			writeJSONErr(w, http.StatusForbidden, "not allowed from this page")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

@@ -540,6 +540,8 @@ apply_schema_migrations() {
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 1;
     -- Issue #153: the space friends' posts may take, in MB.
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS social_storage_limit_mb INT NOT NULL DEFAULT 5120;
+    -- When a friend's device was last heard from (re-link rule).
+    ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS last_seen DATETIME NULL;
     -- Issue #92: ends a friend's notification catch-up suppression once their
     -- pre-existing backlog is fully replayed (see social.go's
     -- updateFriendEvents) - defaulting to 0 on an upgrade is fine even for

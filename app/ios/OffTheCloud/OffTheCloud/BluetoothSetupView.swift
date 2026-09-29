@@ -45,6 +45,20 @@ struct BLESetupAnswer {
 /// answer reassembled from notifications. Everything runs on the main
 /// queue (CoreBluetooth is created with it), so no locking.
 final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+    /// Sent with every request: a device being set up answers only the
+    /// first phone that talked to it - this key, not the phone's Bluetooth
+    /// address, which changes every few minutes. Kept for the life of the
+    /// app install, so reopening the app mid-setup still works.
+    static let setupKey: String = {
+        let k = "otcSetupKey"
+        if let v = UserDefaults.standard.string(forKey: k), !v.isEmpty { return v }
+        var bytes = [UInt8](repeating: 0, count: 24)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        let v = bytes.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(v, forKey: k)
+        return v
+    }()
+
     enum Phase: Equatable {
         case starting, off, unauthorized, scanning, connecting, ready(String), lost
     }
@@ -97,7 +111,7 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         }
         nextStream &+= 1
         let stream = nextStream
-        var message: [String: Any] = ["m": method, "p": path]
+        var message: [String: Any] = ["m": method, "p": path, "k": Self.setupKey]
         if let body, !body.isEmpty { message["b"] = String(decoding: body, as: UTF8.self) }
         // The biggest notification this phone takes whole: MTU-3, and
         // never more than the 512 bytes an attribute value can hold.
@@ -347,6 +361,7 @@ final class BLESetupScriptBridge: NSObject, WKScriptMessageHandlerWithReply {
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping (Any?, String?) -> Void) {
+        guard isFromSetupPage(message) else { return replyHandler(nil, "not allowed") }
         guard let req = message.body as? [String: Any] else { return replyHandler(nil, "bad request") }
         let method = req["m"] as? String ?? "GET"
         var path = req["p"] as? String ?? "/"
@@ -363,8 +378,33 @@ final class BLESetupScriptBridge: NSObject, WKScriptMessageHandlerWithReply {
     }
 }
 
+/// The setup page's native calls (Bluetooth requests, sign-in, the
+/// password) answer only the setup page itself, in its main frame - not a
+/// page it navigated to, nor a frame inside it.
+func isFromSetupPage(_ message: WKScriptMessage) -> Bool {
+    message.frameInfo.isMainFrame && message.frameInfo.securityOrigin.protocol == BLESetupSchemeHandler.scheme
+}
+
+/// Keeps the setup web view on the setup page: anything else a link points
+/// at opens in the phone's browser, never inside this view (where the
+/// native calls above live).
+final class BLESetupNavigationGuard: NSObject, WKNavigationDelegate {
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let url = action.request.url else { return decisionHandler(.cancel) }
+        if url.scheme == BLESetupSchemeHandler.scheme || url.absoluteString == "about:blank" {
+            return decisionHandler(.allow)
+        }
+        if action.targetFrame?.isMainFrame ?? true, url.scheme == "https" || url.scheme == "http" {
+            DispatchQueue.main.async { UIApplication.shared.open(url) }
+        }
+        decisionHandler(.cancel)
+    }
+}
+
 struct BLESetupWebView: UIViewRepresentable {
     let transport: BLESetupTransport
+
+    func makeCoordinator() -> BLESetupNavigationGuard { BLESetupNavigationGuard() }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -373,6 +413,7 @@ struct BLESetupWebView: UIViewRepresentable {
         config.userContentController.addScriptMessageHandler(BLESetupSignIn(), contentWorld: .page, name: "otcSignIn")
         config.userContentController.add(BLESetupPasswordHandler(transport: transport), contentWorld: .page, name: "otcPassword")
         let view = WKWebView(frame: .zero, configuration: config)
+        view.navigationDelegate = context.coordinator
         view.isOpaque = false
         view.backgroundColor = UIColor(red: 0.118, green: 0.122, blue: 0.133, alpha: 1) // the wizard's own background
         view.load(URLRequest(url: URL(string: "\(BLESetupSchemeHandler.scheme)://device/")!))
@@ -511,6 +552,7 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
     private var session: ASWebAuthenticationSession?
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping (Any?, String?) -> Void) {
+        guard isFromSetupPage(message) else { return replyHandler(nil, "not allowed") }
         guard let body = message.body as? [String: Any], let provider = body["p"] as? String,
               provider == "apple" || provider == "google" else {
             return replyHandler(nil, "Unknown sign-in provider")
@@ -583,6 +625,7 @@ final class BLESetupPasswordHandler: NSObject, WKScriptMessageHandler {
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard isFromSetupPage(message) else { return }
         guard let pw = message.body as? String, pw.count >= 8 else { return }
         Task { @MainActor in self.transport?.chosenPassword = pw }
     }

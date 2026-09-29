@@ -151,43 +151,29 @@ an "old image": whatever you flash installs today's release.
    "Use custom", pick the downloaded `.img.xz` file, select your card, and write. Don't use Imager's
    own `Customisation` step - the wizard handles WiFi and identity itself.
 3. Plug in the USB disks you want to use (two for RAID1), put the card in the Pi and power it on.
-   After a minute it announces itself over Bluetooth and opens its own WiFi network called
-   **"Off The Cloud"** (no password). Set it up from your phone, either way - the wizard is the
-   same one:
-   - **With the app** (iOS or Android): on the welcome screen tap **Set up a new device**. The
-     app finds the Pi over Bluetooth and runs the wizard right there; your phone stays on its
-     own WiFi. Already signed into another device? Log out first, in Settings - the app then
-     belongs to the device you set up.
-   - **With the browser**: join the "Off The Cloud" WiFi; the "sign in to network" sheet opens
-     the wizard (or open a browser and go to any address). Wired into your router instead? Open
-     the address your router shows for a device called `otc` (or `http://otc.local/` where that
-     resolves).
+   After a minute it announces itself over Bluetooth. Set it up from your phone with the app (iOS
+   or Android): on the welcome screen tap **Set up a new device**. The app finds the Pi over
+   Bluetooth and runs the wizard right there; your phone stays on its own WiFi. Already signed
+   into another device? Log out first, in Settings - the app then belongs to the device you set
+   up. Setup is over Bluetooth only: the wizard isn't reachable from the network, and once a phone
+   has connected to the Pi for setup, no other phone can.
 4. The wizard walks through four steps:
-   - **WiFi**: pick your network and enter its password. From the app (Bluetooth) any network
-     works, 2.4 or 5 GHz. Over the hotspot the Pi joins on 2.4 GHz and moves to 5 GHz once it is
-     set up; a network that is only 5 GHz needs the app, because the hotspot shares the Pi's one
-     radio and can't run on most 5 GHz channels. The Pi joins it while keeping its own hotspot up. The
-     hotspot restarts for a few seconds to move to your network's channel, so your phone may get
-     disconnected: if it doesn't rejoin "Off The Cloud" by itself, reconnect to it in your WiFi
-     settings and come back to the page, which carries on once the Pi is online.
+   - **WiFi**: pick your network (the list fills in by itself) and enter its password - 2.4 or
+     5 GHz. Wired into your router instead? Skip it.
    - **Name and password**: the device's `<name>.off-the.cloud` address, checked as you type and
      reserved on the bridge the moment you continue, and the device's password (twice, 8
      characters or more). The password encrypts everything on the device and can't be recovered;
-     the page encrypts it before it leaves your phone, and the install sets it. A recovered device
+     the app encrypts it before it leaves your phone, and the install sets it. A recovered device
      keeps the password it had.
    - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
      wiped), or none to keep everything on the SD card for now.
    - **Install**: a progress bar over the install script's steps, with what it is doing under it
      and the log one tap away. This takes a while on a Pi - it downloads the tagging model and
-     builds the software from source - about 20 minutes. You don't have to wait on the hotspot:
-     once the name is reserved you can close the page and disconnect; when the installation is
-     complete, open `https://<name>.off-the.cloud` from any network. To check the progress
-     meanwhile, connect to the "Off The Cloud" WiFi again and the page comes back.
+     builds the software from source - about 20 minutes. You can close the app meanwhile; when the
+     installation is complete, open `https://<name>.off-the.cloud` from any network.
 5. When it finishes, the wizard waits until the bridge sees the device connected, then shows its
-   address, `https://<name>.off-the.cloud`. In the app, tap **Open my device** and it signs in with
-   the password you chose; in the browser, open that address and sign in with it. Then you set up
-   your profile. The hotspot switches off a minute later and the
-   setup wizard with it; the hotspot only comes back if the device ever loses its network.
+   address, `https://<name>.off-the.cloud`. Tap **Open my device** and the app signs in with the
+   password you chose. Then you set up your profile. The setup wizard switches off afterwards.
 
 **Replacing a dead Pi**: if the Pi died but its two disks didn't, flash a new card with the same
 image, attach the same disks, and go through the wizard again. At the Storage step it finds the
