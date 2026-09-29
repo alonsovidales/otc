@@ -554,18 +554,26 @@ func (e *Engine) startSync() {
 	for _, f := range folders {
 		e.mu.Lock()
 		_, watching := e.watchers[f.ID]
+		errored := e.folderStates[f.ID].Kind == StateError
 		e.mu.Unlock()
 		if !watching {
 			e.setupFolder(f)
+		} else if errored {
+			// Left in an error while the link was down (its retry finds
+			// no connection and gives up): again now, not in 10 minutes.
+			e.reconcile(f)
 		}
 	}
 	for _, f := range remotes {
 		e.mu.Lock()
 		_, watching := e.remoteWatch[f.ID]
+		errored := e.remoteStates[f.ID].Kind == StateError
 		e.mu.Unlock()
 		if !watching {
 			e.reconcileRemoteFolder(f)
 			e.startRemoteWatcher(f)
+		} else if errored {
+			e.reconcileRemoteFolder(f)
 		}
 	}
 	if first {
@@ -802,6 +810,14 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 		var done int64
 		for _, it := range toUpload {
+			// The link went: stop rather than "fail" every remaining file
+			// in a second each, racing the bar to 100% with nothing sent
+			// (as SyncModel.reconcile); OnConnect's startSync resumes it.
+			if !e.ws.IsConnected() {
+				e.setFolderState(f.ID, FolderState{Kind: StateError, Message: "Device offline - will resume"})
+
+				return
+			}
 			e.setFolderState(f.ID, FolderState{Kind: StateScanning, Progress: float64(done) / float64(total), CurrentFile: filepath.Base(it.path)})
 			if it.hash == "" {
 				h, err := e.cachedHash(f.ID, it.path)
@@ -1063,6 +1079,24 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 
 	for i, a := range actions {
+		// As reconcile(): a dropped link ends the pass; what's left keeps
+		// its baseline and goes on reconnect.
+		if !e.ws.IsConnected() {
+			for _, rest := range actions[i:] {
+				if prior, ok := last[rest.relative]; ok {
+					newSynced[rest.relative] = prior
+				} else {
+					delete(newSynced, rest.relative)
+				}
+			}
+			e.mu.Lock()
+			e.lastSynced[f.ID] = newSynced
+			e.mu.Unlock()
+			e.saveSynced(f.ID, newSynced)
+			e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: "Device offline - will resume"})
+
+			return
+		}
 		e.setRemoteState(f.ID, FolderState{Kind: StateScanning, Progress: float64(i) / float64(len(actions)), CurrentFile: fmt.Sprintf("%d/%d · %s", i+1, len(actions), baseName(a.relative))})
 		localPath := filepath.Join(f.LocalPath, filepath.FromSlash(a.relative))
 		remotePath := remotePrefix + a.relative

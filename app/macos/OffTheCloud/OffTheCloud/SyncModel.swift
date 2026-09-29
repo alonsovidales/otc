@@ -744,6 +744,16 @@ final class SyncModel: ObservableObject {
                 var bytesDone: Int64 = 0
 
                 for item in toUpload {
+                    // The link went (device offline, restarting): stop
+                    // here rather than "fail" every remaining file in a
+                    // second each, which raced the bar to 100% with
+                    // nothing sent. The folder resumes when the app signs
+                    // in again (onConnect retries errored folders).
+                    guard ws.isConnected() else {
+                        updateState(folder.id, .error("Device offline - will resume"))
+                        saveHashCache(folder.id)
+                        return
+                    }
                     // Reported *before* the upload starts, not after — a
                     // multi-gigabyte file can take minutes to send, and
                     // without this the UI just sits on the previous
@@ -1034,6 +1044,18 @@ final class SyncModel: ObservableObject {
             if !actions.isEmpty {
                 let total = actions.count
                 for (i, action) in actions.enumerated() {
+                    // As reconcile(): a dropped link ends the pass; what's
+                    // left keeps its baseline and goes on reconnect.
+                    guard ws.isConnected() else {
+                        for rest in actions[i...] {
+                            if let prior = lastSynced[rest.relative] { newSynced[rest.relative] = prior } else { newSynced.removeValue(forKey: rest.relative) }
+                        }
+                        if newSynced != lastSynced { saveSynced(folder.id, newSynced) }
+                        lastSyncedByRemoteFolder[folder.id] = newSynced
+                        updateRemoteState(folder.id, .error("Device offline - will resume"))
+                        saveHashCache(folder.id)
+                        return
+                    }
                     updateRemoteState(folder.id, .scanning(progress: Double(i) / Double(total), currentFile: "\(i + 1)/\(total) · " + (action.relative as NSString).lastPathComponent))
                     let localURL = folder.localURL.appendingPathComponent(action.relative)
                     let remotePath = remotePrefix + action.relative
