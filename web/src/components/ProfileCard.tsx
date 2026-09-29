@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, Profile as PbProfile } from "../proto/messages";
+import PhotoCropDialog from "./PhotoCropDialog";
 import "./ProfileCard.css";
 
 type Props = {
@@ -17,17 +18,14 @@ function bytesToObjectURL(bytes?: Uint8Array, mime = "image/jpeg") {
   return URL.createObjectURL(blob);
 }
 
-async function fileToUint8Array(file: File): Promise<Uint8Array> {
-  const buf = await file.arrayBuffer();
-  return new Uint8Array(buf);
-}
-
 export default function ProfileCard({ authenticated }: Props) {
   // Loaded data
   const [name, setName]   = useState("");
   const [text, setText]   = useState("");
   const [imgBytes, setImgBytes] = useState<Uint8Array | null>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
+  // A picked photo waiting in the crop dialog.
+  const [cropping, setCropping] = useState<File | null>(null);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -79,19 +77,17 @@ export default function ProfileCard({ authenticated }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onPickImage = async (file?: File | null) => {
+  const onPickImage = (file?: File | null) => {
     setSuccess(null);
     setError(null);
-    if (!file) return;
-    try {
-      const bytes = await fileToUint8Array(file);
-      setImgBytes(bytes);
-      if (imgUrl) URL.revokeObjectURL(imgUrl);
-      const url = bytesToObjectURL(bytes, file.type || "image/*");
-      setImgUrl(url);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
-    }
+    if (file) setCropping(file);
+  };
+
+  const onCropped = (jpeg: Uint8Array, url: string) => {
+    setCropping(null);
+    setImgBytes(jpeg);
+    if (imgUrl) URL.revokeObjectURL(imgUrl);
+    setImgUrl(url);
   };
 
   const canFollow = useMemo(() => {
@@ -186,7 +182,7 @@ export default function ProfileCard({ authenticated }: Props) {
     <div className="pc-card">
       <div className="pc-left">
         {imgUrl ? (
-          <img className="pc-avatar" src={imgUrl} alt={name || "avatar"} />
+          <img className="pc-avatar pc-round" src={imgUrl} alt={name || "avatar"} />
         ) : (
           <div className="pc-avatar pc-placeholder">👤</div>
         )}
@@ -196,9 +192,10 @@ export default function ProfileCard({ authenticated }: Props) {
             type="file"
             accept="image/*"
             hidden
-            onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
+            onChange={(e) => { onPickImage(e.target.files?.[0] ?? null); e.target.value = ""; }}
           />
         </label>
+        {cropping && <PhotoCropDialog file={cropping} onCancel={() => setCropping(null)} onDone={onCropped} />}
       </div>
 
       <div className="pc-right">

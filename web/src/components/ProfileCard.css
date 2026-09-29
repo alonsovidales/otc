@@ -88,3 +88,8 @@
 .pc-skel { width: 120px; height: 120px; border-radius: 12px; background: var(--ink-2); }
 .pc-line { height: 14px; background: var(--ink-2); border-radius: 6px; }
 .pc-line.short { width: 40%; }
+
+/* Shown as friends see it: the square picture in a circle. */
+.pc-round {
+  border-radius: 50%;
+}

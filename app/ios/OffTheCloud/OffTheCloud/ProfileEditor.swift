@@ -72,6 +72,9 @@ final class ProfileEditorViewModel: ObservableObject {
 struct ProfileEditorSection: View {
     @StateObject private var vm = ProfileEditorViewModel()
     @State private var photoItem: PhotosPickerItem?
+    /// Issue #178: a fresh pick goes through ProfilePhotoCropView first;
+    /// vm.imageData only changes once the user taps "Use photo".
+    @State private var cropItem: ProfilePhotoCropItem?
 
     var body: some View {
         Section(header: Text("Profile")) {
@@ -105,11 +108,24 @@ struct ProfileEditorSection: View {
         }
         .task { await vm.load() }
         .onChange(of: photoItem) { _, newItem in
+            guard let newItem else { return }
             Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                    vm.imageData = data
+                if let data = try? await newItem.loadTransferable(type: Data.self),
+                   let item = ProfilePhotoCropItem(data: data) {
+                    cropItem = item
                 }
+                // Clear the selection so picking the same photo again
+                // still fires onChange.
+                photoItem = nil
             }
+        }
+        .fullScreenCover(item: $cropItem) { item in
+            ProfilePhotoCropView(image: item.image,
+                                 onCancel: { cropItem = nil },
+                                 onUse: { data in
+                                     vm.imageData = data
+                                     cropItem = nil
+                                 })
         }
     }
 }

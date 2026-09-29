@@ -65,7 +65,9 @@ import cloud.offthe.otc.ui.common.ConnectionEndpointFields
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.Toast
 import cloud.offthe.otc.ui.compose.mediaPermissions
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -276,8 +278,19 @@ private fun ProfileEditorSection() {
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // A pick goes through the circle crop (ProfilePhotoCrop.kt) before it
+    // replaces the photo; Cancel keeps the previous one.
+    var cropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) scope.launch { vm.setImage(context.contentResolver.openInputStream(uri)?.use { it.readBytes() }) }
+        if (uri != null) scope.launch { cropSource = withContext(Dispatchers.IO) { decodeProfilePhoto(context, uri) } }
+    }
+    cropSource?.let { bmp ->
+        ProfilePhotoCropDialog(bmp, onCancel = { cropSource = null }) { side, zoom, pan ->
+            scope.launch {
+                vm.setImage(withContext(Dispatchers.Default) { renderProfilePhoto(bmp, side, zoom, pan) })
+                cropSource = null
+            }
+        }
     }
     LaunchedEffect(Unit) { vm.load() }
     Section("Profile") {
