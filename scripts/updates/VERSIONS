@@ -88,3 +88,4 @@
 47	55911f652e197b5c5118c7a8acb972c2f56c229b654f5494daee05bd3975e95a	e95b4c63c2f5fc9b6584d4af03e6d61fc173c8585427966f81788f95617419d5	Uploads are never recorded before their content is safely stored (an update mid-upload could lose files). The database password no longer appears in the device's logs.
 48	-	2e4bc194fb83b51a3836051da744553c94486ef4ddd4a50ac7928e7299ad2aea	Times are right again (alerts said "in 49 min"), and choosing a profile picture from the device's photos shows them on the web.
 49	-	4ace81b7f8e394e9229890e69b58f9743df64b97ffc45c16382cc316dcace29d	Images shows each photo once, even when the same picture is in more than one folder.
+50	b3c75548de9142353ba723031e36f178e441ffbb675e81854e3ea1c25d42514a	962a5253d0da175309a86cc9a72787d7077d160209c190b3f9a95d000a0378c4	Tailscale only runs while Tailscale Funnel is turned on in Settings.
