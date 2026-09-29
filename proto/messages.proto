@@ -1111,6 +1111,11 @@ message BridgeNotify {
   string secret = 3;
   string title = 4;
   string body = 5;
+  // What a tap opens in the apps (push.Target): kind "post" or "friends",
+  // and the post/comment - IDs only, never content.
+  string kind = 6;
+  string pub_uuid = 7;
+  string comment_uuid = 8;
 }
 
 message BridgeNotifyAck {

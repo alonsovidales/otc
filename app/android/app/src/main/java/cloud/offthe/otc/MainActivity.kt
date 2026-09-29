@@ -44,8 +44,14 @@ class MainActivity : ComponentActivity() {
         openFromPush(intent)
     }
 
-    // A tapped push (issue #125) opens Alerts, where that notification is.
+    // A tapped push (issue #125) opens what it is about, as a tap in
+    // Alerts does. In the background Android puts the push's data keys in
+    // the intent's extras; OTCMessagingService does the same in the
+    // foreground.
     private fun openFromPush(intent: Intent?) {
-        if (intent?.hasExtra(FCMPush.DATA_KEY) == true) NotificationsModel.requestAlerts()
+        if (intent?.hasExtra(FCMPush.DATA_KEY) != true) return
+        NotificationsModel.handlePushTap(
+            intent.getStringExtra("kind"), intent.getStringExtra("pub_uuid"), intent.getStringExtra("comment_uuid"),
+        )
     }
 }

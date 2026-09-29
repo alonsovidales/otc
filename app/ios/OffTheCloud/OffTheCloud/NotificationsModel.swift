@@ -95,6 +95,20 @@ final class NotificationsModel: ObservableObject {
         })
     }
 
+    /// A tapped push: the same place tapping it in Alerts opens - its
+    /// post (and comment), or the friend requests. The keys are the
+    /// bridge's (push.Target); a push without them just opens the app.
+    func handlePushTap(_ userInfo: [AnyHashable: Any]) {
+        let kind = userInfo["kind"] as? String ?? ""
+        let pub = userInfo["pub_uuid"] as? String ?? ""
+        let comment = userInfo["comment_uuid"] as? String ?? ""
+        if kind == "friends" {
+            pendingDeepLink = .friendRequests
+        } else if !pub.isEmpty {
+            pendingDeepLink = .post(pubUuid: pub, commentUuid: comment.isEmpty ? nil : comment)
+        }
+    }
+
     func handleTap(_ n: Msg_Notification) {
         switch n.type {
         case .notificationFriendRequest, .notificationFriendAccepted:

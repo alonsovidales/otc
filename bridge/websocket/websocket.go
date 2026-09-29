@@ -457,7 +457,7 @@ func (mg *Manager) sendOfflineAlert(domain string) {
 		log.Error("could not init push for offline alert:", domain, err)
 		return
 	}
-	ps.Notify("Off The Cloud", "Your device appears to have gone offline")
+	ps.Notify("Off The Cloud", "Your device appears to have gone offline", push.Target{})
 }
 
 // onDeviceConnectionRegistered records that domain just gained one more
@@ -1077,7 +1077,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = err.Error()
 				} else {
-					ps.NotifyMobile(req.Title, req.Body)
+					ps.NotifyMobile(req.Title, req.Body, push.Target{Kind: req.Kind, PubUUID: req.PubUuid, CommentUUID: req.CommentUuid})
 					resp.Payload = &pb.RespEnvelope_RespBridgeNotifyAck{
 						RespBridgeNotifyAck: &pb.BridgeNotifyAck{Ok: true},
 					}

@@ -40,6 +40,19 @@ object NotificationsModel {
     val alertsRequested: StateFlow<Boolean> = _alertsRequested
 
     fun requestAlerts() { _alertsRequested.value = true }
+
+    /**
+     * A tapped push: the same place tapping it in Alerts opens - its post
+     * (and comment), or the friend requests. The keys are the bridge's
+     * (push.Target); a push without them opens Alerts.
+     */
+    fun handlePushTap(kind: String?, pubUuid: String?, commentUuid: String?) {
+        when {
+            kind == "friends" -> _pendingDeepLink.value = DeepLink.FriendRequests
+            !pubUuid.isNullOrEmpty() -> _pendingDeepLink.value = DeepLink.Post(pubUuid, commentUuid?.ifEmpty { null })
+            else -> requestAlerts()
+        }
+    }
     fun consumeAlertsRequest() { _alertsRequested.value = false }
 
     private var pollJob: Job? = null

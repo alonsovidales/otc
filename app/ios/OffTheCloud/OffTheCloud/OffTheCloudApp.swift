@@ -75,11 +75,14 @@ struct OTCApp: App {
 // web/src/net/webPush.ts) — sending the actual push still needs the device
 // owner to configure an APNs Auth Key in the [apns] config section (see
 // push/push.go); this registration path works and is harmless without one.
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Set before launch finishes, so a tap that launched the app is
+        // delivered here too.
+        UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error {
                 print("Notification authorization request failed:", error)
@@ -126,6 +129,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 }
             }
         }
+    }
+
+    // A tapped push opens what it is about, as a tap in Alerts does.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let info = response.notification.request.content.userInfo
+        await MainActor.run { NotificationsModel.shared.handlePushTap(info) }
+    }
+
+    // Shown as a banner even while the app is open, like on Android.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .list]
     }
 
     func application(

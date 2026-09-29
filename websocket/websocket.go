@@ -604,7 +604,7 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 // connection pattern as syncPushRegistrationsToBridge below. Returns
 // whether the bridge accepted it; false lets push fall back (to nothing,
 // on a device without its own key - the intended state).
-func (mg *Manager) relayMobileToBridge(title, body string) bool {
+func (mg *Manager) relayMobileToBridge(title, body string, t push.Target) bool {
 	if !bridgeConfigured() {
 		return false
 	}
@@ -627,6 +627,9 @@ func (mg *Manager) relayMobileToBridge(title, body string) bool {
 				Secret:    mg.settings.BridgeSecret,
 				Title:     title,
 				Body:      body,
+				Kind:        t.Kind,
+				PubUuid:     t.PubUUID,
+				CommentUuid: t.CommentUUID,
 			},
 		},
 	})

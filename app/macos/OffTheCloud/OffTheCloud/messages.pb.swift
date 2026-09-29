@@ -2637,6 +2637,14 @@ public nonisolated struct Msg_BridgeNotify: Sendable {
 
   public var body: String = String()
 
+  /// What a tap opens in the apps (push.Target): kind "post" or "friends",
+  /// and the post/comment - IDs only, never content.
+  public var kind: String = String()
+
+  public var pubUuid: String = String()
+
+  public var commentUuid: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -9233,7 +9241,7 @@ nonisolated extension Msg_UpdatePushRegistrationsAck: SwiftProtobuf.Message, Swi
 
 nonisolated extension Msg_BridgeNotify: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BridgeNotify"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{1}title\0\u{1}body\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{1}title\0\u{1}body\0\u{1}kind\0\u{3}pub_uuid\0\u{3}comment_uuid\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -9246,6 +9254,9 @@ nonisolated extension Msg_BridgeNotify: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 3: try { try decoder.decodeSingularStringField(value: &self.secret) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.title) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.body) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.kind) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.pubUuid) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.commentUuid) }()
       default: break
       }
     }
@@ -9267,6 +9278,15 @@ nonisolated extension Msg_BridgeNotify: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.body.isEmpty {
       try visitor.visitSingularStringField(value: self.body, fieldNumber: 5)
     }
+    if !self.kind.isEmpty {
+      try visitor.visitSingularStringField(value: self.kind, fieldNumber: 6)
+    }
+    if !self.pubUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.pubUuid, fieldNumber: 7)
+    }
+    if !self.commentUuid.isEmpty {
+      try visitor.visitSingularStringField(value: self.commentUuid, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -9276,6 +9296,9 @@ nonisolated extension Msg_BridgeNotify: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.secret != rhs.secret {return false}
     if lhs.title != rhs.title {return false}
     if lhs.body != rhs.body {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.pubUuid != rhs.pubUuid {return false}
+    if lhs.commentUuid != rhs.commentUuid {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

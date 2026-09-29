@@ -162,7 +162,7 @@ func (f *fcmSender) token() (string, error) {
 
 // send delivers one notification to one app instance. The data key is
 // what the app looks for to open its notifications list on a tap.
-func (f *fcmSender) send(deviceToken, title, body string) error {
+func (f *fcmSender) send(deviceToken, title, body string, t Target) error {
 	access, err := f.token()
 	if err != nil {
 		return err
@@ -170,7 +170,7 @@ func (f *fcmSender) send(deviceToken, title, body string) error {
 	msg := map[string]any{"message": map[string]any{
 		"token":        deviceToken,
 		"notification": map[string]string{"title": title, "body": body},
-		"data":         map[string]string{"otc": "notification"},
+		"data":         t.data(),
 		"android": map[string]any{
 			"priority":     "high",
 			"notification": map[string]string{"channel_id": cFcmChannelID},
@@ -236,7 +236,7 @@ func fcmTokenGone(status int, body []byte) bool {
 	return status == http.StatusNotFound && e.Error.Status == "NOT_FOUND"
 }
 
-func (p *Push) sendFcm(title, body string) {
+func (p *Push) sendFcm(title, body string, target Target) {
 	if p.fcm == nil {
 		return
 	}
@@ -246,7 +246,7 @@ func (p *Push) sendFcm(title, body string) {
 		return
 	}
 	for _, t := range tokens {
-		err := p.fcm.send(t, title, body)
+		err := p.fcm.send(t, title, body, target)
 		if errors.Is(err, errFcmTokenGone) {
 			if delErr := p.storage.DeleteFcmToken(t); delErr != nil {
 				log.Error("could not remove stale FCM token:", delErr)

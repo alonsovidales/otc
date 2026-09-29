@@ -1609,6 +1609,13 @@ export interface BridgeNotify {
   secret: string;
   title: string;
   body: string;
+  /**
+   * What a tap opens in the apps (push.Target): kind "post" or "friends",
+   * and the post/comment - IDs only, never content.
+   */
+  kind: string;
+  pubUuid: string;
+  commentUuid: string;
 }
 
 export interface BridgeNotifyAck {
@@ -11782,7 +11789,7 @@ export const UpdatePushRegistrationsAck: MessageFns<UpdatePushRegistrationsAck> 
 };
 
 function createBaseBridgeNotify(): BridgeNotify {
-  return { ownerUuid: "", domain: "", secret: "", title: "", body: "" };
+  return { ownerUuid: "", domain: "", secret: "", title: "", body: "", kind: "", pubUuid: "", commentUuid: "" };
 }
 
 export const BridgeNotify: MessageFns<BridgeNotify> = {
@@ -11801,6 +11808,15 @@ export const BridgeNotify: MessageFns<BridgeNotify> = {
     }
     if (message.body !== "") {
       writer.uint32(42).string(message.body);
+    }
+    if (message.kind !== "") {
+      writer.uint32(50).string(message.kind);
+    }
+    if (message.pubUuid !== "") {
+      writer.uint32(58).string(message.pubUuid);
+    }
+    if (message.commentUuid !== "") {
+      writer.uint32(66).string(message.commentUuid);
     }
     return writer;
   },
@@ -11852,6 +11868,30 @@ export const BridgeNotify: MessageFns<BridgeNotify> = {
           message.body = reader.string();
           continue;
         }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.kind = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.pubUuid = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.commentUuid = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11868,6 +11908,9 @@ export const BridgeNotify: MessageFns<BridgeNotify> = {
       secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
       title: isSet(object.title) ? globalThis.String(object.title) : "",
       body: isSet(object.body) ? globalThis.String(object.body) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
+      commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "",
     };
   },
 
@@ -11888,6 +11931,15 @@ export const BridgeNotify: MessageFns<BridgeNotify> = {
     if (message.body !== "") {
       obj.body = message.body;
     }
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.pubUuid !== "") {
+      obj.pubUuid = message.pubUuid;
+    }
+    if (message.commentUuid !== "") {
+      obj.commentUuid = message.commentUuid;
+    }
     return obj;
   },
 
@@ -11901,6 +11953,9 @@ export const BridgeNotify: MessageFns<BridgeNotify> = {
     message.secret = object.secret ?? "";
     message.title = object.title ?? "";
     message.body = object.body ?? "";
+    message.kind = object.kind ?? "";
+    message.pubUuid = object.pubUuid ?? "";
+    message.commentUuid = object.commentUuid ?? "";
     return message;
   },
 };

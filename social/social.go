@@ -867,7 +867,7 @@ func (fr *friendship) notifyIfOwnPublication(pubUuid, commentUuid, action string
 		log.Error("could not record notification:", err)
 	}
 	if fr.sc.push != nil {
-		fr.sc.push.Notify(friendName, action)
+		fr.sc.push.Notify(friendName, action, push.Target{Kind: push.TargetPost, PubUUID: pubUuid, CommentUUID: commentUuid})
 	}
 }
 
@@ -897,7 +897,7 @@ func (fr *friendship) notifyIfOwnComment(commentUuid, action string, notifType p
 		log.Error("could not record notification:", err)
 	}
 	if fr.sc.push != nil {
-		fr.sc.push.Notify(friendName, action)
+		fr.sc.push.Notify(friendName, action, push.Target{Kind: push.TargetPost, PubUUID: pubUuid, CommentUUID: commentUuid})
 	}
 }
 
@@ -1031,7 +1031,7 @@ event_loop:
 				if friendName == "" {
 					friendName = fr.data.OriginProfile.Domain
 				}
-				fr.sc.push.NotifyNewPost(friendName)
+				fr.sc.push.NotifyNewPost(friendName, pubData.Uuid)
 			}
 
 		case LikeEvent:

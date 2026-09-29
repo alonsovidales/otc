@@ -62,6 +62,37 @@ type Storage interface {
 	DeleteFcmToken(token string) error
 }
 
+// Target is what a tap on a notification opens in the apps - the same
+// place tapping it in the in-app Alerts list does. IDs only, never
+// content (see NotifyNewPost's note on what a push may carry).
+type Target struct {
+	// Kind is "post" (a post, or a like/comment on one) or "friends"
+	// (a friend request, sent or accepted); empty opens nothing special.
+	Kind        string
+	PubUUID     string
+	CommentUUID string
+}
+
+const (
+	TargetPost    = "post"
+	TargetFriends = "friends"
+)
+
+// data is the Target as the key/value pairs a push payload carries.
+func (t Target) data() map[string]string {
+	d := map[string]string{"otc": "notification"}
+	if t.Kind != "" {
+		d["kind"] = t.Kind
+	}
+	if t.PubUUID != "" {
+		d["pub_uuid"] = t.PubUUID
+	}
+	if t.CommentUUID != "" {
+		d["comment_uuid"] = t.CommentUUID
+	}
+	return d
+}
+
 type Push struct {
 	storage Storage
 
@@ -71,6 +102,12 @@ type Push struct {
 	// nil until/unless [apns] is configured (see loadApns) - every send path
 	// below treats a nil client as "APNs not set up yet", not an error.
 	apnsClient   *apns2.Client
+	// apnsFallback is the other APNs environment: a token the primary
+	// rejects as BadDeviceToken is tried here before it's deleted. An app
+	// run from Xcode registers for the development environment, an App
+	// Store or TestFlight build for production, and the same key signs
+	// for both - so one bridge serves either kind of install.
+	apnsFallback *apns2.Client
 	apnsTopic    string
 	subscriberID string
 
@@ -88,7 +125,7 @@ type Push struct {
 	// instead - which on a device are normally nil, so the notification is
 	// simply not delivered to phones. The bridge leaves this nil and sends
 	// directly.
-	RelayMobile func(title, body string) bool
+	RelayMobile func(title, body string, t Target) bool
 
 	// OnChange, if set, is called after a stale subscription/token is
 	// pruned (see sendWebPush/sendApns) - i.e. whenever storage's
@@ -186,11 +223,17 @@ func (p *Push) loadApns() {
 
 	tok := &token.Token{AuthKey: authKey, KeyID: keyID, TeamID: teamID}
 	client := apns2.NewTokenClient(tok)
+	fallback := apns2.NewTokenClient(tok)
 	if cfg.GetBool("apns", "production") {
 		client = client.Production()
+		fallback = fallback.Development()
+	} else {
+		client = client.Development()
+		fallback = fallback.Production()
 	}
 
 	p.apnsClient = client
+	p.apnsFallback = fallback
 	p.apnsTopic = bundleID
 	log.Info("APNs configured (bundle", bundleID, ") - iOS push notifications are live")
 }
@@ -207,8 +250,8 @@ func (p *Push) VapidPublicKey() string { return p.vapidPublicKey }
 // photo a like/comment landed on - means there's nothing there for it to
 // read even in principle, and one rule to keep instead of two different
 // ones per channel.
-func (p *Push) NotifyNewPost(friendName string) {
-	p.Notify(friendName, "posted something new")
+func (p *Push) NotifyNewPost(friendName, pubUUID string) {
+	p.Notify(friendName, "posted something new", Target{Kind: TargetPost, PubUUID: pubUUID})
 }
 
 // NotifyFriendshipRequest tells every registered device that fromName sent
@@ -216,7 +259,7 @@ func (p *Push) NotifyNewPost(friendName string) {
 // Social.ExternalFriendshipRequest, right after the inbound request is
 // verified and persisted.
 func (p *Push) NotifyFriendshipRequest(fromName string) {
-	p.Notify(fromName, "sent you a friend request")
+	p.Notify(fromName, "sent you a friend request", Target{Kind: TargetFriends})
 }
 
 // NotifyFriendshipAccepted tells every registered device that friendName
@@ -224,7 +267,7 @@ func (p *Push) NotifyFriendshipRequest(fromName string) {
 // friendship.updateFriendshipStatus, exactly on the Pending -> Accepted
 // transition (never on every sync poll after that).
 func (p *Push) NotifyFriendshipAccepted(friendName string) {
-	p.Notify(friendName, "accepted your friend request")
+	p.Notify(friendName, "accepted your friend request", Target{Kind: TargetFriends})
 }
 
 // Notify fans a title/body out to every registered device - the generic
@@ -235,12 +278,12 @@ func (p *Push) NotifyFriendshipAccepted(friendName string) {
 // caller runs from the background friend-sync loop
 // (social.SyncWithFriends), which has nowhere useful to surface a
 // push-delivery failure to.
-func (p *Push) Notify(title, body string) {
-	p.sendWebPush(title, body)
-	p.sendMobile(title, body)
+func (p *Push) Notify(title, body string, t Target) {
+	p.sendWebPush(title, body, t)
+	p.sendMobile(title, body, t)
 }
 
-func (p *Push) sendWebPush(title, body string) {
+func (p *Push) sendWebPush(title, body string, t Target) {
 	subs, err := p.storage.ListWebPushSubscriptions()
 	if err != nil {
 		log.Error("could not list web push subscriptions:", err)
@@ -250,7 +293,9 @@ func (p *Push) sendWebPush(title, body string) {
 		return
 	}
 
-	payloadBytes, err := json.Marshal(map[string]string{"title": title, "body": body})
+	msg := t.data()
+	msg["title"], msg["body"] = title, body
+	payloadBytes, err := json.Marshal(msg)
 	if err != nil {
 		log.Error("could not marshal web push payload:", err)
 		return
@@ -289,17 +334,17 @@ func (p *Push) sendWebPush(title, body string) {
 // NotifyMobile sends to phones only (iOS and Android) - what the bridge
 // does on a device's behalf (see BridgeNotify in messages.proto), Web Push
 // having stayed with the device that owns the VAPID keypair.
-func (p *Push) NotifyMobile(title, body string) { p.sendMobile(title, body) }
+func (p *Push) NotifyMobile(title, body string, t Target) { p.sendMobile(title, body, t) }
 
-func (p *Push) sendMobile(title, body string) {
-	if p.RelayMobile != nil && p.RelayMobile(title, body) {
+func (p *Push) sendMobile(title, body string, t Target) {
+	if p.RelayMobile != nil && p.RelayMobile(title, body, t) {
 		return
 	}
-	p.sendApns(title, body)
-	p.sendFcm(title, body)
+	p.sendApns(title, body, t)
+	p.sendFcm(title, body, t)
 }
 
-func (p *Push) sendApns(title, body string) {
+func (p *Push) sendApns(title, body string, t Target) {
 	if p.apnsClient == nil {
 		return
 	}
@@ -311,23 +356,31 @@ func (p *Push) sendApns(title, body string) {
 	}
 
 	pl := payload.NewPayload().AlertTitle(title).AlertBody(body).Sound("default")
-	for _, t := range tokens {
-		resp, err := p.apnsClient.Push(&apns2.Notification{
-			DeviceToken: t,
-			Topic:       p.apnsTopic,
-			Payload:     pl,
-		})
+	for k, v := range t.data() {
+		pl.Custom(k, v)
+	}
+	for _, tok := range tokens {
+		n := &apns2.Notification{DeviceToken: tok, Topic: p.apnsTopic, Payload: pl}
+		resp, err := p.apnsClient.Push(n)
 		if err != nil {
-			log.Error("APNs send failed for token", t, ":", err)
+			log.Error("APNs send failed for token", tok, ":", err)
 			continue
+		}
+		// A token from the other environment (an app run from Xcode is
+		// on development, an App Store build on production) is refused as
+		// BadDeviceToken - try it there before calling it dead.
+		if !resp.Sent() && resp.Reason == "BadDeviceToken" && p.apnsFallback != nil {
+			if fb, fbErr := p.apnsFallback.Push(n); fbErr == nil {
+				resp = fb
+			}
 		}
 		if !resp.Sent() {
 			log.Error("APNs rejected notification: status", resp.StatusCode, "reason", resp.Reason, "apnsID", resp.ApnsID)
-			// BadDeviceToken (never valid for this topic) and Unregistered
-			// (app uninstalled, or 410-equivalent) both mean this token
-			// will never work again.
+			// BadDeviceToken (valid in neither environment) and
+			// Unregistered (app uninstalled, or 410-equivalent) both mean
+			// this token will never work again.
 			if resp.Reason == "BadDeviceToken" || resp.Reason == "Unregistered" {
-				if delErr := p.storage.DeleteApnsToken(t); delErr != nil {
+				if delErr := p.storage.DeleteApnsToken(tok); delErr != nil {
 					log.Error("could not remove stale APNs token:", delErr)
 				} else if p.OnChange != nil {
 					p.OnChange()

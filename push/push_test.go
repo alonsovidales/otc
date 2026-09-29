@@ -101,7 +101,7 @@ func TestSendWebPushPrunesStaleSubscriptionAndFiresOnChange(t *testing.T) {
 	var onChangeCalls int32
 	p.OnChange = func() { atomic.AddInt32(&onChangeCalls, 1) }
 
-	p.Notify("title", "body")
+	p.Notify("title", "body", Target{Kind: TargetPost, PubUUID: "pub-1"})
 
 	if len(storage.subs) != 0 {
 		t.Errorf("expected the stale subscription to be pruned, still have: %+v", storage.subs)
@@ -134,7 +134,7 @@ func TestSendWebPushLeavesLiveSubscriptionAloneAndNeverFiresOnChange(t *testing.
 	var onChangeCalls int32
 	p.OnChange = func() { atomic.AddInt32(&onChangeCalls, 1) }
 
-	p.Notify("title", "body")
+	p.Notify("title", "body", Target{Kind: TargetPost, PubUUID: "pub-1"})
 
 	if len(storage.subs) != 1 {
 		t.Errorf("expected the live subscription to survive, have: %+v", storage.subs)
@@ -158,5 +158,17 @@ func TestInitLoadsExistingVapidKeysRatherThanGeneratingNew(t *testing.T) {
 
 	if p.VapidPublicKey() != "existing-pub" {
 		t.Errorf("VapidPublicKey() = %q, want the pre-existing key to be kept", p.VapidPublicKey())
+	}
+}
+
+// What a tap opens travels in the payload as IDs only.
+func TestTargetData(t *testing.T) {
+	d := Target{Kind: TargetPost, PubUUID: "pub-1", CommentUUID: "c-1"}.data()
+	if d["kind"] != "post" || d["pub_uuid"] != "pub-1" || d["comment_uuid"] != "c-1" || d["otc"] != "notification" {
+		t.Errorf("post target data = %v", d)
+	}
+	d = Target{Kind: TargetFriends}.data()
+	if _, ok := d["pub_uuid"]; ok || d["kind"] != "friends" {
+		t.Errorf("friends target data = %v", d)
 	}
 }

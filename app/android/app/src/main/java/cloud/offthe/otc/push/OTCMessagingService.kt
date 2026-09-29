@@ -30,7 +30,12 @@ class OTCMessagingService : FirebaseMessagingService() {
         val open = Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             .putExtra(FCMPush.DATA_KEY, "notification")
-        val tap = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            .putExtra("kind", message.data["kind"])
+            .putExtra("pub_uuid", message.data["pub_uuid"])
+            .putExtra("comment_uuid", message.data["comment_uuid"])
+        // One request code per push, or a later push's extras would
+        // replace an earlier one's still waiting in the tray.
+        val tap = PendingIntent.getActivity(this, message.messageId?.hashCode() ?: 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val shown = NotificationCompat.Builder(this, FCMPush.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_otc)
             .setContentTitle(n.title)
