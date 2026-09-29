@@ -84,3 +84,4 @@
 43	6056d834d4cae4808cd1dba192739c566c0c9e960a4a8c7eeefe9e644055e600	1e5a787a774487edf57348a4110f11d543695a5faf4341cad800b5ce05a22a95	Face recognition is off unless you turn it on. New devices can set your name, picture and face recognition during setup.
 44	-	630b4fa04e9dce97bbc9094c09d085e1d4c15ee295f915c1047dade95c87ccdd	Friend requests can be accepted straight from Alerts, and Friends shows the requests waiting for you first.
 45	-	fa723ef2bf8e943f7b7c6af844aaa0c82851a33b9cbfc5c41193af1d2e27847f	Settings: crop and centre your profile picture when you change it.
+46	-	48b924f9acf3cd3b2b7234276ff5dbd694b008e54922e7e54af36894f1724412	Settings: choose your profile picture from the photos on your device too.
