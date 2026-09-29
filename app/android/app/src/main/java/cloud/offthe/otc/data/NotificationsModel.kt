@@ -101,6 +101,7 @@ object NotificationsModel {
                 _notifications.value = resp.respNotifications.notificationsList
             }
             _unacknowledgedCount.value = 0
+            cloud.offthe.otc.push.FCMPush.clearShown(cloud.offthe.otc.OTCApp.instance)
             try {
                 OTCConnection.request { it.setReqMarkNotificationsAcknowledged(ReqMarkNotificationsAcknowledged.getDefaultInstance()) }
             } catch (_: Exception) {}

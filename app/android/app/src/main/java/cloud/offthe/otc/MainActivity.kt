@@ -39,6 +39,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Issue #152: opening the app is reading what arrived.
+    override fun onResume() {
+        super.onResume()
+        FCMPush.clearShown(this)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         openFromPush(intent)

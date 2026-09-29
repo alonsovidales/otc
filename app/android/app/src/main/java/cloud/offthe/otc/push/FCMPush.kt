@@ -50,6 +50,16 @@ object FCMPush {
         )
     }
 
+    /**
+     * Issue #152: removes this app's notifications from the shade - which
+     * is also what clears the number on the app icon, since Android counts
+     * the notifications still there. Done when the app is opened and when
+     * Alerts is, where they are read.
+     */
+    fun clearShown(context: Context) {
+        androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
+    }
+
     /** Fetches this install's token and registers it with the device - once signed in. */
     fun register(context: Context) {
         if (!available(context)) return
