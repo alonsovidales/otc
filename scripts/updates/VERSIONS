@@ -71,3 +71,4 @@
 30	-	e6718a05b25f1965fdde3f473cbf2b86be77672190f13749985f95593e35be05	Tapping a phone notification opens the post, comment or friend request it is about.
 31	-	2f329fe94304ee170ba5a84a0afee71200b4dfbc69b70b0421236b95942b358b	Stability: the device no longer runs out of memory when many apps sign in at once after a restart, or while serving large downloads; files that can't get a preview aren't retried on every restart.
 32	-	274d37c0fad8852e7f239ae7bdd1391974ddbaecbb3127e27850508f21be2131	Images: GIF, WebP, BMP and TIFF files get previews (and show up in Images and search); a JPEG saved with a .HEIC name is recognised.
+33	-	8b97cde609a6da04ea95faf2e47c91c9bbb34ccc06a9e9bc858d4fdd62522daf	New post: take a photo or video with the camera and post it right away (web on phones; the apps have it too).
