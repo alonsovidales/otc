@@ -41,6 +41,9 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -211,6 +214,56 @@ class NewPostPickerViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Issue #150: where the system camera saves a new photo or video - a
+     * fresh entry in the phone's gallery (DCIM/Camera, as the Camera app
+     * would), so once taken it is an ordinary phone item. No permission is
+     * needed for an app's own MediaStore entries. Null if it can't be made.
+     */
+    fun newCaptureUri(video: Boolean): android.net.Uri? {
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, (if (video) "VID_" else "IMG_") + stamp + if (video) ".mp4" else ".jpg")
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, if (video) "video/mp4" else "image/jpeg")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DCIM + "/Camera")
+        }
+        val collection = if (video) android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI else android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        return try { OTCApp.instance.contentResolver.insert(collection, values) } catch (e: Exception) { null }
+    }
+
+    /**
+     * The camera came back: a saved capture becomes the first phone item,
+     * selected; a cancelled one's empty gallery entry is removed.
+     */
+    fun onCaptured(uri: android.net.Uri, video: Boolean, saved: Boolean) {
+        val resolver = OTCApp.instance.contentResolver
+        if (!saved) {
+            try { resolver.delete(uri, null, null) } catch (_: Exception) {}
+            return
+        }
+        viewModelScope.launch {
+            val item = withContext(Dispatchers.IO) {
+                var name = ""
+                var mime = if (video) "video/mp4" else "image/jpeg"
+                resolver.query(uri, arrayOf(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, android.provider.MediaStore.MediaColumns.MIME_TYPE), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) { name = c.getString(0) ?: ""; mime = c.getString(1) ?: mime }
+                }
+                val asset = PhotoSync.Asset(android.content.ContentUris.parseId(uri), uri, name, mime, System.currentTimeMillis(), video)
+                val thumb = try {
+                    if (Build.VERSION.SDK_INT >= 29) resolver.loadThumbnail(uri, Size(450, 450), null) else null
+                } catch (e: Exception) { null }
+                Item("local#${asset.id}", "", thumbImage = thumb, asset = asset, isVideo = video)
+            }
+            if (_state.value.source != Source.PHONE) switchSource(Source.PHONE)
+            _state.update { st ->
+                st.copy(
+                    items = listOf(item) + st.items.filter { it.id != item.id },
+                    selectedOrder = if (item.id in st.selectedOrder) st.selectedOrder else st.selectedOrder + item.id,
+                )
+            }
+        }
+    }
+
     /** Issue #49: the camera roll, newest first, thumbnails from MediaStore. */
     private suspend fun loadLocalPage() {
         if (_state.value.loading || _state.value.endReached) return
@@ -344,6 +397,29 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
     }
     DisposableEffect(Unit) { onDispose { vm.cleanUpTrimPreviews() } }
 
+    // Issue #150: the system camera, for a photo or a video - no CAMERA
+    // permission needed, the camera app does the capturing.
+    var pendingCapture by remember { mutableStateOf<Pair<android.net.Uri, Boolean>?>(null) }
+    var captureMenu by remember { mutableStateOf(false) }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        pendingCapture?.let { (uri, video) -> vm.onCaptured(uri, video, saved) }
+        pendingCapture = null
+    }
+    val takeVideo = rememberLauncherForActivityResult(ActivityResultContracts.CaptureVideo()) { saved ->
+        pendingCapture?.let { (uri, video) -> vm.onCaptured(uri, video, saved) }
+        pendingCapture = null
+    }
+    fun capture(video: Boolean) {
+        val uri = vm.newCaptureUri(video) ?: return
+        pendingCapture = uri to video
+        try {
+            if (video) takeVideo.launch(uri) else takePhoto.launch(uri)
+        } catch (e: android.content.ActivityNotFoundException) {
+            vm.onCaptured(uri, video, false)
+            pendingCapture = null
+        }
+    }
+
     val suggestions = remember(query, st.tags) {
         val q = query.trim().lowercase()
         if (q.isEmpty()) emptyList() else st.tags.filter { it.lowercase().startsWith(q) }.take(12)
@@ -410,6 +486,15 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                 }
                 HorizontalDivider()
                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box {
+                        IconButton(onClick = { captureMenu = true }, enabled = !st.publishing) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = "Take a photo or video")
+                        }
+                        DropdownMenu(expanded = captureMenu, onDismissRequest = { captureMenu = false }) {
+                            DropdownMenuItem(text = { Text("Take a photo") }, onClick = { captureMenu = false; capture(video = false) })
+                            DropdownMenuItem(text = { Text("Record a video") }, onClick = { captureMenu = false; capture(video = true) })
+                        }
+                    }
                     OTCTextField(value = st.caption, onValueChange = vm::setCaption, placeholder = { Text("Write a caption…") }, modifier = Modifier.weight(1f))
                     Button(onClick = { vm.publish { onDismiss(); onPosted() } }, enabled = st.selectedOrder.isNotEmpty() && st.caption.isNotBlank() && !st.publishing) {
                         Text(if (st.publishing) "Publishing…" else "Publish" + if (st.selectedOrder.isEmpty()) "" else " (${st.selectedOrder.size})")

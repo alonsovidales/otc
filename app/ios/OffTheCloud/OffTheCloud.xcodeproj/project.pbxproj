@@ -439,7 +439,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OffTheCloud/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Used to save photos from the gallery viewer back to your Photos library";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to take a photo or video to post to your feed";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used to record sound with videos you post to your feed";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Used to save photos from the gallery viewer, and photos and videos you take to post, to your Photos library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your Photos to back them up";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -475,7 +477,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OffTheCloud/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Used to save photos from the gallery viewer back to your Photos library";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used to take a photo or video to post to your feed";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used to record sound with videos you post to your feed";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Used to save photos from the gallery viewer, and photos and videos you take to post, to your Photos library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your Photos to back them up";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

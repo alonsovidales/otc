@@ -20,6 +20,14 @@
 }
 .np-dropzone.drag-over { border-color: var(--ember); color: var(--mist); }
 
+/* Issue #150: the camera, offered on touch screens above the dropzone. */
+.np-camera {
+  display: block; width: calc(100% - 24px); margin: 10px 12px 0; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--ink-2);
+  color: var(--mist); font-size: 15px; cursor: pointer;
+}
+.np-camera:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+
 .np-remove {
   position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%;
   background: rgba(0,0,0,0.6); color: #fff; border: 0; display: grid; place-items: center;

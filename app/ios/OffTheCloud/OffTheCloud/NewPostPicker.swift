@@ -301,6 +301,48 @@ final class NewPostPickerVM: ObservableObject {
         print("[phonepick] appended \(newItems.count) items, loaded=\(localLoadedCount)/\(total), items.count now = \(items.count)")
     }
 
+    /// Issue #150: a photo or video just taken with the camera. Saved to
+    /// the phone's Photos first - where a shot from the Camera app would be
+    /// too - so from here on it is an ordinary phone item: first in the
+    /// list, already selected, uploaded by publish() like any other.
+    func addCapture(image: UIImage?, videoURL: URL?) async {
+        guard image != nil || videoURL != nil else { return } // cancelled
+        var localId: String?
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let request: PHAssetChangeRequest?
+                if let image {
+                    request = PHAssetChangeRequest.creationRequestForAsset(from: image)
+                } else if let videoURL {
+                    request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: videoURL)
+                } else {
+                    request = nil
+                }
+                localId = request?.placeholderForCreatedAsset?.localIdentifier
+            }
+        } catch {
+            alertMessage = "Couldn't save the capture to Photos: \(error.localizedDescription)"
+            showAlert = true
+            return
+        }
+        guard let localId, let asset = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil).firstObject else {
+            alertMessage = "The capture was saved to Photos but couldn't be read back."
+            showAlert = true
+            return
+        }
+        var thumb = image
+        if thumb == nil, let videoURL {
+            let gen = AVAssetImageGenerator(asset: AVURLAsset(url: videoURL))
+            gen.appliesPreferredTrackTransform = true
+            if let cg = try? await gen.image(at: .zero).image { thumb = UIImage(cgImage: cg) }
+        }
+        if source != .phone { switchSource(.phone) }
+        let item = Item(id: "local#\(asset.localIdentifier)", path: "", thumbImage: thumb, asset: asset, isVideo: asset.mediaType == .video)
+        items.removeAll { $0.id == item.id }
+        items.insert(item, at: 0)
+        if !selectedOrder.contains(item.id) { selectedOrder.append(item.id) }
+    }
+
     func toggleSelect(_ id: String) {
         if let idx = selectedOrder.firstIndex(of: id) {
             selectedOrder.remove(at: idx)
@@ -544,6 +586,7 @@ struct NewPostPickerView: View {
     @StateObject private var vm = NewPostPickerVM()
     @Environment(\.dismiss) private var dismiss
     @State private var showSuggest = false
+    @State private var showCamera = false
     let onPosted: () -> Void
 
     private let cols = Array(repeating: GridItem(.flexible(minimum: 100, maximum: 140), spacing: 8), count: 3)
@@ -658,8 +701,15 @@ struct NewPostPickerView: View {
                         .padding(.top, 4)
                 }
 
-                // Single composer bar: caption + Publish. That's it.
+                // Composer bar: camera (issue #150), caption, Publish.
                 HStack(spacing: 8) {
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button { showCamera = true } label: {
+                            Image(systemName: "camera").font(.title3)
+                        }
+                        .accessibilityLabel("Take a photo or video")
+                        .disabled(vm.publishing)
+                    }
                     TextField("Write a caption…", text: $vm.caption)
                         .textFieldStyle(.roundedBorder)
                     Button(vm.publishing ? "Publishing…" : "Publish\(vm.selectedOrder.isEmpty ? "" : " (\(vm.selectedOrder.count))")") {
@@ -684,6 +734,13 @@ struct NewPostPickerView: View {
             }
         }
         .onAppear { vm.onAppearInitial() }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraCapture { image, videoURL in
+                showCamera = false
+                Task { await vm.addCapture(image: image, videoURL: videoURL) }
+            }
+            .ignoresSafeArea()
+        }
         .onDisappear { vm.cleanUpTrimPreviews() }
         .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
         // Issue #108. Bound to an optional identified by the item's own id,
@@ -911,6 +968,39 @@ private struct SelectedThumb: View {
             }
             .font(.caption2)
             .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Issue #150: the system camera, for a photo or a video, as a sheet.
+/// Hands back the photo, or the recorded video's file, or neither if the
+/// person cancelled.
+struct CameraCapture: UIViewControllerRepresentable {
+    let onDone: (UIImage?, URL?) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.mediaTypes = ["public.image", "public.movie"]
+        picker.videoQuality = .typeHigh
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ controller: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onDone: onDone) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onDone: (UIImage?, URL?) -> Void
+        init(onDone: @escaping (UIImage?, URL?) -> Void) { self.onDone = onDone }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            onDone(info[.originalImage] as? UIImage, info[.mediaURL] as? URL)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onDone(nil, nil)
         }
     }
 }

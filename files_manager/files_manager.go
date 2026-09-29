@@ -803,6 +803,25 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 	return
 }
 
+// WaitForContent waits, up to timeout, for the content of the file at path
+// to be on disk. An upload is acknowledged as soon as its row is stored;
+// the content is written right after, in the background - and posting a
+// photo or video just taken (issue #150) comes that quickly, before a large
+// video is written. Returns at once for a file that isn't there at all.
+func (mg *Manager) WaitForContent(path string, timeout time.Duration) {
+	file, err := mg.dao.GetFileByPath(path)
+	if err != nil || file == nil {
+		return
+	}
+	deadline := time.Now().Add(timeout)
+	for {
+		if _, err := os.Stat(blobPath(file.Hash)); err == nil || time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+}
+
 // isJPEGContent reports whether content starts with a JPEG's signature.
 func isJPEGContent(content []byte) bool {
 	return len(content) > 3 && content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF

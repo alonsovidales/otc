@@ -207,6 +207,9 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 
 	files := make([]*pb.File, len(paths))
 	for i, path := range paths {
+		// A file uploaded a moment ago (a photo or video just taken)
+		// may not be written yet.
+		sc.filesmanager.WaitForContent(path, 2*time.Minute)
 		file, err := sc.filesmanager.GetFile(ses, path, "")
 		if err != nil {
 			log.Error("Error loading file:", err)

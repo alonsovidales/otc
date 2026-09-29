@@ -61,6 +61,12 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     setLocalFiles(prev => prev.filter(x => x !== f));
   };
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Issue #150: the phone's camera, straight into the post. `capture`
+  // opens the camera on phones and tablets; desktop browsers ignore it
+  // (a plain file chooser), so the button is only offered on touch
+  // screens.
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const hasCamera = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
   const [dragOver, setDragOver] = useState(false);
 
   // -------- tag filter --------------------------------------------------
@@ -553,6 +559,19 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             style={{ display: "none" }}
             onChange={(e) => { if (e.target.files) addLocalFiles(e.target.files); e.target.value = ""; }}
           />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*,video/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={(e) => { if (e.target.files) addLocalFiles(e.target.files); e.target.value = ""; }}
+          />
+          {hasCamera && (
+            <button type="button" className="np-camera" onClick={() => cameraInputRef.current?.click()}>
+              📷 Take a photo or video
+            </button>
+          )}
           <div
             className={`np-dropzone${dragOver ? " drag-over" : ""}`}
             onClick={() => fileInputRef.current?.click()}
