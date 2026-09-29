@@ -403,8 +403,9 @@ export default function SettingsForm() {
         <h3>Face Recognition</h3>
         <p className="sf-hint">
           Detect faces in newly uploaded photos so you can search by person, like other photo
-          apps. On by default, and faces never leave the device. It only affects photos uploaded
-          while it is on — it never scans photos you already have, even after you enable it.
+          apps. Off unless you turn it on (here or during setup), and faces never leave the
+          device. It looks at everyone in your photos, not just you. It only affects photos
+          uploaded while it is on — use Reprocess Media to scan the ones you already have.
         </p>
         <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
           {faceRecognitionBusy ? "Working…" : faceRecognitionEnabled ? "Disable Face Recognition" : "Enable Face Recognition"}

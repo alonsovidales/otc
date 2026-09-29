@@ -92,7 +92,14 @@ plain JS (`sealWith` - no WebCrypto on a plain-HTTP page), the wizard opens it i
 tmpfs file, and `install.sh` feeds it to `otc <env> init-owner-password` (as `otc`, before the
 service first starts; `bin/ownerpassword.go` - a device that already has one keeps it) and
 shreds the file. In the app the page also hands it to the app (`window.otcSetupPassword`,
-memory only), so "Open my device" signs in without typing. The image has no SSH; its
+memory only), so "Open my device" signs in without typing. The same step has an optional,
+collapsed "Your profile and face recognition" section (issue #178): name, about text, a picture
+cropped in the page to a circle (canvas pan/zoom, sent as a <=96 KB JPEG, base64) and a face
+recognition checkbox, unticked. The wizard writes them to a root-only tmpfs JSON
+(`OTC_SETUP_PROFILE_FILE`), and `install.sh` feeds it to `otc <env> init-profile` (`bin/otc.go`)
+before the owner password - empty fields keep the defaults, and all of it can be changed later in
+Settings. On Android the setup WebView needs its `WebChromeClient.onShowFileChooser` for the
+picture field; WKWebView handles file inputs itself. The image has no SSH; its
 console login is `otc-debug` / `off-the-cloud` (with sudo), set in `build_image.sh` and documented
 in README.md under "Console access" - the only way into a device like Cala short of enabling SSH
 from that console.
@@ -218,7 +225,7 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   requires CGO + libonnxruntime at runtime (see Build section).
 - `face_recognition` — issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)
   via `gocv`, humans only. `files_manager.processFaces` (called from `UploadFile`'s background
-  goroutine) gates this on `settings.face_recognition_enabled` (on by default since release 24; it was opt-in) checked *at upload
+  goroutine) gates this on `settings.face_recognition_enabled` (off unless the owner turns it on - in Settings or the setup wizard; release 43 made the column default 0 again, issue #178, since faces are biometric data) checked *at upload
   time* - enabling it later never retroactively processes anything already in the library, by
   design (see the `faces` table's doc comment in `db.sql`). Requires CGO + a real OpenCV install at
   build time (see Build section); optional at runtime like APNs - a device with `[faces]`

@@ -537,7 +537,9 @@ apply_schema_migrations() {
     # statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
     # install too (where db.sql just created them already).
     mysql "$db" <<'SQL'
-    ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 1;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
+    -- Issue #178: off unless chosen - for a column added before, the default only.
+    ALTER TABLE settings ALTER COLUMN face_recognition_enabled SET DEFAULT 0;
     -- Issue #153: the space friends' posts may take, in MB.
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS social_storage_limit_mb INT NOT NULL DEFAULT 5120;
     -- When a friend's device was last heard from (re-link rule).
@@ -824,6 +826,18 @@ log "Bridge switch-on trigger (otc-bridge.path)"
 install -m 0755 "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" /usr/local/bin/otc-bridge-runner
 install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.service" /etc/systemd/system/otc-bridge.service
 install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.path" /etc/systemd/system/otc-bridge.path
+
+# Issue #178: what the setup wizard asked about the owner - the profile's
+# name, description and picture, and whether face recognition is on (off
+# unless chosen). All optional. Same handling as the password below: a
+# root-only file, applied as the otc user before the service first starts,
+# then shredded. A recovered device keeps what it had.
+if [ -n "${OTC_SETUP_PROFILE_FILE:-}" ] && [ -f "$OTC_SETUP_PROFILE_FILE" ]; then
+    log "Owner profile"
+    runuser -u otc -- /usr/bin/otc "$ENVIRONMENT" init-profile < "$OTC_SETUP_PROFILE_FILE" \
+        || log "  WARNING: could not apply the profile from the setup - set it in Settings"
+    shred -u "$OTC_SETUP_PROFILE_FILE" 2>/dev/null || rm -f "$OTC_SETUP_PROFILE_FILE"
+fi
 
 # The owner password chosen in the setup wizard (a root-only file it hands
 # over in OTC_OWNER_PASSWORD_FILE): set before the service first starts, as

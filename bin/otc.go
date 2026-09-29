@@ -4,6 +4,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/alonsovidales/otc/api"
 	"github.com/alonsovidales/otc/cfg"
@@ -13,6 +15,7 @@ import (
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/websocket"
+	"io"
 	"os"
 	"os/signal"
 	"runtime"
@@ -81,6 +84,53 @@ func setMemoryLimit() {
 	}
 }
 
+// initProfile applies what the setup wizard asked about the owner (issue
+// #178), all optional: the profile's name, description and picture (an
+// already-cropped JPEG, base64), and whether face recognition is on (off
+// unless chosen). JSON on stdin; fields left empty keep their defaults.
+// In this file for the same reason as initOwnerPassword.
+func initProfile(d *dao.Dao) int {
+	var in struct {
+		Name  string `json:"name"`
+		Text  string `json:"text"`
+		Image string `json:"image"`
+		Faces bool   `json:"faces"`
+	}
+	if err := json.NewDecoder(io.LimitReader(os.Stdin, 1<<20)).Decode(&in); err != nil {
+		fmt.Fprintln(os.Stderr, "init-profile: bad input:", err)
+		return 2
+	}
+	name, text, image, err := d.GetProfile()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "init-profile:", err)
+		return 1
+	}
+	if v := strings.TrimSpace(in.Name); v != "" {
+		name = v
+	}
+	if v := strings.TrimSpace(in.Text); v != "" {
+		text = v
+	}
+	if in.Image != "" {
+		raw, err := base64.StdEncoding.DecodeString(in.Image)
+		if err != nil || len(raw) < 3 || raw[0] != 0xFF || raw[1] != 0xD8 {
+			fmt.Fprintln(os.Stderr, "init-profile: the picture is not a JPEG - left as it is")
+		} else {
+			image = raw
+		}
+	}
+	if err := d.UpdateProfile(name, text, image); err != nil {
+		fmt.Fprintln(os.Stderr, "init-profile:", err)
+		return 1
+	}
+	if err := d.SetFaceRecognitionEnabled(in.Faces); err != nil {
+		fmt.Fprintln(os.Stderr, "init-profile:", err)
+		return 1
+	}
+	fmt.Println("init-profile: profile set, face recognition", map[bool]string{true: "on", false: "off"}[in.Faces])
+	return 0
+}
+
 func main() {
 	setMemoryLimit()
 	env := "dev"
@@ -106,6 +156,11 @@ func main() {
 	// already set (a recovered device) is left alone.
 	if len(os.Args) > 2 && os.Args[2] == "init-owner-password" {
 		os.Exit(initOwnerPassword(dao))
+	}
+	// `otc <env> init-profile` (JSON on stdin): the wizard's profile and
+	// face-recognition choice, set before the service first starts.
+	if len(os.Args) > 2 && os.Args[2] == "init-profile" {
+		os.Exit(initProfile(dao))
 	}
 
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"), dao)

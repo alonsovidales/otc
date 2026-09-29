@@ -341,7 +341,7 @@ struct SettingsView: View {
 
                 Section(
                     header: Text("People"),
-                    footer: Text("Detect faces in newly uploaded photos so you can search by person. On by default, and faces never leave the device. It only affects photos uploaded while it is on — it never scans photos you already have, even after you enable it.")
+                    footer: Text("Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.")
                 ) {
                     Toggle(
                         "Face Recognition",

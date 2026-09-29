@@ -75,7 +75,8 @@ CONFIG = {
     # for PropertiesChanged and a phone drops what it can't take.
     "notify_pace_ms": 6,
     "request_timeout_s": 60,
-    "max_request_bytes": 65536,
+    # A request may carry the setup profile's picture (issue #178).
+    "max_request_bytes": 256 * 1024,
 }
 
 UUID_BASE = "0f7c5e70-0b1e-4b8a-9c2d-5e7a1c0d{:04x}"

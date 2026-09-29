@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -80,6 +82,13 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
         if (BLESetupTransport.hasPermissions(context)) transport.start() else permissions.launch(BLESetupTransport.permissions())
     }
     DisposableEffect(Unit) { onDispose { transport.stop() } }
+    // The page's profile-picture field (issue #178): a WebView opens no
+    // file picker on its own, so the chooser request comes here.
+    val pendingFile = remember { arrayOfNulls<ValueCallback<Array<Uri>>>(1) }
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        pendingFile[0]?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
+        pendingFile[0] = null
+    }
 
     Scaffold(topBar = {
         TopAppBar(
@@ -101,7 +110,11 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                 }
                 // The install takes about 20 minutes: keepScreenOn stops a
                 // locked phone from dropping the Bluetooth link.
-                AndroidView(factory = { makeWebView(it, transport, scope).apply { keepScreenOn = true } }, modifier = Modifier.weight(1f).fillMaxWidth())
+                AndroidView(factory = { makeWebView(it, transport, scope) { cb ->
+                    pendingFile[0]?.onReceiveValue(null)
+                    pendingFile[0] = cb
+                    pickImage.launch("image/*")
+                }.apply { keepScreenOn = true } }, modifier = Modifier.weight(1f).fillMaxWidth())
             } else {
                 Waiting(phase, Modifier.weight(1f))
             }
@@ -224,11 +237,20 @@ private class Bridge(private val webView: WebView, private val transport: BLESet
 }
 
 @SuppressLint("SetJavaScriptEnabled")
-private fun makeWebView(context: Context, transport: BLESetupTransport, scope: CoroutineScope): WebView = WebView(context).apply {
+private fun makeWebView(
+    context: Context, transport: BLESetupTransport, scope: CoroutineScope,
+    chooseFile: (ValueCallback<Array<Uri>>) -> Unit,
+): WebView = WebView(context).apply {
     settings.javaScriptEnabled = true
     settings.domStorageEnabled = true
     setBackgroundColor(0xFF1E1F22.toInt()) // the wizard's own background
     addJavascriptInterface(Bridge(this, transport, scope), "OTCSetup")
+    webChromeClient = object : WebChromeClient() {
+        override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
+            chooseFile(callback)
+            return true
+        }
+    }
     webViewClient = object : WebViewClient() {
         // Runs on a background thread, so blocking on the round trip is fine.
         // The setup page never leaves itself: a link elsewhere opens in the

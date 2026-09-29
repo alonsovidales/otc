@@ -75,6 +75,9 @@ CONFIG = {
     # The owner password, decrypted, for install.sh (root-only, tmpfs); it
     # shreds it once set.
     "owner_password_file": "/run/otc-setup/owner-password",
+    # Issue #178: the optional profile and the face-recognition choice, for
+    # install.sh's `otc init-profile` (root-only, tmpfs; shredded once set).
+    "profile_file": "/run/otc-setup/profile.json",
     "join_request": "/var/lib/otc/wifi_join_request.json",
     "join_result": "/var/lib/otc/wifi_join_result.json",
     # network_setup.py keeps the hotspot up until this exists.
@@ -578,6 +581,8 @@ class Install:
         env = dict(os.environ)
         if not self.recovery and Path(CONFIG["owner_password_file"]).exists():
             env["OTC_OWNER_PASSWORD_FILE"] = CONFIG["owner_password_file"]
+        if not self.recovery and Path(CONFIG["profile_file"]).exists():
+            env["OTC_SETUP_PROFILE_FILE"] = CONFIG["profile_file"]
         if self.recovery:
             # Recovering must never wipe: install.sh refuses to build a
             # fresh array in this mode and stops instead. (It used to get
@@ -777,7 +782,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def read_body(self):
         n = int(self.headers.get("Content-Length") or 0)
-        if n <= 0 or n > 65536:
+        if n <= 0 or n > 256 * 1024:  # the setup profile picture (#178)
             return {}
         try:
             return json.loads(self.rfile.read(n).decode())
@@ -1025,6 +1030,27 @@ class Handler(BaseHTTPRequestHandler):
                     fd = os.open(str(pf), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
                     with os.fdopen(fd, "w") as fh:
                         fh.write(pw + "\n")
+                # Issue #178: the owner's profile and whether face
+                # recognition is on (off unless ticked) - all optional.
+                prof = body.get("profile")
+                if isinstance(prof, dict):
+                    pname = str(prof.get("name", ""))[:100].strip()
+                    ptext = str(prof.get("text", ""))[:500].strip()
+                    pimg = str(prof.get("image", ""))
+                    if pimg:
+                        try:
+                            raw = base64.b64decode(pimg, validate=True)
+                        except (ValueError, TypeError):
+                            raw = b""
+                        # A JPEG the page cropped, small by construction.
+                        if not (raw[:3] == b"\xff\xd8\xff" and len(raw) <= 96 * 1024):
+                            self.send_json(400, {"error": "the profile picture could not be used - choose another one"})
+                            return
+                    pf = Path(CONFIG["profile_file"])
+                    pf.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                    fd = os.open(str(pf), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                    with os.fdopen(fd, "w") as fh:
+                        json.dump({"name": pname, "text": ptext, "image": pimg, "faces": bool(prof.get("faces"))}, fh)
                 known = {d["path"] for d in list_disks()}
                 if len(disks) not in (0, 2) or any(d not in known for d in disks) or len(set(disks)) != len(disks):
                     self.send_json(400, {"error": "choose two disks for RAID1, or none"})
@@ -1079,6 +1105,8 @@ input:focus{outline:2px solid var(--ember);border-color:transparent}
 button{font:inherit;font-weight:600;padding:11px 16px;border-radius:10px;border:0;background:var(--ember);color:var(--ember-ink);cursor:pointer;margin-top:16px}
 button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}button:disabled{opacity:.5;cursor:default}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{margin-top:0}
+.crop{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.crop canvas{width:180px;height:180px;border-radius:12px;background:var(--bg);border:1px solid var(--line);touch-action:none;cursor:grab}
+.crop .side{flex:1;min-width:160px}.crop input[type=range]{width:100%}.check{display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:16px}
 ul.list{list-style:none;padding:0;margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;max-height:300px;overflow-y:auto}
 ul.list li{padding:11px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 ul.list li:last-child{border-bottom:0}ul.list li.sel{background:rgba(240,122,90,.15)}ul.list li small{color:var(--dim)}
@@ -1123,8 +1151,36 @@ const em=new Uint8Array(k);em.set(seed,1);em.set(db,1+h);let x=0n;for(const v of
 let s='';for(const v of out)s+=String.fromCharCode(v);return btoa(s)}
 
 let owner={pw:'',pw2:''};
+// Issue #178: the owner's profile and the face-recognition choice, all
+// optional (Settings has them too). The picture is cropped here to a
+// circle's square, a small JPEG - it travels over Bluetooth with the
+// install request.
+let prof={name:'',text:'',image:'',faces:false,open:false};const crop={img:null,x:0,y:0,z:1};const CROP=240,OUT=320;
+function profileFields(){return `<details id="pd" style="margin-top:16px" ${prof.open?'open':''}><summary style="cursor:pointer">Your profile and face recognition <span class="detail">(optional)</span></summary>
+ <label>Your name</label><input type="text" id="pn" maxlength="100" value="${esc(prof.name)}" placeholder="How your friends see you">
+ <label>About you</label><input type="text" id="pt" maxlength="500" value="${esc(prof.text)}" placeholder="A line about you">
+ <label>Profile picture</label><div class="crop"><canvas id="pc" width="${CROP}" height="${CROP}"></canvas><div class="side"><input type="file" id="pf" accept="image/*"><label>Zoom</label><input type="range" id="pz" min="1" max="4" step="0.01" value="${crop.z}" ${crop.img?'':'disabled'}><p class="hint">Drag the photo to centre your face.</p></div></div>
+ <label class="check"><input type="checkbox" id="pfc" ${prof.faces?'checked':''}> Recognise faces in my photos</label>
+ <p class="hint">Groups the same people across your photos so you can search by person. It runs only on this device, but it looks at everyone in your photos, not just you. Off unless you tick it.</p>
+ <p class="hint">You can set all of this later in Settings.</p></details>`}
+function cropScale(){const im=crop.img;return crop.z*Math.max(CROP/im.width,CROP/im.height)}
+function cropClamp(){const s=cropScale(),mx=Math.max(0,(crop.img.width*s-CROP)/2),my=Math.max(0,(crop.img.height*s-CROP)/2);crop.x=Math.min(mx,Math.max(-mx,crop.x));crop.y=Math.min(my,Math.max(-my,crop.y))}
+function cropPaint(ctx,size,mask){const k=size/CROP,s=cropScale()*k,w=crop.img.width*s,h=crop.img.height*s;ctx.fillStyle='#1e1f22';ctx.fillRect(0,0,size,size);ctx.drawImage(crop.img,(size-w)/2+crop.x*k,(size-h)/2+crop.y*k,w,h);
+ if(mask){ctx.fillStyle='rgba(0,0,0,.55)';ctx.beginPath();ctx.rect(0,0,size,size);ctx.arc(size/2,size/2,size/2-2,0,Math.PI*2,true);ctx.fill('evenodd')}}
+function cropDraw(){const c=$('#pc');if(!c)return;const ctx=c.getContext('2d');if(!crop.img){ctx.fillStyle='#1e1f22';ctx.fillRect(0,0,CROP,CROP);return}cropPaint(ctx,CROP,true)}
+function cropSave(){if(!crop.img)return;const o=document.createElement('canvas');o.width=o.height=OUT;cropPaint(o.getContext('2d'),OUT,false);
+ for(const q of [.85,.7,.55,.4]){const b64=o.toDataURL('image/jpeg',q).split(',')[1];if(b64.length<=60000||q===.4){prof.image=b64;return}}}
+function wireProfile(){const d=$('#pd');if(!d)return;d.ontoggle=()=>{prof.open=d.open};
+ $('#pn').oninput=e=>{prof.name=e.target.value};$('#pt').oninput=e=>{prof.text=e.target.value};$('#pfc').onchange=e=>{prof.faces=e.target.checked};
+ const c=$('#pc'),z=$('#pz');cropDraw();
+ $('#pf').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{crop.img=im;crop.z=1;crop.x=0;crop.y=0;z.disabled=false;z.value=1;cropDraw();cropSave()};const r=new FileReader();r.onload=()=>{im.src=r.result};r.readAsDataURL(f)};
+ z.oninput=()=>{if(!crop.img)return;crop.z=+z.value;cropClamp();cropDraw();cropSave()};
+ let drag=null;const k=()=>CROP/c.getBoundingClientRect().width;
+ c.onpointerdown=e=>{if(!crop.img)return;drag={x:e.clientX,y:e.clientY,ox:crop.x,oy:crop.y};c.setPointerCapture(e.pointerId)};
+ c.onpointermove=e=>{if(!drag)return;crop.x=drag.ox+(e.clientX-drag.x)*k();crop.y=drag.oy+(e.clientY-drag.y)*k();cropClamp();cropDraw()};
+ c.onpointerup=c.onpointercancel=()=>{if(drag){drag=null;cropSave()}}}
 const ownerValid=()=>owner.pw.length>=8&&owner.pw===owner.pw2;
-async function installBody(){const b={mode:'fresh',disks:disks.sel,confirm_wipe:true};if(owner.pw){b.owner_password=sealWith(await api('/api/pubkey'),owner.pw);if(window.otcSetupPassword)window.otcSetupPassword(owner.pw)}return b}
+async function installBody(){const b={mode:'fresh',disks:disks.sel,confirm_wipe:true,profile:{name:prof.name,text:prof.text,image:prof.image,faces:prof.faces}};if(owner.pw){b.owner_password=sealWith(await api('/api/pubkey'),owner.pw);if(window.otcSetupPassword)window.otcSetupPassword(owner.pw)}return b}
 function ownerFields(){return `<label>Device password</label><input type="password" id="opw" autocomplete="new-password" value="${esc(owner.pw)}"><label>Repeat the password</label><input type="password" id="opw2" autocomplete="new-password" value="${esc(owner.pw2)}"><p class="hint" id="ohint" style="margin-top:8px">8 characters or more. It encrypts everything on the device and can't be recovered - keep it somewhere safe. You sign in to the device with it.</p>`}
 function wireOwner(update){const a=$('#opw'),b=$('#opw2');if(!a)return;const on=()=>{owner.pw=a.value;owner.pw2=b.value;const h=$('#ohint');const mis=owner.pw2&&owner.pw!==owner.pw2;h.textContent=mis?"The two passwords don't match.":(owner.pw&&owner.pw.length<8?'8 characters or more.':"8 characters or more. It encrypts everything on the device and can't be recovered - keep it somewhere safe. You sign in to the device with it.");h.className=mis||(owner.pw&&owner.pw.length<8)?'hint bad':'hint';h.style.color=mis?'var(--bad)':'';update()};a.oninput=on;b.oninput=on}
 let state=null,step=1,wifi={list:[],sel:null,joining:false},name={val:'',ok:null,domain:'',msg:''},disks={list:[],sel:[],recovery:null,loaded:false,wipe:false},acct={mode:'login',msg:'',busy:false,countries:null,email:false};
@@ -1251,8 +1307,9 @@ async function loadCountries(){if(!acct.countries){const r=await api('/api/count
 function renderName(rebind){const a=state.account||{};
  if(a.skip_bridge&&!rebind){view.innerHTML=`<h2>4 · No bridge</h2><p class="hint">You chose to continue without an account, so the device gets no internet address. On your home network it answers as <b>otc.local</b>.</p>
   ${ownerFields()}
+  ${profileFields()}
   <div class="row"><button id="claim" ${ownerValid()?'':'disabled'}>Install</button><button class="ghost" id="back">Back</button></div><div class="msg" id="nmsg"></div>`;
-  wireOwner(()=>{$('#claim').disabled=!ownerValid()});
+  wireOwner(()=>{$('#claim').disabled=!ownerValid()});wireProfile();
   $('#back').onclick=()=>{step=3;render()};
   $('#claim').onclick=async()=>{$('#claim').disabled=true;const r=await post('/api/local-name',{});if(!r.ok){$('#nmsg').textContent=r.error||'Could not continue';$('#nmsg').className='msg bad';$('#claim').disabled=false;return}
    const i=await post('/api/install',await installBody());if(!i.ok){$('#nmsg').textContent=i.error||'Could not start the install';$('#nmsg').className='msg bad';$('#claim').disabled=false;return}step=5;refresh()};return}
@@ -1260,9 +1317,10 @@ function renderName(rebind){const a=state.account||{};
  <label>Device name</label><div class="row"><input type="text" id="nm" value="${esc(name.val)}" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="e.g. casa" style="flex:1"><span class="detail" style="white-space:nowrap">.${esc(state.bridge)}</span></div>
  <div class="msg ${name.ok===true?'ok':name.ok===false?'bad':''}" id="nmsg">${esc(name.msg)}</div>
  ${rebind?'':ownerFields()}
+ ${rebind?'':profileFields()}
  <div class="row"><button id="claim" ${name.ok&&(rebind||ownerValid())?'':'disabled'}>${rebind?'Register':'Continue'}</button>${rebind?'':'<button class="ghost" id="back">Back</button>'}</div>`;
  const inp=$('#nm');inp.focus();let t;inp.oninput=()=>{name.val=inp.value.trim().toLowerCase();name.ok=null;name.msg='';clearTimeout(t);if(!name.val)return render();t=setTimeout(check,400)};
- if(!rebind)wireOwner(()=>{$('#claim').disabled=!(name.ok&&ownerValid())});
+ if(!rebind){wireOwner(()=>{$('#claim').disabled=!(name.ok&&ownerValid())});wireProfile()}
  const bk=$('#back');if(bk)bk.onclick=()=>{step=3;render()};
  $('#claim').onclick=async()=>{$('#claim').disabled=true;$('#nmsg').innerHTML='<span class="spin"></span>Reserving…';const r=await post('/api/name',{name:name.val});
   if(!r.ok){name.ok=false;name.msg=r.error||'Could not reserve that name';if(r.code==='login_required'){step=3;acct.msg=r.error}render();return}

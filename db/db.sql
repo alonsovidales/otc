@@ -222,7 +222,8 @@ create table settings
   -- time, by files_manager's background processing goroutine - a photo
   -- uploaded while this was off is never revisited later just because it
   -- gets turned on afterward (see people/faces' own doc comment below).
-  `face_recognition_enabled` tinyint(1) not null default 1,
+  -- Issue #178: off unless the owner turns it on (the setup wizard asks).
+  `face_recognition_enabled` tinyint(1) not null default 0,
   -- Issue #153: how much space friends' posts (their photos and videos,
   -- kept here so the feed works when they're offline) may take, in MB;
   -- the oldest are removed past it. The owner's own posts don't count.
