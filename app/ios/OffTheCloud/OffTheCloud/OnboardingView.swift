@@ -14,6 +14,8 @@ struct OnboardingView: View {
     @EnvironmentObject var secrets: SecretsStore
     @State private var endpoint = ""
     @State private var password = ""
+    /// Set when the form was filled from a device set up from this phone.
+    @State private var pendingNote = false
 
     var body: some View {
         NavigationStack {
@@ -23,6 +25,10 @@ struct OnboardingView: View {
                     // needs; a custom address is behind the toggle.
                     ConnectionEndpointFields(endpoint: $endpoint)
                     SecureField("Password", text: $password)
+                    if pendingNote {
+                        Text("Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
                 Section {
                     Button("Save & Continue") {
@@ -56,6 +62,11 @@ struct OnboardingView: View {
         .onAppear {
             endpoint = secrets.endpoint
             password = secrets.password
+            if endpoint.isEmpty, password.isEmpty, let p = SecretsStore.pendingSetup() {
+                endpoint = p.endpoint
+                password = p.password
+                pendingNote = true
+            }
         }
     }
 }

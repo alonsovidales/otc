@@ -75,6 +75,16 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     val phase by transport.phase.collectAsState()
     val readyDomain by transport.readyDomain.collectAsState()
     val chosenPassword by transport.chosenPassword.collectAsState()
+    val setupDomain by transport.setupDomain.collectAsState()
+    // Kept until the app is signed in to the device: Onboarding fills its
+    // form from it (the Bluetooth link doesn't survive the install).
+    LaunchedEffect(chosenPassword, setupDomain) {
+        val d = setupDomain
+        if (chosenPassword.isNotEmpty() && d != null) {
+            val pw = chosenPassword
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { SecretsStore.savePendingSetup(endpointForDomain(d), pw) }
+        }
+    }
     var password by remember { mutableStateOf("") }
     val everReady by transport.everReady.collectAsState()
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { transport.start() }

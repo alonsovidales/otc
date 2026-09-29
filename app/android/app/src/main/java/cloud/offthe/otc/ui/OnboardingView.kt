@@ -31,8 +31,11 @@ import cloud.offthe.otc.ui.common.ConnectionEndpointFields
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
-    var endpoint by remember { mutableStateOf(secrets.endpoint.value) }
-    var password by remember { mutableStateOf(secrets.password.value) }
+    // A device set up from this phone fills the form (its install may have
+    // outlived the Bluetooth link that would have signed in straight away).
+    val pending = remember { if (secrets.isConfigured) null else SecretsStore.pendingSetup() }
+    var endpoint by remember { mutableStateOf(pending?.first ?: secrets.endpoint.value) }
+    var password by remember { mutableStateOf(pending?.second ?: secrets.password.value) }
     // Issue #137: a brand-new device is set up from here over Bluetooth;
     // when it is done its address lands in the form and the first sign in
     // sets the owner password.
@@ -64,6 +67,13 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (pending != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {

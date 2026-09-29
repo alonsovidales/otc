@@ -92,7 +92,12 @@ plain JS (`sealWith` - no WebCrypto on a plain-HTTP page), the wizard opens it i
 tmpfs file, and `install.sh` feeds it to `otc <env> init-owner-password` (as `otc`, before the
 service first starts; `bin/ownerpassword.go` - a device that already has one keeps it) and
 shreds the file. In the app the page also hands it to the app (`window.otcSetupPassword`,
-memory only), so "Open my device" signs in without typing. The same step has an optional,
+memory only), so "Open my device" signs in without typing. Since the device drops its Bluetooth
+setup service once installed, a phone locked through the install never sees the "online" state;
+so the app also saves the domain (from `/api/state` once named) and that password as a *pending
+setup* (Keychain / EncryptedSharedPreferences `setup_endpoint`/`setup_password`) as soon as it has
+both, Onboarding fills its form from it, and `persist()` of a configured store (or Log Out)
+clears it. The same step has an optional,
 collapsed "Your profile and face recognition" section (issue #178): name, about text, a picture
 cropped in the page to a circle (canvas pan/zoom, sent as a <=96 KB JPEG, base64) and a face
 recognition checkbox, unticked. The wizard writes them to a root-only tmpfs JSON

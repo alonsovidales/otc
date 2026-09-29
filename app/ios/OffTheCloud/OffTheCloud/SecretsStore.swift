@@ -120,6 +120,7 @@ final class SecretsStore: ObservableObject {
         Keychain.delete(key: "endpoint")
         Keychain.delete(key: "password")
         Keychain.delete(key: "device_id")
+        Self.clearPendingSetup()
         if let domain = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }
@@ -142,7 +143,27 @@ final class SecretsStore: ObservableObject {
         Keychain.saveString(key: "device_id", value: deviceId)
     }
 
+    /// A device set up from this phone whose install may still be running
+    /// (BluetoothSetupView saves it as soon as the wizard has the address
+    /// and password): Onboarding fills its form from it, and it goes once
+    /// the app is configured.
+    static func savePendingSetup(endpoint: String, password: String) {
+        Keychain.saveString(key: "setup_endpoint", value: endpoint)
+        Keychain.saveString(key: "setup_password", value: password)
+    }
+
+    static func pendingSetup() -> (endpoint: String, password: String)? {
+        guard let e = Keychain.loadString(key: "setup_endpoint"), let p = Keychain.loadString(key: "setup_password"), !p.isEmpty else { return nil }
+        return (e, p)
+    }
+
+    static func clearPendingSetup() {
+        Keychain.delete(key: "setup_endpoint")
+        Keychain.delete(key: "setup_password")
+    }
+
     func persist() {
+        if isConfigured { Self.clearPendingSetup() }
         Keychain.saveString(key: "endpoint", value: endpoint)
         Keychain.saveString(key: "password", value: password)
         Keychain.saveString(key: "device_id", value: deviceId)

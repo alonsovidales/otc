@@ -66,6 +66,16 @@ class BLESetupTransport(private val context: Context) {
     /** The owner password chosen in the wizard, handed over by its page (memory only). */
     val chosenPassword = MutableStateFlow("")
 
+    /**
+     * The device's domain as soon as the wizard has one (after the name
+     * step; "" without the bridge), null before: with chosenPassword it is
+     * saved as the pending setup, so a phone locked through the install -
+     * whose Bluetooth link never comes back, the device drops it once
+     * installed - still finds the device at the next launch.
+     */
+    private val _setupDomain = MutableStateFlow<String?>(null)
+    val setupDomain: StateFlow<String?> = _setupDomain
+
     /** The device came from a recovered array: it keeps its password. */
     private val _readyRecovery = MutableStateFlow(false)
     val readyRecovery: StateFlow<Boolean> = _readyRecovery
@@ -333,6 +343,10 @@ class BLESetupTransport(private val context: Context) {
     /** The wizard's own state tells when the device is ready for the app. */
     private fun noteState(body: String) {
         val st = runCatching { JSONObject(body) }.getOrNull() ?: return
+        if (st.optString("name").isNotEmpty()) {
+            val d = st.optString("domain")
+            if (_setupDomain.value != d) _setupDomain.value = d
+        }
         val install = st.optJSONObject("install") ?: return
         if (install.optString("phase") != "online") return
         val domain = install.optString("domain").ifEmpty { st.optString("domain") }

@@ -72,6 +72,12 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     /// The owner password chosen in the wizard, handed over by its page
     /// (memory only): the app signs in with it at the end.
     @Published var chosenPassword = ""
+    /// The device's domain as soon as the wizard has one (after the name
+    /// step; "" without the bridge), nil before: with chosenPassword it is
+    /// saved as the pending setup, so a phone locked through the install -
+    /// whose Bluetooth link never comes back, the device drops it once
+    /// installed - still finds the device at the next launch.
+    @Published var setupDomain: String?
     /// Whether the wizard has been reached once: from then on a dropped
     /// link keeps the page on screen (with a banner) while it reconnects,
     /// instead of throwing the install's progress away.
@@ -159,8 +165,12 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
 
     /// The wizard's own state tells when the device is ready for the app.
     private func noteState(_ json: String) {
-        guard let st = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any],
-              let install = st["install"] as? [String: Any], install["phase"] as? String == "online" else { return }
+        guard let st = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else { return }
+        if !(st["name"] as? String ?? "").isEmpty {
+            let d = st["domain"] as? String ?? ""
+            if setupDomain != d { setupDomain = d }
+        }
+        guard let install = st["install"] as? [String: Any], install["phase"] as? String == "online" else { return }
         let domain = (install["domain"] as? String ?? "").isEmpty ? (st["domain"] as? String ?? "") : install["domain"] as? String ?? ""
         if readyDomain != domain { readyDomain = domain }
         let recovery = install["recovery"] as? Bool ?? false
@@ -490,6 +500,8 @@ struct BluetoothSetupView: View {
         }
         .navigationTitle("Set up a new device")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: transport.chosenPassword) { _, _ in savePending() }
+        .onChange(of: transport.setupDomain) { _, _ in savePending() }
         // The install takes about 20 minutes: a locked phone suspends the
         // app and drops the Bluetooth link, so keep the screen on here.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
@@ -531,6 +543,13 @@ struct BluetoothSetupView: View {
 
     /// A bridge domain becomes the usual wss endpoint; a device set up
     /// without the bridge answers on the home network as otc.local.
+    /// The new device and its password, kept until the app is signed in
+    /// to it (Onboarding fills its form from them).
+    private func savePending() {
+        guard !transport.chosenPassword.isEmpty, let domain = transport.setupDomain else { return }
+        SecretsStore.savePendingSetup(endpoint: Self.endpoint(forDomain: domain), password: transport.chosenPassword)
+    }
+
     static func endpoint(forDomain domain: String) -> String {
         if domain.isEmpty { return "ws://otc.local:8080/ws" }
         if domain.hasSuffix("." + SecretsStore.bridgeDomain) {

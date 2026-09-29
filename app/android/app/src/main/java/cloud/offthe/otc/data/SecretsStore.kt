@@ -68,6 +68,7 @@ class SecretsStore private constructor(
     val endpointURLString: String get() = normalizedEndpoint(_endpoint.value)
 
     fun persist() {
+        if (isConfigured) clearPendingSetup()
         secure().edit()
             .putString("endpoint", _endpoint.value)
             .putString("password", _password.value)
@@ -84,6 +85,27 @@ class SecretsStore private constructor(
         const val bridgeDomain = "off-the.cloud"
 
         @Volatile private var shared: SecretsStore? = null
+
+        /**
+         * A device set up from this phone whose install may still be
+         * running (BluetoothSetupView saves it as soon as the wizard has the
+         * address and password): Onboarding fills its form from it, and it
+         * goes once the app is configured.
+         */
+        fun savePendingSetup(endpoint: String, password: String) {
+            secure().edit().putString("setup_endpoint", endpoint).putString("setup_password", password).apply()
+        }
+
+        fun pendingSetup(): Pair<String, String>? {
+            val s = secure()
+            val p = s.getString("setup_password", null)
+            if (p.isNullOrEmpty()) return null
+            return (s.getString("setup_endpoint", "") ?: "") to p
+        }
+
+        fun clearPendingSetup() {
+            secure().edit().remove("setup_endpoint").remove("setup_password").apply()
+        }
 
         /** One instance per process, loaded on first use (a Keystore round
          *  trip, so call it off the main thread the first time). */
