@@ -28,6 +28,14 @@ const (
 	AuthLockout     = time.Minute
 
 	cLimiterSweep = 10 * time.Minute
+
+	// Device-wide, whatever the address: at most MaxAuthFailuresTotal
+	// failed passwords per AuthTotalWindow. No person types that fast; a
+	// bot spreading its guesses over many addresses is held to ~20 a
+	// minute. (It can also hold the owner up while it keeps failing -
+	// accepted: it lasts only as long as the flood.)
+	MaxAuthFailuresTotal = 10
+	AuthTotalWindow      = 30 * time.Second
 )
 
 type attempts struct {
@@ -38,10 +46,13 @@ type attempts struct {
 
 // AuthLimiter tracks failed password attempts by address.
 type AuthLimiter struct {
-	mu   sync.Mutex
-	by   map[string]*attempts
-	now  func() time.Time
-	last time.Time // last sweep
+	mu sync.Mutex
+	// failuresAll: when each failure of the last AuthTotalWindow happened,
+	// across every address.
+	failuresAll []time.Time
+	by          map[string]*attempts
+	now         func() time.Time
+	last        time.Time // last sweep
 }
 
 // Attempts is the process-wide limiter the auth handler consults.
@@ -63,11 +74,14 @@ func (l *AuthLimiter) Blocked(addr string) (retryAfter time.Duration, blocked bo
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.sweepLocked()
+	now := l.now()
+	if wait, full := l.totalFullLocked(now); full {
+		return wait, true
+	}
 	a := l.by[l.key(addr)]
 	if a == nil {
 		return 0, false
 	}
-	now := l.now()
 	if now.Before(a.lockedUntil) {
 		return a.lockedUntil.Sub(now), true
 	}
@@ -81,6 +95,8 @@ func (l *AuthLimiter) Fail(addr string) (lockedFor time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
+	l.totalFullLocked(now) // drop failures that left the window
+	l.failuresAll = append(l.failuresAll, now)
 	k := l.key(addr)
 	a := l.by[k]
 	if a == nil || now.Sub(a.windowStart) > AuthWindow {
@@ -102,6 +118,21 @@ func (l *AuthLimiter) Reset(addr string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	delete(l.by, l.key(addr))
+}
+
+// totalFullLocked prunes failuresAll to the window and reports whether
+// the device-wide limit is reached, and for how long it stays so.
+func (l *AuthLimiter) totalFullLocked(now time.Time) (time.Duration, bool) {
+	cut := 0
+	for cut < len(l.failuresAll) && now.Sub(l.failuresAll[cut]) >= AuthTotalWindow {
+		cut++
+	}
+	l.failuresAll = l.failuresAll[cut:]
+	if len(l.failuresAll) < MaxAuthFailuresTotal {
+		return 0, false
+	}
+	oldest := l.failuresAll[len(l.failuresAll)-MaxAuthFailuresTotal]
+	return AuthTotalWindow - now.Sub(oldest), true
 }
 
 // sweepLocked drops entries that can no longer matter, now and then, so

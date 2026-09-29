@@ -3,6 +3,7 @@
 package session
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -64,5 +65,24 @@ func TestAuthLimiterWindowAndReset(t *testing.T) {
 	}
 	if _, blocked := l.Blocked(""); !blocked {
 		t.Fatal("an empty address must still be limited")
+	}
+}
+
+// Device-wide: 10 failures within 30 s from any mix of addresses stop
+// every attempt until the oldest of them leaves the window.
+func TestAuthLimiterDeviceWideLimit(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	l := NewAuthLimiter()
+	l.now = func() time.Time { return now }
+	for i := 0; i < MaxAuthFailuresTotal; i++ {
+		l.Fail(fmt.Sprintf("10.0.0.%d", i)) // a new address each time
+		now = now.Add(time.Second)
+	}
+	if _, blocked := l.Blocked("192.0.2.1"); !blocked {
+		t.Fatal("11th attempt from a fresh address was allowed")
+	}
+	now = now.Add(AuthTotalWindow)
+	if _, blocked := l.Blocked("192.0.2.1"); blocked {
+		t.Fatal("still blocked after the window passed")
 	}
 }
