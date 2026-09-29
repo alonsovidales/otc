@@ -66,9 +66,51 @@ func extractVideoFrames(videoContent []byte, n int) ([]image.Image, error) {
 		frames = append(frames, img)
 	}
 	if len(frames) == 0 {
+		// A clip of a few hundredths of a second (the video half of a
+		// Live Photo, say) has nothing at the sampled seek points: take
+		// its first frame instead.
+		if img, err := extractFirstFrame(tmpPath); err == nil {
+			return []image.Image{img}, nil
+		}
 		return nil, errors.New("could not extract any frames from video")
 	}
 	return frames, nil
+}
+
+// extractFirstFrame decodes the video's very first frame, no seeking.
+func extractFirstFrame(path string) (image.Image, error) {
+	cmd := exec.Command("ffmpeg", "-v", "error", "-i", path, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ffmpeg: %w: %s", err, stderr.String())
+	}
+	img, _, err := image.Decode(&stdout)
+	return img, err
+}
+
+// decodeWithFFmpeg decodes a still image Go's decoders can't - JPEG 2000,
+// Photoshop, camera RAW, a truncated or damaged JPEG - through ffmpeg, as
+// its first (only) frame.
+func decodeWithFFmpeg(content []byte) (image.Image, error) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		return nil, err
+	}
+	tmp, err := os.CreateTemp("", "otc-image-*")
+	if err != nil {
+		return nil, err
+	}
+	path := tmp.Name()
+	defer os.Remove(path)
+	if _, err := tmp.Write(content); err != nil {
+		tmp.Close()
+		return nil, err
+	}
+	if err := tmp.Close(); err != nil {
+		return nil, err
+	}
+	return extractFirstFrame(path)
 }
 
 func probeVideoDuration(path string) (float64, error) {

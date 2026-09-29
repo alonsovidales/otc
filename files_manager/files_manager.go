@@ -1173,6 +1173,16 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 
 		img, _, err := image.Decode(bytes.NewReader(content))
 		if err != nil {
+			// What Go can't read - JPEG 2000, Photoshop, camera RAW
+			// (DNG), a JPEG cut short or with a damaged marker - ffmpeg
+			// usually can: it is already here for videos.
+			if fallback, ffErr := decodeWithFFmpeg(content); ffErr == nil {
+				img, err = fallback, nil
+			} else {
+				log.Debug("ffmpeg could not decode", file.Path, "either:", ffErr)
+			}
+		}
+		if err != nil {
 			mg.alert("could not be processed", file.Path, err)
 			return
 		}
