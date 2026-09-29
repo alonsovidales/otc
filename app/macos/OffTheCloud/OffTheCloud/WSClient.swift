@@ -112,11 +112,18 @@ final class WSClient {
                 endpoint = .hostPort(host: host, port: port)
             }
 
+            // One connection at a time: the previous one, if any, is
+            // silenced and closed, or its late .cancelled/.failed would
+            // schedule reconnects of its own next to this one's.
+            if let old = self.conn {
+                old.stateUpdateHandler = nil
+                old.cancel()
+            }
             let conn = NWConnection(to: endpoint, using: params)
             self.conn = conn
 
             conn.stateUpdateHandler = { [weak self] state in
-                guard let self else { return }
+                guard let self, self.conn === conn else { return }
                 switch state {
                 case .ready:
                     // backoffSeconds is reset once signed in, not here: the
@@ -128,9 +135,16 @@ final class WSClient {
                     self.authenticateThenAnnounce()
 
                 case .waiting(let error):
-                    // Path not currently available — notify, then let state machine proceed.
-                    print("WSClient: waiting: \(error)")
+                    // The connection couldn't be made (the bridge
+                    // restarting, the device updating, no network) and
+                    // NWConnection waits here - for good, when nothing about
+                    // the network path changes: "Disconnected" that never
+                    // tried again. Close it; .cancelled reconnects with the
+                    // growing delay.
+                    print("WSClient: waiting: \(error) - retrying")
+                    self.isOpen = false; self.signedIn = false
                     self.onDisconnect?(error)
+                    conn.cancel()
 
                 case .failed(let error):
                     print("WSClient: failed: \(error)")
@@ -261,15 +275,20 @@ final class WSClient {
 
     // MARK: Receive loop
     private func receiveLoop() {
-        conn?.receiveMessage { [weak self] (data, ctx, isComplete, error) in
-            guard let self else { return }
+        guard let conn else { return }
+        conn.receiveMessage { [weak self] (data, ctx, isComplete, error) in
+            // A late callback from a connection since replaced must not
+            // act on (close) the current one.
+            guard let self, self.conn === conn else { return }
 
             if let error = error {
+                // Closed rather than just abandoned: its .cancelled
+                // schedules the one reconnect.
                 self.isOpen = false; self.signedIn = false
                 self.partial = Data()
                 self.flushAndFail(error)
                 self.onDisconnect?(error)
-                self.scheduleReconnect()
+                self.conn?.cancel()
                 return
             }
 
