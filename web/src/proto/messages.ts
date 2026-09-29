@@ -1154,6 +1154,20 @@ export interface Settings {
    * SetSettings (see its own doc comment).
    */
   faceRecognitionEnabled: boolean;
+  /**
+   * Issue #153: how much space friends' posts may take, in MB (5120 by
+   * default; the oldest are removed past it), and how much they take now.
+   */
+  socialStorageLimitMb: number;
+  socialStorageUsedBytes: bigint;
+}
+
+/**
+ * Issue #153: sets Settings.social_storage_limit_mb; posts past a lowered
+ * limit are removed right away. Answers with the generic Ack.
+ */
+export interface SetSocialStorageLimit {
+  mb: number;
 }
 
 /**
@@ -2114,6 +2128,9 @@ export interface ReqEnvelope {
     /** Issue #125. Both answer with the generic Ack. */
     { $case: "reqRegisterFcmToken"; reqRegisterFcmToken: RegisterFcmToken }
     | { $case: "reqUnregisterFcmToken"; reqUnregisterFcmToken: UnregisterFcmToken }
+    | //
+    /** Issue #153. */
+    { $case: "reqSetSocialStorageLimit"; reqSetSocialStorageLimit: SetSocialStorageLimit }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -8499,7 +8516,13 @@ export const SetSettings: MessageFns<SetSettings> = {
 };
 
 function createBaseSettings(): Settings {
-  return { domain: "", bridgeSecret: "", faceRecognitionEnabled: false };
+  return {
+    domain: "",
+    bridgeSecret: "",
+    faceRecognitionEnabled: false,
+    socialStorageLimitMb: 0,
+    socialStorageUsedBytes: 0n,
+  };
 }
 
 export const Settings: MessageFns<Settings> = {
@@ -8512,6 +8535,15 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.faceRecognitionEnabled !== false) {
       writer.uint32(24).bool(message.faceRecognitionEnabled);
+    }
+    if (message.socialStorageLimitMb !== 0) {
+      writer.uint32(32).int32(message.socialStorageLimitMb);
+    }
+    if (message.socialStorageUsedBytes !== 0n) {
+      if (BigInt.asIntN(64, message.socialStorageUsedBytes) !== message.socialStorageUsedBytes) {
+        throw new globalThis.Error("value provided for field message.socialStorageUsedBytes of type int64 too large");
+      }
+      writer.uint32(40).int64(message.socialStorageUsedBytes);
     }
     return writer;
   },
@@ -8547,6 +8579,22 @@ export const Settings: MessageFns<Settings> = {
           message.faceRecognitionEnabled = reader.bool();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.socialStorageLimitMb = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.socialStorageUsedBytes = reader.int64() as bigint;
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8563,6 +8611,8 @@ export const Settings: MessageFns<Settings> = {
       faceRecognitionEnabled: isSet(object.faceRecognitionEnabled)
         ? globalThis.Boolean(object.faceRecognitionEnabled)
         : false,
+      socialStorageLimitMb: isSet(object.socialStorageLimitMb) ? globalThis.Number(object.socialStorageLimitMb) : 0,
+      socialStorageUsedBytes: isSet(object.socialStorageUsedBytes) ? BigInt(object.socialStorageUsedBytes) : 0n,
     };
   },
 
@@ -8577,6 +8627,12 @@ export const Settings: MessageFns<Settings> = {
     if (message.faceRecognitionEnabled !== false) {
       obj.faceRecognitionEnabled = message.faceRecognitionEnabled;
     }
+    if (message.socialStorageLimitMb !== 0) {
+      obj.socialStorageLimitMb = Math.round(message.socialStorageLimitMb);
+    }
+    if (message.socialStorageUsedBytes !== 0n) {
+      obj.socialStorageUsedBytes = message.socialStorageUsedBytes.toString();
+    }
     return obj;
   },
 
@@ -8588,6 +8644,66 @@ export const Settings: MessageFns<Settings> = {
     message.domain = object.domain ?? "";
     message.bridgeSecret = object.bridgeSecret ?? "";
     message.faceRecognitionEnabled = object.faceRecognitionEnabled ?? false;
+    message.socialStorageLimitMb = object.socialStorageLimitMb ?? 0;
+    message.socialStorageUsedBytes = object.socialStorageUsedBytes ?? 0n;
+    return message;
+  },
+};
+
+function createBaseSetSocialStorageLimit(): SetSocialStorageLimit {
+  return { mb: 0 };
+}
+
+export const SetSocialStorageLimit: MessageFns<SetSocialStorageLimit> = {
+  encode(message: SetSocialStorageLimit, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mb !== 0) {
+      writer.uint32(8).int32(message.mb);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetSocialStorageLimit {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetSocialStorageLimit();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.mb = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetSocialStorageLimit {
+    return { mb: isSet(object.mb) ? globalThis.Number(object.mb) : 0 };
+  },
+
+  toJSON(message: SetSocialStorageLimit): unknown {
+    const obj: any = {};
+    if (message.mb !== 0) {
+      obj.mb = Math.round(message.mb);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetSocialStorageLimit>, I>>(base?: I): SetSocialStorageLimit {
+    return SetSocialStorageLimit.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetSocialStorageLimit>, I>>(object: I): SetSocialStorageLimit {
+    const message = createBaseSetSocialStorageLimit();
+    message.mb = object.mb ?? 0;
     return message;
   },
 };
@@ -15559,6 +15675,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqUnregisterFcmToken":
         UnregisterFcmToken.encode(message.payload.reqUnregisterFcmToken, writer.uint32(898).fork()).join();
         break;
+      case "reqSetSocialStorageLimit":
+        SetSocialStorageLimit.encode(message.payload.reqSetSocialStorageLimit, writer.uint32(906).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -16528,6 +16647,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 113: {
+          if (tag !== 906) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetSocialStorageLimit",
+            reqSetSocialStorageLimit: SetSocialStorageLimit.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -16880,6 +17010,11 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqUnregisterFcmToken",
           reqUnregisterFcmToken: UnregisterFcmToken.fromJSON(object.reqUnregisterFcmToken),
         }
+        : isSet(object.reqSetSocialStorageLimit)
+        ? {
+          $case: "reqSetSocialStorageLimit",
+          reqSetSocialStorageLimit: SetSocialStorageLimit.fromJSON(object.reqSetSocialStorageLimit),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -17106,6 +17241,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqRegisterFcmToken = RegisterFcmToken.toJSON(message.payload.reqRegisterFcmToken);
     } else if (message.payload?.$case === "reqUnregisterFcmToken") {
       obj.reqUnregisterFcmToken = UnregisterFcmToken.toJSON(message.payload.reqUnregisterFcmToken);
+    } else if (message.payload?.$case === "reqSetSocialStorageLimit") {
+      obj.reqSetSocialStorageLimit = SetSocialStorageLimit.toJSON(message.payload.reqSetSocialStorageLimit);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -17961,6 +18098,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqUnregisterFcmToken",
             reqUnregisterFcmToken: UnregisterFcmToken.fromPartial(object.payload.reqUnregisterFcmToken),
+          };
+        }
+        break;
+      }
+      case "reqSetSocialStorageLimit": {
+        if (
+          object.payload?.reqSetSocialStorageLimit !== undefined && object.payload?.reqSetSocialStorageLimit !== null
+        ) {
+          message.payload = {
+            $case: "reqSetSocialStorageLimit",
+            reqSetSocialStorageLimit: SetSocialStorageLimit.fromPartial(object.payload.reqSetSocialStorageLimit),
           };
         }
         break;

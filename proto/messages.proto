@@ -712,6 +712,16 @@ message Settings {
   // SetBridgeSecret being its own request rather than a field bundled onto
   // SetSettings (see its own doc comment).
   bool face_recognition_enabled = 3;
+  // Issue #153: how much space friends' posts may take, in MB (5120 by
+  // default; the oldest are removed past it), and how much they take now.
+  int32 social_storage_limit_mb = 4;
+  int64 social_storage_used_bytes = 5;
+}
+
+// Issue #153: sets Settings.social_storage_limit_mb; posts past a lowered
+// limit are removed right away. Answers with the generic Ack.
+message SetSocialStorageLimit {
+  int32 mb = 1;
 }
 
 // SetFaceRecognitionEnabled (issue #52) is deliberately its own request,
@@ -1562,6 +1572,8 @@ message ReqEnvelope {
     // Issue #125. Both answer with the generic Ack.
     RegisterFcmToken req_register_fcm_token = 111;
     UnregisterFcmToken req_unregister_fcm_token = 112;
+    // Issue #153.
+    SetSocialStorageLimit req_set_social_storage_limit = 113;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

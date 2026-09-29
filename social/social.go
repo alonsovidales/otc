@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -136,6 +137,66 @@ func expectPayload[T any](context, domain string, payload any) (T, error) {
 		return zero, fmt.Errorf("%s: unexpected response from %s", context, domain)
 	}
 	return v, nil
+}
+
+// removePublication deletes a post and then the media stored for it (its
+// files and thumbnails in unenc-storage-path) that no other post uses. The
+// rows alone used to be deleted, leaving the photos and videos on disk.
+func (sc *Social) removePublication(pubUuid string) error {
+	hashes, _ := sc.dao.PublicationHashes(pubUuid)
+	if err := sc.dao.DeleteSocialPublication(pubUuid); err != nil {
+		return err
+	}
+	if !cfg.HasSection("otc") {
+		return nil
+	}
+	dir := cfg.GetStr("otc", "unenc-storage-path")
+	for _, h := range hashes {
+		if inUse, err := sc.dao.SocialHashInUse(h); err != nil || inUse {
+			continue
+		}
+		os.Remove(fmt.Sprintf("%s/%s", dir, h))
+		os.Remove(fmt.Sprintf("%s/%s_thumbnail", dir, h))
+	}
+	return nil
+}
+
+// storageMu keeps two friends' syncs from trimming at the same time.
+var storageMu sync.Mutex
+
+// EnforceStorageLimit (issue #153) removes friends' oldest posts while the
+// media kept for friends' posts is over the owner's limit (5 GB by
+// default) - so a friend who posts a lot can't fill this device. Run when
+// a sync has just stored new posts, and when the limit is changed; the
+// owner's own posts are never touched.
+func (sc *Social) EnforceStorageLimit() {
+	storageMu.Lock()
+	defer storageMu.Unlock()
+
+	limitMB, _ := sc.dao.SocialStorageLimitMB()
+	limit := int64(limitMB) << 20
+	used, err := sc.dao.FriendPostsBytes()
+	if err != nil || used <= limit {
+		return
+	}
+	removed := 0
+	for used > limit {
+		oldest, err := sc.dao.OldestFriendPublications(20)
+		if err != nil || len(oldest) == 0 {
+			break
+		}
+		for _, u := range oldest {
+			if err := sc.removePublication(u); err != nil {
+				log.Error("could not remove an old friend post:", u, err)
+				return
+			}
+			removed++
+		}
+		if used, err = sc.dao.FriendPostsBytes(); err != nil {
+			break
+		}
+	}
+	log.Info("friends' posts over the", limitMB, "MB limit: removed the", removed, "oldest, now", used>>20, "MB")
 }
 
 // eventTime is when a friend's post, like or comment actually happened
@@ -922,6 +983,9 @@ func (fr *friendship) updateFriendEvents() (err error) {
 	// cEventsSyncPageSize per cycle), until a cycle finally comes back
 	// with fewer events than it asked for.
 	catchingUp := !fr.data.NotificationsStarted
+	// Issue #153: whether this sync stored new posts - the only time the
+	// space friends' posts take can have grown past the limit.
+	newPosts := false
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqGetEvents{
@@ -1021,6 +1085,7 @@ event_loop:
 				log.Error("Error creating social publication for friend:", err)
 				continue
 			}
+			newPosts = true
 
 			// Issue #43: fr.data.LatestSync (advanced below, per event) means
 			// ReqGetEvents{Since: LatestSync} never returns an
@@ -1065,7 +1130,7 @@ event_loop:
 			// cached copy too.
 			var del DelPublication
 			json.Unmarshal([]byte(event.Content), &del)
-			fr.dao.DeleteSocialPublication(del.PubUUID)
+			fr.sc.removePublication(del.PubUUID)
 
 		case DelCommentEvent:
 			// issue #35: the post owner deleted a comment — remove our
@@ -1091,6 +1156,9 @@ event_loop:
 		}
 	}
 
+	if newPosts {
+		fr.sc.EnforceStorageLimit()
+	}
 	return
 }
 
@@ -1559,7 +1627,7 @@ func (sc *Social) DeletePublication(pubUuid string) (err error) {
 		return err
 	}
 
-	return sc.dao.DeleteSocialPublication(pubUuid)
+	return sc.removePublication(pubUuid)
 }
 
 // DeleteComment removes commentUuid, provided it's on one of the device

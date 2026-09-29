@@ -2131,13 +2131,35 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	case *pb.ReqEnvelope_ReqGetSettings:
 		log.Info("Get settings")
 
+		limitMB, _ := ch.mg.dao.SocialStorageLimitMB()
+		used, _ := ch.mg.dao.FriendPostsBytes()
 		resp.Payload = &pb.RespEnvelope_RespSettings{
 			RespSettings: &pb.Settings{
 				Domain:                 ch.mg.settings.Domain,
 				BridgeSecret:           ch.mg.settings.BridgeSecret,
 				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled,
+				SocialStorageLimitMb:   int32(limitMB),
+				SocialStorageUsedBytes: used,
 			},
 		}
+
+	// Issue #153: the space friends' posts may take.
+	case *pb.ReqEnvelope_ReqSetSocialStorageLimit:
+		mb := p.ReqSetSocialStorageLimit.Mb
+		if mb < 100 {
+			resp.Error = true
+			resp.ErrorMessage = "the limit must be at least 0.1 GB"
+			break
+		}
+		if err := ch.mg.dao.SetSocialStorageLimitMB(int(mb)); err != nil {
+			log.Error("error setting the social storage limit:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		log.Info("friends' posts limit set to", mb, "MB")
+		go ch.mg.social.EnforceStorageLimit()
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 
 	// Issue #52: face recognition ("People" search), humans only.
 	case *pb.ReqEnvelope_ReqSetFaceRecognitionEnabled:

@@ -1278,6 +1278,78 @@ func (dao *Dao) GetCommentPubUuid(commentUuid string) (pubUuid string, err error
 // transaction (issue #34). Children have to go before the parent, same
 // reasoning as DelFileByPath above: social_publications is the referenced
 // side of several foreign keys.
+// Issue #153: the space friends' posts take, and trimming it.
+
+// cDefaultSocialStorageLimitMB is used when the setting can't be read (a
+// database not migrated yet).
+const cDefaultSocialStorageLimitMB = 5120
+
+// SocialStorageLimitMB is how much space friends' posts may take, in MB.
+func (dao *Dao) SocialStorageLimitMB() (int, error) {
+	var mb int
+	if err := dao.db.QueryRow("select `social_storage_limit_mb` from `settings`").Scan(&mb); err != nil {
+		return cDefaultSocialStorageLimitMB, err
+	}
+	return mb, nil
+}
+
+func (dao *Dao) SetSocialStorageLimitMB(mb int) error {
+	_, err := dao.db.Exec("update `settings` set `social_storage_limit_mb` = ?", mb)
+	return err
+}
+
+// FriendPostsBytes is the size of the media kept for friends' posts, each
+// file counted once however many posts share it.
+func (dao *Dao) FriendPostsBytes() (total int64, err error) {
+	var n sql.NullInt64
+	err = dao.db.QueryRow(
+		"select sum(`size`) from (select f.`hash`, max(f.`size`) as `size` from `social_publications_files` f " +
+			"join `social_publications` p on p.`uuid` = f.`uuid` where p.`own_publication` = 0 group by f.`hash`) t",
+	).Scan(&n)
+	return n.Int64, err
+}
+
+// OldestFriendPublications lists up to limit of friends' posts, oldest first.
+func (dao *Dao) OldestFriendPublications(limit int) (uuids []string, err error) {
+	rows, err := dao.db.Query("select `uuid` from `social_publications` where `own_publication` = 0 order by `dt` asc limit ?", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var u string
+		if err = rows.Scan(&u); err != nil {
+			return nil, err
+		}
+		uuids = append(uuids, u)
+	}
+	return uuids, rows.Err()
+}
+
+// PublicationHashes lists the content hashes of a post's files.
+func (dao *Dao) PublicationHashes(pubUuid string) (hashes []string, err error) {
+	rows, err := dao.db.Query("select distinct `hash` from `social_publications_files` where `uuid` = ?", pubUuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var h string
+		if err = rows.Scan(&h); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, h)
+	}
+	return hashes, rows.Err()
+}
+
+// SocialHashInUse reports whether any post still has a file with hash.
+func (dao *Dao) SocialHashInUse(hash string) (bool, error) {
+	var n int
+	err := dao.db.QueryRow("select count(*) from `social_publications_files` where `hash` = ?", hash).Scan(&n)
+	return n > 0, err
+}
+
 func (dao *Dao) DeleteSocialPublication(pubUuid string) (err error) {
 	tx, err := dao.db.Begin()
 	if err != nil {

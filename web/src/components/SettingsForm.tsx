@@ -50,6 +50,32 @@ export default function SettingsForm() {
   // whatever's already in the library.
   const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(false);
   const [faceRecognitionBusy, setFaceRecognitionBusy] = useState(false);
+  // Issue #153: the space friends' posts may take (GB in the field, MB on
+  // the device), and what they take now.
+  const [socialLimitGB, setSocialLimitGB] = useState("");
+  const [socialUsedBytes, setSocialUsedBytes] = useState<number | null>(null);
+  const [socialLimitBusy, setSocialLimitBusy] = useState(false);
+  const [socialLimitNote, setSocialLimitNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const saveSocialLimit = async () => {
+    const gb = Number(socialLimitGB.replace(",", "."));
+    if (!Number.isFinite(gb) || gb < 0.1) {
+      setSocialLimitNote({ kind: "error", text: "Enter a size of at least 0.1 GB." });
+      return;
+    }
+    setSocialLimitBusy(true);
+    setSocialLimitNote(null);
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqSetSocialStorageLimit", reqSetSocialStorageLimit: { mb: Math.round(gb * 1024) } };
+      });
+      if (resp.error) setSocialLimitNote({ kind: "error", text: resp.errorMessage || "Could not save the limit." });
+      else setSocialLimitNote({ kind: "ok", text: "Saved. Older posts over the limit are being removed." });
+    } catch (e: any) {
+      setSocialLimitNote({ kind: "error", text: e?.message ?? String(e) });
+    } finally {
+      setSocialLimitBusy(false);
+    }
+  };
 
   const toggleFaceRecognition = async () => {
     setFaceRecognitionBusy(true);
@@ -187,6 +213,9 @@ export default function SettingsForm() {
           const s: PbSettings = resp.payload.respSettings;
           setCurrentBridgeSecret(s.bridgeSecret || "");
           setFaceRecognitionEnabled(!!s.faceRecognitionEnabled);
+          const limitMb = s.socialStorageLimitMb || 5120;
+          setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
+          setSocialUsedBytes(Number(s.socialStorageUsedBytes ?? 0));
         } else if (resp.payload?.$case === "respAck") {
           const msg = resp.payload.respAck.errorMsg || "Failed to load settings.";
           setStatus({ kind: "error", text: msg });
@@ -380,6 +409,27 @@ export default function SettingsForm() {
         <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
           {faceRecognitionBusy ? "Working…" : faceRecognitionEnabled ? "Disable Face Recognition" : "Enable Face Recognition"}
         </button>
+      </section>
+
+      <section className="sf-section">
+        <h3>Friends' posts storage</h3>
+        <p className="sf-hint">
+          Photos and videos from your friends' posts are kept on this device, so your feed works
+          even when they're offline. When they take more than this, the oldest friends' posts are
+          removed. Your own posts and files are never touched.
+          {socialUsedBytes !== null && <> Using {(socialUsedBytes / 1024 ** 3).toFixed(2)} GB now.</>}
+        </p>
+        <div className="sf-row">
+          <label htmlFor="sf-social-limit">Limit (GB)</label>
+          <div className="sf-secret-row">
+            <input id="sf-social-limit" className="sf-input" type="number" min="0.1" step="0.5" inputMode="decimal"
+              value={socialLimitGB} onChange={e => setSocialLimitGB(e.target.value)} />
+            <button className="sf-btn small" type="button" disabled={socialLimitBusy} onClick={() => void saveSocialLimit()}>
+              {socialLimitBusy ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+        {socialLimitNote && <p className={`sf-note ${socialLimitNote.kind === "ok" ? "success" : "error"}`}>{socialLimitNote.text}</p>}
       </section>
 
       {/* Issue #94: in-place updates. Renders nothing on a non-primary
