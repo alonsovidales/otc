@@ -188,16 +188,27 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		return nil, err
 	}
 
-	file, write, err := mg.registerUpload(ses, up.path, hash, mimetype.Detect(up.head).String(), up.size, up.force, up.created, up.modified, up.cloudID)
-	if err != nil || !write {
-		up.w.Abort()
-		return file, err
-	}
+	// Into place before the row exists, as UploadFile: a restart between
+	// the two then leaves nothing, never a listed file without content.
 	target := blobPath(hash)
 	unlock := lockBlob(hash)
 	err = up.w.CommitAs(target)
 	unlock()
 	if err != nil {
+		mg.alert("could not be saved to disk", up.path, err)
+		return nil, err
+	}
+	file, write, err := mg.registerUpload(ses, up.path, hash, mimetype.Detect(up.head).String(), up.size, up.force, up.created, up.modified, up.cloudID)
+	if err != nil {
+		mg.removeBlobIfUnused(hash)
+		return file, err
+	}
+	if !write {
+		return file, nil
+	}
+	if !mg.hasBlob(hash) {
+		// Taken as unused by a DelFile between the commit and the row.
+		err = errors.New("the upload's content was removed before it was recorded - send it again")
 		mg.alert("could not be saved to disk", file.Path, err)
 		return nil, err
 	}

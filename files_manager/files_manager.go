@@ -1023,38 +1023,59 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	sum := sha256.Sum256(content)
 	hash := hex.EncodeToString(sum[:])
 
-	file, write, err := mg.registerUpload(session, path, hash, mimeType.String(), int64(len(content)), forceOverride, created, modified, cloudID)
-	if err != nil || !write {
-		return file, err
-	}
-
 	targetPath := blobPath(hash)
 
-	// Limit the amounth of concurrent writes
+	// The content goes to disk before the row exists, not after: the row
+	// used to be committed (and the client told "saved") while the write
+	// still waited its turn in a background goroutine, so an update's
+	// restart, a crash or running out of memory in between left a file the
+	// device listed - with the right hash, so no client ever sent it again -
+	// and had no content for (Cala, IMG_5259.MOV and three more, lost to
+	// the restart of an update). Now a restart at any point leaves either
+	// nothing or a complete file. Under the hash's lock (issue #141): a
+	// DelFile of another path with this content checks-and-removes under
+	// the same lock.
+	wrote := false
+	if !mg.hasBlob(hash) {
+		unlock := lockBlob(hash)
+		err = blobstore.WriteBytes(targetPath, session, content)
+		unlock()
+		if err != nil {
+			mg.alert("could not be saved to disk", path, err)
+			return nil, err
+		}
+		wrote = true
+	}
+
+	file, write, err := mg.registerUpload(session, path, hash, mimeType.String(), int64(len(content)), forceOverride, created, modified, cloudID)
+	if err != nil {
+		if wrote {
+			mg.removeBlobIfUnused(hash)
+		}
+		return file, err
+	}
+	if !write {
+		return file, nil
+	}
+	// Written above, but a DelFile of another path with the same content,
+	// between the write and the row, could have taken it as unused.
+	if !mg.hasBlob(hash) {
+		unlock := lockBlob(hash)
+		err = blobstore.WriteBytes(targetPath, session, content)
+		unlock()
+		if err != nil {
+			mg.alert("could not be saved to disk", path, err)
+			return nil, err
+		}
+	}
+
+	// Limit the amount of concurrent processing (tags, thumbnail, faces).
 	mg.maxUploads <- true
 
 	go func(targetPath string, file *pb.File, content []byte) {
 		defer func() { <-mg.maxUploads }()
 
 		start := time.Now()
-		// Write to disk the content. This used to be unchecked: the DB row
-		// for the file (registerUpload, above) is already committed by the
-		// time this runs, so a disk-full/IO error here used to mean the DB
-		// silently claimed the file was safely stored while the bytes never
-		// actually landed on disk. Under the hash's lock (issue #141): a
-		// DelFile of another path with this content checks-and-removes
-		// under the same lock.
-		unlock := lockBlob(file.Hash)
-		err := blobstore.WriteBytes(targetPath, session, content)
-		unlock()
-		if err != nil {
-			// Issue #63/#64: the client was already told "saved" - this
-			// alert is the after-the-fact channel that was missing.
-			mg.alert("could not be saved to disk", file.Path, err)
-			return
-		}
-		log.Debug("Time writting file:", time.Since(start), targetPath)
-
 		mg.processMediaContent(session, file, targetPath, content)
 
 		log.Debug("Time processing image:", time.Since(start), targetPath)

@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -146,7 +147,10 @@ fun ProfilePhotoCropDialog(bitmap: Bitmap, onCancel: () -> Unit, onUse: (side: F
             Text("Drag the photo to centre your face", color = Color.White, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                 Canvas(
+                    // Clipped: a Canvas draws past its bounds, so the zoomed
+                    // photo covered the buttons and the rest of the screen.
                     Modifier.size(minOf(maxWidth, maxHeight))
+                        .clipToBounds()
                         .onSizeChanged { side = it.width.toFloat() }
                         .pointerInput(bitmap) {
                             detectTransformGestures { centroid, pan, gestureZoom, _ ->

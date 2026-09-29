@@ -25,9 +25,9 @@ import (
 const (
 	cIntegrityFirstRun = 10 * time.Minute
 	cIntegrityEvery    = 24 * time.Hour
-	// An upload's row is stored a moment before its content is written
-	// (UploadFile's background write); a hash missing on the first look
-	// is only reported if it is still missing this much later.
+	// A hash missing on the first look is only reported if it is still
+	// missing this much later (a DelFile and an upload of the same
+	// content crossing; uploads write the content before the row now).
 	cIntegrityRecheck = time.Minute
 	cIntegrityListed  = 15
 )

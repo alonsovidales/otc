@@ -95,7 +95,10 @@ func setLogFile(filePath string) {
 	}
 
 	path = filePath
-	if outFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666); err == nil {
+	if outFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600); err == nil {
+		// Private: 0o600 above only applies when the file is created, and
+		// the device's used to be readable by every account on it.
+		outFile.Chmod(0o600)
 		file = outFile
 		logger.SetOutput(file)
 	} else {

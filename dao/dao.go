@@ -41,7 +41,9 @@ func Init() (dao *Dao) {
 		cfg.GetInt("mysql", "port"),
 		cfg.GetStr("mysql", "db"))
 
-	log.Debug("connecting to DB:", dsn)
+	// Never the DSN itself: it carries the database password, and the
+	// log is read by more than whoever holds that password.
+	log.Debug("connecting to DB:", strings.Replace(dsn, ":"+cfg.GetStr("mysql", "pass")+"@", ":***@", 1))
 
 	var err error
 	dao.db, err = sql.Open("mysql", dsn)

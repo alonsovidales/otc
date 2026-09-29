@@ -731,6 +731,10 @@ max-images-search=5
 detector-model-path=$FACE_DETECTOR_ONNX
 recognizer-model-path=$FACE_RECOGNIZER_ONNX
 EOF
+# The database password (and the rest of the device's settings): root
+# and the service only - it used to be left readable by every account.
+chown root:otc "/etc/otc_${ENVIRONMENT}.ini"
+chmod 640 "/etc/otc_${ENVIRONMENT}.ini"
 
 # Issue #97 follow-up: the RAID status LEDs (scripts/raid_watch.py, driven
 # over GPIO) are installed by Makefile.pi's `raid-watch` target and baked
