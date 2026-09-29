@@ -30,8 +30,15 @@ import (
 	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"image"
+	_ "image/gif"
 	"image/jpeg"
 	_ "image/jpeg"
+
+	// Thumbnails for more than JPEG/PNG: without these decoders every GIF,
+	// WebP, BMP and TIFF failed as "image: unknown format".
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp"
 	"io"
 	"math"
 	//"net/http"
@@ -776,7 +783,7 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 		// — unrenderable by an <img>/<video poster> in every browser
 		// except Safari, so "view full size" just showed nothing. Convert
 		// here too, the same way, so it actually displays everywhere.
-		if isHeicFile(file.Path, file.Mime) {
+		if isHeicFile(file.Path, file.Mime) && !isJPEGContent(content) {
 			// Issue #66: read the orientation so the conversion below
 			// rotates the pixels to match, instead of silently discarding it.
 			orientation := 1
@@ -794,6 +801,11 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 	}
 
 	return
+}
+
+// isJPEGContent reports whether content starts with a JPEG's signature.
+func isJPEGContent(content []byte) bool {
+	return len(content) > 3 && content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF
 }
 
 func isHeicFile(path, mime string) bool {
@@ -1098,8 +1110,10 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 // "<hash>_thumbnail" sibling path.
 func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte) {
 	// We will try to create a thumbnail of images only
-	isHeic := strings.HasSuffix(file.Path, ".HEIC")
-	if file.Mime[:5] == "image" || isHeic {
+	// A ".HEIC" that is really a JPEG (some apps export one under the
+	// original's name) is decoded as the JPEG it is.
+	isHeic := strings.HasSuffix(file.Path, ".HEIC") && !isJPEGContent(content)
+	if file.Mime[:5] == "image" || strings.HasSuffix(file.Path, ".HEIC") {
 		// Issue #42: read GPS/EXIF from the *original* bytes before any
 		// HEIC->JPEG re-encode below, which (like most re-encodes) drops
 		// the EXIF segment entirely.

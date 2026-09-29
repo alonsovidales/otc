@@ -94,7 +94,8 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 			// on every restart, a burst of work on a device that just
 			// came back. The marker is per content hash, so a new version
 			// of the file is tried afresh.
-			if _, statErr := os.Stat(thumb[:len(thumb)-len("_thumbnail")] + cNoThumbnailSuffix); statErr == nil {
+			marker := thumb[:len(thumb)-len("_thumbnail")] + cNoThumbnailSuffix
+			if raw, readErr := os.ReadFile(marker); readErr == nil && string(raw) == cDecoders {
 				continue
 			}
 
@@ -102,7 +103,7 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 			mg.reprocessOneFile(ses, file, storagePath)
 			repaired++
 			if _, statErr := os.Stat(thumb); statErr != nil {
-				_ = os.WriteFile(thumb[:len(thumb)-len("_thumbnail")]+cNoThumbnailSuffix, nil, 0o644) // perms: rw-r--r--
+				_ = os.WriteFile(marker, []byte(cDecoders), 0o644) // perms: rw-r--r--
 			}
 			time.Sleep(cBackfillPause)
 		}
@@ -119,6 +120,11 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 // thumbnail for (next to its blob, <hash>.nothumb), so it isn't retried on
 // every restart.
 const cNoThumbnailSuffix = ".nothumb"
+
+// cDecoders names what this build can make previews from; a marker written
+// by a build that could do less is retried once (release 31's markers are
+// empty, so the GIF/WebP/BMP/TIFF they recorded get another go).
+const cDecoders = "jpeg,png,gif,webp,bmp,tiff,heic"
 
 func (mg *Manager) isReprocessing() bool {
 	mg.reprocessMu.Lock()
