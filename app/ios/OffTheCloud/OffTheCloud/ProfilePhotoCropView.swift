@@ -88,6 +88,8 @@ struct ProfilePhotoCropView: View {
                 Spacer()
             }
             .padding(.top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemBackground))
             .navigationTitle("Crop photo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -105,27 +107,35 @@ struct ProfilePhotoCropView: View {
 
     private func cropArea(side s: CGFloat) -> some View {
         let scale = displayScale(side: s)
-        return ZStack {
-            Color(white: 0.12)
-            Image(uiImage: image)
-                .resizable()
-                .frame(width: image.size.width * scale, height: image.size.height * scale)
-                .offset(offset)
+        // The square is fixed and everything else is an overlay on it: in a
+        // ZStack the zoomed photo set the stack's size, so the circle and
+        // the mask grew with the zoom instead of staying put.
+        return Color(white: 0.12)
+            .frame(width: s, height: s)
+            .overlay {
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(width: image.size.width * scale, height: image.size.height * scale)
+                    .offset(offset)
+            }
+            .clipped()
             // Darken everything outside the circle, like the wizard's
             // evenodd-filled rgba(0,0,0,.55) mask.
-            Rectangle()
-                .fill(Color.black.opacity(0.55))
-                .mask {
-                    Rectangle()
-                        .overlay(Circle().padding(2).blendMode(.destinationOut))
-                        .compositingGroup()
-                }
-            Circle()
-                .stroke(Color.white.opacity(0.6), lineWidth: 1)
-                .padding(2)
-        }
-        .clipped()
-        .contentShape(Rectangle())
+            .overlay {
+                Rectangle()
+                    .fill(Color.black.opacity(0.55))
+                    .mask {
+                        Rectangle()
+                            .overlay(Circle().padding(2).blendMode(.destinationOut))
+                            .compositingGroup()
+                    }
+            }
+            .overlay {
+                Circle()
+                    .stroke(Color.white.opacity(0.6), lineWidth: 1)
+                    .padding(2)
+            }
+            .contentShape(Rectangle())
         .gesture(dragGesture.simultaneously(with: magnifyGesture))
     }
 

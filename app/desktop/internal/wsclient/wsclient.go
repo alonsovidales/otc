@@ -49,12 +49,18 @@ type Client struct {
 	// retrying with backoff and signs in once the device is back.
 	OnUnreachable func(msg string)
 
-	mu        sync.Mutex
-	url       string
-	clientID  string
-	password  string
-	conn      *websocket.Conn
-	open      bool
+	mu       sync.Mutex
+	url      string
+	clientID string
+	password string
+	conn     *websocket.Conn
+	open     bool
+	// signedIn: the device accepted the password on this socket.
+	// IsConnected is both - an open socket still signing in used to count,
+	// so a folder's first ListFiles raced the Auth and got "not
+	// authenticated", which readLoop takes for a lost session and closes
+	// the socket on, cutting its own sign-in short (as WSClient.swift).
+	signedIn  bool
 	waiters   map[int32]chan *pb.RespEnvelope
 	nextID    int32
 	autoRecon bool
@@ -106,6 +112,7 @@ func (c *Client) Disconnect() {
 	conn := c.conn
 	c.conn = nil
 	c.open = false
+	c.signedIn = false
 	c.gen++
 	c.failAllLocked(errors.New("closed"))
 	c.mu.Unlock()
@@ -122,7 +129,7 @@ func (c *Client) IsConnected() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return c.open
+	return c.open && c.signedIn
 }
 
 func (c *Client) dial(gen int64) {
@@ -158,6 +165,7 @@ func (c *Client) dial(gen int64) {
 	}
 	c.conn = conn
 	c.open = true
+	c.signedIn = false
 	c.mu.Unlock()
 
 	go c.readLoop(conn, gen)
@@ -196,6 +204,7 @@ func (c *Client) dial(gen int64) {
 		c.autoRecon = false
 		c.conn = nil
 		c.open = false
+		c.signedIn = false
 		c.failAllLocked(err)
 		c.mu.Unlock()
 		_ = conn.Close()
@@ -207,6 +216,7 @@ func (c *Client) dial(gen int64) {
 	}
 	c.mu.Lock()
 	c.backoff = initialBackoff
+	c.signedIn = true
 	c.mu.Unlock()
 	if c.OnConnect != nil {
 		c.OnConnect()
@@ -280,6 +290,7 @@ func (c *Client) readLoop(conn *websocket.Conn, gen int64) {
 			if !stale {
 				c.conn = nil
 				c.open = false
+				c.signedIn = false
 				c.failAllLocked(err)
 			}
 			c.mu.Unlock()
@@ -309,7 +320,10 @@ func (c *Client) readLoop(conn *websocket.Conn, gen int64) {
 		// "not authenticated" until something reconnected: close, and the
 		// read error above reconnects and signs in again. Same as
 		// WSClient.swift.
-		if ack := resp.GetRespAck(); ack != nil && ack.Code == "not_authenticated" {
+		c.mu.Lock()
+		signedIn := c.signedIn
+		c.mu.Unlock()
+		if ack := resp.GetRespAck(); ack != nil && ack.Code == "not_authenticated" && signedIn {
 			log.Printf("the device no longer knows this session - reconnecting to sign in again")
 			_ = conn.Close()
 		}

@@ -56,6 +56,13 @@ final class WSClient {
     // later pass of that folder, until the app is relaunched.
     private let requestTimeout: TimeInterval = 30 * 60
     private var isOpen = false
+    /// The device accepted the password on this socket. isConnected() is
+    /// both: a socket that's open but still signing in used to count as
+    /// connected, so a folder's first ListFiles raced the Auth, got "not
+    /// authenticated" - which the receive loop takes for a lost session
+    /// and drops the socket, cutting its own sign-in short - and the
+    /// folder sat in that error, doing nothing.
+    private var signedIn = false
 
     // Reconnect control
     private var autoReconnect = true
@@ -116,6 +123,7 @@ final class WSClient {
                     // bridge answers even when the device is offline, and
                     // resetting on every socket would retry each second.
                     self.isOpen = true
+                    self.signedIn = false
                     self.receiveLoop()
                     self.authenticateThenAnnounce()
 
@@ -126,13 +134,13 @@ final class WSClient {
 
                 case .failed(let error):
                     print("WSClient: failed: \(error)")
-                    self.isOpen = false
+                    self.isOpen = false; self.signedIn = false
                     self.flushAndFail(error)
                     self.onDisconnect?(error)
                     self.scheduleReconnect()
 
                 case .cancelled:
-                    self.isOpen = false
+                    self.isOpen = false; self.signedIn = false
                     self.flushAndFail(NSError(domain: "ws", code: -999,
                                               userInfo: [NSLocalizedDescriptionKey: "Cancelled"]))
                     self.onDisconnect?(nil)
@@ -152,7 +160,7 @@ final class WSClient {
         queue.async { [weak self] in
             guard let self else { return }
             self.autoReconnect = false
-            self.isOpen = false
+            self.isOpen = false; self.signedIn = false
             let err = NSError(domain: "ws", code: -999,
                               userInfo: [NSLocalizedDescriptionKey: "Closed"])
             self.flushAndFail(err)
@@ -162,7 +170,7 @@ final class WSClient {
         print("Disconnected")
     }
 
-    func isConnected() -> Bool { queue.sync { isOpen } }
+    func isConnected() -> Bool { queue.sync { isOpen && signedIn } }
 
     // MARK: Request/response
     /// Send a request built by `build` and await response (matched by `id`).
@@ -257,7 +265,7 @@ final class WSClient {
             guard let self else { return }
 
             if let error = error {
-                self.isOpen = false
+                self.isOpen = false; self.signedIn = false
                 self.partial = Data()
                 self.flushAndFail(error)
                 self.onDisconnect?(error)
@@ -286,9 +294,9 @@ final class WSClient {
                     // something reconnected: cancel, and the .cancelled
                     // handler reconnects and signs in again. Same as
                     // otc-sync's wsclient.
-                    if case .respAck(let ack) = resp.payload, ack.code == "not_authenticated", self.isOpen {
+                    if case .respAck(let ack) = resp.payload, ack.code == "not_authenticated", self.isOpen, self.signedIn {
                         print("WSClient: the device no longer knows this session - reconnecting to sign in again")
-                        self.isOpen = false
+                        self.isOpen = false; self.signedIn = false
                         self.conn?.cancel()
                         return
                     }
@@ -305,12 +313,12 @@ final class WSClient {
     // MARK: Helpers
     /// Auth first, onConnect after - see onConnect's doc comment.
     private func authenticateThenAnnounce() {
-        guard let key = self.key else { self.onConnect?(); return }
+        guard let key = self.key else { self.signedIn = true; self.onConnect?(); return }
         Task { [weak self] in
             guard let self else { return }
             do {
                 if try await self.auth(key: key) {
-                    self.queue.async { self.backoffSeconds = 1 }
+                    self.queue.sync { self.backoffSeconds = 1; self.signedIn = true }
                     self.onConnect?()
                 } else {
                     self.failAuth("The device rejected the password", retryAfter: nil)
@@ -320,7 +328,7 @@ final class WSClient {
                 // growing delay.
                 self.onUnreachable?(err.message)
                 self.queue.async {
-                    self.isOpen = false
+                    self.isOpen = false; self.signedIn = false
                     self.conn?.cancel()
                 }
             } catch let err as AuthError {
@@ -333,7 +341,7 @@ final class WSClient {
                 // the .cancelled handler reconnect with a growing delay.
                 print("WSClient: sign-in did not complete (\(error.localizedDescription)) - reconnecting")
                 self.queue.async {
-                    self.isOpen = false
+                    self.isOpen = false; self.signedIn = false
                     self.conn?.cancel()
                 }
             }
@@ -344,7 +352,7 @@ final class WSClient {
         queue.async { [weak self] in
             guard let self else { return }
             self.autoReconnect = false
-            self.isOpen = false
+            self.isOpen = false; self.signedIn = false
             self.flushAndFail(NSError(domain: "auth", code: 2, userInfo: [NSLocalizedDescriptionKey: message]))
             self.conn?.cancel()
             self.conn = nil

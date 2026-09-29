@@ -297,8 +297,18 @@ final class SyncModel: ObservableObject {
 
         ws.onConnect = { [weak self] in
             Task { @MainActor in
-                self?.overallStatus = "Connected"
-                self?.startRaidPolling()
+                guard let self else { return }
+                self.overallStatus = "Connected"
+                self.startRaidPolling()
+                // Folders left in an error while the link was down (their
+                // retry finds no connection and gives up) go again now,
+                // instead of waiting for the 10-minute pass.
+                for folder in self.folders {
+                    if case .error = folder.state { await self.reconcile(folder) }
+                }
+                for folder in self.remoteFolders {
+                    if case .error = folder.state { await self.reconcileRemoteFolder(folder) }
+                }
             }
         }
         ws.onDisconnect = { [weak self] _ in
