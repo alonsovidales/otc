@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Watches for the trigger the device writes when the owner turns Tailscale
+# Funnel on or off in Settings, and starts otc-tailscale.service (as root).
+[Unit]
+Description=Off The Cloud Tailscale switch trigger
+
+[Path]
+PathExists=/var/lib/otc/tailscale.request
+Unit=otc-tailscale.service
+
+[Install]
+WantedBy=multi-user.target

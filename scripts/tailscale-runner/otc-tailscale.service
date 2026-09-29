@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Starts or stops tailscaled as root. Started by otc-tailscale.path when
+# the device (running unprivileged, see otc.service's NoNewPrivileges)
+# drops /var/lib/otc/tailscale.request - see otc-tailscale-runner.sh.
+[Unit]
+Description=Off The Cloud Tailscale switch
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/otc-tailscale-runner

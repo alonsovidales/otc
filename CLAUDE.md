@@ -468,6 +468,14 @@ root: it reads `[otc] update-repo`/`update-releases` from the root-owned config,
 runner falls back to the old `sudo -n` path, which only works on a hand-set-up box like Pit. To
 exercise the whole flow on Pit without the app: `ssh otc@pit.otc touch /var/lib/otc/update.request`
 and watch `/var/lib/otc/update-status.json`.
+Two more root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
+every update: `scripts/bridge-runner/` (switching the bridge on later, #145) and
+`scripts/tailscale-runner/` (release 50). tailscaled runs only while Tailscale Funnel is on:
+install.sh and release 50 stop and disable it unless `tailscale funnel status` serves `:8080`;
+`tailscalefunnel.Enable` writes `on` to `/var/lib/otc/tailscale.request` when the daemon isn't
+answering, and the runner starts it and sets `--operator=otc` (which needs the daemon up);
+`Disable` resets Funnel and writes `off`. The answer comes back in
+`/var/lib/otc/tailscale-status.json`.
 
 **Follow this whenever a change is worth shipping.** A change that is only on `main` has
 not reached anybody: the version number in the manifest is the only signal a device has

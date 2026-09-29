@@ -196,14 +196,16 @@ if ! command -v tailscale >/dev/null 2>&1; then
     curl -fsSL https://tailscale.com/install.sh | sh \
         || echo "[otc-install] WARNING: Tailscale could not be installed - the Funnel option won't be offered"
 fi
-# Let the otc user drive the daemon without root. This is not a
-# convenience: otc.service runs with NoNewPrivileges=true, so sudo from
-# the service is impossible by construction, and an operator is
-# Tailscale's own answer for exactly that. Set here because it is the
-# last moment anything runs as root.
+# The package starts tailscaled at boot; it runs only once the owner turns
+# Funnel on in Settings (otc-tailscale-runner starts it then, and makes
+# otc its operator - otc.service can't, it runs with NoNewPrivileges).
+# A device already serving through Funnel (a re-install) keeps it.
 if command -v tailscale >/dev/null 2>&1; then
-    tailscale set --operator=otc 2>/dev/null \
-        || echo "[otc-install] NOTE: could not set the Tailscale operator yet - Settings will report it if Funnel is ever turned on"
+    if ! tailscale funnel status 2>/dev/null | grep -q ':8080'; then
+        systemctl disable --now tailscaled >/dev/null 2>&1 || true
+    else
+        tailscale set --operator=otc 2>/dev/null || true
+    fi
 fi
 
 log "[2/10] otc service account"
@@ -830,6 +832,12 @@ log "Bridge switch-on trigger (otc-bridge.path)"
 install -m 0755 "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" /usr/local/bin/otc-bridge-runner
 install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.service" /etc/systemd/system/otc-bridge.service
 install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.path" /etc/systemd/system/otc-bridge.path
+# Tailscale Funnel's switch: tailscaled runs only while Funnel is on - see
+# scripts/tailscale-runner/otc-tailscale-runner.sh.
+log "Tailscale switch trigger (otc-tailscale.path)"
+install -m 0755 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" /usr/local/bin/otc-tailscale-runner
+install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.service" /etc/systemd/system/otc-tailscale.service
+install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.path" /etc/systemd/system/otc-tailscale.path
 
 # Issue #178: what the setup wizard asked about the owner - the profile's
 # name, description and picture, and whether face recognition is on (off
@@ -860,6 +868,7 @@ systemctl daemon-reload
 systemctl enable otc.service
 systemctl enable --now otc-update.path
 systemctl enable --now otc-bridge.path
+systemctl enable --now otc-tailscale.path
 systemctl restart otc.service
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')

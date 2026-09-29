@@ -30,7 +30,9 @@ package tailscalefunnel
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -59,6 +61,14 @@ const (
 	// immediately and then blocks waiting for a human, which is the
 	// opposite of what an RPC wants to do.
 	cLoginTimeout = 10 * time.Second
+
+	// tailscaled runs only while Funnel is on. The device can't start or
+	// stop a system service (otc.service has NoNewPrivileges), so it asks
+	// the root runner (scripts/tailscale-runner) through these files, the
+	// same way the bridge switch works.
+	cDaemonRequest = "/var/lib/otc/tailscale.request"
+	cDaemonStatus  = "/var/lib/otc/tailscale-status.json"
+	cDaemonWait    = 45 * time.Second
 )
 
 // State is what the setup screen needs to know.
@@ -143,6 +153,12 @@ func Enable(authKey string) (State, error) {
 		return State{}, fmt.Errorf("tailscale is not installed on this device")
 	}
 
+	if !daemonUp() {
+		if err := switchDaemon("on"); err != nil {
+			return State{Installed: true}, err
+		}
+	}
+
 	state := Status()
 	if !state.LoggedIn {
 		loginURL, err := joinTailnet(authKey)
@@ -181,11 +197,56 @@ func Disable() error {
 	if !Available() {
 		return fmt.Errorf("tailscale is not installed on this device")
 	}
-	if _, err := run("tailscale", "funnel", "reset"); err != nil {
-		return fmt.Errorf("could not disable Funnel: %w", err)
+	if daemonUp() {
+		if _, err := run("tailscale", "funnel", "reset"); err != nil {
+			return fmt.Errorf("could not disable Funnel: %w", err)
+		}
 	}
+	// Nothing else on the device uses Tailscale: the daemon stops until
+	// Funnel is turned on again (the node keeps its place in the tailnet).
+	return switchDaemon("off")
+}
 
-	return nil
+// daemonUp reports whether tailscaled answers.
+func daemonUp() bool {
+	_, err := run("tailscale", "status", "--json")
+	if err == nil {
+		return true
+	}
+	// Logged out, or waiting for a login, still means the daemon is there.
+	return !strings.Contains(err.Error(), "failed to connect") && !strings.Contains(err.Error(), "doesn't appear to be running")
+}
+
+// switchDaemon asks the root runner to start ("on") or stop ("off")
+// tailscaled, and waits for its answer.
+func switchDaemon(want string) error {
+	_ = os.Remove(cDaemonStatus)
+	if err := os.WriteFile(cDaemonRequest, []byte(want), 0o644); err != nil { // perms: rw-r--r--
+		return fmt.Errorf("could not ask for Tailscale to be switched %s: %w", want, err)
+	}
+	deadline := time.Now().Add(cDaemonWait)
+	for time.Now().Before(deadline) {
+		time.Sleep(500 * time.Millisecond)
+		raw, err := os.ReadFile(cDaemonStatus)
+		if err != nil {
+			continue
+		}
+		var st struct {
+			State   string `json:"state"`
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(raw, &st) != nil {
+			continue
+		}
+		switch st.State {
+		case "done":
+			log.Info("tailscaled switched", want)
+			return nil
+		case "failed":
+			return errors.New(st.Message)
+		}
+	}
+	return fmt.Errorf("Tailscale did not switch %s in time - try again", want)
 }
 
 // joinTailnet runs `tailscale up`, returning a login URL when a human

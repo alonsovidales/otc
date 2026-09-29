@@ -207,6 +207,13 @@ if [ -f "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" ]; then
     systemctl daemon-reload
     systemctl enable --now otc-bridge.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-bridge.path"
 fi
+if [ -f "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" ]; then
+    install -m 0755 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" /usr/local/bin/otc-tailscale-runner
+    install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.service" /etc/systemd/system/otc-tailscale.service
+    install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.path" /etc/systemd/system/otc-tailscale.path
+    systemctl daemon-reload
+    systemctl enable --now otc-tailscale.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-tailscale.path"
+fi
 
 # The web app ships prebuilt, attached to the release. Devices have no
 # Node - the bundle is built once, by whoever cuts the release, rather
