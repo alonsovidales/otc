@@ -138,6 +138,28 @@ func expectPayload[T any](context, domain string, payload any) (T, error) {
 	return v, nil
 }
 
+// eventTime is when a friend's post, like or comment actually happened
+// (issue #149): the time its author stamped on it, else the event's own,
+// never the moment it reached this device - a new friend's whole history
+// arrives at once, and every post of it used to read "just now". A time in
+// the future (a friend's clock running fast) is capped at now, so it can't
+// sit above everything else in the feed.
+func eventTime(payloadDt int64, event *pb.Event) time.Time {
+	now := time.Now()
+	t := now
+	switch {
+	case payloadDt > 0:
+		t = time.Unix(payloadDt, 0)
+	case event.GetDt() != nil && event.GetDt().IsValid():
+		t = event.GetDt().AsTime()
+	}
+	if t.After(now) {
+		return now
+	}
+
+	return t
+}
+
 func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.Settings, profile *profile.Profile, push *push.Push) *Social {
 	return &Social{
 		dao:          dao,
@@ -295,7 +317,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		return "", err
 	}
 
-	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain, true, files)
+	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain, true, files, time.Now())
 }
 
 func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32) (events []*pb.Event, err error) {
@@ -991,7 +1013,7 @@ event_loop:
 				}
 			}
 
-			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, files)
+			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, files, eventTime(pubData.Dt, event))
 			if err != nil {
 				log.Error("Error creating social publication for friend:", err)
 				continue
@@ -1015,14 +1037,14 @@ event_loop:
 		case LikeEvent:
 			var like LikePublication
 			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain); err == nil && !catchingUp {
+			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && !catchingUp {
 				fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
 			}
 
 		case LikeCommentEvent:
 			var like LikePublicationComment
 			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain); err == nil && !catchingUp {
+			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && !catchingUp {
 				fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
 			}
 
@@ -1031,7 +1053,7 @@ event_loop:
 			json.Unmarshal([]byte(event.Content), &comment)
 			// false: this is a friend's comment, synced in - see
 			// NewSocialComment for the device owner's own-comment path.
-			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false); err == nil && !catchingUp {
+			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false, eventTime(comment.Dt, event)); err == nil && !catchingUp {
 				fr.notifyIfOwnPublication(comment.PubUUID, comment.Uuid, "commented on your post", pb.NotificationType_NotificationNewComment)
 			}
 
@@ -1405,7 +1427,7 @@ func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid str
 	if alreadyLiked {
 		return false, sc.dao.DeleteLikePublicationComment(commentUuid, pr.Domain)
 	}
-	return true, sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain)
+	return true, sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain, time.Now())
 }
 
 // NewLikePublication toggles pr's like of pubUuid: if pr hasn't liked it
@@ -1443,7 +1465,7 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked
 	if alreadyLiked {
 		return false, sc.dao.DeleteLikePublication(pubUuid, pr.Domain)
 	}
-	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain)
+	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain, time.Now())
 }
 
 // resolveLikerProfiles turns a list of liker domains (self or friends) into
@@ -1511,7 +1533,7 @@ func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string)
 	if err != nil {
 		return err
 	}
-	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment, true)
+	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment, true, time.Now())
 }
 
 // DeletePublication removes pubUuid, provided it's one of the device
