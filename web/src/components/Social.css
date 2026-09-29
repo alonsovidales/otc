@@ -1,7 +1,7 @@
 .sv-wrap { padding: 0px; }
 .sv-aside { margin-left: 20px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--panel); height: fit-content; }
 .sv-img-avatar { width: 50px; clip-path: circle(); }
-.sv-input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 16px; background: var(--ink-2); color: var(--mist); }
+.sv-input { width: 100%; box-sizing: border-box; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 16px; background: var(--ink-2); color: var(--mist); }
 .sv-btn { border: 1px solid var(--line); background: var(--ink-2); color: var(--mist); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
 .sv-btn.wide { width: 100%; }
 .sv-btn.small { padding: 6px 8px; font-size: 13px; }
@@ -185,7 +185,11 @@
 .sv-cname { font-weight: 600; margin-right: 6px; color: var(--mist); }
 .sv-ctext { color: var(--mist); }
 
-.sv-newcomment { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+/* Issue #148: the field used to be 100% wide *plus* its padding and border
+   (content-box), running under the Post button; the button now matches the
+   field's height. */
+.sv-newcomment { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+.sv-newcomment .sv-btn { padding: 0 14px; font-size: 14px; }
 
 /* Issue #32's "+" compose button now lives in the shared header next to
    the notifications bell (see TopTabs.css's .top-new-post-btn and
