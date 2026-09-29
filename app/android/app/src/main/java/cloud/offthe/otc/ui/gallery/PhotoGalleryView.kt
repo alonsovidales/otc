@@ -9,7 +9,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -548,8 +552,11 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
         }
         val image = st.hiResImages[item.path] ?: rememberThumb(item.thumb)
         if (image == null) { CircularProgressIndicator(color = Color.White); return@Box }
-        // Pinch to zoom; the pager keeps the horizontal swipe, so the zoom
-        // snaps back when the page changes.
+        // Pinch to zoom, and pan while zoomed in. Everything else - a
+        // one-finger swipe on a photo at normal size - is left unconsumed
+        // for the pager, which is what turns the page. (detectTransform-
+        // Gestures took every drag, so swiping never changed the photo.)
+        // The zoom snaps back when the page changes.
         var scale by remember(page) { mutableStateOf(1f) }
         var pan by remember(page) { mutableStateOf(Offset.Zero) }
         Image(
@@ -557,9 +564,17 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             modifier = Modifier.fillMaxSize()
                 .graphicsLayer { scaleX = scale; scaleY = scale; translationX = pan.x; translationY = pan.y }
                 .pointerInput(page) {
-                    detectTransformGestures { _, p, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(1f, 5f)
-                        pan = if (scale > 1f) pan + p else Offset.Zero
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        do {
+                            val event = awaitPointerEvent()
+                            val pinching = event.changes.count { it.pressed } > 1
+                            if (pinching || scale > 1f) {
+                                scale = (scale * event.calculateZoom()).coerceIn(1f, 5f)
+                                pan = if (scale > 1f) pan + event.calculatePan() else Offset.Zero
+                                event.changes.forEach { if (it.positionChanged()) it.consume() }
+                            }
+                        } while (event.changes.any { it.pressed })
                     }
                 },
         )
