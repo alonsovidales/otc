@@ -81,3 +81,4 @@
 40	-	0bb71b84561fc747a4216fcd88eecf1b196bd8550cfab570a355829f9578a34b	Storage: files are encrypted in segments, so videos stream and big files transfer without the device loading them whole; existing files are converted after your next sign-in.
 41	-	7ad2259887f57d1219f0f709975273699cb00328ba14314cb17df04a21aa0ef8	Storage: the one-time conversion leaves very large existing files (over 512 MB) as they are, so it never needs too much memory.
 42	-	af048a261b8b401301f6d12c07df724dd1b9625dedeea6db390394eef5210f35	Storage: segmented encryption only. Devices from before release 40 must be set up again (their files are in the old format).
+43	6056d834d4cae4808cd1dba192739c566c0c9e960a4a8c7eeefe9e644055e600	1e5a787a774487edf57348a4110f11d543695a5faf4341cad800b5ce05a22a95	Face recognition is off unless you turn it on. New devices can set your name, picture and face recognition during setup.
