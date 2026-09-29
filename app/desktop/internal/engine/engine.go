@@ -809,7 +809,7 @@ func (e *Engine) reconcile(f config.Folder) {
 			total = 1
 		}
 		var done int64
-		for _, it := range toUpload {
+		for k, it := range toUpload {
 			// The link went: stop rather than "fail" every remaining file
 			// in a second each, racing the bar to 100% with nothing sent
 			// (as SyncModel.reconcile); OnConnect's startSync resumes it.
@@ -818,7 +818,7 @@ func (e *Engine) reconcile(f config.Folder) {
 
 				return
 			}
-			e.setFolderState(f.ID, FolderState{Kind: StateScanning, Progress: float64(done) / float64(total), CurrentFile: filepath.Base(it.path)})
+			e.setFolderState(f.ID, FolderState{Kind: StateScanning, Progress: float64(done) / float64(total), CurrentFile: fmt.Sprintf("%d/%d · %s", k+1, len(toUpload), filepath.Base(it.path))})
 			if it.hash == "" {
 				h, err := e.cachedHash(f.ID, it.path)
 				if err != nil {
