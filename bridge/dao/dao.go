@@ -273,14 +273,16 @@ func (dao *Dao) ListDevices() (devices []Device, err error) {
 	return devices, rows.Err()
 }
 
+// DeleteDevice removes a device by domain - the admin panel's delete. An
+// admin freeing a name means it's free now: no 30-day hold (that is for a
+// name an account releases itself, see DeleteAccountDomain), and any hold
+// already on it is lifted.
 func (dao *Dao) DeleteDevice(domain string) (err error) {
-	var acc sql.NullString
-	_ = dao.db.QueryRow("select `account_id` from `devices` where `domain` = ?", domain).Scan(&acc)
 	if _, err = dao.db.Exec("delete from `devices` where `domain` = ?", domain); err != nil {
 		return err
 	}
-	if err := dao.recordRelease(domain, acc.String); err != nil {
-		log.Error("could not hold released name", domain, ":", err)
+	if _, err := dao.db.Exec("delete from `released_domains` where `domain` = ?", domain); err != nil {
+		log.Error("could not lift the hold on", domain, ":", err)
 	}
 	return nil
 }

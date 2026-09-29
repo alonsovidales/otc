@@ -336,3 +336,21 @@ func TestSetupBeaconRoundTrip(t *testing.T) {
 		t.Errorf("not all expected queries ran: %v", err)
 	}
 }
+
+// The admin panel's delete frees a name at once: no 30-day hold, and any
+// hold already on it is lifted.
+func TestDeleteDeviceLiftsTheHold(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectExec("delete from `devices` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `released_domains` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := NewWithDB(db).DeleteDevice("pit.off-the.cloud"); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
