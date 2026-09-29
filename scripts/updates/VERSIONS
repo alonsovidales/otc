@@ -73,3 +73,4 @@
 32	-	274d37c0fad8852e7f239ae7bdd1391974ddbaecbb3127e27850508f21be2131	Images: GIF, WebP, BMP and TIFF files get previews (and show up in Images and search); a JPEG saved with a .HEIC name is recognised.
 33	-	8b97cde609a6da04ea95faf2e47c91c9bbb34ccc06a9e9bc858d4fdd62522daf	New post: take a photo or video with the camera and post it right away (web on phones; the apps have it too).
 34	-	ef8b081c4674ad8b44b8c44d8d942dea222e7041276384f5eebdd3b140e08a09	Web: the comment box's Post button no longer overlaps the text field.
+35	4e9ecab297dab9afc6023eed77cb758ff4639de6a78f9ccd6491234f2913b456	cca86761a9af8707d03a396bdeddc22d2e3d12726c8c1904c79e145775d8af4b	Friends' posts: kept within a size limit (5 GB by default, in Settings) - the oldest are removed past it; deleted posts free their space.
