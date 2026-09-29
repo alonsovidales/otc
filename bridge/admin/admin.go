@@ -51,7 +51,19 @@ type Admin struct {
 // everyone out; it does not need to be secret from the DB, only from
 // clients.
 func Init(d *dao.Dao, sessionSecret []byte) *Admin {
-	return &Admin{dao: d, sessionSecret: sessionSecret, loginLimiter: newLoginLimiter()}
+	// Its own key, derived from the shared secret: account sessions
+	// (accounts.Init) are signed from the same secret in the same
+	// "<id>|<expiry>" format, and an account cookie used to pass as an
+	// admin one.
+	return &Admin{dao: d, sessionSecret: DeriveKey(sessionSecret, "admin-session"), loginLimiter: newLoginLimiter()}
+}
+
+// DeriveKey gives each use of the configured session secret its own key,
+// so a token signed for one purpose never verifies for another.
+func DeriveKey(secret []byte, purpose string) []byte {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(purpose))
+	return mac.Sum(nil)
 }
 
 // ---------------------------------------------------------------------
@@ -217,8 +229,15 @@ func (a *Admin) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "not logged in")
 			return
 		}
-		if _, ok := verifySessionToken(a.sessionSecret, cookie.Value, time.Now()); !ok {
+		user, ok := verifySessionToken(a.sessionSecret, cookie.Value, time.Now())
+		if !ok {
 			writeError(w, http.StatusUnauthorized, "session expired")
+			return
+		}
+		// Still an admin: a removed admin's session ends with the removal,
+		// not when the cookie expires.
+		if _, found, err := a.dao.GetAdminPasswordHash(user); err != nil || !found {
+			writeError(w, http.StatusUnauthorized, "not an admin")
 			return
 		}
 		next(w, r)

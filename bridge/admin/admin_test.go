@@ -322,3 +322,18 @@ func TestAddDeviceGeneratesOwnerUuidWhenOmitted(t *testing.T) {
 		t.Error("expected a generated ownerUuid in the response")
 	}
 }
+
+// An account session cookie must never pass as an admin session: both are
+// "<id>|<expiry>.<hmac>" signed from the same configured secret.
+func TestAccountSessionIsNotAnAdminSession(t *testing.T) {
+	shared := []byte("the-configured-session-secret")
+	accountKey := DeriveKey(shared, "account-session")
+	adminKey := DeriveKey(shared, "admin-session")
+	token := newSessionToken(accountKey, "some-account-id", time.Now())
+	if _, ok := verifySessionToken(adminKey, token, time.Now()); ok {
+		t.Fatal("an account-signed token verified as an admin session")
+	}
+	if _, ok := verifySessionToken(adminKey, newSessionToken(adminKey, "admin", time.Now()), time.Now()); !ok {
+		t.Fatal("an admin token no longer verifies")
+	}
+}

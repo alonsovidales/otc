@@ -46,6 +46,7 @@ import (
 	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/tailscalefunnel"
 	"github.com/alonsovidales/otc/updater"
+	"github.com/alonsovidales/otc/wsframe"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -771,6 +772,45 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 // happens-before relationship (not just "it'll usually already be set by
 // the time this runs"), or it's a data race regardless of how unlikely to
 // misbehave in practice.
+const (
+	// cMaxInFlight caps one connection's requests handled at once.
+	cMaxInFlight = 32
+	// cPreAuthReadLimit is the largest message accepted before a
+	// connection signs in (or authenticates as a friend) - enough for
+	// every pre-auth request, a friend request's profile picture included.
+	cPreAuthReadLimit = 8 << 20
+	// cOwnerReadLimit is the largest message from a signed-in owner: the
+	// apps send a file in one message, up to 1000 MB.
+	cOwnerReadLimit = 1000<<20 + 1<<20
+)
+
+// frameBudget bounds the memory of large incoming messages across every
+// connection (see wsframe): a fifth of the machine's memory.
+var frameBudget = func() *wsframe.Budget {
+	total := filesmanager.MemTotalBytes()
+	if total <= 0 {
+		total = 4 << 30
+	}
+	return wsframe.NewBudget(total / 5)
+}()
+
+// readLimit is the largest message this connection may send next.
+func (ch *connHandler) readLimit() int64 {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	if ch.session != nil {
+		return cOwnerReadLimit
+	}
+	return cPreAuthReadLimit
+}
+
+// addr is the address the password-attempt limit is kept for.
+func (ch *connHandler) addr() string {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	return ch.remoteAddr
+}
+
 type connHandler struct {
 	mg *Manager
 
@@ -781,6 +821,10 @@ type connHandler struct {
 	// which is the only way it can be set from the wire (fromBridge).
 	remoteAddr string
 	fromBridge bool
+	// clientInfoSet: the bridge's BridgeClientInfo has been applied. It
+	// comes once, first; any later one would be a client trying to pick
+	// its own address for the password-attempt limit.
+	clientInfoSet bool
 
 	mu            sync.RWMutex
 	session       *session.Session
@@ -1218,9 +1262,9 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	case *pb.ReqEnvelope_ReqAuth:
 		// Issue #117: refused outright while this address is locked out,
 		// before the password is even looked at.
-		if retry, blocked := session.Attempts.Blocked(ch.remoteAddr); blocked {
+		if retry, blocked := session.Attempts.Blocked(ch.addr()); blocked {
 			secs := int32(retry.Seconds() + 0.999)
-			log.Info("password attempt refused, address locked out:", ch.remoteAddr, "for", retry.Round(time.Second))
+			log.Info("password attempt refused, address locked out:", ch.addr(), "for", retry.Round(time.Second))
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok:                false,
@@ -1250,8 +1294,8 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			ack := &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)}
 			// Issue #117: the attempt that spends the allowance is answered
 			// with the lockout itself, so the client can say when to retry.
-			if locked := session.Attempts.Fail(ch.remoteAddr); locked > 0 {
-				log.Info("too many failed password attempts from", ch.remoteAddr, "- locked out for", locked)
+			if locked := session.Attempts.Fail(ch.addr()); locked > 0 {
+				log.Info("too many failed password attempts from", ch.addr(), "- locked out for", locked)
 				ack.Code = "too_many_attempts"
 				ack.RetryAfterSeconds = int32(locked.Seconds())
 				ack.ErrorMsg = fmt.Sprintf("Too many attempts. Try again in %d seconds.", ack.RetryAfterSeconds)
@@ -1259,7 +1303,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 			return resp, true
 		}
-		session.Attempts.Reset(ch.remoteAddr)
+		session.Attempts.Reset(ch.addr())
 		log.Info("Authenticated session")
 
 		// One-off self-healing sweep for any face row written before
@@ -1280,7 +1324,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	// naming an address for itself is ignored, and told nothing.
 	case *pb.ReqEnvelope_ReqBridgeClientInfo:
 		if ch.fromBridge {
-			ch.remoteAddr = p.ReqBridgeClientInfo.RemoteAddr
+			ch.mu.Lock()
+			if ch.clientInfoSet {
+				log.Info("ignoring a repeated BridgeClientInfo on a bridge connection")
+			} else {
+				ch.remoteAddr = p.ReqBridgeClientInfo.RemoteAddr
+				ch.clientInfoSet = true
+			}
+			ch.mu.Unlock()
 		} else {
 			log.Info("ignoring BridgeClientInfo on a direct connection from", ch.remoteAddr)
 		}
@@ -3182,17 +3233,25 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	// run, and this connection needs to stay open and writable until then.
 	defer wg.Wait()
 
+	// At most cMaxInFlight requests of this connection are handled at once;
+	// reading waits past that (it used to start a goroutine per message,
+	// without limit).
+	inFlight := make(chan struct{}, cMaxInFlight)
+
 	for {
 		log.Debug("Waiting for messages")
-		_, frame, err := conn.ReadMessage()
+		_, frame, releaseFrame, err := wsframe.Read(conn, ch.readLimit(), frameBudget)
 		if err != nil {
 			log.Error("error processing message:", err)
 			return
 		}
+		inFlight <- struct{}{}
 
 		var env pb.ReqEnvelope
 		if err := proto.Unmarshal(frame, &env); err != nil {
 			log.Error("bad proto:", err)
+			releaseFrame()
+			<-inFlight
 			return
 		}
 
@@ -3205,6 +3264,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		// hand off - no aliasing with the next iteration's env.
 		go func(env *pb.ReqEnvelope) {
 			defer wg.Done()
+			defer func() { <-inFlight }()
+			defer releaseFrame()
 
 			// A download waits here for room in the device's memory
 			// budget, and holds it until its reply is on the wire (see

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"net"
 	"net/http"
 	"net/mail"
@@ -98,10 +99,19 @@ type Accounts struct {
 // provider credentials (google-client-id / google-client-secret,
 // apple-client-id / apple-team-id / apple-key-id / apple-private-key, a
 // path to the .p8) - a provider without credentials is simply not offered.
+// deriveKey is admin.DeriveKey - repeated here rather than imported, so
+// the two packages stay independent.
+func deriveKey(secret []byte, purpose string) []byte {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(purpose))
+	return mac.Sum(nil)
+}
+
 func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 	a := &Accounts{
-		dao:              d,
-		secret:           sessionSecret,
+		dao: d,
+		// Its own key (see admin.DeriveKey): never the admin one.
+		secret:           deriveKey(sessionSecret, "account-session"),
 		tld:              tld,
 		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
 		providers:        map[string]*provider{},
@@ -310,15 +320,10 @@ func (a *Accounts) loginSucceeded(addr string) {
 }
 
 func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-
-	return host
+	// The connecting address, never X-Forwarded-For: nothing sits in front
+	// of the bridge, so that header is whatever the client wrote - a
+	// fresh one per attempt used to escape the login limit.
+	return clientaddr.Of(r)
 }
 
 // ---------------------------------------------------------------------

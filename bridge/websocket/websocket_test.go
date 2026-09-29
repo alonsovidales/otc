@@ -943,3 +943,19 @@ func TestIsOnlineFollowsThePoolsLiveCount(t *testing.T) {
 		t.Error("an unknown domain must be offline")
 	}
 }
+
+// A client's own BridgeClientInfo is dropped: it would let the client pick
+// the address the device's password-attempt limit is kept for.
+func TestIsClientInfo(t *testing.T) {
+	info, _ := proto.Marshal(&pb.ReqEnvelope{Id: 7, Payload: &pb.ReqEnvelope_ReqBridgeClientInfo{ReqBridgeClientInfo: &pb.BridgeClientInfo{RemoteAddr: "1.2.3.4"}}})
+	if !isClientInfo(info) {
+		t.Error("a BridgeClientInfo frame was not recognised")
+	}
+	auth, _ := proto.Marshal(&pb.ReqEnvelope{Id: 8, Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Key: []byte("x")}}})
+	if isClientInfo(auth) {
+		t.Error("an ordinary request was taken for a BridgeClientInfo")
+	}
+	if isClientInfo([]byte{0xff, 0xff}) {
+		t.Error("garbage was taken for a BridgeClientInfo")
+	}
+}

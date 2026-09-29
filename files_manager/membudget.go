@@ -78,6 +78,9 @@ func contentBudgetBytes() int64 {
 	return floor
 }
 
+// MemTotalBytes is MemTotal from /proc/meminfo, or 0 off Linux.
+func MemTotalBytes() int64 { return memTotalBytes() }
+
 // memTotalBytes is MemTotal from /proc/meminfo, or 0 off Linux.
 func memTotalBytes() int64 {
 	f, err := os.Open("/proc/meminfo")

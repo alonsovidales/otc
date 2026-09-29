@@ -11,8 +11,10 @@ import (
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
+	"github.com/alonsovidales/otc/wsframe"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"net"
 	"net/http"
@@ -726,17 +728,39 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
+	inFlight := make(chan struct{}, cMaxInFlight)
+
 	for {
-		_, frame, err := conn.ReadMessage()
+		// Small until the client is paired with a device (its first
+		// request, a device's registration); a relayed request may carry a
+		// whole file (up to 1000 MB) and is budgeted (see wsframe).
+		limit := int64(cUnpairedReadLimit)
+		if relay != nil {
+			limit = cRelayedReadLimit
+		}
+		_, frame, releaseFrame, err := wsframe.Read(conn, limit, frameBudget)
 		if err != nil {
 			log.Error("error processing message:", err)
 			return
 		}
 
+		// Only the bridge says who a client is (BridgeClientInfo, sent
+		// once when it pairs the client with a relay). The same message
+		// from a client would let it pick the address the device's
+		// password-attempt limit is kept for.
+		if isClientInfo(frame) {
+			log.Info("dropped a BridgeClientInfo sent by a client")
+			releaseFrame()
+			continue
+		}
+
 		if relay != nil {
+			inFlight <- struct{}{}
 			wg.Add(1)
 			go func(frame []byte) {
 				defer wg.Done()
+				defer func() { <-inFlight }()
+				defer releaseFrame()
 				// Mirrors handleConnection's own top-level recover: this
 				// now runs on its own goroutine, which the outer recover
 				// above can't reach — an unrecovered panic here would
@@ -808,6 +832,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 			}(frame)
 		} else {
+			// Unpaired: a small message (see cUnpairedReadLimit), handled
+			// right here - its share of the budget isn't needed past this.
+			releaseFrame()
 			var env pb.ReqEnvelope
 			if err := proto.Unmarshal(frame, &env); err != nil {
 				log.Error("bad proto:", err)
@@ -1289,4 +1316,41 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 // address in messages to devices.
 func (mg *Manager) baseHost() string {
 	return cfg.GetStr("otc-api", "tld")
+}
+
+// isClientInfo reports whether frame is a ReqEnvelope carrying
+// req_bridge_client_info, read from the wire format without decoding the
+// rest of the (possibly large) message.
+const (
+	// cMaxInFlight caps one client's requests relayed at once.
+	cMaxInFlight = 32
+	// cUnpairedReadLimit: before a client is paired with a device, and for
+	// a device's own registration messages - all small.
+	cUnpairedReadLimit = 8 << 20
+	// cRelayedReadLimit: a relayed request may carry a whole file.
+	cRelayedReadLimit = 1000<<20 + 1<<20
+)
+
+// frameBudget bounds the memory of large messages being relayed at once.
+var frameBudget = wsframe.NewBudget(8 << 30)
+
+func isClientInfo(frame []byte) bool {
+	const cClientInfoField = 100 // ReqEnvelope.req_bridge_client_info
+	b := frame
+	for len(b) > 0 {
+		num, typ, n := protowire.ConsumeTag(b)
+		if n < 0 {
+			return false
+		}
+		if num == cClientInfoField {
+			return true
+		}
+		b = b[n:]
+		m := protowire.ConsumeFieldValue(num, typ, b)
+		if m < 0 {
+			return false
+		}
+		b = b[m:]
+	}
+	return false
 }
