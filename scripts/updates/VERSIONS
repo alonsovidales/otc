@@ -80,3 +80,4 @@
 39	-	8b671c07ed7913477f3451d5c8e86c2bce4da23dcb527cf8016d3de57a1f9766	Security: at most 10 wrong passwords per 30 seconds in total, from any address.
 40	-	0bb71b84561fc747a4216fcd88eecf1b196bd8550cfab570a355829f9578a34b	Storage: files are encrypted in segments, so videos stream and big files transfer without the device loading them whole; existing files are converted after your next sign-in.
 41	-	7ad2259887f57d1219f0f709975273699cb00328ba14314cb17df04a21aa0ef8	Storage: the one-time conversion leaves very large existing files (over 512 MB) as they are, so it never needs too much memory.
+42	-	af048a261b8b401301f6d12c07df724dd1b9625dedeea6db390394eef5210f35	Storage: segmented encryption only. Devices from before release 40 must be set up again (their files are in the old format).
