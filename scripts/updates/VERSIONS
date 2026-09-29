@@ -66,3 +66,4 @@
 25	-	a14e8efe0b1a94914589dd2bdc1b61baf225dc2cd786d9557886ef0b33894c59	Images: a new photo or video appears once it is processed, instead of as an empty box while its thumbnail is being made.
 26	-	b886ad614f38b40c77773176372110b7b1ec3ca435a07639c19495371976deea	Bridge access: a device set up without the bridge can join it later, from Settings.
 27	a5d10e2df33a22e0d429f9293318f6c5fd5358f6f42db518b6577e6811d64e77	79035a39e6bbaa0b9f2fc16d12cb6bdc4290a8c0c9fb5919525029bc156099b5	Android push notifications: the Android app can now receive friend requests, new posts, likes and comments as notifications.
+28	-	c9c97eb74c0c73beadf8c1b42b2338a93ff317d0720124ce61030b5f403550ff	Videos in posts play on Android phones too (they were re-encoded in a format only iPhones and browsers could play); HDR videos are converted to standard colour.
