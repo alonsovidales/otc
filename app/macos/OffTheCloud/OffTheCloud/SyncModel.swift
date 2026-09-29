@@ -103,6 +103,10 @@ final class SyncModel: ObservableObject {
     // permanent/stuck. This is a much shorter, dedicated retry just for
     // folders currently in .error.
     private static let errorRetryInterval: Duration = .seconds(30)
+    /// Two-way folders: more local deletions than this in one pass (and a
+    /// quarter of the folder) mean the device lost the files, not that the
+    /// owner deleted them - see reconcileRemoteFolder.
+    private static let massDeleteMin = 20
     // Issue #47: polling is the *only* way to notice a remote-side change
     // (no watcher possible there), so this needs to be short enough to
     // feel like "kept in sync" rather than the 10-minute upload-side
@@ -1041,6 +1045,25 @@ final class SyncModel: ObservableObject {
                 }
             }
 
+            // Mass-deletion guard: a device that was wiped or set up again
+            // looks exactly like one whose owner deleted everything - every
+            // synced, unchanged file "gone on the device" - and this used to
+            // delete the whole folder here to match. When a pass would
+            // delete more than a handful of files here and a large share of
+            // the folder, the device is taken to have lost them instead:
+            // they are sent back to it, and nothing here is touched.
+            let localDeletes = actions.filter { $0.kind == .deleteLocal }.count
+            var guardNote: String?
+            if localDeletes > Self.massDeleteMin && localDeletes * 4 > max(localByRelative.count, 1) {
+                syncLog.error("two-way \(folder.remotePath, privacy: .public): \(localDeletes) files gone from the device at once - restoring them instead of deleting them here")
+                actions = actions.map { a in
+                    guard a.kind == .deleteLocal, localByRelative[a.relative] != nil else { return a }
+                    newSynced.removeValue(forKey: a.relative)
+                    return (a.relative, .upload, 0, nil)
+                }
+                guardNote = "\(localDeletes) files had disappeared from the device - restored them from this Mac instead of deleting them here"
+            }
+
             syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote")
             if !actions.isEmpty {
                 // Of the whole folder, as reconcile(): every path on either
@@ -1080,7 +1103,9 @@ final class SyncModel: ObservableObject {
                         case .upload: newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
                         case .download: try await download(remotePath, to: localURL, expectedHash: action.hash)
                         case .deleteRemote: try await delete(remotePath)
-                        case .deleteLocal: try FileManager.default.removeItem(at: localURL)
+                        // To the Trash, not gone: recoverable if a deletion on
+                        // the device was a mistake.
+                        case .deleteLocal: try FileManager.default.trashItem(at: localURL, resultingItemURL: nil)
                         }
                     } catch {
                         // Revert this one path back to its pre-reconcile
@@ -1098,7 +1123,9 @@ final class SyncModel: ObservableObject {
 
             if newSynced != lastSynced { saveSynced(folder.id, newSynced) }
             lastSyncedByRemoteFolder[folder.id] = newSynced
-            updateRemoteState(folder.id, .watching)
+            // The guard's note stays on the folder until the next pass, so
+            // the owner learns the device had lost those files.
+            updateRemoteState(folder.id, guardNote.map { .error($0) } ?? .watching)
         } catch {
             syncLog.error("two-way \(folder.remotePath, privacy: .public): failed: \(error.localizedDescription, privacy: .public)")
             updateRemoteState(folder.id, .error(error.localizedDescription))

@@ -1084,6 +1084,31 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 	}
 
+	// Mass-deletion guard (as SyncModel.reconcileRemoteFolder): a device
+	// wiped or set up again looks like one whose owner deleted everything,
+	// and this used to delete the whole folder here to match. Past a
+	// handful of files and a quarter of the folder, the device is taken to
+	// have lost them: they are sent back and nothing here is touched.
+	localDeletes := 0
+	for _, a := range actions {
+		if a.kind == actDeleteLocal {
+			localDeletes++
+		}
+	}
+	guardNote := ""
+	if localDeletes > massDeleteMin && localDeletes*4 > max(len(localByRel), 1) {
+		log.Printf("%d files gone from the device at once - restoring them instead of deleting them here", localDeletes)
+		for i, a := range actions {
+			if a.kind == actDeleteLocal {
+				if _, here := localByRel[a.relative]; here {
+					actions[i] = action{a.relative, actUpload, ""}
+					delete(newSynced, a.relative)
+				}
+			}
+		}
+		guardNote = fmt.Sprintf("%d files had disappeared from the device - restored them from this computer instead of deleting them here", localDeletes)
+	}
+
 	// Of the whole folder, as SyncModel.reconcileRemoteFolder: every path
 	// on either side counts and what already agrees is done.
 	bytesOf := func(rel string) int64 {
@@ -1184,8 +1209,17 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 		return
 	}
+	if guardNote != "" {
+		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: guardNote})
+
+		return
+	}
 	e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
 }
+
+// massDeleteMin: two-way folders - more local deletions than this in one
+// pass (and a quarter of the folder) mean the device lost the files.
+const massDeleteMin = 20
 
 func (e *Engine) startRemoteWatcher(f config.RemoteFolder) {
 	e.mu.Lock()
