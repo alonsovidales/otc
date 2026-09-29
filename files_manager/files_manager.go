@@ -684,6 +684,13 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 	}
 	if !tokenFound {
 		files, err = mg.dao.SearchMedia(path, tags, personIDs, groupID, !includeVideos, before)
+		// One tile per photo, not per path: the same picture synced from
+		// two places (a phone that got a new install id and sent its
+		// library again under a new folder, a copy in two folders on the
+		// desktop) is one blob and showed up twice. Files still lists
+		// every path; the first row of a hash is kept, in the search's
+		// own order.
+		files = uniqueByHash(files)
 		if err != nil {
 			return
 		}
@@ -1751,4 +1758,18 @@ func applyOrientation(img image.Image, orientation int) image.Image {
 		}
 	}
 	return dst
+}
+
+// uniqueByHash keeps the first file of each content hash, in order.
+func uniqueByHash(files []*pb.File) []*pb.File {
+	seen := make(map[string]bool, len(files))
+	out := files[:0]
+	for _, f := range files {
+		if seen[f.Hash] {
+			continue
+		}
+		seen[f.Hash] = true
+		out = append(out, f)
+	}
+	return out
 }

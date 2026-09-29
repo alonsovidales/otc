@@ -2024,7 +2024,8 @@ func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, groupI
 	// requested people would wrongly get counted as if both had matched a
 	// single file. Hence the subquery: settle "which files match" first,
 	// exactly like SearchMedia does, then bucket that file set by month.
-	query := "select date_format(`month_src`.`created`, '%Y-%m') as `bucket`, count(*) from (" +
+	// Distinct hashes, as the search itself shows one tile per content.
+	query := "select date_format(`month_src`.`created`, '%Y-%m') as `bucket`, count(distinct `month_src`.`hash`) from (" +
 		"select `f`.`hash`, `f`.`created` " + from + where + groupBy + having +
 		") as `month_src` group by `bucket` order by `bucket` desc"
 

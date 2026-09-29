@@ -163,7 +163,7 @@ func TestSearchMediaDateBucketsNoFilters(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select date_format\\(`month_src`\\.`created`, '%Y-%m'\\) as `bucket`, count\\(\\*\\) from \\(" +
+	mock.ExpectQuery("select date_format\\(`month_src`\\.`created`, '%Y-%m'\\) as `bucket`, count\\(distinct `month_src`\\.`hash`\\) from \\(" +
 		"select `f`\\.`hash`, `f`\\.`created` from `files` as `f` where `f`\\.`mime` like 'image%'" +
 		"\\) as `month_src` group by `bucket` order by `bucket` desc").
 		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}).
