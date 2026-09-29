@@ -773,6 +773,7 @@ func (e *Engine) reconcile(f config.Folder) {
 	// once a second at most - most files are answered from the hash cache
 	// in no time, the new ones are what takes a while.
 	var lastShown time.Time
+	var folderBytes int64
 	for i, p := range local {
 		if time.Since(lastShown) > time.Second {
 			lastShown = time.Now()
@@ -780,6 +781,12 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 		rp := e.remotePathFor(p)
 		localRemote[rp] = true
+		fi, _ := os.Stat(p)
+		var size int64
+		if fi != nil {
+			size = fi.Size()
+		}
+		folderBytes += size
 		// Nothing on the device at this path: it's sent whatever its
 		// content, so it is hashed just before the upload, not here - a new
 		// folder used to sit on "Checking" for as long as reading all of it
@@ -792,23 +799,22 @@ func (e *Engine) reconcile(f config.Folder) {
 				continue
 			}
 		}
-		fi, _ := os.Stat(p)
-		var size int64
-		if fi != nil {
-			size = fi.Size()
-		}
 		toUpload = append(toUpload, uploadItem{p, rp, h, size, fi})
 	}
 
 	if len(toUpload) > 0 {
-		var total int64
-		for _, it := range toUpload {
-			total += it.size
-		}
+		// Of the whole folder, as SyncModel.reconcile: what is already on
+		// the device counts as done, so the counter and bar say how much
+		// of the folder is safe rather than restarting at 0 each pass.
+		total := folderBytes
 		if total < 1 {
 			total = 1
 		}
-		var done int64
+		done := folderBytes
+		for _, it := range toUpload {
+			done -= it.size
+		}
+		alreadyThere := len(local) - len(toUpload)
 		for k, it := range toUpload {
 			// The link went: stop rather than "fail" every remaining file
 			// in a second each, racing the bar to 100% with nothing sent
@@ -818,7 +824,7 @@ func (e *Engine) reconcile(f config.Folder) {
 
 				return
 			}
-			e.setFolderState(f.ID, FolderState{Kind: StateScanning, Progress: float64(done) / float64(total), CurrentFile: fmt.Sprintf("%d/%d · %s", k+1, len(toUpload), filepath.Base(it.path))})
+			e.setFolderState(f.ID, FolderState{Kind: StateScanning, Progress: float64(done) / float64(total), CurrentFile: fmt.Sprintf("%d/%d · %s", alreadyThere+k+1, len(local), filepath.Base(it.path))})
 			if it.hash == "" {
 				h, err := e.cachedHash(f.ID, it.path)
 				if err != nil {

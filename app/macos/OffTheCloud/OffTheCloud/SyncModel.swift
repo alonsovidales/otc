@@ -713,6 +713,7 @@ final class SyncModel: ObservableObject {
             // second at most - most files are answered from the hash
             // cache in no time, the new ones are what takes a while).
             var lastShown = Date.distantPast
+            var folderBytes: Int64 = 0
             for (i, fileURL) in localFiles.enumerated() {
                 if Date().timeIntervalSince(lastShown) > 0.3 {
                     lastShown = Date()
@@ -720,6 +721,7 @@ final class SyncModel: ObservableObject {
                 }
                 let remotePath = remotePathFor(fileURL.path)
                 let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
+                folderBytes += size
                 if remoteMap[remotePath] == nil {
                     toUpload.append((fileURL, remotePath, nil, size))
                     continue
@@ -729,19 +731,18 @@ final class SyncModel: ObservableObject {
                 toUpload.append((fileURL, remotePath, localHash, size))
             }
 
-            // Pass 2: only the mismatches, so the percentage reflects how
-            // much of *this* work is left rather than the whole folder —
-            // otherwise one changed file in a folder of a thousand would
-            // sit at 99.9% the instant it starts, which is just as
-            // misleading as showing no progress at all.
+            // Pass 2: the mismatches. Counter and bar are of the whole
+            // folder - what is already on the device counts as done - so
+            // they say how much of the folder is safe, the same after a
+            // restart as before it (they used to count only this pass's
+            // uploads, starting again from 0 of whatever was left).
             if !toUpload.isEmpty {
-                // Weighted by bytes, not file count: a folder with one
-                // 400MB video and 30 small photos would otherwise sit at
-                // "0%" for the video's entire multi-minute transfer (1/31
-                // files done), which reads as stuck even though it's
-                // actively working — issue #37's original complaint.
-                let totalBytes = max(toUpload.reduce(0) { $0 + $1.size }, 1)
-                var bytesDone: Int64 = 0
+                // Weighted by bytes, not file count: one 400MB video among
+                // small photos would otherwise sit still for the video's
+                // whole multi-minute transfer - issue #37's complaint.
+                let totalBytes = max(folderBytes, 1)
+                var bytesDone: Int64 = folderBytes - toUpload.reduce(0) { $0 + $1.size }
+                let alreadyThere = localFiles.count - toUpload.count
 
                 for (k, item) in toUpload.enumerated() {
                     // The link went (device offline, restarting): stop
@@ -759,7 +760,7 @@ final class SyncModel: ObservableObject {
                     // without this the UI just sits on the previous
                     // file's number the whole time, which is exactly what
                     // looked like "stuck" before (issue #37).
-                    updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: "\(k + 1)/\(toUpload.count) · \(item.url.lastPathComponent)"))
+                    updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: "\(alreadyThere + k + 1)/\(localFiles.count) · \(item.url.lastPathComponent)"))
 
                     do {
                         remoteMap[item.remotePath] = try await upload(item.url, to: item.remotePath, knownHash: item.hash, folderId: folder.id)
