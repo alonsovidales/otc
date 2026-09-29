@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, Notification as PbNotification } from "../proto/messages";
-import { NotificationType } from "../proto/messages";
+import { FriendShipStatus, NotificationType } from "../proto/messages";
 import "./NotificationsPage.css";
 
 const POLL_MS = 5000;
@@ -92,6 +92,10 @@ export default function NotificationsPage({
   // Issue #64: an error row's full list of errors shows on hover; a click
   // pins it open, for touch screens and for copying the text.
   const [pinnedDetails, setPinnedDetails] = useState<Record<string, boolean>>({});
+  // Domains whose friend request still waits for an answer (their alert
+  // gets an Accept button), and the ones accepted from here.
+  const [awaiting, setAwaiting] = useState<Set<string>>(new Set());
+  const [acceptedHere, setAcceptedHere] = useState<Set<string>>(new Set());
 
   // Issue #78 follow-up: an avatar on the left (who did this) and, when
   // the notification points at a post/comment, a small thumbnail on the
@@ -125,7 +129,18 @@ export default function NotificationsPage({
       });
       if (cancelled) return;
       if (resp.payload?.$case === "respNotifications") {
-        setNotifications(resp.payload.respNotifications.notifications);
+        const list = resp.payload.respNotifications.notifications;
+        setNotifications(list);
+        if (list.some((n) => n.type === NotificationType.NotificationFriendRequest)) {
+          const fr: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+            (e as any).payload = { $case: "reqFriendshipsList", reqFriendshipsList: {} };
+          });
+          if (!cancelled && fr.payload?.$case === "respFriendships") {
+            setAwaiting(new Set(fr.payload.respFriendships.friendships
+              .filter((f) => !f.sent && f.status === FriendShipStatus.Pending)
+              .map((f) => f.originProfile?.domain ?? "")));
+          }
+        }
       }
       onAcknowledged();
       await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -135,6 +150,16 @@ export default function NotificationsPage({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const accept = async (domain: string) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      (e as any).payload = { $case: "reqChangeFriendStatus", reqChangeFriendStatus: { domain, status: FriendShipStatus.Accepted } };
+    });
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+      setAwaiting((s) => { const n = new Set(s); n.delete(domain); return n; });
+      setAcceptedHere((s) => new Set(s).add(domain));
+    }
+  };
 
   const onClickNotification = (n: PbNotification) => {
     if (n.type === NotificationType.NotificationError) {
@@ -191,6 +216,12 @@ export default function NotificationsPage({
                   )}
                   <span className="np-item-when"> · {formatWhen(n.dt)}</span>
                 </span>
+                {n.type === NotificationType.NotificationFriendRequest && awaiting.has(n.actorDomain) && (
+                  <button className="np-accept" onClick={(e) => { e.stopPropagation(); void accept(n.actorDomain); }}>Accept</button>
+                )}
+                {n.type === NotificationType.NotificationFriendRequest && acceptedHere.has(n.actorDomain) && (
+                  <span className="np-accepted">Friends ✓</span>
+                )}
                 {thumb && <img src={thumb} className="np-thumb" alt="" />}
                 {isError && n.details && (
                   <pre className="np-popover" onClick={(e) => e.stopPropagation()}>{n.details}</pre>

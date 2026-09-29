@@ -150,6 +150,27 @@ fun FriendshipsView(onDone: () -> Unit) {
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {
+                // Requests waiting for an answer come first: a tapped
+                // friend-request alert lands here to answer it.
+                val waiting = st.friendships.filter { it.status == FriendShipStatus.Pending && !it.sent }
+                if (waiting.isNotEmpty()) {
+                    item {
+                        Text("Waiting for your answer", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
+                    }
+                    items(waiting, key = { "w-" + it.originProfile.domain }) { f ->
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(f.originProfile.name.ifEmpty { "(no name)" }, style = MaterialTheme.typography.titleSmall)
+                                Text(f.originProfile.domain, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            androidx.compose.material3.OutlinedButton(onClick = { scope.launch { vm.delete(f) } }) { Text("Decline") }
+                            Spacer(Modifier.width(8.dp))
+                            androidx.compose.material3.Button(onClick = { scope.launch { vm.changeStatus(f, FriendShipStatus.Accepted) } }) { Text("Accept") }
+                        }
+                    }
+                }
                 item {
                     Text("Add a friend", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -166,7 +187,7 @@ fun FriendshipsView(onDone: () -> Unit) {
                 }
                 item {
                     Row(Modifier.fillMaxWidth().padding(16.dp, 20.dp, 16.dp, 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Friend requests", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text("Friends", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                         if (st.loading) CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
                         else TextButton(onClick = { scope.launch { vm.reload() } }) { Text("Refresh") }
                     }
@@ -174,7 +195,7 @@ fun FriendshipsView(onDone: () -> Unit) {
                 if (st.friendships.isEmpty()) {
                     item { Text("No friendships yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
                 }
-                items(st.friendships, key = { it.originProfile.domain }) { f ->
+                items(st.friendships.filter { !(it.status == FriendShipStatus.Pending && !it.sent) }, key = { it.originProfile.domain }) { f ->
                     FriendRow(f, onChange = { s -> scope.launch { vm.changeStatus(f, s) } }, onDelete = { scope.launch { vm.delete(f) } })
                 }
             }

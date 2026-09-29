@@ -32,6 +32,12 @@ object NotificationsModel {
     private val _loadingList = MutableStateFlow(false)
     private val _pendingDeepLink = MutableStateFlow<DeepLink?>(null)
     private val _alertsRequested = MutableStateFlow(false)
+    private val _awaitingAnswer = MutableStateFlow<Set<String>>(emptySet())
+    private val _acceptedHere = MutableStateFlow<Set<String>>(emptySet())
+    /** Domains whose friend request is still waiting: their alert gets an Accept button. */
+    val awaitingAnswer: StateFlow<Set<String>> = _awaitingAnswer
+    /** Accepted from Alerts during this open, shown as "Friends". */
+    val acceptedHere: StateFlow<Set<String>> = _acceptedHere
     val unacknowledgedCount: StateFlow<Int> = _unacknowledgedCount
     val notifications: StateFlow<List<Notification>> = _notifications
     val loadingList: StateFlow<Boolean> = _loadingList
@@ -100,6 +106,7 @@ object NotificationsModel {
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_NOTIFICATIONS) {
                 _notifications.value = resp.respNotifications.notificationsList
             }
+            loadAwaitingAnswer()
             _unacknowledgedCount.value = 0
             cloud.offthe.otc.push.FCMPush.clearShown(cloud.offthe.otc.OTCApp.instance)
             try {
@@ -107,6 +114,30 @@ object NotificationsModel {
             } catch (_: Exception) {}
         } finally {
             _loadingList.value = false
+        }
+    }
+
+    private suspend fun loadAwaitingAnswer() {
+        if (_notifications.value.none { it.type == NotificationType.NotificationFriendRequest }) return
+        val resp = try {
+            OTCConnection.request { it.setReqFriendshipsList(cloud.offthe.otc.proto.FriendshipsList.getDefaultInstance()) }
+        } catch (e: Exception) { return }
+        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FRIENDSHIPS) return
+        _awaitingAnswer.value = resp.respFriendships.friendshipsList
+            .filter { it.status == cloud.offthe.otc.proto.FriendShipStatus.Pending && !it.sent }
+            .map { it.originProfile.domain }.toSet()
+    }
+
+    /** Accept, straight from a friend-request alert. */
+    suspend fun accept(domain: String) {
+        val resp = try {
+            OTCConnection.request {
+                it.setReqChangeFriendStatus(cloud.offthe.otc.proto.ChangeFriendStatus.newBuilder().setDomain(domain).setStatus(cloud.offthe.otc.proto.FriendShipStatus.Accepted))
+            }
+        } catch (e: Exception) { return }
+        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok) {
+            _awaitingAnswer.value = _awaitingAnswer.value - domain
+            _acceptedHere.value = _acceptedHere.value + domain
         }
     }
 

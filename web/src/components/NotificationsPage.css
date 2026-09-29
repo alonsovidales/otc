@@ -98,3 +98,20 @@
   cursor: text;
 }
 .np-item.np-error:hover .np-popover, .np-item.np-pinned .np-popover { display: block; }
+
+/* A friend request answered from the alert itself. */
+.np-accept {
+  flex: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--ember);
+  color: var(--ember-ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+.np-accepted {
+  flex: none;
+  font-size: .85rem;
+  color: var(--mist-dim);
+}

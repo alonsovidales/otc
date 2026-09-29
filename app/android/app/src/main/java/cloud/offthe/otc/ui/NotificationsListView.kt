@@ -82,7 +82,7 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(list, key = { it.uuid }) { n ->
                         if (n.type == NotificationType.NotificationError) ErrorRow(n)
-                        else NotificationRow(n) { model.handleTap(n) }
+                        else NotificationRow(n, model) { model.handleTap(n) }
                     }
                 }
             }
@@ -100,7 +100,10 @@ private fun describe(n: Notification): String = when (n.type) {
 }
 
 @Composable
-private fun NotificationRow(n: Notification, onTap: () -> Unit) {
+private fun NotificationRow(n: Notification, model: NotificationsModel, onTap: () -> Unit) {
+    val awaiting by model.awaitingAnswer.collectAsState()
+    val accepted by model.acceptedHere.collectAsState()
+    val scope = rememberCoroutineScope()
     val bg = if (n.acknowledged) Color.Transparent else Color(0x14FFEB3B)
     Row(
         Modifier.fillMaxWidth().background(bg).clickable(onClick = onTap).padding(horizontal = 16.dp, vertical = 10.dp),
@@ -115,6 +118,13 @@ private fun NotificationRow(n: Notification, onTap: () -> Unit) {
             }, style = MaterialTheme.typography.bodyMedium)
             if (n.hasDt()) {
                 Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (n.type == NotificationType.NotificationFriendRequest) {
+            if (n.actorDomain in awaiting) {
+                androidx.compose.material3.Button(onClick = { scope.launch { model.accept(n.actorDomain) } }) { Text("Accept") }
+            } else if (n.actorDomain in accepted) {
+                Text("Friends ✓", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (n.hasThumbnail()) {

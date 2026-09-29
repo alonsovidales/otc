@@ -145,6 +145,10 @@ object OTCConnection {
         _connectionFailed.value = false
         backoffMs = 1_000L
         _authenticated.value = true
+        // On every sign-in, not only when the main screen first shows: a
+        // device set up (or reinstalled) while the app was running would
+        // otherwise never learn this phone's token.
+        cloud.offthe.otc.push.FCMPush.registerKnown(cloud.offthe.otc.OTCApp.instance)
     }
 
     /** Plain words for the errors the network stack hands back. */

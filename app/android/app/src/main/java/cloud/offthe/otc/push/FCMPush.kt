@@ -60,6 +60,15 @@ object FCMPush {
         androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
     }
 
+    /** Sends the token already known to the device (after each sign-in; the device keeps one row per token). */
+    fun registerKnown(context: Context) {
+        val token = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(TOKEN_KEY, null) ?: return
+        scope.launch {
+            runCatching { OTCConnection.request { it.setReqRegisterFcmToken(RegisterFcmToken.newBuilder().setToken(token)) } }
+                .onFailure { Log.w(TAG, "could not register the FCM token after signing in: ${it.message}") }
+        }
+    }
+
     /** Fetches this install's token and registers it with the device - once signed in. */
     fun register(context: Context) {
         if (!available(context)) return

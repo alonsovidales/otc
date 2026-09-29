@@ -31,6 +31,11 @@ final class NotificationsModel: ObservableObject {
     @Published var notifications: [Msg_Notification] = []
     @Published var loadingList = false
     @Published var pendingDeepLink: DeepLink?
+    /// Domains whose friend request is still waiting for this owner: a
+    /// friend-request alert from one of them gets an Accept button.
+    @Published var awaitingAnswer: Set<String> = []
+    /// Accepted from Alerts during this open, shown as "Friends".
+    @Published var acceptedHere: Set<String> = []
 
     private let ws = OTCConnection.shared
     private var pollTask: Task<Void, Never>?
@@ -87,6 +92,7 @@ final class NotificationsModel: ObservableObject {
         if case .respNotifications(let r) = resp.payload {
             notifications = r.notifications
         }
+        await loadAwaitingAnswer()
         unacknowledgedCount = 0
         _ = try? await ws.request({ e in
             var req = ReqEnvelope()
@@ -107,6 +113,24 @@ final class NotificationsModel: ObservableObject {
         } else if !pub.isEmpty {
             pendingDeepLink = .post(pubUuid: pub, commentUuid: comment.isEmpty ? nil : comment)
         }
+    }
+
+    private func loadAwaitingAnswer() async {
+        guard notifications.contains(where: { $0.type == .notificationFriendRequest }),
+              let resp = try? await ws.request({ $0.payload = .reqFriendshipsList(Msg_FriendshipsList()) }),
+              case .respFriendships(let f) = resp.payload else { return }
+        awaitingAnswer = Set(f.friendships.filter { $0.status == .pending && !$0.sent }.map { $0.originProfile.domain })
+    }
+
+    /// Accept, straight from a friend-request alert.
+    func accept(domain: String) async {
+        var req = Msg_ChangeFriendStatus()
+        req.domain = domain
+        req.status = .accepted
+        guard let resp = try? await ws.request({ $0.payload = .reqChangeFriendStatus(req) }),
+              case .respAck(let ack) = resp.payload, ack.ok else { return }
+        awaitingAnswer.remove(domain)
+        acceptedHere.insert(domain)
     }
 
     func handleTap(_ n: Msg_Notification) {

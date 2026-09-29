@@ -223,9 +223,59 @@ export default function FriendshipsManager() {
     }
   };
 
+  const isWaiting = (f: MsgFriendship) => !f.sent && f.status === FriendShipStatus.Pending;
+  const waiting = friends?.friendships.filter(isWaiting) ?? [];
+  const others = friends?.friendships.filter((f) => !isWaiting(f)) ?? [];
+
+  const renderRow = (f: MsgFriendship) => {
+    const avatar = bytesToObjectURL(f.originProfile?.image);
+    const name = f.originProfile?.name || "(no name)";
+    const domain = f.originProfile?.domain || "(no domain)";
+    return (
+      <li key={domain} className="friend-item">
+        <div className="friend-left">
+          <div className="avatar">
+            {avatar ? <img src={avatar} alt="" /> : <div className="ph" />}
+          </div>
+          <div className="meta">
+            <div className="name">{name}</div>
+            <div className="domain">{domain}</div>
+          </div>
+        </div>
+        <div className="friend-right">
+          <span className={`status pill s-${f.status}`}>
+            {statusLabel(f.status)} {f.sent ? "(sent)" : ""}
+          </span>
+          {confirmingDelete === domain ? (
+            <div className="fr-actions fr-confirm">
+              <span>{f.sent ? "Cancel this request?" : "Delete this request?"}</span>
+              <button className="fr-btn danger" onClick={() => deleteFriendship(f)}>Yes</button>
+              <button className="fr-btn" onClick={() => setConfirmingDelete(null)}>Keep</button>
+            </div>
+          ) : (
+            <ActionButtons
+              f={f}
+              onChange={(next) => changeStatus(f, next)}
+              onDelete={() => setConfirmingDelete(domain)}
+            />
+          )}
+        </div>
+      </li>
+    );
+  };
+
   return (
     <div className="friends-wrap">
       {message && <div className="toast">{message}</div>}
+
+      {/* Requests waiting for an answer come first: a clicked
+          friend-request alert lands here to answer it. */}
+      {waiting.length > 0 && (
+        <section className="card">
+          <h2>Waiting for your answer</h2>
+          <ul className="friends-list">{waiting.map(renderRow)}</ul>
+        </section>
+      )}
 
       {/* Issue #84: "Your Profile" editing used to live here (this was the
           only place an authenticated owner could actually reach it, since
@@ -263,53 +313,16 @@ export default function FriendshipsManager() {
       {/* Friendships list */}
       <section className="card">
         <div className="list-head">
-          <h2>Friend requests</h2>
+          <h2>Friends</h2>
           <button className="refresh" onClick={reloadFriendships} disabled={loadingFriends}>
             {loadingFriends ? "Loading…" : "Refresh"}
           </button>
         </div>
 
-        {!friends || friends.friendships.length === 0 ? (
-          <div className="empty">No friendships yet.</div>
+        {others.length === 0 ? (
+          <div className="empty">{waiting.length ? "No other friends yet." : "No friendships yet."}</div>
         ) : (
-          <ul className="friends-list">
-            {friends.friendships.map((f) => {
-              const avatar = bytesToObjectURL(f.originProfile?.image);
-              const name = f.originProfile?.name || "(no name)";
-              const domain = f.originProfile?.domain || "(no domain)";
-              return (
-                <li key={domain} className="friend-item">
-                  <div className="friend-left">
-                    <div className="avatar">
-                      {avatar ? <img src={avatar} alt="" /> : <div className="ph" />}
-                    </div>
-                    <div className="meta">
-                      <div className="name">{name}</div>
-                      <div className="domain">{domain}</div>
-                    </div>
-                  </div>
-                  <div className="friend-right">
-                    <span className={`status pill s-${f.status}`}>
-                      {statusLabel(f.status)} {f.sent ? "(sent)" : ""}
-                    </span>
-                    {confirmingDelete === domain ? (
-                      <div className="fr-actions fr-confirm">
-                        <span>{f.sent ? "Cancel this request?" : "Delete this request?"}</span>
-                        <button className="fr-btn danger" onClick={() => deleteFriendship(f)}>Yes</button>
-                        <button className="fr-btn" onClick={() => setConfirmingDelete(null)}>Keep</button>
-                      </div>
-                    ) : (
-                      <ActionButtons
-                        f={f}
-                        onChange={(next) => changeStatus(f, next)}
-                        onDelete={() => setConfirmingDelete(domain)}
-                      />
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <ul className="friends-list">{others.map(renderRow)}</ul>
         )}
       </section>
     </div>

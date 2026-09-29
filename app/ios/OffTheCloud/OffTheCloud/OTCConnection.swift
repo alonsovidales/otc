@@ -197,6 +197,22 @@ final class OTCConnection: ObservableObject {
         connectionFailed = false
         backoffSeconds = 1
         authenticated = true
+        registerPushToken()
+    }
+
+    /// Hands this phone's APNs token to the device on every sign-in, not
+    /// only at app launch: a device set up (or reinstalled) after the app
+    /// started would otherwise never learn it and send this phone no push
+    /// at all. The device keeps one row per token, so repeating is free.
+    private func registerPushToken() {
+        guard let token = UserDefaults.standard.string(forKey: "apnsToken"), !token.isEmpty else { return }
+        Task {
+            _ = try? await self.request { req in
+                var reg = Msg_RegisterApnsToken()
+                reg.token = token
+                req.payload = .reqRegisterApnsToken(reg)
+            }
+        }
     }
 
     /// Plain words for the errors URLSession hands back, which are not

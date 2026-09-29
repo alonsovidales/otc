@@ -138,6 +138,29 @@ struct FriendshipsView: View {
     var body: some View {
         NavigationStack {
             List {
+                // Requests waiting for an answer come first: a tapped
+                // friend-request alert lands here to answer it.
+                let waiting = vm.friendships.filter { $0.status == .pending && !$0.sent }
+                if !waiting.isEmpty {
+                    Section("Waiting for your answer") {
+                        ForEach(waiting, id: \.originProfile.domain) { f in
+                            HStack(spacing: 12) {
+                                avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
+                                VStack(alignment: .leading) {
+                                    Text(f.originProfile.name.isEmpty ? "(no name)" : f.originProfile.name).font(.headline)
+                                    Text(f.originProfile.domain).font(.caption).foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Button("Decline") { Task { await vm.deleteFriendship(f) } }
+                                    .buttonStyle(.bordered).controlSize(.small)
+                                Button("Accept") { Task { await vm.changeStatus(f, to: .accepted) } }
+                                    .buttonStyle(.borderedProminent).controlSize(.small)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
                 Section("Add a friend") {
                     HStack {
                         // Issue #142: the name only; the suffix is fixed.
@@ -159,7 +182,7 @@ struct FriendshipsView: View {
                     if vm.friendships.isEmpty {
                         Text("No friendships yet.").foregroundColor(.secondary)
                     } else {
-                        ForEach(vm.friendships, id: \.originProfile.domain) { f in
+                        ForEach(vm.friendships.filter { !($0.status == .pending && !$0.sent) }, id: \.originProfile.domain) { f in
                             FriendRow(
                                 f: f,
                                 onChange: { status in Task { await vm.changeStatus(f, to: status) } },
@@ -169,7 +192,7 @@ struct FriendshipsView: View {
                     }
                 } header: {
                     HStack {
-                        Text("Friend requests")
+                        Text("Friends")
                         Spacer()
                         if vm.loadingFriendships {
                             ProgressView()

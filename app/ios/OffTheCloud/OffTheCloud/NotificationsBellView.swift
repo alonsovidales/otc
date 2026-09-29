@@ -47,6 +47,7 @@ struct NotificationsListView: View {
                         if n.type == .notificationError {
                             errorRow(n)
                         } else {
+                        HStack(spacing: 8) {
                         Button {
                             model.handleTap(n)
                         } label: {
@@ -82,9 +83,19 @@ struct NotificationsListView: View {
                             // slightly highlighted - a fading distinction,
                             // not persistent, since opening this tab marks
                             // everything read a moment after it loads.
-                            .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
                         }
                         .buttonStyle(.plain)
+                        if n.type == .notificationFriendRequest {
+                            if model.awaitingAnswer.contains(n.actorDomain) {
+                                Button("Accept") { Task { await model.accept(domain: n.actorDomain) } }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                            } else if model.acceptedHere.contains(n.actorDomain) {
+                                Label("Friends", systemImage: "checkmark").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        }
+                        .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
                         }
                     }
                     .listStyle(.plain)
