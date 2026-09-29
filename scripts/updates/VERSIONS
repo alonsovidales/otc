@@ -77,3 +77,4 @@
 36	-	dabc712a4a462bbfaf22f7f186d4b7caef08d70a8ff99164b0600cc01903772d	Images: previews for JPEG 2000, Photoshop, camera RAW (DNG), damaged JPEGs and very short videos (Live Photo clips).
 37	-	a87f80c0431d80d25257e1654e0377d3997de36ade9cf5928bc08517eee05efe	Security: password attempts through the bridge can no longer escape the attempt limit; oversized messages are refused instead of exhausting memory.
 38	3836e0d2115d88361dafaa213dd0c72f086bede1f61c5b78de8364d43c4cfe25	4cc007ca2ba6feb3e44c08d3e1b7f1f92a5e11a649235efd238e9325ac5c91ce	Security: files that could run code (web pages, SVG) are downloaded instead of opened; a friend's device that re-registers after a week of silence has to be accepted again; safer update and storage-setup scripts.
+39	-	8b671c07ed7913477f3451d5c8e86c2bce4da23dcb527cf8016d3de57a1f9766	Security: at most 10 wrong passwords per 30 seconds in total, from any address.
