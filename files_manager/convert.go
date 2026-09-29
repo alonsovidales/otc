@@ -23,6 +23,9 @@ import (
 // memory budget; a file converted is renamed into place, so a reader or an
 // interrupted run never sees half of one. Files that don't open with the
 // owner's key (share-link archives have their own) are left alone.
+// cConvertMax: larger old-format files are left as they are (see below).
+const cConvertMax = 512 << 20
+
 func (mg *Manager) ConvertToSegments(ses *session.Session) {
 	if !cfg.HasSection("otc") {
 		return
@@ -34,7 +37,7 @@ func (mg *Manager) ConvertToSegments(ses *session.Session) {
 		return
 	}
 	started := time.Now()
-	converted, skipped := 0, 0
+	converted, skipped, tooBig := 0, 0, 0
 	for _, e := range entries {
 		name := e.Name()
 		if e.IsDir() || strings.HasPrefix(name, ".") || strings.HasSuffix(name, cNoThumbnailSuffix) {
@@ -47,6 +50,13 @@ func (mg *Manager) ConvertToSegments(ses *session.Session) {
 		hash := strings.TrimSuffix(name, "_thumbnail")
 		info, err := e.Info()
 		if err != nil {
+			continue
+		}
+		// The old format can only be opened whole (one GCM seal): a file
+		// this big would need twice its size in memory to convert - enough
+		// to bring the device down. It stays as it is and reads as before.
+		if info.Size() > cConvertMax {
+			tooBig++
 			continue
 		}
 		release := func() {}
@@ -66,7 +76,7 @@ func (mg *Manager) ConvertToSegments(ses *session.Session) {
 			converted++
 		}
 	}
-	if converted > 0 || skipped > 0 {
-		log.Info("segment conversion: converted", converted, "file(s), left", skipped, "in", time.Since(started))
+	if converted > 0 || skipped > 0 || tooBig > 0 {
+		log.Info("segment conversion: converted", converted, "file(s), left", skipped, "unreadable with the owner's key and", tooBig, "over", cConvertMax>>20, "MB, in", time.Since(started))
 	}
 }
