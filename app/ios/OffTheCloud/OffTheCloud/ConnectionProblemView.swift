@@ -18,6 +18,11 @@ struct ConnectionProblemView: View {
     @EnvironmentObject var secrets: SecretsStore
     @ObservedObject private var connection = OTCConnection.shared
     @State private var retrying = false
+    @State private var confirmLeave = false
+    /// Leaves this device for the connection screen - how a phone moves on
+    /// to set up a new device, or another one, when this one can't be
+    /// reached or signed in to (a device being re-imaged, say).
+    var onLeave: (() -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -67,6 +72,11 @@ struct ConnectionProblemView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(retrying || !secrets.isConfigured)
+
+                if onLeave != nil {
+                    Button("Set up or connect a different device") { confirmLeave = true }
+                        .font(.subheadline)
+                }
             }
             .padding(24)
             .frame(maxWidth: 420)
@@ -75,5 +85,11 @@ struct ConnectionProblemView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.background.opacity(0.92))
+        .alert("Leave this device?", isPresented: $confirmLeave) {
+            Button("Leave", role: .destructive) { onLeave?() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and this phone can connect to it again later.")
+        }
     }
 }

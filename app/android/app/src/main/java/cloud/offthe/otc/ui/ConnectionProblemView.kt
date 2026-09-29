@@ -53,12 +53,25 @@ import kotlinx.coroutines.launch
 // Port of ConnectionProblemView.swift: shown over the tabs when the app
 // can't connect or sign in, with the reason and the settings to fix it.
 @Composable
-fun ConnectionProblemView(secrets: SecretsStore) {
+fun ConnectionProblemView(secrets: SecretsStore, onLeave: (() -> Unit)? = null) {
     val lastError by OTCConnection.lastError.collectAsState()
     val endpoint by secrets.endpoint.collectAsState()
     val password by secrets.password.collectAsState()
     var retrying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    // Leaving this device for the start screen - how a phone moves on to
+    // set up a new device, or another one, when this one can't be reached
+    // or signed in to (a device being re-imaged, say).
+    var confirmLeave by remember { mutableStateOf(false) }
+    if (confirmLeave && onLeave != null) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text("Leave this device?") },
+            text = { Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and this phone can connect to it again later.") },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave() }) { Text("Leave", color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
+        )
+    }
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.92f)), contentAlignment = Alignment.Center) {
         Card(Modifier.padding(24.dp).widthIn(max = 420.dp)) {
@@ -100,6 +113,10 @@ fun ConnectionProblemView(secrets: SecretsStore) {
                         if (retrying) { CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
                         Text(if (retrying) "Connecting…" else "Save & Retry")
                     }
+                }
+                if (onLeave != null) {
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = { confirmLeave = true }) { Text("Set up or connect a different device") }
                 }
             }
         }
