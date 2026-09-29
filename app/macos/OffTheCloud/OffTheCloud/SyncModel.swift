@@ -694,7 +694,11 @@ final class SyncModel: ObservableObject {
             // *confirm* nothing changed shouldn't look like a transfer is
             // underway. The progress bar below is reserved for real
             // mismatches only.
-            var toUpload: [(url: URL, remotePath: String, hash: String, size: Int64)] = []
+            // hash is nil for a file the device has nothing at: it is sent
+            // whatever its content, so hashing it here only delayed the
+            // start (a new folder sat on "Checking" for as long as reading
+            // all of it took) - upload() hashes it just before sending.
+            var toUpload: [(url: URL, remotePath: String, hash: String?, size: Int64)] = []
             // Issue #138: say which file is being checked (a few times a
             // second at most - most files are answered from the hash
             // cache in no time, the new ones are what takes a while).
@@ -705,9 +709,13 @@ final class SyncModel: ObservableObject {
                     updateState(folder.id, .scanning(progress: 0, currentFile: "Checking \(i + 1)/\(localFiles.count) · \(fileURL.lastPathComponent)"))
                 }
                 let remotePath = remotePathFor(fileURL.path)
+                let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
+                if remoteMap[remotePath] == nil {
+                    toUpload.append((fileURL, remotePath, nil, size))
+                    continue
+                }
                 let localHash = try? await cachedHash(for: fileURL, folderId: folder.id)
                 guard let localHash, remoteMap[remotePath] != localHash else { continue }
-                let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
                 toUpload.append((fileURL, remotePath, localHash, size))
             }
 
@@ -734,8 +742,7 @@ final class SyncModel: ObservableObject {
                     updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: item.url.lastPathComponent))
 
                     do {
-                        try await upload(item.url, to: item.remotePath, knownHash: item.hash)
-                        remoteMap[item.remotePath] = item.hash
+                        remoteMap[item.remotePath] = try await upload(item.url, to: item.remotePath, knownHash: item.hash, folderId: folder.id)
                     } catch {
                         // Logged and skipped, not fatal to the whole
                         // folder — the next reconcile pass (or another
@@ -907,12 +914,22 @@ final class SyncModel: ObservableObject {
             // listing above. A file that can't be read is left out of the
             // comparison entirely: treating it as "not here" would fetch
             // (and overwrite) something that is here, just unreadable.
+            loadSyncedIfNeeded(folder.id)
+            let lastSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
             var localHashes: [String: String] = [:]
             var unreadable: Set<String> = []
+            // Only here, not on the device and never synced: an upload
+            // whatever its content, so it's hashed when it is sent, not
+            // before anything starts (see reconcile()).
+            var newLocal: Set<String> = []
             var lastShown = Date.distantPast
             var checked = 0
             for (relative, url) in localByRelative {
                 checked += 1
+                if remoteByRelative[relative] == nil && lastSynced[relative] == nil {
+                    newLocal.insert(relative)
+                    continue
+                }
                 // Issue #138: which file is being checked, see reconcile().
                 if Date().timeIntervalSince(lastShown) > 0.3 {
                     lastShown = Date()
@@ -927,10 +944,8 @@ final class SyncModel: ObservableObject {
                     }
                 }
             }
-            syncLog.info("two-way \(folder.remotePath, privacy: .public): remote=\(remoteByRelative.count) local=\(localByRelative.count) hashed=\(localHashes.count) unreadable=\(unreadable.count) baseline=\(self.lastSyncedByRemoteFolder[folder.id]?.count ?? 0)")
+            syncLog.info("two-way \(folder.remotePath, privacy: .public): remote=\(remoteByRelative.count) local=\(localByRelative.count) hashed=\(localHashes.count) new=\(newLocal.count) unreadable=\(unreadable.count) baseline=\(self.lastSyncedByRemoteFolder[folder.id]?.count ?? 0)")
 
-            loadSyncedIfNeeded(folder.id)
-            let lastSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
             let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
 
             enum ActionKind { case upload, download, deleteLocal, deleteRemote }
@@ -943,6 +958,10 @@ final class SyncModel: ObservableObject {
 
             for relative in allRelativePaths {
                 if unreadable.contains(relative) { continue }
+                if newLocal.contains(relative) {
+                    actions.append((relative, .upload, 0, nil))
+                    continue
+                }
                 let localHash = localHashes[relative]
                 let remoteFile = remoteByRelative[relative]
                 let remoteHash = remoteFile?.hash
@@ -1010,7 +1029,7 @@ final class SyncModel: ObservableObject {
                     let remotePath = remotePrefix + action.relative
                     do {
                         switch action.kind {
-                        case .upload: try await upload(localURL, to: remotePath, knownHash: action.hash)
+                        case .upload: newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
                         case .download: try await download(remotePath, to: localURL, expectedHash: action.hash)
                         case .deleteRemote: try await delete(remotePath)
                         case .deleteLocal: try FileManager.default.removeItem(at: localURL)
@@ -1119,10 +1138,15 @@ final class SyncModel: ObservableObject {
     // dedup only kicking in *after* the transfer. `knownHash` lets a
     // caller that already hashed this file for its own diffing (every
     // call site here has) skip hashing it a second time.
-    private func upload(_ url: URL, to remotePath: String, knownHash: String? = nil) async throws {
+    /// Returns the content's hash - computed here (and cached, given the
+    /// folder) when the caller didn't need it to decide.
+    @discardableResult
+    private func upload(_ url: URL, to remotePath: String, knownHash: String? = nil, folderId: UUID? = nil) async throws -> String {
         let hash: String
         if let knownHash {
             hash = knownHash
+        } else if let folderId {
+            hash = try await cachedHash(for: url, folderId: folderId)
         } else {
             hash = try await Task.detached(priority: .utility) {
                 try Self.sha256Hex(of: url)
@@ -1153,7 +1177,7 @@ final class SyncModel: ObservableObject {
             if resp.error {
                 throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "link rejected" : resp.errorMessage])
             }
-            return
+            return hash
         }
 
         // Reading a multi-GB file synchronously used to happen right here,
@@ -1179,6 +1203,7 @@ final class SyncModel: ObservableObject {
         if resp.error {
             throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "upload rejected" : resp.errorMessage])
         }
+        return hash
     }
 
     private func delete(_ remotePath: String) async throws {

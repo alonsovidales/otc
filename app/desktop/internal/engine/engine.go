@@ -772,9 +772,17 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 		rp := e.remotePathFor(p)
 		localRemote[rp] = true
-		h, err := e.cachedHash(f.ID, p)
-		if err != nil || remoteMap[rp] == h {
-			continue
+		// Nothing on the device at this path: it's sent whatever its
+		// content, so it is hashed just before the upload, not here - a new
+		// folder used to sit on "Checking" for as long as reading all of it
+		// took (as SyncModel.reconcile).
+		h := ""
+		if _, onDevice := remoteMap[rp]; onDevice {
+			var err error
+			h, err = e.cachedHash(f.ID, p)
+			if err != nil || remoteMap[rp] == h {
+				continue
+			}
 		}
 		fi, _ := os.Stat(p)
 		var size int64
@@ -795,6 +803,16 @@ func (e *Engine) reconcile(f config.Folder) {
 		var done int64
 		for _, it := range toUpload {
 			e.setFolderState(f.ID, FolderState{Kind: StateScanning, Progress: float64(done) / float64(total), CurrentFile: filepath.Base(it.path)})
+			if it.hash == "" {
+				h, err := e.cachedHash(f.ID, it.path)
+				if err != nil {
+					log.Printf("cannot hash %s: %v", filepath.Base(it.path), err)
+					done += it.size
+
+					continue
+				}
+				it.hash = h
+			}
 			if err := e.upload(it.path, it.remote, it.hash, it.info); err != nil {
 				log.Printf("error syncing %s: %v", filepath.Base(it.path), err)
 			} else {
@@ -915,8 +933,18 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 		return
 	}
+	e.mu.Lock()
+	e.loadSyncedLocked(f.ID)
+	last := e.lastSynced[f.ID]
+	e.mu.Unlock()
+	if last == nil {
+		last = map[string]string{}
+	}
 	localByRel := map[string]string{}
 	localHashes := map[string]string{}
+	// Only here, not on the device and never synced: an upload whatever
+	// its content, hashed when it is sent (see reconcile()).
+	newLocal := map[string]bool{}
 	// A file that can't be read is left out of the comparison entirely:
 	// treating it as "not here" would fetch (and overwrite) something that
 	// is here, just unreadable - an evicted cloud-drive placeholder, say.
@@ -934,6 +962,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			lastShown = time.Now()
 			e.setRemoteState(f.ID, FolderState{Kind: StateScanning, CurrentFile: fmt.Sprintf("Checking %d/%d · %s", i+1, len(local), filepath.Base(p))})
 		}
+		if _, onDevice := remoteByRel[rel]; !onDevice {
+			if _, synced := last[rel]; !synced {
+				newLocal[rel] = true
+
+				continue
+			}
+		}
 		if h, err := e.cachedHash(f.ID, p); err == nil {
 			localHashes[rel] = h
 		} else {
@@ -944,13 +979,6 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 	}
 
-	e.mu.Lock()
-	e.loadSyncedLocked(f.ID)
-	last := e.lastSynced[f.ID]
-	e.mu.Unlock()
-	if last == nil {
-		last = map[string]string{}
-	}
 	all := map[string]bool{}
 	for k := range remoteByRel {
 		all[k] = true
@@ -969,6 +997,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	var actions []action
 	for rel := range all {
 		if unreadable[rel] {
+			continue
+		}
+		if newLocal[rel] {
+			actions = append(actions, action{rel, actUpload, ""})
+
 			continue
 		}
 		localHash, hasLocal := localHashes[rel]
@@ -1040,7 +1073,15 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			if statErr != nil {
 				err = statErr
 			} else {
-				err = e.upload(localPath, remotePath, a.hash, fi)
+				if a.hash == "" {
+					a.hash, err = e.cachedHash(f.ID, localPath)
+				}
+				if err == nil {
+					err = e.upload(localPath, remotePath, a.hash, fi)
+				}
+				if err == nil {
+					newSynced[a.relative] = a.hash
+				}
 			}
 		case actDownload:
 			err = e.download(remotePath, localPath, a.hash)
