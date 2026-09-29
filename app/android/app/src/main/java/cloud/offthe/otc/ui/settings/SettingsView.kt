@@ -23,6 +23,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -284,6 +286,11 @@ private fun ProfileEditorSection() {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch { cropSource = withContext(Dispatchers.IO) { decodeProfilePhoto(context, uri) } }
     }
+    // Issue #178: "Change photo" offers this phone's picker or the photos on
+    // the device (DevicePhotoPicker.kt); both land in the same crop.
+    var photoMenu by remember { mutableStateOf(false) }
+    var devicePicker by remember { mutableStateOf(false) }
+    if (devicePicker) DevicePhotoPicker(onCancel = { devicePicker = false }) { bmp -> devicePicker = false; cropSource = bmp }
     cropSource?.let { bmp ->
         ProfilePhotoCropDialog(bmp, onCancel = { cropSource = null }) { side, zoom, pan ->
             scope.launch {
@@ -296,7 +303,16 @@ private fun ProfileEditorSection() {
     Section("Profile") {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             AvatarView(data = st.imageData, size = 96.dp)
-            TextButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text("Change photo") }
+            Box {
+                TextButton(onClick = { photoMenu = true }) { Text("Change photo") }
+                DropdownMenu(expanded = photoMenu, onDismissRequest = { photoMenu = false }) {
+                    DropdownMenuItem(text = { Text("From this phone") }, onClick = {
+                        photoMenu = false
+                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    })
+                    DropdownMenuItem(text = { Text("From your device") }, onClick = { photoMenu = false; devicePicker = true })
+                }
+            }
         }
         OTCTextField(value = st.name, onValueChange = vm::setName, placeholder = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         OTCTextField(value = st.bio, onValueChange = vm::setBio, placeholder = { Text("Description") }, minLines = 3, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))

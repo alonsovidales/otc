@@ -75,6 +75,14 @@ struct ProfileEditorSection: View {
     /// Issue #178: a fresh pick goes through ProfilePhotoCropView first;
     /// vm.imageData only changes once the user taps "Use photo".
     @State private var cropItem: ProfilePhotoCropItem?
+    /// Issue #178: "Change photo" offers the phone's library or the
+    /// photos already on the OTC device (DevicePhotoPickerView).
+    @State private var showPhonePicker = false
+    @State private var showDevicePicker = false
+    /// A device pick waits here until its sheet has finished dismissing,
+    /// then moves to cropItem - presenting the crop while the sheet is
+    /// still going away would be dropped.
+    @State private var pendingDeviceCrop: ProfilePhotoCropItem?
 
     var body: some View {
         Section(header: Text("Profile")) {
@@ -84,8 +92,19 @@ struct ProfileEditorSection: View {
             // beside a small avatar.
             VStack(spacing: 8) {
                 avatarView(data: vm.imageData, size: 96)
-                PhotosPicker("Change photo", selection: $photoItem, matching: .images)
-                    .font(.footnote)
+                Menu("Change photo") {
+                    Button {
+                        showPhonePicker = true
+                    } label: {
+                        Label("From this iPhone", systemImage: "iphone")
+                    }
+                    Button {
+                        showDevicePicker = true
+                    } label: {
+                        Label("From your device", systemImage: "externaldrive")
+                    }
+                }
+                .font(.footnote)
             }
             .frame(maxWidth: .infinity)
 
@@ -107,6 +126,15 @@ struct ProfileEditorSection: View {
             }
         }
         .task { await vm.load() }
+        .photosPicker(isPresented: $showPhonePicker, selection: $photoItem, matching: .images)
+        .sheet(isPresented: $showDevicePicker, onDismiss: {
+            if let item = pendingDeviceCrop {
+                pendingDeviceCrop = nil
+                cropItem = item
+            }
+        }) {
+            DevicePhotoPickerView { pendingDeviceCrop = $0 }
+        }
         .onChange(of: photoItem) { _, newItem in
             guard let newItem else { return }
             Task {

@@ -1,0 +1,119 @@
+.dpp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+.dpp-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(640px, 100%);
+  height: min(720px, 100%);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--ink-2, #1e1f22);
+}
+.dpp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dpp-head h3 {
+  margin: 0;
+}
+.dpp-cancel {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--mist);
+  cursor: pointer;
+}
+.dpp-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.dpp-chip {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--mist);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dpp-chip.on {
+  border-color: transparent;
+  background: var(--ember);
+  color: var(--ember-ink);
+}
+.dpp-count {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.dpp-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+.dpp-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 4px;
+  align-content: start;
+}
+.dpp-tile {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--panel);
+  cursor: pointer;
+}
+.dpp-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.dpp-tile:disabled {
+  cursor: progress;
+}
+.dpp-spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: dpp-spin 0.8s linear infinite;
+}
+@keyframes dpp-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dpp-spinner { animation-duration: 3s; }
+}
+.dpp-empty {
+  grid-column: 1 / -1;
+  color: var(--mist-dim);
+  text-align: center;
+}
+.dpp-sentinel {
+  grid-column: 1 / -1;
+  height: 1px;
+}

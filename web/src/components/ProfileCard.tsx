@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, Profile as PbProfile } from "../proto/messages";
+import DevicePhotoPicker from "./DevicePhotoPicker";
 import PhotoCropDialog from "./PhotoCropDialog";
 import "./ProfileCard.css";
 
@@ -26,6 +27,7 @@ export default function ProfileCard({ authenticated }: Props) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   // A picked photo waiting in the crop dialog.
   const [cropping, setCropping] = useState<File | null>(null);
+  const [pickingFromDevice, setPickingFromDevice] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -186,8 +188,9 @@ export default function ProfileCard({ authenticated }: Props) {
         ) : (
           <div className="pc-avatar pc-placeholder">👤</div>
         )}
+        {/* Issue #178: from this computer, or from the photos on the device. */}
         <label className="pc-btn">
-          Change photo
+          From this computer
           <input
             type="file"
             accept="image/*"
@@ -195,6 +198,13 @@ export default function ProfileCard({ authenticated }: Props) {
             onChange={(e) => { onPickImage(e.target.files?.[0] ?? null); e.target.value = ""; }}
           />
         </label>
+        <button className="pc-btn pc-link" onClick={() => setPickingFromDevice(true)}>From your device</button>
+        {pickingFromDevice && (
+          <DevicePhotoPicker
+            onCancel={() => setPickingFromDevice(false)}
+            onPicked={(file) => { setPickingFromDevice(false); onPickImage(file); }}
+          />
+        )}
         {cropping && <PhotoCropDialog file={cropping} onCancel={() => setCropping(null)} onDone={onCropped} />}
       </div>
 

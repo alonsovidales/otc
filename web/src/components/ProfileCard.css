@@ -93,3 +93,11 @@
 .pc-round {
   border-radius: 50%;
 }
+
+.pc-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+}

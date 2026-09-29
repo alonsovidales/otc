@@ -10,13 +10,15 @@ import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 
 /*
  * The profile photo's circle crop - it mirrors the setup wizard's crop
@@ -55,8 +58,13 @@ private const val MAX_BYTES = 45 * 1024
 private const val MAX_DECODE = 2048
 
 /** Decodes a pick upright (ImageDecoder applies EXIF), longest side <= 2048. Call off the main thread. */
-fun decodeProfilePhoto(context: Context, uri: Uri): Bitmap? = try {
-    ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { dec, info, _ ->
+fun decodeProfilePhoto(context: Context, uri: Uri): Bitmap? = decodeSource(ImageDecoder.createSource(context.contentResolver, uri))
+
+/** The same for a photo fetched from the device (DevicePhotoPicker.kt). Call off the main thread. */
+fun decodeProfilePhoto(bytes: ByteArray): Bitmap? = decodeSource(ImageDecoder.createSource(ByteBuffer.wrap(bytes)))
+
+private fun decodeSource(src: ImageDecoder.Source): Bitmap? = try {
+    ImageDecoder.decodeBitmap(src) { dec, info, _ ->
         val w = info.size.width; val h = info.size.height
         val longest = maxOf(w, h)
         if (longest > MAX_DECODE) {
@@ -125,36 +133,39 @@ fun ProfilePhotoCropDialog(bitmap: Bitmap, onCancel: () -> Unit, onUse: (side: F
         clampPan(bitmap, side, z, p).let { panX = it.x; panY = it.y }
     }
 
-    Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier.fillMaxSize().background(Color(0xFF111214)).padding(16.dp),
-            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("Drag the photo to centre your face", color = Color.White)
-            Canvas(
-                Modifier.padding(vertical = 16.dp).fillMaxWidth().aspectRatio(1f)
-                    .onSizeChanged { side = it.width.toFloat() }
-                    .pointerInput(bitmap) {
-                        detectTransformGestures { centroid, pan, gestureZoom, _ ->
-                            if (side <= 0f) return@detectTransformGestures
-                            zoomTo(zoom * gestureZoom, centroid - Offset(side / 2, side / 2), pan)
-                        }
-                    },
-            ) {
-                if (side <= 0f) return@Canvas
-                drawRect(Color(0xFF1E1F22))
-                drawIntoCanvas { it.nativeCanvas.drawBitmap(bitmap, null, photoRect(bitmap, side, zoom, Offset(panX, panY), size.width), paint) }
-                // Darken everything outside the circle.
-                val circle = Path().apply { addOval(androidx.compose.ui.geometry.Rect(Offset(size.width / 2, size.height / 2), size.width / 2 - 2f)) }
-                clipPath(circle, ClipOp.Difference) { drawRect(Color.Black.copy(alpha = 0.55f)) }
+    // Full-screen, the actions in a top bar and the square sized to what's
+    // left: on a tall or narrow screen (the Fold 7 folded) a full-width
+    // square used to push Cancel / Use photo off the bottom. Back cancels.
+    Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = false)) {
+        Column(Modifier.fillMaxSize().background(Color(0xFF111214)).systemBarsPadding().padding(16.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onCancel) { Text("Cancel") }
+                Spacer(Modifier.weight(1f))
+                Button(onClick = { if (side > 0f) onUse(side, zoom, Offset(panX, panY)) }) { Text("Use photo") }
+            }
+            Text("Drag the photo to centre your face", color = Color.White, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                Canvas(
+                    Modifier.size(minOf(maxWidth, maxHeight))
+                        .onSizeChanged { side = it.width.toFloat() }
+                        .pointerInput(bitmap) {
+                            detectTransformGestures { centroid, pan, gestureZoom, _ ->
+                                if (side <= 0f) return@detectTransformGestures
+                                zoomTo(zoom * gestureZoom, centroid - Offset(side / 2, side / 2), pan)
+                            }
+                        },
+                ) {
+                    if (side <= 0f) return@Canvas
+                    drawRect(Color(0xFF1E1F22))
+                    drawIntoCanvas { it.nativeCanvas.drawBitmap(bitmap, null, photoRect(bitmap, side, zoom, Offset(panX, panY), size.width), paint) }
+                    // Darken everything outside the circle.
+                    val circle = Path().apply { addOval(androidx.compose.ui.geometry.Rect(Offset(size.width / 2, size.height / 2), size.width / 2 - 2f)) }
+                    clipPath(circle, ClipOp.Difference) { drawRect(Color.Black.copy(alpha = 0.55f)) }
+                }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Zoom", color = Color.White, modifier = Modifier.padding(end = 12.dp))
                 Slider(value = zoom, onValueChange = { if (side > 0f) zoomTo(it) }, valueRange = 1f..4f, modifier = Modifier.weight(1f))
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onCancel) { Text("Cancel") }
-                Button(onClick = { if (side > 0f) onUse(side, zoom, Offset(panX, panY)) }, modifier = Modifier.padding(start = 8.dp)) { Text("Use photo") }
             }
         }
     }
