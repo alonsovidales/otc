@@ -49,6 +49,20 @@
                 <data android:scheme="otcsetup" android:host="done" />
             </intent-filter>
         </activity>
+        <!-- Issue #125: push notifications through Firebase Cloud Messaging. -->
+        <service
+            android:name=".push.OTCMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="social" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_otc" />
         <!-- Shares fetched files with viewers/share targets (the Files tab's
              preview, the gallery's share) without exposing the app's storage. -->
         <provider

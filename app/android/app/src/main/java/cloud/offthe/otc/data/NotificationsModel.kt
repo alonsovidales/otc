@@ -31,10 +31,16 @@ object NotificationsModel {
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     private val _loadingList = MutableStateFlow(false)
     private val _pendingDeepLink = MutableStateFlow<DeepLink?>(null)
+    private val _alertsRequested = MutableStateFlow(false)
     val unacknowledgedCount: StateFlow<Int> = _unacknowledgedCount
     val notifications: StateFlow<List<Notification>> = _notifications
     val loadingList: StateFlow<Boolean> = _loadingList
     val pendingDeepLink: StateFlow<DeepLink?> = _pendingDeepLink
+    /** Issue #125: a tapped push asks MainView to show the Alerts tab. */
+    val alertsRequested: StateFlow<Boolean> = _alertsRequested
+
+    fun requestAlerts() { _alertsRequested.value = true }
+    fun consumeAlertsRequest() { _alertsRequested.value = false }
 
     private var pollJob: Job? = null
 

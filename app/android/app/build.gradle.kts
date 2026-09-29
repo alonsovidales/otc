@@ -4,6 +4,15 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Issue #125: google-services.json (the Firebase project's client config)
+// is kept out of git - copy it into app/ before building. Without it the
+// app still builds, just with no push notifications (FCMPush checks).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.warn("app/google-services.json is missing: building without push notifications")
+}
+
 android {
     namespace = "cloud.offthe.otc"
     compileSdk = 36
@@ -67,6 +76,9 @@ dependencies {
     // Issue #127: the EXIF panel's map - OpenStreetMap through osmdroid, no API key.
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("androidx.media3:media3-ui-compose:1.8.0")
+    // Issue #125: push notifications through Firebase Cloud Messaging.
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+    implementation("com.google.firebase:firebase-messaging")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
 }

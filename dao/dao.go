@@ -221,6 +221,39 @@ func (dao *Dao) DeleteApnsToken(token string) (err error) {
 	return
 }
 
+// Issue #125: the Android app's FCM registration tokens, kept exactly
+// like the APNs ones above.
+func (dao *Dao) SaveFcmToken(token string) (err error) {
+	_, err = dao.db.Exec(
+		"insert into `fcm_tokens` (`token`, `created`) values (?, now()) on duplicate key update `token` = values(`token`)",
+		token)
+	return
+}
+
+func (dao *Dao) ListFcmTokens() (tokens []string, err error) {
+	rows, err := dao.db.Query("select `token` from `fcm_tokens`")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var token string
+		if err = rows.Scan(&token); err != nil {
+			return
+		}
+		tokens = append(tokens, token)
+	}
+	return
+}
+
+// DeleteFcmToken removes a token FCM reports as gone (the app was
+// uninstalled, or the token rotated), or one Log Out hands back.
+func (dao *Dao) DeleteFcmToken(token string) (err error) {
+	_, err = dao.db.Exec("delete from `fcm_tokens` where `token` = ?", token)
+	return
+}
+
 func (dao *Dao) AddTags(file *pb.File, tags []imagestagger.RAMTag) {
 	for _, tag := range tags {
 		// Upsert against (hash, tag)'s unique key rather than a plain

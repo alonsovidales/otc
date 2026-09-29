@@ -57,6 +57,9 @@ type Storage interface {
 	DeleteWebPushSubscription(endpoint string) error
 	ListApnsTokens() ([]string, error)
 	DeleteApnsToken(token string) error
+	// Issue #125: the Android app instances (FCM registration tokens).
+	ListFcmTokens() ([]string, error)
+	DeleteFcmToken(token string) error
 }
 
 type Push struct {
@@ -71,17 +74,21 @@ type Push struct {
 	apnsTopic    string
 	subscriberID string
 
-	// RelayAPNs, if set, is asked to deliver an iOS notification instead of
-	// this process sending it to APNs itself. The device sets it (see
-	// websocket.relayAPNsToBridge): the APNs auth key is the developer
-	// team's private key and must never be on a device, so a device hands
-	// the title/body to the bridge, which holds the key and this device's
-	// own tokens. Returning false means "not relayed" (no bridge
-	// configured, or it couldn't be reached) and the local client, if any,
-	// is tried instead - which on a device is normally nil, so the
-	// notification is simply not delivered to iOS. The bridge leaves this
-	// nil and sends directly.
-	RelayAPNs func(title, body string) bool
+	// nil until/unless [fcm] is configured (see loadFcm, issue #125).
+	fcm *fcmSender
+
+	// RelayMobile, if set, is asked to deliver a phone notification (iOS
+	// and Android) instead of this process sending it to APNs/FCM itself.
+	// The device sets it (see websocket.relayMobileToBridge): the APNs auth
+	// key and the Firebase service account are the project's private keys
+	// and must never be on a device, so a device hands the title/body to
+	// the bridge, which holds the keys and this device's own tokens.
+	// Returning false means "not relayed" (no bridge configured, or it
+	// couldn't be reached) and the local clients, if any, are tried
+	// instead - which on a device are normally nil, so the notification is
+	// simply not delivered to phones. The bridge leaves this nil and sends
+	// directly.
+	RelayMobile func(title, body string) bool
 
 	// OnChange, if set, is called after a stale subscription/token is
 	// pruned (see sendWebPush/sendApns) - i.e. whenever storage's
@@ -107,6 +114,7 @@ func Init(s Storage) (p *Push, err error) {
 		return nil, err
 	}
 	p.loadApns()
+	p.loadFcm()
 
 	return p, nil
 }
@@ -155,7 +163,7 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 func (p *Push) loadApns() {
 	if !cfg.HasSection("apns") {
 		// Expected on a device: iOS pushes go through the bridge (see
-		// RelayAPNs). Only the bridge itself carries an [apns] section.
+		// RelayMobile). Only the bridge itself carries an [apns] section.
 		log.Info("No [apns] config section - iOS pushes will be relayed through the bridge if one is configured")
 		return
 	}
@@ -229,7 +237,7 @@ func (p *Push) NotifyFriendshipAccepted(friendName string) {
 // push-delivery failure to.
 func (p *Push) Notify(title, body string) {
 	p.sendWebPush(title, body)
-	p.sendApns(title, body)
+	p.sendMobile(title, body)
 }
 
 func (p *Push) sendWebPush(title, body string) {
@@ -278,15 +286,20 @@ func (p *Push) sendWebPush(title, body string) {
 	}
 }
 
-// NotifyAPNs sends to iOS only - what the bridge does on a device's behalf
-// (see BridgeNotify in messages.proto), Web Push having stayed with the
-// device that owns the VAPID keypair.
-func (p *Push) NotifyAPNs(title, body string) { p.sendApns(title, body) }
+// NotifyMobile sends to phones only (iOS and Android) - what the bridge
+// does on a device's behalf (see BridgeNotify in messages.proto), Web Push
+// having stayed with the device that owns the VAPID keypair.
+func (p *Push) NotifyMobile(title, body string) { p.sendMobile(title, body) }
 
-func (p *Push) sendApns(title, body string) {
-	if p.RelayAPNs != nil && p.RelayAPNs(title, body) {
+func (p *Push) sendMobile(title, body string) {
+	if p.RelayMobile != nil && p.RelayMobile(title, body) {
 		return
 	}
+	p.sendApns(title, body)
+	p.sendFcm(title, body)
+}
+
+func (p *Push) sendApns(title, body string) {
 	if p.apnsClient == nil {
 		return
 	}

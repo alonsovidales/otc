@@ -242,7 +242,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// from the background friend-sync loop and shouldn't block on a
 	// bridge round-trip.
 	ps.OnChange = func() { go mg.syncPushRegistrationsToBridge() }
-	ps.RelayAPNs = mg.relayAPNsToBridge
+	ps.RelayMobile = mg.relayMobileToBridge
 
 	// Issue #103: a local-only user's instance has no bridge-addr at all
 	// (see supervisor.bridgeAddrFor), and dialing "wss:///ws" forever
@@ -597,13 +597,14 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 // surface the error to — the next successful sync (the very next
 // register, or this device's own next restart) naturally catches the
 // bridge back up.
-// relayAPNsToBridge asks the bridge to deliver an iOS push to this device's
+// relayMobileToBridge asks the bridge to deliver a phone push (iOS through
+// APNs, Android through FCM - issue #125) to this device's
 // own registered phones - see BridgeNotify's doc comment in messages.proto
 // for why the key never lives here and why no tokens are sent. Same one-off
 // connection pattern as syncPushRegistrationsToBridge below. Returns
 // whether the bridge accepted it; false lets push fall back (to nothing,
 // on a device without its own key - the intended state).
-func (mg *Manager) relayAPNsToBridge(title, body string) bool {
+func (mg *Manager) relayMobileToBridge(title, body string) bool {
 	if !bridgeConfigured() {
 		return false
 	}
@@ -667,6 +668,13 @@ func (mg *Manager) syncPushRegistrationsToBridge() {
 		log.Error("error listing APNs tokens for bridge push-registrations sync:", err)
 		return
 	}
+	// Issue #125. Not fatal: a device whose schema doesn't have the table
+	// yet must still keep its iOS and web registrations in sync.
+	fcmTokens, err := mg.dao.ListFcmTokens()
+	if err != nil {
+		log.Error("error listing FCM tokens for bridge push-registrations sync:", err)
+		fcmTokens = nil
+	}
 	webPushSubs, err := mg.dao.ListWebPushSubscriptions()
 	if err != nil {
 		log.Error("error listing web push subscriptions for bridge push-registrations sync:", err)
@@ -701,6 +709,7 @@ func (mg *Manager) syncPushRegistrationsToBridge() {
 				Domain:          mg.settings.Domain,
 				Secret:          mg.settings.BridgeSecret,
 				ApnsTokens:      apnsTokens,
+				FcmTokens:       fcmTokens,
 				WebPushSubs:     pbSubs,
 				VapidPublicKey:  vapidPub,
 				VapidPrivateKey: vapidPriv,
@@ -2635,6 +2644,29 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		log.Info("Unregister web push subscription")
 		if err := ch.mg.dao.DeleteWebPushSubscription(p.ReqUnregisterWebPush.Endpoint); err != nil {
 			log.Error("error unregistering web push subscription:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			go ch.mg.syncPushRegistrationsToBridge()
+		}
+
+	// Issue #125: the Android app's FCM token, handled like the APNs one.
+	case *pb.ReqEnvelope_ReqRegisterFcmToken:
+		log.Info("Register FCM token")
+		if err := ch.mg.dao.SaveFcmToken(p.ReqRegisterFcmToken.Token); err != nil {
+			log.Error("error registering FCM token:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			go ch.mg.syncPushRegistrationsToBridge()
+		}
+
+	case *pb.ReqEnvelope_ReqUnregisterFcmToken:
+		log.Info("Unregister FCM token")
+		if err := ch.mg.dao.DeleteFcmToken(p.ReqUnregisterFcmToken.Token); err != nil {
+			log.Error("error unregistering FCM token:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()
 		} else {

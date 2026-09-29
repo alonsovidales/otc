@@ -58,7 +58,16 @@ fun MainView(secrets: SecretsStore) {
     val lastError by OTCConnection.lastError.collectAsState()
     val connectionFailed by OTCConnection.connectionFailed.collectAsState()
 
+    val alertsRequested by NotificationsModel.alertsRequested.collectAsState()
+    val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+
     LaunchedEffect(deepLink) { if (deepLink != null) selected = 1 }
+    // Issue #125: a tapped push lands on Alerts.
+    LaunchedEffect(alertsRequested) {
+        if (alertsRequested) { selected = 0; NotificationsModel.consumeAlertsRequest() }
+    }
+    // Issue #125: signed in to a device - hand it this phone's push token.
+    LaunchedEffect(Unit) { cloud.offthe.otc.push.FCMPush.register(appContext) }
     LaunchedEffect(selected) { built.value = built.value + selected }
 
     Scaffold(bottomBar = {
@@ -95,7 +104,7 @@ fun MainView(secrets: SecretsStore) {
             val code = statusCode
             if (code != null) {
                 val context = androidx.compose.ui.platform.LocalContext.current
-                DeviceUnreachableView(message = lastError ?: "", code = code, onClose = { logOut(context, secrets) })
+                DeviceUnreachableView(message = lastError ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false) })
             } else if (connectionFailed) {
                 ConnectionProblemView(secrets = secrets)
             }

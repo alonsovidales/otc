@@ -21,6 +21,14 @@ type fakeStorage struct {
 	tokens              []string
 	deletedEndpoints    []string
 	deletedTokens       []string
+	fcmTokens           []string
+	deletedFcmTokens    []string
+}
+
+func (f *fakeStorage) ListFcmTokens() ([]string, error) { return f.fcmTokens, nil }
+func (f *fakeStorage) DeleteFcmToken(token string) error {
+	f.deletedFcmTokens = append(f.deletedFcmTokens, token)
+	return nil
 }
 
 func (f *fakeStorage) GetVapidKeys() (string, string, error) { return f.vapidPub, f.vapidPriv, nil }

@@ -569,6 +569,12 @@ apply_schema_migrations() {
       KEY (hash),
       KEY (person_id)
     ) ENGINE=InnoDB;
+    -- Issue #125: the Android app's FCM tokens (see db.sql).
+    CREATE TABLE IF NOT EXISTS fcm_tokens (
+      `token` varchar(512) NOT NULL,
+      `created` datetime NOT NULL,
+      PRIMARY KEY (`token`)
+    ) ENGINE=InnoDB;
 SQL
     # Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
     # the face recognition block above.

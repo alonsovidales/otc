@@ -17,3 +17,7 @@ app/android/local.properties
 app/android/.idea/
 app/android/*.iml
 app/android/app/src/main/proto-gen/
+
+# Firebase client config (#125) - kept out of git at the owner's request;
+# place it here by hand before building the Android app.
+app/android/app/google-services.json

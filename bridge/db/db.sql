@@ -188,6 +188,15 @@ create table push_apns_tokens
   key (`domain`)
 ) engine=InnoDB;
 
+-- Issue #125: the Android app instances (FCM registration tokens).
+create table push_fcm_tokens
+(
+  `domain` varchar(150) not null,
+  `token`  varchar(512) not null,
+
+  key (`domain`)
+) engine=InnoDB;
+
 create table push_web_subs
 (
   `domain`   varchar(150) not null,

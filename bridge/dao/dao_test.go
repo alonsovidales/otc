@@ -61,6 +61,12 @@ func TestSetPushRegistrationsReplacesWholeSnapshotInOneTransaction(t *testing.T)
 	mock.ExpectExec("insert into `push_apns_tokens`").
 		WithArgs("pit.otc", "tok-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `push_fcm_tokens` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("insert into `push_fcm_tokens`").
+		WithArgs("pit.otc", "fcm-1").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("delete from `push_web_subs` where `domain` = \\?").
 		WithArgs("pit.otc").
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -72,6 +78,7 @@ func TestSetPushRegistrationsReplacesWholeSnapshotInOneTransaction(t *testing.T)
 	d := NewWithDB(db)
 	err = d.SetPushRegistrations("pit.otc", "pub-key", "priv-key",
 		[]string{"tok-1"},
+		[]string{"fcm-1"},
 		[]push.WebPushSubscription{{Endpoint: "https://push.example/ep", P256dh: "p256dh-val", Auth: "auth-val"}},
 	)
 	if err != nil {
@@ -102,7 +109,7 @@ func TestSetPushRegistrationsRollsBackOnFailure(t *testing.T) {
 	mock.ExpectRollback()
 
 	d := NewWithDB(db)
-	if err := d.SetPushRegistrations("pit.otc", "pub-key", "priv-key", nil, nil); err == nil {
+	if err := d.SetPushRegistrations("pit.otc", "pub-key", "priv-key", nil, nil, nil); err == nil {
 		t.Fatal("expected an error when a statement mid-transaction fails")
 	}
 

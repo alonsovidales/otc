@@ -10,10 +10,13 @@ import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 /**
  * Log Out, shared by Settings and the "device isn't available" card (whose
@@ -24,17 +27,23 @@ import cloud.offthe.otc.ui.social.SocialFeedViewModel
  * activity-scoped view models are the one thing a wipe of the stores
  * can't reach).
  */
-fun logOut(context: Context, secrets: SecretsStore) {
+fun logOut(context: Context, secrets: SecretsStore, unregisterPush: Boolean = true) {
     PhotoSync.cancel() // a sync in progress must not outlive the session
-    NotificationsModel.reset()
-    UploadModel.reset()
-    SocialFeedViewModel.reset()
-    OTCConnection.reset()
-    MediaStream.reset()
-    SyncScheduler.cancel()
-    AssetSyncCache.clear()
-    secrets.logOut()
-    val activity = context as? Activity ?: return
-    activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
-    activity.finish()
+    MainScope().launch {
+        // Issue #125 (#131 on iOS): tell the device to stop pushing to this
+        // phone first, best effort and within seconds. Skipped when the
+        // device can't be reached anyway.
+        if (unregisterPush) FCMPush.unregister(context.applicationContext)
+        NotificationsModel.reset()
+        UploadModel.reset()
+        SocialFeedViewModel.reset()
+        OTCConnection.reset()
+        MediaStream.reset()
+        SyncScheduler.cancel()
+        AssetSyncCache.clear()
+        secrets.logOut()
+        val activity = context as? Activity ?: return@launch
+        activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        activity.finish()
+    }
 }

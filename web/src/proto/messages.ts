@@ -1446,6 +1446,19 @@ export interface UnregisterApnsToken {
   token: string;
 }
 
+/**
+ * Issue #125: the Android counterparts of the two above - the app's
+ * Firebase Cloud Messaging registration token. Both answer with the
+ * generic Ack. The bridge holds the Firebase key and does the sending.
+ */
+export interface RegisterFcmToken {
+  token: string;
+}
+
+export interface UnregisterFcmToken {
+  token: string;
+}
+
 export interface UnregisterWebPush {
   endpoint: string;
 }
@@ -1563,6 +1576,8 @@ export interface UpdatePushRegistrations {
    */
   vapidPublicKey: string;
   vapidPrivateKey: string;
+  /** Issue #125: the Android app instances, sent through FCM. */
+  fcmTokens: string[];
 }
 
 export interface WebPushSub {
@@ -2088,6 +2103,10 @@ export interface ReqEnvelope {
     { $case: "reqGetBridgeAccess"; reqGetBridgeAccess: ReqGetBridgeAccess }
     | { $case: "reqBridgeSignIn"; reqBridgeSignIn: ReqBridgeSignIn }
     | { $case: "reqEnableBridge"; reqEnableBridge: ReqEnableBridge }
+    | //
+    /** Issue #125. Both answer with the generic Ack. */
+    { $case: "reqRegisterFcmToken"; reqRegisterFcmToken: RegisterFcmToken }
+    | { $case: "reqUnregisterFcmToken"; reqUnregisterFcmToken: UnregisterFcmToken }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -10641,6 +10660,122 @@ export const UnregisterApnsToken: MessageFns<UnregisterApnsToken> = {
   },
 };
 
+function createBaseRegisterFcmToken(): RegisterFcmToken {
+  return { token: "" };
+}
+
+export const RegisterFcmToken: MessageFns<RegisterFcmToken> = {
+  encode(message: RegisterFcmToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RegisterFcmToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRegisterFcmToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RegisterFcmToken {
+    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
+  },
+
+  toJSON(message: RegisterFcmToken): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RegisterFcmToken>, I>>(base?: I): RegisterFcmToken {
+    return RegisterFcmToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RegisterFcmToken>, I>>(object: I): RegisterFcmToken {
+    const message = createBaseRegisterFcmToken();
+    message.token = object.token ?? "";
+    return message;
+  },
+};
+
+function createBaseUnregisterFcmToken(): UnregisterFcmToken {
+  return { token: "" };
+}
+
+export const UnregisterFcmToken: MessageFns<UnregisterFcmToken> = {
+  encode(message: UnregisterFcmToken, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UnregisterFcmToken {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUnregisterFcmToken();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UnregisterFcmToken {
+    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
+  },
+
+  toJSON(message: UnregisterFcmToken): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UnregisterFcmToken>, I>>(base?: I): UnregisterFcmToken {
+    return UnregisterFcmToken.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UnregisterFcmToken>, I>>(object: I): UnregisterFcmToken {
+    const message = createBaseUnregisterFcmToken();
+    message.token = object.token ?? "";
+    return message;
+  },
+};
+
 function createBaseUnregisterWebPush(): UnregisterWebPush {
   return { endpoint: "" };
 }
@@ -11318,6 +11453,7 @@ function createBaseUpdatePushRegistrations(): UpdatePushRegistrations {
     webPushSubs: [],
     vapidPublicKey: "",
     vapidPrivateKey: "",
+    fcmTokens: [],
   };
 }
 
@@ -11343,6 +11479,9 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
     }
     if (message.vapidPrivateKey !== "") {
       writer.uint32(58).string(message.vapidPrivateKey);
+    }
+    for (const v of message.fcmTokens) {
+      writer.uint32(66).string(v!);
     }
     return writer;
   },
@@ -11410,6 +11549,14 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
           message.vapidPrivateKey = reader.string();
           continue;
         }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.fcmTokens.push(reader.string());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11432,6 +11579,9 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
         : [],
       vapidPublicKey: isSet(object.vapidPublicKey) ? globalThis.String(object.vapidPublicKey) : "",
       vapidPrivateKey: isSet(object.vapidPrivateKey) ? globalThis.String(object.vapidPrivateKey) : "",
+      fcmTokens: globalThis.Array.isArray(object?.fcmTokens)
+        ? object.fcmTokens.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
@@ -11458,6 +11608,9 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
     if (message.vapidPrivateKey !== "") {
       obj.vapidPrivateKey = message.vapidPrivateKey;
     }
+    if (message.fcmTokens?.length) {
+      obj.fcmTokens = message.fcmTokens;
+    }
     return obj;
   },
 
@@ -11473,6 +11626,7 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
     message.webPushSubs = object.webPushSubs?.map((e) => WebPushSub.fromPartial(e)) || [];
     message.vapidPublicKey = object.vapidPublicKey ?? "";
     message.vapidPrivateKey = object.vapidPrivateKey ?? "";
+    message.fcmTokens = object.fcmTokens?.map((e) => e) || [];
     return message;
   },
 };
@@ -15344,6 +15498,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqEnableBridge":
         ReqEnableBridge.encode(message.payload.reqEnableBridge, writer.uint32(882).fork()).join();
         break;
+      case "reqRegisterFcmToken":
+        RegisterFcmToken.encode(message.payload.reqRegisterFcmToken, writer.uint32(890).fork()).join();
+        break;
+      case "reqUnregisterFcmToken":
+        UnregisterFcmToken.encode(message.payload.reqUnregisterFcmToken, writer.uint32(898).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -16291,6 +16451,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 111: {
+          if (tag !== 890) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRegisterFcmToken",
+            reqRegisterFcmToken: RegisterFcmToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 112: {
+          if (tag !== 898) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqUnregisterFcmToken",
+            reqUnregisterFcmToken: UnregisterFcmToken.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -16636,6 +16818,13 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqBridgeSignIn", reqBridgeSignIn: ReqBridgeSignIn.fromJSON(object.reqBridgeSignIn) }
         : isSet(object.reqEnableBridge)
         ? { $case: "reqEnableBridge", reqEnableBridge: ReqEnableBridge.fromJSON(object.reqEnableBridge) }
+        : isSet(object.reqRegisterFcmToken)
+        ? { $case: "reqRegisterFcmToken", reqRegisterFcmToken: RegisterFcmToken.fromJSON(object.reqRegisterFcmToken) }
+        : isSet(object.reqUnregisterFcmToken)
+        ? {
+          $case: "reqUnregisterFcmToken",
+          reqUnregisterFcmToken: UnregisterFcmToken.fromJSON(object.reqUnregisterFcmToken),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -16858,6 +17047,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqBridgeSignIn = ReqBridgeSignIn.toJSON(message.payload.reqBridgeSignIn);
     } else if (message.payload?.$case === "reqEnableBridge") {
       obj.reqEnableBridge = ReqEnableBridge.toJSON(message.payload.reqEnableBridge);
+    } else if (message.payload?.$case === "reqRegisterFcmToken") {
+      obj.reqRegisterFcmToken = RegisterFcmToken.toJSON(message.payload.reqRegisterFcmToken);
+    } else if (message.payload?.$case === "reqUnregisterFcmToken") {
+      obj.reqUnregisterFcmToken = UnregisterFcmToken.toJSON(message.payload.reqUnregisterFcmToken);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -17695,6 +17888,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqEnableBridge",
             reqEnableBridge: ReqEnableBridge.fromPartial(object.payload.reqEnableBridge),
+          };
+        }
+        break;
+      }
+      case "reqRegisterFcmToken": {
+        if (object.payload?.reqRegisterFcmToken !== undefined && object.payload?.reqRegisterFcmToken !== null) {
+          message.payload = {
+            $case: "reqRegisterFcmToken",
+            reqRegisterFcmToken: RegisterFcmToken.fromPartial(object.payload.reqRegisterFcmToken),
+          };
+        }
+        break;
+      }
+      case "reqUnregisterFcmToken": {
+        if (object.payload?.reqUnregisterFcmToken !== undefined && object.payload?.reqUnregisterFcmToken !== null) {
+          message.payload = {
+            $case: "reqUnregisterFcmToken",
+            reqUnregisterFcmToken: UnregisterFcmToken.fromPartial(object.payload.reqUnregisterFcmToken),
           };
         }
         break;

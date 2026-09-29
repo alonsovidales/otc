@@ -2,6 +2,7 @@
 package cloud.offthe.otc
 
 import android.app.Application
+import cloud.offthe.otc.push.FCMPush
 
 // Process-wide context for the singletons that need one (SecretsStore's
 // encrypted preferences, WorkManager). The counterpart of what the iOS
@@ -10,6 +11,8 @@ class OTCApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        // Issue #125: before any push can arrive.
+        FCMPush.createChannel(this)
     }
 
     companion object {

@@ -436,6 +436,12 @@ func (s *domainPushStorage) ListApnsTokens() ([]string, error) {
 func (s *domainPushStorage) DeleteApnsToken(t string) error {
 	return s.dao.DeleteApnsTokenForDomain(s.domain, t)
 }
+func (s *domainPushStorage) ListFcmTokens() ([]string, error) {
+	return s.dao.ListFcmTokensForDomain(s.domain)
+}
+func (s *domainPushStorage) DeleteFcmToken(t string) error {
+	return s.dao.DeleteFcmTokenForDomain(s.domain, t)
+}
 
 // sendOfflineAlert (issue #62) is called once cOfflineAlertGrace has
 // elapsed with domain's liveCount still at zero - see
@@ -1071,7 +1077,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = err.Error()
 				} else {
-					ps.NotifyAPNs(req.Title, req.Body)
+					ps.NotifyMobile(req.Title, req.Body)
 					resp.Payload = &pb.RespEnvelope_RespBridgeNotifyAck{
 						RespBridgeNotifyAck: &pb.BridgeNotifyAck{Ok: true},
 					}
@@ -1111,7 +1117,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					for _, s := range req.WebPushSubs {
 						webSubs = append(webSubs, push.WebPushSubscription{Endpoint: s.Endpoint, P256dh: s.P256Dh, Auth: s.Auth})
 					}
-					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, req.ApnsTokens, webSubs); err != nil {
+					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, req.ApnsTokens, req.FcmTokens, webSubs); err != nil {
 						log.Error("error storing push registrations:", err)
 						resp.Error = true
 						resp.ErrorMessage = err.Error()

@@ -958,6 +958,17 @@ message UnregisterApnsToken {
   string token = 1;
 }
 
+// Issue #125: the Android counterparts of the two above - the app's
+// Firebase Cloud Messaging registration token. Both answer with the
+// generic Ack. The bridge holds the Firebase key and does the sending.
+message RegisterFcmToken {
+  string token = 1;
+}
+
+message UnregisterFcmToken {
+  string token = 1;
+}
+
 message UnregisterWebPush {
   string endpoint = 1;
 }
@@ -1069,6 +1080,8 @@ message UpdatePushRegistrations {
   // own, or every send would be rejected as a signature mismatch.
   string vapid_public_key = 6;
   string vapid_private_key = 7;
+  // Issue #125: the Android app instances, sent through FCM.
+  repeated string fcm_tokens = 8;
 }
 
 message WebPushSub {
@@ -1541,6 +1554,9 @@ message ReqEnvelope {
     ReqGetBridgeAccess req_get_bridge_access = 108;
     ReqBridgeSignIn req_bridge_sign_in = 109;
     ReqEnableBridge req_enable_bridge = 110;
+    // Issue #125. Both answer with the generic Ack.
+    RegisterFcmToken req_register_fcm_token = 111;
+    UnregisterFcmToken req_unregister_fcm_token = 112;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

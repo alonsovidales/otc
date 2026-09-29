@@ -365,6 +365,16 @@ create table apns_tokens
   primary key (`token`)
 ) engine=InnoDB;
 
+-- Issue #125: the Android app's Firebase Cloud Messaging tokens (they run
+-- to about 160 characters; FCM documents no maximum).
+create table fcm_tokens
+(
+  `token` varchar(512) not null,
+  `created` datetime not null,
+
+  primary key (`token`)
+) engine=InnoDB;
+
 -- Issue #52: face recognition ("People" search), humans only. A person is
 -- just a name attached to a set of face detections - never the raw
 -- embeddings themselves, deliberately: if the detection/recognition models

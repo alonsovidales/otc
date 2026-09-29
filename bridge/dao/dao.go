@@ -472,7 +472,7 @@ func (dao *Dao) GetAuthEvents(domain, q string, limit, offset int) (events []Aut
 // db.sql for why this is delete-all-then-reinsert rather than a row-by-row
 // reconcile. All in one transaction so a client of ListWebPushSubscriptions-
 // ForDomain/ListApnsTokensForDomain never observes a half-replaced set.
-func (dao *Dao) SetPushRegistrations(domain, vapidPub, vapidPriv string, apnsTokens []string, webSubs []push.WebPushSubscription) (err error) {
+func (dao *Dao) SetPushRegistrations(domain, vapidPub, vapidPriv string, apnsTokens, fcmTokens []string, webSubs []push.WebPushSubscription) (err error) {
 	tx, err := dao.db.Begin()
 	if err != nil {
 		return err
@@ -492,6 +492,15 @@ func (dao *Dao) SetPushRegistrations(domain, vapidPub, vapidPriv string, apnsTok
 	for _, t := range apnsTokens {
 		if _, err = tx.Exec("insert into `push_apns_tokens` (`domain`, `token`) values (?, ?)", domain, t); err != nil {
 			return fmt.Errorf("inserting apns token: %w", err)
+		}
+	}
+
+	if _, err = tx.Exec("delete from `push_fcm_tokens` where `domain` = ?", domain); err != nil {
+		return fmt.Errorf("clearing fcm tokens: %w", err)
+	}
+	for _, t := range fcmTokens {
+		if _, err = tx.Exec("insert into `push_fcm_tokens` (`domain`, `token`) values (?, ?)", domain, t); err != nil {
+			return fmt.Errorf("inserting fcm token: %w", err)
 		}
 	}
 
@@ -583,6 +592,32 @@ func (dao *Dao) ListApnsTokensForDomain(domain string) (tokens []string, err err
 
 func (dao *Dao) DeleteApnsTokenForDomain(domain, token string) (err error) {
 	_, err = dao.db.Exec("delete from `push_apns_tokens` where `domain` = ? and `token` = ?", domain, token)
+	return
+}
+
+// ListFcmTokensForDomain and DeleteFcmTokenForDomain: issue #125's Android
+// tokens, as the APNs pair above.
+func (dao *Dao) ListFcmTokensForDomain(domain string) (tokens []string, err error) {
+	rows, err := dao.db.Query("select `token` from `push_fcm_tokens` where `domain` = ?", domain)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tokens = []string{}
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+
+	return tokens, rows.Err()
+}
+
+func (dao *Dao) DeleteFcmTokenForDomain(domain, token string) (err error) {
+	_, err = dao.db.Exec("delete from `push_fcm_tokens` where `domain` = ? and `token` = ?", domain, token)
 	return
 }
 
