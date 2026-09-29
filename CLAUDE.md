@@ -367,12 +367,18 @@ engine (a flock in the config dir); a tray started next to the service is a view
 edit goes through config.json, which the engine watches - so the CLI, the tray and the service
 never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
 Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
-iOS/Android. Every synced folder is **two-way**: a folder added from the computer
-("Folder on This Mac/Computer") and one picked on the device only differ in their first pass
+iOS/Android. There are three kinds of folder, each explained in the app (the Mac's
+`AddFolderChooser` with an (i) per option; the tray's tooltips and "What Do These Do?"):
+**backup** (one way, `TrackedFolder` / `config.Folder{OneWay: true}`, `otc-sync backup`: new,
+changed and deleted files go up; nothing on the device ever changes the folder), and two
+**two-way** kinds - from the computer or from the device - which only differ in their first pass
 (what is only on one side is copied to the other; with no sync record yet nothing is ever
-deleted). Upload-only "local folders" from older versions are migrated at start
-(`SyncModel.migrateLocalFolders`, `engine.migrateFolders` - same id, same device path), and
-the sync record (relative path -> hash after the last pass) is saved per folder
+deleted). Both directions have a mass-deletion guard (more than 20 files and a quarter of the
+folder in one pass): a two-way folder restores what the device lost instead of deleting it
+locally, a backup keeps on the device what vanished locally; the Mac moves what it deletes to
+the Trash. Upload-only folders from before backups were a choice were migrated to two-way once
+(`SyncModel.migrateLocalFolders`, gated by `sync.folders.migratedToTwoWay`; `engine.migrateFolders`
+skips `OneWay`), and the sync record (relative path -> hash after the last pass) is saved per folder
 (`synced/<id>.json`), so a delete made while the app was closed still propagates. Issue #134: both send a file's own creation and modification times with
 `UploadFile`/`LinkFile` (`created`, `modified`; the device keeps them as the row's dates instead
 of the upload time) and set them back on a downloaded file (`SyncModel.download` /

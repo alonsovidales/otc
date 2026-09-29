@@ -23,8 +23,19 @@ import (
 // (older versions, `otc-sync add`, the tray's "Add Local Folder") into
 // two-way folders on the same device path, keeping their ids - and with
 // them their hash caches - and saves config.json when it changed anything.
+//
+// One-way backups (OneWay) are a choice again and stay as they are.
 func (e *Engine) migrateFolders(cfg *config.Config) {
-	if len(cfg.Folders) == 0 {
+	var backups []config.Folder
+	migrate := false
+	for _, f := range cfg.Folders {
+		if f.OneWay {
+			backups = append(backups, f)
+		} else {
+			migrate = true
+		}
+	}
+	if !migrate {
 		return
 	}
 	have := map[string]bool{}
@@ -32,7 +43,7 @@ func (e *Engine) migrateFolders(cfg *config.Config) {
 		have[r.ID] = true
 	}
 	for _, f := range cfg.Folders {
-		if have[f.ID] {
+		if f.OneWay || have[f.ID] {
 			continue
 		}
 		cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{
@@ -40,7 +51,7 @@ func (e *Engine) migrateFolders(cfg *config.Config) {
 		})
 		log.Printf("folder %s is two-way now (%s)", f.Path, e.remotePathFor(f.Path))
 	}
-	cfg.Folders = nil
+	cfg.Folders = backups
 	if err := cfg.Save(); err != nil {
 		log.Printf("could not save the migrated folders: %v", err)
 	}

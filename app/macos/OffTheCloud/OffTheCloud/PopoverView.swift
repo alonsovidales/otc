@@ -22,6 +22,9 @@ struct PopoverView: View {
     // Issue #47: remote → local sync — browse the device's tree, then pick
     // a local destination for it.
     @State private var showRemotePicker = false
+    // The three ways to add a folder, each with its explanation - inline,
+    // for the same reason as the remote picker below.
+    @State private var showAddChooser = false
 
     var body: some View {
         // Issue #47: swapped in *inline*, not as a .sheet() — a sheet
@@ -32,7 +35,14 @@ struct PopoverView: View {
         // transition. Staying inside the one already-open, already-key
         // popover window (same trick showSettings already uses below)
         // sidesteps the whole problem.
-        if showRemotePicker {
+        if showAddChooser {
+            AddFolderChooser(
+                onBackup: { showAddChooser = false; sync.addBackupFolder() },
+                onSyncLocal: { showAddChooser = false; sync.addFolder() },
+                onSyncDevice: { showAddChooser = false; showRemotePicker = true },
+                onCancel: { showAddChooser = false }
+            )
+        } else if showRemotePicker {
             RemoteFolderPickerView(
                 onChoose: { remotePath in
                     showRemotePicker = false
@@ -110,19 +120,12 @@ struct PopoverView: View {
             .padding(.vertical, 4)
 
             HStack {
-                Menu {
-                    // Both kinds sync both ways; they only differ in which
-                    // side the first pass copies from.
-                    Button("Folder on This Mac…") {
-                        sync.addFolder()
-                    }
-                    Button("Folder on the Device…") {
-                        showRemotePicker = true
-                    }
+                Button {
+                    showAddChooser = true
                 } label: {
-                    Label("Add Folder", systemImage: "plus.circle.fill")
+                    Label("Add Folder…", systemImage: "plus.circle.fill")
                 }
-                .menuStyle(.borderlessButton)
+                .buttonStyle(.borderless)
                 .fixedSize()
                 Spacer()
                 // App Store review: a menu bar app (LSUIElement - no Dock
@@ -172,6 +175,8 @@ struct PopoverView: View {
     }
 }
 
+// A one-way backup: an up-arrow badge (the two-way rows have circling
+// arrows) and "Backup" under the name.
 struct FolderRow: View {
     let folder: SyncModel.TrackedFolder
     let remove: () -> Void
@@ -180,10 +185,23 @@ struct FolderRow: View {
         HStack(spacing: 8) {
             Image(systemName: "folder.fill")
                 .foregroundStyle(Color.accentColor)
-            Text(folder.url.lastPathComponent)
-                .lineLimit(1)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.orange)
+                        .background(Circle().fill(.white))
+                        .offset(x: 3, y: 3)
+                }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(folder.url.lastPathComponent)
+                    .lineLimit(1)
+                Text("Backup · this Mac → device")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
             Spacer()
-            FolderStateView(state: folder.state, watchingLabel: "Watching")
+            FolderStateView(state: folder.state, watchingLabel: "Backed up")
             Button(role: .destructive) {
                 remove()
             } label: {
@@ -475,5 +493,81 @@ struct DeviceAddressFields: View {
                 customAddress = true
             }
         }
+    }
+}
+
+/// "Add Folder": the three kinds of folder, each with an (i) that says in
+/// plain words what it does - the old menu's two entries didn't, and
+/// every folder being two-way came as a surprise.
+struct AddFolderChooser: View {
+    let onBackup: () -> Void
+    let onSyncLocal: () -> Void
+    let onSyncDevice: () -> Void
+    let onCancel: () -> Void
+    @State private var open: Int?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Add a folder").font(.headline)
+                Spacer()
+                Button("Cancel", action: onCancel).buttonStyle(.borderless)
+            }
+            option(0, icon: "arrow.up.circle.fill", tint: .orange,
+                   title: "Back up a folder from this Mac",
+                   subtitle: "One way: this Mac → device",
+                   info: "This Mac is the original. New and changed files are copied to the device, and files you delete here are deleted there too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
+                   action: onBackup)
+            option(1, icon: "arrow.triangle.2.circlepath.circle.fill", tint: .blue,
+                   title: "Sync a folder from this Mac",
+                   subtitle: "Two ways: starts from this Mac",
+                   info: "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes.",
+                   action: onSyncLocal)
+            option(2, icon: "arrow.down.circle.fill", tint: .green,
+                   title: "Sync a folder from the device",
+                   subtitle: "Two ways: starts from the device",
+                   info: "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer.",
+                   action: onSyncDevice)
+        }
+    }
+
+    private func option(_ i: Int, icon: String, tint: Color, title: String, subtitle: String, info: String, action: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Button(action: action) {
+                    HStack(spacing: 10) {
+                        Image(systemName: icon)
+                            .font(.title3)
+                            .foregroundStyle(tint)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(title)
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Button {
+                    open = open == i ? nil : i
+                } label: {
+                    Image(systemName: open == i ? "info.circle.fill" : "info.circle")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("What this does")
+            }
+            if open == i {
+                Text(info)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 34)
+            }
+        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 }

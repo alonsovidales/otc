@@ -844,6 +844,25 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 	}
 
+	// Mass-deletion guard for backups (as SyncModel.reconcile): a folder
+	// that suddenly looks empty here - a drive not plugged in, a folder
+	// being moved - would empty its backup on the device. Past 20 files and
+	// a quarter of the backup, nothing is deleted there.
+	stale := 0
+	for rp := range remoteMap {
+		if !localRemote[rp] {
+			stale++
+		}
+	}
+	if stale > massDeleteMin && stale*4 > max(len(remoteMap), 1) {
+		log.Printf("backup %s: %d files gone here at once - not deleting them on the device", f.Path, stale)
+		e.mu.Lock()
+		e.remoteHashes[f.ID] = remoteMap
+		e.mu.Unlock()
+		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d files are gone from this folder - kept on the device. Delete them there if that was meant.", stale)})
+
+		return
+	}
 	for rp := range remoteMap {
 		if localRemote[rp] {
 			continue

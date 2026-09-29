@@ -41,6 +41,26 @@ func TestMigrateFoldersToTwoWay(t *testing.T) {
 	}
 }
 
+// One-way backups stay one-way; only the other folders become two-way.
+func TestMigrateKeepsBackups(t *testing.T) {
+	withConfigDir(t)
+	cfg := &config.Config{Folders: []config.Folder{
+		{ID: "b1", Path: "/home/ana/Photos", OneWay: true},
+		{ID: "f1", Path: "/home/ana/Docs"},
+	}}
+	New(cfg, "", nil)
+	if len(cfg.Folders) != 1 || cfg.Folders[0].ID != "b1" || !cfg.Folders[0].OneWay {
+		t.Fatalf("backups after migration: %+v", cfg.Folders)
+	}
+	if len(cfg.RemoteFolders) != 1 || cfg.RemoteFolders[0].ID != "f1" {
+		t.Fatalf("two-way after migration: %+v", cfg.RemoteFolders)
+	}
+	saved, err := config.Load()
+	if err != nil || len(saved.Folders) != 1 || !saved.Folders[0].OneWay {
+		t.Fatalf("config.json: %+v %v", saved, err)
+	}
+}
+
 // The sync record survives a restart, and goes with its folder.
 func TestSyncedRecordPersists(t *testing.T) {
 	withConfigDir(t)

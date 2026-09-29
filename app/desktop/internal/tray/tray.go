@@ -44,20 +44,22 @@ type folderItem struct {
 }
 
 type ui struct {
-	c        Controller
-	mu       sync.Mutex
-	status   *systray.MenuItem
-	raid     *systray.MenuItem
-	empty    *systray.MenuItem
-	folders  []*folderItem
-	addLocal *systray.MenuItem
-	addRem   *systray.MenuItem
-	settings *systray.MenuItem
-	autost   *systray.MenuItem
-	quit     *systray.MenuItem
-	lastIcon string
-	refresh  chan struct{}
-	stopLoop chan struct{}
+	c         Controller
+	mu        sync.Mutex
+	status    *systray.MenuItem
+	raid      *systray.MenuItem
+	empty     *systray.MenuItem
+	folders   []*folderItem
+	addLocal  *systray.MenuItem
+	addBackup *systray.MenuItem
+	explain   *systray.MenuItem
+	addRem    *systray.MenuItem
+	settings  *systray.MenuItem
+	autost    *systray.MenuItem
+	quit      *systray.MenuItem
+	lastIcon  string
+	refresh   chan struct{}
+	stopLoop  chan struct{}
 }
 
 // Run blocks until the tray quits.
@@ -122,10 +124,13 @@ func (u *ui) build(folders []config.FolderStatus) {
 		u.empty.Hide()
 	}
 	systray.AddSeparator()
-	// Both kinds are two-way; they only differ in which side the first
-	// pass copies from (same as the macOS app's Add Folder menu).
-	u.addLocal = systray.AddMenuItem("Add Folder on This Computer…", "Keep a folder on this computer in two-way sync with the device")
-	u.addRem = systray.AddMenuItem("Add Folder on the Device…", "Keep a device folder in two-way sync with one on this computer")
+	// The macOS app's three kinds of folder (AddFolderChooser); a tray menu
+	// has no (i) buttons, so each has a tooltip and "What do these do?"
+	// explains all three.
+	u.addBackup = systray.AddMenuItem("Back Up a Folder from This Computer…", "One way: this computer is the original, nothing on the device ever changes it")
+	u.addLocal = systray.AddMenuItem("Sync a Folder from This Computer…", "Two ways: kept the same here and on the device, changes and deletions included")
+	u.addRem = systray.AddMenuItem("Sync a Folder from the Device…", "Two ways, starting from a folder already on the device")
+	u.explain = systray.AddMenuItem("What Do These Do?", "The difference between backing up and syncing")
 	u.settings = systray.AddMenuItem("Settings…", "Device and password")
 	u.autost = systray.AddMenuItemCheckbox("Start at login", "", u.c.AutostartEnabled())
 	systray.AddSeparator()
@@ -135,11 +140,16 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.stopLoop = stop
 	items := u.folders
 	addLocal, addRem, settings, autost, quit := u.addLocal, u.addRem, u.settings, u.autost, u.quit
+	addBackup, explain := u.addBackup, u.explain
 	go func() {
 		for {
 			select {
 			case <-stop:
 				return
+			case <-addBackup.ClickedCh:
+				go u.addBackup_()
+			case <-explain.ClickedCh:
+				go u.explainKinds()
 			case <-addLocal.ClickedCh:
 				go u.addLocal_()
 			case <-addRem.ClickedCh:
@@ -236,7 +246,7 @@ func folderTitle(f config.FolderStatus) string {
 		if f.RemotePath != "" {
 			state = "Synced"
 		} else {
-			state = "Watching"
+			state = "Backed up"
 		}
 	case string(engine.StateError):
 		state = "⚠ " + f.Error
@@ -279,6 +289,33 @@ func (u *ui) removeFolder(fi *folderItem) {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
+}
+
+// addBackup_ adds a one-way backup (config.Folder.OneWay).
+func (u *ui) addBackup_() {
+	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose a folder to back up to the device"))
+	if err != nil || dir == "" {
+		return
+	}
+	cfg := u.c.Config()
+	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir, OneWay: true})
+	if err := u.c.SaveConfig(cfg); err != nil {
+		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+	}
+	Refresh()
+}
+
+// explainKinds is the tray's (i): the macOS chooser's three explanations.
+func (u *ui) explainKinds() {
+	_ = zenity.Info(`Back up a folder from this computer - one way
+This computer is the original. New and changed files are copied to the device, and files you delete here are deleted there too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here.
+
+Sync a folder from this computer - two ways
+The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes.
+
+Sync a folder from the device - two ways
+Pick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included.`,
+		zenity.Title("Adding a folder"), zenity.Width(520))
 }
 
 func (u *ui) addLocal_() {

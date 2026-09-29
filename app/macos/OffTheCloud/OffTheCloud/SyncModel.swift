@@ -278,6 +278,11 @@ final class SyncModel: ObservableObject {
     /// deletes nothing: what is only on the device comes down, what is
     /// only here goes up.
     private func migrateLocalFolders() {
+        // Once only: one-way backups are a choice again, added on purpose,
+        // and must stay what they were added as.
+        let doneKey = "sync.folders.migratedToTwoWay"
+        guard !UserDefaults.standard.bool(forKey: doneKey) else { return }
+        UserDefaults.standard.set(true, forKey: doneKey)
         let stored = existingStored()
         guard !stored.isEmpty else { return }
         var remote = existingStoredRemote()
@@ -425,6 +430,34 @@ final class SyncModel: ObservableObject {
             req.payload = .reqGetStatus(Msg_GetStatus())
         }), case .respStatus(let status) = resp.payload else { return }
         raidHealth = RaidHealth(status: status)
+    }
+
+    /// A one-way backup of a folder on this Mac: new and changed files go
+    /// to the device, files deleted here are deleted there, and nothing on
+    /// the device ever changes the folder here (reconcile()).
+    func addBackupFolder() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.prompt = "Back Up"
+        panel.message = "Choose a folder to back up to the device. This Mac stays the original."
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+                _ = url.startAccessingSecurityScopedResource()
+                let tf = TrackedFolder(id: UUID(), url: url)
+                folders.append(tf)
+                var stored = existingStored()
+                stored.append(StoredFolder(id: tf.id, bookmark: bookmark))
+                persistFolders(bookmarks: stored)
+                if settings?.ready == true {
+                    Task { await self.setupFolder(tf) }
+                }
+            } catch {
+                print("Bookmark creation failed:", error)
+            }
+        }
     }
 
     func addFolder() {
@@ -782,6 +815,18 @@ final class SyncModel: ObservableObject {
             // that no longer exists locally gets removed to match —
             // mirrors OneDrive's "delete propagates" behavior (issue #37).
             let staleRemotePaths = remoteMap.keys.filter { !localRemotePaths.contains($0) }
+            // Mass-deletion guard, the other way round from two-way
+            // folders': a folder that suddenly looks empty here (a drive
+            // not plugged in, a folder being moved) would empty its backup
+            // on the device. Past 20 files and a quarter of the backup,
+            // nothing is deleted there and the folder says why.
+            if staleRemotePaths.count > Self.massDeleteMin && staleRemotePaths.count * 4 > max(remoteMap.count, 1) {
+                syncLog.error("backup \(root.path, privacy: .public): \(staleRemotePaths.count) files gone here at once - not deleting them on the device")
+                remoteHashesByFolder[folder.id] = remoteMap
+                updateState(folder.id, .error("\(staleRemotePaths.count) files are gone from this folder - kept on the device. Delete them there if that was meant."))
+                saveHashCache(folder.id)
+                return
+            }
             for remotePath in staleRemotePaths {
                 do {
                     try await delete(remotePath)

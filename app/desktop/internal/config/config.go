@@ -36,10 +36,14 @@ const (
 	BridgeDomain = "off-the.cloud"
 )
 
-// Folder is a local folder mirrored up to the device (SyncModel.TrackedFolder).
+// Folder is a local folder added from this computer (SyncModel.TrackedFolder).
+// OneWay marks a backup: mirrored up to the device, never changed by it.
+// Without it the folder is made two-way at start (engine.migrateFolders) -
+// what `otc-sync add` and the tray's two-way entry write.
 type Folder struct {
-	ID   string `json:"id"`
-	Path string `json:"path"`
+	ID     string `json:"id"`
+	Path   string `json:"path"`
+	OneWay bool   `json:"one_way,omitempty"`
 }
 
 // RemoteFolder is a device directory kept in two-way sync with a local one
