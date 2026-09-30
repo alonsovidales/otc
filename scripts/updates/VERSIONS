@@ -91,3 +91,4 @@
 50	b3c75548de9142353ba723031e36f178e441ffbb675e81854e3ea1c25d42514a	962a5253d0da175309a86cc9a72787d7077d160209c190b3f9a95d000a0378c4	Tailscale only runs while Tailscale Funnel is turned on in Settings.
 51	49d1dd994f840764df3cf8ab863479d97d1c3bfad65d22d3e4a574f04884c44a	1543558d67d8e75cf6b33e5c4222a906355b2cf01aa4aba793501a2e75c34acd	Removing a friend can delete everything of theirs here, and ask their device to delete what you shared. Friends can no longer delete or read anything that isn't theirs.
 52	-	63152ba66233cc2618bc93936cc6a47718a9e3fc4af4c50ef9dd3ae66e569eb7	Faster: folder listings, face recognition, the social feed and tagging; the device is harder to overload.
+53	-	20c67a882c2618c2bc92db10c86d30c6213e0e4d6e771132d7872071a308f29d	Reliability: fixes for changes made at the same time from different places (settings, profile, search, deleting a file while it is being processed).
