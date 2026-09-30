@@ -162,7 +162,8 @@ an "old image": whatever you flash installs today's release.
      5 GHz. Wired into your router instead? Skip it.
    - **Name and password**: the device's `<name>.off-the.cloud` address, checked as you type and
      reserved on the bridge the moment you continue, and the device's password (twice, 8
-     characters or more). The password encrypts everything on the device and can't be recovered;
+     characters or more). The password encrypts your files on the device (see [What is
+     encrypted on the device](#what-is-encrypted-on-the-device)) and can't be recovered;
      the app encrypts it before it leaves your phone, and the install sets it. A recovered device
      keeps the password it had.
    - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
@@ -589,6 +590,32 @@ To connect locally use the `8080` port: http://<local_ip>:8080
 If you have configured the bridge you should be able to connect in: https://<domain>.off-the.cloud/
 
 **When clicking in "Sign In" it will ask you for a password, be careful because the first time, sice the password is not set, whatever you set will be your password.**
+
+## What is encrypted on the device
+
+Everything you store is encrypted at rest under a key only your password unlocks: file
+contents, thumbnails, previous versions and face embeddings (AES-GCM, in 1 MiB segments). A
+share link's archive is encrypted under the secret in the link itself, which the device doesn't
+keep. Someone who takes the disks - or the whole device - without your password can't
+read any of it.
+
+What the device needs in order to find and organise your files is kept in its database
+**unencrypted**, and could be read by someone with the disks:
+
+- file and folder names, types, sizes and dates;
+- the photo tags (including the city and country a photo was taken in), the names you give
+  people and albums, and which photos a person appears in;
+- your posts, comments and alerts, and your friends' names and profiles;
+- each file's SHA-256, which names its encrypted content on disk - so someone who already has a
+  particular file can tell whether it is stored there.
+
+This is a deliberate trade-off: searching by name, folder, tag or place needs these fields
+readable by the database, and encrypting them would make search slow or impossible. Your
+content stays protected; its names and labels don't. Posts you share with friends are stored
+unencrypted as well, since they are served to their devices.
+
+Decrypted data never reaches the SD card: the service locks its memory, swap stays in RAM, and
+temporary files live in RAM (release 62).
 
 ## Bridge accounts
 
