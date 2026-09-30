@@ -11,6 +11,7 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
+	"github.com/alonsovidales/otc/hardening"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/supervisor"
@@ -162,8 +163,8 @@ func main() {
 	if len(os.Args) > 2 && os.Args[2] == "init-profile" {
 		os.Exit(initProfile(dao))
 	}
-	lockMemory()
-	secureTempDir()
+	hardening.LockMemory()
+	hardening.SecureTempDir()
 
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"), dao)
 

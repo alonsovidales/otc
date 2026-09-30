@@ -103,3 +103,4 @@
 62	56892b143dea3f8f2f079863cd0ca9ea6f6738bf890b8bdb5a3938008855d3c7	8f590d21e0ff0dc5107b09694085abb6e39936963e677a9e304f789cb7b84608	Decrypted data never reaches the SD card: memory is locked, swap stays in RAM (complete after the next restart), temporary files live in RAM, and logs no longer name your files or searches.
 63	-	715781c5c255b99074ed5f64210d07acedb60f4eb214d9cbaf468007126bf7ee	Lower memory use: share links download in parts, posting a video no longer loads it into memory, and large downloads wait their turn instead of piling up.
 64	-	becca685ab9cc13817b3fbe4c515519750ec6dcd81b9f81079cbae8fe4d7fe93	Apps and friends keep reaching the device through the bridge however many are connected at once.
+65	-	65cf0b6b57fc3c252f087cdbe822fe64c4c98a8e46d9eec29d23d1842b2e5231	Fixes the update that stopped at release 62: devices build again and get releases 62-64 (memory hardening, lower memory use, bridge relays).

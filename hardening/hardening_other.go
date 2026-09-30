@@ -2,9 +2,9 @@
 
 //go:build !linux
 
-package main
+package hardening
 
 // The device runs on Linux; elsewhere (a development Mac) there is nothing
 // to lock or redirect.
-func lockMemory()    {}
-func secureTempDir() {}
+func LockMemory()    {}
+func SecureTempDir() {}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package main
+package hardening
 
 import (
 	"fmt"
@@ -21,10 +21,10 @@ import (
 // out; the image's swap is also zram only, see install.sh) and the
 // temporary files live on a RAM filesystem.
 
-// lockMemory locks this process's memory, as it is touched. [otc]
+// LockMemory locks this process's memory, as it is touched. [otc]
 // disable-mlock turns it off, e.g. on a development machine without the
 // unit's LimitMEMLOCK=infinity.
-func lockMemory() {
+func LockMemory() {
 	if cfg.GetBool("otc", "disable-mlock") {
 		return
 	}
@@ -35,11 +35,11 @@ func lockMemory() {
 	log.Info("memory locked, nothing of it can be swapped out")
 }
 
-// secureTempDir points TMPDIR at a directory of this process's own on a
+// SecureTempDir points TMPDIR at a directory of this process's own on a
 // RAM filesystem - /tmp when it is one (the service's PrivateTmp on a
 // tmpfs /tmp), otherwise /dev/shm - and removes what processes that no
 // longer run left behind (an OOM kill skips every deferred Remove).
-func secureTempDir() {
+func SecureTempDir() {
 	var base string
 	for _, dir := range []string{os.TempDir(), "/tmp", "/dev/shm"} {
 		var st unix.Statfs_t

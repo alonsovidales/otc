@@ -316,8 +316,8 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   `web/dist` copied to the device's static path; appends `.html` to extensionless paths for
   client-side routing).
 - `log` — leveled logger with size-based rotation, configured once in `main()` from `[logger]`.
-- **Plaintext never on the SD card** (issue #156, release 62): the service `mlockall`s its memory at
-  start (`bin/hardening_linux.go`; the unit has `LimitMEMLOCK=infinity` and `LimitCORE=0`; `[otc]
+- **Plaintext never on the SD card** (issue #156, releases 62/65; devices build `go build ./bin/otc.go` - one file - so `bin/` must stay a single file and helpers live in packages like `hardening`): the service `mlockall`s its memory at
+  start (`hardening/hardening_linux.go`; the unit has `LimitMEMLOCK=infinity` and `LimitCORE=0`; `[otc]
   disable-mlock=true` turns it off), swap is zram only (`/etc/rpi/swap.conf.d/90-otc-ram-only.conf`,
   no `/var/swap` writeback; dphys-swapfile removed; Makefile.pi's `swap` is no longer in bootstrap),
   and `TMPDIR` is a per-process `otc-<pid>` directory on a tmpfs (`/tmp` when it is one, else
