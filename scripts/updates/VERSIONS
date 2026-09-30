@@ -98,3 +98,4 @@
 57	-	25574a9c62e5b14ac88bff172bb92249642f490da0685eb3760cdd7f68858845	Protection against images and videos that could overload the device, lighter uploads, and logs without personal data.
 58	2798878adc1b587d70340a1c578f5eb42e54551bf73efdb2d59b2da3d831628b	124b5d62e8b6fcb5a0060191cec2901cd3ec9b870601c80e4ab5a0584c778076	Stored files can only be read by the device's own service.
 59	6352613f54c8338d6f3a772010e721e0776d774dba2cb756c928b5dcafbc4336	049b305d825b5c991ab843fd537ad9e440f78d661eda9f09ca102903c2a27400	Stronger random keys for new secrets; SSH, if you enable it, only accepts keys.
+60	bd650a421c87b27eac4cce5d1aeca8b159d2fbf1bb132aaa395f278e1349d97e	74d1dff1ea7912652310d8c957eda7d8f71825c5a20ae06f0dd43b90eaf46118	Folder names are matched exactly: deleting or sharing a folder never includes one that differs only in case or accents.
