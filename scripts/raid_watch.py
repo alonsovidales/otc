@@ -558,6 +558,13 @@ def main():
     signal.signal(signal.SIGTERM, handle_sigterm)
     signal.signal(signal.SIGINT, handle_sigterm)
 
+    changed = [True]
+    last_summary = [None]
+
+    def log(*args):
+        if changed[0]:
+            print(*args)
+
     try:
         while True:
             perform_pending_storage_setup()
@@ -565,7 +572,12 @@ def main():
             detail = mdadm_detail(raid_dev)
             state = (detail.get("state") or "").lower()
             members = detail.get("members", {})
-            print(f"members: {members}")
+            # Log only when the picture changes: this runs every poll_s,
+            # and printing every time filled the journal on the SD card.
+            summary = (state, tuple(sorted((k, v.get("state")) for k, v in members.items())))
+            changed[0] = summary != last_summary[0]
+            last_summary[0] = summary
+            log(f"members: {members}")
 
             # Default: turn off until we decide
             led.set_mode(0, "off")
@@ -587,12 +599,17 @@ def main():
                     rebuilding_slot = slot
                     break
 
-            # If we want to also confirm direction: compare Events counters
+            # If we want to also confirm direction: compare Events counters.
+            # Only while rebuilding - the only time it's used. `mdadm
+            # --examine` reads each drive's superblock straight off the
+            # device; doing it every poll kept both USB pen drives busy
+            # around the clock, so they never idled and ran hot.
             events_by_slot = {}
-            for slot, m in members.items():
-                # Use the underlying member device (/dev/sdXN)
-                ex = mdadm_examine(m["device"])
-                events_by_slot[slot] = ex.get("events", 0)
+            if rebuilding:
+                for slot, m in members.items():
+                    # Use the underlying member device (/dev/sdXN)
+                    ex = mdadm_examine(m["device"])
+                    events_by_slot[slot] = ex.get("events", 0)
 
 
             # Choose source as the slot with highest Events
@@ -602,27 +619,27 @@ def main():
 
             # LED logic
             if "degraded" in state or len(members) < 2:
-                print(f"Degraded: {members}")
+                log(f"Degraded: {members}")
                 # Some member missing/failed
                 for slot in (0, 1):
-                    print(f"Slot: {slot}")
+                    log(f"Slot: {slot}")
                     if slot not in members:
-                        print(f"Slot not a member")
+                        log(f"Slot not a member")
                         # Missing member -> solid red
                         led.set_mode(slot, "solid_red")
                     else:
                         # The surviving member: green unless rebuilding
                         if rebuilding and rebuilding_slot == slot:
-                            print(f"rebuilding slot")
+                            log(f"rebuilding slot")
                             # If the only member is somehow "rebuilding" (rare), blink red
                             led.set_mode(slot, "blink_red")
                         else:
-                            print(f"not rebuilding slot")
+                            log(f"not rebuilding slot")
                             led.set_mode(slot, "solid_green")
             else:
                 # Two members present
                 if rebuilding and rebuilding_slot is not None:
-                    print(f"Rebuilding")
+                    log(f"Rebuilding")
                     # Target (rebuilding) -> blink red
                     led.set_mode(rebuilding_slot, "blink_red")
                     # Source (newer events) -> blink green
@@ -631,7 +648,7 @@ def main():
                 else:
                     # Healthy + in-sync
                     # mdadm reports "clean", "active", etc. Without rebuild markers.
-                    print(f"Healty")
+                    log(f"Healty")
                     led.set_mode(0, "solid_green")
                     led.set_mode(1, "solid_green")
 
@@ -640,10 +657,10 @@ def main():
 
             # Auto-repair path
             if CONFIG["auto_repair_enable"]:
-                print("Auto repair enabled")
+                log("Auto repair enabled")
                 # If degraded and exactly one member present, try to find a candidate
                 if ("degraded" in state) or (len(members) < 2):
-                    print("Degraded:", state)
+                    log("Degraded:", state)
                     # Determine size of existing member to filter candidates
                     sizes = []
                     for m in members.values():
