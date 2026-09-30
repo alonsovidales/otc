@@ -3,6 +3,7 @@
 package api
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/accounts"
@@ -107,17 +108,33 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	}
 
 	api.registerAPIs()
+	// Issue #161: port 80 only redirects to HTTPS (see tls.go).
 	go func() {
-		log.Info("Starting http API server on port:", httpPort, cert, key)
-		err := http.ListenAndServe(fmt.Sprintf(":%d", httpPort), api.originGuard(api.muxHTTPServer))
-		if err != nil {
+		log.Info("Starting http redirect server on port:", httpPort)
+		srv := &http.Server{
+			Addr:              fmt.Sprintf(":%d", httpPort),
+			Handler:           redirectToHTTPS(cHealtyPath, api.muxHTTPServer),
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       time.Minute,
+		}
+		if err := srv.ListenAndServe(); err != nil {
 			log.Fatal("Error:", err)
 		}
 	}()
 	go func() {
 		log.Info("Starting https API server on port:", httpsPort, cert, key)
-		err := http.ListenAndServeTLS(fmt.Sprintf(":%d", httpsPort), cert, key, api.originGuard(api.muxHTTPServer))
-		if err != nil {
+		certs := &certReloader{certFile: cert, keyFile: key}
+		if _, err := certs.get(nil); err != nil {
+			log.Fatal("Error loading the TLS certificate:", err)
+		}
+		srv := &http.Server{
+			Addr:              fmt.Sprintf(":%d", httpsPort),
+			Handler:           withHSTS(api.originGuard(api.muxHTTPServer)),
+			TLSConfig:         &tls.Config{GetCertificate: certs.get, MinVersion: tls.VersionTLS12},
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       2 * time.Minute,
+		}
+		if err := srv.ListenAndServeTLS("", ""); err != nil {
 			log.Fatal("Error:", err)
 		}
 	}()
