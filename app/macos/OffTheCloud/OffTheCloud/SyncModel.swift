@@ -96,6 +96,10 @@ final class SyncModel: ObservableObject {
     // writes while saving) are coalesced by waiting this long after the
     // last event before actually reading/uploading the file.
     private static let debounceInterval: Duration = .seconds(1)
+    // A synced folder only shows progress once a pass has been working
+    // this long: a pass that sends one changed file (a folder whose files
+    // are rewritten every few seconds) flashed "99%" and back to "Synced".
+    private static let quietPassDelay: Duration = .milliseconds(1500)
     // A folder that fails to reconcile (a dropped connection mid-request,
     // a transient server error, etc.) does get retried by the periodic
     // safety-net loop above — but waiting up to 10 minutes for that, with
@@ -866,15 +870,44 @@ final class SyncModel: ObservableObject {
     }
 
     private func updateState(_ id: UUID, _ state: FolderState) {
-        if let idx = folders.firstIndex(where: { $0.id == id }) {
-            folders[idx].state = state
+        setState(id, state, current: folders.first(where: { $0.id == id })?.state) { [weak self] s in
+            guard let self, let idx = self.folders.firstIndex(where: { $0.id == id }) else { return }
+            self.folders[idx].state = s
         }
     }
 
     private func updateRemoteState(_ id: UUID, _ state: FolderState) {
-        if let idx = remoteFolders.firstIndex(where: { $0.id == id }) {
-            remoteFolders[idx].state = state
+        setState(id, state, current: remoteFolders.first(where: { $0.id == id })?.state) { [weak self] s in
+            guard let self, let idx = self.remoteFolders.firstIndex(where: { $0.id == id }) else { return }
+            self.remoteFolders[idx].state = s
         }
+    }
+
+    /// A folder at rest ("Synced", "Backed up") that starts working keeps
+    /// showing that it is at rest for quietPassDelay: if the pass is over
+    /// by then nothing changes on screen, otherwise its latest progress
+    /// shows. Everything else - errors, rest again, progress once shown -
+    /// applies at once. otc-sync's engine.setState does the same.
+    private var heldStates: [UUID: FolderState] = [:]
+    private var heldStateTasks: [UUID: Task<Void, Never>] = [:]
+
+    private func setState(_ id: UUID, _ state: FolderState, current: FolderState?, apply: @escaping (FolderState) -> Void) {
+        guard current != nil else { return }
+        if case .scanning = state, current == .watching {
+            heldStates[id] = state
+            if heldStateTasks[id] == nil {
+                heldStateTasks[id] = Task { [weak self] in
+                    try? await Task.sleep(for: Self.quietPassDelay)
+                    guard !Task.isCancelled, let self else { return }
+                    self.heldStateTasks[id] = nil
+                    if let held = self.heldStates.removeValue(forKey: id) { apply(held) }
+                }
+            }
+            return
+        }
+        heldStateTasks.removeValue(forKey: id)?.cancel()
+        heldStates[id] = nil
+        apply(state)
     }
 
     private func startRemoteReconcileLoop() {

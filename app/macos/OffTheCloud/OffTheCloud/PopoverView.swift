@@ -574,7 +574,7 @@ struct AddFolderChooser: View {
     }
 }
 
-/// The storage line: its health, a bar of how full the device is, and -
+/// The storage line: its health, how full the device is, and -
 /// with the pointer over it - the device's CPU and memory in a pop-up.
 /// otc-sync's tray shows the same (a text bar, and a submenu).
 private struct StorageStatusView: View {
@@ -592,24 +592,18 @@ private struct StorageStatusView: View {
     }
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 3) {
+        HStack(spacing: 0) {
             Text(health.summary)
-                .font(.caption)
                 .foregroundStyle(health == .ok ? Color.secondary : Color.red)
             if let s = storage {
                 let frac = min(max(s.used / s.size, 0), 1)
-                HStack(spacing: 6) {
-                    ProgressView(value: frac)
-                        .progressViewStyle(.linear)
-                        .tint(frac > 0.9 ? .red : frac > 0.75 ? .orange : .accentColor)
-                        .frame(width: 70)
-                    Text("\(Int((frac * 100).rounded()))% used")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+                Text(" · \(Int((frac * 100).rounded()))% used")
+                    .foregroundStyle(frac > 0.9 ? Color.red : frac > 0.75 ? Color.orange : Color.secondary)
+                    .monospacedDigit()
             }
         }
+        .font(.caption)
+        .lineLimit(1)
         .contentShape(Rectangle())
         .onHover { showLoad = $0 && status != nil }
         .popover(isPresented: $showLoad, arrowEdge: .bottom) {

@@ -124,6 +124,8 @@ type Engine struct {
 	raid         RaidHealth
 	devStatus    *pb.Status // the last status answer, nil when unknown
 	folderStates map[string]FolderState
+	held         map[string]FolderState // see setState
+	heldTimers   map[string]*time.Timer
 	remoteStates map[string]FolderState
 	remoteHashes map[string]map[string]string // folder id -> remote path -> hash
 	lastSynced   map[string]map[string]string // remote folder id -> relative path -> hash
@@ -164,6 +166,8 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		raid:         RaidUnknown,
 		folderStates: map[string]FolderState{},
 		remoteStates: map[string]FolderState{},
+		held:         map[string]FolderState{},
+		heldTimers:   map[string]*time.Timer{},
 		remoteHashes: map[string]map[string]string{},
 		lastSynced:   map[string]map[string]string{},
 		savedSynced:  map[string]map[string]string{},
@@ -408,20 +412,54 @@ func toStatus(id, path, remote string, s FolderState) config.FolderStatus {
 	return fs
 }
 
-func (e *Engine) setFolderState(id string, s FolderState) {
-	e.mu.Lock()
-	if _, ok := e.folderStates[id]; ok {
-		e.folderStates[id] = s
-	}
-	e.mu.Unlock()
-	e.notify()
-}
+func (e *Engine) setFolderState(id string, s FolderState) { e.setState(e.folderStates, id, s) }
 
-func (e *Engine) setRemoteState(id string, s FolderState) {
+func (e *Engine) setRemoteState(id string, s FolderState) { e.setState(e.remoteStates, id, s) }
+
+// quietPassDelay: a synced folder only shows progress once a pass has been
+// working this long - a pass that sends one changed file flashed "99%" and
+// back to synced.
+const quietPassDelay = 1500 * time.Millisecond
+
+// setState is SyncModel.setState: a folder at rest that starts working
+// keeps showing it is at rest for quietPassDelay; if the pass is over by
+// then nothing changes, otherwise its latest progress shows. Everything
+// else applies at once.
+func (e *Engine) setState(states map[string]FolderState, id string, s FolderState) {
 	e.mu.Lock()
-	if _, ok := e.remoteStates[id]; ok {
-		e.remoteStates[id] = s
+	cur, ok := states[id]
+	if !ok {
+		e.mu.Unlock()
+		return
 	}
+	if s.Kind == StateScanning && cur.Kind == StateWatching {
+		e.held[id] = s
+		if e.heldTimers[id] == nil {
+			e.heldTimers[id] = time.AfterFunc(quietPassDelay, func() {
+				e.mu.Lock()
+				delete(e.heldTimers, id)
+				held, ok := e.held[id]
+				delete(e.held, id)
+				if ok {
+					if _, still := states[id]; still {
+						states[id] = held
+					}
+				}
+				e.mu.Unlock()
+				if ok {
+					e.notify()
+				}
+			})
+		}
+		e.mu.Unlock()
+		return
+	}
+	if t := e.heldTimers[id]; t != nil {
+		t.Stop()
+		delete(e.heldTimers, id)
+	}
+	delete(e.held, id)
+	states[id] = s
 	e.mu.Unlock()
 	e.notify()
 }
