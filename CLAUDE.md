@@ -308,6 +308,9 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   64 MiB read limit (`ReadMedia`: a whole file, 10 min, the 1000 MiB cap); friend sync closes
   each friend's socket after its pass, and Web Push uses a 15 s HTTP client. The pooled bridge
   relay socket clears the deadlines once registered.
+- The bridge shared secret never reaches a client (release 66): `GetSettings` leaves it out and
+  `SetBridgeSecret`/`RegenerateBridgeSecret` are refused - the device pairs and rotates it itself
+  (`regenerateBridgeSecret`), and no Settings screen shows or edits it.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself

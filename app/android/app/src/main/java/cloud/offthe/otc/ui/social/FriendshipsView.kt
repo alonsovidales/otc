@@ -2,6 +2,7 @@
 package cloud.offthe.otc.ui.social
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -170,8 +171,10 @@ fun FriendshipsView(onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { vm.reload() }
 
-    Scaffold(topBar = {
-        TopAppBar(title = { Text("Friends") }, navigationIcon = { TextButton(onClick = onDone) { Text("Done") } })
+    // Shown in a sheet, which already sits below the status bar: no insets
+    // of its own (they left a status bar's worth of gap under the handle).
+    Scaffold(contentWindowInsets = WindowInsets(0), topBar = {
+        TopAppBar(title = { Text("Friends") }, navigationIcon = { TextButton(onClick = onDone) { Text("Done") } }, windowInsets = WindowInsets(0))
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {

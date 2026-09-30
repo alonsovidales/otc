@@ -25,7 +25,6 @@ import cloud.offthe.otc.proto.ReqSetUserActive
 import cloud.offthe.otc.proto.ReqSetupTailscale
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RespUserMetrics
-import cloud.offthe.otc.proto.SetBridgeSecret
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
 import cloud.offthe.otc.proto.StartReprocess
 import cloud.offthe.otc.proto.Status
@@ -90,7 +89,6 @@ class ProfileEditorViewModel : ViewModel() {
 class DeviceSettingsViewModel : ViewModel() {
     enum class ReprocessConfirm { RESUME, RESTART }
     data class State(
-        val currentBridgeSecret: String = "", val newBridgeSecret: String = "", val savingSecret: Boolean = false,
         val oldKey: String = "", val newKey: String = "", val confirmKey: String = "", val savingKey: Boolean = false,
         val toast: String? = null,
         val faceRecognitionEnabled: Boolean = false, val savingFaceRecognition: Boolean = false,
@@ -102,7 +100,6 @@ class DeviceSettingsViewModel : ViewModel() {
     val state = MutableStateFlow(State())
     private var reprocessPoll: Job? = null
 
-    fun setNewBridgeSecret(v: String) = state.update { it.copy(newBridgeSecret = v) }
     fun setOldKey(v: String) = state.update { it.copy(oldKey = v) }
     fun setNewKey(v: String) = state.update { it.copy(newKey = v) }
     fun setConfirmKey(v: String) = state.update { it.copy(confirmKey = v) }
@@ -151,7 +148,7 @@ class DeviceSettingsViewModel : ViewModel() {
         try {
             val resp = OTCConnection.request { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS) {
-                state.update { it.copy(currentBridgeSecret = resp.respSettings.bridgeSecret, faceRecognitionEnabled = resp.respSettings.faceRecognitionEnabled) }
+                state.update { it.copy(faceRecognitionEnabled = resp.respSettings.faceRecognitionEnabled) }
             }
         } catch (_: Exception) {}
     }
@@ -163,18 +160,6 @@ class DeviceSettingsViewModel : ViewModel() {
             if (!resp.ackOk()) { state.update { it.copy(faceRecognitionEnabled = !enabled) }; toast(resp.ackError("Update failed")) }
         } catch (e: Exception) { state.update { it.copy(faceRecognitionEnabled = !enabled) }; toast("Error updating this setting") }
         finally { state.update { it.copy(savingFaceRecognition = false) } }
-    }
-
-    suspend fun saveBridgeSecret() {
-        val trimmed = state.value.newBridgeSecret.trim()
-        if (trimmed.isEmpty()) return
-        state.update { it.copy(savingSecret = true) }
-        try {
-            val resp = OTCConnection.request { it.setReqSetBridgeSecret(SetBridgeSecret.newBuilder().setSecret(trimmed)) }
-            if (resp.ackOk()) { state.update { it.copy(currentBridgeSecret = trimmed, newBridgeSecret = "") }; toast("Bridge secret updated ✅") }
-            else toast(resp.ackError("Update failed"))
-        } catch (e: Exception) { toast("Error updating bridge secret") }
-        finally { state.update { it.copy(savingSecret = false) } }
     }
 
     /** Same RSA-OAEP flow as sign-in (issue #2); the stored password follows on success. */

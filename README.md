@@ -247,8 +247,8 @@ of the normal sign-in screen:
    will drop whatever temporary connection got you to this page in the first place, so reconnect to
    your normal WiFi afterwards and find the device there.
 
-After that you're dropped into the normal app, signed in. You can revisit the owner name, password,
-and bridge shared secret any time from Settings.
+After that you're dropped into the normal app, signed in. You can change the owner name and password
+any time from Settings.
 
 **Option 2: `Makefile.pi` against a plain OS install**
 --------------------------------------------------------

@@ -104,3 +104,4 @@
 63	-	715781c5c255b99074ed5f64210d07acedb60f4eb214d9cbaf468007126bf7ee	Lower memory use: share links download in parts, posting a video no longer loads it into memory, and large downloads wait their turn instead of piling up.
 64	-	becca685ab9cc13817b3fbe4c515519750ec6dcd81b9f81079cbae8fe4d7fe93	Apps and friends keep reaching the device through the bridge however many are connected at once.
 65	-	65cf0b6b57fc3c252f087cdbe822fe64c4c98a8e46d9eec29d23d1842b2e5231	Fixes the update that stopped at release 62: devices build again and get releases 62-64 (memory hardening, lower memory use, bridge relays).
+66	-	730b6d179d1be6afabd0a66635a177802e537362cfbcfcd2ed4d3341f4415a12	The bridge secret is no longer shown or editable in Settings; the device manages it itself.

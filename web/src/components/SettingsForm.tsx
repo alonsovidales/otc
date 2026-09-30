@@ -25,15 +25,8 @@ function reprocessPercent(s: { total: number; processed: number }): number {
 
 export default function SettingsForm() {
   // Loaded settings
-  const [currentBridgeSecret, setCurrentBridgeSecret] = useState("");
-  // Issue #145: unknown (null) until BridgePanel says; the secret section
-  // is hidden only on a device known to be off the bridge.
-  const [bridgeEnabled, setBridgeEnabled] = useState<boolean | null>(null);
 
   // Domain form
-
-  // Bridge shared secret (issue #40)
-  const [regeneratingSecret, setRegeneratingSecret] = useState(false);
 
   // Password form
   const [oldKey, setOldKey] = useState("");
@@ -211,7 +204,6 @@ export default function SettingsForm() {
 
         if (resp.payload?.$case === "respSettings") {
           const s: PbSettings = resp.payload.respSettings;
-          setCurrentBridgeSecret(s.bridgeSecret || "");
           setFaceRecognitionEnabled(!!s.faceRecognitionEnabled);
           const limitMb = s.socialStorageLimitMb || 5120;
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
@@ -237,45 +229,6 @@ export default function SettingsForm() {
   }, [oldKey, newKey, confirmKey, pwMismatch]);
 
   // ---------- Actions ----------
-
-  // Issue #40 follow-up: the device asks the bridge itself for a fresh
-  // secret (authenticated by the current one) rather than inventing one
-  // locally — a self-generated secret would just be rejected by the
-  // bridge, which only ever accepts one it already has on record.
-  const regenerateSecret = async () => {
-    if (regeneratingSecret || savingKey) return;
-    setRegeneratingSecret(true);
-    setStatus(null);
-    try {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqRegenerateBridgeSecret", reqRegenerateBridgeSecret: {} };
-      });
-      if (resp.payload?.$case === "respSettings") {
-        setCurrentBridgeSecret(resp.payload.respSettings.bridgeSecret || "");
-        setStatus({ kind: "success", text: "Bridge shared secret regenerated." });
-      } else if (resp.payload?.$case === "respAck") {
-        setStatus({ kind: "error", text: resp.payload.respAck.errorMsg || "Regenerate failed." });
-      } else if (resp.error) {
-        setStatus({ kind: "error", text: resp.errorMessage || "Regenerate failed." });
-      } else {
-        setStatus({ kind: "error", text: "Unexpected response." });
-      }
-    } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
-    } finally {
-      setRegeneratingSecret(false);
-    }
-  };
-
-  const copyCurrentSecret = async () => {
-    if (!currentBridgeSecret) return;
-    try {
-      await navigator.clipboard?.writeText?.(currentBridgeSecret);
-      setStatus({ kind: "info", text: "Current secret copied to clipboard." });
-    } catch {
-      /* clipboard access denied — nothing to do */
-    }
-  };
 
   const changePassword = async () => {
     if (!canSaveKey || savingKey) return;
@@ -393,7 +346,7 @@ export default function SettingsForm() {
       )}
 
       {/* Issue #145: joining the bridge after a setup without it. */}
-      <BridgePanel onStatus={setBridgeEnabled} />
+      <BridgePanel />
 
       {/* Issue #80: Tailscale Funnel as an alternative to the bridge.
           Primary-only too - Funnel publishes the whole machine. */}
@@ -436,27 +389,6 @@ export default function SettingsForm() {
       {/* Issue #94: in-place updates. Renders nothing on a non-primary
           instance - see UpdatePanel. */}
       <UpdatePanel />
-
-      {/* Only means something on the bridge (issue #145). */}
-      {bridgeEnabled !== false && (
-      <section className="sf-section">
-        <h3>Bridge Shared Secret</h3>
-        <p className="sf-hint">
-          This is what pairs this device with the bridge relay. Regenerating asks the bridge
-          for a new one on the spot — no need to visit its admin panel.
-        </p>
-        <div className="sf-row">
-          <label htmlFor="sf-current-secret">Secret</label>
-          <div className="sf-secret-row">
-            <input id="sf-current-secret" className="sf-input" value={currentBridgeSecret} readOnly />
-            <button className="sf-btn small" type="button" onClick={() => void copyCurrentSecret()}>Copy</button>
-          </div>
-        </div>
-        <button className="sf-btn" disabled={regeneratingSecret || savingKey} onClick={() => void regenerateSecret()}>
-          {regeneratingSecret ? "Regenerating…" : "Regenerate"}
-        </button>
-      </section>
-      )}
 
       <section className="sf-section">
         <h3>Reprocess Media</h3>

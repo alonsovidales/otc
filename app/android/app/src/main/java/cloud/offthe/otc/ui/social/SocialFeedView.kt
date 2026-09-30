@@ -2,6 +2,7 @@
 package cloud.offthe.otc.ui.social
 
 import android.graphics.Bitmap
+import androidx.compose.material3.rememberModalBottomSheetState
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -231,7 +232,9 @@ fun SocialFeedView() {
         NewPostPickerView(onDismiss = { showingPicker = false }, onPosted = { scope.launch { vm.loadFeed() } })
     }
     if (showingFriendships) {
-        ModalBottomSheet(onDismissRequest = { showingFriendships = false }) {
+        // Fully open: half a sheet cut the list off, on the Fold's wide
+        // screen right at the first friend.
+        ModalBottomSheet(onDismissRequest = { showingFriendships = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Box(Modifier.fillMaxWidth().heightIn(min = 400.dp)) { FriendshipsView(onDone = { showingFriendships = false }) }
         }
     }
@@ -312,7 +315,7 @@ private fun PostCard(
 
         Row(Modifier.padding(horizontal = side).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onLikePub, modifier = Modifier.size(36.dp)) {
-                Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Like", tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
+                Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, if (post.liked) "Unlike" else "Like", tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
             }
         }
         if (post.likes > 0) {
@@ -335,10 +338,10 @@ private fun PostCard(
                 if (c.likes > 0) Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.padding(4.dp))
                 IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp)) {
-                    Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, if (c.liked) "Unlike comment" else "Like comment", tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
                 if (post.own || c.own) IconButton(onClick = { commentPendingDelete = c.commentUuid }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Delete, "Delete comment", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
             }
         }

@@ -2,6 +2,8 @@
 package cloud.offthe.otc.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -101,7 +103,10 @@ fun MainView(secrets: SecretsStore) {
             }
         }
     }) { pad ->
-        Box(Modifier.fillMaxSize().padding(pad)) {
+        // The window is edge to edge, where adjustResize no longer lifts
+        // anything above the keyboard: imePadding does, for every tab (the
+        // feed's comment field sat under the keyboard, invisible).
+        Box(Modifier.fillMaxSize().padding(pad).consumeWindowInsets(pad).imePadding()) {
             // Every built tab stays in the tree (hidden) so its state and
             // scroll position survive switching, as on iOS.
             for (t in tabs) {

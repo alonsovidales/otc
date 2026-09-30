@@ -2330,55 +2330,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
-	// Issue #40: update the bridge shared secret from the setup section,
-	// independent of the domain (see SetBridgeSecret's proto comment for
-	// why these two used to be — and no longer are — coupled).
-	case *pb.ReqEnvelope_ReqSetBridgeSecret:
-		log.Info("Set bridge secret")
-		secret := p.ReqSetBridgeSecret.Secret
-		if secret == "" {
-			resp.Error = true
-			resp.ErrorMessage = "secret cannot be empty"
-			break
-		}
-		if err := ch.mg.settings.SetBridgeSecret(secret); err != nil {
-			log.Error("error trying to update bridge secret:", err)
-			resp.Error = true
-			resp.ErrorMessage = err.Error()
-		} else {
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok: true,
-				},
-			}
-		}
-
-	// Self-service "Regenerate": asks the bridge itself for a fresh secret
-	// (authenticated by the current one — see regenerateBridgeSecret) and
-	// persists it, rather than the device inventing one locally that the
-	// bridge would just reject.
-	case *pb.ReqEnvelope_ReqRegenerateBridgeSecret:
-		log.Info("Regenerate bridge secret")
-		newSecret, err := ch.mg.regenerateBridgeSecret()
-		if err != nil {
-			log.Error("error regenerating bridge secret:", err)
-			resp.Error = true
-			resp.ErrorMessage = err.Error()
-			break
-		}
-		if err := ch.mg.settings.SetBridgeSecret(newSecret); err != nil {
-			log.Error("error persisting regenerated bridge secret:", err)
-			resp.Error = true
-			resp.ErrorMessage = err.Error()
-			break
-		}
-		resp.Payload = &pb.RespEnvelope_RespSettings{
-			RespSettings: &pb.Settings{
-				Domain:                 ch.mg.settings.Domain(),
-				BridgeSecret:           ch.mg.settings.BridgeSecret(),
-				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled(),
-			},
-		}
+	// The bridge shared secret is the device's own business: it is set up
+	// with the bridge, and the device rotates it itself
+	// (regenerateBridgeSecret). No client sees or sets it any more - Settings
+	// used to show it in full and let any signed-in session overwrite it,
+	// which could only ever break the device's pairing.
+	case *pb.ReqEnvelope_ReqSetBridgeSecret, *pb.ReqEnvelope_ReqRegenerateBridgeSecret:
+		resp.Error = true
+		resp.ErrorMessage = "the bridge secret is managed by the device"
 
 	case *pb.ReqEnvelope_ReqSetProfile:
 		log.Info("Set profile")
@@ -2404,7 +2363,6 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		resp.Payload = &pb.RespEnvelope_RespSettings{
 			RespSettings: &pb.Settings{
 				Domain:                 ch.mg.settings.Domain(),
-				BridgeSecret:           ch.mg.settings.BridgeSecret(),
 				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled(),
 				SocialStorageLimitMb:   int32(limitMB),
 				SocialStorageUsedBytes: used,

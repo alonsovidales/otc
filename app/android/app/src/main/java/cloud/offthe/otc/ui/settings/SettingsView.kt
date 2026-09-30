@@ -136,16 +136,6 @@ fun SettingsView(secrets: SecretsStore) {
             ProfileEditorSection()
             UsersManagementSection()
 
-            Section("Bridge Shared Secret", "This must match what the bridge has on record for this device — it can't learn a new one from here. To rotate it: on the bridge's admin panel, delete and re-add this device's domain (it'll hand you a new secret), then paste that value above.") {
-                Row(Modifier.fillMaxWidth()) {
-                    Text("Current", modifier = Modifier.width(80.dp))
-                    Text(dst.currentBridgeSecret, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                OTCTextField(value = dst.newBridgeSecret, onValueChange = device::setNewBridgeSecret, placeholder = { Text("Secret from the bridge") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                RowButton(if (dst.savingSecret) "Saving…" else "Save Secret", enabled = !dst.savingSecret && dst.newBridgeSecret.isNotBlank()) { scope.launch { device.saveBridgeSecret() } }
-            }
-
             Section("People", "Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.") {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Face Recognition", Modifier.weight(1f))
@@ -478,3 +468,4 @@ private fun UserRow(vm: UsersManagementViewModel, st: UsersManagementViewModel.S
         HorizontalDivider(Modifier.padding(top = 4.dp))
     }
 }
+
