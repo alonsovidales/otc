@@ -86,9 +86,7 @@ struct PopoverView: View {
                 // Issue #69: the icon in words, for anyone who noticed
                 // it change colour.
                 if sync.raidHealth != .unknown {
-                    Text(sync.raidHealth.summary)
-                        .font(.caption)
-                        .foregroundStyle(sync.raidHealth == .ok ? Color.secondary : Color.red)
+                    StorageStatusView(health: sync.raidHealth, status: sync.deviceStatus)
                 }
             }
 
@@ -573,5 +571,79 @@ struct AddFolderChooser: View {
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// The storage line: its health, a bar of how full the device is, and -
+/// with the pointer over it - the device's CPU and memory in a pop-up.
+/// otc-sync's tray shows the same (a text bar, and a submenu).
+private struct StorageStatusView: View {
+    let health: RaidHealth
+    let status: Msg_Status?
+    @State private var showLoad = false
+
+    /// Used and total, in the status's units (1.024 MB): the storage
+    /// path's disk, or the OS disk on a device without one.
+    private var storage: (used: Double, size: Double)? {
+        guard let s = status else { return nil }
+        if s.raidSize > 0 { return (Double(s.raidUsage), Double(s.raidSize)) }
+        if s.diskSize > 0 { return (Double(s.diskUsage), Double(s.diskSize)) }
+        return nil
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 3) {
+            Text(health.summary)
+                .font(.caption)
+                .foregroundStyle(health == .ok ? Color.secondary : Color.red)
+            if let s = storage {
+                let frac = min(max(s.used / s.size, 0), 1)
+                HStack(spacing: 6) {
+                    ProgressView(value: frac)
+                        .progressViewStyle(.linear)
+                        .tint(frac > 0.9 ? .red : frac > 0.75 ? .orange : .accentColor)
+                        .frame(width: 70)
+                    Text("\(Int((frac * 100).rounded()))% used")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { showLoad = $0 && status != nil }
+        .popover(isPresented: $showLoad, arrowEdge: .bottom) {
+            if let s = status {
+                DeviceLoadView(status: s)
+            }
+        }
+    }
+}
+
+private struct DeviceLoadView: View {
+    let status: Msg_Status
+
+    private func gb(_ v: Int32) -> String {
+        String(format: "%.1f", Double(v) * 1.024 / 1000)
+    }
+
+    var body: some View {
+        let cpu = Double(status.cpuUsagePrc) / 100
+        let mem = status.memSize > 0 ? Double(status.memUsage) / Double(status.memSize) : 0
+        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+            GridRow {
+                Text("CPU").font(.caption)
+                ProgressView(value: min(max(cpu, 0), 1)).frame(width: 90)
+                Text("\(Int((cpu * 100).rounded()))%")
+                    .font(.caption).monospacedDigit()
+            }
+            GridRow {
+                Text("Memory").font(.caption)
+                ProgressView(value: min(max(mem, 0), 1)).frame(width: 90)
+                Text("\(gb(status.memUsage)) of \(gb(status.memSize)) GB")
+                    .font(.caption).monospacedDigit()
+            }
+        }
+        .padding(12)
     }
 }

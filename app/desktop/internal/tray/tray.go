@@ -48,6 +48,8 @@ type ui struct {
 	mu        sync.Mutex
 	status    *systray.MenuItem
 	raid      *systray.MenuItem
+	cpu       *systray.MenuItem // the storage line's submenu: the device's
+	mem       *systray.MenuItem // load, shown when the pointer rests on it
 	empty     *systray.MenuItem
 	folders   []*folderItem
 	addLocal  *systray.MenuItem
@@ -108,9 +110,14 @@ func (u *ui) build(folders []config.FolderStatus) {
 	title.Disable()
 	u.status = systray.AddMenuItem("Not connected", "")
 	u.status.Disable()
+	// Enabled, unlike the other status lines, or its submenu - the
+	// device's CPU and memory - would never open; clicking it does nothing.
 	u.raid = systray.AddMenuItem("", "")
 	u.raid.Hide()
-	u.raid.Disable()
+	u.cpu = u.raid.AddSubMenuItem("", "")
+	u.cpu.Disable()
+	u.mem = u.raid.AddSubMenuItem("", "")
+	u.mem.Disable()
 	systray.AddSeparator()
 	u.empty = systray.AddMenuItem("No folders yet — add one below.", "")
 	u.empty.Disable()
@@ -203,7 +210,10 @@ func (u *ui) apply() {
 	}
 	u.status.SetTitle(statusDot(st.Status) + " " + st.Status)
 	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
-		u.raid.SetTitle(st.RaidSummary)
+		u.raid.SetTitle(storageTitle(st))
+		u.cpu.SetTitle(fmt.Sprintf("CPU: %.0f%%", st.CPUPercent))
+		u.mem.SetTitle(memoryTitle(st))
+		u.raid.SetTooltip(fmt.Sprintf("CPU: %.0f%% · %s", st.CPUPercent, memoryTitle(st)))
 		u.raid.Show()
 	} else {
 		u.raid.Hide()
@@ -419,4 +429,26 @@ func (u *ui) toggleAutostart() {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
+}
+
+// storageTitle is the storage line: its health and, once the device has
+// said, a bar of how full it is - a menu can only show text, so the bar is
+// drawn in characters.
+func storageTitle(st config.State) string {
+	if st.StorageSize <= 0 {
+		return st.RaidSummary
+	}
+	frac := float64(st.StorageUsed) / float64(st.StorageSize)
+	frac = max(0, min(frac, 1))
+	const cells = 10
+	full := int(frac*cells + 0.5)
+	return fmt.Sprintf("%s  %s%s %.0f%% used", st.RaidSummary,
+		strings.Repeat("■", full), strings.Repeat("□", cells-full), frac*100)
+}
+
+// memoryTitle: "Memory: 2.1 of 8.2 GB". The status counts in units of
+// 1.024 MB.
+func memoryTitle(st config.State) string {
+	gb := func(v int64) float64 { return float64(v) * 1.024 / 1000 }
+	return fmt.Sprintf("Memory: %.1f of %.1f GB", gb(st.MemUsed), gb(st.MemSize))
 }

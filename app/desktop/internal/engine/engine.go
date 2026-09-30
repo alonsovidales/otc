@@ -122,6 +122,7 @@ type Engine struct {
 	password     string
 	status       string
 	raid         RaidHealth
+	devStatus    *pb.Status // the last status answer, nil when unknown
 	folderStates map[string]FolderState
 	remoteStates map[string]FolderState
 	remoteHashes map[string]map[string]string // folder id -> remote path -> hash
@@ -379,6 +380,15 @@ func (e *Engine) Snapshot() config.State {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	st := config.State{Status: e.status, Raid: string(e.raid), RaidSummary: e.raid.Summary()}
+	if d := e.devStatus; d != nil {
+		// The storage path's disk; the OS disk only on a device without one.
+		st.StorageUsed, st.StorageSize = int64(d.RaidUsage), int64(d.RaidSize)
+		if st.StorageSize <= 0 {
+			st.StorageUsed, st.StorageSize = int64(d.DiskUsage), int64(d.DiskSize)
+		}
+		st.CPUPercent = float64(d.CpuUsagePrc)
+		st.MemUsed, st.MemSize = int64(d.MemUsage), int64(d.MemSize)
+	}
 	for _, f := range e.cfg.Folders {
 		st.Folders = append(st.Folders, toStatus(f.ID, f.Path, "", e.folderStates[f.ID]))
 	}
@@ -447,6 +457,7 @@ func (e *Engine) stopRaidPolling() {
 		e.raidStop = nil
 	}
 	e.raid = RaidUnknown
+	e.devStatus = nil
 	e.mu.Unlock()
 	e.notify()
 }
@@ -464,6 +475,7 @@ func (e *Engine) pollRaid() {
 	}
 	e.mu.Lock()
 	e.raid = raidHealth(st.RespStatus)
+	e.devStatus = st.RespStatus
 	e.mu.Unlock()
 	e.notify()
 }

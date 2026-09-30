@@ -125,6 +125,9 @@ final class SyncModel: ObservableObject {
     // whenever the connection is down, so a stale "all good" is never
     // shown for a device we can't currently hear from.
     @Published var raidHealth: RaidHealth = .unknown
+    /// The device's last status answer (storage, CPU, memory) - the bar
+    /// and the load pop-up next to raidHealth. nil when unknown.
+    @Published var deviceStatus: Msg_Status?
     private var raidPollTask: Task<Void, Never>?
     private var authRetryTask: Task<Void, Never>?
     // Every 10 seconds: a minute was too slow when someone is actually
@@ -423,6 +426,7 @@ final class SyncModel: ObservableObject {
         raidPollTask?.cancel()
         raidPollTask = nil
         raidHealth = .unknown
+        deviceStatus = nil
     }
 
     private func pollRaidStatus() async {
@@ -430,6 +434,7 @@ final class SyncModel: ObservableObject {
             req.payload = .reqGetStatus(Msg_GetStatus())
         }), case .respStatus(let status) = resp.payload else { return }
         raidHealth = RaidHealth(status: status)
+        deviceStatus = status
     }
 
     /// A one-way backup of a folder on this Mac: new and changed files go

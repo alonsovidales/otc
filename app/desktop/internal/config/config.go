@@ -244,6 +244,13 @@ type State struct {
 	Status        string         `json:"status"` // Connected | Disconnected | Missing domain/password | Not connected
 	Raid          string         `json:"raid"`   // ok | degraded | failed | unknown
 	RaidSummary   string         `json:"raid_summary"`
+	// The device's load, as its status reports it (units of 1.024 MB):
+	// the storage bar and the CPU/memory pop-up next to RaidSummary.
+	StorageUsed int64   `json:"storage_used,omitempty"`
+	StorageSize int64   `json:"storage_size,omitempty"`
+	CPUPercent  float64 `json:"cpu_percent,omitempty"`
+	MemUsed     int64   `json:"mem_used,omitempty"`
+	MemSize     int64   `json:"mem_size,omitempty"`
 	Folders       []FolderStatus `json:"folders"`
 	RemoteFolders []FolderStatus `json:"remote_folders"`
 	PID           int            `json:"pid"`
