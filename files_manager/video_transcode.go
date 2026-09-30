@@ -11,7 +11,6 @@ import (
 	"image"
 	"image/jpeg"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -178,9 +177,11 @@ func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale
 			continue
 		}
 		stderr.Reset()
-		cmd := exec.Command("ffmpeg", encode(color)...)
+		cmd, cancel := command(cTranscodeTimeout, "ffmpeg", encode(color)...)
 		cmd.Stderr = &stderr
-		if runErr = cmd.Run(); runErr == nil {
+		runErr = cmd.Run()
+		cancel()
+		if runErr == nil {
 			break
 		}
 		log.Info("ffmpeg transcode failed with", strings.Join(color, ","), "- trying the next conversion:", runErr)
@@ -294,9 +295,11 @@ type videoColor struct {
 // probeColor reads the first video stream's colour tags; an empty result
 // (no ffprobe, no tags) reads as standard colour.
 func probeColor(path string) videoColor {
-	out, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
+	cmd, cancel := command(cProbeTimeout, "ffprobe", "-v", "error", "-select_streams", "v:0",
 		"-show_entries", "stream=color_transfer,color_primaries,color_space",
-		"-of", "default=noprint_wrappers=1", path).Output()
+		"-of", "default=noprint_wrappers=1", path)
+	defer cancel()
+	out, err := cmd.Output()
 	if err != nil {
 		return videoColor{}
 	}

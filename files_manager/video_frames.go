@@ -88,15 +88,15 @@ func extractVideoFramesFrom(tmpPath string, n int) ([]image.Image, error) {
 
 // extractFirstFrame decodes the video's very first frame, no seeking.
 func extractFirstFrame(path string) (image.Image, error) {
-	cmd := exec.Command("ffmpeg", "-v", "error", "-i", path, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-")
+	cmd, cancel := command(cFrameTimeout, "ffmpeg", "-v", "error", "-i", path, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-")
+	defer cancel()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg: %w: %s", err, stderr.String())
 	}
-	img, _, err := image.Decode(&stdout)
-	return img, err
+	return decodeImage(stdout.Bytes())
 }
 
 // decodeWithFFmpeg decodes a still image Go's decoders can't - JPEG 2000,
@@ -123,12 +123,14 @@ func decodeWithFFmpeg(content []byte) (image.Image, error) {
 }
 
 func probeVideoDuration(path string) (float64, error) {
-	out, err := exec.Command(
+	cmd, cancel := command(cProbeTimeout,
 		"ffprobe", "-v", "error",
 		"-show_entries", "format=duration",
 		"-of", "default=noprint_wrappers=1:nokey=1",
 		path,
-	).Output()
+	)
+	defer cancel()
+	out, err := cmd.Output()
 	if err != nil {
 		return 0, err
 	}
@@ -138,18 +140,18 @@ func probeVideoDuration(path string) (float64, error) {
 func extractFrameAt(path string, seconds float64) (image.Image, error) {
 	// -ss before -i seeks first (fast, keyframe-ish) rather than decoding
 	// from the start — plenty accurate for "roughly evenly spaced samples".
-	cmd := exec.Command(
+	cmd, cancel := command(cFrameTimeout,
 		"ffmpeg", "-ss", fmt.Sprintf("%.3f", seconds), "-i", path,
 		"-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "-",
 	)
+	defer cancel()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg: %w: %s", err, stderr.String())
 	}
-	img, _, err := image.Decode(&stdout)
-	return img, err
+	return decodeImage(stdout.Bytes())
 }
 
 // tagVideoFrames runs the tagger over every frame and merges the results,

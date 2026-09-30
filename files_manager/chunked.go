@@ -214,10 +214,11 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		return nil, err
 	}
 
-	mg.maxUploads <- true
 	go func() {
+		// A slot is waited for here, not by the request (issue #165).
+		mg.maxUploads <- true
 		defer func() { <-mg.maxUploads }()
-		mg.processStored(ses, file, target)
+		mg.safely("processing", file.Path, func() { mg.processStored(ses, file, target) })
 	}()
 	return file, nil
 }

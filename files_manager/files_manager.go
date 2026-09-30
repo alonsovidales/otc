@@ -1131,17 +1131,21 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 	}
 
-	// Limit the amount of concurrent processing (tags, thumbnail, faces).
-	mg.maxUploads <- true
-
-	go func(targetPath string, file *pb.File, content []byte) {
+	// Processing (tags, thumbnail, faces) happens in the background, in
+	// one of maxUploads slots, from what is now on the disk (issue #165):
+	// the request used to wait here for a slot holding the whole file, and
+	// processing kept it - a video's included - in memory until it was
+	// done. The upload's memory is free as soon as this returns; a video
+	// is streamed to ffmpeg rather than read whole.
+	go func(targetPath string, file *pb.File) {
+		mg.maxUploads <- true
 		defer func() { <-mg.maxUploads }()
 
 		start := time.Now()
-		mg.processMediaContent(session, file, targetPath, content)
+		mg.safely("processing", file.Path, func() { mg.processStored(session, file, targetPath) })
 
 		log.Debug("Time processing image:", time.Since(start), targetPath)
-	}(targetPath, file, content)
+	}(targetPath, file)
 
 	return
 }
@@ -1284,8 +1288,8 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		img, _, err := image.Decode(bytes.NewReader(content))
-		if err != nil {
+		img, err := decodeImage(content)
+		if err != nil && checkImageSize(content) == nil {
 			// What Go can't read - JPEG 2000, Photoshop, camera RAW
 			// (DNG), a JPEG cut short or with a damaged marker - ffmpeg
 			// usually can: it is already here for videos.
@@ -1701,7 +1705,11 @@ func (mg *Manager) heicToJpeg(heicData []byte, quality int, fallbackOrientation 
 		quality = 90
 	}
 
-	// Decode HEIC from memory
+	// Decode HEIC from memory - once its header says it's a sane size
+	// (issue #165).
+	if err := checkImageSize(heicData); err != nil {
+		return nil, err
+	}
 	img, err := goheif.Decode(bytes.NewReader(heicData))
 	if err != nil {
 		return nil, err

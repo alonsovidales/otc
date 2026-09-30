@@ -186,7 +186,7 @@ func (mg *Manager) runReprocess(ctx context.Context, ses *session.Session, lastH
 				return
 			}
 
-			mg.reprocessOneFile(ses, file, storagePath)
+			mg.safely("reprocessing", file.Path, func() { mg.reprocessOneFile(ses, file, storagePath) })
 			processed++
 			lastHash = file.Hash
 			// Persisted after every single file, deliberately - the whole

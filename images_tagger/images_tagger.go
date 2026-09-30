@@ -126,6 +126,12 @@ func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) (
 	if opt.Threshold == 0 {
 		opt.Threshold = 0.40
 	}
+	// Issue #165: ctx was ignored, so the callers' timeouts did nothing.
+	// The model run itself is native and can't be interrupted, but a call
+	// whose time is already up - it waited for its turn - doesn't start.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	input := r.preprocess(img, opt.ImageSize)
 
@@ -145,6 +151,9 @@ func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) (
 	defer y.Destroy()
 
 	// run
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := r.sess.Run([]ort.Value{x}, []ort.Value{y}); err != nil {
 		return nil, err
 	}

@@ -17,9 +17,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
-	"github.com/alonsovidales/otc/modelserver"
 	"github.com/alonsovidales/otc/exifinfo"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
+	"github.com/alonsovidales/otc/modelserver"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
