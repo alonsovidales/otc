@@ -117,7 +117,12 @@ in README.md under "Console access" - the only way into a device like Cala short
 from that console.
 
 The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
-`GOOS=linux GOARCH=amd64 CGO_ENABLED=0` and deploys to `off-the.cloud` over SSH as `ubuntu`.
+`GOOS=linux GOARCH=amd64 CGO_ENABLED=0` and deploys to every cluster node (`NODES ?= bridge1
+bridge2`, SSH aliases for `ubuntu@37.187.141.41` / `ubuntu@149.202.83.7`), one at a time so the
+other keeps serving. Since issue #144 (2026-10-01) the bridge is a cluster - two KS-5 nodes behind
+DNS round robin (`@`, `www`, `*` at a 60 s TTL), MySQL primary on bridge1 and replica on bridge2,
+Redis on the old KS-B (51.83.103.72, `redis`), everything internal over WireGuard; see
+`bridge/cluster/README.md`. The old server no longer runs the bridge.
 
 **Toolchain requirements** (not present by default in a generic dev container):
 - `go.mod` requires Go **1.25+**; the system `go` may be much older (check with `go version` before
