@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -269,6 +270,9 @@ func (mg *Manager) ReadFile(ses *session.Session, path, versionHash string, offs
 	}
 	blob, err := blobstore.Open(blobPath(file.Hash), ses)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			missingBlobs.set(file.Hash, true)
+		}
 		mg.alert("could not be read", path, err)
 		return nil, nil, 0, fmt.Errorf("the content of %s is missing or unreadable on this device", path)
 	}

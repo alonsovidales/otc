@@ -847,6 +847,9 @@ type connHandler struct {
 	mu            sync.RWMutex
 	session       *session.Session
 	friendProfile *profile.Profile
+	// keyMu serialises taking this connection's key (getOrCreatePrivKey),
+	// apart from mu so waiting for one never holds up other requests.
+	keyMu sync.Mutex
 	// privKey is an ephemeral RSA keypair generated per WebSocket connection.
 	// Its public half is handed out via GetPubKey/PubKey so the client can
 	// RSA-OAEP encrypt the password before it crosses the bridge, which only
@@ -891,17 +894,55 @@ func (ch *connHandler) getPrivKey() *rsa.PrivateKey {
 // generate their own keypair, with whichever sets ch.privKey last silently
 // winning — the client that got the other one back would then fail every
 // decrypt on this connection.
+//
+// Issue #173: the key comes from rsaKeyPool, not generated here under
+// ch.mu - a 2048-bit key takes a Pi up to a couple of seconds, which held
+// every other request on the connection, and any number of connections
+// could each start one. Under its own lock, so only a second GetPubKey
+// on this connection waits.
 func (ch *connHandler) getOrCreatePrivKey() (*rsa.PrivateKey, error) {
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
-	if ch.privKey == nil {
-		key, err := rsa.GenerateKey(crand.Reader, 2048)
-		if err != nil {
-			return nil, err
-		}
-		ch.privKey = key
+	ch.keyMu.Lock()
+	defer ch.keyMu.Unlock()
+	ch.mu.RLock()
+	key := ch.privKey
+	ch.mu.RUnlock()
+	if key != nil {
+		return key, nil
 	}
-	return ch.privKey, nil
+	key = takeRSAKey()
+	ch.mu.Lock()
+	ch.privKey = key
+	ch.mu.Unlock()
+	return key, nil
+}
+
+// rsaKeyPool holds a few connection keys made ahead of time by a single
+// generator (issue #173): a client asking for one gets it at once, and
+// however many connections ask, the device only ever makes one key at a
+// time - a flood of connections waits for keys instead of taking every
+// core.
+var (
+	rsaKeyPool     = make(chan *rsa.PrivateKey, cRSAKeyPoolSize)
+	rsaKeyPoolOnce sync.Once
+)
+
+const cRSAKeyPoolSize = 4
+
+func takeRSAKey() *rsa.PrivateKey {
+	rsaKeyPoolOnce.Do(func() {
+		go func() {
+			for {
+				key, err := rsa.GenerateKey(crand.Reader, 2048)
+				if err != nil {
+					log.Error("could not generate a connection key:", err)
+					time.Sleep(time.Second)
+					continue
+				}
+				rsaKeyPool <- key
+			}
+		}()
+	})
+	return <-rsaKeyPool
 }
 
 // decryptSecret decrypts an RSA-OAEP(SHA-256) ciphertext produced by a

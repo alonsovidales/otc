@@ -241,7 +241,10 @@ func BuildTransientFile(content []byte) *pb.File {
 // be fixed once for the image side - see processMediaContent's own
 // comment on it - no reason to reproduce the same gap here in new code).
 func (mg *Manager) GenerateVideoThumbnail(content []byte, maxWidth int) ([]byte, error) {
-	frames, err := extractVideoFrames(content, cVideoSampleFrames)
+	// One frame: this is only the post's thumbnail - the tags come from
+	// processMediaContent's own frames. It decoded cVideoSampleFrames full
+	// frames and kept the first (issue #173).
+	frames, err := extractVideoFrames(content, 1)
 	if err != nil {
 		return nil, fmt.Errorf("extracting video frames: %w", err)
 	}

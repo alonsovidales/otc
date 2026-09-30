@@ -530,11 +530,13 @@ func (dao *Dao) GetFileVersion(path, hash string) (file *pb.File, err error) {
 	return
 }
 
-// CountFileVersions is how many older versions each path matching the
-// regexp has - what a listing shows as the versions badge.
-func (dao *Dao) CountFileVersions(pathRegexp string) (map[string]int32, error) {
+// CountFileVersions is how many older versions each path under prefix
+// has (direct: right in it, not in sub-folders) - what a listing shows as
+// the versions badge.
+func (dao *Dao) CountFileVersions(prefix string, direct bool) (map[string]int32, error) {
 	counts := map[string]int32{}
-	rows, err := dao.db.Query("select `path`, count(*) from `file_versions` where `path` regexp ? group by `path`", pathRegexp)
+	cond, args := underPrefix("`path`", prefix, direct)
+	rows, err := dao.db.Query("select `path`, count(*) from `file_versions` where "+cond+" group by `path`", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -607,11 +609,12 @@ func (dao *Dao) HashReferenced(hash string) (bool, error) {
 func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (files []*pb.File, err error) {
 	log.Debug("Get Files by path initial:", path, recursive)
 	if !recursive {
-		pathFiles := "^" + path + "[^/]+$"
-
-		// We add first the sub-directories that are actually subpaths of the existing files
+		// We add first the sub-directories that are actually subpaths of the
+		// existing files: whatever under path has a further "/".
 		slashesInPath := strings.Count(path, "/")
-		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files WHERE path LIKE ? and path not regexp ? order by `created` desc", slashesInPath, path+"%", pathFiles)
+		cond, args := underPrefix("`path`", path, false)
+		args = append([]any{slashesInPath}, append(args, likeEscape(path)+"%/%")...)
+		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files where "+cond+" and `path` like ? order by `created` desc", args...)
 		if err != nil {
 			return nil, err
 		}
@@ -629,9 +632,6 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 			}
 			files = append(files, file)
 		}
-		path = pathFiles
-	} else {
-		path = "^" + path
 	}
 
 	extrImgs := ""
@@ -639,9 +639,10 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 		extrImgs = " and `mime` like 'image%' "
 	}
 
-	searchStr := "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` regexp ? " + extrImgs + " order by `created` desc"
+	cond, args := underPrefix("`path`", path, !recursive)
+	searchStr := "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where " + cond + extrImgs + " order by `created` desc"
 	log.Debug("Get Files by path:", path, searchStr)
-	rows, err := dao.db.Query(searchStr, path)
+	rows, err := dao.db.Query(searchStr, args...)
 
 	if err != nil {
 		return nil, err
@@ -1941,12 +1942,14 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 
 	var whereParts []string
 	if path != "" {
-		whereParts = append(whereParts, "`f`.`path` regexp ?")
+		// Issue #173: the index range, not a regexp (see pathprefix.go).
+		cond, condArgs := underPrefix("`f`.`path`", path, true)
+		whereParts = append(whereParts, cond)
 		// The WHERE clause comes after the FROM/JOIN clauses above in the
-		// final query text, so its placeholder's arg must be appended
+		// final query text, so its placeholders' args must be appended
 		// after theirs, not before - args must stay in the exact
 		// left-to-right order the ?s appear in the assembled query.
-		args = append(args, "^"+path+"[^/]+$")
+		args = append(args, condArgs...)
 	}
 	// Without a tag, person or album join there is nothing tying the rows
 	// to media, so say so here: the gallery must never be handed a text

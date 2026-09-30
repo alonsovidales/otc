@@ -23,7 +23,9 @@ import (
 // change: the same set of missing files isn't reported again every day.
 
 const (
-	cIntegrityFirstRun = 10 * time.Minute
+	// Issue #173: soon after start - this run is also what fills in which
+	// blobs are missing for listings (missingblobs.go).
+	cIntegrityFirstRun = time.Minute
 	cIntegrityEvery    = 24 * time.Hour
 	// A hash missing on the first look is only reported if it is still
 	// missing this much later (a DelFile and an upload of the same

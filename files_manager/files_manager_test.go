@@ -648,7 +648,7 @@ func TestResolvePathsExpandsADirectoryToTheFilesUnderIt(t *testing.T) {
 	// Not a file row...
 	mock.ExpectQuery("from `files` where `path` = \\?").WithArgs("/kim").WillReturnError(sql.ErrNoRows)
 	// ...so listed recursively as a directory, anchored with the slash.
-	mock.ExpectQuery("from `files` where `path` regexp \\?").WithArgs("^/kim/").
+	mock.ExpectQuery("from `files` where `path` >= \\? and `path` < concat\\(\\?, _utf8mb4 X'F48FBFBF'\\) and `path` like \\?").WithArgs("/kim/", "/kim/", "/kim/%").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
 			AddRow("h1", "image/jpeg", time.Now(), time.Now(), "/kim/a.jpg", 1).
 			AddRow("h2", "image/jpeg", time.Now(), time.Now(), "/kim/sub/b.jpg", 2))

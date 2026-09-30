@@ -11,6 +11,7 @@ import (
 	"github.com/alonsovidales/otc/staticassets"
 	"github.com/alonsovidales/otc/websocket"
 	"net/http"
+	"time"
 )
 
 const (
@@ -38,6 +39,21 @@ type API struct {
 	muxHTTPServer *http.ServeMux
 }
 
+// newServer is an HTTP server with the timeouts that are safe here (issue
+// #173 - there were none, so a client sending its headers a byte at a
+// time held a connection forever). Only the header read is bounded, plus
+// idle keep-alives: a whole-request read or write timeout would cut the
+// websockets, which live for hours, and a long video stream.
+func newServer(addr string, h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    64 << 10,
+	}
+}
+
 // Init Initializes the API and starts listening on the specified ports serving
 // both the HTTP API and the static content
 func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao *dao.Dao, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
@@ -49,8 +65,8 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 	}
 	api.registerAPIs()
 	log.Info("Starting API server on port:", httpPort)
-	go http.ListenAndServe(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer)
-	go http.ListenAndServeTLS(fmt.Sprintf(":%d", httpsPort), cert, key, api.muxHTTPServer)
+	go newServer(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer).ListenAndServe()
+	go newServer(fmt.Sprintf(":%d", httpsPort), api.muxHTTPServer).ListenAndServeTLS(cert, key)
 
 	// Issue #38: also listen on plain port 80, best-effort. iOS/Android/
 	// Windows all probe a well-known URL over port 80 to detect a captive
@@ -64,7 +80,7 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 	// running this without that capability, or something already on 80)
 	// this simply isn't available, and that's fine — httpPort still works.
 	go func() {
-		if err := http.ListenAndServe(":80", api.muxHTTPServer); err != nil {
+		if err := newServer(":80", api.muxHTTPServer).ListenAndServe(); err != nil {
 			log.Error("could not also listen on :80 (captive-portal probes won't be caught):", err)
 		}
 	}()

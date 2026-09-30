@@ -314,11 +314,7 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 	if err != nil {
 		return nil, err
 	}
-	pathRegexp := "^" + path
-	if !recursive {
-		pathRegexp += "[^/]+$"
-	}
-	versions, err := mg.dao.CountFileVersions(pathRegexp)
+	versions, err := mg.dao.CountFileVersions(path, !recursive)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +326,9 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 		// sees a difference and sends it again - which restores it (see
 		// UploadFile). Listed with its real hash, every client thought it
 		// was in sync and the loss was permanent.
-		if f.Mime != "inode/directory" && f.Hash != "" && !mg.hasBlob(f.Hash) {
+		// Issue #173: from what the device knows is missing, not a stat per
+		// file (missingblobs.go).
+		if f.Mime != "inode/directory" && f.Hash != "" && missingBlobs.has(f.Hash) {
 			f.Hash = ""
 		}
 	}
@@ -736,7 +734,11 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		page = append(page, file)
 	}
 	if next < len(files) {
-		mg.searchTokens.Store(token, files[next:])
+		// A copy of what's left, not files[next:]: that slice shares the
+		// whole result's backing array, so every file already served - its
+		// thumbnail included - stayed reachable for as long as the token
+		// lived (issue #173). The rows kept have no content yet.
+		mg.searchTokens.Store(token, append([]*pb.File(nil), files[next:]...))
 		mg.tokensToExpire.Store(token, time.Now())
 	} else {
 		log.Debug("End for token:", token)
@@ -796,6 +798,7 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 		var content []byte
 		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
 		if errors.Is(err, os.ErrNotExist) {
+			missingBlobs.set(file.Hash, true)
 			mg.alert("could not be read", path, err)
 			return nil, fmt.Errorf("the content of %s is missing on this device", path)
 		}
@@ -1519,8 +1522,10 @@ func blobPath(hash string) string {
 // content encrypts to a nonce and a tag.
 func (mg *Manager) hasBlob(hash string) bool {
 	fi, err := os.Stat(blobPath(hash))
+	ok := err == nil && fi.Size() > 0
+	missingBlobs.set(hash, !ok) // what listings go by (missingblobs.go)
 
-	return err == nil && fi.Size() > 0
+	return ok
 }
 
 // LinkFile registers path as pointing at content this device already has
