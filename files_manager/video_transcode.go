@@ -125,7 +125,29 @@ func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale
 
 	outPath := inPath + "-out.mp4"
 	defer os.Remove(outPath)
+	transcodeSlots <- struct{}{}
+	defer func() { <-transcodeSlots }()
+	if err := transcodeFile(inPath, outPath, trim, downscale); err != nil {
+		return nil, err
+	}
+	out, err := os.ReadFile(outPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading transcoded output: %w", err)
+	}
+	log.Debug("Transcoded video for social:", len(content), "->", len(out), "bytes, trimmed:", trim != nil, "downscaled:", downscale)
+	return out, nil
+}
 
+// transcodeSlots: one post video is re-encoded at a time (issue #166) - it
+// takes every core, and more at once only made each slower and added
+// their memory together.
+var transcodeSlots = make(chan struct{}, 1)
+
+// transcodeFile re-encodes the video at inPath - a file, or a URL ffmpeg
+// reads with range requests (a stored video's loopback stream) - into
+// outPath as an MP4.
+// The caller holds a transcodeSlots slot.
+func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) error {
 	args := []string{"-y"}
 	if trim != nil && trim.Start > 0 {
 		// -ss ahead of -i seeks by index before decoding anything, which
@@ -187,15 +209,9 @@ func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale
 		log.Info("ffmpeg transcode failed with", strings.Join(color, ","), "- trying the next conversion:", runErr)
 	}
 	if runErr != nil {
-		return nil, fmt.Errorf("ffmpeg transcode: %w: %s", runErr, stderr.String())
+		return fmt.Errorf("ffmpeg transcode: %w: %s", runErr, stderr.String())
 	}
-
-	out, err := os.ReadFile(outPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading transcoded output: %w", err)
-	}
-	log.Debug("Transcoded video for social:", len(content), "->", len(out), "bytes, trimmed:", trim != nil, "downscaled:", downscale)
-	return out, nil
+	return nil
 }
 
 func trimDuration(trim *TrimRange) float64 {
@@ -249,6 +265,20 @@ func (mg *Manager) GenerateVideoThumbnail(content []byte, maxWidth int) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("extracting video frames: %w", err)
 	}
+	return videoThumbnail(frames, maxWidth)
+}
+
+// GenerateVideoThumbnailFrom is GenerateVideoThumbnail for a video at src
+// (a file or a loopback stream URL), without loading it.
+func GenerateVideoThumbnailFrom(src string, maxWidth int) ([]byte, error) {
+	frames, err := extractVideoFramesFrom(src, 1)
+	if err != nil {
+		return nil, fmt.Errorf("extracting video frames: %w", err)
+	}
+	return videoThumbnail(frames, maxWidth)
+}
+
+func videoThumbnail(frames []image.Image, maxWidth int) ([]byte, error) {
 	if len(frames) == 0 {
 		return nil, errors.New("no frames extracted from video")
 	}

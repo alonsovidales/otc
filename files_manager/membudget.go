@@ -5,10 +5,13 @@ package filesmanager
 import (
 	"bufio"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
@@ -103,6 +106,30 @@ func memTotalBytes() int64 {
 		}
 	}
 	return 0
+}
+
+// ReserveBytes holds n bytes of the content budget, waiting for room.
+// Never nil.
+func (mg *Manager) ReserveBytes(n int64) func() {
+	if mg.contentBudget == nil {
+		return func() {}
+	}
+	return mg.contentBudget.acquire(n)
+}
+
+var postMediaName = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// ReservePublicationMedia holds the content budget for serving a post's
+// media file (issue #166: read whole, for the owner's feed and friends).
+func (mg *Manager) ReservePublicationMedia(hash string) func() {
+	if !postMediaName.MatchString(hash) {
+		return func() {}
+	}
+	info, err := os.Stat(filepath.Join(cfg.GetStr("otc", "unenc-storage-path"), hash))
+	if err != nil {
+		return func() {}
+	}
+	return mg.ReserveBytes(info.Size() * cDownloadCopies)
 }
 
 // ReserveForDownload holds a share of the content budget for serving the

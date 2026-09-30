@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -283,72 +284,23 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		// A file uploaded a moment ago (a photo or video just taken)
 		// may not be written yet.
 		sc.filesmanager.WaitForContent(path, 2*time.Minute)
-		file, err := sc.filesmanager.GetFile(ses, path, "")
-		if err != nil {
-			log.Error("Error loading file:", err)
-			return "", fmt.Errorf("error loading file %q: %w", path, err)
-		}
+		unencDir := cfg.GetStr("otc", "unenc-storage-path")
+		maxThumb := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
 
-		// Issue #60: an oversized video gets compressed into a brand new
-		// copy before anything below treats it as this post's file - every
-		// subsequent step (the unenc cache write, the thumbnail, the file
-		// actually stored on the publication) then operates on the
-		// compressed copy transparently, exactly as if the owner had
-		// picked it directly. That copy only exists to support this one
-		// post's distribution though - it's not something the owner chose
-		// to keep, so (mirroring how an image's own thumbnail never does
-		// either) it's never written as a real file: no `files` row, no
-		// entry in the Files section, no tag/face processing. See
-		// BuildTransientFile's doc comment.
-		isTransient := false
-		needsCompression := shouldCompressForSocial(file.Mime, len(file.Content))
-		if trim := trimByPath[path]; shouldTrimForSocial(file.Mime, trim) {
-			// Issue #108: the cut and issue #60's downscale are handed to
-			// ffmpeg together, so an oversized video is only ever encoded
-			// once - see TrimVideoForSocial. Whether to downscale is still
-			// decided from the *original* size: a trim can obviously only
-			// make the result smaller, and a source big enough to need
-			// compressing is one this device wants distributed at social
-			// resolution regardless of how much of it survives the cut.
-			trimmed, tErr := sc.filesmanager.TrimVideoForSocial(file.Content, filesmanager.TrimRange{
-				Start: trim.StartSecs,
-				End:   trim.EndSecs,
-			}, needsCompression)
-			if tErr != nil {
-				log.Error("error trimming video for publication, publishing it whole instead:", tErr)
-			} else {
-				log.Debug("Publishing trimmed video:", path, trim.StartSecs, "->", trim.EndSecs, len(file.Content), "->", len(trimmed))
-				file = filesmanager.BuildTransientFile(trimmed)
-				isTransient = true
-				// The cut already went through ffmpeg with the same
-				// downscale settings compression would have applied.
-				needsCompression = false
-			}
-		}
-		if needsCompression {
-			compressed, cErr := sc.filesmanager.CompressVideoForSocial(file.Content)
-			if cErr != nil {
-				log.Error("error compressing oversized video for publication, publishing the original instead:", cErr)
-			} else {
-				log.Debug("Publishing compressed video instead of oversized original:", path, len(file.Content), "->", len(compressed))
-				file = filesmanager.BuildTransientFile(compressed)
-				isTransient = true
-			}
-		}
-
-		files[i] = file
-		unencPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-		err = os.WriteFile(unencPath, file.Content, 0o600) // perms: rw------- (issue #157)
+		// Issue #166: at most one file of the post is in memory at a
+		// time, and a video never is - see publishVideo.
+		file, isTransient, err := sc.publishFile(ses, path, trimByPath[path], unencDir)
 		if err != nil {
 			return "", err
 		}
+		files[i] = file
 
 		var unEncThumb []byte
 		if isTransient {
 			// Nothing to poll for - there's no `files` row, so no
 			// background goroutine is ever going to write an encrypted
 			// thumbnail for this hash. Generate one directly instead.
-			unEncThumb, err = sc.filesmanager.GenerateVideoThumbnail(file.Content, int(cfg.GetInt("otc", "max-thumbnail-width-px")))
+			unEncThumb, err = filesmanager.GenerateVideoThumbnailFrom(filepath.Join(unencDir, file.Hash), maxThumb)
 			if err != nil {
 				return "", fmt.Errorf("generating thumbnail for compressed video %q: %w", path, err)
 			}
@@ -372,7 +324,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 				time.Sleep(cThumbnailPollInterval)
 			}
 		}
-		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
+		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", unencDir, file.Hash)
 		err = os.WriteFile(unencPathThumb, unEncThumb, 0o600) // perms: rw------- (issue #157)
 		if err != nil {
 			return "", err
@@ -394,6 +346,53 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 	}
 
 	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain(), true, files, time.Now())
+}
+
+// publishFile writes the plaintext copy a post distributes for the file at
+// path into unencDir, named by its hash, and returns its File (without
+// Content) and whether it is a transient copy (trimmed or compressed)
+// rather than the owner's file.
+func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoTrim, unencDir string) (*pb.File, bool, error) {
+	meta, err := sc.dao.GetFileByPath(path)
+	if err != nil || meta == nil {
+		return nil, false, fmt.Errorf("error loading file %q: %v", path, err)
+	}
+	if strings.HasPrefix(meta.Mime, "video/") {
+		return sc.publishVideo(ses, meta, trim, unencDir)
+	}
+
+	// A photo is read whole (a HEIC is converted to JPEG for everyone
+	// else's screens), within the download memory budget.
+	release := sc.filesmanager.ReserveForDownload(path, "")
+	defer release()
+	file, err := sc.filesmanager.GetFile(ses, path, "")
+	if err != nil {
+		log.Error("Error loading file:", err)
+		return nil, false, fmt.Errorf("error loading file %q: %w", path, err)
+	}
+	if err := os.WriteFile(filepath.Join(unencDir, file.Hash), file.Content, 0o600); err != nil { // perms: rw------- (issue #157)
+		return nil, false, err
+	}
+	file.Content = nil
+	return file, false, nil
+}
+
+// publishVideo: issue #60 compresses an oversized video into a new copy
+// and issue #108 cuts it to the owner's trim - one ffmpeg pass for both,
+// so it is only ever encoded once. That copy only exists for this post: no
+// `files` row, no entry in Files, no tags or faces (see
+// BuildTransientFile). Whether to downscale is decided from the original's
+// size: a source big enough to need it is distributed at social
+// resolution however much of it survives the cut. The video is never
+// loaded: ffmpeg streams the stored file, or it is decrypted straight into
+// place (issue #166).
+func (sc *Social) publishVideo(ses *session.Session, file *pb.File, trim *pb.VideoTrim, unencDir string) (*pb.File, bool, error) {
+	downscale := shouldCompressForSocial(file.Mime, int(file.Size))
+	var tr *filesmanager.TrimRange
+	if shouldTrimForSocial(file.Mime, trim) {
+		tr = &filesmanager.TrimRange{Start: trim.StartSecs, End: trim.EndSecs}
+	}
+	return sc.filesmanager.ExportVideoForPost(ses, file, tr, downscale, unencDir)
 }
 
 // GetEvents is the page of events requester's device is served (issue

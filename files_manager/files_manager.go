@@ -656,9 +656,14 @@ func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length
 		return nil, size, fmt.Errorf("offset %d outside the archive", offset)
 	}
 	if length < 0 {
+		// Issue #166: the whole archive in one reply only while it is
+		// small; anything larger is fetched in parts (the web page does).
+		if size-offset > MaxChunk {
+			return nil, size, fmt.Errorf("the archive is %d bytes: download it in parts", size)
+		}
 		length = int(size - offset)
 	}
-	if length > MaxChunk && length != int(size-offset) {
+	if length > MaxChunk {
 		length = MaxChunk
 	}
 	if rest := size - offset; int64(length) > rest {
@@ -936,12 +941,14 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		ex, err = exifinfo.FromVideoSource(src)
 		done()
 	} else {
+		// Issue #166: read whole for its metadata, within the budget.
+		release := mg.ReserveBytes(int64(file.Size))
 		var content []byte
 		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			ex, err = extractExif(content, file.Mime, file.Path)
 		}
-		ex, err = extractExif(content, file.Mime, file.Path)
+		release()
 	}
 	if err != nil {
 		return nil, err

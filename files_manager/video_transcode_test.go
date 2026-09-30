@@ -10,9 +10,13 @@ import (
 	"image/jpeg"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/session"
 )
 
 // makeTestVideoSized is makeTestVideo (video_frames_test.go) with an
@@ -373,5 +377,46 @@ func TestHdrToSDROnlyForHDR(t *testing.T) {
 	chain := hdrToSDR(parseProbeColor("color_transfer=arib-std-b67\ncolor_primaries=bt2020\ncolor_space=bt2020nc\n"))
 	if len(chain) == 0 || !strings.Contains(chain[0], "tin=arib-std-b67") || chain[len(chain)-1] != "format=yuv420p" {
 		t.Errorf("HLG chain = %v", chain)
+	}
+}
+
+// Issue #166: a post's video is re-encoded from its stream (here a file)
+// straight into the posts' directory, named by its hash, never loaded.
+func TestExportVideoForPostStreamsIntoDir(t *testing.T) {
+	requireFFmpeg(t)
+	src := filepath.Join(t.TempDir(), "in.mp4")
+	if err := os.WriteFile(src, makeTestVideoSized(t, 3, 1280, 720), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mg := &Manager{}
+	mg.SetVideoSource(func(*session.Session, *pb.File) (string, func(), error) { return src, func() {}, nil })
+	dir := t.TempDir()
+
+	out, transient, err := mg.ExportVideoForPost(nil, &pb.File{Hash: "orig", Mime: "video/mp4"}, &TrimRange{Start: 1, End: 2}, true, dir)
+	if err != nil {
+		t.Fatalf("ExportVideoForPost: %v", err)
+	}
+	if !transient || out.Content != nil || out.Hash == "orig" {
+		t.Fatalf("want a transient copy without content, got %+v", out)
+	}
+	path := filepath.Join(dir, out.Hash)
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the copy is not in the directory under its hash: %v", err)
+	}
+	if sum := sha256.Sum256(body); hex.EncodeToString(sum[:]) != out.Hash || int(out.Size) != len(body) {
+		t.Fatal("hash or size don't match the file written")
+	}
+	if info, _ := os.Stat(path); info.Mode().Perm() != 0o600 {
+		t.Fatalf("mode %v, want 0600", info.Mode().Perm())
+	}
+	if w, _ := probeVideoDimensions(t, body); w > cSocialVideoMaxWidth {
+		t.Fatalf("not downscaled: width %d", w)
+	}
+	if _, err := GenerateVideoThumbnailFrom(path, 320); err != nil {
+		t.Fatalf("thumbnail from the copy: %v", err)
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, ".post-*")); len(left) != 0 {
+		t.Fatalf("temporary files left: %v", left)
 	}
 }

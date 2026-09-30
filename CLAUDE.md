@@ -236,6 +236,14 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   own loopback stream (`SetVideoSource`: a short-lived media token), so processing, reprocess
   and the info panel never load a video whole nor write it out in plaintext; share-link zips
   are streamed into a segmented file under the link's key.
+  Issue #166 (release 63): a share link is downloaded in parts (the web page asks for 4 MiB
+  ranges; a whole-archive `DownloadSharedLink` is refused above 4 MiB), and every reply carrying
+  file content holds the content budget until it is on the wire (`connHandler.reserveMemory`:
+  `GetFile`, `GetPublicationMedia`, share-link parts; `GetFileInfo` reserves while it reads a
+  photo). A post's video is never loaded: `ExportVideoForPost` re-encodes it from the loopback
+  stream straight into the posts' directory (named by hash) or decrypts the original there a
+  segment at a time, one transcode at a time (`transcodeSlots`, taken before the stream token);
+  a post's photos are read one at a time, within the budget.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
 - `modelserver` — issue #167: the primary instance loads RAM++ and the face models once and

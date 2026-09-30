@@ -835,6 +835,30 @@ func (ch *connHandler) readLimit() int64 {
 	return cPreAuthReadLimit
 }
 
+// reserveMemory holds the content budget a request that answers with file
+// content needs (a file, a post's media, a share link's part), until its
+// reply is on the wire. Never nil.
+func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
+	fm := ch.mg.filesManager
+	if fm == nil {
+		return func() {}
+	}
+	switch p := env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqGetFile:
+		return fm.ReserveForDownload(p.ReqGetFile.Path, p.ReqGetFile.Hash)
+	case *pb.ReqEnvelope_ReqGetPublicationMedia:
+		return fm.ReservePublicationMedia(p.ReqGetPublicationMedia.Hash)
+	case *pb.ReqEnvelope_ReqDownloadSharedLink:
+		// Issue #166: reachable by anyone with a link - one part at a time.
+		n := int64(p.ReqDownloadSharedLink.Length)
+		if n <= 0 || n > filesmanager.MaxChunk {
+			n = filesmanager.MaxChunk
+		}
+		return fm.ReserveBytes(n * 2)
+	}
+	return func() {}
+}
+
 // addr is the address the password-attempt limit is kept for.
 func (ch *connHandler) addr() string {
 	ch.mu.RLock()
@@ -3459,10 +3483,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			// A download waits here for room in the device's memory
 			// budget, and holds it until its reply is on the wire (see
 			// filesmanager.ReserveForDownload).
-			if gf, ok := env.Payload.(*pb.ReqEnvelope_ReqGetFile); ok && ch.mg.filesManager != nil {
-				release := ch.mg.filesManager.ReserveForDownload(gf.ReqGetFile.Path, gf.ReqGetFile.Hash)
-				defer release()
-			}
+			defer ch.reserveMemory(env)()
 
 			resp, doClose := ch.processMessage(env)
 

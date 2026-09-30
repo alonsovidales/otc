@@ -220,6 +220,7 @@ function App() {
   const downloadLink = sp.get("download");
   const startedDownloadRef = useRef<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   useEffect(() => {
     if (!downloadLink) return;
     if (startedDownloadRef.current === downloadLink) return;
@@ -233,21 +234,39 @@ function App() {
       }
       const [uuid, secret] = parts;
       try {
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqDownloadSharedLink", reqDownloadSharedLink: { uuid, secret } };
-        });
-
-        if (resp.payload?.$case !== "respSharedFiles") {
-          setDownloadError(resp.errorMessage || "That link is no longer valid.");
-          return;
+        // Issue #166: in parts of at most 4 MB, so the device never holds
+        // the whole archive for one reply (it refuses to above 4 MB).
+        const CHUNK = 4 << 20;
+        const parts: Uint8Array[] = [];
+        let offset = 0;
+        let total = -1;
+        while (total < 0 || offset < total) {
+          const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+            (e as any).payload = {
+              $case: "reqDownloadSharedLink",
+              reqDownloadSharedLink: { uuid, secret, offset: BigInt(offset), length: CHUNK },
+            };
+          });
+          if (resp.payload?.$case !== "respFileChunk") {
+            setDownloadError(resp.errorMessage || "That link is no longer valid.");
+            return;
+          }
+          const chunk = resp.payload.respFileChunk;
+          total = Number(chunk.size);
+          if (chunk.data.length === 0 && offset < total) {
+            setDownloadError("The device stopped sending the file.");
+            return;
+          }
+          parts.push(chunk.data);
+          offset += chunk.data.length;
+          if (total > 0) setDownloadProgress(offset / total);
         }
-        const bytes: Uint8Array | undefined = resp.payload.respSharedFiles.content;
-        if (!bytes || bytes.length === 0) {
+        if (total === 0) {
           setDownloadError("The device returned an empty file.");
           return;
         }
 
-        const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+        const url = URL.createObjectURL(new Blob(parts as BlobPart[], { type: "application/zip" }));
         const a = document.createElement("a");
         a.href = url;
         a.download = "shared.zip";
@@ -273,7 +292,9 @@ function App() {
       <div className="download-view">
         {downloadError
           ? <p className="sf-note error">{downloadError}</p>
-          : <Spinner label="Preparing your download…" />}
+          : <Spinner label={downloadProgress === null
+              ? "Preparing your download…"
+              : `Downloading… ${Math.round(downloadProgress * 100)}%`} />}
       </div>
     );
   }
