@@ -257,6 +257,10 @@ func (mg *Manager) initRest() *Manager {
 	return mg
 }
 
+// randomSecret is session.RandomSecret, reachable where a parameter named
+// session hides the package.
+var randomSecret = session.RandomSecret
+
 // sharedLinkTTLFromCfg reads [otc] shared-link-ttl-hours, falling back to
 // cDefaultSharedLinkTTL when it's absent, zero or negative.
 func sharedLinkTTLFromCfg() time.Duration {
@@ -569,7 +573,7 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	// the link's own key (the secret in the link, never stored) - nothing
 	// is held whole in memory, whatever the share's size. The files go in
 	// as they are stored (a HEIC stays HEIC).
-	secret := uuid.New().String()
+	secret := randomSecret() // issue #157: not a UUID
 	keys := linkKeys{getCipher(secret)}
 	pathUuid := uuid.New().String()
 	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)

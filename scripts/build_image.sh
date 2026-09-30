@@ -218,6 +218,18 @@ chroot "$MNT" /bin/bash -c "
     id otc-debug >/dev/null 2>&1 || useradd -m -s /bin/bash -G sudo otc-debug
     echo 'otc-debug:$DEBUG_PASSWORD_HASH' | chpasswd -e
 "
+# Issue #157: that password is published, so it must never work over the
+# network. SSH is off on the image, but an owner who turns it on the usual
+# way (systemctl enable ssh) would otherwise let anyone on the LAN sign in
+# as a sudoer with it. Keys only, for every account; the console keeps
+# working. 01- so it's read first: sshd keeps the first value it sees,
+# and the OS can ship drop-ins that turn passwords back on.
+mkdir -p "$MNT/etc/ssh/sshd_config.d"
+cat > "$MNT/etc/ssh/sshd_config.d/01-otc-keys-only.conf" <<'EOF2'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+EOF2
 
 echo "=== [6/7] Clean up for distribution ==="
 rm -rf "$MNT/var/lib/apt/lists/"*

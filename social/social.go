@@ -1259,7 +1259,7 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 		return
 	}
 
-	secret := uuid.New().String()
+	secret := session.RandomSecret() // issue #157: not a UUID
 
 	// Store the remote data and then send the real request: the other
 	// device calls back (DidSendFriendshipReq) to check this row exists.

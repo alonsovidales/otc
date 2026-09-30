@@ -202,6 +202,8 @@ and the few things listed here:
   sudo ssh-keygen -A && sudo systemctl enable --now ssh
   ```
   then put your public key in `~otc-debug/.ssh/authorized_keys` and use `ssh otc-debug@<name>.local`.
+  SSH only ever accepts keys (`/etc/ssh/sshd_config.d/01-otc-keys-only.conf`): the password
+  above is public, so it works at the console only, never over the network.
   (Cards flashed from a newer image generate the keys on their own the first time sshd starts.)
 - **Force an update from the console** - normally you press **Update** in Settings, but a device
   installed before release 5 can't start one on its own and needs this once:

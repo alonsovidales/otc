@@ -3,7 +3,9 @@
 package api
 
 import (
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/accounts"
@@ -754,8 +756,15 @@ func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, acc
 
 // newSecret is a device's bridge secret as the wizard makes them: 48 hex
 // characters.
+// newSecret is a device's bridge secret: 24 random bytes as 48 hex
+// characters (issue #157: it was cut from two UUIDs, their fixed version
+// digits included).
 func newSecret() string {
-	return strings.ReplaceAll(uuid.New().String()+uuid.New().String(), "-", "")[:48]
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
+	return hex.EncodeToString(b)
 }
 
 // deviceOnline (issue #38) answers {"online": bool} for ?name= - whether

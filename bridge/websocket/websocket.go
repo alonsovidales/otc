@@ -3,7 +3,9 @@
 package websocket
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/dao"
@@ -970,7 +972,13 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// of returning early like ReqBridgeRegister does above.
 				defer conn.Close()
 				log.Info("Rotate bridge secret for device:", p.ReqRotateBridgeSecret.Domain)
-				newSecret := uuid.New().String() + uuid.New().String()
+				// Issue #157: random bytes, not two UUIDs glued together.
+				secretBytes := make([]byte, 32)
+				if _, err := rand.Read(secretBytes); err != nil {
+					log.Error("crypto/rand failed:", err)
+					return
+				}
+				newSecret := hex.EncodeToString(secretBytes)
 				ok, err := mg.dao.RotateSecret(
 					p.ReqRotateBridgeSecret.OwnerUuid,
 					p.ReqRotateBridgeSecret.Domain,

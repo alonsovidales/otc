@@ -7,10 +7,10 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 	"io"
 )
@@ -113,7 +113,7 @@ func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err err
 
 		// This is the firsrt time that the user it authenticating, from
 		// now on this will be the auth key
-		secretValidator = []byte(cValidatorText + uuid.New().String())
+		secretValidator = []byte(cValidatorText + RandomSecret())
 		if err = dao.PersistSecret(ses.Encrypt(secretValidator), salt); err != nil {
 			return nil, err
 		}
@@ -289,4 +289,17 @@ func (ses *Session) Decrypt(content []byte) (plaintext []byte, err error) {
 	plaintext, err = ses.cipher.Open(nil, nonce, ciphertext, nil)
 
 	return
+}
+
+// RandomSecret is 32 bytes from crypto/rand, hex-encoded: the vault's data
+// key, share-link keys, friendship secrets (issue #157). They used to be a
+// UUID - 122 random bits, the rest fixed layout - which leaned on a UUID
+// library's randomness for a key; a key should simply be random, all of
+// it. Existing secrets are kept as they are: only new ones use this.
+func RandomSecret() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
+	return hex.EncodeToString(b)
 }
