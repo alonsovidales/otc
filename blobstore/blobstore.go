@@ -124,7 +124,7 @@ func (w *Writer) Commit() error {
 		err = cerr
 	}
 	if err == nil {
-		err = os.Chmod(w.tmp.Name(), 0o644) // perms: rw-r--r-- (ciphertext)
+		err = os.Chmod(w.tmp.Name(), 0o600) // perms: rw------- (issue #157: only the service reads it)
 	}
 	if err == nil {
 		err = os.Rename(w.tmp.Name(), w.target)

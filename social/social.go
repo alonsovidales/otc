@@ -337,7 +337,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 
 		files[i] = file
 		unencPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-		err = os.WriteFile(unencPath, file.Content, 0644) // perms: rw-r--r--
+		err = os.WriteFile(unencPath, file.Content, 0o600) // perms: rw------- (issue #157)
 		if err != nil {
 			return "", err
 		}
@@ -372,7 +372,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			}
 		}
 		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-		err = os.WriteFile(unencPathThumb, unEncThumb, 0644) // perms: rw-r--r--
+		err = os.WriteFile(unencPathThumb, unEncThumb, 0o600) // perms: rw------- (issue #157)
 		if err != nil {
 			return "", err
 		}
@@ -1076,7 +1076,7 @@ event_loop:
 
 				unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
 				log.Debug("Storing file thumbnail in path:", unencPathThumb)
-				err = os.WriteFile(unencPathThumb, file.Content, 0644) // perms: rw-r--r--
+				err = os.WriteFile(unencPathThumb, file.Content, 0o600) // perms: rw------- (issue #157)
 				if err != nil {
 					log.Error("Error trying to write file from an external event")
 					continue event_loop
@@ -1098,7 +1098,7 @@ event_loop:
 						fr.data.OriginProfile.Domain, ":", mediaErr)
 					continue
 				}
-				if err := os.WriteFile(unencPath, media, 0644); err != nil { // perms: rw-r--r--
+				if err := os.WriteFile(unencPath, media, 0o600); err != nil { // perms: rw------- (issue #157)
 					log.Error("error storing friend publication media:", err)
 				}
 			}

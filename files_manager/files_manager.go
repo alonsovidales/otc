@@ -1563,7 +1563,7 @@ func writeBlob(target string, data []byte) error {
 		err = cerr
 	}
 	if err == nil {
-		err = os.Chmod(tmp.Name(), 0o644) // perms: rw-r--r--, as before
+		err = os.Chmod(tmp.Name(), 0o600) // perms: rw------- (issue #157: only the service reads it)
 	}
 	if err != nil {
 		return err

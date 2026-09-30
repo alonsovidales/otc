@@ -397,6 +397,9 @@ log "[9/10] Runtime directories"
 # with the right ownership up front.
 mkdir -p /var/log/otc /etc/otc /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
 chown otc:otc /var/log/otc /var/www /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
+# Issue #157: the storage is the service's alone (everything in it is
+# read through the service).
+chmod 750 "$STORAGE_PATH" "$UNENC_PATH"
 chmod 755 /var/log/otc
 
 # ---------------------------------------------------------------------------
