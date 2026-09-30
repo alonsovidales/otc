@@ -512,15 +512,27 @@ func (mg *Manager) openBridgeConn() {
 	// message by the serve loop.
 	c.SetReadDeadline(time.Time{})
 	c.SetWriteDeadline(time.Time{})
-	mg.handleConnection(c.Conn, nil)
-
-	mg.bridgePool.mu.Lock()
-	mg.bridgePool.available--
-	mg.bridgePool.mu.Unlock()
-	// A connection actually being consumed is normal, expected traffic —
-	// check immediately (no jitter) whether the pool needs topping up,
-	// same as ensureBridgePool's other callers.
-	mg.ensureBridgePool()
+	// Issue #170: the bridge keeps the connection for the client's whole
+	// session, so it stops being available at the client's first message,
+	// not when the session ends - counted then, with ~20 sessions open
+	// nothing was ever refilled and the next client found the device
+	// unreachable. The refill happens right away (no jitter), since a
+	// connection being taken is normal traffic.
+	taken := false
+	mg.serveConnection(c.Conn, nil, func() {
+		taken = true
+		mg.bridgePool.mu.Lock()
+		mg.bridgePool.available--
+		mg.bridgePool.mu.Unlock()
+		mg.ensureBridgePool()
+	})
+	if !taken {
+		// Dropped while still waiting in the pool.
+		mg.bridgePool.mu.Lock()
+		mg.bridgePool.available--
+		mg.bridgePool.mu.Unlock()
+		mg.ensureBridgePool()
+	}
 }
 
 // failedBridgeDial accounts for one attempt that never became available
@@ -3424,6 +3436,12 @@ func clientAddr(r *http.Request) string {
 }
 
 func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
+	mg.serveConnection(conn, r, nil)
+}
+
+// serveConnection serves conn until it closes; onFirst (if any) runs once,
+// in this goroutine, when the first message arrives.
+func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst func()) {
 	ch := &connHandler{
 		mg:         mg,
 		fromBridge: r == nil,
@@ -3457,6 +3475,10 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		if err != nil {
 			log.Error("error processing message:", err)
 			return
+		}
+		if onFirst != nil {
+			onFirst()
+			onFirst = nil
 		}
 		inFlight <- struct{}{}
 
