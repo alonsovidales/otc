@@ -96,3 +96,10 @@ host = 10.10.0.2                 ; the primary, from every node
 - "Online" (admin panel, account page, the setup wizard's check) is any
   node holding the device; the offline alert is skipped while another node
   holds it.
+
+## Capacity and tuning
+
+Measured capacity per node, and how to rerun the load test: `docs/bridge-capacity.md`.
+Both nodes have `/etc/systemd/system/otc_bridge.service.d/10-limits.conf`
+(`LimitNOFILE=1048576`) and `/etc/sysctl.d/90-otc-bridge.conf`
+(`net.core.somaxconn` and `net.ipv4.tcp_max_syn_backlog` at 65535).

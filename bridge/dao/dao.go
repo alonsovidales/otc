@@ -64,6 +64,12 @@ type Dao struct {
 	// domain, so relayed traffic touches that row at most once a minute.
 	lastClientMu sync.Mutex
 	lastClient   map[string]time.Time
+
+	// Issue #144: relayed-traffic counts waiting to be written (metrics.go).
+	metricsMu   sync.Mutex
+	metrics     map[metricKey]*metricCounts
+	stopMetrics chan struct{}
+	metricsDone chan struct{}
 }
 
 // NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
@@ -109,6 +115,7 @@ func Init() (dao *Dao) {
 
 	dao.stopLogPruner = make(chan struct{})
 	dao.startLogPruner()
+	dao.startMetricsFlusher()
 
 	return
 }
@@ -116,6 +123,11 @@ func Init() (dao *Dao) {
 func (dao *Dao) Stop() {
 	if dao.stopLogPruner != nil {
 		close(dao.stopLogPruner)
+	}
+	// The last counts go out before the connection closes.
+	if dao.stopMetrics != nil {
+		close(dao.stopMetrics)
+		<-dao.metricsDone
 	}
 	dao.db.Close()
 }
@@ -329,18 +341,6 @@ func (dao *Dao) SetAdminPassword(username, passwordHash string) (err error) {
 		"insert into `admin_users` (`username`, `password_hash`, `created`) values (?, ?, now()) "+
 			"on duplicate key update `password_hash` = values(`password_hash`)",
 		username, passwordHash)
-	return
-}
-
-// RecordDeviceActivity adds one request's worth of traffic to the current
-// hour's bucket for domain.
-func (dao *Dao) RecordDeviceActivity(domain string, bytesIn, bytesOut int64) (err error) {
-	dao.touchLastClient(domain)
-	_, err = dao.db.Exec(
-		"insert into `device_metrics` (`domain`, `hour_bucket`, `requests`, `bytes_in`, `bytes_out`) "+
-			"values (?, date_format(now(), '%Y-%m-%d %H:00:00'), 1, ?, ?) "+
-			"on duplicate key update `requests` = `requests` + 1, `bytes_in` = `bytes_in` + values(`bytes_in`), `bytes_out` = `bytes_out` + values(`bytes_out`)",
-		domain, bytesIn, bytesOut)
 	return
 }
 

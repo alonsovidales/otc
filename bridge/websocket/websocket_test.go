@@ -425,8 +425,10 @@ func TestForwardOneOffReturnsDeviceResponse(t *testing.T) {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
 	defer db.Close()
+	// Issue #144: counted in memory, written at the next flush - one
+	// request, with its sizes.
 	mock.ExpectExec("insert into `device_metrics`").
-		WithArgs("cala.otc", sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs("cala.otc", sqlmock.AnyArg(), 1, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	relay := dialRelay(t, wsURL)
@@ -447,6 +449,7 @@ func TestForwardOneOffReturnsDeviceResponse(t *testing.T) {
 		t.Errorf("expected the echoed device response, got %q", resp.ErrorMessage)
 	}
 
+	mg.dao.FlushMetrics()
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("expected device activity to be recorded: %v", err)
 	}
