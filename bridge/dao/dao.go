@@ -819,15 +819,30 @@ func (dao *Dao) SaveOAuthState(state, returnURL string) error {
 // ConsumeOAuthState takes a state out and returns where its sign-in
 // should return to; found is false for an unknown or stale one.
 func (dao *Dao) ConsumeOAuthState(state string) (returnURL string, found bool, err error) {
+	// Issue #164: one use only, even for two callbacks at the same moment -
+	// the row is locked while read and whoever deletes it is the one who
+	// used it (a separate select then delete let both through).
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return "", false, err
+	}
+	defer tx.Rollback()
 	var created time.Time
-	err = dao.db.QueryRow("select `return_url`, `created` from `oauth_states` where `state` = ?", state).Scan(&returnURL, &created)
+	err = tx.QueryRow("select `return_url`, `created` from `oauth_states` where `state` = ? for update", state).Scan(&returnURL, &created)
 	if err == sql.ErrNoRows {
 		return "", false, nil
 	}
 	if err != nil {
 		return "", false, err
 	}
-	if _, err := dao.db.Exec("delete from `oauth_states` where `state` = ?", state); err != nil {
+	res, err := tx.Exec("delete from `oauth_states` where `state` = ?", state)
+	if err != nil {
+		return "", false, err
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		return "", false, err
+	}
+	if err := tx.Commit(); err != nil {
 		return "", false, err
 	}
 	if time.Since(created) > 15*time.Minute {
@@ -835,6 +850,41 @@ func (dao *Dao) ConsumeOAuthState(state string) (returnURL string, found bool, e
 	}
 
 	return returnURL, true, nil
+}
+
+// AccountSessionEpoch is the epoch an account's sessions must carry
+// (issue #164); found is false for an account that no longer exists.
+func (dao *Dao) AccountSessionEpoch(id string) (epoch int, found bool, err error) {
+	err = dao.db.QueryRow("select `session_epoch` from `accounts` where `id` = ?", id).Scan(&epoch)
+	if err == sql.ErrNoRows {
+		return 0, false, nil
+	}
+	return epoch, err == nil, err
+}
+
+// BumpAccountSessionEpoch ends every session of the account issued so far
+// and returns the new epoch.
+func (dao *Dao) BumpAccountSessionEpoch(id string) (int, error) {
+	if _, err := dao.db.Exec("update `accounts` set `session_epoch` = `session_epoch` + 1 where `id` = ?", id); err != nil {
+		return 0, err
+	}
+	epoch, _, err := dao.AccountSessionEpoch(id)
+	return epoch, err
+}
+
+// AdminSessionEpoch is AccountSessionEpoch for an admin.
+func (dao *Dao) AdminSessionEpoch(username string) (epoch int, found bool, err error) {
+	err = dao.db.QueryRow("select `session_epoch` from `admin_users` where `username` = ?", username).Scan(&epoch)
+	if err == sql.ErrNoRows {
+		return 0, false, nil
+	}
+	return epoch, err == nil, err
+}
+
+// BumpAdminSessionEpoch ends every session of the admin issued so far.
+func (dao *Dao) BumpAdminSessionEpoch(username string) error {
+	_, err := dao.db.Exec("update `admin_users` set `session_epoch` = `session_epoch` + 1 where `username` = ?", username)
+	return err
 }
 
 func (dao *Dao) ListAccountDomains(accountID string) (domains []AccountDomain, err error) {

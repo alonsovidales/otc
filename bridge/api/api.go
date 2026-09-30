@@ -154,6 +154,7 @@ func (api *API) registerAPIs() {
 		api.muxHTTPServer.HandleFunc("GET /api/account/me", acc.RequireAuth(acc.Me))
 		api.muxHTTPServer.HandleFunc("PUT /api/account/me", acc.RequireAuth(acc.UpdateProfile))
 		api.muxHTTPServer.HandleFunc("PUT /api/account/password", acc.RequireAuth(acc.SetPassword))
+		api.muxHTTPServer.HandleFunc("POST /api/account/logout-everywhere", acc.RequireAuth(acc.LogoutEverywhere))
 		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token", acc.RequireAuth(acc.SetupToken))
 		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token-info", acc.SetupTokenInfo)
 		api.muxHTTPServer.HandleFunc("GET /api/account/continue", acc.RequireAuth(acc.ContinueSetup))

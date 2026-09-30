@@ -78,35 +78,41 @@ func signToken(secret []byte, payload string) string {
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
-func newSessionToken(secret []byte, username string, now time.Time) string {
-	payload := fmt.Sprintf("%s|%d", username, now.Add(cSessionTTL).Unix())
+// Issue #164: the admin's session_epoch goes in too; logging out bumps it,
+// which ends every session of that admin, on every browser.
+func newSessionToken(secret []byte, username string, epoch int, now time.Time) string {
+	payload := fmt.Sprintf("%s|%d|%d", username, epoch, now.Add(cSessionTTL).Unix())
 	return payload + "." + signToken(secret, payload)
 }
 
 // verifySessionToken checks the signature and expiry, returning the
 // username it was issued for.
-func verifySessionToken(secret []byte, token string, now time.Time) (username string, ok bool) {
+func verifySessionToken(secret []byte, token string, now time.Time) (username string, epoch int, ok bool) {
 	payload, sig, found := strings.Cut(token, ".")
 	if !found {
-		return "", false
+		return "", 0, false
 	}
 	if subtle.ConstantTimeCompare([]byte(sig), []byte(signToken(secret, payload))) != 1 {
-		return "", false
+		return "", 0, false
 	}
 
-	user, expStr, found := strings.Cut(payload, "|")
-	if !found {
-		return "", false
+	parts := strings.Split(payload, "|")
+	if len(parts) != 3 {
+		return "", 0, false // cookies from before issue #164 included
 	}
-	expUnix, err := strconv.ParseInt(expStr, 10, 64)
+	epoch, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return "", false
+		return "", 0, false
+	}
+	expUnix, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		return "", 0, false
 	}
 	if now.After(time.Unix(expUnix, 0)) {
-		return "", false
+		return "", 0, false
 	}
 
-	return user, true
+	return parts[0], epoch, true
 }
 
 // ---------------------------------------------------------------------
@@ -210,13 +216,26 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.loginLimiter.recordSuccess(ip)
-	token := newSessionToken(a.sessionSecret, body.Username, now)
+	epoch, _, err := a.dao.AdminSessionEpoch(body.Username)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not sign in right now")
+		return
+	}
+	token := newSessionToken(a.sessionSecret, body.Username, epoch, now)
 	http.SetCookie(w, a.sessionCookie(token, now, r.TLS != nil))
 	writeJSON(w, http.StatusOK, map[string]string{"username": body.Username})
 }
 
-// Logout clears the session cookie.
+// Logout clears the session cookie and (issue #164) ends every session of
+// that admin - a panel left signed in on another machine included.
 func (a *Admin) Logout(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(cSessionCookie); err == nil {
+		if user, _, ok := verifySessionToken(a.sessionSecret, cookie.Value, time.Now()); ok {
+			if err := a.dao.BumpAdminSessionEpoch(user); err != nil {
+				log.Error("could not end the other admin sessions:", err)
+			}
+		}
+	}
 	http.SetCookie(w, a.sessionCookie("", time.Unix(0, 0), r.TLS != nil))
 	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 }
@@ -230,15 +249,21 @@ func (a *Admin) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "not logged in")
 			return
 		}
-		user, ok := verifySessionToken(a.sessionSecret, cookie.Value, time.Now())
+		user, epoch, ok := verifySessionToken(a.sessionSecret, cookie.Value, time.Now())
 		if !ok {
 			writeError(w, http.StatusUnauthorized, "session expired")
 			return
 		}
 		// Still an admin: a removed admin's session ends with the removal,
-		// not when the cookie expires.
-		if _, found, err := a.dao.GetAdminPasswordHash(user); err != nil || !found {
+		// not when the cookie expires - and (issue #164) one issued before
+		// the admin last logged out ends too.
+		current, found, err := a.dao.AdminSessionEpoch(user)
+		if err != nil || !found {
 			writeError(w, http.StatusUnauthorized, "not an admin")
+			return
+		}
+		if current != epoch {
+			writeError(w, http.StatusUnauthorized, "session expired")
 			return
 		}
 		next(w, r)

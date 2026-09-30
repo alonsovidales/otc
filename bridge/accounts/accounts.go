@@ -44,6 +44,9 @@ const (
 	// cookie for the whole domain. Always Secure (a __Host- requirement).
 	cSessionCookie = "__Host-otc_account"
 	cSessionTTL    = 30 * 24 * time.Hour
+	// cFreshSignIn: how recent a sign-in must be to set a first password
+	// on a Google/Apple account (issue #164).
+	cFreshSignIn = 15 * time.Minute
 	// A setup token (also typed as a setup code) is good for this long.
 	cSetupTokenTTL = 15 * time.Minute
 	cPurposeSetup  = "setup"
@@ -140,7 +143,10 @@ func (a *Accounts) pruneLoop() {
 func (a *Accounts) OpenRegistration() bool { return a.openRegistration }
 
 // ---------------------------------------------------------------------
-// Sessions: HMAC-signed "accountID|expiry" cookies, no session table.
+// Sessions: HMAC-signed "accountID|epoch|expiry" cookies, no session
+// table. Issue #164: the epoch is the account's session_epoch when the
+// cookie was issued; bumping it (a password change, "sign out everywhere")
+// ends every session issued before.
 // ---------------------------------------------------------------------
 
 func sign(secret []byte, payload string) string {
@@ -150,33 +156,57 @@ func sign(secret []byte, payload string) string {
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
-func (a *Accounts) sessionToken(accountID string, now time.Time) string {
-	payload := fmt.Sprintf("%s|%d", accountID, now.Add(cSessionTTL).Unix())
+func (a *Accounts) sessionToken(accountID string, epoch int, now time.Time) string {
+	payload := fmt.Sprintf("%s|%d|%d", accountID, epoch, now.Add(cSessionTTL).Unix())
 
 	return payload + "." + sign(a.secret, payload)
 }
 
-func (a *Accounts) verifySession(token string, now time.Time) (accountID string, ok bool) {
+// verifySession checks the signature and expiry; the epoch it returns
+// still has to match the account's (session).
+func (a *Accounts) verifySession(token string, now time.Time) (accountID string, epoch int, issued time.Time, ok bool) {
 	payload, sig, found := strings.Cut(token, ".")
 	if !found || subtle.ConstantTimeCompare([]byte(sig), []byte(sign(a.secret, payload))) != 1 {
-		return "", false
+		return "", 0, time.Time{}, false
 	}
-	id, expStr, found := strings.Cut(payload, "|")
-	if !found {
-		return "", false
+	parts := strings.Split(payload, "|")
+	if len(parts) != 3 {
+		return "", 0, time.Time{}, false // cookies from before issue #164 included
 	}
-	exp, err := strconv.ParseInt(expStr, 10, 64)
+	epoch, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", 0, time.Time{}, false
+	}
+	exp, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil || now.After(time.Unix(exp, 0)) {
-		return "", false
+		return "", 0, time.Time{}, false
 	}
 
-	return id, true
+	return parts[0], epoch, time.Unix(exp, 0).Add(-cSessionTTL), true
+}
+
+// session is the account a cookie signs in, provided the account's
+// sessions haven't been ended since it was issued.
+func (a *Accounts) session(token string, now time.Time) (accountID string, issued time.Time, ok bool) {
+	id, epoch, issued, ok := a.verifySession(token, now)
+	if !ok {
+		return "", time.Time{}, false
+	}
+	current, found, err := a.dao.AccountSessionEpoch(id)
+	if err != nil || !found || current != epoch {
+		return "", time.Time{}, false
+	}
+	return id, issued, true
 }
 
 func (a *Accounts) setSession(w http.ResponseWriter, r *http.Request, accountID string) {
 	now := time.Now()
+	epoch, _, err := a.dao.AccountSessionEpoch(accountID)
+	if err != nil {
+		log.Error("error reading an account's session epoch:", err)
+	}
 	http.SetCookie(w, &http.Cookie{
-		Name: cSessionCookie, Value: a.sessionToken(accountID, now), Path: "/",
+		Name: cSessionCookie, Value: a.sessionToken(accountID, epoch, now), Path: "/",
 		Expires: now.Add(cSessionTTL), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -193,7 +223,8 @@ func (a *Accounts) AccountFromRequest(r *http.Request) (accountID string, ok boo
 		return "", false
 	}
 
-	return a.verifySession(c.Value, time.Now())
+	id, _, ok := a.session(c.Value, time.Now())
+	return id, ok
 }
 
 // RequireAuth wraps a handler so it only runs for a signed-in account.
@@ -517,10 +548,41 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 
 // SetPassword sets or changes the password of the signed-in account (a
 // provider account gains one this way). PUT /api/account/password.
+//
+// Issue #164: a change needs the current password - a session cookie
+// alone (a borrowed laptop, a stolen cookie) must not be enough to lock
+// the owner out - and an account with none yet (Google/Apple) needs a
+// sign-in from the last cFreshSignIn. Every other session ends; this one
+// gets a new cookie and carries on.
 func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID string) {
-	var body struct{ Password string }
+	var body struct{ Password, Current string }
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.Password) < cMinPassword {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("the password needs at least %d characters", cMinPassword))
+		return
+	}
+	acc, err := a.dao.GetAccount(accountID)
+	if err != nil || acc == nil {
+		writeError(w, http.StatusInternalServerError, "could not save right now")
+		return
+	}
+	now := time.Now()
+	if acc.PasswordHash != "" {
+		ip := clientIP(r)
+		if !a.loginAllowed(ip, now) {
+			writeError(w, http.StatusTooManyRequests, "too many attempts - try again in a few minutes")
+			return
+		}
+		if bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(body.Current)) != nil {
+			a.loginFailed(ip, now)
+			writeError(w, http.StatusUnauthorized, "the current password is not right")
+			return
+		}
+		a.loginSucceeded(ip)
+	} else if c, err := r.Cookie(cSessionCookie); err != nil {
+		writeError(w, http.StatusUnauthorized, "sign in again to set a password")
+		return
+	} else if _, issued, ok := a.session(c.Value, now); !ok || now.Sub(issued) > cFreshSignIn {
+		writeError(w, http.StatusUnauthorized, "sign in again (with Google or Apple) to set a password")
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
@@ -532,6 +594,21 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return
 	}
+	if _, err := a.dao.BumpAccountSessionEpoch(accountID); err != nil {
+		log.Error("error ending an account's other sessions:", err)
+	}
+	a.setSession(w, r, accountID)
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// LogoutEverywhere ends every session of the account, this one included
+// (issue #164). POST /api/account/logout-everywhere.
+func (a *Accounts) LogoutEverywhere(w http.ResponseWriter, r *http.Request, accountID string) {
+	if _, err := a.dao.BumpAccountSessionEpoch(accountID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not sign out right now")
+		return
+	}
+	a.clearSession(w, r)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

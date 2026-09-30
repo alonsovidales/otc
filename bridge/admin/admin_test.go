@@ -19,9 +19,9 @@ func TestSessionTokenRoundTrip(t *testing.T) {
 	secret := []byte("test-secret")
 	now := time.Now()
 
-	token := newSessionToken(secret, "alice", now)
+	token := newSessionToken(secret, "alice", 0, now)
 
-	username, ok := verifySessionToken(secret, token, now)
+	username, _, ok := verifySessionToken(secret, token, now)
 	if !ok {
 		t.Fatal("expected a freshly issued token to verify")
 	}
@@ -34,12 +34,12 @@ func TestSessionTokenExpires(t *testing.T) {
 	secret := []byte("test-secret")
 	issued := time.Now()
 
-	token := newSessionToken(secret, "alice", issued)
+	token := newSessionToken(secret, "alice", 0, issued)
 
-	if _, ok := verifySessionToken(secret, token, issued.Add(cSessionTTL-time.Minute)); !ok {
+	if _, _, ok := verifySessionToken(secret, token, issued.Add(cSessionTTL-time.Minute)); !ok {
 		t.Error("expected the token to still be valid just before its TTL elapses")
 	}
-	if _, ok := verifySessionToken(secret, token, issued.Add(cSessionTTL+time.Minute)); ok {
+	if _, _, ok := verifySessionToken(secret, token, issued.Add(cSessionTTL+time.Minute)); ok {
 		t.Error("expected the token to be rejected once its TTL has elapsed")
 	}
 }
@@ -48,20 +48,20 @@ func TestSessionTokenRejectsTamperedPayload(t *testing.T) {
 	secret := []byte("test-secret")
 	now := time.Now()
 
-	token := newSessionToken(secret, "alice", now)
+	token := newSessionToken(secret, "alice", 0, now)
 	// Swap the username but keep the original signature.
 	forged := "bob|" + token[len("alice|"):]
 
-	if _, ok := verifySessionToken(secret, forged, now); ok {
+	if _, _, ok := verifySessionToken(secret, forged, now); ok {
 		t.Error("expected a token with a tampered payload to fail verification")
 	}
 }
 
 func TestSessionTokenRejectsWrongSecret(t *testing.T) {
 	now := time.Now()
-	token := newSessionToken([]byte("secret-a"), "alice", now)
+	token := newSessionToken([]byte("secret-a"), "alice", 0, now)
 
-	if _, ok := verifySessionToken([]byte("secret-b"), token, now); ok {
+	if _, _, ok := verifySessionToken([]byte("secret-b"), token, now); ok {
 		t.Error("expected a token signed with a different secret to fail verification")
 	}
 }
@@ -78,7 +78,7 @@ func TestSessionTokenRejectsMalformedInput(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if _, ok := verifySessionToken(secret, tc, now); ok {
+		if _, _, ok := verifySessionToken(secret, tc, now); ok {
 			t.Errorf("expected malformed token %q to fail verification", tc)
 		}
 	}
@@ -185,6 +185,9 @@ func TestLoginLockoutDoesNotAffectOtherAddresses(t *testing.T) {
 		mock.ExpectQuery("select `password_hash` from `admin_users`").
 			WillReturnRows(sqlmock.NewRows([]string{"password_hash"}).AddRow(hash))
 	}
+	// Issue #164: the successful sign-in reads the admin's session epoch.
+	mock.ExpectQuery("select `session_epoch` from `admin_users`").
+		WillReturnRows(sqlmock.NewRows([]string{"session_epoch"}).AddRow(0))
 
 	a := Init(dao.NewWithDB(db), []byte("session-secret"))
 	login := func(remoteAddr, password string) *httptest.ResponseRecorder {
@@ -329,11 +332,11 @@ func TestAccountSessionIsNotAnAdminSession(t *testing.T) {
 	shared := []byte("the-configured-session-secret")
 	accountKey := DeriveKey(shared, "account-session")
 	adminKey := DeriveKey(shared, "admin-session")
-	token := newSessionToken(accountKey, "some-account-id", time.Now())
-	if _, ok := verifySessionToken(adminKey, token, time.Now()); ok {
+	token := newSessionToken(accountKey, "some-account-id", 0, time.Now())
+	if _, _, ok := verifySessionToken(adminKey, token, time.Now()); ok {
 		t.Fatal("an account-signed token verified as an admin session")
 	}
-	if _, ok := verifySessionToken(adminKey, newSessionToken(adminKey, "admin", time.Now()), time.Now()); !ok {
+	if _, _, ok := verifySessionToken(adminKey, newSessionToken(adminKey, "admin", 0, time.Now()), time.Now()); !ok {
 		t.Fatal("an admin token no longer verifies")
 	}
 }

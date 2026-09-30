@@ -54,6 +54,9 @@ create table accounts
   `created` datetime not null,
   `last_seen` datetime not null,
   `free_until` datetime not null,
+  -- Issue #164: session cookies carry the epoch they were issued under;
+  -- bumped (password change, "sign out everywhere") to end every session.
+  `session_epoch` int not null default 0,
 
   primary key (`id`),
   unique (`email`)
@@ -105,6 +108,8 @@ create table admin_users
   `username` varchar(64) not null,
   `password_hash` varchar(255) not null,
   `created` datetime not null,
+  -- Issue #164: as accounts.session_epoch; bumped by logging out.
+  `session_epoch` int not null default 0,
 
   unique (`username`)
 ) engine=InnoDB;

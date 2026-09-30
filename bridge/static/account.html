@@ -203,8 +203,27 @@
             </li>`).join('')}</ul>` : '<p class="hint">No domains yet. Set up a device with a setup code, or register a name for a manual install.</p>'}
           <div id="dom-out"></div>
         </div>
+        <div class="card"><h2>Password and sign-in</h2>
+          ${me.has_password ? `<label>Current password</label><input id="pw-cur" type="password" autocomplete="current-password">` : `<p class="hint">You sign in with Google or Apple. You can add a password within 15 minutes of signing in that way.</p>`}
+          <label>New password <small>(8 characters or more)</small></label><input id="pw-new" type="password" autocomplete="new-password">
+          <button class="btn ghost" id="pw-go">${me.has_password ? 'Change password' : 'Add a password'}</button><div class="msg" id="pw-msg"></div>
+          <p class="hint" style="margin-top:12px">Changing the password signs you out everywhere else. Left signed in on a computer you don't use any more?</p>
+          <button class="btn danger small" id="out-all">Sign out everywhere</button>
+        </div>
         <div class="card wide">${termsHTML()}</div>
       </div>`;
+    // Issue #164: the current password is asked for; every other session
+    // ends with the change (this one carries on with a new cookie).
+    $('#pw-go').onclick = async () => {
+      const m = $('#pw-msg'); m.textContent = ''; m.className = 'msg';
+      const r = await api('PUT', '/api/account/password', { password: $('#pw-new').value, current: me.has_password ? $('#pw-cur').value : '' });
+      if (!r.ok) { m.textContent = r.error || 'Could not save the password'; m.className = 'msg bad'; return; }
+      me.has_password = true; banner('Password saved. Other sessions are signed out.', 'ok'); render();
+    };
+    $('#out-all').onclick = async () => {
+      if (!confirm('Sign out of your account on every browser and device, this one included?')) return;
+      await api('POST', '/api/account/logout-everywhere'); location.href = '/account';
+    };
     $('#code-go').onclick = async () => {
       const r = await api('GET', '/api/account/setup-token');
       if (!r.ok) { $('#code').innerHTML = `<div class="msg bad">${esc(r.error || 'Could not make a code')}</div>`; return; }
