@@ -25,6 +25,7 @@ import (
 	"github.com/alonsovidales/otc/push"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
+	"github.com/alonsovidales/otc/wsframe"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -576,7 +577,7 @@ func isAllowedFriendDomain(domain string) bool {
 	return domain == tld || strings.HasSuffix(domain, "."+tld)
 }
 
-func (sc *Social) connectToDevice(domain string) (conn *gorilla.Conn, err error) {
+func (sc *Social) connectToDevice(domain string) (conn *wsframe.Client, err error) {
 	if !isAllowedFriendDomain(domain) {
 		return nil, fmt.Errorf("domain %q is not a %s address", domain, friendDomainTLD())
 	}
@@ -586,7 +587,7 @@ func (sc *Social) connectToDevice(domain string) (conn *gorilla.Conn, err error)
 	log.Debug("Connecting to external:", domain, u)
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	conn, _, err = gorilla.DefaultDialer.Dial(u.String(), h)
+	conn, err = wsframe.Dial(u.String(), h)
 	if err != nil {
 		log.Error("dialing websocket:", err)
 		return
@@ -597,7 +598,7 @@ func (sc *Social) connectToDevice(domain string) (conn *gorilla.Conn, err error)
 }
 
 type friendship struct {
-	conn *gorilla.Conn
+	conn *wsframe.Client
 	data *pb.Friendship
 	dao  *dao.Dao
 	sc   *Social
@@ -629,41 +630,46 @@ func (sc *Social) SyncWithFriends() (err error) {
 			log.Error("Error connecting to external device:", friend.data.OriginProfile.Domain, err)
 			continue
 		}
-		defer friend.conn.Close()
-
-		err = friend.updateFriendshipStatus()
-		if err != nil {
-			log.Error("Error trying to update friendship status:", err)
-			continue
-		}
-
-		if friend.data.Status == pb.FriendShipStatus_Accepted {
-			log.Debug("Auth as friend:", friend.data.OriginProfile.Domain)
-			err = friend.autAsFriend()
-			if err != nil {
-				log.Error("Error trying to auth as friend:", err)
-				continue
-			}
-
-			// issue #26: pick up the friend's current name/photo/bio on
-			// every sync, not just whatever was true when the friendship
-			// was accepted. Non-fatal — a failure here shouldn't stop the
-			// events pull that follows.
-			if err = friend.refreshProfile(); err != nil {
-				log.Error("Error trying to refresh friend profile:", err)
-			}
-
-			err = friend.updateFriendEvents()
-			if err != nil {
-				log.Error("Error trying to update friendship:", err)
-				continue
-			}
-		}
-
-		// Update friend timeline is the request is accepted
+		friend.sync()
+		friend.conn.Close()
 	}
 
 	return
+}
+
+// sync is one friend's pass: its status and, once accepted, its profile
+// and events. Every step has a deadline (issue #169), so a friend whose
+// device stops answering costs this pass a timeout, not every friend
+// after it.
+func (friend *friendship) sync() {
+	err := friend.updateFriendshipStatus()
+	if err != nil {
+		log.Error("Error trying to update friendship status:", err)
+		return
+	}
+
+	if friend.data.Status == pb.FriendShipStatus_Accepted {
+		log.Debug("Auth as friend:", friend.data.OriginProfile.Domain)
+		err = friend.autAsFriend()
+		if err != nil {
+			log.Error("Error trying to auth as friend:", err)
+			return
+		}
+
+		// issue #26: pick up the friend's current name/photo/bio on
+		// every sync, not just whatever was true when the friendship
+		// was accepted. Non-fatal — a failure here shouldn't stop the
+		// events pull that follows.
+		if err = friend.refreshProfile(); err != nil {
+			log.Error("Error trying to refresh friend profile:", err)
+		}
+
+		err = friend.updateFriendEvents()
+		if err != nil {
+			log.Error("Error trying to update friendship:", err)
+			return
+		}
+	}
 }
 
 func (fr *friendship) updateFriendshipStatus() (err error) {
@@ -870,7 +876,7 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 		return nil, err
 	}
 
-	_, data, err := fr.conn.ReadMessage()
+	_, data, err := fr.conn.ReadMedia()
 	if err != nil {
 		log.Error("read error trying to get publication media from friend:", fr.data.OriginProfile.Domain, err)
 		return nil, err
@@ -1204,7 +1210,7 @@ event_loop:
 	return
 }
 
-func (sc *Social) GetRemoteProfile(domain string, conn *gorilla.Conn) (name, text string, image []byte, err error) {
+func (sc *Social) GetRemoteProfile(domain string, conn *wsframe.Client) (name, text string, image []byte, err error) {
 	// Get the profile data from the other device
 	log.Debug("Getting remote profile:", domain)
 	msg := &pb.ReqEnvelope{
@@ -1874,8 +1880,7 @@ func (sc *Social) notifyFriendshipDeleted(domain, secret string, forgetMe bool) 
 	}
 	// The owner is waiting on this; a device that never answers must not
 	// hold their delete hostage.
-	conn.SetReadDeadline(time.Now().Add(15 * time.Second))
-	_, data, err := conn.ReadMessage()
+	_, data, err := conn.ReadMessageUpTo(wsframe.Limit, 15*time.Second)
 	if err != nil {
 		return err
 	}

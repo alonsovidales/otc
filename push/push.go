@@ -30,6 +30,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/alonsovidales/otc/cfg"
@@ -306,6 +308,10 @@ func (p *Push) sendWebPush(title, body string, t Target) {
 		VAPIDPublicKey:  p.vapidPublicKey,
 		VAPIDPrivateKey: p.vapidPrivateKey,
 		TTL:             60,
+		// Issue #169: the library's default client has no timeout, and a
+		// push service that never answers held up the friend sync that
+		// raised the notification.
+		HTTPClient: webPushClient,
 	}
 
 	for _, sub := range subs {
@@ -334,6 +340,8 @@ func (p *Push) sendWebPush(title, body string, t Target) {
 // NotifyMobile sends to phones only (iOS and Android) - what the bridge
 // does on a device's behalf (see BridgeNotify in messages.proto), Web Push
 // having stayed with the device that owns the VAPID keypair.
+var webPushClient = &http.Client{Timeout: 15 * time.Second}
+
 func (p *Push) NotifyMobile(title, body string, t Target) { p.sendMobile(title, body, t) }
 
 func (p *Push) sendMobile(title, body string, t Target) {

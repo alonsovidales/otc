@@ -427,7 +427,7 @@ func (mg *Manager) openBridgeConn() {
 	log.Debug("Connecting to bridge:", cfg.GetStr("otc", "bridge-addr"), u)
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	c, err := wsframe.Dial(u.String(), h)
 	if err != nil {
 		log.Error("dialing websocket:", err)
 		mg.failedBridgeDial()
@@ -507,7 +507,12 @@ func (mg *Manager) openBridgeConn() {
 	// Blocks for this connection's entire lifetime in the pool - returns
 	// once the bridge has consumed it for its one relay (or the underlying
 	// socket otherwise drops).
-	mg.handleConnection(c, nil)
+	// From here the bridge relays a client over it, which may stay idle
+	// for as long as it likes: no deadline, and the read limit is set per
+	// message by the serve loop.
+	c.SetReadDeadline(time.Time{})
+	c.SetWriteDeadline(time.Time{})
+	mg.handleConnection(c.Conn, nil)
 
 	mg.bridgePool.mu.Lock()
 	mg.bridgePool.available--
@@ -561,7 +566,7 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	c, err := wsframe.Dial(u.String(), h)
 	if err != nil {
 		return "", fmt.Errorf("dialing bridge: %w", err)
 	}
@@ -634,7 +639,7 @@ func (mg *Manager) relayMobileToBridge(title, body string, t push.Target) bool {
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	c, err := wsframe.Dial(u.String(), h)
 	if err != nil {
 		log.Error("error dialing bridge to relay a push:", err)
 		return false
@@ -722,7 +727,7 @@ func (mg *Manager) syncPushRegistrationsToBridge() {
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, _, err := gorilla.DefaultDialer.Dial(u.String(), h)
+	c, err := wsframe.Dial(u.String(), h)
 	if err != nil {
 		log.Error("error dialing bridge for push-registrations sync:", err)
 		return
@@ -3163,7 +3168,7 @@ func isSubdomainFreeOnBridge(d *dao.Dao, candidate string) (bool, error) {
 	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, _, err := gorilla.DefaultDialer.Dial(addr.String(), h)
+	c, err := wsframe.Dial(addr.String(), h)
 	if err != nil {
 		return false, fmt.Errorf("could not reach the bridge: %w", err)
 	}
@@ -3210,7 +3215,7 @@ func notifyBridgeDisabled(u *dao.UserInternal, disabled bool) {
 	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, _, err := gorilla.DefaultDialer.Dial(addr.String(), h)
+	c, err := wsframe.Dial(addr.String(), h)
 	if err != nil {
 		log.Error("error dialing bridge to update disabled state for", u.Subdomain, ":", err)
 		return

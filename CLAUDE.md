@@ -295,6 +295,11 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   once (`social.ErrFriendsAgain`); the sender reuses its own existing row with the new secret and
   restores it (or deletes a row it just created) when the request fails. `ReqFriendshipRequest`
   always answers with an Ack, so the clients show the reason.
+  Issue #169: every socket this device opens to someone else (a friend's device, the bridge's
+  one-off calls) is a `wsframe.Client` (`wsframe.Dial`): 15 s handshake, 30 s per write/read,
+  64 MiB read limit (`ReadMedia`: a whole file, 10 min, the 1000 MiB cap); friend sync closes
+  each friend's socket after its pass, and Web Push uses a 15 s HTTP client. The pooled bridge
+  relay socket clears the deadlines once registered.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself
