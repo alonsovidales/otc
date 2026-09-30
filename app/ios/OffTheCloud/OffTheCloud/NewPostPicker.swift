@@ -565,14 +565,10 @@ final class NewPostPickerVM: ObservableObject {
                 e.payload = .reqLinkFile(lf)
             }
         } else {
-            resp = try await ws.request { e in
-                var up = Msg_UploadFile()
-                up.path = path
-                up.content = data
-                up.forceOverride = false
-                up.created = created
-                e.payload = .reqUploadFile(up)
-            }
+            // Issue #165: chunked, never the whole file in one message.
+            resp = try await ws.uploadChunked(path: path, source: .data(data),
+                                              forceOverride: false, created: created,
+                                              sha256: hash)
         }
         if case .respFile = resp.payload {
             AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash)

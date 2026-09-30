@@ -52,6 +52,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.File as PbFile
@@ -61,14 +62,11 @@ import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.ListFiles
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.ShareFilesLink
-import cloud.offthe.otc.proto.UploadFile
 import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.SelectionActionTask
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.Toast
 import cloud.offthe.otc.ui.common.formatBytes
-import cloud.offthe.otc.ui.common.sha256Hex
-import com.google.protobuf.ByteString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,6 +75,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
@@ -275,17 +274,22 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         } finally { _state.update { it.copy(preparing = null) } }
     }
 
-    /** Issue #58: hash first; content the device already has is linked, not re-sent. */
-    suspend fun upload(data: ByteArray, filename: String) {
+    /**
+     * Issue #58: hash first; content the device already has is linked, not re-sent.
+     * Issue #165: [open] is read twice as a stream (hash, then chunked upload),
+     * never loaded whole.
+     */
+    suspend fun upload(open: () -> InputStream, filename: String) {
         val target = joinPath(path, filename)
         try {
-            val hash = sha256Hex(data)
+            val digest = ChunkedUpload.digest(open)
+            val hash = digest.sha256
             val has = OTCConnection.request { it.setReqHasFile(HasFile.newBuilder().setHash(hash)) }
             val exists = has.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_EXISTS && has.respFileExists.exists
             val resp = if (exists) {
                 OTCConnection.request { it.setReqLinkFile(LinkFile.newBuilder().setHash(hash).setPath(target).setForceOverride(false)) }
             } else {
-                OTCConnection.request { it.setReqUploadFile(UploadFile.newBuilder().setPath(target).setContent(ByteString.copyFrom(data)).setForceOverride(false)) }
+                ChunkedUpload.upload(target, digest.size, open, forceOverride = false, sha256 = hash)
             }
             if (resp.error) showToast("Upload failed: ${resp.errorMessage}")
         } catch (e: Exception) {
@@ -320,8 +324,7 @@ fun FilesExplorerView(initialPath: String) {
         for (uri in uris) {
             scope.launch(Dispatchers.IO) {
                 val name = queryDisplayName(context, uri) ?: "file"
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
-                vm.upload(bytes, name)
+                vm.upload({ context.contentResolver.openInputStream(uri) ?: throw java.io.IOException("cannot read $uri") }, name)
             }
         }
     }

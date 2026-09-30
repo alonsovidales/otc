@@ -297,11 +297,9 @@ final class FilesExplorerViewModel: ObservableObject {
                     e.payload = .reqLinkFile(lf)
                 }
             } else {
-                var req = Msg_UploadFile()
-                req.path = path
-                req.content = data
-                req.forceOverride = false
-                resp = try await ws.request { $0.payload = .reqUploadFile(req) }
+                // Issue #165: chunked, never the whole file in one message.
+                resp = try await ws.uploadChunked(path: path, source: .data(data),
+                                                  forceOverride: false, sha256: hash)
             }
             if resp.error { showToast("Upload failed: \(resp.errorMessage)") }
         } catch {

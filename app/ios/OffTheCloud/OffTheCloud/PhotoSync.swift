@@ -495,17 +495,14 @@ final class PhotoSync: NSObject {
                                 guard let data else {
                                     throw NSError(domain: "PhotoExport", code: -13, userInfo: [NSLocalizedDescriptionKey: "No data to upload"])
                                 }
-                                resp = try await ws.request { env in
-                                    var up = Msg_UploadFile()
-                                    up.path = path
-                                    up.content = data
-                                    up.forceOverride = false
-                                    up.created = created
-                                    up.cloudID = cloudID
-                                    env.payload = .reqUploadFile(up)
-                                }
+                                // Issue #165: chunked, never the whole
+                                // file in one message; reuses the hash
+                                // already computed for HasFile.
+                                resp = try await ws.uploadChunked(path: path, source: .data(data),
+                                                                  forceOverride: false, created: created,
+                                                                  cloudID: cloudID, sha256: hash)
                             }
-                            print("[dedup] \(cleanName): \(alreadyOnDevice ? "LinkFile" : "UploadFile") round trip in \(String(format: "%.3f", Date().timeIntervalSince(sendStart)))s")
+                            print("[dedup] \(cleanName): \(alreadyOnDevice ? "LinkFile" : "chunked upload") round trip in \(String(format: "%.3f", Date().timeIntervalSince(sendStart)))s")
 
                             // A successful UploadFile/LinkFile answers with
                             // RespFile (the stored file's metadata), not

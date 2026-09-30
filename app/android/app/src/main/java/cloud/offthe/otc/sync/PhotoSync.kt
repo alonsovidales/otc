@@ -13,14 +13,12 @@ import androidx.core.content.ContextCompat
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
+import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.HasFile
 import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.ListFiles
 import cloud.offthe.otc.proto.RespEnvelope
-import cloud.offthe.otc.proto.UploadFile
-import cloud.offthe.otc.ui.common.sha256Hex
-import com.google.protobuf.ByteString
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +30,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
 
 // Port of PhotoSync.swift: uploads new camera-roll photos/videos to
@@ -93,14 +92,15 @@ object PhotoSync {
      * serves a copy with the GPS EXIF tags blanked (0/0 rationals, which the
      * device reads as NaN) unless the app holds ACCESS_MEDIA_LOCATION and
      * asks for the original - issue #127's map needs the real position, the
-     * way PhotoKit hands it to the iOS app.
+     * way PhotoKit hands it to the iOS app. A stream, not the bytes: issue
+     * #165, a video can be GBs.
      */
-    fun readData(uri: Uri): ByteArray {
+    fun openData(uri: Uri): InputStream {
         val context = OTCApp.instance
         val src = if (Build.VERSION.SDK_INT >= 29 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) == PackageManager.PERMISSION_GRANTED
         ) MediaStore.setRequireOriginal(uri) else uri
-        return context.contentResolver.openInputStream(src)?.use { it.readBytes() } ?: throw IllegalStateException("cannot read $uri")
+        return context.contentResolver.openInputStream(src) ?: throw IllegalStateException("cannot read $uri")
     }
 
     private fun timestamp(ms: Long): Timestamp = Timestamp.newBuilder().setSeconds(ms / 1000).setNanos(((ms % 1000) * 1_000_000).toInt()).build()
@@ -118,15 +118,16 @@ object PhotoSync {
             return r.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_EXISTS && r.respFileExists.exists
         }
 
-        var data: ByteArray? = null
-        var hash = AssetSyncCache.hash(cacheKey) ?: run { data = readData(asset.uri); sha256Hex(data!!) }
+        // Issue #165: hashed as a stream (4 MiB at a time), never read whole.
+        var digest: ChunkedUpload.Digest? = null
+        var hash = AssetSyncCache.hash(cacheKey) ?: ChunkedUpload.digest { openData(asset.uri) }.also { digest = it }.sha256
         var already = hasFile(hash)
-        if (!already && data == null) { data = readData(asset.uri); hash = sha256Hex(data!!); already = hasFile(hash) }
+        if (!already && digest == null) { digest = ChunkedUpload.digest { openData(asset.uri) }; hash = digest!!.sha256; already = hasFile(hash) }
 
         val resp = if (already) {
             OTCConnection.request { it.setReqLinkFile(LinkFile.newBuilder().setHash(hash).setPath(path).setForceOverride(false).setCreated(created)) }
         } else {
-            OTCConnection.request { it.setReqUploadFile(UploadFile.newBuilder().setPath(path).setContent(ByteString.copyFrom(data!!)).setForceOverride(false).setCreated(created)) }
+            ChunkedUpload.upload(path, digest!!.size, { openData(asset.uri) }, forceOverride = false, created = created, sha256 = hash)
         }
         if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) { AssetSyncCache.record(cacheKey, hash); return path }
         throw IllegalStateException(resp.errorMessage.ifEmpty { "Upload failed" })

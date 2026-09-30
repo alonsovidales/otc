@@ -1012,14 +1012,15 @@ final class PhotoGalleryVM: ObservableObject {
             guard let idx = items.firstIndex(where: {$0.path == p}) else { continue }
             if items[idx].isLocalOnly, let url = items[idx].localURL {
                 do {
-                    let data = try Data(contentsOf: url)
                     let created = SwiftProtobuf.Google_Protobuf_Timestamp(date: Date())
 
                     // Issue #58: skip re-sending content the device
                     // already has under some other path — see
                     // PhotoSync.swift's identical check for the full
                     // reasoning.
-                    let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                    // Issue #165: hashed and uploaded straight from the
+                    // file in chunks, never loaded whole.
+                    let hash = try OTCConnection.sha256Hex(of: url)
                     let hasResp = try await ws.request { e in
                         var req = ReqEnvelope()
                         var hf = Msg_HasFile()
@@ -1040,16 +1041,9 @@ final class PhotoGalleryVM: ObservableObject {
                             e = req
                         }
                     } else {
-                        _ = try await ws.request { e in
-                            var req = ReqEnvelope()
-                            var up  = UploadFileMsg()
-                            up.path = p
-                            up.content = data
-                            up.forceOverride = true
-                            up.created = created
-                            req.payload = .reqUploadFile(up)
-                            e = req
-                        }
+                        _ = try await ws.uploadChunked(path: p, source: .file(url),
+                                                       forceOverride: true, created: created,
+                                                       sha256: hash)
                     }
                     items[idx].isLocalOnly = false
                 } catch {
