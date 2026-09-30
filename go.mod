@@ -6,6 +6,7 @@ require (
 	fyne.io/systray v1.12.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/SherClockHolmes/webpush-go v1.4.0
+	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/alyu/configparser v0.0.0-20191103060215-744e9a66e7bc
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gabriel-vasile/mimetype v1.4.11
@@ -16,6 +17,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jdeng/goheif v0.0.0-20250916014851-5b536a2aabf6
 	github.com/ncruces/zenity v0.10.15
+	github.com/redis/go-redis/v9 v9.22.0
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/shirou/gopsutil/v4 v4.25.8
 	github.com/sideshow/apns2 v0.25.0
@@ -31,6 +33,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/dchest/jsmin v1.0.0 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
@@ -43,7 +46,9 @@ require (
 	github.com/randall77/makefat v0.0.0-20260406194835-1b91746796b7 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )

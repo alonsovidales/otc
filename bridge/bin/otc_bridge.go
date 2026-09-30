@@ -7,6 +7,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/api"
+	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
@@ -52,6 +53,9 @@ func main() {
 	}
 
 	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao)
+	// Issue #144: one node of several, when [cluster] says so.
+	clu := cluster.Init()
+	webSocket.SetCluster(clu)
 	adm.IsOnline = webSocket.IsOnline
 	// Issue #124: user accounts, sharing the admin panel's session secret
 	// (a different cookie, the same signing key).
@@ -62,6 +66,7 @@ func main() {
 		dao,
 		adm,
 		acc,
+		clu,
 		cfg.GetStr("otc-api", "static"),
 		int(cfg.GetInt("otc-api", "port")),
 		int(cfg.GetInt("otc-api", "ssl-port")),

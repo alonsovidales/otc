@@ -61,3 +61,38 @@ One certificate everywhere: `*.off-the.cloud` + `off-the.cloud`, renewed on
 `/etc/ssl/otc/` (`ssl-cert` / `ssl-key` in `[otc-api]`) and pushes it over
 the tunnel to both bridge nodes, which reload it without a restart
 (`certReloader`).
+
+## The code (`bridge/cluster`, `api/cluster.go`)
+
+Configured by a `[cluster]` section in the bridge's ini; without it the
+bridge runs alone, exactly as before.
+
+```ini
+[cluster]
+node-id = bridge1
+internal-addr = 10.10.0.2:8444   ; the listener other nodes forward to
+redis-addr = 10.10.0.1:6379
+redis-pass = <redis.pass>
+token = <at least 32 characters, the same on every node>
+
+[mysql]
+host = 10.10.0.2                 ; the primary, from every node
+```
+
+- Redis: `otc:nodes` (node -> internal address) and `otc:dev:<domain>`
+  (node -> claim expiry). A node claims a device when it gets its first
+  connection, refreshes every 20 s (`cluster.Refresh`), and releases it
+  when the last one goes; a claim expires 60 s after its last refresh, so
+  a node that dies stops being chosen within a minute. One goroutine
+  (`Manager.clusterSync`) writes them all, so a claim and its release
+  can't be reordered.
+- A request for `<device>.off-the.cloud` - websocket, static asset, media -
+  landing on a node without a free connection to that device is
+  reverse-proxied whole (websocket upgrades included) to a node that has
+  one (`clusterRouter`), with the cluster token and the client's address.
+  The internal listener refuses anything without the token, marks what it
+  accepts as forwarded (never forwarded again), and the public listeners
+  strip those headers from outside requests.
+- "Online" (admin panel, account page, the setup wizard's check) is any
+  node holding the device; the offline alert is skipped while another node
+  holds it.

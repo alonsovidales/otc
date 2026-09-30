@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
@@ -304,7 +305,10 @@ func clientAddr(r *http.Request, conn *gorilla.Conn) string {
 	if err != nil {
 		host = conn.RemoteAddr().String()
 	}
-	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+	// Issue #144: or from another bridge node, which says who the client
+	// is - the internal listener only sets HopHeader once the cluster token
+	// checked out, and the public listeners strip it.
+	if ip := net.ParseIP(host); (ip != nil && ip.IsLoopback()) || r.Header.Get(cluster.HopHeader) == "1" {
 		if fwd := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); fwd != "" {
 			return fwd
 		}
@@ -395,6 +399,112 @@ type Manager struct {
 	upgrader         gorilla.Upgrader
 	bridges          map[string]*bridgePool // The domain is the key and the value the pool of connections
 	bridgesMu        sync.RWMutex           // guards the bridges map itself, not each pool's own contents (pool.lock does that)
+
+	// Issue #144: nil on a single bridge. dirty queues the domains whose
+	// claim in Redis may have to change; one goroutine (clusterSync)
+	// applies them, so a claim and its release are never reordered.
+	cluster *cluster.Cluster
+	dirty   chan string
+}
+
+// SetCluster makes this bridge one node of c (issue #144): it claims in
+// Redis every device it holds connections to, and answers "online" for
+// devices other nodes hold.
+func (mg *Manager) SetCluster(c *cluster.Cluster) {
+	if c == nil {
+		return
+	}
+	mg.cluster = c
+	mg.dirty = make(chan string, 4096)
+	go mg.clusterSync()
+}
+
+// markDirty asks clusterSync to bring domain's claim up to date. Never
+// blocks: with the queue full, the next refresh does it.
+func (mg *Manager) markDirty(domain string) {
+	if mg.dirty == nil {
+		return
+	}
+	select {
+	case mg.dirty <- domain:
+	default:
+	}
+}
+
+func (mg *Manager) clusterSync() {
+	if err := mg.cluster.Announce(); err != nil {
+		log.Error("cluster: could not announce this node:", err)
+	}
+	t := time.NewTicker(cluster.Refresh)
+	defer t.Stop()
+	for {
+		select {
+		case d := <-mg.dirty:
+			var err error
+			if mg.liveCount(d) > 0 {
+				err = mg.cluster.Hold(d)
+			} else {
+				err = mg.cluster.Release(d)
+			}
+			if err != nil {
+				log.Error("cluster: could not update the claim on", d, ":", err)
+			}
+		case <-t.C:
+			if err := mg.cluster.Announce(); err != nil {
+				log.Error("cluster: could not announce this node:", err)
+			}
+			if err := mg.cluster.Hold(mg.heldDomains()...); err != nil {
+				log.Error("cluster: could not refresh the claims:", err)
+			}
+		}
+	}
+}
+
+// liveCount is how many live connections this node has to domain.
+func (mg *Manager) liveCount(domain string) int {
+	mg.bridgesMu.RLock()
+	pool, ok := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	if !ok {
+		return 0
+	}
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	return pool.liveCount
+}
+
+// heldDomains is every device this node has live connections to.
+func (mg *Manager) heldDomains() []string {
+	mg.bridgesMu.RLock()
+	pools := make(map[string]*bridgePool, len(mg.bridges))
+	for d, p := range mg.bridges {
+		pools[d] = p
+	}
+	mg.bridgesMu.RUnlock()
+	var out []string
+	for d, p := range pools {
+		p.lock.Lock()
+		if p.liveCount > 0 {
+			out = append(out, d)
+		}
+		p.lock.Unlock()
+	}
+	return out
+}
+
+// HasLocal reports whether this node has a free connection to domain's
+// device - one a new client can be paired with here. Otherwise a client
+// is better served by a node that has (api.clusterRoute).
+func (mg *Manager) HasLocal(domain string) bool {
+	mg.bridgesMu.RLock()
+	pool, ok := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	if !ok {
+		return false
+	}
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	return len(pool.availableConns) > 0
 }
 
 func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
@@ -470,6 +580,9 @@ func (mg *Manager) sendOfflineAlert(domain string) {
 // Must be called with pool.lock held.
 func (mg *Manager) onDeviceConnectionRegistered(domain string, pool *bridgePool) {
 	pool.liveCount++
+	if pool.liveCount == 1 {
+		mg.markDirty(domain)
+	}
 	if pool.offlineTimer != nil {
 		pool.offlineTimer.Stop()
 		pool.offlineTimer = nil
@@ -525,6 +638,9 @@ func (mg *Manager) onDeviceConnectionDied(domain string, dead *deviceRelay) {
 	if pool.liveCount > 0 {
 		pool.liveCount--
 	}
+	if pool.liveCount == 0 {
+		mg.markDirty(domain)
+	}
 	if pool.liveCount == 0 && pool.offlineTimer == nil {
 		log.Info("device has zero live bridge connections, starting offline countdown:", domain)
 		pool.offlineTimer = time.AfterFunc(cOfflineAlertGrace, func() { mg.fireOfflineAlertIfStillDown(domain) })
@@ -548,6 +664,12 @@ func (mg *Manager) fireOfflineAlertIfStillDown(domain string) {
 	pool.offlineTimer = nil
 	pool.lock.Unlock()
 
+	// Issue #144: gone from this node isn't gone - the device may hold
+	// connections to another one, whose own countdown covers it.
+	if stillDown && mg.cluster.HeldElsewhere(domain) {
+		log.Info("device left this node but another one holds it, no offline alert:", domain)
+		return
+	}
 	if stillDown {
 		mg.sendOfflineAlert(domain)
 	}
@@ -624,16 +746,9 @@ const cOneOffMaxAttempts = 3
 // live connection to this bridge (issue #38: the setup wizard asks this
 // after installing, to know the device it just set up is really reachable
 // before sending the person to its address).
+// Issue #144: on any node of the cluster.
 func (mg *Manager) IsOnline(domain string) bool {
-	mg.bridgesMu.RLock()
-	pool, ok := mg.bridges[domain]
-	mg.bridgesMu.RUnlock()
-	if !ok {
-		return false
-	}
-	pool.lock.Lock()
-	defer pool.lock.Unlock()
-	return pool.liveCount > 0
+	return mg.liveCount(domain) > 0 || mg.cluster.Online(domain)
 }
 
 func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte, err error) {

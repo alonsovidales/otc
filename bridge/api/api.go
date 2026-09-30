@@ -11,6 +11,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/clientaddr"
+	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
@@ -92,11 +93,13 @@ type API struct {
 	lastClaimByAddr map[string]time.Time
 	// tld is [otc-api] tld, read once at Init; device domains are <name>.<tld>.
 	tld string
+	// cluster is issue #144; nil on a single bridge.
+	cluster *cluster.Cluster
 }
 
 // Init Initializes the API and starts listening on the specified ports serving
 // both the HTTP API and the static content
-func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
+func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, clu *cluster.Cluster, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
 		websocket:         webSocket,
 		dao:               dao,
@@ -107,9 +110,13 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		lastContactByAddr: map[string]time.Time{},
 		lastClaimByAddr:   map[string]time.Time{},
 		tld:               cfg.GetStr("otc-api", "tld"),
+		cluster:           clu,
 	}
 
 	api.registerAPIs()
+	if clu.Enabled() {
+		api.serveInternal()
+	}
 	// Issue #161: port 80 only redirects to HTTPS (see tls.go).
 	go func() {
 		log.Info("Starting http redirect server on port:", httpPort)
@@ -130,8 +137,10 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 			log.Fatal("Error loading the TLS certificate:", err)
 		}
 		srv := &http.Server{
-			Addr:              fmt.Sprintf(":%d", httpsPort),
-			Handler:           withHSTS(api.originGuard(api.muxHTTPServer)),
+			Addr: fmt.Sprintf(":%d", httpsPort),
+			// Issue #144: a device request this node can't serve goes to
+			// one that can (clusterRoute), after the same origin check.
+			Handler:           withHSTS(stripClusterHeaders(api.originGuard(newClusterRouter(clu, webSocket, api.tld, api.muxHTTPServer)))),
 			TLSConfig:         &tls.Config{GetCertificate: certs.get, MinVersion: tls.VersionTLS12},
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       2 * time.Minute,
