@@ -28,6 +28,12 @@ import (
 // One more model pass on top of the RAM++ tagger's own (see the tagging
 // block just above this call in UploadFile) - not free, which is exactly
 // why this stays off by default.
+//
+// Matching runs against the in-memory reference set (issue #173, see
+// face_refs.go and loadFaceRefsLocked), not every stored face: this used
+// to read and decrypt the whole faces table for every photo and recompute
+// a person's medoid over all of their faces after every face, which made
+// a full-library Reprocess take hours.
 func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.Image) {
 	if mg.faceRecognizer == nil {
 		return // [faces] not configured on this device - see Init
@@ -50,28 +56,20 @@ func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.I
 		return
 	}
 
-	existing, err := mg.dao.ListFaceEmbeddings()
+	// Detection above runs unlocked (it's the expensive model pass, and
+	// independent per photo); matching and storing is serialized on the
+	// shared reference set.
+	mg.faceRefsMu.Lock()
+	defer mg.faceRefsMu.Unlock()
+
+	refs, err := mg.loadFaceRefsLocked(ses)
 	if err != nil {
 		log.Error("error listing existing face embeddings:", err)
 		return
 	}
-	// Everything under faces.* is derived straight from the owner's own
-	// photos - a face crop is as much "file content" as the photo it was
-	// cut from, and an embedding is a biometric fingerprint of it - so both
-	// get the same at-rest encryption as thumbnails/originals elsewhere in
-	// files_manager (see GetThumbnail's session.Decrypt). Stored rows are
-	// decrypted right back here before matchOrNewPerson ever sees them.
-	for i := range existing {
-		plain, err := ses.Decrypt(existing[i].Embedding)
-		if err != nil {
-			log.Error("error decrypting a stored face embedding, skipping it:", err)
-			continue
-		}
-		existing[i].Embedding = plain
-	}
 
 	for _, det := range detections {
-		personID := matchOrNewPerson(det.Embedding, existing)
+		personID := matchOrNewPerson(det.Embedding, refs)
 		if personID == "" {
 			personID = uuid.New().String()
 			if err := mg.dao.CreatePerson(personID); err != nil {
@@ -87,38 +85,82 @@ func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.I
 			continue
 		}
 
-		// So a second face in this same photo (or a later one, further
-		// down this same detections loop) can also match this brand new
-		// person, not only faces that already existed before this upload.
-		// Kept as the plaintext embedding (not the encrypted form just
-		// written to AddFace) since this slice only ever feeds
-		// matchOrNewPerson, right above.
-		existing = append(existing, dao.FaceEmbedding{ID: faceID, PersonID: personID, Embedding: encoded})
-
-		updatePersonCoverFace(mg.dao, personID, existing)
+		// So a second face in this same photo (or a later photo) can also
+		// match this person through this face - subject to the reference
+		// rule (issue #173, see personFaceRefs.add). The face row above is
+		// stored either way; the cover face only needs recomputing when
+		// the references actually changed.
+		if refs.add(personID, faceID, det.Embedding) {
+			updatePersonCoverFace(mg.dao, personID, refs[personID])
+		}
 	}
 }
 
-// updatePersonCoverFace recomputes and persists personID's medoid cover
-// face (face_recognition.MedoidFaceID's own doc comment has the full
-// reasoning) using whatever's already in existing - the same in-memory,
-// already-decrypted set processFaces just built for matching, filtered
-// down to this one person, rather than a fresh DB round trip. Run after
-// every single face added to a person, not just new people, since an
-// existing person's medoid can change as more (possibly better) photos of
-// them come in.
-func updatePersonCoverFace(d *dao.Dao, personID string, existing []dao.FaceEmbedding) {
-	var faces []facerecognition.IdentifiedEmbedding
+// loadFaceRefsLocked returns the cached reference set, building it on
+// first use (issue #173): every stored embedding is read and decrypted
+// once per process (or once after InvalidateFaceRefs) instead of once per
+// photo, and each person's references are picked with the same rule
+// processFaces applies incrementally (personFaceRefs.add), offering faces
+// in the database's row order. The caller must hold faceRefsMu.
+func (mg *Manager) loadFaceRefsLocked(ses *session.Session) (faceRefs, error) {
+	if mg.faceRefs != nil {
+		return mg.faceRefs, nil
+	}
+	existing, err := mg.dao.ListFaceEmbeddings()
+	if err != nil {
+		return nil, err
+	}
+	refs := faceRefs{}
 	for _, e := range existing {
-		if e.PersonID != personID {
+		// Everything under faces.* is derived straight from the owner's
+		// own photos - a face crop is as much "file content" as the photo
+		// it was cut from, and an embedding is a biometric fingerprint of
+		// it - so both get the same at-rest encryption as thumbnails/
+		// originals elsewhere in files_manager (see GetThumbnail's
+		// session.Decrypt). Only the decrypted references stay in this
+		// process's memory, never on disk.
+		plain, err := ses.Decrypt(e.Embedding)
+		if err != nil {
+			log.Error("error decrypting a stored face embedding, skipping it:", err)
 			continue
 		}
-		faces = append(faces, facerecognition.IdentifiedEmbedding{
-			ID:        e.ID,
-			Embedding: facerecognition.DecodeEmbedding(e.Embedding),
-		})
+		refs.add(e.PersonID, e.ID, facerecognition.DecodeEmbedding(plain))
 	}
-	medoidID, cohesion := facerecognition.MedoidAndCohesion(faces)
+	mg.faceRefs = refs
+	return refs, nil
+}
+
+// InvalidateFaceRefs drops the cached matching set (issue #173) so the
+// next processFaces rebuilds it from the database. Called after anything
+// outside processFaces changes faces or people - deleting or merging
+// people, wiping faces for a Reprocess - since the cache would otherwise
+// keep matching against faces or person ids that no longer exist.
+// Rebuilding lazily is simpler and safer than patching the cache in place,
+// and those operations are rare. Safe on a nil Manager, for callers
+// wired up without files_manager.
+func (mg *Manager) InvalidateFaceRefs() {
+	if mg == nil {
+		return
+	}
+	mg.faceRefsMu.Lock()
+	mg.faceRefs = nil
+	mg.faceRefsMu.Unlock()
+}
+
+// updatePersonCoverFace recomputes and persists a person's medoid cover
+// face (face_recognition.MedoidFaceID's own doc comment has the full
+// reasoning) over that person's references only - at most
+// cMaxFaceRefsPerPerson faces, so <=400 comparisons instead of O(k^2) over
+// every face they have (issue #173). The references are kept diverse and
+// free of outliers, so their medoid is still a representative face, and
+// its cohesion still flags a chained-together non-person. Run whenever a
+// person's references change, not just for new people, since the medoid
+// can move as more (possibly better) photos of them come in.
+func updatePersonCoverFace(d *dao.Dao, personID string, p *personFaceRefs) {
+	if p == nil {
+		return
+	}
+	medoidID, cohesion := facerecognition.MedoidAndCohesion(p.identified())
 	if medoidID == "" {
 		return
 	}
@@ -127,20 +169,23 @@ func updatePersonCoverFace(d *dao.Dao, personID string, existing []dao.FaceEmbed
 	}
 }
 
-// matchOrNewPerson returns the person id of whichever existing face is the
-// closest match above face_recognition's same-person threshold, or "" if
-// none clears it - the caller creates a new person in that case. Pure
-// logic, deliberately separate from processFaces' DB/model plumbing so
-// it's directly unit-testable without a real database or the actual
-// models.
-func matchOrNewPerson(embedding []float32, existing []dao.FaceEmbedding) string {
+// matchOrNewPerson returns the person id of whichever reference face is
+// the closest match above face_recognition's same-person threshold, or ""
+// if none clears it - the caller creates a new person in that case. Only
+// each person's references are compared (issue #173), not every face ever
+// stored. Pure logic, deliberately separate from processFaces' DB/model
+// plumbing so it's directly unit-testable without a real database or the
+// actual models.
+func matchOrNewPerson(embedding []float32, refs faceRefs) string {
 	bestPersonID := ""
 	var bestScore float32
-	for _, e := range existing {
-		score := facerecognition.CosineSimilarity(embedding, facerecognition.DecodeEmbedding(e.Embedding))
-		if score > bestScore {
-			bestScore = score
-			bestPersonID = e.PersonID
+	for personID, p := range refs {
+		for _, r := range p.refs {
+			score := facerecognition.CosineSimilarity(embedding, r.emb)
+			if score > bestScore {
+				bestScore = score
+				bestPersonID = personID
+			}
 		}
 	}
 	if bestPersonID != "" && facerecognition.IsSamePersonScore(bestScore) {
