@@ -207,7 +207,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	if err != nil {
 		log.Fatal("Error loading the settings", err)
 	}
-	pr, err := profile.Init(dao, st.Domain)
+	pr, err := profile.Init(dao, st.Domain())
 	if err != nil {
 		log.Fatal("Error loading the profile", err)
 	}
@@ -411,7 +411,7 @@ func bridgeConfigured() bool {
 func (mg *Manager) bridgeAccess(withProviders bool) *pb.RespBridgeAccess {
 	out := &pb.RespBridgeAccess{Enabled: bridgeaccess.Enabled(), Bridge: bridgeaccess.Bridge()}
 	if out.Enabled {
-		out.Domain = mg.settings.Domain
+		out.Domain = mg.settings.Domain()
 		return out
 	}
 	out.Pending, out.Error = bridgeaccess.Status()
@@ -437,13 +437,15 @@ func (mg *Manager) openBridgeConn() {
 	defer c.Close()
 
 	// AUTH the connection
+	// One read: never one identity's secret with another's domain (issue #171).
+	ownerUuid, domain, secret := mg.settings.Identity()
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqBridgeRegister{
 			ReqBridgeRegister: &pb.BridgeRegister{
-				OwnerUuid: mg.settings.DeviceUuid,
-				Domain:    mg.settings.Domain,
-				Secret:    mg.settings.BridgeSecret,
+				OwnerUuid: ownerUuid,
+				Domain:    domain,
+				Secret:    secret,
 			},
 		},
 	}
@@ -565,13 +567,15 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 	}
 	defer c.Close()
 
+	// One read: never one identity's secret with another's domain (issue #171).
+	ownerUuid, domain, secret := mg.settings.Identity()
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqRotateBridgeSecret{
 			ReqRotateBridgeSecret: &pb.RotateBridgeSecret{
-				OwnerUuid: mg.settings.DeviceUuid,
-				Domain:    mg.settings.Domain,
-				Secret:    mg.settings.BridgeSecret,
+				OwnerUuid: ownerUuid,
+				Domain:    domain,
+				Secret:    secret,
 			},
 		},
 	}
@@ -637,13 +641,15 @@ func (mg *Manager) relayMobileToBridge(title, body string, t push.Target) bool {
 	}
 	defer c.Close()
 
+	// One read: never one identity's secret with another's domain (issue #171).
+	ownerUuid, domain, secret := mg.settings.Identity()
 	b, err := proto.Marshal(&pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqBridgeNotify{
 			ReqBridgeNotify: &pb.BridgeNotify{
-				OwnerUuid:   mg.settings.DeviceUuid,
-				Domain:      mg.settings.Domain,
-				Secret:      mg.settings.BridgeSecret,
+				OwnerUuid:   ownerUuid,
+				Domain:      domain,
+				Secret:      secret,
 				Title:       title,
 				Body:        body,
 				Kind:        t.Kind,
@@ -723,13 +729,15 @@ func (mg *Manager) syncPushRegistrationsToBridge() {
 	}
 	defer c.Close()
 
+	// One read: never one identity's secret with another's domain (issue #171).
+	ownerUuid, domain, secret := mg.settings.Identity()
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqUpdatePushRegistrations{
 			ReqUpdatePushRegistrations: &pb.UpdatePushRegistrations{
-				OwnerUuid:       mg.settings.DeviceUuid,
-				Domain:          mg.settings.Domain,
-				Secret:          mg.settings.BridgeSecret,
+				OwnerUuid:       ownerUuid,
+				Domain:          domain,
+				Secret:          secret,
 				ApnsTokens:      apnsTokens,
 				FcmTokens:       fcmTokens,
 				WebPushSubs:     pbSubs,
@@ -1408,7 +1416,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			}
 			ch.mu.Unlock()
 		} else {
-			log.Info("ignoring BridgeClientInfo on a direct connection from", ch.remoteAddr)
+			log.Info("ignoring BridgeClientInfo on a direct connection from", ch.addr())
 		}
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 
@@ -1482,9 +1490,9 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 
 		resp.Payload = &pb.RespEnvelope_RespProfile{
 			RespProfile: &pb.Profile{
-				Name:  ch.mg.profile.Name,
-				Image: ch.mg.profile.Image,
-				Text:  ch.mg.profile.Text,
+				Name:  ch.mg.profile.Name(),
+				Image: ch.mg.profile.Image(),
+				Text:  ch.mg.profile.Text(),
 			},
 		}
 
@@ -1508,7 +1516,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 	friend := ch.getFriendProfile()
 	isFriend := friend != nil && ch.getSession() == nil
 	if isFriend {
-		accepted, leaving, err := ch.mg.dao.FriendshipAccess(friend.Domain)
+		accepted, leaving, err := ch.mg.dao.FriendshipAccess(friend.Domain())
 		if err != nil || !accepted {
 			return notAuthenticatedResponse(env.Id), true
 		}
@@ -1525,7 +1533,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 		log.Info("Getting events")
 		requester := ""
 		if isFriend {
-			requester = friend.Domain
+			requester = friend.Domain()
 		}
 		events, err := ch.mg.social.GetEvents(ch.mg.profile, p.ReqGetEvents.Since.AsTime(), p.ReqGetEvents.Total, requester)
 		if err != nil {
@@ -1718,7 +1726,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqLikePublication:
-		log.Info("Liking publication", ch.mg.profile.Domain, "-", p.ReqLikePublication.PubUuid)
+		log.Info("Liking publication", ch.mg.profile.Domain(), "-", p.ReqLikePublication.PubUuid)
 		_, err := ch.mg.social.NewLikePublication(ch.mg.profile, p.ReqLikePublication.PubUuid)
 		if err != nil {
 			resp.Error = true
@@ -1732,7 +1740,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqLikeComment:
-		log.Info("Liking comment", ch.mg.profile.Domain, "-", p.ReqLikeComment.CommentUuid)
+		log.Info("Liking comment", ch.mg.profile.Domain(), "-", p.ReqLikeComment.CommentUuid)
 		_, err := ch.mg.social.NewLikePublicationComment(ch.mg.profile, p.ReqLikeComment.CommentUuid)
 		if err != nil {
 			resp.Error = true
@@ -1808,7 +1816,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqShareFilesLink:
 		log.Info("Sharing files with path:", p.ReqShareFilesLink.Paths)
-		link, err := ch.mg.filesManager.GetSharedLink(ses, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain)
+		link, err := ch.mg.filesManager.GetSharedLink(ses, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain())
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error creating files share link: %s", err)
@@ -2325,9 +2333,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 		resp.Payload = &pb.RespEnvelope_RespSettings{
 			RespSettings: &pb.Settings{
-				Domain:                 ch.mg.settings.Domain,
-				BridgeSecret:           ch.mg.settings.BridgeSecret,
-				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled,
+				Domain:                 ch.mg.settings.Domain(),
+				BridgeSecret:           ch.mg.settings.BridgeSecret(),
+				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled(),
 			},
 		}
 
@@ -2354,9 +2362,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		used, _ := ch.mg.dao.FriendPostsBytes()
 		resp.Payload = &pb.RespEnvelope_RespSettings{
 			RespSettings: &pb.Settings{
-				Domain:                 ch.mg.settings.Domain,
-				BridgeSecret:           ch.mg.settings.BridgeSecret,
-				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled,
+				Domain:                 ch.mg.settings.Domain(),
+				BridgeSecret:           ch.mg.settings.BridgeSecret(),
+				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled(),
 				SocialStorageLimitMb:   int32(limitMB),
 				SocialStorageUsedBytes: used,
 			},
@@ -2717,7 +2725,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = "could not store the device's new identity"
 			break
 		}
-		ch.mg.settings.DeviceUuid, ch.mg.settings.Domain, ch.mg.settings.BridgeSecret = id.DeviceUuid, id.Domain, id.Secret
+		ch.mg.settings.SetIdentity(id.DeviceUuid, id.Domain, id.Secret)
 		if err := bridgeaccess.RequestSwitchOn(); err != nil {
 			resp.Error = true
 			resp.ErrorMessage = err.Error()

@@ -12,10 +12,12 @@ func TestMemBudgetMakesDownloadsWait(t *testing.T) {
 	first := b.acquire(80)
 
 	done := make(chan struct{})
+	released := make(chan struct{})
 	go func() {
 		release := b.acquire(50) // 80 + 50 > 100: must wait for the first
 		close(done)
 		release()
+		close(released)
 	}()
 	select {
 	case <-done:
@@ -30,8 +32,12 @@ func TestMemBudgetMakesDownloadsWait(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("the waiting download never started after the first finished")
 	}
-	if b.used != 0 {
-		t.Errorf("budget left at %d, want 0", b.used)
+	<-released
+	b.mu.Lock()
+	used := b.used
+	b.mu.Unlock()
+	if used != 0 {
+		t.Errorf("budget left at %d, want 0", used)
 	}
 }
 

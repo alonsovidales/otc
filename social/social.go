@@ -392,7 +392,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		return "", err
 	}
 
-	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain, true, files, time.Now())
+	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain(), true, files, time.Now())
 }
 
 // GetEvents is the page of events requester's device is served (issue
@@ -453,7 +453,7 @@ func (sc *Social) GetPublicationFiles(uuid string) (files []*pb.File, err error)
 }
 
 func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total int32, ownOnly bool, exclude []string) (publications *pb.SocialPublications, err error) {
-	publications, err = sc.dao.GetSocialPublications(since, total, ownOnly, exclude, pr.Name, pr.Text, pr.Image, pr.Domain)
+	publications, err = sc.dao.GetSocialPublications(since, total, ownOnly, exclude, pr.Name(), pr.Text(), pr.Image(), pr.Domain())
 	if err != nil {
 		log.Debug("error retriving publications", err)
 		return
@@ -476,7 +476,7 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 		}
 		pub.Files = goodFiles
 
-		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain)
+		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain())
 		if err != nil {
 			return nil, err
 		}
@@ -490,7 +490,7 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 // happens to be loaded needs to fetch just that one directly. Populates
 // thumbnails/comments the same way GetPublications does for its list.
 func (sc *Social) GetPublication(pr *profile.Profile, pubUuid string) (pub *pb.SocialPublication, err error) {
-	pub, err = sc.dao.GetSocialPublicationByUUID(pubUuid, pr.Name, pr.Text, pr.Image, pr.Domain)
+	pub, err = sc.dao.GetSocialPublicationByUUID(pubUuid, pr.Name(), pr.Text(), pr.Image(), pr.Domain())
 	if err != nil {
 		return nil, err
 	}
@@ -507,7 +507,7 @@ func (sc *Social) GetPublication(pr *profile.Profile, pubUuid string) (pub *pb.S
 	}
 	pub.Files = goodFiles
 
-	pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain)
+	pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain())
 	if err != nil {
 		return nil, err
 	}
@@ -678,7 +678,7 @@ func (fr *friendship) updateFriendshipStatus() (err error) {
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqGetFriendshipStatus{
 			ReqGetFriendshipStatus: &pb.GetFriendshipStatus{
-				Domain: fr.sc.settings.Domain, // We want to get our status, so our domain
+				Domain: fr.sc.settings.Domain(), // We want to get our status, so our domain
 				Secret: fr.data.Secret,
 			},
 		},
@@ -755,7 +755,7 @@ func (fr *friendship) autAsFriend() (err error) {
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqAuthAsFriend{
 			ReqAuthAsFriend: &pb.AuthAsFriend{
-				Domain: fr.sc.settings.Domain,
+				Domain: fr.sc.settings.Domain(),
 				Secret: fr.data.Secret,
 			},
 		},
@@ -1175,7 +1175,7 @@ event_loop:
 		case ForgetEvent:
 			var fg Forget
 			json.Unmarshal([]byte(event.Content), &fg)
-			if fg.Domain != fr.sc.settings.Domain {
+			if fg.Domain != fr.sc.settings.Domain() {
 				break // only ever served to its target; ignore otherwise
 			}
 			fr.sc.forgetFriend(fr.data.OriginProfile.Domain, fr.data.Secret)
@@ -1303,12 +1303,12 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqFriendshipInterRequest{
 			ReqFriendshipInterRequest: &pb.FriendshipInterRequest{
-				Domain: sc.settings.Domain,
+				Domain: sc.settings.Domain(),
 				Secret: secret,
 				OriginProfile: &pb.Profile{
-					Name:  sc.profile.Name,
-					Image: sc.profile.Image,
-					Text:  sc.profile.Text,
+					Name:  sc.profile.Name(),
+					Image: sc.profile.Image(),
+					Text:  sc.profile.Text(),
 				},
 			},
 		},
@@ -1369,7 +1369,7 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqDidSendFriendshipReq{
 			ReqDidSendFriendshipReq: &pb.DidSendFriendshipReq{
-				Domain: sc.settings.Domain,
+				Domain: sc.settings.Domain(),
 				Secret: secret,
 			},
 		},
@@ -1520,7 +1520,7 @@ func (sc *Social) statusToPb(status string) (pbStatus pb.FriendShipStatus) {
 // liked it yet, it likes it; if pr already liked it, it undoes that like
 // instead. Returns the resulting liked state.
 func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid string) (liked bool, err error) {
-	alreadyLiked, err := sc.dao.HasLikedComment(commentUuid, pr.Domain)
+	alreadyLiked, err := sc.dao.HasLikedComment(commentUuid, pr.Domain())
 	if err != nil {
 		return false, err
 	}
@@ -1539,7 +1539,7 @@ func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid str
 		Action:       action,
 		CommentUUID:  commentUuid,
 		Dt:           time.Now().Unix(),
-		FriendDomain: pr.Domain,
+		FriendDomain: pr.Domain(),
 	})
 	if err != nil {
 		return false, err
@@ -1549,16 +1549,16 @@ func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid str
 	}
 
 	if alreadyLiked {
-		return false, sc.dao.DeleteLikePublicationComment(commentUuid, pr.Domain)
+		return false, sc.dao.DeleteLikePublicationComment(commentUuid, pr.Domain())
 	}
-	return true, sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain, time.Now())
+	return true, sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain(), time.Now())
 }
 
 // NewLikePublication toggles pr's like of pubUuid: if pr hasn't liked it
 // yet, it likes it; if pr already liked it, it undoes that like instead.
 // Returns the resulting liked state.
 func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked bool, err error) {
-	alreadyLiked, err := sc.dao.HasLikedPublication(pubUuid, pr.Domain)
+	alreadyLiked, err := sc.dao.HasLikedPublication(pubUuid, pr.Domain())
 	if err != nil {
 		return false, err
 	}
@@ -1577,7 +1577,7 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked
 		Action:       action,
 		PubUUID:      pubUuid,
 		Dt:           time.Now().Unix(),
-		FriendDomain: pr.Domain,
+		FriendDomain: pr.Domain(),
 	})
 	if err != nil {
 		return false, err
@@ -1587,9 +1587,9 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked
 	}
 
 	if alreadyLiked {
-		return false, sc.dao.DeleteLikePublication(pubUuid, pr.Domain)
+		return false, sc.dao.DeleteLikePublication(pubUuid, pr.Domain())
 	}
-	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain, time.Now())
+	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain(), time.Now())
 }
 
 // resolveLikerProfiles turns a list of liker domains (self or friends) into
@@ -1600,11 +1600,11 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked
 func (sc *Social) resolveLikerProfiles(domains []string) (likers []*pb.Profile, err error) {
 	likers = []*pb.Profile{}
 	for _, domain := range domains {
-		if domain == sc.settings.Domain {
+		if domain == sc.settings.Domain() {
 			likers = append(likers, &pb.Profile{
-				Name:   sc.profile.Name,
-				Text:   sc.profile.Text,
-				Image:  sc.profile.Image,
+				Name:   sc.profile.Name(),
+				Text:   sc.profile.Text(),
+				Image:  sc.profile.Image(),
 				Domain: domain,
 			})
 			continue
@@ -1651,13 +1651,13 @@ func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string)
 		PubUUID:       pubUuid,
 		Comment:       comment,
 		Dt:            time.Now().Unix(),
-		PublisherName: pr.Name,
+		PublisherName: pr.Name(),
 	})
 	err = sc.dao.NewEvent(CommentEvent, json)
 	if err != nil {
 		return err
 	}
-	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment, sc.settings.Domain, true, time.Now())
+	return sc.dao.NewComment(commentUuid, pr.Name(), pubUuid, comment, sc.settings.Domain(), true, time.Now())
 }
 
 // DeletePublication removes pubUuid, provided it's one of the device
@@ -1862,7 +1862,7 @@ func (sc *Social) notifyFriendshipDeleted(domain, secret string, forgetMe bool) 
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqFriendshipInterDelete{
 			ReqFriendshipInterDelete: &pb.FriendshipInterDelete{
-				Domain:   sc.settings.Domain,
+				Domain:   sc.settings.Domain(),
 				Secret:   secret,
 				ForgetMe: forgetMe,
 			},

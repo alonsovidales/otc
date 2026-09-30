@@ -631,6 +631,13 @@ func (dao *Dao) ContentPaths() (map[string][]string, error) {
 	return out, rows.Err()
 }
 
+// DelTagsByHash removes a content's tags - once no file uses it (issue
+// #171: a file deleted while it was being processed).
+func (dao *Dao) DelTagsByHash(hash string) error {
+	_, err := dao.db.Exec("delete from `file_tags` where `hash` = ?", hash)
+	return err
+}
+
 // HashReferenced is whether any current file or kept version still uses
 // this content - the check before a blob is removed from disk.
 func (dao *Dao) HashReferenced(hash string) (bool, error) {

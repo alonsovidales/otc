@@ -28,6 +28,7 @@ import (
 	"github.com/jdeng/goheif/heif"
 	"github.com/jdeng/goheif/heif/bmff"
 	"golang.org/x/image/draw"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"image"
 	_ "image/gif"
@@ -741,6 +742,11 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 			}
 			continue
 		}
+		// A copy per page: the rows behind a token are shared by every
+		// request that names it, and two of them (a quick double scroll)
+		// wrote Content on the same *pb.File while another was marshalling
+		// it (issue #171).
+		file = proto.Clone(file).(*pb.File)
 		file.Content = content
 		page = append(page, file)
 	}
@@ -1197,6 +1203,9 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 // same as it always did); targetPath is only used to derive the
 // "<hash>_thumbnail" sibling path.
 func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte) {
+	// Issue #171: the file may be deleted while this runs - its content,
+	// thumbnail and tags were then written for a hash nothing uses.
+	defer mg.dropIfOrphaned(file.Hash)
 	// We will try to create a thumbnail of images only
 	// A ".HEIC" that is really a JPEG (some apps export one under the
 	// original's name) is decoded as the JPEG it is.
@@ -1526,6 +1535,31 @@ func writeBlob(target string, data []byte) error {
 // blobPath is where the encrypted content for hash lives.
 func blobPath(hash string) string {
 	return fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), hash)
+}
+
+// dropIfOrphaned removes what processing left for hash - content,
+// thumbnail, tags - when no file or kept version uses it any more: the
+// file was deleted while it was being processed (issue #171). Under the
+// hash's lock, like every other decision to remove a blob, so an upload of
+// the same content can't slip in between the check and the removal.
+func (mg *Manager) dropIfOrphaned(hash string) {
+	if hash == "" {
+		return
+	}
+	unlock := lockBlob(hash)
+	defer unlock()
+	referenced, err := mg.dao.HashReferenced(hash)
+	if err != nil || referenced {
+		return
+	}
+	if err := mg.dao.DelTagsByHash(hash); err != nil {
+		log.Error("could not remove the tags of deleted content", hash, ":", err)
+	}
+	full := blobPath(hash)
+	os.Remove(full)
+	os.Remove(full + "_thumbnail")
+	os.Remove(full + cNoThumbnailSuffix)
+	log.Info("removed what processing left for content deleted meanwhile:", hash)
 }
 
 // hasBlob is whether the content for hash is actually on the disk, not
