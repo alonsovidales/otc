@@ -2516,7 +2516,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqDeletePerson:
 		log.Info("Delete person:", p.ReqDeletePerson.Id)
-		if err := ch.mg.dao.DeletePerson(p.ReqDeletePerson.Id); err != nil {
+		err := ch.mg.dao.DeletePerson(p.ReqDeletePerson.Id)
+		// Issue #173: drop face matching's cached references to this
+		// person's (now deleted) faces.
+		ch.mg.filesManager.InvalidateFaceRefs()
+		if err != nil {
 			log.Error("error deleting person:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()
@@ -2528,7 +2532,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqMergePeople:
 		log.Info("Merge people:", p.ReqMergePeople.SourceIds, "into", p.ReqMergePeople.TargetId)
-		if err := ch.mg.dao.MergePeople(p.ReqMergePeople.TargetId, p.ReqMergePeople.SourceIds); err != nil {
+		err := ch.mg.dao.MergePeople(p.ReqMergePeople.TargetId, p.ReqMergePeople.SourceIds)
+		// Issue #173: face matching's cached references still file the
+		// merged faces under the source people - rebuild them.
+		ch.mg.filesManager.InvalidateFaceRefs()
+		if err != nil {
 			log.Error("error merging people:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()

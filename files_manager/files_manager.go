@@ -90,6 +90,17 @@ type Manager struct {
 	// recognizer as "the feature isn't set up on this device yet", not an
 	// error, same as push.Push's nil apnsClient.
 	faceRecognizer *facerecognition.Recognizer
+	// faceRefs is issue #173's in-memory matching set (see face_refs.go),
+	// nil until processFaces first needs it and again after
+	// InvalidateFaceRefs. One per Manager is enough: there is one Manager
+	// per process (bin/otc.go), each process serves one library database
+	// (extra users on a device run as their own supervised instances with
+	// their own database, issue #82), and the faces/people tables carry no
+	// per-user column. faceRefsMu also serializes
+	// processFaces' match-and-store step, so two concurrent uploads can't
+	// both create a new person for the same face.
+	faceRefsMu sync.Mutex
+	faceRefs   faceRefs
 
 	// reprocessing guards issue #73's full-library reprocess job - true
 	// only while a goroutine started by *this process* is actively working

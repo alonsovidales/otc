@@ -98,7 +98,11 @@ func (mg *Manager) Reprocess(ses *session.Session, forceRestart bool) (err error
 			return fmt.Errorf("resuming reprocess: %w", err)
 		}
 	} else {
-		if err := mg.dao.WipeTagsAndFaces(); err != nil {
+		err := mg.dao.WipeTagsAndFaces()
+		// Issue #173: the cached references point at faces that are
+		// gone now (or may be, if the wipe failed part way).
+		mg.InvalidateFaceRefs()
+		if err != nil {
 			return fmt.Errorf("wiping tags/faces before reprocess: %w", err)
 		}
 		total, err := mg.dao.CountMediaFiles()
