@@ -611,8 +611,14 @@ What the device needs in order to find and organise your files is kept in its da
 
 This is a deliberate trade-off: searching by name, folder, tag or place needs these fields
 readable by the database, and encrypting them would make search slow or impossible. Your
-content stays protected; its names and labels don't. Posts you share with friends are stored
-unencrypted as well, since they are served to their devices.
+content stays protected; its names and labels don't.
+
+**Posts are the other exception.** When you post a photo or video, a copy of it (as posted,
+original metadata included) is stored unencrypted, readable only by the service; so are
+the posts your friends share with you (up to the space limit in Settings). Your friends'
+devices fetch posts whenever they sync, usually while you aren't signed in, so these copies
+can't be under a key only your password unlocks. Deleting the original from your files
+doesn't delete the post; delete the post to remove its copy.
 
 Decrypted data never reaches the SD card: the service locks its memory, swap stays in RAM, and
 temporary files live in RAM (release 62).
