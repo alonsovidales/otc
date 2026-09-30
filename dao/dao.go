@@ -260,16 +260,38 @@ func (dao *Dao) DeleteFcmToken(token string) (err error) {
 	return
 }
 
+// AddTags upserts against (hash, tag)'s unique key rather than a plain
+// insert: a file getting reprocessed (a fix to the tagger, a forced
+// re-tag) re-runs this for a hash that may already have these exact tags,
+// and a plain insert would just fail on the second pass instead of
+// refreshing the score.
+//
+// Issue #173: all of a file's tags go in one multi-row statement instead
+// of one round trip per tag. A tag repeated in the list still ends with
+// the last score, as the sequential upserts left it. Should the batch
+// fail (one bad row fails the whole statement), it falls back to one
+// statement per tag, so the other tags are still stored as before.
 func (dao *Dao) AddTags(file *pb.File, tags []imagestagger.RAMTag) {
+	if len(tags) == 0 {
+		return
+	}
+	const upsert = " on duplicate key update `score` = values(`score`)"
+	args := make([]any, 0, len(tags)*3)
 	for _, tag := range tags {
-		// Upsert against (hash, tag)'s unique key rather than a plain
-		// insert: a file getting reprocessed (a fix to the tagger, a
-		// forced re-tag) re-runs this for a hash that may already have
-		// these exact tags, and a plain insert would just fail on the
-		// second pass instead of refreshing the score.
+		args = append(args, file.Hash, tag.Name, tag.Score)
+	}
+	values := strings.TrimSuffix(strings.Repeat("(?, ?, ?), ", len(tags)), ", ")
+	_, err := dao.db.Exec("insert into `file_tags` (`hash`, `tag`, `score`) values "+values+upsert, args...)
+	if err == nil || len(tags) == 1 {
+		if err != nil {
+			log.Error("Error inserting tag:", err)
+		}
+		return
+	}
+
+	for _, tag := range tags {
 		_, err := dao.db.Exec(
-			"insert into `file_tags` (`hash`, `tag`, `score`) values (?, ?, ?) "+
-				"on duplicate key update `score` = values(`score`)",
+			"insert into `file_tags` (`hash`, `tag`, `score`) values (?, ?, ?)"+upsert,
 			file.Hash, tag.Name, tag.Score)
 
 		if err != nil {
@@ -407,41 +429,53 @@ func (dao *Dao) GetFileByPath(path string) (file *pb.File, err error) {
 // the first commits (and by then correctly recounts one fewer reference)
 // instead of racing it.
 func (dao *Dao) DelFileByPath(path string) (err error) {
+	if _, err = dao.DelFileByPathHash(path); err == sql.ErrNoRows {
+		return nil
+	}
+	return err
+}
+
+// DelFileByPathHash is DelFileByPath that also returns the hash of the row
+// it deleted, and sql.ErrNoRows (the error GetFileByPath gives) when there
+// was no row at path. Issue #173: files_manager.DelFile used to run a
+// GetFileByPath of its own before this only to learn that hash - one more
+// query per file, for every file of a deleted folder - when the
+// transaction here reads it anyway.
+func (dao *Dao) DelFileByPathHash(path string) (hash string, err error) {
 	log.Debug("Del file SQL:", path)
 
 	tx, err := dao.db.Begin()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
 
-	var hash string
 	if err = tx.QueryRow("select `hash` from `files` where `path` = ?", path).Scan(&hash); err != nil {
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		return err
+		return "", err
 	}
 
 	// Issue #132: a version still holding this content keeps its tags too.
 	var refCount, versionRefs int
 	if err = tx.QueryRow("select count(*) from `files` where `hash` = ? for update", hash).Scan(&refCount); err != nil {
-		return err
+		return "", err
 	}
 	if err = tx.QueryRow("select count(*) from `file_versions` where `hash` = ?", hash).Scan(&versionRefs); err != nil {
-		return err
+		return "", err
 	}
 	if refCount+versionRefs <= 1 {
 		if _, err = tx.Exec("delete from `file_tags` where `hash` = ?", hash); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	if _, err = tx.Exec("delete from `files` where `path` = ?", path); err != nil {
-		return err
+		return "", err
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	return hash, nil
 }
 
 // --- Issue #132: upload-only folders and file versions ---
@@ -978,6 +1012,89 @@ func (dao *Dao) GetSocialPublicationFiles(uuid string) (files []*pb.File, err er
 	return
 }
 
+// socialFeedRow is one social_publications row of a feed page, read in
+// full before any per-page lookup runs (issue #173): the batched files and
+// liked queries below need every uuid of the page up front, and running
+// them while the page's own result set is still open would also hold a
+// second pooled connection for the length of the loop.
+type socialFeedRow struct {
+	sp           *pb.SocialPublication
+	dt           time.Time
+	friendDomain string
+	ownPub       bool
+}
+
+// friendProfile is what the feed needs of a social_friendship row.
+type friendProfile struct {
+	name, text string
+	image      []byte
+}
+
+// inPlaceholders returns "?,?,...,?" for the values, and the values as args.
+func inPlaceholders(values []string) (string, []any) {
+	args := make([]any, len(values))
+	for i, v := range values {
+		args[i] = v
+	}
+	return strings.TrimSuffix(strings.Repeat("?,", len(values)), ","), args
+}
+
+// GetSocialPublicationsFiles is GetSocialPublicationFiles for a whole feed
+// page in one query (issue #173): the feed used to run one query per post.
+// Files come back grouped by publication uuid, each group in `pos` order
+// exactly as GetSocialPublicationFiles returns it; a publication with no
+// files has no entry (a nil slice, as before).
+func (dao *Dao) GetSocialPublicationsFiles(uuids []string) (files map[string][]*pb.File, err error) {
+	files = map[string][]*pb.File{}
+	if len(uuids) == 0 {
+		return files, nil
+	}
+	ph, args := inPlaceholders(uuids)
+	rowFiles, err := dao.db.Query("select `uuid`, `hash`, `mime`, `created`, `modified`, `size` from `social_publications_files` where `uuid` in ("+ph+") order by `pos`", args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rowFiles.Close()
+	for rowFiles.Next() {
+		var pubUuid string
+		spFile := new(pb.File)
+		var created, modified time.Time
+		if err := rowFiles.Scan(&pubUuid, &spFile.Hash, &spFile.Mime, &created, &modified, &spFile.Size); err != nil {
+			return nil, err
+		}
+		spFile.Created = timestamppb.New(created)
+		spFile.Modified = timestamppb.New(modified)
+		files[pubUuid] = append(files[pubUuid], spFile)
+	}
+
+	return files, rowFiles.Err()
+}
+
+// LikedPublications is HasLikedPublication for a whole feed page in one
+// query (issue #173): the set of uuids among pubUuids that likerDomain has
+// liked.
+func (dao *Dao) LikedPublications(pubUuids []string, likerDomain string) (liked map[string]bool, err error) {
+	liked = map[string]bool{}
+	if len(pubUuids) == 0 {
+		return liked, nil
+	}
+	ph, args := inPlaceholders(pubUuids)
+	rows, err := dao.db.Query("select distinct `pub_uuid` from `social_publication_likes` where `friend_domain` = ? and `pub_uuid` in ("+ph+")", append([]any{likerDomain}, args...)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pubUuid string
+		if err := rows.Scan(&pubUuid); err != nil {
+			return nil, err
+		}
+		liked[pubUuid] = true
+	}
+
+	return liked, rows.Err()
+}
+
 func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool, exclude []string, prName, prText string, prImage []byte, viewerDomain string) (pubs *pb.SocialPublications, err error) {
 	log.Debug("Get SocialPublications")
 	if len(exclude) == 0 {
@@ -998,24 +1115,68 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 	if err != nil {
 		return nil, err
 	}
-	defer rowPubs.Close()
 	pubs = &pb.SocialPublications{
 		Publications: []*pb.SocialPublication{},
 	}
+	var page []socialFeedRow
 	for rowPubs.Next() {
-		sp := new(pb.SocialPublication)
-		var dt time.Time
-		var friendDomain string
-		var ownPub bool
-		if err := rowPubs.Scan(&friendDomain, &sp.Uuid, &dt, &sp.Text, &ownPub, &sp.Likes); err != nil {
+		r := socialFeedRow{sp: new(pb.SocialPublication)}
+		if err := rowPubs.Scan(&r.friendDomain, &r.sp.Uuid, &r.dt, &r.sp.Text, &r.ownPub, &r.sp.Likes); err != nil {
+			rowPubs.Close()
 			return nil, err
 		}
+		page = append(page, r)
+	}
+	rowPubs.Close()
+
+	// Issue #173: everything below used to be three queries per post (the
+	// friend's profile - image bytes and all - its files and its liked
+	// flag). Now it is one profile lookup per distinct friend of the page,
+	// one files query and one liked query for the whole page.
+	//
+	// A friend whose profile can't be read has their posts skipped, as
+	// before; the failure is remembered (a nil entry) so it isn't retried
+	// once per post.
+	profiles := map[string]*friendProfile{}
+	uuids := make([]string, 0, len(page))
+	for _, r := range page {
+		uuids = append(uuids, r.sp.Uuid)
+		if r.ownPub {
+			continue
+		}
+		if _, seen := profiles[r.friendDomain]; seen {
+			continue
+		}
+		_, name, text, image, _, err := dao.getFriendshipByDomain(r.friendDomain)
+		if err != nil {
+			log.Error("Error trying to retreive friend profile")
+			profiles[r.friendDomain] = nil
+			continue
+		}
+		profiles[r.friendDomain] = &friendProfile{name: name, text: text, image: image}
+	}
+
+	// Either batch failing skips every post of the page: the per-post
+	// queries they replace skipped whichever post's query failed.
+	files, err := dao.GetSocialPublicationsFiles(uuids)
+	if err != nil {
+		log.Error("Error trying to retrieve publication files")
+		return pubs, nil
+	}
+	liked, err := dao.LikedPublications(uuids, viewerDomain)
+	if err != nil {
+		log.Error("Error trying to check like state for publication")
+		return pubs, nil
+	}
+
+	for _, r := range page {
+		sp := r.sp
 		// issues #34/#35: let clients know when to offer delete-post /
 		// delete-any-comment actions.
-		sp.Own = ownPub
-		sp.DateTime = timestamppb.New(dt)
+		sp.Own = r.ownPub
+		sp.DateTime = timestamppb.New(r.dt)
 
-		if ownPub {
+		if r.ownPub {
 			log.Debug("Own publication populating own data")
 			sp.Publisher = &pb.Profile{
 				Name:  prName,
@@ -1023,40 +1184,31 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 				Text:  prText,
 			}
 		} else {
-			_, name, text, image, _, err := dao.getFriendshipByDomain(friendDomain)
-			if err != nil {
-				log.Error("Error trying to retreive friend profile")
+			fp := profiles[r.friendDomain]
+			if fp == nil {
 				continue
 			}
-			// Get friend profile
+			// Issue #173: every post of this friend on the page shares
+			// the one copy of the image bytes read above; nothing
+			// downstream modifies them.
 			sp.Publisher = &pb.Profile{
-				Domain: friendDomain,
-				Name:   name,
-				Image:  image,
-				Text:   text,
+				Domain: r.friendDomain,
+				Name:   fp.name,
+				Image:  fp.image,
+				Text:   fp.text,
 			}
 		}
 
-		// TODO: Populate owner and other stuff
-		files, err := dao.GetSocialPublicationFiles(sp.Uuid)
-		if err != nil {
-			log.Error("Error trying to retrieve publication files")
-			continue
-		}
-		sp.Files = files
+		sp.Files = files[sp.Uuid]
+		sp.Liked = liked[sp.Uuid]
 
-		if sp.Liked, err = dao.HasLikedPublication(sp.Uuid, viewerDomain); err != nil {
-			log.Error("Error trying to check like state for publication")
-			continue
-		}
-
-		pubs.Since = timestamppb.New(dt)
+		pubs.Since = timestamppb.New(r.dt)
 		pubs.Publications = append(pubs.Publications, sp)
 	}
 
 	log.Debug("Publications to return:", len(pubs.Publications))
 
-	return
+	return pubs, nil
 }
 
 // GetSocialPublicationByUUID is GetSocialPublications' single-row

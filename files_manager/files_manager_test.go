@@ -406,15 +406,9 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 	defer db.Close()
 
 	const hash = "abc123"
-	fileRow := func() *sqlmock.Rows {
-		return sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
-			AddRow(hash, "image/jpeg", time.Now(), time.Now(), "/photos/a.jpg", 1234)
-	}
 
-	mock.ExpectQuery("select .* from `files` where `path` = \\?").
-		WithArgs("/photos/a.jpg").
-		WillReturnRows(fileRow())
-
+	// Issue #173: no GetFileByPath first any more - the hash comes from
+	// the delete's own transaction.
 	mock.ExpectBegin()
 	mock.ExpectQuery("select `hash` from `files` where `path` = \\?").
 		WithArgs("/photos/a.jpg").
