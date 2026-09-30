@@ -1345,12 +1345,70 @@ func (e *Engine) upload(path, remotePath, hash string, fi os.FileInfo) error {
 
 		return wsclient.RespError(resp, "link rejected")
 	}
-	data, err := os.ReadFile(path)
+	return e.uploadChunked(path, remotePath, hash, created, modified)
+}
+
+// cChunk is how much of a file one message carries each way (the device's
+// MaxChunk): no message, and no memory here or on the device, ever holds
+// a whole file (issue #168).
+const cChunk = 4 << 20
+
+// uploadChunked sends the file in pieces read from the disk as they go -
+// BeginUpload, UploadChunk in order, FinishUpload with the hash - instead
+// of one UploadFile with the whole file in memory. The device checks the
+// hash before the content becomes the file.
+func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified *timestamppb.Timestamp) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	st, err := f.Stat()
 	if err != nil {
 		return err
 	}
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
-		r.Payload = &pb.ReqEnvelope_ReqUploadFile{ReqUploadFile: &pb.UploadFile{Path: remotePath, Content: data, ForceOverride: true, Created: created, Modified: modified}}
+		r.Payload = &pb.ReqEnvelope_ReqBeginUpload{ReqBeginUpload: &pb.BeginUpload{
+			Path: remotePath, Size: st.Size(), Created: created, Modified: modified, ForceOverride: true,
+		}}
+	})
+	if err != nil {
+		return err
+	}
+	if err := wsclient.RespError(resp, "upload rejected"); err != nil {
+		return err
+	}
+	started, ok := resp.Payload.(*pb.RespEnvelope_RespUploadStarted)
+	if !ok {
+		return errors.New("unexpected response to BeginUpload")
+	}
+	id := started.RespUploadStarted.UploadId
+
+	buf := make([]byte, cChunk)
+	var offset int64
+	for offset < st.Size() {
+		n, err := io.ReadFull(f, buf)
+		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+			return err
+		}
+		if n == 0 {
+			return fmt.Errorf("%s shrank while it was being sent", path)
+		}
+		chunk := buf[:n]
+		at := offset
+		resp, err := e.request(func(r *pb.ReqEnvelope) {
+			r.Payload = &pb.ReqEnvelope_ReqUploadChunk{ReqUploadChunk: &pb.UploadChunk{UploadId: id, Offset: at, Data: chunk}}
+		})
+		if err != nil {
+			return err
+		}
+		if err := wsclient.RespError(resp, "upload rejected"); err != nil {
+			return err
+		}
+		offset += int64(n)
+	}
+	resp, err = e.request(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqFinishUpload{ReqFinishUpload: &pb.FinishUpload{UploadId: id, Sha256: hash}}
 	})
 	if err != nil {
 		return err
@@ -1365,46 +1423,80 @@ func (e *Engine) upload(path, remotePath, hash string, fi os.FileInfo) error {
 // with empty content and no error, and the 0-byte file that made went
 // back up over the device's row on the next pass).
 func (e *Engine) download(remotePath, dest, expectedHash string) error {
-	resp, err := e.request(func(r *pb.ReqEnvelope) {
-		r.Payload = &pb.ReqEnvelope_ReqGetFile{ReqGetFile: &pb.GetFile{Path: remotePath}}
-	})
-	if err != nil {
-		return err
-	}
-	if err := wsclient.RespError(resp, "download rejected"); err != nil {
-		return err
-	}
-	file, ok := resp.Payload.(*pb.RespEnvelope_RespFile)
-	if !ok {
-		return errors.New("unexpected response")
-	}
-	if expectedHash != "" {
-		sum := sha256.Sum256(file.RespFile.Content)
-		if got := hex.EncodeToString(sum[:]); got != expectedHash {
-			return fmt.Errorf("the device sent %d bytes that don't match the file's hash - not written", len(file.RespFile.Content))
-		}
-	}
+	// Issue #168: ReadFile, in pieces, and the file's original bytes -
+	// GetFile turns a HEIC into a JPEG for viewers, so what came back never
+	// matched the listed hash: never written, fetched again every pass,
+	// each time a full HEIC decode on the Pi. Written to the disk and
+	// hashed as it arrives, never whole in memory.
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil { // perms: rwxr-xr-x
 		return err
 	}
 	tmp := dest + ".otc-part"
-	if err := os.WriteFile(tmp, file.RespFile.Content, 0o644); err != nil { // perms: rw-r--r--
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644) // perms: rw-r--r--
+	if err != nil {
+		return err
+	}
+	keep := false
+	defer func() {
+		out.Close()
+		if !keep {
+			os.Remove(tmp)
+		}
+	}()
+
+	h := sha256.New()
+	var offset, size int64 = 0, -1
+	var last *pb.FileChunk
+	for size < 0 || offset < size {
+		at := offset
+		resp, err := e.request(func(r *pb.ReqEnvelope) {
+			r.Payload = &pb.ReqEnvelope_ReqReadFile{ReqReadFile: &pb.ReadFile{Path: remotePath, Offset: at, Length: cChunk}}
+		})
+		if err != nil {
+			return err
+		}
+		if err := wsclient.RespError(resp, "download rejected"); err != nil {
+			return err
+		}
+		c, ok := resp.Payload.(*pb.RespEnvelope_RespFileChunk)
+		if !ok {
+			return errors.New("unexpected response")
+		}
+		last = c.RespFileChunk
+		if expectedHash != "" && last.Hash != "" && last.Hash != expectedHash {
+			return errors.New("the file changed on the device while downloading - will retry")
+		}
+		size = last.Size
+		if len(last.Data) == 0 && offset < size {
+			return errors.New("the device sent an empty piece of the file")
+		}
+		if _, err := out.Write(last.Data); err != nil {
+			return err
+		}
+		h.Write(last.Data)
+		offset += int64(len(last.Data))
+	}
+	// Checked before anything takes the file's place (a device whose blob
+	// had gone missing used to answer with empty content, and the 0-byte
+	// file that made went back up over the device's row on the next pass).
+	if got := hex.EncodeToString(h.Sum(nil)); expectedHash != "" && got != expectedHash {
+		return fmt.Errorf("the device sent %d bytes that don't match the file's hash - not written", offset)
+	}
+	if err := out.Close(); err != nil {
 		return err
 	}
 	if err := os.Rename(tmp, dest); err != nil {
 		return err
 	}
+	keep = true
 	// Issue #134 (as SyncModel.download): the file keeps the dates it has
-	// on the device rather than "now" - the modification time is also
-	// what the conflict rule in reconcile compares, so it must be the
-	// device's. Creation time only where the platform lets it be set.
-	f := file.RespFile
-	if f.Modified != nil {
+	// on the device. Creation time only where the platform lets it be set.
+	if last != nil && last.Modified != nil {
 		created := time.Time{}
-		if f.Created != nil {
-			created = f.Created.AsTime()
+		if last.Created != nil {
+			created = last.Created.AsTime()
 		}
-		if err := setFileTimes(dest, created, f.Modified.AsTime()); err != nil {
+		if err := setFileTimes(dest, created, last.Modified.AsTime()); err != nil {
 			log.Printf("could not set the dates of %s: %v", dest, err)
 		}
 	}

@@ -1217,27 +1217,71 @@ final class SyncModel: ObservableObject {
     /// device whose blob for the file had gone missing used to answer with
     /// empty content and no error; written as a 0-byte file, the next
     /// pass uploaded that emptiness back over the device's row.
+    ///
+    /// Issue #168: this reads the file in chunks with ReadFile instead of
+    /// one whole-file GetFile. GetFile converted HEIC to JPEG on the
+    /// device, so the download never matched the listed hash and was
+    /// fetched again on every pass; ReadFile always sends the original
+    /// bytes. Chunks also keep a multi-GB file out of memory on both
+    /// ends and out of a single websocket message. They go to a
+    /// ".otc-part" file next to the destination, which is only renamed
+    /// into place once the whole content matches the hash.
     private func download(_ remotePath: String, to dest: URL, expectedHash: String? = nil) async throws {
-        let resp = try await ws.request { req in
-            var gf = Msg_GetFile()
-            gf.path = remotePath
-            req.payload = .reqGetFile(gf)
-        }
-        if resp.error {
-            throw NSError(domain: "sync.download", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "download rejected" : resp.errorMessage])
-        }
-        guard case .respFile(let file) = resp.payload else {
-            throw NSError(domain: "sync.download", code: 2, userInfo: [NSLocalizedDescriptionKey: "unexpected response"])
-        }
-        try await Task.detached(priority: .utility) {
-            if let expectedHash, !expectedHash.isEmpty {
-                let got = SHA256.hash(data: file.content).map { String(format: "%02x", $0) }.joined()
-                if got != expectedHash {
-                    throw NSError(domain: "sync.download", code: 3, userInfo: [NSLocalizedDescriptionKey: "the device sent \(file.content.count) bytes that don't match the file's hash - not written"])
-                }
-            }
+        let part = dest.appendingPathExtension("otc-part")
+        let sink = try await Task.detached(priority: .utility) {
             try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try file.content.write(to: dest, options: .atomic)
+            return try ChunkSink(url: part)
+        }.value
+        var done = false
+        defer {
+            sink.close()
+            if !done { try? FileManager.default.removeItem(at: part) }
+        }
+
+        var offset: Int64 = 0
+        var last: Msg_FileChunk?
+        while true {
+            let resp = try await ws.request { req in
+                var rf = Msg_ReadFile()
+                rf.path = remotePath
+                rf.offset = offset
+                rf.length = Self.chunkSize
+                req.payload = .reqReadFile(rf)
+            }
+            if resp.error {
+                throw NSError(domain: "sync.download", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "download rejected" : resp.errorMessage])
+            }
+            guard case .respFileChunk(let chunk) = resp.payload else {
+                throw NSError(domain: "sync.download", code: 2, userInfo: [NSLocalizedDescriptionKey: "unexpected response"])
+            }
+            // Every chunk carries the file's current hash: a different one
+            // means the file changed on the device mid-transfer, so what
+            // was already written belongs to another version. Stop here;
+            // the next pass starts over with the new listing.
+            if let expectedHash, !expectedHash.isEmpty, chunk.hash != expectedHash {
+                throw NSError(domain: "sync.download", code: 4, userInfo: [NSLocalizedDescriptionKey: "the file changed on the device during the download - not written"])
+            }
+            if chunk.offset != offset || (chunk.data.isEmpty && offset < chunk.size) || offset + Int64(chunk.data.count) > chunk.size {
+                throw NSError(domain: "sync.download", code: 5, userInfo: [NSLocalizedDescriptionKey: "the device sent a chunk that doesn't fit the file - not written"])
+            }
+            let data = chunk.data
+            try await Task.detached(priority: .utility) { try sink.write(data) }.value
+            offset += Int64(data.count)
+            last = chunk
+            if offset >= chunk.size { break }
+        }
+        guard let file = last else { return }
+
+        try await Task.detached(priority: .utility) {
+            let got = sink.finish()
+            if let expectedHash, !expectedHash.isEmpty, got != expectedHash {
+                throw NSError(domain: "sync.download", code: 3, userInfo: [NSLocalizedDescriptionKey: "the device sent \(file.size) bytes that don't match the file's hash - not written"])
+            }
+            if FileManager.default.fileExists(atPath: dest.path) {
+                _ = try FileManager.default.replaceItemAt(dest, withItemAt: part)
+            } else {
+                try FileManager.default.moveItem(at: part, to: dest)
+            }
             // Issue #134: the file keeps the dates it has on the device
             // (which are the dates it had where it was uploaded from),
             // rather than "now". The modification date is also what the
@@ -1247,7 +1291,11 @@ final class SyncModel: ObservableObject {
             if file.hasModified { attrs[.modificationDate] = file.modified.date }
             if !attrs.isEmpty { try? FileManager.default.setAttributes(attrs, ofItemAtPath: dest.path) }
         }.value
+        done = true
     }
+
+    /// Issue #168: the size of one ReadFile / UploadChunk transfer.
+    nonisolated static let chunkSize: Int32 = 4 << 20
 
     // MARK: - Wire helpers
 
@@ -1300,30 +1348,82 @@ final class SyncModel: ObservableObject {
             return hash
         }
 
-        // Reading a multi-GB file synchronously used to happen right here,
-        // on the main actor — same UI-freezing problem as the hashing in
-        // reconcile(), just for the read instead of the digest.
-        let data = try await Task.detached(priority: .utility) {
-            try Data(contentsOf: url)
+        // Issue #168: the bytes go in 4 MiB chunks (BeginUpload,
+        // UploadChunk..., FinishUpload) rather than one whole-file
+        // UploadFile, so neither the Mac nor the device holds the whole
+        // file in memory, and no single websocket message carries it.
+        // Reading happens off the main actor, one chunk at a time - the
+        // same UI-freezing concern as the hashing in reconcile().
+        let size = try await Task.detached(priority: .utility) { () -> Int64 in
+            let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+            return (attrs[.size] as? NSNumber)?.int64Value ?? 0
         }.value
-        let resp = try await ws.request { req in
-            var up = UploadFile()
-            up.path = remotePath
-            up.content = data
-            up.forceOverride = true
-            up.created = created
-            up.modified = modified
-            req.payload = .reqUploadFile(up)
+        let begin = try await ws.request { req in
+            var bu = Msg_BeginUpload()
+            bu.path = remotePath
+            bu.size = size
+            bu.created = created
+            bu.modified = modified
+            bu.forceOverride = true
+            bu.cloudID = ""
+            req.payload = .reqBeginUpload(bu)
         }
         // A server-side rejection (auth failure, disk full, etc.) still
         // comes back as a normal response, not a thrown error from
         // `request` — checking resp.error is the only way to actually
         // notice the file wasn't saved, instead of silently caching it as
         // synced and never trying again.
+        try Self.throwIfRejected(begin)
+        guard case .respUploadStarted(let started) = begin.payload else {
+            throw NSError(domain: "sync.upload", code: 2, userInfo: [NSLocalizedDescriptionKey: "unexpected response"])
+        }
+        let uploadID = started.uploadID
+
+        let fh = try FileHandle(forReadingFrom: url)
+        defer { try? fh.close() }
+        var offset: Int64 = 0
+        while offset < size {
+            let data = try await Task.detached(priority: .utility) {
+                try fh.read(upToCount: Int(Self.chunkSize)) ?? Data()
+            }.value
+            // The file shrank since it was measured: what the device
+            // would get no longer matches the hash, so let the next pass
+            // start over with the file as it is then.
+            if data.isEmpty {
+                throw NSError(domain: "sync.upload", code: 3, userInfo: [NSLocalizedDescriptionKey: "the file changed while uploading"])
+            }
+            let chunkOffset = offset
+            let resp = try await ws.request { req in
+                var uc = Msg_UploadChunk()
+                uc.uploadID = uploadID
+                uc.offset = chunkOffset
+                uc.data = data
+                req.payload = .reqUploadChunk(uc)
+            }
+            // The device takes chunks strictly in order; an "out_of_order"
+            // answer (or any other rejection) ends this attempt and the
+            // next pass starts the upload again from the beginning.
+            try Self.throwIfRejected(resp)
+            offset += Int64(data.count)
+            if case .respUploadProgress(let p) = resp.payload, p.received != offset {
+                throw NSError(domain: "sync.upload", code: 4, userInfo: [NSLocalizedDescriptionKey: "the device received \(p.received) bytes, expected \(offset)"])
+            }
+        }
+
+        let resp = try await ws.request { req in
+            var fu = Msg_FinishUpload()
+            fu.uploadID = uploadID
+            fu.sha256 = hash
+            req.payload = .reqFinishUpload(fu)
+        }
+        try Self.throwIfRejected(resp)
+        return hash
+    }
+
+    private static func throwIfRejected(_ resp: Resp) throws {
         if resp.error {
             throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "upload rejected" : resp.errorMessage])
         }
-        return hash
     }
 
     private func delete(_ remotePath: String) async throws {
@@ -1537,5 +1637,34 @@ enum RaidHealth: Equatable {
         case .failed:   return "The RAID has failed"
         case .unknown:  return "Storage status unknown"
         }
+    }
+}
+
+/// Issue #168: where a chunked download lands - the ".otc-part" file,
+/// written a chunk at a time while the SHA-256 is fed along, so the
+/// content is never held whole in memory. Used from one task at a time.
+private final class ChunkSink: @unchecked Sendable {
+    private let handle: FileHandle
+    private var hasher = SHA256()
+
+    init(url: URL) throws {
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        handle = try FileHandle(forWritingTo: url)
+        try handle.truncate(atOffset: 0)
+    }
+
+    func write(_ data: Data) throws {
+        try handle.write(contentsOf: data)
+        hasher.update(data: data)
+    }
+
+    /// Flushes and closes the file, returning the content's hex SHA-256.
+    func finish() -> String {
+        close()
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    func close() {
+        try? handle.close()
     }
 }

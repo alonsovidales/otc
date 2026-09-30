@@ -30,6 +30,10 @@ type memBudget struct {
 // at its peak (see memBudget).
 const cDownloadCopies = 3
 
+// cHeicDecodeFactor is roughly how many bytes of memory decoding a HEIC to
+// JPEG takes per byte of the file (see ReserveForDownload).
+const cHeicDecodeFactor = 36
+
 func newMemBudget(max int64) *memBudget {
 	b := &memBudget{max: max}
 	b.cond = sync.NewCond(&b.mu)
@@ -121,6 +125,13 @@ func (mg *Manager) ReserveForDownload(path, versionHash string) func() {
 		return func() {}
 	}
 	need := int64(file.Size) * cDownloadCopies
+	// Issue #168: a HEIC is served converted to JPEG, and the decode is what
+	// costs memory, not the file: ~1.3 bits a pixel, so a 2 MB iPhone photo
+	// is 12 MP - ~48 MB as RGBA, plus the decoder's YCbCr and the JPEG being
+	// built. The sync clients read originals with ReadFile, never this.
+	if isHeicFile(file.Path, file.Mime) {
+		need += int64(file.Size) * cHeicDecodeFactor
+	}
 	if need > mg.contentBudget.max/2 {
 		log.Info("download of", path, "waits for", need>>20, "MB of the", mg.contentBudget.max>>20, "MB content budget")
 	}
