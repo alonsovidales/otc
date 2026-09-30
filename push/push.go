@@ -101,7 +101,7 @@ type Push struct {
 
 	// nil until/unless [apns] is configured (see loadApns) - every send path
 	// below treats a nil client as "APNs not set up yet", not an error.
-	apnsClient   *apns2.Client
+	apnsClient *apns2.Client
 	// apnsFallback is the other APNs environment: a token the primary
 	// rejects as BadDeviceToken is tried here before it's deleted. An app
 	// run from Xcode registers for the development environment, an App
@@ -314,7 +314,7 @@ func (p *Push) sendWebPush(title, body string, t Target) {
 			Keys:     webpush.Keys{P256dh: sub.P256dh, Auth: sub.Auth},
 		}, opts)
 		if err != nil {
-			log.Error("web push send failed for", sub.Endpoint, ":", err)
+			log.Error("web push send failed for", shortID(sub.Endpoint), ":", err)
 			continue
 		}
 		resp.Body.Close()
@@ -363,7 +363,7 @@ func (p *Push) sendApns(title, body string, t Target) {
 		n := &apns2.Notification{DeviceToken: tok, Topic: p.apnsTopic, Payload: pl}
 		resp, err := p.apnsClient.Push(n)
 		if err != nil {
-			log.Error("APNs send failed for token", tok, ":", err)
+			log.Error("APNs send failed for token", shortID(tok), ":", err)
 			continue
 		}
 		// A token from the other environment (an app run from Xcode is
@@ -388,4 +388,14 @@ func (p *Push) sendApns(title, body string, t Target) {
 			}
 		}
 	}
+}
+
+// shortID is enough of a push token or endpoint to tell two apart in a log,
+// without writing the whole address of someone's phone or browser there
+// (issue #162).
+func shortID(s string) string {
+	if len(s) <= 12 {
+		return s
+	}
+	return s[:6] + "…" + s[len(s)-4:]
 }

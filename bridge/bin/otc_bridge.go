@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
 	"github.com/alonsovidales/otc/bridge/api"
@@ -22,7 +23,7 @@ func main() {
 		cfg.Init("otc", os.Args[1])
 
 		log.SetLogger(
-			log.Levels[cfg.GetStr("logger", "level")],
+			logLevel(),
 			cfg.GetStr("logger", "log_file"),
 			cfg.GetInt("logger", "max_log_size_mb"),
 		)
@@ -87,4 +88,15 @@ func sessionSecret() []byte {
 	}
 	log.Error("[admin] session-secret is not configured - admin panel sessions will not survive a restart. Set one in the config file.")
 	return []byte(uuid.New().String())
+}
+
+// logLevel is [logger] level, any case; an unknown one stops the start
+// rather than logging everything (issue #162).
+func logLevel() int {
+	l, err := log.ParseLevel(cfg.GetStr("logger", "level"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	return l
 }

@@ -1,6 +1,6 @@
-CREATE USER 'otc'@'localhost' IDENTIFIED BY 'owivFHIJoNhijc@pe$wo';
+CREATE USER 'otc'@'localhost' IDENTIFIED BY 'CHANGE-ME'; -- a password of your own: never one from this file (issue #162)
 
-drop database otc;
+-- drop database otc; -- only on a machine with nothing to lose
 create database otc;
 
 GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';

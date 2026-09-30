@@ -455,7 +455,9 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "there is already an account with that email - sign in instead")
 		return
 	}
-	log.Info("account created:", email, "from", clientIP(r))
+	// The account's id, never its email or the address it came from
+	// (issue #162: personal data kept in logs with no retention).
+	log.Info("account created:", acc.ID)
 	a.signedIn(w, r, &acc, http.StatusCreated)
 }
 

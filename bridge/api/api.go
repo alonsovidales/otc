@@ -548,7 +548,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 				writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 				return
 			}
-			log.Info("name handed to a new device by its account:", domain, "from", remoteAddr)
+			log.Info("name handed to a new device by its account:", domain) // no address (issue #162)
 			writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "replaced": true})
 			return
 		}
@@ -576,7 +576,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusConflict, "that name is already taken")
 		return
 	}
-	log.Info("name claimed by the setup wizard:", domain, "from", remoteAddr)
+	log.Info("name claimed by the setup wizard:", domain) // no address (issue #162)
 	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
 }
 

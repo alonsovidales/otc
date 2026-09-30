@@ -139,7 +139,7 @@ func main() {
 		cfg.Init("otc", env)
 
 		log.SetLogger(
-			log.Levels[cfg.GetStr("logger", "level")],
+			logLevel(),
 			cfg.GetStr("logger", "log_file"),
 			cfg.GetInt("logger", "max_log_size_mb"),
 		)
@@ -205,4 +205,15 @@ func main() {
 		sup.StopAll()
 	}
 	dao.Stop()
+}
+
+// logLevel is [logger] level, any case; an unknown one stops the start
+// rather than logging everything (issue #162).
+func logLevel() int {
+	l, err := log.ParseLevel(cfg.GetStr("logger", "level"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	return l
 }

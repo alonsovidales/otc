@@ -241,7 +241,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			acc = &created
-			log.Info("account created with", p.name, ":", email)
+			log.Info("account created with", p.name, ":", created.ID) // not the email (issue #162)
 		}
 		if err := a.dao.LinkAccountLogin(p.name, subject, acc.ID); err != nil {
 			log.Error("error linking a", p.name, "login:", err)

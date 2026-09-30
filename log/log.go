@@ -6,7 +6,9 @@ import (
 	"fmt"
 	logger "log"
 	"os"
+	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +39,23 @@ var Levels = map[string]int{
 	"ERROR": ERROR,
 	"FATAL": FATAL,
 }
+
+// ParseLevel reads a configured level whatever its case ("info", "Info",
+// "INFO"). Issue #162: Levels' keys are upper-case while every config
+// says level=info, so the lookup missed, gave 0 - DEBUG - and everything
+// was logged, request paths and addresses included. An unknown name is an
+// error, not a silent DEBUG.
+func ParseLevel(name string) (int, error) {
+	l, ok := Levels[strings.ToUpper(strings.TrimSpace(name))]
+	if !ok {
+		return 0, fmt.Errorf("unknown log level %q (use debug, info, error or fatal)", name)
+	}
+	return l, nil
+}
+
+// cKeepRotated is how many rotated logs are kept next to the live one;
+// older ones are deleted (issue #162: they were kept forever).
+const cKeepRotated = 5
 
 // SetLogger Sets the global logger level, and the path and size of the log
 // file to be used as output for the logs, in case of this method is not
@@ -92,6 +111,7 @@ func setLogFile(filePath string) {
 	if file != nil {
 		file.Close()
 		os.Rename(path, fmt.Sprintf("%s_%d.old", path, int32(time.Now().Unix())))
+		pruneRotated(path)
 	}
 
 	path = filePath
@@ -103,6 +123,20 @@ func setLogFile(filePath string) {
 		logger.SetOutput(file)
 	} else {
 		Fatal("Can't open the log file:", filePath)
+	}
+}
+
+// pruneRotated keeps the newest cKeepRotated "<path>_<unix>.old" files.
+func pruneRotated(path string) {
+	old, _ := filepath.Glob(path + "_*.old")
+	if len(old) <= cKeepRotated {
+		return
+	}
+	// The names end in the rotation time; same width until 2286, so a
+	// lexical sort is a chronological one.
+	sort.Strings(old)
+	for _, f := range old[:len(old)-cKeepRotated] {
+		os.Remove(f)
 	}
 }
 
@@ -122,5 +156,10 @@ func newLog(l string, v ...interface{}) {
 		}
 		mutex.Unlock()
 	}
-	logger.Print(l, fmt.Sprintln(v...))
+	// One entry, one line (issue #162): a value from a request - a domain,
+	// an owner id - carrying a newline could otherwise write a line that
+	// looks like the device's own.
+	msg := strings.TrimRight(fmt.Sprintln(v...), "\n")
+	msg = strings.NewReplacer("\n", "\\n", "\r", "\\r").Replace(msg)
+	logger.Print(l, msg, "\n")
 }
