@@ -5,7 +5,7 @@ Kimsufi), so everything internal runs over a WireGuard mesh.
 
 | Host      | Public IP      | Tunnel     | Role                                      |
 |-----------|----------------|------------|-------------------------------------------|
-| `redis`   | 51.83.103.72   | 10.10.0.1  | Redis (which node holds each device); the old single bridge |
+| `redis`   | 51.83.103.72   | 10.10.0.1  | Redis (which node holds each device) and certificate renewal; the old single bridge, cleaned up 2026-10-01 (no bridge, no MySQL; a final dump of the old database is kept root-only in `/root/otc-cluster/` until the nodes are backed up) |
 | `bridge1` | 37.187.141.41  | 10.10.0.2  | bridge node + MySQL primary (server-id 1)  |
 | `bridge2` | 149.202.83.7   | 10.10.0.3  | bridge node + MySQL replica (server-id 2, read-only) |
 
