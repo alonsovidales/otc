@@ -194,7 +194,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   or tap (iOS/Android). Never push-notify these.
 - `files_manager` — file storage, hashing, dedup on disk. Content is keyed by hash, and the
   hash-first upload (`HasFile`/`HasCloudIds` then `LinkFile`) only skips the bytes when the blob is
-  really on the disk (`hasBlob`: present and non-empty) - a database row alone once made a device
+  really on the disk (`hasBlob`: present and non-empty; each answer is recorded in
+  `missingBlobs`, which is what listings use instead of a stat per file - issue #173; folder
+  listings find rows with `dao.underPrefix`, an index range plus an escaped LIKE, never a
+  REGEXP) - a database row alone once made a device
   claim content whose blob was gone, so no client ever re-sent it and every `GetFile` came back
   empty; `GetFile` now returns the read/decrypt error (and raises a #64 alert) instead of a File
   with no content. The sync clients verify a download's hash before writing it, for the same
@@ -235,7 +238,11 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   are streamed into a segmented file under the link's key.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
-- `face_recognition` — issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)
+- `face_recognition` — (matching, issue #173: every face row is kept, but new faces are matched
+  against at most 20 decrypted *reference* embeddings per person cached in memory -
+  `files_manager/face_refs.go`; at 20 an outlier isn't added and the most redundant reference is
+  dropped, so the set stays varied; the cover medoid is over the references;
+  `InvalidateFaceRefs` after Reprocess, person delete/merge) issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)
   via `gocv`, humans only. `files_manager.processFaces` (called from `UploadFile`'s background
   goroutine) gates this on `settings.face_recognition_enabled` (off unless the owner turns it on - in Settings or the setup wizard; release 43 made the column default 0 again, issue #178, since faces are biometric data) checked *at upload
   time* - enabling it later never retroactively processes anything already in the library, by
