@@ -21,6 +21,7 @@ import (
 	"github.com/alonsovidales/otc/geotag"
 	"github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/modelserver"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 	"github.com/google/uuid"
@@ -81,7 +82,9 @@ type Manager struct {
 	// tagger is loaded in the background (see Init) - read it through
 	// waitForTagger, never directly, or an upload arriving in the first
 	// seconds of a boot dereferences a nil.
-	tagger         *imagestagger.RAMTagger
+	// Issue #167: the local RAM++ model on the primary instance, the
+	// primary's shared one (modelserver.Client) on a supervised child.
+	tagger         modelserver.Tagger
 	taggerReady    chan struct{}
 	searchTokens   *sync.Map
 	tokensToExpire *sync.Map
@@ -90,7 +93,7 @@ type Manager struct {
 	// model paths (issue #52) - every call site below treats a nil
 	// recognizer as "the feature isn't set up on this device yet", not an
 	// error, same as push.Push's nil apnsClient.
-	faceRecognizer *facerecognition.Recognizer
+	faceRecognizer modelserver.FaceDetector
 	// faceRefs is issue #173's in-memory matching set (see face_refs.go),
 	// nil until processFaces first needs it and again after
 	// InvalidateFaceRefs. One per Manager is enough: there is one Manager
@@ -124,7 +127,7 @@ type Manager struct {
 // are all on the upload path, which is both rare in the first seconds of a
 // boot and already slow enough that waiting here is invisible - unlike
 // making the whole device unreachable while it loads (see Init).
-func (mg *Manager) waitForTagger() *imagestagger.RAMTagger {
+func (mg *Manager) waitForTagger() modelserver.Tagger {
 	<-mg.taggerReady
 	return mg.tagger
 }
@@ -139,8 +142,6 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		contentBudget:  newMemBudget(contentBudgetBytes()),
 		sharedLinkTTL:  sharedLinkTTLFromCfg(),
 	}
-
-	var err error
 
 	// Issue #105 follow-up: loading the RAM++ model is ~870MB of work and
 	// takes well over ten seconds on a Pi. It used to happen right here,
@@ -160,6 +161,25 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// alongside the model, more accurate than one flat cutoff for every
 	// tag. Leave it unset in config to keep the old flat-threshold behavior.
 	mg.taggerReady = make(chan struct{})
+	// Issue #167: a supervised child uses the primary's models, over its
+	// socket, instead of loading its own copies (~870 MB for RAM++ alone).
+	if sock := os.Getenv(modelserver.EnvSocket); sock != "" {
+		client := &modelserver.Client{Path: sock}
+		mg.tagger = client
+		close(mg.taggerReady)
+		if has, err := client.HasFaces(); err != nil {
+			log.Info("could not ask the primary instance about face recognition, assuming it's available:", err)
+			mg.faceRecognizer = client
+		} else if has {
+			mg.faceRecognizer = client
+		} else {
+			log.Info("Face recognition not available (the primary instance has no face models)")
+		}
+		log.Info("using the models shared by the primary instance on", sock)
+		go mg.tokenCollector()
+		go mg.sharedLinksSweeper()
+		return mg.initRest()
+	}
 	go func() {
 		started := time.Now()
 		tagger, err := imagestagger.NewRAMTagger(
@@ -188,21 +208,36 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// exactly this crash-loop when its freshly generated ini had no
 	// [faces] section at all.
 	if cfg.HasSection("faces") {
-		mg.faceRecognizer, err = facerecognition.NewRecognizer(
+		// Through a local: a nil *Recognizer in the interface isn't nil.
+		rec, recErr := facerecognition.NewRecognizer(
 			cfg.GetStr("faces", "detector-model-path"),
 			cfg.GetStr("faces", "recognizer-model-path"),
 		)
-		if err != nil {
-			log.Info("Face recognition not available (issue #52 stays off until this is configured):", err)
-			mg.faceRecognizer = nil
+		if recErr != nil {
+			log.Info("Face recognition not available (issue #52 stays off until this is configured):", recErr)
+		} else {
+			mg.faceRecognizer = rec
 		}
 	} else {
 		log.Info("Face recognition not available ([faces] section not configured)")
-		mg.faceRecognizer = nil
 	}
+
+	// Issue #167: the primary shares these with the supervised children.
+	go func() {
+		if err := modelserver.Serve(modelserver.SocketPath(), mg.waitForTagger, mg.faceRecognizer); err != nil {
+			log.Error("could not serve the models to the other instances:", err)
+		}
+	}()
 
 	go mg.tokenCollector()
 	go mg.sharedLinksSweeper()
+	return mg.initRest()
+}
+
+// initRest is the part of Init every instance runs, whichever models it
+// uses.
+func (mg *Manager) initRest() *Manager {
+	dao := mg.dao
 	// Issue #141: rows whose content is missing from the disk, reported
 	// to the owner once a day when there are new ones.
 	go mg.integrityChecker()

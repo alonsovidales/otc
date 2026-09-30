@@ -238,6 +238,11 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   are streamed into a segmented file under the link's key.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
+- `modelserver` — issue #167: the primary instance loads RAM++ and the face models once and
+  serves them on `models.sock` in its working directory (0600, gob over a Unix socket, the
+  full-resolution image as RGBA so results match local inference); the supervisor sets
+  `OTC_MODELS_SOCKET` on each child, which then uses `modelserver.Client` for
+  `files_manager`'s `Tagger`/`FaceDetector` instead of loading its own ~870 MB copy.
 - `face_recognition` — (matching, issue #173: every face row is kept, but new faces are matched
   against at most 20 decrypted *reference* embeddings per person cached in memory -
   `files_manager/face_refs.go`; at 20 an outlier isn't added and the most redundant reference is

@@ -27,6 +27,7 @@ import (
 
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/modelserver"
 )
 
 // ChildEnvVar, when set in a process's own environment, marks it as one
@@ -140,7 +141,9 @@ func (s *Supervisor) runLoop(uuid string, m *managed) {
 
 		cmd := exec.Command(s.exePath, env)
 		cmd.Dir = UserHome(u.Uuid)
-		cmd.Env = append(os.Environ(), ChildEnvVar+"="+u.Uuid)
+		// Issue #167: and the primary's model socket, so the child uses the
+		// models loaded here instead of loading its own copies.
+		cmd.Env = append(os.Environ(), ChildEnvVar+"="+u.Uuid, modelserver.EnvSocket+"="+modelserver.SocketPath())
 		// Each child logs to its own file via its own [logger] config
 		// (see renderUserConfig) once it gets that far - this crash log
 		// only ever catches a startup failure from before that point

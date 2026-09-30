@@ -17,6 +17,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/modelserver"
 	"github.com/alonsovidales/otc/exifinfo"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -569,7 +570,7 @@ func zipEntryNamesOf(t *testing.T, data []byte) []string {
 func TestWaitForTaggerBlocksUntilTheModelIsReady(t *testing.T) {
 	mg := &Manager{taggerReady: make(chan struct{})}
 
-	done := make(chan *imagestagger.RAMTagger, 1)
+	done := make(chan modelserver.Tagger, 1)
 	go func() { done <- mg.waitForTagger() }()
 
 	select {

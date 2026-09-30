@@ -17,6 +17,7 @@ import (
 
 	"github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/modelserver"
 )
 
 // cVideoSampleFrames is how many frames get pulled out of a video for
@@ -156,7 +157,7 @@ func extractFrameAt(path string, seconds float64) (image.Image, error) {
 // even one sampled frame (e.g. a face that's only on screen briefly) should
 // still surface, rather than being averaged away by frames that don't show
 // it at all.
-func tagVideoFrames(ctx context.Context, tagger *imagestagger.RAMTagger, frames []image.Image) []imagestagger.RAMTag {
+func tagVideoFrames(ctx context.Context, tagger modelserver.Tagger, frames []image.Image) []imagestagger.RAMTag {
 	best := map[string]float32{}
 	for _, frame := range frames {
 		tags, err := tagger.Tags(ctx, frame, imagestagger.DefaultRAMOptions())
