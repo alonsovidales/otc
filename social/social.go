@@ -40,6 +40,10 @@ const (
 	CommentEvent        = "comment"
 	DelPublicationEvent = "del_publication_event"
 	DelCommentEvent     = "del_comment_event"
+	// ForgetEvent (issue #174): "delete everything I shared with you and
+	// drop the friendship" - logged for one ex-friend only (events.target)
+	// when its device couldn't be reached straight away.
+	ForgetEvent = "forget_event"
 
 	// NewPublication's wait for a just-uploaded file's background thumbnail
 	// (see its own doc comment) — polling interval and how many times to
@@ -109,6 +113,13 @@ type DelPublication struct {
 type DelComment struct {
 	CommentUUID string `json:"comment_uuid"`
 	Dt          int64  `json:"dt"`
+}
+
+// Forget is ForgetEvent's payload. Domain is who it's for; what gets
+// deleted is always the sender's own data, whatever it says.
+type Forget struct {
+	Domain string `json:"domain"`
+	Dt     int64  `json:"dt"`
 }
 
 type Comment struct {
@@ -384,8 +395,10 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain, true, files, time.Now())
 }
 
-func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32) (events []*pb.Event, err error) {
-	events, err = sc.dao.GetEvents(since, total)
+// GetEvents is the page of events requester's device is served (issue
+// #174: broadcast events plus those meant for it alone).
+func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32, requester string) (events []*pb.Event, err error) {
+	events, err = sc.dao.GetEvents(since, total, requester)
 	if err != nil {
 		log.Debug("error retriving events", err)
 	}
@@ -598,6 +611,12 @@ func (sc *Social) SyncWithFriends() (err error) {
 		return err
 	}
 	for _, data := range friendships {
+		// Issue #174: waiting for this ex-friend's device to delete what we
+		// shared - nothing of theirs is synced in meanwhile. Their device
+		// still pulls from us, to get the request.
+		if data.Leaving {
+			continue
+		}
 		friend := &friendship{
 			sc:   sc,
 			data: data,
@@ -1125,7 +1144,9 @@ event_loop:
 			json.Unmarshal([]byte(event.Content), &comment)
 			// false: this is a friend's comment, synced in - see
 			// NewSocialComment for the device owner's own-comment path.
-			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, false, eventTime(comment.Dt, event)); err == nil && !catchingUp {
+			// Issue #174: the author is the device this came from, never
+			// who the event says wrote it.
+			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, fr.data.OriginProfile.Domain, false, eventTime(comment.Dt, event)); err == nil && !catchingUp {
 				fr.notifyIfOwnPublication(comment.PubUUID, comment.Uuid, "commented on your post", pb.NotificationType_NotificationNewComment)
 			}
 
@@ -1134,14 +1155,31 @@ event_loop:
 			// cached copy too.
 			var del DelPublication
 			json.Unmarshal([]byte(event.Content), &del)
-			fr.sc.removePublication(del.PubUUID)
+			// Issue #174: only a post of the friend this came from - never
+			// the owner's own, or another friend's cached here.
+			if fr.mayDeletePublication(del.PubUUID) {
+				fr.sc.removePublication(del.PubUUID)
+			}
 
 		case DelCommentEvent:
 			// issue #35: the post owner deleted a comment — remove our
 			// cached copy too.
 			var del DelComment
 			json.Unmarshal([]byte(event.Content), &del)
-			fr.dao.DeleteSocialComment(del.CommentUUID)
+			// Issue #174: the friend this came from may delete a comment on
+			// one of its own posts, or one it wrote - nothing else.
+			if fr.mayDeleteComment(del.CommentUUID) {
+				fr.dao.DeleteSocialComment(del.CommentUUID)
+			}
+
+		case ForgetEvent:
+			var fg Forget
+			json.Unmarshal([]byte(event.Content), &fg)
+			if fg.Domain != fr.sc.settings.Domain {
+				break // only ever served to its target; ignore otherwise
+			}
+			fr.sc.forgetFriend(fr.data.OriginProfile.Domain, fr.data.Secret)
+			return nil
 		}
 
 		err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt)
@@ -1619,7 +1657,7 @@ func (sc *Social) NewSocialComment(pr *profile.Profile, pubUuid, comment string)
 	if err != nil {
 		return err
 	}
-	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment, true, time.Now())
+	return sc.dao.NewComment(commentUuid, pr.Name, pubUuid, comment, sc.settings.Domain, true, time.Now())
 }
 
 // DeletePublication removes pubUuid, provided it's one of the device
@@ -1649,17 +1687,23 @@ func (sc *Social) DeletePublication(pubUuid string) (err error) {
 // owner's own posts — issue #35: "even if the comment is not yours, but
 // only when the comment is in one of your posts." Logs an event so
 // friends who cached a copy of the comment remove theirs too.
+//
+// Issue #174: also a comment the owner wrote, on anyone's post - friends
+// apply the deletion because it comes from its author (mayDeleteComment).
 func (sc *Social) DeleteComment(commentUuid string) (err error) {
-	pubUuid, err := sc.dao.GetCommentPubUuid(commentUuid)
+	pubUuid, _, ownComment, found, err := sc.dao.CommentInfo(commentUuid)
 	if err != nil {
 		return err
+	}
+	if !found {
+		return errors.New("no such comment")
 	}
 	own, err := sc.dao.IsOwnPublication(pubUuid)
 	if err != nil {
 		return err
 	}
-	if !own {
-		return errors.New("not a comment on one of your own publications")
+	if !own && !ownComment {
+		return errors.New("not your comment, nor a comment on one of your posts")
 	}
 
 	payload, err := json.Marshal(DelComment{CommentUUID: commentUuid, Dt: time.Now().Unix()})
@@ -1684,7 +1728,14 @@ func (sc *Social) ChangeFriendStatus(domain string, status pb.FriendShipStatus) 
 // owner's decision must not depend on it. A sender whose counterpart
 // deleted while it was off still converges on its next sync (see the
 // not_found handling in updateFriendshipStatus).
-func (sc *Social) DeleteFriendship(domain string) error {
+//
+// Issue #174: deleteTheirData also removes everything synced from domain;
+// askThemToDeleteMine asks domain's device to remove everything this one
+// shared there. That is sent straight away when the device answers; when
+// it doesn't, a "forget me" event only it is served waits for its next
+// sync, and the friendship stays - leaving - until its device has done it
+// and says so (ExternalFriendshipDelete).
+func (sc *Social) DeleteFriendship(domain string, deleteTheirData, askThemToDeleteMine bool) error {
 	friendships, err := sc.dao.GetFriendships()
 	if err != nil {
 		return err
@@ -1700,15 +1751,107 @@ func (sc *Social) DeleteFriendship(domain string) error {
 		return fmt.Errorf("no friendship with %s", domain)
 	}
 
-	if err := sc.notifyFriendshipDeleted(domain, fr.Secret); err != nil {
+	if deleteTheirData {
+		if err := sc.purgeFriendData(domain); err != nil {
+			return err
+		}
+	}
+	if askThemToDeleteMine {
+		if err := sc.notifyFriendshipDeleted(domain, fr.Secret, true); err == nil {
+			return sc.dao.DeleteFriendship(domain)
+		} else {
+			log.Info("could not reach", domain, "- asking on its next sync instead:", err)
+		}
+		payload, err := json.Marshal(Forget{Domain: domain, Dt: time.Now().Unix()})
+		if err != nil {
+			return err
+		}
+		if err := sc.dao.NewEventFor(ForgetEvent, payload, domain); err != nil {
+			return err
+		}
+		return sc.dao.SetForgetRequested(domain, time.Now())
+	}
+	if err := sc.notifyFriendshipDeleted(domain, fr.Secret, false); err != nil {
 		log.Info("could not tell", domain, "the friendship was deleted, it will find out on its own:", err)
 	}
 	return sc.dao.DeleteFriendship(domain)
 }
 
+// purgeFriendData removes everything on this device that came from domain
+// (issue #174): its posts with their media, comments and likes; its
+// comments and likes on anyone's posts; the alerts about it. Never
+// anything of the owner's or another friend's.
+func (sc *Social) purgeFriendData(domain string) error {
+	pubs, err := sc.dao.FriendPublicationUuids(domain)
+	if err != nil {
+		return err
+	}
+	for _, p := range pubs {
+		if err := sc.removePublication(p); err != nil {
+			return err
+		}
+	}
+	if err := sc.dao.PurgeFriendActivity(domain); err != nil {
+		return err
+	}
+	log.Info("removed everything synced from", domain, "-", len(pubs), "posts")
+	return nil
+}
+
+// forgetFriend does what an ex-friend's "forget me" asks (issue #174):
+// removes everything that came from it, tells its device it's done (the
+// friendship there goes on that), and drops the friendship here.
+func (sc *Social) forgetFriend(domain, secret string) {
+	if err := sc.purgeFriendData(domain); err != nil {
+		log.Error("could not remove the data of", domain, ":", err)
+		return
+	}
+	if err := sc.notifyFriendshipDeleted(domain, secret, false); err != nil {
+		log.Info("could not tell", domain, "its data is gone - it will find out on its own:", err)
+	}
+	if err := sc.dao.DeleteFriendship(domain); err != nil {
+		log.Error("could not remove the friendship with", domain, ":", err)
+	}
+}
+
+// mayDeletePublication: a friend's deletion applies to its own posts
+// cached here only (issue #174) - never the owner's, or another friend's.
+func (fr *friendship) mayDeletePublication(pubUuid string) bool {
+	owner, own, found, err := fr.dao.PublicationOwner(pubUuid)
+	if err != nil || !found {
+		return false
+	}
+	if !own && owner == fr.data.OriginProfile.Domain {
+		return true
+	}
+	log.Info("ignored", fr.data.OriginProfile.Domain, "deleting a post that isn't theirs:", pubUuid)
+	return false
+}
+
+// mayDeleteComment: a friend's deletion applies to a comment on one of its
+// own posts, or one it wrote (issue #174) - never to another's.
+func (fr *friendship) mayDeleteComment(commentUuid string) bool {
+	pubUuid, author, _, found, err := fr.dao.CommentInfo(commentUuid)
+	if err != nil || !found {
+		return false
+	}
+	from := fr.data.OriginProfile.Domain
+	if author == from {
+		return true
+	}
+	owner, own, found, err := fr.dao.PublicationOwner(pubUuid)
+	if err == nil && found && !own && owner == from {
+		return true
+	}
+	log.Info("ignored", from, "deleting a comment that isn't theirs:", commentUuid)
+	return false
+}
+
 // notifyFriendshipDeleted tells domain's device that the friendship
 // identified by secret is gone here (issue #25).
-func (sc *Social) notifyFriendshipDeleted(domain, secret string) error {
+// forgetMe (issue #174) also asks it to remove everything this device
+// shared there.
+func (sc *Social) notifyFriendshipDeleted(domain, secret string, forgetMe bool) error {
 	conn, err := sc.connectToDevice(domain)
 	if err != nil {
 		return err
@@ -1719,8 +1862,9 @@ func (sc *Social) notifyFriendshipDeleted(domain, secret string) error {
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqFriendshipInterDelete{
 			ReqFriendshipInterDelete: &pb.FriendshipInterDelete{
-				Domain: sc.settings.Domain,
-				Secret: secret,
+				Domain:   sc.settings.Domain,
+				Secret:   secret,
+				ForgetMe: forgetMe,
 			},
 		},
 	}
@@ -1752,7 +1896,19 @@ func (sc *Social) notifyFriendshipDeleted(domain, secret string) error {
 // ExternalFriendshipDelete handles another device's FriendshipInterDelete
 // (issue #25): that device deleted the friendship on its side, so drop our
 // copy - but only if it knows the secret we hold for it.
-func (sc *Social) ExternalFriendshipDelete(domain, secret string) error {
+//
+// forgetMe (issue #174): also remove everything that device shared here -
+// its own data only: domain is the one the secret proves it is.
+func (sc *Social) ExternalFriendshipDelete(domain, secret string, forgetMe bool) error {
+	if forgetMe {
+		// The secret proves the caller is domain before anything goes.
+		if _, _, _, _, _, err := sc.dao.GetFriendship(domain, secret); err != nil {
+			return errors.New("Friendship not found")
+		}
+		if err := sc.purgeFriendData(domain); err != nil {
+			return err
+		}
+	}
 	removed, err := sc.dao.DeleteFriendshipWithSecret(domain, secret)
 	if err != nil {
 		return err

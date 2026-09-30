@@ -2,6 +2,7 @@
 package cloud.offthe.otc.ui.social
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -131,6 +133,29 @@ class FriendshipsViewModel : ViewModel() {
         } catch (e: Exception) { toast("Error deleting request") }
     }
 
+    // Issue #174: remove an accepted or blocked friend, optionally deleting
+    // what they shared here and/or asking their device to delete what this
+    // one shared there. Both flags false also ends a "leaving" friendship
+    // straight away.
+    suspend fun remove(f: Friendship, deleteTheirData: Boolean, askThemToDeleteMine: Boolean) {
+        try {
+            val resp = OTCConnection.request {
+                it.setReqDeleteFriendship(DeleteFriendship.newBuilder().setDomain(f.originProfile.domain)
+                    .setDeleteTheirData(deleteTheirData).setAskThemToDeleteMine(askThemToDeleteMine))
+            }
+            val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
+            when {
+                ack?.ok == true -> {
+                    reload()
+                    val leaving = _state.value.friendships.any { it.originProfile.domain == f.originProfile.domain && it.leaving }
+                    toast(if (leaving) "Waiting for their device" else "Friend removed")
+                }
+                resp.error -> toast(resp.errorMessage)
+                else -> toast("Remove failed")
+            }
+        } catch (e: Exception) { toast("Error removing friend") }
+    }
+
     private fun toast(m: String) {
         _state.update { it.copy(toast = m) }
         GlobalScope.launch { delay(2500); _state.update { if (it.toast == m) it.copy(toast = null) else it } }
@@ -152,7 +177,7 @@ fun FriendshipsView(onDone: () -> Unit) {
             LazyColumn(Modifier.fillMaxSize()) {
                 // Requests waiting for an answer come first: a tapped
                 // friend-request alert lands here to answer it.
-                val waiting = st.friendships.filter { it.status == FriendShipStatus.Pending && !it.sent }
+                val waiting = st.friendships.filter { it.status == FriendShipStatus.Pending && !it.sent && !it.leaving }
                 if (waiting.isNotEmpty()) {
                     item {
                         Text("Waiting for your answer", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
@@ -195,8 +220,13 @@ fun FriendshipsView(onDone: () -> Unit) {
                 if (st.friendships.isEmpty()) {
                     item { Text("No friendships yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
                 }
-                items(st.friendships.filter { !(it.status == FriendShipStatus.Pending && !it.sent) }, key = { it.originProfile.domain }) { f ->
-                    FriendRow(f, onChange = { s -> scope.launch { vm.changeStatus(f, s) } }, onDelete = { scope.launch { vm.delete(f) } })
+                items(st.friendships.filter { it.leaving || !(it.status == FriendShipStatus.Pending && !it.sent) }, key = { it.originProfile.domain }) { f ->
+                    FriendRow(
+                        f,
+                        onChange = { s -> scope.launch { vm.changeStatus(f, s) } },
+                        onDelete = { scope.launch { vm.delete(f) } },
+                        onRemove = { theirs, mine -> scope.launch { vm.remove(f, theirs, mine) } },
+                    )
                 }
             }
             Toast(st.toast, Modifier.align(Alignment.TopCenter))
@@ -205,13 +235,19 @@ fun FriendshipsView(onDone: () -> Unit) {
 }
 
 @Composable
-private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDelete: () -> Unit) {
+private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDelete: () -> Unit, onRemove: (Boolean, Boolean) -> Unit) {
     var menu by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
-    val canDelete = f.status == FriendShipStatus.Pending
+    var confirmingRemoveNow by remember { mutableStateOf(false) }
+    var confirmingRemove by remember { mutableStateOf(false) }
+    // Issue #174: a "leaving" friendship waits for the friend's device to
+    // delete what was shared there; its only action is to stop waiting.
+    val canDelete = !f.leaving && f.status == FriendShipStatus.Pending
+    val canRemove = !f.leaving && (f.status == FriendShipStatus.Accepted || f.status == FriendShipStatus.Blocked)
     val deleteLabel = if (f.sent) "Cancel request" else "Delete request"
-    val statusLabel = when (f.status) { FriendShipStatus.Accepted -> "Accepted"; FriendShipStatus.Blocked -> "Blocked"; else -> "Pending" }
-    val options: List<Pair<String, FriendShipStatus>> = if (f.sent) emptyList() else when (f.status) {
+    val statusLabel = if (f.leaving) "Leaving" else when (f.status) { FriendShipStatus.Accepted -> "Accepted"; FriendShipStatus.Blocked -> "Blocked"; else -> "Pending" }
+    val name = f.originProfile.name.ifEmpty { f.originProfile.domain.ifEmpty { "this friend" } }
+    val options: List<Pair<String, FriendShipStatus>> = if (f.sent || f.leaving) emptyList() else when (f.status) {
         FriendShipStatus.Pending -> listOf("Accept" to FriendShipStatus.Accepted, "Block" to FriendShipStatus.Blocked)
         FriendShipStatus.Accepted -> listOf("Set Pending" to FriendShipStatus.Pending, "Block" to FriendShipStatus.Blocked)
         FriendShipStatus.Blocked -> listOf("Accept" to FriendShipStatus.Accepted, "Set Pending" to FriendShipStatus.Pending)
@@ -224,17 +260,31 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
         Column(Modifier.weight(1f)) {
             Text(f.originProfile.name.ifEmpty { "(no name)" }, style = MaterialTheme.typography.titleSmall)
             Text(f.originProfile.domain.ifEmpty { "(no domain)" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(statusLabel + if (f.sent) " (sent)" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(statusLabel + if (f.sent && !f.leaving) " (sent)" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (f.leaving) Text("Waiting for their device to delete what you shared.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (options.isNotEmpty() || canDelete) {
+        if (options.isNotEmpty() || canDelete || canRemove || f.leaving) {
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Actions") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     options.forEach { (label, s) -> DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; onChange(s) }) }
                     if (canDelete) DropdownMenuItem(text = { Text(deleteLabel, color = Color(0xFFE53935)) }, onClick = { menu = false; confirmingDelete = true })
+                    if (canRemove) DropdownMenuItem(text = { Text("Remove friend…", color = Color(0xFFE53935)) }, onClick = { menu = false; confirmingRemove = true })
+                    if (f.leaving) DropdownMenuItem(text = { Text("Remove now", color = Color(0xFFE53935)) }, onClick = { menu = false; confirmingRemoveNow = true })
                 }
             }
         }
+    }
+    // As iOS: stopping the wait is final - without the friendship their
+    // device never picks the request up.
+    if (confirmingRemoveNow) {
+        AlertDialog(
+            onDismissRequest = { confirmingRemoveNow = false },
+            title = { Text("Remove $name now?") },
+            text = { Text("Stops waiting for their device. Whatever it hasn't deleted yet stays there.") },
+            confirmButton = { TextButton(onClick = { confirmingRemoveNow = false; onRemove(false, false) }) { Text("Remove now", color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmingRemoveNow = false }) { Text("Keep waiting") } },
+        )
     }
     if (confirmingDelete) {
         AlertDialog(
@@ -244,6 +294,41 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             confirmButton = { TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text(deleteLabel, color = Color(0xFFE53935)) } },
             dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") } },
         )
+    }
+    if (confirmingRemove) {
+        var deleteTheirs by remember { mutableStateOf(false) }
+        var askThem by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { confirmingRemove = false },
+            title = { Text("Remove $name?") },
+            text = {
+                Column {
+                    RemoveOption(
+                        checked = deleteTheirs, onChange = { deleteTheirs = it },
+                        title = "Delete everything from $name on this phone",
+                        detail = "Their posts and photos, and their comments and likes on any post.",
+                    )
+                    RemoveOption(
+                        checked = askThem, onChange = { askThem = it },
+                        title = "Ask $name's device to delete what I shared",
+                        detail = "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { confirmingRemove = false; onRemove(deleteTheirs, askThem) }) { Text("Remove friend", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { confirmingRemove = false }) { Text("Keep") } },
+        )
+    }
+}
+
+@Composable
+private fun RemoveOption(checked: Boolean, onChange: (Boolean) -> Unit, title: String, detail: String) {
+    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
+        Checkbox(checked = checked, onCheckedChange = onChange)
+        Column(Modifier.weight(1f).padding(top = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

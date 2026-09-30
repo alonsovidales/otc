@@ -145,6 +145,11 @@ create table social_publications_comments
   -- own_publication - needed to know whether "someone liked a comment" is
   -- a comment worth notifying the owner about.
   `own_comment` tinyint(1) not null default 0,
+  -- Issue #174: whose comment this is - the device it was synced from, never
+  -- what the event claims (publisher_name is only the name shown). What
+  -- lets a friend delete their own comments, and "delete everything from
+  -- this friend" find theirs.
+  `author_domain` varchar(128) not null default '',
 
   INDEX USING BTREE (`dt`),
   unique (`uuid`),
@@ -202,6 +207,10 @@ create table social_friendship
   -- When this friend's device was last heard from - a re-link after a
   -- week of silence is a new request (see social.cRelinkFreshness).
   `last_seen` datetime null,
+  -- Issue #174: set when this device asked the friend's device to delete
+  -- what it shared and that device hasn't done it yet ("leaving"); the
+  -- friendship goes once it has.
+  `forget_requested` datetime null,
 
   primary key (`domain`),
   key (`domain`)
@@ -262,6 +271,9 @@ create table events
   `dt` datetime not null,
   `type` varchar(64) not null,
   `content` text,
+  -- Issue #174: an event meant for one friend only (a "forget me" to an
+  -- ex-friend); served to that friend and no other.
+  `target` varchar(128) null,
 
   key(`uuid`),
   INDEX USING BTREE (`dt`)

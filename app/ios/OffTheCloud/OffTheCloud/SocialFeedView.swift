@@ -400,6 +400,7 @@ final class SocialFeedViewModel: ObservableObject {
 
     // Issue #35: delete a comment on one of your own posts (server-side
     // enforces the "own post" rule regardless of who wrote the comment).
+    // Issue #174: or one you wrote on a friend's post (comment.own).
     func deleteComment(_ commentUuid: String) async {
         do {
             var req = Msg_DelSocialComment()
@@ -1103,8 +1104,10 @@ private struct PostCard: View {
                                     .foregroundColor(c.liked ? .red : .secondary)
                             }
                             // Issue #35: on your own post, any comment can
-                            // be deleted — not just ones you wrote.
-                            if post.own {
+                            // be deleted — not just ones you wrote. Issue
+                            // #174: and a comment you wrote can be deleted
+                            // on anyone's post.
+                            if post.own || c.own {
                                 Button {
                                     commentPendingDelete = c.commentUuid
                                 } label: {

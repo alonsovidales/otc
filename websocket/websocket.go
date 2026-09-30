@@ -941,6 +941,10 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		if mErr != nil || !found {
 			return "", 0, "", 0, fmt.Errorf("media not found")
 		}
+		// Issue #174: a friend only streams the owner's own posts.
+		if ch.getSession() == nil && !ch.ownPublication(req.PubUuid) {
+			return "", 0, "", 0, fmt.Errorf("media not found")
+		}
 		info, sErr := os.Stat(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), req.Hash))
 		if sErr != nil {
 			return "", 0, "", 0, fmt.Errorf("media not found")
@@ -1000,6 +1004,14 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 	// having to know which one it's talking to. The native apps resolve
 	// it against the address they're already connected to.
 	return "/media/" + token, res.Size, res.Mime, expiresAt.UnixMilli(), nil
+}
+
+// ownPublication reports whether pubUuid is one of the device owner's own
+// posts - all a friend may read the media of (issue #174): the friends'
+// posts cached here are theirs to share, not this device's.
+func (ch *connHandler) ownPublication(pubUuid string) bool {
+	_, own, found, err := ch.mg.dao.PublicationOwner(pubUuid)
+	return err == nil && found && own
 }
 
 func tailscaleStatusResponse(state tailscalefunnel.State, errMessage string) *pb.RespTailscaleStatus {
@@ -1205,7 +1217,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		// Issue #25: the other device deleted the friendship; its secret is
 		// what authorises dropping our copy (see ExternalFriendshipDelete).
 		log.Info("Friendship deleted by the other side:", p.ReqFriendshipInterDelete.Domain)
-		if err := ch.mg.social.ExternalFriendshipDelete(p.ReqFriendshipInterDelete.Domain, p.ReqFriendshipInterDelete.Secret); err != nil {
+		if err := ch.mg.social.ExternalFriendshipDelete(p.ReqFriendshipInterDelete.Domain, p.ReqFriendshipInterDelete.Secret, p.ReqFriendshipInterDelete.ForgetMe); err != nil {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)},
 			}
@@ -1447,11 +1459,34 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 		Id: env.Id,
 	}
 
+	// Issue #174: a friend's access is checked on every request, not only
+	// when its device signed in - an unfriended device kept its open
+	// connection. While this device waits for that friend to delete what it
+	// shared ("leaving"), the friend gets its events (the request is one)
+	// and nothing else.
+	friend := ch.getFriendProfile()
+	isFriend := friend != nil && ch.getSession() == nil
+	if isFriend {
+		accepted, leaving, err := ch.mg.dao.FriendshipAccess(friend.Domain)
+		if err != nil || !accepted {
+			return notAuthenticatedResponse(env.Id), true
+		}
+		if _, events := env.Payload.(*pb.ReqEnvelope_ReqGetEvents); leaving && !events {
+			resp.Error = true
+			resp.ErrorMessage = "no longer friends"
+			return resp, false
+		}
+	}
+
 	switch p := env.Payload.(type) {
 
 	case *pb.ReqEnvelope_ReqGetEvents:
 		log.Info("Getting events")
-		events, err := ch.mg.social.GetEvents(ch.mg.profile, p.ReqGetEvents.Since.AsTime(), p.ReqGetEvents.Total)
+		requester := ""
+		if isFriend {
+			requester = friend.Domain
+		}
+		events, err := ch.mg.social.GetEvents(ch.mg.profile, p.ReqGetEvents.Since.AsTime(), p.ReqGetEvents.Total, requester)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve events: %s", err)
@@ -1491,6 +1526,11 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 		// as ReqGetSocialPublicationFiles below - a friend reading the
 		// feed needs this exactly as much as the owner does.
 		req := p.ReqGetPublicationMedia
+		if isFriend && !ch.ownPublication(req.PubUuid) {
+			resp.Error = true
+			resp.ErrorMessage = "media not available"
+			break
+		}
 		content, mime, err := ch.mg.social.GetPublicationMedia(req.PubUuid, req.Hash)
 		if err != nil {
 			log.Error("error reading publication media:", err)
@@ -1504,6 +1544,11 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 
 	case *pb.ReqEnvelope_ReqGetSocialPublicationFiles:
 		log.Info("Getting social publication")
+		if isFriend && !ch.ownPublication(p.ReqGetSocialPublicationFiles.Uuid) {
+			resp.Error = true
+			resp.ErrorMessage = "no such publication"
+			break
+		}
 		files, err := ch.mg.social.GetPublicationFiles(p.ReqGetSocialPublicationFiles.Uuid)
 		if err != nil {
 			resp.Error = true
@@ -1609,7 +1654,8 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	case *pb.ReqEnvelope_ReqDeleteFriendship:
 		// Issue #25.
 		log.Info("Delete friendship:", p.ReqDeleteFriendship.Domain)
-		if err := ch.mg.social.DeleteFriendship(p.ReqDeleteFriendship.Domain); err != nil {
+		r := p.ReqDeleteFriendship
+		if err := ch.mg.social.DeleteFriendship(r.Domain, r.DeleteTheirData, r.AskThemToDeleteMine); err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("Error trying to delete the friendship: %s", err)
 		} else {

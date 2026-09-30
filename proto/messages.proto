@@ -619,6 +619,10 @@ message Friendship {
   // comment/post all at once. Real-time events from this point on notify
   // normally; the one-time backlog catch-up never does.
   bool notifications_started = 7;
+  // Issue #174: this device asked the friend's device to delete what it
+  // shared, and is waiting for that device to do it (then the friendship
+  // goes). The friend's data is no longer synced in meanwhile.
+  bool leaving = 8;
 }
 
 message Friendships {
@@ -654,6 +658,15 @@ message ChangeFriendStatus {
 // The device also asks the other side to drop its copy, best effort.
 message DeleteFriendship {
   string domain = 1;
+  // Issue #174: also remove from this device everything synced from that
+  // friend - their posts and media, their comments and likes (on anyone's
+  // posts), and alerts about them.
+  bool delete_their_data = 2;
+  // Issue #174: ask that friend's device to remove everything this device
+  // shared there. Sent straight away when it answers; otherwise the
+  // friendship stays, "leaving", until that device picks the request up
+  // on its next sync, removes the data and drops the friendship.
+  bool ask_them_to_delete_mine = 3;
 }
 
 // Issue #25: device-to-device counterpart of DeleteFriendship, sent by the
@@ -663,6 +676,10 @@ message DeleteFriendship {
 message FriendshipInterDelete {
   string domain = 1; // the calling device's own domain
   string secret = 2;
+  // Issue #174: remove everything the calling device shared here (its
+  // posts, comments, likes) along with the friendship. Only ever the
+  // caller's own data: the domain is the one the secret authenticates.
+  bool forget_me = 3;
 }
 
 message LikePublication {
@@ -1239,6 +1256,9 @@ message Comment {
   // liked reports whether the requesting viewer already liked this
   // comment, so clients can render a filled vs. outline heart.
   bool liked = 7;
+  // Issue #174: written by this device's owner - who may delete it, on
+  // anyone's post (friends apply the deletion because it's theirs).
+  bool own = 8;
 }
 
 message SocialPublication {

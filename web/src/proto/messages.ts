@@ -1065,6 +1065,12 @@ export interface Friendship {
    * normally; the one-time backlog catch-up never does.
    */
   notificationsStarted: boolean;
+  /**
+   * Issue #174: this device asked the friend's device to delete what it
+   * shared, and is waiting for that device to do it (then the friendship
+   * goes). The friend's data is no longer synced in meanwhile.
+   */
+  leaving: boolean;
 }
 
 export interface Friendships {
@@ -1096,6 +1102,19 @@ export interface ChangeFriendStatus {
  */
 export interface DeleteFriendship {
   domain: string;
+  /**
+   * Issue #174: also remove from this device everything synced from that
+   * friend - their posts and media, their comments and likes (on anyone's
+   * posts), and alerts about them.
+   */
+  deleteTheirData: boolean;
+  /**
+   * Issue #174: ask that friend's device to remove everything this device
+   * shared there. Sent straight away when it answers; otherwise the
+   * friendship stays, "leaving", until that device picks the request up
+   * on its next sync, removes the data and drops the friendship.
+   */
+  askThemToDeleteMine: boolean;
 }
 
 /**
@@ -1108,6 +1127,12 @@ export interface FriendshipInterDelete {
   /** the calling device's own domain */
   domain: string;
   secret: string;
+  /**
+   * Issue #174: remove everything the calling device shared here (its
+   * posts, comments, likes) along with the friendship. Only ever the
+   * caller's own data: the domain is the one the secret authenticates.
+   */
+  forgetMe: boolean;
 }
 
 export interface LikePublication {
@@ -1755,6 +1780,11 @@ export interface Comment {
    * comment, so clients can render a filled vs. outline heart.
    */
   liked: boolean;
+  /**
+   * Issue #174: written by this device's owner - who may delete it, on
+   * anyone's post (friends apply the deletion because it's theirs).
+   */
+  own: boolean;
 }
 
 export interface SocialPublication {
@@ -7597,6 +7627,7 @@ function createBaseFriendship(): Friendship {
     secret: "",
     latestSync: undefined,
     notificationsStarted: false,
+    leaving: false,
   };
 }
 
@@ -7619,6 +7650,9 @@ export const Friendship: MessageFns<Friendship> = {
     }
     if (message.notificationsStarted !== false) {
       writer.uint32(56).bool(message.notificationsStarted);
+    }
+    if (message.leaving !== false) {
+      writer.uint32(64).bool(message.leaving);
     }
     return writer;
   },
@@ -7678,6 +7712,14 @@ export const Friendship: MessageFns<Friendship> = {
           message.notificationsStarted = reader.bool();
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.leaving = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7697,6 +7739,7 @@ export const Friendship: MessageFns<Friendship> = {
       notificationsStarted: isSet(object.notificationsStarted)
         ? globalThis.Boolean(object.notificationsStarted)
         : false,
+      leaving: isSet(object.leaving) ? globalThis.Boolean(object.leaving) : false,
     };
   },
 
@@ -7720,6 +7763,9 @@ export const Friendship: MessageFns<Friendship> = {
     if (message.notificationsStarted !== false) {
       obj.notificationsStarted = message.notificationsStarted;
     }
+    if (message.leaving !== false) {
+      obj.leaving = message.leaving;
+    }
     return obj;
   },
 
@@ -7736,6 +7782,7 @@ export const Friendship: MessageFns<Friendship> = {
     message.secret = object.secret ?? "";
     message.latestSync = object.latestSync ?? undefined;
     message.notificationsStarted = object.notificationsStarted ?? false;
+    message.leaving = object.leaving ?? false;
     return message;
   },
 };
@@ -8074,13 +8121,19 @@ export const ChangeFriendStatus: MessageFns<ChangeFriendStatus> = {
 };
 
 function createBaseDeleteFriendship(): DeleteFriendship {
-  return { domain: "" };
+  return { domain: "", deleteTheirData: false, askThemToDeleteMine: false };
 }
 
 export const DeleteFriendship: MessageFns<DeleteFriendship> = {
   encode(message: DeleteFriendship, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.domain !== "") {
       writer.uint32(10).string(message.domain);
+    }
+    if (message.deleteTheirData !== false) {
+      writer.uint32(16).bool(message.deleteTheirData);
+    }
+    if (message.askThemToDeleteMine !== false) {
+      writer.uint32(24).bool(message.askThemToDeleteMine);
     }
     return writer;
   },
@@ -8100,6 +8153,22 @@ export const DeleteFriendship: MessageFns<DeleteFriendship> = {
           message.domain = reader.string();
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.deleteTheirData = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.askThemToDeleteMine = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8110,13 +8179,23 @@ export const DeleteFriendship: MessageFns<DeleteFriendship> = {
   },
 
   fromJSON(object: any): DeleteFriendship {
-    return { domain: isSet(object.domain) ? globalThis.String(object.domain) : "" };
+    return {
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      deleteTheirData: isSet(object.deleteTheirData) ? globalThis.Boolean(object.deleteTheirData) : false,
+      askThemToDeleteMine: isSet(object.askThemToDeleteMine) ? globalThis.Boolean(object.askThemToDeleteMine) : false,
+    };
   },
 
   toJSON(message: DeleteFriendship): unknown {
     const obj: any = {};
     if (message.domain !== "") {
       obj.domain = message.domain;
+    }
+    if (message.deleteTheirData !== false) {
+      obj.deleteTheirData = message.deleteTheirData;
+    }
+    if (message.askThemToDeleteMine !== false) {
+      obj.askThemToDeleteMine = message.askThemToDeleteMine;
     }
     return obj;
   },
@@ -8127,12 +8206,14 @@ export const DeleteFriendship: MessageFns<DeleteFriendship> = {
   fromPartial<I extends Exact<DeepPartial<DeleteFriendship>, I>>(object: I): DeleteFriendship {
     const message = createBaseDeleteFriendship();
     message.domain = object.domain ?? "";
+    message.deleteTheirData = object.deleteTheirData ?? false;
+    message.askThemToDeleteMine = object.askThemToDeleteMine ?? false;
     return message;
   },
 };
 
 function createBaseFriendshipInterDelete(): FriendshipInterDelete {
-  return { domain: "", secret: "" };
+  return { domain: "", secret: "", forgetMe: false };
 }
 
 export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
@@ -8142,6 +8223,9 @@ export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
     }
     if (message.secret !== "") {
       writer.uint32(18).string(message.secret);
+    }
+    if (message.forgetMe !== false) {
+      writer.uint32(24).bool(message.forgetMe);
     }
     return writer;
   },
@@ -8169,6 +8253,14 @@ export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
           message.secret = reader.string();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.forgetMe = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8182,6 +8274,7 @@ export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
     return {
       domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
       secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      forgetMe: isSet(object.forgetMe) ? globalThis.Boolean(object.forgetMe) : false,
     };
   },
 
@@ -8193,6 +8286,9 @@ export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
     if (message.secret !== "") {
       obj.secret = message.secret;
     }
+    if (message.forgetMe !== false) {
+      obj.forgetMe = message.forgetMe;
+    }
     return obj;
   },
 
@@ -8203,6 +8299,7 @@ export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
     const message = createBaseFriendshipInterDelete();
     message.domain = object.domain ?? "";
     message.secret = object.secret ?? "";
+    message.forgetMe = object.forgetMe ?? false;
     return message;
   },
 };
@@ -13445,7 +13542,16 @@ export const SharedFiles: MessageFns<SharedFiles> = {
 };
 
 function createBaseComment(): Comment {
-  return { pubUuid: "", commentUuid: "", comment: "", publisher: "", likes: 0, dateTime: undefined, liked: false };
+  return {
+    pubUuid: "",
+    commentUuid: "",
+    comment: "",
+    publisher: "",
+    likes: 0,
+    dateTime: undefined,
+    liked: false,
+    own: false,
+  };
 }
 
 export const Comment: MessageFns<Comment> = {
@@ -13470,6 +13576,9 @@ export const Comment: MessageFns<Comment> = {
     }
     if (message.liked !== false) {
       writer.uint32(56).bool(message.liked);
+    }
+    if (message.own !== false) {
+      writer.uint32(64).bool(message.own);
     }
     return writer;
   },
@@ -13537,6 +13646,14 @@ export const Comment: MessageFns<Comment> = {
           message.liked = reader.bool();
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.own = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13555,6 +13672,7 @@ export const Comment: MessageFns<Comment> = {
       likes: isSet(object.likes) ? globalThis.Number(object.likes) : 0,
       dateTime: isSet(object.dateTime) ? fromJsonTimestamp(object.dateTime) : undefined,
       liked: isSet(object.liked) ? globalThis.Boolean(object.liked) : false,
+      own: isSet(object.own) ? globalThis.Boolean(object.own) : false,
     };
   },
 
@@ -13581,6 +13699,9 @@ export const Comment: MessageFns<Comment> = {
     if (message.liked !== false) {
       obj.liked = message.liked;
     }
+    if (message.own !== false) {
+      obj.own = message.own;
+    }
     return obj;
   },
 
@@ -13596,6 +13717,7 @@ export const Comment: MessageFns<Comment> = {
     message.likes = object.likes ?? 0;
     message.dateTime = object.dateTime ?? undefined;
     message.liked = object.liked ?? false;
+    message.own = object.own ?? false;
     return message;
   },
 };

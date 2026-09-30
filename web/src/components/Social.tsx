@@ -243,7 +243,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     setFeed(prev => prev.map(p => p.uuid === pub_uuid
       ? { ...p, comments: [...p.comments, {
           pubUuid: pub_uuid, commentUuid: tempUuid, comment: trimmed,
-          publisher: publisherName, likes: 0, liked: false, dateTime: undefined,
+          publisher: publisherName, likes: 0, liked: false, dateTime: undefined, own: true,
         }] }
       : p));
 
@@ -285,7 +285,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   }, []);
 
   // Issue #35: delete a comment on one of your own posts (server enforces
-  // the "own post" rule regardless of who wrote the comment).
+  // the "own post" rule regardless of who wrote the comment). Issue #174:
+  // also your own comment on a friend's post - the friend's device applies
+  // the deletion because the comment is yours.
   const deleteComment = useCallback(async (comment_uuid: string) => {
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -883,8 +885,10 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                 {c.liked ? "❤️" : "🤍"}
               </button>
               {/* Issue #35: on your own post, any comment can be deleted —
-                  not just ones you wrote. */}
-              {p.own && (
+                  not just ones you wrote. Issue #174: and your own comment
+                  anywhere (not the optimistic placeholder, which has no
+                  real uuid yet). */}
+              {(p.own || c.own) && !c.commentUuid.startsWith("pending-") && (
                 <button
                   className="sv-btn tiny"
                   title="Delete comment"

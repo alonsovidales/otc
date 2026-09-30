@@ -1612,6 +1612,11 @@ public nonisolated struct Msg_Friendship: Sendable {
   /// normally; the one-time backlog catch-up never does.
   public var notificationsStarted: Bool = false
 
+  /// Issue #174: this device asked the friend's device to delete what it
+  /// shared, and is waiting for that device to do it (then the friendship
+  /// goes). The friend's data is no longer synced in meanwhile.
+  public var leaving: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1703,6 +1708,17 @@ public nonisolated struct Msg_DeleteFriendship: Sendable {
 
   public var domain: String = String()
 
+  /// Issue #174: also remove from this device everything synced from that
+  /// friend - their posts and media, their comments and likes (on anyone's
+  /// posts), and alerts about them.
+  public var deleteTheirData: Bool = false
+
+  /// Issue #174: ask that friend's device to remove everything this device
+  /// shared there. Sent straight away when it answers; otherwise the
+  /// friendship stays, "leaving", until that device picks the request up
+  /// on its next sync, removes the data and drops the friendship.
+  public var askThemToDeleteMine: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1721,6 +1737,11 @@ public nonisolated struct Msg_FriendshipInterDelete: Sendable {
   public var domain: String = String()
 
   public var secret: String = String()
+
+  /// Issue #174: remove everything the calling device shared here (its
+  /// posts, comments, likes) along with the friendship. Only ever the
+  /// caller's own data: the domain is the one the secret authenticates.
+  public var forgetMe: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2984,6 +3005,10 @@ public nonisolated struct Msg_Comment: Sendable {
   /// liked reports whether the requesting viewer already liked this
   /// comment, so clients can render a filled vs. outline heart.
   public var liked: Bool = false
+
+  /// Issue #174: written by this device's owner - who may delete it, on
+  /// anyone's post (friends apply the deletion because it's theirs).
+  public var own: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -7518,7 +7543,7 @@ nonisolated extension Msg_DidSendFriendshipReq: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Friendship"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}origin_profile\0\u{1}status\0\u{1}sent\0\u{1}secret\0\u{3}latest_sync\0\u{3}notifications_started\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}origin_profile\0\u{1}status\0\u{1}sent\0\u{1}secret\0\u{3}latest_sync\0\u{3}notifications_started\0\u{1}leaving\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7532,6 +7557,7 @@ nonisolated extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._Mess
       case 5: try { try decoder.decodeSingularStringField(value: &self.secret) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._latestSync) }()
       case 7: try { try decoder.decodeSingularBoolField(value: &self.notificationsStarted) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.leaving) }()
       default: break
       }
     }
@@ -7560,6 +7586,9 @@ nonisolated extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if self.notificationsStarted != false {
       try visitor.visitSingularBoolField(value: self.notificationsStarted, fieldNumber: 7)
     }
+    if self.leaving != false {
+      try visitor.visitSingularBoolField(value: self.leaving, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7570,6 +7599,7 @@ nonisolated extension Msg_Friendship: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if lhs.secret != rhs.secret {return false}
     if lhs._latestSync != rhs._latestSync {return false}
     if lhs.notificationsStarted != rhs.notificationsStarted {return false}
+    if lhs.leaving != rhs.leaving {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7735,7 +7765,7 @@ nonisolated extension Msg_ChangeFriendStatus: SwiftProtobuf.Message, SwiftProtob
 
 nonisolated extension Msg_DeleteFriendship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteFriendship"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}delete_their_data\0\u{3}ask_them_to_delete_mine\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7744,6 +7774,8 @@ nonisolated extension Msg_DeleteFriendship: SwiftProtobuf.Message, SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.domain) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.deleteTheirData) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.askThemToDeleteMine) }()
       default: break
       }
     }
@@ -7753,11 +7785,19 @@ nonisolated extension Msg_DeleteFriendship: SwiftProtobuf.Message, SwiftProtobuf
     if !self.domain.isEmpty {
       try visitor.visitSingularStringField(value: self.domain, fieldNumber: 1)
     }
+    if self.deleteTheirData != false {
+      try visitor.visitSingularBoolField(value: self.deleteTheirData, fieldNumber: 2)
+    }
+    if self.askThemToDeleteMine != false {
+      try visitor.visitSingularBoolField(value: self.askThemToDeleteMine, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_DeleteFriendship, rhs: Msg_DeleteFriendship) -> Bool {
     if lhs.domain != rhs.domain {return false}
+    if lhs.deleteTheirData != rhs.deleteTheirData {return false}
+    if lhs.askThemToDeleteMine != rhs.askThemToDeleteMine {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7765,7 +7805,7 @@ nonisolated extension Msg_DeleteFriendship: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Msg_FriendshipInterDelete: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FriendshipInterDelete"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{1}secret\0\u{3}forget_me\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7775,6 +7815,7 @@ nonisolated extension Msg_FriendshipInterDelete: SwiftProtobuf.Message, SwiftPro
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.domain) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.secret) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.forgetMe) }()
       default: break
       }
     }
@@ -7787,12 +7828,16 @@ nonisolated extension Msg_FriendshipInterDelete: SwiftProtobuf.Message, SwiftPro
     if !self.secret.isEmpty {
       try visitor.visitSingularStringField(value: self.secret, fieldNumber: 2)
     }
+    if self.forgetMe != false {
+      try visitor.visitSingularBoolField(value: self.forgetMe, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_FriendshipInterDelete, rhs: Msg_FriendshipInterDelete) -> Bool {
     if lhs.domain != rhs.domain {return false}
     if lhs.secret != rhs.secret {return false}
+    if lhs.forgetMe != rhs.forgetMe {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10191,7 +10236,7 @@ nonisolated extension Msg_SharedFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Comment"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}comment\0\u{1}publisher\0\u{1}likes\0\u{3}date_time\0\u{1}liked\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}comment\0\u{1}publisher\0\u{1}likes\0\u{3}date_time\0\u{1}liked\0\u{1}own\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -10206,6 +10251,7 @@ nonisolated extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._Message
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.likes) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._dateTime) }()
       case 7: try { try decoder.decodeSingularBoolField(value: &self.liked) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.own) }()
       default: break
       }
     }
@@ -10237,6 +10283,9 @@ nonisolated extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._Message
     if self.liked != false {
       try visitor.visitSingularBoolField(value: self.liked, fieldNumber: 7)
     }
+    if self.own != false {
+      try visitor.visitSingularBoolField(value: self.own, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -10248,6 +10297,7 @@ nonisolated extension Msg_Comment: SwiftProtobuf.Message, SwiftProtobuf._Message
     if lhs.likes != rhs.likes {return false}
     if lhs._dateTime != rhs._dateTime {return false}
     if lhs.liked != rhs.liked {return false}
+    if lhs.own != rhs.own {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -262,7 +262,18 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   Friend requests (issue #25) can be removed by either side: `ReqDeleteFriendship` deletes the
   local row and, best effort, sends `FriendshipInterDelete` (authenticated by the shared
   per-friendship secret) so the other device drops its copy; a sender whose request was deleted
-  while it was offline learns it from `FriendshipStatus.not_found` on its next friend sync. Issue #140: a
+  while it was offline learns it from `FriendshipStatus.not_found` on its next friend sync.
+  Issue #174: removing a friend can also `delete_their_data` (`social.purgeFriendData`: their
+  posts with media, their comments - `social_publications_comments.author_domain`, the device
+  a comment was synced from, never what the event claims - and likes on any post, alerts) and
+  `ask_them_to_delete_mine`: `FriendshipInterDelete.forget_me` when their device answers,
+  otherwise a `forget_event` in `events` with `target` = that friend (`GetEvents` serves a
+  targeted event to its target only) and the friendship "leaving" (`forget_requested`) until
+  their device purges and sends a plain `FriendshipInterDelete`. Everything a friend's sync or
+  request deletes is checked against the sender: `mayDeletePublication` (its own posts only),
+  `mayDeleteComment` (its comments, or comments on its posts), forget = the sender's data only.
+  A friend connection is re-checked on every request (`FriendshipAccess`), and may read media
+  of the owner's own posts only (`ownPublication`). Issue #140: a
   friend request is only stored after the receiver dials the sender's domain back and it confirms
   (`DidSendFriendshipReq`); if the receiver already has a friendship with that domain, the
   sender is that friend's re-created device, so the row takes the new secret and profile in place

@@ -120,6 +120,37 @@ final class FriendshipsViewModel: ObservableObject {
         }
     }
 
+    // Issue #174: removes an accepted or blocked friend. deleteTheirData
+    // drops everything that friend left on this device (their posts and
+    // photos, their comments and likes anywhere); askThemToDeleteMine asks
+    // their device to drop what this one shared, and until it confirms the
+    // friendship stays, marked leaving. Both false is "Remove Now" for a
+    // leaving friend: stop waiting and just drop the friendship.
+    func removeFriend(_ f: Msg_Friendship, deleteTheirData: Bool, askThemToDeleteMine: Bool) async {
+        var req = Msg_DeleteFriendship()
+        req.domain = f.originProfile.domain
+        req.deleteTheirData = deleteTheirData
+        req.askThemToDeleteMine = askThemToDeleteMine
+        do {
+            let resp = try await ws.request { $0.payload = .reqDeleteFriendship(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                await reloadFriendships()
+                // Still listed as leaving: their device was offline and will
+                // be asked the next time it connects.
+                let leaving = friendships.contains { $0.originProfile.domain == f.originProfile.domain && $0.leaving }
+                showToast(leaving ? "Waiting for their device" : "Friend removed")
+            } else if case .respAck(let ack) = resp.payload {
+                showToast(ack.errorMsg.isEmpty ? "Remove failed" : ack.errorMsg)
+            } else if resp.error {
+                showToast(resp.errorMessage)
+            } else {
+                showToast("Remove failed")
+            }
+        } catch {
+            showToast("Error removing friend")
+        }
+    }
+
     private func showToast(_ m: String) {
         toast = m
         Task { [weak self] in
@@ -140,7 +171,9 @@ struct FriendshipsView: View {
             List {
                 // Requests waiting for an answer come first: a tapped
                 // friend-request alert lands here to answer it.
-                let waiting = vm.friendships.filter { $0.status == .pending && !$0.sent }
+                // Issue #174: a leaving friendship is never waiting for an
+                // answer, whatever its status.
+                let waiting = vm.friendships.filter { $0.status == .pending && !$0.sent && !$0.leaving }
                 if !waiting.isEmpty {
                     Section("Waiting for your answer") {
                         ForEach(waiting, id: \.originProfile.domain) { f in
@@ -182,11 +215,14 @@ struct FriendshipsView: View {
                     if vm.friendships.isEmpty {
                         Text("No friendships yet.").foregroundColor(.secondary)
                     } else {
-                        ForEach(vm.friendships.filter { !($0.status == .pending && !$0.sent) }, id: \.originProfile.domain) { f in
+                        ForEach(vm.friendships.filter { !($0.status == .pending && !$0.sent && !$0.leaving) }, id: \.originProfile.domain) { f in
                             FriendRow(
                                 f: f,
                                 onChange: { status in Task { await vm.changeStatus(f, to: status) } },
-                                onDelete: { Task { await vm.deleteFriendship(f) } }
+                                onDelete: { Task { await vm.deleteFriendship(f) } },
+                                onRemove: { theirs, mine in
+                                    Task { await vm.removeFriend(f, deleteTheirData: theirs, askThemToDeleteMine: mine) }
+                                }
                             )
                         }
                     }
@@ -232,12 +268,22 @@ private struct FriendRow: View {
     let f: Msg_Friendship
     let onChange: (Msg_FriendShipStatus) -> Void
     let onDelete: () -> Void
+    /// Issue #174: (deleteTheirData, askThemToDeleteMine).
+    let onRemove: (Bool, Bool) -> Void
     @State private var confirmingDelete = false
+    @State private var removing = false
+    @State private var confirmingRemoveNow = false
 
     // Issue #25: a pending request can be removed by either side - the
     // sender withdraws it, the receiver declines it.
-    private var canDelete: Bool { f.status == .pending }
+    private var canDelete: Bool { f.status == .pending && !f.leaving }
     private var deleteLabel: String { f.sent ? "Cancel request" : "Delete request" }
+    // Issue #174: an accepted or blocked friend can be removed, with a
+    // choice of what gets deleted on each side.
+    private var canRemove: Bool { !f.leaving && (f.status == .accepted || f.status == .blocked) }
+    private var name: String {
+        f.originProfile.name.isEmpty ? f.originProfile.domain : f.originProfile.name
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -246,17 +292,32 @@ private struct FriendRow: View {
                 Text(f.originProfile.name.isEmpty ? "(no name)" : f.originProfile.name).font(.headline)
                 Text(f.originProfile.domain.isEmpty ? "(no domain)" : f.originProfile.domain)
                     .font(.caption).foregroundColor(.secondary)
-                Text(statusLabel + (f.sent ? " (sent)" : ""))
+                Text(statusLabel + (f.sent && !f.leaving ? " (sent)" : ""))
                     .font(.caption2).foregroundColor(.secondary)
+                if f.leaving {
+                    Text("Waiting for their device to delete what you shared.")
+                        .font(.caption2).foregroundColor(.secondary)
+                }
             }
             Spacer()
-            if !actionOptions.isEmpty || canDelete {
+            if f.leaving {
+                // Issue #174: nothing else to do with a leaving friend but
+                // stop waiting for their device.
+                Menu {
+                    Button("Remove Now", role: .destructive) { confirmingRemoveNow = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            } else if !actionOptions.isEmpty || canDelete || canRemove {
                 Menu {
                     ForEach(actionOptions, id: \.0) { opt in
                         Button(opt.0) { onChange(opt.1) }
                     }
                     if canDelete {
                         Button(deleteLabel, role: .destructive) { confirmingDelete = true }
+                    }
+                    if canRemove {
+                        Button("Remove Friend…", role: .destructive) { removing = true }
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -275,9 +336,18 @@ private struct FriendRow: View {
                  ? "The request will be withdrawn on both devices."
                  : "The request will be removed here and on the sender's device.")
         }
+        .confirmationDialog("Remove \(name) now?", isPresented: $confirmingRemoveNow, titleVisibility: .visible) {
+            Button("Remove Now", role: .destructive) { onRemove(false, false) }
+        } message: {
+            Text("Stops waiting for their device. Whatever it hasn't deleted yet stays there.")
+        }
+        .sheet(isPresented: $removing) {
+            RemoveFriendSheet(name: name) { theirs, mine in onRemove(theirs, mine) }
+        }
     }
 
     private var statusLabel: String {
+        if f.leaving { return "Leaving" }
         switch f.status {
         case .accepted: return "Accepted"
         case .blocked: return "Blocked"
@@ -287,13 +357,55 @@ private struct FriendRow: View {
 
     private var actionOptions: [(String, Msg_FriendShipStatus)] {
         // The sender does not decide the status; the receiver does.
-        if f.sent { return [] }
+        if f.sent || f.leaving { return [] }
         switch f.status {
         case .pending: return [("Accept", .accepted), ("Block", .blocked)]
         case .accepted: return [("Set Pending", .pending), ("Block", .blocked)]
         case .blocked: return [("Accept", .accepted), ("Set Pending", .pending)]
         default: return []
         }
+    }
+}
+
+/// Issue #174: what removing a friend deletes, on each side - both off by
+/// default, so a plain removal keeps everything where it is.
+private struct RemoveFriendSheet: View {
+    let name: String
+    let onConfirm: (Bool, Bool) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var deleteTheirData = false
+    @State private var askThemToDeleteMine = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle("Delete everything from \(name) on this iPhone", isOn: $deleteTheirData)
+                } footer: {
+                    Text("Their posts and photos, and their comments and likes on any post.")
+                }
+                Section {
+                    Toggle("Ask \(name)'s device to delete what I shared", isOn: $askThemToDeleteMine)
+                } footer: {
+                    Text("Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.")
+                }
+                Section {
+                    Button("Remove Friend", role: .destructive) {
+                        onConfirm(deleteTheirData, askThemToDeleteMine)
+                        dismiss()
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .navigationTitle("Remove \(name)?")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

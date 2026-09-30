@@ -800,9 +800,13 @@ func (dao *Dao) DeleteLikePublication(pubUuid, likerDomain string) (err error) {
 	return
 }
 
-func (dao *Dao) GetEvents(since time.Time, total int32) (events []*pb.Event, err error) {
+// GetEvents is the page of events after since that requester's device is
+// served: every broadcast one, and those meant for it alone (issue #174 -
+// a "forget me" goes to that ex-friend only, and no other friend learns of
+// it).
+func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (events []*pb.Event, err error) {
 	log.Debug("Get Events")
-	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? order by `dt` asc limit ?", since, total)
+	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and (`target` is null or `target` = ?) order by `dt` asc limit ?", since, requester, total)
 	if err != nil {
 		return nil, err
 	}
@@ -906,7 +910,7 @@ func (dao *Dao) GetCommentLikerDomains(commentUuid string) (domains []string, er
 
 func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comments []*pb.Comment, err error) {
 	log.Debug("Get SocialPublication Comments")
-	rowComms, err := dao.db.Query("select `uuid`, `dt`, `comment`, `publisher_name`, `likes` from `social_publications_comments` where `pub_uuid` = ? order by `dt` desc", pubUuid)
+	rowComms, err := dao.db.Query("select `uuid`, `dt`, `comment`, `publisher_name`, `likes`, `own_comment` from `social_publications_comments` where `pub_uuid` = ? order by `dt` desc", pubUuid)
 	if err != nil {
 		return nil, err
 	}
@@ -917,7 +921,7 @@ func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comm
 			PubUuid: pubUuid,
 		}
 		var dt time.Time
-		if err := rowComms.Scan(&comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes); err != nil {
+		if err := rowComms.Scan(&comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes, &comment.Own); err != nil {
 			return nil, err
 		}
 
@@ -1201,7 +1205,7 @@ func (dao *Dao) GetFriendProfile(domain string) (name, text string, image []byte
 }
 
 func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
-	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret`, `latest_sync`, `notifications_started` from `social_friendship`")
+	rowFriendships, err := dao.db.Query("select `status`, `name`, `image`, `text`, `sent`, `domain`, `secret`, `latest_sync`, `notifications_started`, `forget_requested` is not null from `social_friendship`")
 	if err != nil {
 		return nil, err
 	}
@@ -1215,7 +1219,7 @@ func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 		// name and text are nullable columns; a NULL in either used to
 		// fail the scan and with it the whole friend sync, for everyone.
 		var name, text sql.NullString
-		if err := rowFriendships.Scan(&status, &name, &friendship.OriginProfile.Image, &text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret, &latestSync, &friendship.NotificationsStarted); err != nil {
+		if err := rowFriendships.Scan(&status, &name, &friendship.OriginProfile.Image, &text, &friendship.Sent, &friendship.OriginProfile.Domain, &friendship.Secret, &latestSync, &friendship.NotificationsStarted, &friendship.Leaving); err != nil {
 			return nil, err
 		}
 		friendship.OriginProfile.Name = name.String
@@ -1257,11 +1261,13 @@ func (dao *Dao) pbToStatus(pbStatus pb.FriendShipStatus) (status string) {
 	return
 }
 
-func (dao *Dao) NewComment(commentUuid, pubName, pubUuid, comment string, ownComment bool, dt time.Time) (err error) {
+// NewComment stores a comment; authorDomain is whose it is - the device
+// owner's own domain, or the friend's it was synced from (issue #174).
+func (dao *Dao) NewComment(commentUuid, pubName, pubUuid, comment, authorDomain string, ownComment bool, dt time.Time) (err error) {
 	log.Debug("Creating new comment")
 	_, err = dao.db.Exec(
-		"insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`, `own_comment`) values (?, ?, ?, ?, ?, ?)",
-		commentUuid, pubUuid, dt, comment, pubName, ownComment)
+		"insert into `social_publications_comments` (`uuid`, `pub_uuid`, `dt`, `comment`, `publisher_name`, `own_comment`, `author_domain`) values (?, ?, ?, ?, ?, ?, ?)",
+		commentUuid, pubUuid, dt, comment, pubName, ownComment, authorDomain)
 
 	return err
 }

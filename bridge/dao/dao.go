@@ -290,7 +290,22 @@ func (dao *Dao) DeleteDevice(domain string) (err error) {
 	if _, err := dao.db.Exec("delete from `released_domains` where `domain` = ?", domain); err != nil {
 		log.Error("could not lift the hold on", domain, ":", err)
 	}
+	dao.forgetDomain(domain)
 	return nil
+}
+
+// forgetDomain removes what the bridge kept for a device under domain
+// once that name is let go (issue #174): its push registrations - the
+// Web Push key pair and every phone and browser that gets its alerts -
+// and its traffic figures. Left behind, the next holder of the name got
+// the previous one's phones on its offline alerts. Best effort: the name
+// is released either way.
+func (dao *Dao) forgetDomain(domain string) {
+	for _, table := range []string{"push_registrations", "push_apns_tokens", "push_fcm_tokens", "push_web_subs", "device_metrics"} {
+		if _, err := dao.db.Exec("delete from `"+table+"` where `domain` = ?", domain); err != nil {
+			log.Error("could not clear", table, "for", domain, ":", err)
+		}
+	}
 }
 
 // GetAdminPasswordHash returns the bcrypt hash for username, and whether
@@ -896,6 +911,7 @@ func (dao *Dao) DeleteAccountDomain(accountID, domain string) (ok bool, err erro
 		if relErr := dao.recordRelease(domain, accountID); relErr != nil {
 			log.Error("could not hold released name", domain, ":", relErr)
 		}
+		dao.forgetDomain(domain)
 	}
 
 	return n > 0, err

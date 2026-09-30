@@ -37,16 +37,20 @@ const statusLabel = (s: FriendShipStatus): string => {
  * - Blocked -> Accept / Set Pending
  * When *we sent it* the only thing to do is withdraw it while it is still
  * pending (issue #25) - the other side decides everything else.
+ * Issue #174: an accepted or blocked friend, whoever sent the request, can
+ * also be removed (onRemove opens the confirm panel with its options).
  */
 function ActionButtons({
   f,
   onChange,
   onDelete,
+  onRemove,
   disabled,
 }: {
   f: MsgFriendship;
   onChange: (next: FriendShipStatus) => void;
   onDelete: () => void;
+  onRemove: () => void;
   disabled?: boolean;
 }) {
   const btn = (label: string, next: FriendShipStatus) => (
@@ -66,8 +70,16 @@ function ActionButtons({
     </button>
   );
 
+  const remove = (
+    <button className="fr-btn danger" onClick={onRemove} disabled={disabled}>
+      Remove friend
+    </button>
+  );
+
   if (f.sent) {
-    return f.status === FriendShipStatus.Pending ? <div className="fr-actions">{del}</div> : null;
+    return f.status === FriendShipStatus.Pending
+      ? <div className="fr-actions">{del}</div>
+      : <div className="fr-actions">{remove}</div>;
   }
 
   switch (f.status) {
@@ -84,6 +96,7 @@ function ActionButtons({
         <div className="fr-actions">
           {btn("Set Pending", FriendShipStatus.Pending)}
           {btn("Block", FriendShipStatus.Blocked)}
+          {remove}
         </div>
       );
     case FriendShipStatus.Blocked:
@@ -91,6 +104,7 @@ function ActionButtons({
         <div className="fr-actions">
           {btn("Accept", FriendShipStatus.Accepted)}
           {btn("Set Pending", FriendShipStatus.Pending)}
+          {remove}
         </div>
       );
     default:
@@ -110,6 +124,17 @@ export default function FriendshipsManager() {
   // Issue #25: domain of the request whose delete is awaiting a second
   // click - the row swaps its buttons for a confirm/keep pair meanwhile.
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+
+  // Issue #174: domain of the friend whose removal is being confirmed, and
+  // the two options of that panel (both off unless the owner ticks them).
+  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
+  const [deleteTheirData, setDeleteTheirData] = useState(false);
+  const [askThemToDeleteMine, setAskThemToDeleteMine] = useState(false);
+  const openRemove = (domain: string) => {
+    setDeleteTheirData(false);
+    setAskThemToDeleteMine(false);
+    setConfirmingRemove(domain);
+  };
 
   // Toast/message
   const [message, setMessage] = useState<string | null>(null);
@@ -223,6 +248,37 @@ export default function FriendshipsManager() {
     }
   };
 
+  // Issue #174: removes an accepted/blocked friend. deleteTheirData drops
+  // everything of theirs here; askThemToDeleteMine asks their device to drop
+  // what this one shared, and the friendship stays "leaving" until it does.
+  // Both false (the "Remove now" of a leaving friend) just drops the relation.
+  const removeFriend = async (f: MsgFriendship, theirData: boolean, askThem: boolean) => {
+    setConfirmingRemove(null);
+    try {
+      const resp = await useWS.request((e) => {
+        (e as any).payload = {
+          $case: "reqDeleteFriendship",
+          reqDeleteFriendship: {
+            domain: f.originProfile?.domain,
+            deleteTheirData: theirData,
+            askThemToDeleteMine: askThem,
+          },
+        };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        await reloadFriendships();
+        showMsg(askThem ? "Asked their device to delete what you shared" : "Friend removed");
+      } else {
+        showMsg(resp.payload?.$case === "respAck"
+          ? resp.payload.respAck.errorMsg || "Remove failed"
+          : resp.error ? resp.errorMessage || "Remove failed" : "Unexpected response");
+      }
+    } catch (err) {
+      console.error("Remove friend error:", err);
+      showMsg("Error removing friend");
+    }
+  };
+
   const isWaiting = (f: MsgFriendship) => !f.sent && f.status === FriendShipStatus.Pending;
   const waiting = friends?.friendships.filter(isWaiting) ?? [];
   const others = friends?.friendships.filter((f) => !isWaiting(f)) ?? [];
@@ -243,10 +299,60 @@ export default function FriendshipsManager() {
           </div>
         </div>
         <div className="friend-right">
-          <span className={`status pill s-${f.status}`}>
-            {statusLabel(f.status)} {f.sent ? "(sent)" : ""}
-          </span>
-          {confirmingDelete === domain ? (
+          {f.leaving ? (
+            <span className="status pill s-leaving">Leaving</span>
+          ) : (
+            <span className={`status pill s-${f.status}`}>
+              {statusLabel(f.status)} {f.sent ? "(sent)" : ""}
+            </span>
+          )}
+          {f.leaving ? (
+            // Issue #174: waiting for their device to delete what this one
+            // shared; nothing syncs meanwhile. "Remove now" stops waiting.
+            <div className="fr-actions fr-confirm">
+              <span>Waiting for their device to delete what you shared.</span>
+              <button className="fr-btn danger" onClick={() => {
+                if (window.confirm(`Remove ${name} now? This stops waiting for their device. Whatever it hasn't deleted yet stays there.`)) void removeFriend(f, false, false);
+              }}>Remove now</button>
+            </div>
+          ) : confirmingRemove === domain ? (
+            <div className="fr-actions fr-confirm fr-remove">
+              <label className="fr-check">
+                <input
+                  type="checkbox"
+                  checked={deleteTheirData}
+                  onChange={(e) => setDeleteTheirData(e.target.checked)}
+                />
+                <span>
+                  Also delete everything from {name} on this device
+                  <small className="fr-hint">Their posts and photos, and their comments and likes on any post.</small>
+                </span>
+              </label>
+              <label className="fr-check">
+                <input
+                  type="checkbox"
+                  checked={askThemToDeleteMine}
+                  onChange={(e) => setAskThemToDeleteMine(e.target.checked)}
+                />
+                <span>
+                  Ask {name}'s device to delete what I shared there
+                  <small className="fr-hint">
+                    Your posts, comments and likes on their device. If it's offline, it happens the next time it
+                    connects; until then they show as leaving.
+                  </small>
+                </span>
+              </label>
+              <div className="fr-actions">
+                <button
+                  className="fr-btn danger"
+                  onClick={() => removeFriend(f, deleteTheirData, askThemToDeleteMine)}
+                >
+                  Remove friend
+                </button>
+                <button className="fr-btn" onClick={() => setConfirmingRemove(null)}>Keep</button>
+              </div>
+            </div>
+          ) : confirmingDelete === domain ? (
             <div className="fr-actions fr-confirm">
               <span>{f.sent ? "Cancel this request?" : "Delete this request?"}</span>
               <button className="fr-btn danger" onClick={() => deleteFriendship(f)}>Yes</button>
@@ -257,6 +363,7 @@ export default function FriendshipsManager() {
               f={f}
               onChange={(next) => changeStatus(f, next)}
               onDelete={() => setConfirmingDelete(domain)}
+              onRemove={() => openRemove(domain)}
             />
           )}
         </div>

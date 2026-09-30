@@ -552,6 +552,10 @@ apply_schema_migrations() {
     -- already-fully-synced friends, since the very next sync cycle finds
     -- nothing pending and flips it back on within one 120s tick.
     ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS notifications_started TINYINT(1) NOT NULL DEFAULT 0;
+    -- Issue #174: unfriending with "delete what I shared there".
+    ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS forget_requested DATETIME NULL;
+    ALTER TABLE social_publications_comments ADD COLUMN IF NOT EXISTS author_domain VARCHAR(128) NOT NULL DEFAULT '';
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS target VARCHAR(128) NULL;
     CREATE TABLE IF NOT EXISTS people (
       id VARCHAR(36) NOT NULL,
       name VARCHAR(150) NOT NULL DEFAULT '',

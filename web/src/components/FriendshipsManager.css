@@ -55,6 +55,11 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--mist); }
 .fr-btn.danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
 .fr-confirm { align-items: center; }
 .fr-confirm span { color: var(--mist); font-size: .9rem; }
+/* Issue #174: removing a friend - two options stacked above the buttons. */
+.fr-remove { flex-direction: column; align-items: stretch; max-width: 340px; }
+.fr-check { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.fr-check input { margin-top: 3px; }
+.fr-hint { display: block; color: var(--mist-dim); font-size: .8rem; margin-top: 2px; }
 
 .friends-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .friend-item {
@@ -74,6 +79,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--mist); }
 .s-0 { background: rgba(234,242,239,0.10); }        /* Pending */
 .s-1 { background: var(--success-bg); color: var(--success); } /* Accepted */
 .s-2 { background: var(--danger-bg); color: var(--danger); }   /* Blocked */
+.s-leaving { background: rgba(234,242,239,0.10); color: var(--mist-dim); } /* Issue #174 */
 
 .toast {
   position: sticky; top: 10px; z-index: 10;
