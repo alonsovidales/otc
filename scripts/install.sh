@@ -208,6 +208,21 @@ if command -v tailscale >/dev/null 2>&1; then
     fi
 fi
 
+# Issue #156: swap stays in RAM. The service's memory holds decrypted
+# files and keys, and a page swapped to the SD card could keep them there:
+# rpi-swap (Raspberry Pi OS 13) is set to zram only - its default writes
+# idle pages to /var/swap - and dphys-swapfile (older images) is removed.
+if [ -x /usr/lib/systemd/system-generators/rpi-swap-generator ] || [ -f /etc/rpi/swap.conf ]; then
+    mkdir -p /etc/rpi/swap.conf.d
+    printf '[Main]\nMechanism=zram\n' > /etc/rpi/swap.conf.d/90-otc-ram-only.conf
+    systemctl stop rpi-zram-writeback.timer >/dev/null 2>&1 || true
+fi
+if command -v dphys-swapfile >/dev/null 2>&1; then
+    dphys-swapfile swapoff >/dev/null 2>&1 || true
+    dphys-swapfile uninstall >/dev/null 2>&1 || true
+    systemctl disable dphys-swapfile >/dev/null 2>&1 || true
+fi
+
 log "[2/10] otc service account"
 id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin otc
 for g in dialout video plugdev gpio i2c spi; do
@@ -811,6 +826,10 @@ ExecStart=/usr/bin/otc $ENVIRONMENT
 Restart=on-failure
 RestartSec=3
 LimitNOFILE=65535
+# Issue #156: the service locks its memory (mlockall) so decrypted data
+# is never swapped out, and never dumps core.
+LimitMEMLOCK=infinity
+LimitCORE=0
 RuntimeDirectory=otc
 StateDirectory=otc
 LogsDirectory=otc

@@ -218,7 +218,7 @@ func (mg *Manager) reprocessOneFile(ses *session.Session, file *pb.File, storage
 	}
 	content, err := blobstore.ReadAll(targetPath, ses)
 	if err != nil {
-		log.Error("reprocess: error reading", file.Path, ":", err)
+		log.Error("reprocess: error reading", file.Hash, ":", err)
 		return
 	}
 	mg.processMediaContent(ses, file, targetPath, content)

@@ -393,7 +393,7 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 // plus the server log as before. what completes "<file name> ..." - e.g.
 // "could not be processed".
 func (mg *Manager) alert(what string, path string, err error) {
-	log.Error(what+":", path, err)
+	log.Error("a file "+what+":", err)
 	title := filepath.Base(path) + " " + what
 	if e := mg.dao.AddErrorNotification(title, err.Error()); e != nil {
 		log.Error("error recording the alert:", e)
@@ -675,7 +675,7 @@ func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length
 func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (content []byte, err error) {
 	content, err = mg.readThumbnail(session, file)
 	if err != nil {
-		log.Error("error reading thumbnail from:", file.Path, err)
+		log.Error("error reading the thumbnail of", file.Hash, err)
 	}
 
 	return content, err
@@ -777,7 +777,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		content, thumbErr := mg.readThumbnail(session, file)
 		if thumbErr != nil {
 			if !os.IsNotExist(thumbErr) {
-				log.Error("error reading the thumbnail of:", file.Path, thumbErr)
+				log.Error("error reading the thumbnail of", file.Hash, thumbErr)
 			}
 			continue
 		}
@@ -1205,7 +1205,7 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 			// Issue #141: the row is right but its content was missing (or
 			// empty) on the disk - this upload brings it back; nothing
 			// about the row changes, only the write happens.
-			log.Info("restoring the missing content of", path, "from this upload")
+			log.Info("restoring the missing content of", hash, "from this upload")
 			restoring = true
 		}
 	}

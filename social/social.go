@@ -315,7 +315,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 				End:   trim.EndSecs,
 			}, needsCompression)
 			if tErr != nil {
-				log.Error("error trimming video for publication, publishing it whole instead:", path, tErr)
+				log.Error("error trimming video for publication, publishing it whole instead:", tErr)
 			} else {
 				log.Debug("Publishing trimmed video:", path, trim.StartSecs, "->", trim.EndSecs, len(file.Content), "->", len(trimmed))
 				file = filesmanager.BuildTransientFile(trimmed)
@@ -328,7 +328,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		if needsCompression {
 			compressed, cErr := sc.filesmanager.CompressVideoForSocial(file.Content)
 			if cErr != nil {
-				log.Error("error compressing oversized video for publication, publishing the original instead:", path, cErr)
+				log.Error("error compressing oversized video for publication, publishing the original instead:", cErr)
 			} else {
 				log.Debug("Publishing compressed video instead of oversized original:", path, len(file.Content), "->", len(compressed))
 				file = filesmanager.BuildTransientFile(compressed)

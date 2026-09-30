@@ -1219,7 +1219,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqGetFriendshipStatus:
-		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
+		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain)
 		fr, err := ch.mg.social.GetFriendship(p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
 		log.Info("Getting friendship status err:", err)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1820,7 +1820,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqShareFilesLink:
-		log.Info("Sharing files with path:", p.ReqShareFilesLink.Paths)
+		log.Debug("Sharing files with path:", p.ReqShareFilesLink.Paths)
 		link, err := ch.mg.filesManager.GetSharedLink(ses, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain())
 		if err != nil {
 			resp.Error = true
@@ -1834,7 +1834,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqUploadFile:
-		log.Info("Uploading file with path:", p.ReqUploadFile.Path)
+		log.Debug("Uploading file with path:", p.ReqUploadFile.Path)
 		pbFile, err := ch.mg.filesManager.UploadFile(ses, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created, p.ReqUploadFile.Modified, p.ReqUploadFile.CloudId)
 		if err != nil {
 			resp.Error = true
@@ -1862,7 +1862,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqBeginUpload:
 		r := p.ReqBeginUpload
-		log.Info("Chunked upload of", r.Path, "-", r.Size, "bytes")
+		log.Debug("Chunked upload of", r.Path, "-", r.Size, "bytes")
 		id, err := ch.mg.filesManager.BeginUpload(ses, r.Path, r.Size, r.ForceOverride, r.Created, r.Modified, r.CloudId)
 		if err != nil {
 			resp.Error = true
@@ -1917,7 +1917,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqLinkFile:
-		log.Info("Linking file with path:", p.ReqLinkFile.Path, "to hash:", p.ReqLinkFile.Hash)
+		log.Debug("Linking file with path:", p.ReqLinkFile.Path, "to hash:", p.ReqLinkFile.Hash)
 		pbFile, err := ch.mg.filesManager.LinkFile(ses, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created, p.ReqLinkFile.Modified, p.ReqLinkFile.CloudId)
 		if err != nil {
 			resp.Error = true
@@ -1929,7 +1929,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqGetFile:
-		log.Info("Get file with path:", p.ReqGetFile.Path)
+		log.Debug("Get file with path:", p.ReqGetFile.Path)
 		pbFile, err := ch.mg.filesManager.GetFile(ses, p.ReqGetFile.Path, p.ReqGetFile.Hash)
 		if err != nil {
 			resp.Error = true
@@ -1943,7 +1943,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	// Issue #41: "More info" in the photo gallery — camera/EXIF metadata
 	// computed live from the file's own bytes, nothing persisted.
 	case *pb.ReqEnvelope_ReqGetFileInfo:
-		log.Info("Get file info with path:", p.ReqGetFileInfo.Path)
+		log.Debug("Get file info with path:", p.ReqGetFileInfo.Path)
 		info, err := ch.mg.filesManager.GetFileInfo(ses, p.ReqGetFileInfo.Path)
 		if err != nil {
 			resp.Error = true
@@ -1955,7 +1955,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqDelFile:
-		log.Info("Del file by path:", p.ReqDelFile.Path)
+		log.Debug("Del file by path:", p.ReqDelFile.Path)
 		// Issue #116: a directory path deletes everything under it.
 		err := ch.mg.filesManager.DelPath(ses, p.ReqDelFile.Path)
 		if err != nil {
@@ -1963,7 +1963,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			// own log — tracking down a real "Delete failed" report meant
 			// searching the log for an error that was never actually
 			// written there, only sent over the wire.
-			log.Error("error trying to delete file:", p.ReqDelFile.Path, err)
+			log.Error("error trying to delete a file:", err)
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to delete file: %s", err)
 			if errors.Is(err, filesmanager.ErrUploadOnly) {
@@ -1971,7 +1971,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 				resp.ErrorMessage = err.Error()
 			}
 		} else {
-			log.Info("Deleted file by path:", p.ReqDelFile.Path)
+			log.Debug("Deleted file by path:", p.ReqDelFile.Path)
 			// Acknoledge the Deletion
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -1982,7 +1982,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	// Issue #132: upload-only folders and the versions they keep.
 	case *pb.ReqEnvelope_ReqSetUploadOnly:
-		log.Info("Set upload only:", p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly)
+		log.Debug("Set upload only:", p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly)
 		if err := ch.mg.filesManager.SetUploadOnly(p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly); err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error updating the folder: %s", err)
@@ -2000,7 +2000,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqListFiles:
-		log.Info("List of file by path:", p.ReqListFiles.Path, p.ReqListFiles.Recursive)
+		log.Debug("List of file by path:", p.ReqListFiles.Path, p.ReqListFiles.Recursive)
 		files, err := ch.mg.filesManager.ListFiles(ses, p.ReqListFiles.Path, p.ReqListFiles.Recursive)
 		if err != nil {
 			log.Error("error trying to list files:", err)
@@ -2034,7 +2034,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqSearchPhotos:
-		log.Info("Search by text:", p.ReqSearchPhotos.Tags)
+		log.Debug("Search by text:", p.ReqSearchPhotos.Tags)
 		// Issue #77: the date scrubber's "jump to date" - Before is only
 		// set while dragging the scrubber, nil the rest of the time.
 		var before *time.Time
@@ -2208,7 +2208,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqGetStatus:
-		log.Info(fmt.Sprintf("Requested status %v", p))
+		log.Debug("Requested status")
 		st, err := status.GetStatus()
 
 		if err != nil {
@@ -2224,7 +2224,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqChangeKey:
-		log.Info(fmt.Sprintf("Change key %v", p))
+		log.Info("Change key")
 		oldKey, err := ch.decryptSecret(p.ReqChangeKey.OldKey)
 		if err == nil {
 			var newKey string
@@ -2449,7 +2449,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqCreateImageGroup:
 		name := strings.TrimSpace(p.ReqCreateImageGroup.Name)
-		log.Info("Create image group:", name)
+		log.Debug("Create image group:", name)
 		if name == "" {
 			resp.Error = true
 			resp.ErrorMessage = "a group needs a name"
@@ -2786,7 +2786,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		// package doc comment on why it's unprivileged), so this just hands
 		// the request off to scripts/raid_watch.py's root-owned service,
 		// which picks it up and does the actual work in the background.
-		log.Info("Setup storage:", p.ReqSetupStorage.DevicePaths)
+		log.Debug("Setup storage:", p.ReqSetupStorage.DevicePaths)
 		err := storage.RequestSetup(p.ReqSetupStorage.DevicePaths)
 		if err != nil {
 			log.Error("error requesting storage setup:", err)
@@ -2852,7 +2852,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		// has — joining a new WiFi network drops any existing one. Handed
 		// off to network_setup.py the same way storage setup is; see
 		// network.RequestJoin's doc comment for why.
-		log.Info("Request wifi join:", p.ReqSetWifi.Ssid)
+		log.Debug("Request wifi join:", p.ReqSetWifi.Ssid)
 		err := network.RequestJoin(p.ReqSetWifi.Ssid, p.ReqSetWifi.Password)
 		if err != nil {
 			log.Error("error requesting wifi join:", err)

@@ -162,6 +162,8 @@ func main() {
 	if len(os.Args) > 2 && os.Args[2] == "init-profile" {
 		os.Exit(initProfile(dao))
 	}
+	lockMemory()
+	secureTempDir()
 
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"), dao)
 

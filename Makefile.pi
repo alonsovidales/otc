@@ -115,7 +115,7 @@ help: ## Show this help
 # =============================================================================
 
 .PHONY: bootstrap
-bootstrap: secrets ping update packages swap raid raid-watch mariadb go-toolchain onnxruntime models dirs db-schema config service deploy status ## Full bring-up of a clean Pi: everything, in order
+bootstrap: secrets ping update packages raid raid-watch mariadb go-toolchain onnxruntime models dirs db-schema config service deploy status ## Full bring-up of a clean Pi: everything, in order
 	@echo ""
 	@echo "=========================================================="
 	@echo " OTC bootstrap complete on $(TARGET)"
@@ -180,7 +180,11 @@ packages: update ## Install the OS packages OTC needs (mdadm, mariadb, build too
 	-$(SSH) 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi-lgpio || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-rpi.gpio' < /dev/null
 
 .PHONY: swap
-swap: ## Bump swap to $(SWAP_MB)MB (helps MariaDB / the model export / go build on 8GB Pis)
+# Issue #156: not part of bootstrap any more - a swap file on the SD card can
+# keep decrypted data the service had in memory (install.sh removes it). Only
+# for the one-off models-export; run `sudo dphys-swapfile swapoff &&
+# sudo dphys-swapfile uninstall` afterwards.
+swap: ## Bump swap to $(SWAP_MB)MB on disk (only for models-export - see issue #156)
 	@echo "Setting swap to $(SWAP_MB)MB on $(TARGET)..."
 	$(SSH) '
 		if [ -f /etc/dphys-swapfile ]; then

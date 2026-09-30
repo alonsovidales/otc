@@ -65,7 +65,7 @@ func command(timeout time.Duration, name string, args ...string) (*exec.Cmd, con
 func (mg *Manager) safely(what, path string, fn func()) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("recovered from a panic while", what, path, ":", r, string(debug.Stack()))
+			log.Error("recovered from a panic while", what, "a file:", r, string(debug.Stack()))
 			// Telling the owner must not be what brings the process down.
 			defer func() {
 				if r2 := recover(); r2 != nil {

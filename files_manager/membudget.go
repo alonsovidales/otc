@@ -133,7 +133,7 @@ func (mg *Manager) ReserveForDownload(path, versionHash string) func() {
 		need += int64(file.Size) * cHeicDecodeFactor
 	}
 	if need > mg.contentBudget.max/2 {
-		log.Info("download of", path, "waits for", need>>20, "MB of the", mg.contentBudget.max>>20, "MB content budget")
+		log.Debug("download of", path, "waits for", need>>20, "MB of the", mg.contentBudget.max>>20, "MB content budget")
 	}
 	return mg.contentBudget.acquire(need)
 }
