@@ -559,6 +559,11 @@ apply_schema_migrations() {
     ALTER TABLE social_friendship ADD COLUMN IF NOT EXISTS forget_requested DATETIME NULL;
     ALTER TABLE social_publications_comments ADD COLUMN IF NOT EXISTS author_domain VARCHAR(128) NOT NULL DEFAULT '';
     ALTER TABLE events ADD COLUMN IF NOT EXISTS target VARCHAR(128) NULL;
+    -- Issue #172: paths compare exactly (case and accents), so deleting or
+    -- sharing /Cafe/ never takes /café/ or /CAFE/ with it.
+    ALTER TABLE files MODIFY `path` VARCHAR(768) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+    ALTER TABLE file_versions MODIFY `path` VARCHAR(768) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+    ALTER TABLE upload_only_folders MODIFY `path` VARCHAR(768) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
     CREATE TABLE IF NOT EXISTS people (
       id VARCHAR(36) NOT NULL,
       name VARCHAR(150) NOT NULL DEFAULT '',

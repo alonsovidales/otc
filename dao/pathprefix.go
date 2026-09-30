@@ -28,10 +28,14 @@ func likeEscape(s string) string {
 // its arguments in order. direct keeps only the rows right in it, none
 // in its sub-folders.
 func underPrefix(col, prefix string, direct bool) (string, []any) {
-	cond := col + " >= ? and " + col + " < concat(?, _utf8mb4 X'F48FBFBF') and " + col + " like ?"
+	// The LIKE is binary (issue #172): under the column's old accent- and
+	// case-insensitive collation, /Cafe/ also matched /café/ and /CAFE/ -
+	// and a delete of the one took the others. The columns are binary
+	// since release 60; this keeps it exact regardless.
+	cond := col + " >= ? and " + col + " < concat(?, _utf8mb4 X'F48FBFBF') and " + col + " like ? collate utf8mb4_bin"
 	args := []any{prefix, prefix, likeEscape(prefix) + "%"}
 	if direct {
-		cond += " and " + col + " not like ?"
+		cond += " and " + col + " not like ? collate utf8mb4_bin"
 		args = append(args, likeEscape(prefix)+"%/%")
 	}
 	return cond, args

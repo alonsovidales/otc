@@ -5,6 +5,7 @@ package dao
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 
 	"github.com/alonsovidales/otc/cfg"
 	otcdb "github.com/alonsovidales/otc/db"
@@ -41,6 +42,9 @@ func adminDSN() string {
 // OPTION (see adminDSN's doc comment), matching least-privilege: creating
 // schemas is all the primary itself ever needs to do directly.
 func ProvisionUserDatabase(dbName, dbUser, dbPass, deviceUuid, subdomain, bridgeSecret string) (err error) {
+	if err := checkGenerated(dbName, dbUser, dbPass); err != nil {
+		return err
+	}
 	admin, err := sql.Open("mysql", adminDSN())
 	if err != nil {
 		return err
@@ -90,6 +94,9 @@ func ProvisionUserDatabase(dbName, dbUser, dbPass, deviceUuid, subdomain, bridge
 // (see supervisor.Stop), never before, so nothing is still holding
 // connections open against the schema being dropped.
 func DropUserDatabase(dbName, dbUser string) (err error) {
+	if err := checkGenerated(dbName, dbUser, ""); err != nil {
+		return err
+	}
 	admin, err := sql.Open("mysql", adminDSN())
 	if err != nil {
 		return err
@@ -115,6 +122,9 @@ func DropUserDatabase(dbName, dbUser string) (err error) {
 // store/manage that user's own dedicated MySQL password anywhere just for
 // this one read-only query.
 func UserStorageUsageMB(dbName string) (mb float64, err error) {
+	if err := checkGenerated(dbName, dbName, ""); err != nil {
+		return 0, err
+	}
 	userDB, err := sql.Open("mysql", fmt.Sprintf(
 		"%s:%s@tcp(127.0.0.1:%d)/%s?parseTime=true&charset=utf8mb4,utf8",
 		cfg.GetStr("mysql", "user"), cfg.GetStr("mysql", "pass"), cfg.GetInt("mysql", "port"), dbName,
@@ -129,4 +139,21 @@ func UserStorageUsageMB(dbName string) (mb float64, err error) {
 		return 0, err
 	}
 	return float64(bytes) / (1024 * 1024), nil
+}
+
+// Identifiers and the password can't be bound as ? in CREATE/DROP
+// DATABASE and CREATE USER, so they're formatted into the SQL - which is
+// only safe for the values this device generates itself: otc_ and hex for
+// the names, hex for the password. Checked here (issue #172) rather than
+// trusted, so a tampered users row can never become SQL.
+var (
+	generatedName   = regexp.MustCompile(`^otc_[0-9a-f]{32}$`)
+	generatedSecret = regexp.MustCompile(`^[0-9a-f]*$`)
+)
+
+func checkGenerated(dbName, dbUser, dbPass string) error {
+	if !generatedName.MatchString(dbName) || !generatedName.MatchString(dbUser) || !generatedSecret.MatchString(dbPass) {
+		return fmt.Errorf("refusing a database name, user or password this device didn't generate")
+	}
+	return nil
 }

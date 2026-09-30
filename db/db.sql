@@ -22,7 +22,7 @@ create table files
   `mime` varchar(150) not null,
   `created` datetime not null,
   `modified` datetime not null,
-  `path` varchar(768) not null,
+  `path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, -- exact: issue #172
   `size` int not null,
   -- The photo library's own identifier for the asset this row came from
   -- (release 7): iOS's PHCloudIdentifier, the same on every device signed
@@ -49,7 +49,7 @@ create table files
 -- clear it the same way.
 create table upload_only_folders
 (
-  `path` varchar(768) not null,
+  `path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, -- exact: issue #172
 
   primary key (`path`)
 ) engine=InnoDB;
@@ -62,7 +62,7 @@ create table upload_only_folders
 -- folder is no longer upload only).
 create table file_versions
 (
-  `path` varchar(768) not null,
+  `path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, -- exact: issue #172
   `hash` varchar(64) not null,
   `mime` varchar(150) not null,
   `size` int not null,

@@ -655,7 +655,7 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 		slashesInPath := strings.Count(path, "/")
 		cond, args := underPrefix("`path`", path, false)
 		args = append([]any{slashesInPath}, append(args, likeEscape(path)+"%/%")...)
-		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files where "+cond+" and `path` like ? order by `created` desc", args...)
+		rowsDirs, err := dao.db.Query("select distinct(SUBSTRING_INDEX(path, '/', ?+1)) as path from files where "+cond+" and `path` like ? collate utf8mb4_bin order by `created` desc", args...)
 		if err != nil {
 			return nil, err
 		}
