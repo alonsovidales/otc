@@ -34,6 +34,8 @@ type fakeDevice struct {
 	pending map[string]*bytes.Buffer
 	paths   map[string]string
 	chunks  int
+	list    []*pb.File // what ListFiles answers
+	reads   int        // ReadFile/GetFile requests
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -70,7 +72,13 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		}
 		d.files[d.paths[id]] = d.pending[id].Bytes()
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
+	case *pb.ReqEnvelope_ReqListFiles:
+		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: d.list}}
+	case *pb.ReqEnvelope_ReqGetFile:
+		d.reads++
+		resp.Error, resp.ErrorMessage = true, "the content is missing on this device"
 	case *pb.ReqEnvelope_ReqReadFile:
+		d.reads++
 		data, ok := d.files[p.ReqReadFile.Path]
 		if !ok {
 			resp.Error, resp.ErrorMessage = true, "no such file"

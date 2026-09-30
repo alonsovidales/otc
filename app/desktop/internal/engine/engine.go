@@ -1102,6 +1102,18 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			remoteHash = remoteFile.Hash
 		}
 		lastHash := last[rel]
+		// Issue #141: listed without a hash means the device has lost
+		// this file's content. A copy here is sent again, which restores
+		// it; with none here there is nothing to fetch - never a download
+		// (it failed on every pass, forever) nor a delete.
+		if remoteFile != nil && remoteHash == "" {
+			if hasLocal {
+				actions = append(actions, action{rel, actUpload, localHash})
+				newSynced[rel] = localHash
+			}
+
+			continue
+		}
 		if hasLocal == (remoteFile != nil) && localHash == remoteHash {
 			if hasLocal {
 				newSynced[rel] = localHash

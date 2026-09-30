@@ -1075,6 +1075,19 @@ final class SyncModel: ObservableObject {
                 let remoteHash = remoteFile?.hash
                 let last = lastSynced[relative]
 
+                // Issue #141: listed without a hash means the device has
+                // lost this file's content. A copy here is sent again, which
+                // restores it; with none here there is nothing to fetch -
+                // never a download (it failed on every pass, forever) nor a
+                // delete. As otc-sync.
+                if let remoteFile, remoteFile.hash.isEmpty {
+                    if let localHash {
+                        actions.append((relative, .upload, 0, localHash))
+                        newSynced[relative] = localHash
+                    }
+                    continue
+                }
+
                 if localHash == remoteHash {
                     // Already in agreement — includes both being nil,
                     // which can't really land in allRelativePaths, but
