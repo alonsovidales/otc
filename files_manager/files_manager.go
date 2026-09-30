@@ -979,13 +979,13 @@ func (mg *Manager) DelPath(session *session.Session, path string) error {
 }
 
 func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
-	file, err := mg.dao.GetFileByPath(path)
+	// Issue #173: the deleted row's hash comes back from the delete's own
+	// transaction instead of a GetFileByPath beforehand - one query less
+	// per file (every file of a deleted folder comes through here), and
+	// the hash is the one of the row actually deleted. A missing path
+	// still fails with sql.ErrNoRows, as that GetFileByPath did.
+	hash, err := mg.dao.DelFileByPathHash(path)
 	if err != nil {
-		return
-	}
-	hash := file.Hash
-
-	if err = mg.dao.DelFileByPath(path); err != nil {
 		return
 	}
 
