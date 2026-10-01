@@ -360,6 +360,13 @@ struct SettingsView: View {
                 // bridge. Primary-only too - see TailscaleSection.
                 TailscaleSection()
 
+                // Issue #180: galleries and zip links shared from Images
+                // and Files - when they expire, how often they were opened,
+                // and a delete that stops them working.
+                Section(header: Text("Sharing")) {
+                    NavigationLink("Shared Links") { SharedLinksView() }
+                }
+
                 Section(header: Text("Status")) {
                     StatusSectionContent(vm: status)
                 }

@@ -1163,6 +1163,11 @@ struct PhotoGalleryView: View {
     @StateObject private var vm: PhotoGalleryVM
 
     @State private var showSuggest = false
+    // Issue #180: set to start the "Share as Gallery" flow - one for the
+    // view itself (the open group's chip), one for the groups sheet, which
+    // has to present the flow from inside itself.
+    @State private var gallerySource: Msg_SharedGallerySource?
+    @State private var groupsSheetGallerySource: Msg_SharedGallerySource?
     @State private var personPendingDelete: String? = nil
     // Issue #123: as many columns as fit, so the grid uses the whole width
     // on an iPad (six on an 11-inch, more in landscape) instead of the
@@ -1224,6 +1229,11 @@ struct PhotoGalleryView: View {
                         }
                         .buttonStyle(.plain)
                         Text("· \(g.fileCount)").foregroundStyle(.secondary).font(.caption)
+                        // Issue #180: the group as a gallery behind a link.
+                        Button {
+                            gallerySource = .group(g.id)
+                        } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
+                        .accessibilityLabel("Share as Gallery")
                         Button {
                             vm.confirmDeleteGroup = true
                         } label: { Image(systemName: "trash").font(.caption) }
@@ -1428,6 +1438,22 @@ struct PhotoGalleryView: View {
                                 }
                             }
                         }
+                        // Issue #180: long-press or swipe a group to share it.
+                        .contextMenu {
+                            Button {
+                                groupsSheetGallerySource = .group(g.id)
+                            } label: {
+                                Label("Share as Gallery", systemImage: "photo.on.rectangle.angled")
+                            }
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button {
+                                groupsSheetGallerySource = .group(g.id)
+                            } label: {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .tint(.accentColor)
+                        }
                     }
                 }
                 .navigationTitle("Groups")
@@ -1438,6 +1464,7 @@ struct PhotoGalleryView: View {
                     }
                 }
             }
+            .sharedGalleryShareFlow(source: $groupsSheetGallerySource)
         }
         // The selection bar's "Group": pick an existing group or start a new one.
         .confirmationDialog("Add \(vm.selected.count) to a group", isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
@@ -1468,6 +1495,7 @@ struct PhotoGalleryView: View {
         } message: {
             Text("The pictures themselves are kept.")
         }
+        .sharedGalleryShareFlow(source: $gallerySource)
         .onAppear { vm.onAppearInitial() }
         .confirmationDialog(
             "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",

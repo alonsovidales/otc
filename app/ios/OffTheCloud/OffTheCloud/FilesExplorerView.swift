@@ -321,6 +321,8 @@ struct FilesExplorerView: View {
     @StateObject private var vm: FilesExplorerViewModel
     @State private var pathField: String
     @State private var showImporter = false
+    // Issue #180: set to start the "Share as Gallery" flow.
+    @State private var gallerySource: Msg_SharedGallerySource?
     // Selection is managed here rather than with List(selection:) +
     // EditButton(): that pairing needs the row's tap to be the List's own
     // selection-toggle handling, and this view also needs a tap to open
@@ -459,6 +461,13 @@ struct FilesExplorerView: View {
                                     Label("Share", systemImage: "square.and.arrow.up")
                                 }
                                 if row.isDir {
+                                    // Issue #180: the folder's photos and
+                                    // videos as a gallery behind a link.
+                                    Button {
+                                        gallerySource = .directory(vm.fullPath(for: row))
+                                    } label: {
+                                        Label("Share as Gallery", systemImage: "photo.on.rectangle.angled")
+                                    }
                                     Button {
                                         Task { await vm.toggleUploadOnly(row) }
                                     } label: {
@@ -518,6 +527,7 @@ struct FilesExplorerView: View {
             }
         }
         .task { await vm.load() }
+        .sharedGalleryShareFlow(source: $gallerySource)
         .onChange(of: vm.path) { _, newValue in pathField = newValue }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }
