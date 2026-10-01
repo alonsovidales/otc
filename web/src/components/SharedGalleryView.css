@@ -1,0 +1,39 @@
+/* Issue #180: the public page of a shared gallery - what a visitor sees,
+   signed in or not. The app's own palette (index.css). */
+.sg-page { min-height: 100vh; width: 100%; box-sizing: border-box; padding: 20px 16px 40px; background: var(--ink); color: var(--mist); }
+.sg-empty { max-width: 520px; margin: 18vh auto 0; text-align: center; display: grid; gap: 12px; justify-items: center; }
+.sg-empty h1 { margin: 0; font-size: 1.4rem; }
+.sg-empty p { margin: 0; color: var(--mist-dim); }
+
+.sg-head { max-width: 1400px; margin: 0 auto 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; }
+.sg-title h1 { margin: 0; font-size: clamp(1.3rem, 3vw, 1.9rem); line-height: 1.2; text-wrap: balance; }
+.sg-meta { margin: 4px 0 0; color: var(--mist-dim); font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.sg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sg-actions .btn, .sg-viewer-bar .btn { background: var(--panel); color: var(--mist); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+.sg-actions .btn.primary { background: var(--ember); color: var(--ember-ink); border-color: transparent; font-weight: 600; }
+.sg-actions .btn:disabled { opacity: 0.5; cursor: default; }
+.sg-actions .btn:focus-visible, .sg-tile:focus-visible, .sg-viewer .btn:focus-visible, .sg-nav:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.sg-progress { max-width: 1400px; margin: 0 auto 14px; color: var(--mist-dim); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.sg-bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.sg-bar > div { height: 100%; background: var(--ember); transition: width 0.3s; }
+
+.sg-grid { max-width: 1400px; margin: 0 auto; display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+@media (max-width: 520px) { .sg-grid { grid-template-columns: repeat(3, 1fr); gap: 3px; } }
+.sg-tile { position: relative; aspect-ratio: 1; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: var(--ink-3); cursor: pointer; }
+.sg-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sg-tile.on { outline: 3px solid var(--ember); outline-offset: -3px; }
+.sg-name { display: block; padding: 8px; font-size: 0.75rem; color: var(--mist-dim); word-break: break-all; }
+.sg-play { position: absolute; right: 6px; bottom: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; font-size: 11px; display: grid; place-items: center; }
+.sg-check { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,0.35); color: var(--ember-ink); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+.sg-tile.on .sg-check { background: var(--ember); border-color: var(--ember); }
+
+.sg-viewer { position: fixed; inset: 0; background: rgba(10, 10, 10, 0.96); display: flex; flex-direction: column; z-index: 50; }
+.sg-viewer-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
+.sg-viewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mist-dim); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.sg-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; padding: 0 8px 16px; }
+.sg-stage img, .sg-stage video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sg-blur { filter: blur(6px); opacity: 0.7; }
+.sg-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0; border-radius: 8px; background: rgba(0,0,0,0.4); color: #fff; font-size: 32px; cursor: pointer; }
+.sg-nav.prev { left: 8px; } .sg-nav.next { right: 8px; }
+@media (prefers-reduced-motion: reduce) { .sg-bar > div { transition: none; } }

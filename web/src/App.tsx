@@ -25,6 +25,7 @@ import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
+import SharedGalleryView from "./components/SharedGalleryView";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -287,6 +288,12 @@ function App() {
   // longest of the lot - the device builds the archive and sends it over
   // the relay before the browser sees a byte - so it gets a spinner
   // rather than a line of static text that could equally mean "stuck".
+  // Issue #180: a shared gallery's page (/shared#<uuid>.<secret>) - for
+  // anyone with the link, signed in or not; nothing else of the app shows.
+  if (window.location.pathname === "/shared") {
+    return <SharedGalleryView />;
+  }
+
   if (!!downloadLink) {
     return (
       <div className="download-view">

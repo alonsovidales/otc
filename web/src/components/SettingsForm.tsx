@@ -7,6 +7,7 @@ import { pushSupported, isPushSubscribed, enablePush, disablePush, unregisterPus
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
 import UpdatePanel from "./UpdatePanel";
+import SharedLinksPanel from "./SharedLinksPanel";
 import TailscalePanel from "./TailscalePanel";
 import BridgePanel from "./BridgePanel";
 import type {
@@ -389,6 +390,9 @@ export default function SettingsForm() {
       {/* Issue #94: in-place updates. Renders nothing on a non-primary
           instance - see UpdatePanel. */}
       <UpdatePanel />
+
+      {/* Issue #180: share links, and the space their copies take. */}
+      <SharedLinksPanel />
 
       <section className="sf-section">
         <h3>Reprocess Media</h3>

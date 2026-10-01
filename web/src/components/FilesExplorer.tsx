@@ -9,6 +9,7 @@ import type {
   File as PbFile,
 } from "../proto/messages";
 import { loadFilesPath, saveFilesPath } from "../net/uiState";
+import SharedGalleryShare from "./SharedGalleryShare";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 
@@ -313,6 +314,10 @@ export default function FilesExplorer({
   // device refuses with error_code "upload_only", and the button is greyed
   // out up front so the refusal is never a surprise.
   const selectedUploadOnly = useMemo(() => selected.some(f => f.uploadOnly), [selected]);
+  // Issue #180: one folder selected can be shared as a gallery of its
+  // photos and videos.
+  const [sharingFolder, setSharingFolder] = useState<string | null>(null);
+  const singleFolder = selected.length === 1 && isDir(selected[0]) ? selected[0].path : null;
 
   const delSelected = async () => {
     if (!selected.length || selectedUploadOnly) return;
@@ -480,6 +485,11 @@ export default function FilesExplorer({
             <button className="btn" onClick={() => void shareOrZip(true)} disabled={!!preparing}>
               {preparing === "zip" ? <Spinner label="Preparing ZIP…" /> : "Download ZIP"}
             </button>
+            {singleFolder && (
+              <button className="btn" onClick={() => setSharingFolder(singleFolder)} title="Share this folder's photos and videos as a gallery">
+                Share as gallery
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -627,6 +637,7 @@ export default function FilesExplorer({
           </div>
         </div>
       )}
+      {sharingFolder && <SharedGalleryShare source={{ directory: sharingFolder }} onClose={() => setSharingFolder(null)} />}
     </div>
   );
 }

@@ -1,0 +1,30 @@
+/* Issue #180: the "Share as a gallery" dialog. */
+.sgs-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; z-index: 60; padding: 16px; }
+.sgs-dialog { width: min(480px, 100%); background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 10px; color: var(--mist); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.sgs-dialog h3 { margin: 0 0 4px; font-size: 1.15rem; }
+.sgs-dialog p { margin: 0; line-height: 1.45; }
+.sgs-count { font-variant-numeric: tabular-nums; }
+.sgs-dim { color: var(--mist-dim); font-size: 0.92rem; }
+.sgs-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mist-dim); margin-top: 4px; }
+.sgs-input { width: 100%; box-sizing: border-box; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--ink); color: var(--mist); font: inherit; }
+.sgs-seg { display: flex; gap: 6px; }
+.sgs-seg button { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--mist); font: inherit; cursor: pointer; }
+.sgs-seg button.on { border-color: var(--ember); background: var(--danger-bg); }
+.sgs-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.sgs-dialog .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--mist); font: inherit; cursor: pointer; text-decoration: none; }
+.sgs-dialog .btn.primary { background: var(--ember); color: var(--ember-ink); border-color: transparent; font-weight: 600; }
+.sgs-dialog .btn:disabled { opacity: 0.5; cursor: default; }
+.sgs-dialog :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sgs-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.sgs-bar > div { height: 100%; background: var(--ember); transition: width 0.4s; }
+.sgs-link { display: flex; gap: 8px; }
+.sgs-error { color: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .sgs-bar > div { transition: none; } }
+
+/* Settings > Shared Links */
+.sl-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.sl-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.sl-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.sl-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-dim { color: var(--mist-dim); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.sl-row .sf-btn.danger { background: var(--danger-bg); color: var(--danger); }

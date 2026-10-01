@@ -8,6 +8,7 @@ import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo, Person, Ima
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import './PhotoGallery.css';
 import Spinner from "./Spinner";
+import SharedGalleryShare from "./SharedGalleryShare";
 
 type Chip = string;
 type Token = string | null;
@@ -122,6 +123,8 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
   // infinite scroll all working unchanged inside one: activeGroup simply
   // rides along in every request below and in the deps that restart it.
   const [groups, setGroups] = useState<ImageGroup[]>([]);
+  // Issue #180: the group being shared as a gallery.
+  const [sharingGroup, setSharingGroup] = useState<string | null>(null);
   const [activeGroup, setActiveGroup] = useState<ImageGroup | null>(null);
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
   // The create / add-to picker raised from the selection bar.
@@ -902,6 +905,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
                   {activeGroup.name}
                 </button>
               )}
+              <button className="pg-chip-x" title="Share this group as a gallery" aria-label="Share this group as a gallery" onClick={() => setSharingGroup(activeGroup.id)}>🔗</button>
               <button className="pg-chip-x" title="Delete this group" onClick={() => void deleteActiveGroup()}>🗑️</button>
               <button className="pg-chip-x" onClick={leaveGroup} aria-label="Leave group">×</button>
             </span>
@@ -1455,6 +1459,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       {/* styles */}
       <style>{`
       `}</style>
+      {sharingGroup && <SharedGalleryShare source={{ groupId: sharingGroup }} onClose={() => setSharingGroup(null)} />}
     </div>
   );
 }
