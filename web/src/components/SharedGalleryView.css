@@ -40,3 +40,4 @@
 .sg-loading { position: relative; display: grid; place-items: center; max-width: 100%; max-height: 100%; }
 .sg-loading .sg-blur { grid-area: 1 / 1; }
 .sg-loading-label { grid-area: 1 / 1; z-index: 1; background: rgba(0,0,0,0.55); color: #fff; padding: 10px 16px; border-radius: 10px; font-variant-numeric: tabular-nums; }
+.sg-lowres { margin: 6px 0 0; display: inline-block; font-size: 0.82rem; color: var(--gold); border: 1px solid rgba(255, 200, 87, 0.35); border-radius: 999px; padding: 2px 10px; }

@@ -1919,7 +1919,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	case *pb.ReqEnvelope_ReqCreateSharedGallery:
 		log.Info("Create shared gallery")
 		r := p.ReqCreateSharedGallery
-		job, err := ch.mg.filesManager.StartSharedGallery(ses, r.Source, r.Description, r.TtlHours, ch.mg.settings.Domain())
+		job, err := ch.mg.filesManager.StartSharedGallery(ses, r.Source, r.Description, r.TtlHours, ch.mg.settings.Domain(), r.LowRes)
 		if err != nil {
 			resp.Error, resp.ErrorMessage = true, err.Error()
 			break

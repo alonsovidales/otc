@@ -31,6 +31,7 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
   const [preview, setPreview] = useState<SharedGalleryPreview | null>(null);
   const [description, setDescription] = useState(defaultDescription);
   const [ttl, setTtl] = useState(168);
+  const [lowRes, setLowRes] = useState(false);
   const [job, setJob] = useState<SharedGalleryJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -52,7 +53,7 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
   const start = async () => {
     setError(null);
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqCreateSharedGallery", reqCreateSharedGallery: { source: src, description: description.trim() || defaultDescription(), ttlHours: ttl } };
+      (e as any).payload = { $case: "reqCreateSharedGallery", reqCreateSharedGallery: { source: src, description: description.trim() || defaultDescription(), ttlHours: ttl, lowRes } };
     });
     if (resp.payload?.$case !== "respSharedGalleryJob") {
       setError(resp.errorMessage || "Could not start sharing.");
@@ -95,7 +96,13 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
               <strong>{preview.files}</strong> {preview.files === 1 ? "photo or video" : "photos and videos"}, <strong>{fmtBytes(Number(preview.bytes))}</strong>
               {preview.skipped > 0 && <span className="sgs-dim"> · {preview.skipped} other {preview.skipped === 1 ? "file is" : "files are"} not included</span>}
             </p>
-            <p className="sgs-dim">They are copied and re-encrypted with a key of their own, which only the link carries. Anyone with the link can see them until it expires; the copy takes {fmtBytes(Number(preview.bytes))} on the device.</p>
+            <p className="sgs-dim">{lowRes
+              ? <>Only small copies of the photos are shared (about 1000 pixels wide), re-encrypted with a key of their own that only the link carries; the originals never leave your device.{preview.videos > 0 && <> {preview.videos} {preview.videos === 1 ? "video is" : "videos are"} left out.</>}</>
+              : <>They are copied and re-encrypted with a key of their own, which only the link carries. Anyone with the link can see them until it expires; the copy takes {fmtBytes(Number(preview.bytes))} on the device.</>}</p>
+            <label className="sgs-check">
+              <input type="checkbox" checked={lowRes} onChange={e => setLowRes(e.target.checked)} />
+              <span><strong>Low resolution only</strong> - small copies of the photos, not the originals</span>
+            </label>
             <label className="sgs-label" htmlFor="sgs-desc">Description</label>
             <input id="sgs-desc" className="sgs-input" value={description} onChange={e => setDescription(e.target.value)} maxLength={200} />
             <span className="sgs-label">Available for</span>
@@ -106,7 +113,7 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
             </div>
             <div className="sgs-buttons">
               <button className="btn" onClick={onClose}>Cancel</button>
-              <button className="btn primary" disabled={preview.files === 0} onClick={() => void start()}>Share</button>
+              <button className="btn primary" disabled={preview.files === 0 || (lowRes && preview.files === preview.videos)} onClick={() => void start()}>Share</button>
             </div>
           </>
         )}

@@ -862,6 +862,8 @@ export interface SharedGalleryPreview {
   bytes: bigint;
   /** other files in the source, not shared */
   skipped: number;
+  /** of files, how many are videos (left out of a low_res gallery) */
+  videos: number;
 }
 
 export interface CreateSharedGallery {
@@ -869,6 +871,11 @@ export interface CreateSharedGallery {
   description: string;
   /** 0: the device's default ([otc] shared-link-ttl-hours) */
   ttlHours: number;
+  /**
+   * Only small copies (the thumbnails, ~1000 px), photos only: the
+   * originals never leave the library.
+   */
+  lowRes: boolean;
 }
 
 export interface GetSharedGalleryJob {
@@ -915,6 +922,8 @@ export interface SharedGallery {
   created?: Date | undefined;
   expires?: Date | undefined;
   items: SharedGalleryItem[];
+  /** small copies only, not the originals */
+  lowRes: boolean;
 }
 
 export interface GetSharedGalleryItem {
@@ -6148,7 +6157,7 @@ export const PreviewSharedGallery: MessageFns<PreviewSharedGallery> = {
 };
 
 function createBaseSharedGalleryPreview(): SharedGalleryPreview {
-  return { files: 0, bytes: 0n, skipped: 0 };
+  return { files: 0, bytes: 0n, skipped: 0, videos: 0 };
 }
 
 export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
@@ -6164,6 +6173,9 @@ export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
     }
     if (message.skipped !== 0) {
       writer.uint32(24).int32(message.skipped);
+    }
+    if (message.videos !== 0) {
+      writer.uint32(32).int32(message.videos);
     }
     return writer;
   },
@@ -6199,6 +6211,14 @@ export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
           message.skipped = reader.int32();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.videos = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6213,6 +6233,7 @@ export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
       files: isSet(object.files) ? globalThis.Number(object.files) : 0,
       bytes: isSet(object.bytes) ? BigInt(object.bytes) : 0n,
       skipped: isSet(object.skipped) ? globalThis.Number(object.skipped) : 0,
+      videos: isSet(object.videos) ? globalThis.Number(object.videos) : 0,
     };
   },
 
@@ -6227,6 +6248,9 @@ export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
     if (message.skipped !== 0) {
       obj.skipped = Math.round(message.skipped);
     }
+    if (message.videos !== 0) {
+      obj.videos = Math.round(message.videos);
+    }
     return obj;
   },
 
@@ -6238,12 +6262,13 @@ export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
     message.files = object.files ?? 0;
     message.bytes = object.bytes ?? 0n;
     message.skipped = object.skipped ?? 0;
+    message.videos = object.videos ?? 0;
     return message;
   },
 };
 
 function createBaseCreateSharedGallery(): CreateSharedGallery {
-  return { source: undefined, description: "", ttlHours: 0 };
+  return { source: undefined, description: "", ttlHours: 0, lowRes: false };
 }
 
 export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
@@ -6256,6 +6281,9 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
     }
     if (message.ttlHours !== 0) {
       writer.uint32(24).int32(message.ttlHours);
+    }
+    if (message.lowRes !== false) {
+      writer.uint32(32).bool(message.lowRes);
     }
     return writer;
   },
@@ -6291,6 +6319,14 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
           message.ttlHours = reader.int32();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.lowRes = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6305,6 +6341,7 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
       source: isSet(object.source) ? SharedGallerySource.fromJSON(object.source) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : "",
       ttlHours: isSet(object.ttlHours) ? globalThis.Number(object.ttlHours) : 0,
+      lowRes: isSet(object.lowRes) ? globalThis.Boolean(object.lowRes) : false,
     };
   },
 
@@ -6319,6 +6356,9 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
     if (message.ttlHours !== 0) {
       obj.ttlHours = Math.round(message.ttlHours);
     }
+    if (message.lowRes !== false) {
+      obj.lowRes = message.lowRes;
+    }
     return obj;
   },
 
@@ -6332,6 +6372,7 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
       : undefined;
     message.description = object.description ?? "";
     message.ttlHours = object.ttlHours ?? 0;
+    message.lowRes = object.lowRes ?? false;
     return message;
   },
 };
@@ -6792,7 +6833,7 @@ export const SharedGalleryItem: MessageFns<SharedGalleryItem> = {
 };
 
 function createBaseSharedGallery(): SharedGallery {
-  return { description: "", created: undefined, expires: undefined, items: [] };
+  return { description: "", created: undefined, expires: undefined, items: [], lowRes: false };
 }
 
 export const SharedGallery: MessageFns<SharedGallery> = {
@@ -6808,6 +6849,9 @@ export const SharedGallery: MessageFns<SharedGallery> = {
     }
     for (const v of message.items) {
       SharedGalleryItem.encode(v!, writer.uint32(34).fork()).join();
+    }
+    if (message.lowRes !== false) {
+      writer.uint32(40).bool(message.lowRes);
     }
     return writer;
   },
@@ -6851,6 +6895,14 @@ export const SharedGallery: MessageFns<SharedGallery> = {
           message.items.push(SharedGalleryItem.decode(reader, reader.uint32()));
           continue;
         }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.lowRes = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6866,6 +6918,7 @@ export const SharedGallery: MessageFns<SharedGallery> = {
       created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
       expires: isSet(object.expires) ? fromJsonTimestamp(object.expires) : undefined,
       items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => SharedGalleryItem.fromJSON(e)) : [],
+      lowRes: isSet(object.lowRes) ? globalThis.Boolean(object.lowRes) : false,
     };
   },
 
@@ -6883,6 +6936,9 @@ export const SharedGallery: MessageFns<SharedGallery> = {
     if (message.items?.length) {
       obj.items = message.items.map((e) => SharedGalleryItem.toJSON(e));
     }
+    if (message.lowRes !== false) {
+      obj.lowRes = message.lowRes;
+    }
     return obj;
   },
 
@@ -6895,6 +6951,7 @@ export const SharedGallery: MessageFns<SharedGallery> = {
     message.created = object.created ?? undefined;
     message.expires = object.expires ?? undefined;
     message.items = object.items?.map((e) => SharedGalleryItem.fromPartial(e)) || [];
+    message.lowRes = object.lowRes ?? false;
     return message;
   },
 };

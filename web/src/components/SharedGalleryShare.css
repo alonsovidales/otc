@@ -28,3 +28,5 @@
 .sl-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sl-dim { color: var(--mist-dim); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .sl-row .sf-btn.danger { background: var(--danger-bg); color: var(--danger); }
+.sgs-check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 8px 0 2px; }
+.sgs-check input { margin-top: 3px; accent-color: var(--ember); }

@@ -167,6 +167,7 @@ export default function SharedGalleryView() {
             {items.length} {items.length === 1 ? "item" : "items"} · {fmtBytes(totalBytes)}
             {gallery.expires && <> · available until {gallery.expires.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</>}
           </p>
+          {gallery.lowRes && <p className="sg-lowres">Low resolution: these are small copies, not the original photos.</p>}
         </div>
         <div className="sg-actions">
           {selecting ? (

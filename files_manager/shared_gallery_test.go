@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,19 +26,35 @@ import (
 	"github.com/alonsovidales/otc/session"
 )
 
+var (
+	galleryEnvOnce sync.Once
+	galleryStorage string
+)
+
 // galleryTestEnv points [otc] storage-path at a temporary folder and gives
 // a real session (its vault in a mocked database).
 func galleryTestEnv(t *testing.T) (string, *session.Session) {
 	t.Helper()
-	dir := t.TempDir()
-	storage := filepath.Join(dir, "storage") + "/"
-	os.MkdirAll(storage, 0o750)
-	os.MkdirAll(filepath.Join(dir, "etc"), 0o750)
-	os.WriteFile(filepath.Join(dir, "etc", "otc_gallerytest.ini"), []byte("[otc]\nstorage-path="+storage+"\n"), 0o600)
-	t.Chdir(dir)
-	if err := cfg.Init("otc", "gallerytest"); err != nil {
-		t.Fatal(err)
-	}
+	// cfg caches what it read, so every test shares one storage folder,
+	// configured once.
+	galleryEnvOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "otc-gallerytest-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		galleryStorage = filepath.Join(dir, "storage") + "/"
+		os.MkdirAll(galleryStorage, 0o750)
+		os.MkdirAll(filepath.Join(dir, "etc"), 0o750)
+		os.WriteFile(filepath.Join(dir, "etc", "otc_gallerytest.ini"), []byte("[otc]\nstorage-path="+galleryStorage+"\n"), 0o600)
+		wd, _ := os.Getwd()
+		os.Chdir(dir)
+		err = cfg.Init("otc", "gallerytest")
+		os.Chdir(wd)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	storage := galleryStorage
 	sesDB, sesMock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +109,7 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	job := &galleryJob{state: &pb.SharedGalleryJob{}}
-	link, err := mg.buildSharedGallery(ses, files, "Summer 2026", time.Hour, "cala.off-the.cloud", job)
+	link, err := mg.buildSharedGallery(ses, files, "Summer 2026", time.Hour, "cala.off-the.cloud", false, job)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -210,4 +227,50 @@ func (d descCapture) Match(v driver.Value) bool {
 	b, ok := v.([]byte)
 	*d.to = b
 	return ok
+}
+
+// Low resolution: only a small JPEG of each photo is copied, under its
+// name as .jpg, and the gallery says so; the originals never leave.
+func TestSharedGalleryLowRes(t *testing.T) {
+	storage, ses := galleryTestEnv(t)
+	tall := image.NewRGBA(image.Rect(0, 0, 3000, 4000))
+	var tallBuf bytes.Buffer
+	png.Encode(&tallBuf, tall)
+	files := []*pb.File{libraryFile(t, ses, "portrait.png", "image/png", tallBuf.Bytes())}
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
+	link, err := mg.buildSharedGallery(ses, files, "small", time.Hour, "cala.off-the.cloud", true, &galleryJob{state: &pb.SharedGalleryJob{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := strings.SplitN(strings.TrimPrefix(link, "https://cala.off-the.cloud/shared#"), ".", 2)
+	id, secret := parts[0], parts[1]
+	alive := func() {
+		mock.ExpectQuery("select `created`, `expires` from `shared_links`").
+			WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now(), time.Now().Add(time.Hour)))
+	}
+	alive()
+	mock.ExpectExec("update `shared_links` set `opens`").WillReturnResult(sqlmock.NewResult(0, 1))
+	g, err := mg.OpenSharedGallery(id, secret)
+	if err != nil || !g.LowRes || g.Items[0].Name != "portrait.jpg" || g.Items[0].Mime != "image/jpeg" {
+		t.Fatalf("open: %+v %v", g, err)
+	}
+	alive()
+	orig, total, _, err := mg.ReadSharedGalleryItem(id, secret, 0, pb.GetSharedGalleryItem_ORIGINAL, 0, 0)
+	if err != nil || total != int64(len(orig)) {
+		t.Fatal(err)
+	}
+	if c, _, err := image.DecodeConfig(bytes.NewReader(orig)); err != nil || c.Width > 1000 {
+		t.Fatalf("the shared copy is %dx%d (%v), want a thumbnail", c.Width, c.Height, err)
+	}
+	// Nothing in the gallery is anywhere near the original's size.
+	filepath.Walk(filepath.Join(storage, "shared", id), func(p string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() && info.Size() >= int64(tallBuf.Len()) {
+			t.Errorf("%s is as big as the original", p)
+		}
+		return nil
+	})
 }

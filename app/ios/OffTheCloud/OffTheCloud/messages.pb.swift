@@ -1243,6 +1243,9 @@ public nonisolated struct Msg_SharedGalleryPreview: Sendable {
   /// other files in the source, not shared
   public var skipped: Int32 = 0
 
+  /// of files, how many are videos (left out of a low_res gallery)
+  public var videos: Int32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1266,6 +1269,10 @@ public nonisolated struct Msg_CreateSharedGallery: Sendable {
 
   /// 0: the device's default ([otc] shared-link-ttl-hours)
   public var ttlHours: Int32 = 0
+
+  /// Only small copies (the thumbnails, ~1000 px), photos only: the
+  /// originals never leave the library.
+  public var lowRes: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1389,6 +1396,9 @@ public nonisolated struct Msg_SharedGallery: Sendable {
   public mutating func clearExpires() {self._expires = nil}
 
   public var items: [Msg_SharedGalleryItem] = []
+
+  /// small copies only, not the originals
+  public var lowRes: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -7330,7 +7340,7 @@ nonisolated extension Msg_PreviewSharedGallery: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_SharedGalleryPreview: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SharedGalleryPreview"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}bytes\0\u{1}skipped\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}bytes\0\u{1}skipped\0\u{1}videos\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7341,6 +7351,7 @@ nonisolated extension Msg_SharedGalleryPreview: SwiftProtobuf.Message, SwiftProt
       case 1: try { try decoder.decodeSingularInt32Field(value: &self.files) }()
       case 2: try { try decoder.decodeSingularInt64Field(value: &self.bytes) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.skipped) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.videos) }()
       default: break
       }
     }
@@ -7356,6 +7367,9 @@ nonisolated extension Msg_SharedGalleryPreview: SwiftProtobuf.Message, SwiftProt
     if self.skipped != 0 {
       try visitor.visitSingularInt32Field(value: self.skipped, fieldNumber: 3)
     }
+    if self.videos != 0 {
+      try visitor.visitSingularInt32Field(value: self.videos, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7363,6 +7377,7 @@ nonisolated extension Msg_SharedGalleryPreview: SwiftProtobuf.Message, SwiftProt
     if lhs.files != rhs.files {return false}
     if lhs.bytes != rhs.bytes {return false}
     if lhs.skipped != rhs.skipped {return false}
+    if lhs.videos != rhs.videos {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7370,7 +7385,7 @@ nonisolated extension Msg_SharedGalleryPreview: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_CreateSharedGallery: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateSharedGallery"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}source\0\u{1}description\0\u{3}ttl_hours\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}source\0\u{1}description\0\u{3}ttl_hours\0\u{3}low_res\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7381,6 +7396,7 @@ nonisolated extension Msg_CreateSharedGallery: SwiftProtobuf.Message, SwiftProto
       case 1: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.description_p) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.ttlHours) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.lowRes) }()
       default: break
       }
     }
@@ -7400,6 +7416,9 @@ nonisolated extension Msg_CreateSharedGallery: SwiftProtobuf.Message, SwiftProto
     if self.ttlHours != 0 {
       try visitor.visitSingularInt32Field(value: self.ttlHours, fieldNumber: 3)
     }
+    if self.lowRes != false {
+      try visitor.visitSingularBoolField(value: self.lowRes, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7407,6 +7426,7 @@ nonisolated extension Msg_CreateSharedGallery: SwiftProtobuf.Message, SwiftProto
     if lhs._source != rhs._source {return false}
     if lhs.description_p != rhs.description_p {return false}
     if lhs.ttlHours != rhs.ttlHours {return false}
+    if lhs.lowRes != rhs.lowRes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7603,7 +7623,7 @@ nonisolated extension Msg_SharedGalleryItem: SwiftProtobuf.Message, SwiftProtobu
 
 nonisolated extension Msg_SharedGallery: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SharedGallery"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}description\0\u{1}created\0\u{1}expires\0\u{1}items\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}description\0\u{1}created\0\u{1}expires\0\u{1}items\0\u{3}low_res\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7615,6 +7635,7 @@ nonisolated extension Msg_SharedGallery: SwiftProtobuf.Message, SwiftProtobuf._M
       case 2: try { try decoder.decodeSingularMessageField(value: &self._created) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._expires) }()
       case 4: try { try decoder.decodeRepeatedMessageField(value: &self.items) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.lowRes) }()
       default: break
       }
     }
@@ -7637,6 +7658,9 @@ nonisolated extension Msg_SharedGallery: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.items.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 4)
     }
+    if self.lowRes != false {
+      try visitor.visitSingularBoolField(value: self.lowRes, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7645,6 +7669,7 @@ nonisolated extension Msg_SharedGallery: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._created != rhs._created {return false}
     if lhs._expires != rhs._expires {return false}
     if lhs.items != rhs.items {return false}
+    if lhs.lowRes != rhs.lowRes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

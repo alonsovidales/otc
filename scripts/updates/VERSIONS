@@ -110,3 +110,4 @@
 69	da2f32e24df57c798f574d8773258a33134a2f83da43fa76985502291ec65933	9b89c83f09c968c0c80896f5c99af495fadb9993a56220ddddf5d745689bb9cb	Share an image group or a folder as a gallery: a private link anyone can open in a browser to view and download the photos and videos, for 1, 7 or 30 days. Settings > Shared Links lists and deletes your links.
 70	-	02d15feae2b48e00da6253e575f93113dec60562eab779630f080f521ca15b17	Shared galleries open photos quickly (a screen-sized preview, the original only to download) and can be made from selected photos, no group needed.
 71	-	ebf51376e5180d54033d3cb5a0e2a2a53a5fbf3f96ed2d7c251331ff69efb582	Shared galleries always have every thumbnail, even for photos and videos uploaded moments before sharing.
+72	-	158780d5550169ff445a33fee8f670985381ac9f6aabd9a50ba9885264851bd9	Shared galleries can be low resolution only: small copies of the photos, the originals never leave the device; the gallery says so.

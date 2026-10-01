@@ -458,12 +458,16 @@ message SharedGalleryPreview {
   int32 files = 1;       // photos and videos that will be shared
   int64 bytes = 2;       // their total size (what the copy takes on disk)
   int32 skipped = 3;     // other files in the source, not shared
+  int32 videos = 4;      // of files, how many are videos (left out of a low_res gallery)
 }
 
 message CreateSharedGallery {
   SharedGallerySource source = 1;
   string description = 2;
   int32 ttl_hours = 3;   // 0: the device's default ([otc] shared-link-ttl-hours)
+  // Only small copies (the thumbnails, ~1000 px), photos only: the
+  // originals never leave the library.
+  bool low_res = 4;
 }
 
 message GetSharedGalleryJob {
@@ -503,6 +507,7 @@ message SharedGallery {
   google.protobuf.Timestamp created = 2;
   google.protobuf.Timestamp expires = 3;
   repeated SharedGalleryItem items = 4;
+  bool low_res = 5;      // small copies only, not the originals
 }
 
 message GetSharedGalleryItem {

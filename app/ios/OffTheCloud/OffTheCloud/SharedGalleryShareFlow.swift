@@ -60,6 +60,8 @@ final class SharedGalleryShareModel: ObservableObject {
     @Published var stage: Stage = .idle
     @Published var description = ""
     @Published var expiry: SharedGalleryExpiry = .sevenDays
+    /// Only small copies of the photos (their thumbnails), no videos.
+    @Published var lowRes = false
     @Published var showActivity = false
     @Published var copied = false
 
@@ -120,6 +122,7 @@ final class SharedGalleryShareModel: ObservableObject {
         req.source = source
         req.description_p = description.trimmingCharacters(in: .whitespacesAndNewlines)
         req.ttlHours = expiry.rawValue
+        req.lowRes = lowRes
         Task {
             do {
                 let resp = try await ws.request { $0.payload = .reqCreateSharedGallery(req) }
@@ -240,6 +243,11 @@ struct SharedGalleryShareSheet: View {
                 Section(header: Text("Description")) {
                     TextField("Description", text: $model.description)
                 }
+                Section(footer: Text(model.lowRes
+                    ? "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device." + (p.videos > 0 ? " \(p.videos) video\(p.videos == 1 ? " is" : "s are") left out." : "")
+                    : "The full-size originals are shared.")) {
+                    Toggle("Low resolution only", isOn: $model.lowRes)
+                }
                 Section(header: Text("Expires after")) {
                     Picker("Expires after", selection: $model.expiry) {
                         ForEach(SharedGalleryExpiry.allCases) { e in
@@ -250,7 +258,7 @@ struct SharedGalleryShareSheet: View {
                 }
                 Section {
                     Button("Share") { model.share() }
-                        .disabled(p.files == 0)
+                        .disabled(p.files == 0 || (model.lowRes && p.files == p.videos))
                     if p.files == 0 {
                         Text("There are no photos or videos to share here.")
                             .font(.caption).foregroundStyle(.secondary)

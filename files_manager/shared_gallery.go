@@ -69,6 +69,7 @@ var ErrNoSuchGallery = errors.New("this link doesn't exist or has expired")
 
 type galleryManifest struct {
 	Description string        `json:"description"`
+	LowRes      bool          `json:"low_res,omitempty"`
 	Created     int64         `json:"created"`
 	Expires     int64         `json:"expires"`
 	Items       []galleryItem `json:"items"`
@@ -158,10 +159,14 @@ func (mg *Manager) PreviewSharedGallery(src *pb.SharedGallerySource) (*pb.Shared
 		return nil, err
 	}
 	var total int64
+	var videos int32
 	for _, f := range files {
 		total += int64(f.Size)
+		if strings.HasPrefix(f.Mime, "video/") {
+			videos++
+		}
 	}
-	return &pb.SharedGalleryPreview{Files: int32(len(files)), Bytes: total, Skipped: int32(skipped)}, nil
+	return &pb.SharedGalleryPreview{Files: int32(len(files)), Bytes: total, Skipped: int32(skipped), Videos: videos}, nil
 }
 
 type galleryJob struct {
@@ -183,10 +188,24 @@ func (j *galleryJob) update(f func(s *pb.SharedGalleryJob)) {
 
 // StartSharedGallery begins copying src into a new gallery and returns the
 // job to poll. domain is where the link points (the device's address).
-func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGallerySource, description string, ttlHours int32, domain string) (*pb.SharedGalleryJob, error) {
+// lowRes shares only small copies of the photos (their thumbnails), and
+// no videos: the originals never leave the library.
+func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGallerySource, description string, ttlHours int32, domain string, lowRes bool) (*pb.SharedGalleryJob, error) {
 	files, _, err := mg.sharedGallerySource(src)
 	if err != nil {
 		return nil, err
+	}
+	if lowRes {
+		photos := files[:0]
+		for _, f := range files {
+			if strings.HasPrefix(f.Mime, "image/") {
+				photos = append(photos, f)
+			}
+		}
+		files = photos
+		if len(files) == 0 {
+			return nil, errors.New("there are no photos to share in low resolution there")
+		}
 	}
 	if len(files) == 0 {
 		return nil, errors.New("there are no photos or videos to share there")
@@ -210,7 +229,7 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 	galleryJobs.Unlock()
 
 	go mg.safely("sharing a gallery of", fmt.Sprintf("%d files", len(files)), func() {
-		link, err := mg.buildSharedGallery(ses, files, description, ttl, domain, job)
+		link, err := mg.buildSharedGallery(ses, files, description, ttl, domain, lowRes, job)
 		job.update(func(s *pb.SharedGalleryJob) {
 			s.Finished = true
 			if err != nil {
@@ -245,7 +264,7 @@ func (j *galleryJob) snapshot() *pb.SharedGalleryJob {
 	return &pb.SharedGalleryJob{JobId: s.JobId, Done: s.Done, Total: s.Total, BytesDone: s.BytesDone, BytesTotal: s.BytesTotal, Finished: s.Finished, Error: s.Error, Link: s.Link}
 }
 
-func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, description string, ttl time.Duration, domain string, job *galleryJob) (link string, err error) {
+func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, description string, ttl time.Duration, domain string, lowRes bool, job *galleryJob) (link string, err error) {
 	galleryCopySlots <- struct{}{}
 	defer func() { <-galleryCopySlots }()
 
@@ -263,12 +282,39 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 	}()
 
 	now := time.Now()
-	man := galleryManifest{Description: description, Created: now.Unix(), Expires: now.Add(ttl).Unix()}
+	man := galleryManifest{Description: description, LowRes: lowRes, Created: now.Unix(), Expires: now.Add(ttl).Unix()}
 	var stored int64
 	for i, f := range files {
 		item := galleryItem{Name: filepath.Base(f.Path), Mime: f.Mime, Size: int64(f.Size)}
 		if f.Created != nil {
 			item.Taken = f.Created.AsTime().Unix()
+		}
+		if lowRes {
+			// The thumbnail is all that is shared - its only copy, under
+			// the original's name as a JPEG.
+			small, err := mg.readThumbnail(ses, f)
+			if err != nil || len(small) == 0 {
+				var shown image.Image
+				if _, img, pErr := mg.galleryPreview(ses, f); pErr == nil {
+					shown = img
+				}
+				small = mg.galleryThumbnail(ses, f, shown)
+			}
+			if len(small) == 0 {
+				return "", fmt.Errorf("could not make a small copy of %s", item.Name)
+			}
+			item.Name = strings.TrimSuffix(item.Name, filepath.Ext(item.Name)) + ".jpg"
+			item.Mime, item.Size, item.Thumb = "image/jpeg", int64(len(small)), true
+			for _, part := range []pb.GetSharedGalleryItem_Part{pb.GetSharedGalleryItem_ORIGINAL, pb.GetSharedGalleryItem_THUMBNAIL} {
+				n, err := writeSealed(galleryFile(id, i, part), small, keys)
+				if err != nil {
+					return "", err
+				}
+				stored += n
+			}
+			man.Items = append(man.Items, item)
+			job.update(func(s *pb.SharedGalleryJob) { s.Done = int32(i + 1); s.BytesDone += int64(f.Size) })
+			continue
 		}
 		n, err := copyBlob(ses, f.Hash, galleryFile(id, i, pb.GetSharedGalleryItem_ORIGINAL), keys)
 		if err != nil {
@@ -499,6 +545,7 @@ func (mg *Manager) OpenSharedGallery(id, secret string) (*pb.SharedGallery, erro
 	}
 	out := &pb.SharedGallery{
 		Description: man.Description,
+		LowRes:      man.LowRes,
 		Created:     timestamppb.New(time.Unix(man.Created, 0)),
 		Expires:     timestamppb.New(time.Unix(man.Expires, 0)),
 	}

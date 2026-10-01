@@ -60,6 +60,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Switch
 
 /*
  * Port of SharedGalleryShareFlow.swift (issue #180): "Share as gallery" for
@@ -88,6 +90,8 @@ class SharedGalleryShareViewModel : ViewModel() {
         val phase: Phase = Phase.Loading,
         val description: String = "",
         val ttlHours: Int = 168,
+        // Only small copies of the photos (their thumbnails), no videos.
+        val lowRes: Boolean = false,
         val copied: Boolean = false,
     )
 
@@ -124,6 +128,7 @@ class SharedGalleryShareViewModel : ViewModel() {
 
     fun setDescription(v: String) = _state.update { it.copy(description = v) }
     fun setTtlHours(v: Int) = _state.update { it.copy(ttlHours = v) }
+    fun setLowRes(v: Boolean) = _state.update { it.copy(lowRes = v) }
 
     fun share() {
         val st = _state.value
@@ -137,7 +142,7 @@ class SharedGalleryShareViewModel : ViewModel() {
             try {
                 val resp = OTCConnection.request {
                     it.setReqCreateSharedGallery(
-                        CreateSharedGallery.newBuilder().setSource(source).setDescription(st.description.trim()).setTtlHours(st.ttlHours),
+                        CreateSharedGallery.newBuilder().setSource(source).setDescription(st.description.trim()).setTtlHours(st.ttlHours).setLowRes(st.lowRes),
                     )
                 }
                 var job = when {
@@ -303,6 +308,17 @@ private fun ConfirmContent(preview: SharedGalleryPreview, st: SharedGalleryShare
         value = st.description, onValueChange = vm::setDescription, singleLine = true,
         placeholder = { Text("Description") }, modifier = Modifier.fillMaxWidth(),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+    )
+    Spacer(Modifier.height(12.dp))
+    Row(Modifier.fillMaxWidth().clickable { vm.setLowRes(!st.lowRes) }, verticalAlignment = Alignment.CenterVertically) {
+        Text("Low resolution only", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = st.lowRes, onCheckedChange = vm::setLowRes)
+    }
+    Text(
+        if (st.lowRes) "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device." +
+            (if (preview.videos > 0) " ${preview.videos} video${if (preview.videos == 1) " is" else "s are"} left out." else "")
+        else "The full-size originals are shared.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Spacer(Modifier.height(12.dp))
     Text("Link expires after", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
