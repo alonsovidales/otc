@@ -286,43 +286,49 @@ private struct FriendRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
-            VStack(alignment: .leading) {
-                Text(f.originProfile.name.isEmpty ? "(no name)" : f.originProfile.name).font(.headline)
-                Text(f.originProfile.domain.isEmpty ? "(no domain)" : f.originProfile.domain)
-                    .font(.caption).foregroundColor(.secondary)
-                Text(statusLabel + (f.sent && !f.leaving ? " (sent)" : ""))
-                    .font(.caption2).foregroundColor(.secondary)
-                if f.leaving {
-                    Text("Waiting for their device to delete what you shared.")
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
+                VStack(alignment: .leading) {
+                    Text(f.originProfile.name.isEmpty ? "(no name)" : f.originProfile.name).font(.headline)
+                    Text(f.originProfile.domain.isEmpty ? "(no domain)" : f.originProfile.domain)
+                        .font(.caption).foregroundColor(.secondary)
+                    Text(statusLabel + (f.sent && !f.leaving ? " (sent)" : ""))
                         .font(.caption2).foregroundColor(.secondary)
+                    if f.leaving {
+                        Text("Waiting for their device to delete what you shared.")
+                            .font(.caption2).foregroundColor(.secondary)
+                    }
                 }
+                Spacer()
             }
-            Spacer()
-            if f.leaving {
-                // Issue #174: nothing else to do with a leaving friend but
-                // stop waiting for their device.
-                Menu {
+            // Issue #179: every action is a button on the row, as on the web.
+            HStack(spacing: 8) {
+                if f.leaving {
+                    // Issue #174: nothing else to do with a leaving friend
+                    // but stop waiting for their device.
                     Button("Remove Now", role: .destructive) { confirmingRemoveNow = true }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            } else if !actionOptions.isEmpty || canDelete || canRemove {
-                Menu {
+                        .buttonStyle(.bordered)
+                } else {
                     ForEach(actionOptions, id: \.0) { opt in
-                        Button(opt.0) { onChange(opt.1) }
+                        if opt.1 == .accepted {
+                            Button(opt.0) { onChange(opt.1) }.buttonStyle(.borderedProminent)
+                        } else {
+                            Button(opt.0) { onChange(opt.1) }.buttonStyle(.bordered)
+                        }
                     }
                     if canDelete {
-                        Button(deleteLabel, role: .destructive) { confirmingDelete = true }
+                        Button(f.sent ? "Cancel Request" : "Decline", role: .destructive) { confirmingDelete = true }
+                            .buttonStyle(.bordered)
                     }
                     if canRemove {
-                        Button("Remove Friend…", role: .destructive) { removing = true }
+                        Button("Remove…", role: .destructive) { removing = true }
+                            .buttonStyle(.bordered)
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
             }
+            .controlSize(.small)
+            .padding(.leading, 56)
         }
         .padding(.vertical, 4)
         .confirmationDialog(

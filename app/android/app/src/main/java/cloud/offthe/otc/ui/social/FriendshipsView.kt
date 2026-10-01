@@ -14,16 +14,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
@@ -239,7 +239,6 @@ fun FriendshipsView(onDone: () -> Unit) {
 
 @Composable
 private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDelete: () -> Unit, onRemove: (Boolean, Boolean) -> Unit) {
-    var menu by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
     var confirmingRemoveNow by remember { mutableStateOf(false) }
     var confirmingRemove by remember { mutableStateOf(false) }
@@ -257,24 +256,30 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
         else -> emptyList()
     }
 
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(f.originProfile.name.ifEmpty { "(no name)" }, style = MaterialTheme.typography.titleSmall)
-            Text(f.originProfile.domain.ifEmpty { "(no domain)" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(statusLabel + if (f.sent && !f.leaving) " (sent)" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (f.leaving) Text("Waiting for their device to delete what you shared.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(f.originProfile.name.ifEmpty { "(no name)" }, style = MaterialTheme.typography.titleSmall)
+                Text(f.originProfile.domain.ifEmpty { "(no domain)" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(statusLabel + if (f.sent && !f.leaving) " (sent)" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (f.leaving) Text("Waiting for their device to delete what you shared.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        if (options.isNotEmpty() || canDelete || canRemove || f.leaving) {
-            Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Actions") }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    options.forEach { (label, s) -> DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; onChange(s) }) }
-                    if (canDelete) DropdownMenuItem(text = { Text(deleteLabel, color = Color(0xFFE53935)) }, onClick = { menu = false; confirmingDelete = true })
-                    if (canRemove) DropdownMenuItem(text = { Text("Remove friend…", color = Color(0xFFE53935)) }, onClick = { menu = false; confirmingRemove = true })
-                    if (f.leaving) DropdownMenuItem(text = { Text("Remove now", color = Color(0xFFE53935)) }, onClick = { menu = false; confirmingRemoveNow = true })
+        // Issue #179: every action is a button on the row, as on the web and iOS.
+        val danger = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
+        val pad = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+        FlowRow(Modifier.padding(start = 56.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (f.leaving) {
+                OutlinedButton(onClick = { confirmingRemoveNow = true }, colors = danger, contentPadding = pad) { Text("Remove Now") }
+            } else {
+                options.forEach { (label, s) ->
+                    if (s == FriendShipStatus.Accepted) Button(onClick = { onChange(s) }, contentPadding = pad) { Text(label) }
+                    else OutlinedButton(onClick = { onChange(s) }, contentPadding = pad) { Text(label) }
                 }
+                if (canDelete) OutlinedButton(onClick = { confirmingDelete = true }, colors = danger, contentPadding = pad) { Text(if (f.sent) "Cancel Request" else "Decline") }
+                if (canRemove) OutlinedButton(onClick = { confirmingRemove = true }, colors = danger, contentPadding = pad) { Text("Remove…") }
             }
         }
     }
