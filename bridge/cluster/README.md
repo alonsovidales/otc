@@ -130,7 +130,11 @@ a Gmail app password is in the Keychain (its spaces don't matter):
 `security add-generic-password -s otc-servercheck-smtp -a vidales.miguelez@gmail.com -w`.
 After a change made on purpose (a new port, a key, a deployed binary):
 `bash bridge/cluster/servercheck.sh --accept`. Run now:
-`launchctl kickstart gui/$(id -u)/cloud.offthe.servercheck`.
+`launchctl kickstart gui/$(id -u)/cloud.offthe.servercheck`. Only the scheduled run emails
+(the launchd job passes `--mail`); running the script by hand just writes the report and
+notifies, so a deploy and its `--accept` don't send a burst of mails. Unsigned kernel modules are
+accepted only when they are byte for byte the DKMS build of a packaged source (the Veeam agent's
+`bdevfilter`/`veeamblksnap`), and loopback listeners are not part of the fingerprint.
 
 ## Rule: no request-to-request state in a node's memory
 

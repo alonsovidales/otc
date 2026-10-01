@@ -8,6 +8,8 @@
 # compares each server's security fingerprint with a baseline kept here.
 #
 #   servercheck.sh            run the checks, notify if anything is wrong
+#   servercheck.sh --mail     the same, and email the report (launchd's
+#                             scheduled run; a run by hand only notifies)
 #   servercheck.sh --accept   take the current fingerprints as the baseline
 #                             (after a change you made on purpose)
 set -uo pipefail
@@ -22,7 +24,13 @@ LOGDIR="$HOME/Library/Logs/otc-servercheck"
 mkdir -p "$DIR/baseline" "$LOGDIR"
 STAMP=$(date +%Y%m%d-%H%M)
 REPORT="$LOGDIR/$STAMP.txt"
-ACCEPT=0; [ "${1:-}" = "--accept" ] && ACCEPT=1
+ACCEPT=0; MAIL=0
+for a in "$@"; do
+  case $a in
+    --accept) ACCEPT=1 ;;
+    --mail)   MAIL=1 ;;
+  esac
+done
 PROBLEMS=()
 
 say()  { echo "$*" >> "$REPORT"; }
@@ -91,7 +99,9 @@ h needs_restart "$(echo $stale | tr " " "\n" | sort -u | tr "\n" " ")"
 h modified_system_files "$(dpkg -V 2>/dev/null | grep -vE "^..5......  c " | grep -E " /(usr/)?s?bin/| /lib" | awk "{print \$NF}" | tr "\n" " ")"
 # The security fingerprint: anything here changing is either something we
 # did (then --accept) or someone else did.
-fp listening "$(ss -lntuH | awk "{print \$1, \$5}" | sed -E "s/%[a-z0-9]+//" | sort -u | tr "\n" ";")"
+# Loopback listeners are left out: nothing off the machine can reach them,
+# and the backup agent opens and closes some (127.0.0.1:2500) as it runs.
+fp listening "$(ss -lntuH | awk "{print \$1, \$5}" | sed -E "s/%[a-z0-9]+//" | grep -vE " (127\.[0-9.]+|\[::1\]|\[::ffff:127\.[0-9.]+\]):[0-9]+$" | sort -u | tr "\n" ";")"
 fp uid0_users "$(awk -F: "\$3==0{print \$1}" /etc/passwd | tr "\n" " ")"
 fp login_users "$(awk -F: "\$7 !~ /(nologin|false)$/{print \$1}" /etc/passwd | sort | tr "\n" " ")"
 for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys /var/lib/*/.ssh/authorized_keys; do [ -f "$f" ] && fp "authorized_keys:$f" "$(sha256sum < "$f" | cut -c1-16)"; done
@@ -105,11 +115,24 @@ for b in /usr/bin/otc_bridge /usr/local/sbin/* /usr/local/bin/*; do [ -f "$b" ] 
 # networking), so it changes on its own. A kernel rootkit is a module that
 # taints the kernel and is unsigned or comes from no package; the ZFS that
 # Ubuntu ships also taints it (CDDL: P, O) but is signed and packaged, so
-# it is not counted.
+# it is not counted. Nor is a DKMS build of a packaged source (the Veeam
+# backup agent: bdevfilter, veeamblksnap): unsigned by nature, but only when
+# the loaded file is byte for byte what DKMS built from a source directory
+# a package installed - a module swapped afterwards is still reported.
+dkms_built() {
+  local f=$1 d rel name rest ver
+  for d in /var/lib/dkms/*/*/"$(uname -r)"/*/module/"${f##*/}"; do
+    [ -f "$d" ] || continue
+    rel=${d#/var/lib/dkms/}; name=${rel%%/*}; rest=${rel#*/}; ver=${rest%%/*}
+    dpkg -S "/usr/src/$name-$ver" >/dev/null 2>&1 && cmp -s "$d" "$f" && return 0
+  done
+  return 1
+}
 bad_mods=""
 for m in /sys/module/*; do
   t=$(cat "$m/taint" 2>/dev/null); [ -n "$t" ] || continue
   n=${m##*/}; f=$(modinfo -F filename "$n" 2>/dev/null | head -1)
+  if [ -n "$f" ] && dkms_built "$f"; then continue; fi
   case "$t" in *E*) bad_mods="$bad_mods $n(unsigned)"; continue ;; esac
   if [ -z "$f" ] || ! dpkg -S "$f" >/dev/null 2>&1; then bad_mods="$bad_mods $n(no package)"; fi
 done
@@ -215,7 +238,7 @@ send_mail() {
   fi
   rm -f "$netrc" "$msg"
 }
-send_mail
+[ $MAIL -eq 1 ] && [ $ACCEPT -eq 0 ] && send_mail
 # Keep a month of reports.
 find "$LOGDIR" -name '2*.txt' -mtime +31 -delete 2>/dev/null
 [ ${#PROBLEMS[@]} -eq 0 ]
