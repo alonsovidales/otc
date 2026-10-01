@@ -103,3 +103,29 @@ Measured capacity per node, and how to rerun the load test: `docs/bridge-capacit
 Both nodes have `/etc/systemd/system/otc_bridge.service.d/10-limits.conf`
 (`LimitNOFILE=1048576`) and `/etc/sysctl.d/90-otc-bridge.conf`
 (`net.core.somaxconn` and `net.ipv4.tcp_max_syn_backlog` at 65535).
+
+## Health and intrusion check (`servercheck.sh`)
+
+Runs on the owner's Mac every 6 hours (launchd job
+`~/Library/LaunchAgents/cloud.offthe.servercheck.plist`), not on the
+servers: a compromised server could tamper with a check that runs on it.
+Read-only over SSH:
+
+- health: services, disk, memory, RAID, SMART health and NVMe wear,
+  WireGuard handshakes, MySQL replication, Redis, certificate days left;
+- intrusion signs: system files that differ from their packages
+  (`dpkg -V`), processes running from executables that no longer exist,
+  SSH logins (and from where) and failed attempts, and a security
+  fingerprint compared with a baseline kept on the Mac - listening ports,
+  uid 0 and login users, every `authorized_keys`, sudoers, sshd config,
+  crontabs, systemd units, ufw rules, our binaries, kernel modules;
+- from outside: the sites and both nodes answer, DNS, and MySQL, Redis and
+  the internal port are closed to the internet.
+
+Reports: `~/Library/Logs/otc-servercheck/` (`latest.txt`, a month kept); a
+macOS notification on any problem; each report emailed through Gmail when
+an app password is in the Keychain:
+`security add-generic-password -s otc-servercheck-smtp -a vidales.miguelez@gmail.com -w`.
+After a change made on purpose (a new port, a key, a deployed binary):
+`bash bridge/cluster/servercheck.sh --accept`. Run now:
+`launchctl kickstart gui/$(id -u)/cloud.offthe.servercheck`.
