@@ -344,6 +344,11 @@ extension Msg_SharedGallerySource {
         s.groupID = id
         return s
     }
+    static func paths(_ paths: [String]) -> Msg_SharedGallerySource {
+        var s = Msg_SharedGallerySource()
+        s.paths = paths
+        return s
+    }
     static func directory(_ path: String) -> Msg_SharedGallerySource {
         var s = Msg_SharedGallerySource()
         s.directory = path

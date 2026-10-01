@@ -1396,7 +1396,10 @@ struct PhotoGalleryView: View {
                         onGroup: {
                             Task { await vm.loadGroups() }
                             vm.showGroupPicker = true
-                        }
+                        },
+                        // Issue #180: the selected photos, as a gallery -
+                        // no group needed.
+                        onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) }
                     )
                     .transition(.move(edge: .bottom))
                     .sheet(isPresented: Binding(

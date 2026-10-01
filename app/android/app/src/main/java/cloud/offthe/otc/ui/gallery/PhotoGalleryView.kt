@@ -264,6 +264,8 @@ fun PhotoGalleryView(deviceId: String) {
                         count = st.selected.size, busy = st.preparing,
                         onShare = { vm.shareSelected(context) }, onDownload = { vm.downloadZip(context) },
                         onDelete = { confirmDeleteSelected = true }, onGroup = { scope.launch { vm.loadGroups() }; showGroupPicker = true },
+                        // Issue #180: the selected photos, as a gallery - no group needed.
+                        onGallery = { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() },
                     )
                 }
             }

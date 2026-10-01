@@ -41,7 +41,7 @@ export default function SharedGalleryView() {
   const urls = useRef<string[]>([]);
 
   // One part of an item, assembled from 4 MB pieces.
-  const fetchPart = useCallback(async (index: number, part: Part, onBytes?: (n: number) => void): Promise<Blob> => {
+  const fetchPart = useCallback(async (index: number, part: Part, onBytes?: (n: number, total: number) => void): Promise<Blob> => {
     if (!link) throw new Error("no link");
     const pieces: Uint8Array[] = [];
     let offset = 0, total = -1, mime = "application/octet-stream";
@@ -59,7 +59,7 @@ export default function SharedGalleryView() {
       if (c.data.length === 0 && offset < total) throw new Error("The device stopped sending the file.");
       pieces.push(c.data);
       offset += c.data.length;
-      onBytes?.(c.data.length);
+      onBytes?.(c.data.length, total);
     }
     return new Blob(pieces as BlobPart[], { type: mime });
   }, [link]);
@@ -205,17 +205,20 @@ export default function SharedGalleryView() {
 
 function Viewer(props: {
   item: SharedGalleryItem; index: number; count: number; thumb?: string; link: { uuid: string; secret: string };
-  fetchPart: (i: number, part: Part) => Promise<Blob>; objectURL: (b: Blob) => string;
+  fetchPart: (i: number, part: Part, onBytes?: (n: number, total: number) => void) => Promise<Blob>; objectURL: (b: Blob) => string;
   onClose: () => void; onMove: (d: number) => void; onDownload: () => void;
 }) {
   const { item, index, count, thumb, link, fetchPart, objectURL, onClose, onMove, onDownload } = props;
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState<{ n: number; total: number }>({ n: 0, total: 0 });
 
   useEffect(() => {
     let cancelled = false;
     setSrc(null);
     setFailed(false);
+    setLoaded({ n: 0, total: 0 });
+    const progress = (n: number, total: number) => { if (!cancelled) setLoaded(l => ({ n: l.n + n, total })); };
     (async () => {
       try {
         if (isVideo(item)) {
@@ -227,11 +230,11 @@ function Viewer(props: {
             if (!cancelled) setSrc(resp.payload.respMediaUrl.url);
             return;
           }
-          const b = await fetchPart(index, GetSharedGalleryItem_Part.ORIGINAL);
+          const b = await fetchPart(index, GetSharedGalleryItem_Part.ORIGINAL, progress);
           if (!cancelled) setSrc(objectURL(b));
           return;
         }
-        const b = await fetchPart(index, GetSharedGalleryItem_Part.PREVIEW);
+        const b = await fetchPart(index, GetSharedGalleryItem_Part.PREVIEW, progress);
         if (!cancelled) setSrc(objectURL(b));
       } catch {
         if (!cancelled) setFailed(true);
@@ -260,7 +263,16 @@ function Viewer(props: {
       <div className="sg-stage" onClick={e => e.stopPropagation()}>
         {count > 1 && <button className="sg-nav prev" onClick={() => onMove(-1)} aria-label="Previous">‹</button>}
         {failed ? <p className="sg-name">This file could not be shown here - download it instead.</p>
-          : !src ? (thumb ? <img src={thumb} alt="" className="sg-blur" /> : <Spinner label="Loading…" />)
+          : !src ? (
+            // The thumbnail, blurred, while the photo itself arrives -
+            // with how far along it is, so it never looks stuck.
+            <div className="sg-loading">
+              {thumb && <img src={thumb} alt="" className="sg-blur" />}
+              <div className="sg-loading-label" role="status">
+                <Spinner label={loaded.total > 0 ? `Loading… ${Math.round((100 * loaded.n) / loaded.total)}%` : "Loading…"} />
+              </div>
+            </div>
+          )
           : isVideo(item) ? <video src={src} controls autoPlay playsInline />
           : <img src={src} alt={item.name} />}
         {count > 1 && <button className="sg-nav next" onClick={() => onMove(1)} aria-label="Next">›</button>}

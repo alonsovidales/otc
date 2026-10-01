@@ -7,6 +7,7 @@ import (
 	"database/sql/driver"
 	"image"
 	"image/color"
+	_ "image/jpeg"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -73,16 +74,21 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 	img.Set(5, 5, color.RGBA{255, 0, 0, 255})
 	var pngBuf bytes.Buffer
 	png.Encode(&pngBuf, img)
+	// A big portrait photo: its preview is screen-sized, limited by height.
+	tall := image.NewRGBA(image.Rect(0, 0, 3000, 4000))
+	var tallBuf bytes.Buffer
+	png.Encode(&tallBuf, tall)
 	files := []*pb.File{
-		libraryFile(t, ses, "beach.jpg", "image/jpeg", photo),
-		libraryFile(t, ses, "scan.tif", "image/x-scan", pngBuf.Bytes()), // not for browsers: gets a JPEG preview
+		libraryFile(t, ses, "beach.jpg", "image/jpeg", photo),             // not a real JPEG: no preview, the original is shown
+		libraryFile(t, ses, "scan.tif", "image/x-scan", pngBuf.Bytes()),   // not for browsers: gets a JPEG preview
+		libraryFile(t, ses, "portrait.png", "image/png", tallBuf.Bytes()), // big: a 1920x2560 preview
 	}
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
 	var insertedDesc []byte
-	mock.ExpectExec("insert into `shared_links`").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), descCapture{&insertedDesc}, 2, sqlmock.AnyArg()).
+	mock.ExpectExec("insert into `shared_links`").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), descCapture{&insertedDesc}, 3, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	job := &galleryJob{state: &pb.SharedGalleryJob{}}
@@ -96,7 +102,7 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 		t.Fatalf("link %q", link)
 	}
 	id, secret := parts[0], parts[1]
-	if job.state.Done != 2 || job.state.BytesDone != int64(len(photo)+pngBuf.Len()) {
+	if job.state.Done != 3 || job.state.BytesDone != int64(len(photo)+pngBuf.Len()+tallBuf.Len()) {
 		t.Errorf("progress %+v", job.state)
 	}
 	if bytes.Contains(insertedDesc, []byte("Summer")) || bytes.Contains(insertedDesc, []byte(secret)) {
@@ -123,7 +129,7 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 	alive()
 	mock.ExpectExec("update `shared_links` set `opens`").WillReturnResult(sqlmock.NewResult(0, 1))
 	g, err := mg.OpenSharedGallery(id, secret)
-	if err != nil || g.Description != "Summer 2026" || len(g.Items) != 2 || g.Items[0].Name != "beach.jpg" || g.Items[0].HasPreview || !g.Items[1].HasPreview {
+	if err != nil || g.Description != "Summer 2026" || len(g.Items) != 3 || g.Items[0].Name != "beach.jpg" || g.Items[0].HasPreview || !g.Items[1].HasPreview || !g.Items[2].HasPreview {
 		t.Fatalf("open: %+v %v", g, err)
 	}
 
@@ -148,6 +154,15 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 	prev, _, mime, err := mg.ReadSharedGalleryItem(id, secret, 1, pb.GetSharedGalleryItem_PREVIEW, 0, 0)
 	if err != nil || mime != "image/jpeg" || len(prev) < 3 || prev[0] != 0xFF || prev[1] != 0xD8 {
 		t.Fatalf("preview: %v %s", err, mime)
+	}
+
+	alive()
+	big, _, _, err := mg.ReadSharedGalleryItem(id, secret, 2, pb.GetSharedGalleryItem_PREVIEW, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfgImg, _, err := image.DecodeConfig(bytes.NewReader(big)); err != nil || cfgImg.Width != 1920 || cfgImg.Height != 2560 {
+		t.Fatalf("portrait preview %dx%d (%v), want 1920x2560", cfgImg.Width, cfgImg.Height, err)
 	}
 
 	// A wrong secret is the same answer as no gallery.

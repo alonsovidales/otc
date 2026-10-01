@@ -123,8 +123,9 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
   // infinite scroll all working unchanged inside one: activeGroup simply
   // rides along in every request below and in the deps that restart it.
   const [groups, setGroups] = useState<ImageGroup[]>([]);
-  // Issue #180: the group being shared as a gallery.
-  const [sharingGroup, setSharingGroup] = useState<string | null>(null);
+  // Issue #180: what is being shared as a gallery - a group, or the
+  // selected photos.
+  const [sharing, setSharing] = useState<{ groupId?: string; paths?: string[] } | null>(null);
   const [activeGroup, setActiveGroup] = useState<ImageGroup | null>(null);
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
   // The create / add-to picker raised from the selection bar.
@@ -905,7 +906,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
                   {activeGroup.name}
                 </button>
               )}
-              <button className="pg-chip-x" title="Share this group as a gallery" aria-label="Share this group as a gallery" onClick={() => setSharingGroup(activeGroup.id)}>🔗</button>
+              <button className="pg-chip-x" title="Share this group as a gallery" aria-label="Share this group as a gallery" onClick={() => setSharing({ groupId: activeGroup.id })}>🔗</button>
               <button className="pg-chip-x" title="Delete this group" onClick={() => void deleteActiveGroup()}>🗑️</button>
               <button className="pg-chip-x" onClick={leaveGroup} aria-label="Leave group">×</button>
             </span>
@@ -1246,6 +1247,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
           <button onClick={shareInSocial}>Share in social</button>
           <button onClick={() => setGroupPicker({ mode: "create", name: "" })}>Create group</button>
           <button onClick={() => { void loadGroups(); setGroupPicker({ mode: "add" }); }}>Add to group</button>
+          <button onClick={() => setSharing({ paths: [...selOrder] })}>Share as gallery</button>
           <button onClick={() => shareOrDownload(false)} disabled={!!preparing}>
             {preparing === "link" ? <Spinner label="Preparing…" /> : "Share link"}
           </button>
@@ -1459,7 +1461,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       {/* styles */}
       <style>{`
       `}</style>
-      {sharingGroup && <SharedGalleryShare source={{ groupId: sharingGroup }} onClose={() => setSharingGroup(null)} />}
+      {sharing && <SharedGalleryShare source={sharing} onClose={() => setSharing(null)} />}
     </div>
   );
 }

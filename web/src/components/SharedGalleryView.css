@@ -37,3 +37,6 @@
 .sg-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0; border-radius: 8px; background: rgba(0,0,0,0.4); color: #fff; font-size: 32px; cursor: pointer; }
 .sg-nav.prev { left: 8px; } .sg-nav.next { right: 8px; }
 @media (prefers-reduced-motion: reduce) { .sg-bar > div { transition: none; } }
+.sg-loading { position: relative; display: grid; place-items: center; max-width: 100%; max-height: 100%; }
+.sg-loading .sg-blur { grid-area: 1 / 1; }
+.sg-loading-label { grid-area: 1 / 1; z-index: 1; background: rgba(0,0,0,0.55); color: #fff; padding: 10px 16px; border-radius: 10px; font-variant-numeric: tabular-nums; }

@@ -38,6 +38,9 @@ struct SelectionActionBar: View {
     /// to one. Only the Images tab has it, so it is optional and absent
     /// from the bar when not given.
     var onGroup: (() -> Void)? = nil
+    /// Issue #180: "Gallery" - share the selection as a gallery. Images
+    /// only, so optional too (as on Android).
+    var onGallery: (() -> Void)? = nil
     /// Files only: upload from this phone into the folder being browsed.
     /// It acts on the folder, not the selection, so the Files bar is shown
     /// all the time and this is the one item that works with nothing
@@ -65,6 +68,10 @@ struct SelectionActionBar: View {
                 }
                 item("Share", symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
                     .disabled(count == 0)
+                if let onGallery {
+                    item("Gallery", symbol: "photo.on.rectangle.angled", action: onGallery)
+                        .disabled(count == 0)
+                }
                 item("Download", symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
                     .disabled(count == 0)
                 if let onGroup {

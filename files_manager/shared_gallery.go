@@ -38,7 +38,8 @@ import (
 // nothing in the gallery can be read without the link. Under
 // <storage>/shared/<uuid>/: manifest (the description and the items),
 // and per item <i>.orig, <i>.thumb and, for a format browsers can't show
-// (HEIC, RAW, TIFF), <i>.prev - a JPEG.
+// (HEIC, RAW, TIFF) and for any photo but a GIF, <i>.prev - a JPEG of
+// screen size.
 //
 // The copy runs as a background job the owner's client polls
 // (SharedGalleryJob); a visitor reads the manifest (OpenSharedGallery),
@@ -46,7 +47,10 @@ import (
 // (ReadSharedGalleryItem), and streams videos (SharedGalleryStream).
 
 const (
-	cGalleryPreviewMaxPx = 3840
+	// Previews are what a visitor's viewer shows: screen-sized, so a photo
+	// opens in a moment even through the bridge on mobile data - the
+	// originals (often 10-30 MB) are only fetched to download.
+	cGalleryPreviewMaxPx = 2560
 	cGalleryPreviewQ     = 88
 	cGalleryJobKeep      = time.Hour
 	cGalleryMaxTTL       = 90 * 24 * time.Hour
@@ -55,8 +59,6 @@ const (
 var (
 	galleryUUID   = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	gallerySecret = regexp.MustCompile(`^[0-9a-f]{32,128}$`)
-	// What every browser shows as is; anything else gets a JPEG preview.
-	browserImage = map[string]bool{"image/jpeg": true, "image/png": true, "image/gif": true, "image/webp": true, "image/avif": true, "image/bmp": true}
 	// Two copies at once at most: each reads and writes whole files.
 	galleryCopySlots = make(chan struct{}, 2)
 )
@@ -279,7 +281,10 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 				stored += n
 			}
 		}
-		if strings.HasPrefix(f.Mime, "image/") && !browserImage[f.Mime] {
+		// Every photo gets a screen-sized preview (a 9 MB original took
+		// seconds to show, blurred meanwhile); a GIF stays itself, as it
+		// may be animated.
+		if strings.HasPrefix(f.Mime, "image/") && f.Mime != "image/gif" {
 			if prev, err := mg.galleryPreview(ses, f); err == nil {
 				if n, err := writeSealed(galleryFile(id, i, pb.GetSharedGalleryItem_PREVIEW), prev, keys); err == nil {
 					item.Preview = true
@@ -351,8 +356,9 @@ func fileSize(p string) int64 {
 	return 0
 }
 
-// galleryPreview is a JPEG of an image browsers can't show, at most
-// cGalleryPreviewMaxPx wide - HEIC the way the library shows it.
+// galleryPreview is a JPEG of a photo, at most cGalleryPreviewMaxPx on its
+// long side and turned the way the photo is meant to be seen (its EXIF
+// orientation, as thumbnails do) - HEIC the way the library shows it.
 func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, error) {
 	release := mg.ReserveBytes(int64(f.Size) * cDownloadCopies)
 	defer release()
@@ -360,22 +366,36 @@ func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
+	var img image.Image
 	if isHeicFile(f.Path, f.Mime) {
 		orientation := 1
 		if info, err := exifinfo.FromHEIC(content); err == nil {
 			orientation = info.Orientation
 		}
-		return mg.heicToJpeg(content, cGalleryPreviewQ, orientation)
-	}
-	img, err := decodeImage(content)
-	if err != nil {
-		if img, err = decodeWithFFmpeg(content); err != nil {
+		full, err := mg.heicToJpeg(content, cGalleryPreviewQ, orientation)
+		if err != nil {
 			return nil, err
 		}
+		if img, err = decodeImage(full); err != nil {
+			return full, nil
+		}
+	} else {
+		var err error
+		if img, err = decodeImage(content); err != nil {
+			if img, err = decodeWithFFmpeg(content); err != nil {
+				return nil, err
+			}
+		}
+		if ex, err := extractExif(content, f.Mime, f.Path); err == nil && ex != nil {
+			img = applyOrientation(img, ex.Orientation)
+		}
 	}
-	if b := img.Bounds(); b.Dx() > cGalleryPreviewMaxPx {
-		h := b.Dy() * cGalleryPreviewMaxPx / b.Dx()
-		dst := image.NewRGBA(image.Rect(0, 0, cGalleryPreviewMaxPx, h))
+	if b := img.Bounds(); max(b.Dx(), b.Dy()) > cGalleryPreviewMaxPx {
+		w, h := cGalleryPreviewMaxPx, b.Dy()*cGalleryPreviewMaxPx/b.Dx()
+		if b.Dy() > b.Dx() {
+			w, h = b.Dx()*cGalleryPreviewMaxPx/b.Dy(), cGalleryPreviewMaxPx
+		}
+		dst := image.NewRGBA(image.Rect(0, 0, w, h))
 		draw.CatmullRom.Scale(dst, dst.Bounds(), img, b, draw.Over, nil)
 		img = dst
 	}
