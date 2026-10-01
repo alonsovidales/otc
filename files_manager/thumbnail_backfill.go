@@ -61,6 +61,8 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 	lastHash := ""
 	scanned, repaired := 0, 0
 	started := time.Now()
+	// Uploads the lanes are still on (ResumePendingAnalysis ran first).
+	pending := mg.pendingAnalysisSet()
 
 	for {
 		batch, err := mg.dao.ListMediaForReprocess(lastHash, cBackfillBatchSize)
@@ -84,6 +86,9 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 				return
 			}
 
+			if pending[file.Hash] {
+				continue
+			}
 			thumb := fmt.Sprintf("%s/%s_thumbnail", storagePath, file.Hash)
 			if _, statErr := os.Stat(thumb); statErr == nil {
 				continue

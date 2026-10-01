@@ -189,7 +189,12 @@ type Manager struct {
 // see BackfillMissingThumbnails for what it repairs and why it exists.
 func (mg *Manager) startBackfillOnce(ses *session.Session) {
 	mg.backfillOnce.Do(func() {
-		go mg.filesManager.BackfillMissingThumbnails(ses)
+		go func() {
+			// What a restart interrupted goes back in the processing lanes
+			// first; the backfill leaves those files to them.
+			mg.filesManager.ResumePendingAnalysis(ses)
+			mg.filesManager.BackfillMissingThumbnails(ses)
+		}()
 	})
 }
 

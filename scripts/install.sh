@@ -575,6 +575,8 @@ apply_schema_migrations() {
     # statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
     # install too (where db.sql just created them already).
     mysql "$db" <<'SQL'
+    -- The slow lane's queue: uploads still waiting for tags and faces.
+    CREATE TABLE IF NOT EXISTS pending_analysis (hash VARCHAR(64) NOT NULL, queued DATETIME NOT NULL, PRIMARY KEY (hash)) ENGINE=InnoDB;
     -- Issue #180: share links list (kind, description, opens) and galleries.
     ALTER TABLE shared_links MODIFY size BIGINT NOT NULL;
     ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'archive';

@@ -47,7 +47,6 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -71,9 +70,10 @@ const (
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
 type Manager struct {
-	baseUrl    string
-	dao        *dao.Dao
-	maxUploads chan bool
+	baseUrl   string
+	dao       *dao.Dao
+	lanes     *mediaLanes
+	lanesOnce sync.Once
 	// contentBudget bounds file content held in memory by downloads - see
 	// membudget.go.
 	contentBudget *memBudget
@@ -138,7 +138,6 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		tokensToExpire: new(sync.Map),
 		baseUrl:        baseUrl,
 		dao:            dao,
-		maxUploads:     make(chan bool, runtime.NumCPU()-1), // Leave one CPU free for other stuff and also power issues
 		contentBudget:  newMemBudget(contentBudgetBytes()),
 		sharedLinkTTL:  sharedLinkTTLFromCfg(),
 	}
@@ -1153,21 +1152,11 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 	}
 
-	// Processing (tags, thumbnail, faces) happens in the background, in
-	// one of maxUploads slots, from what is now on the disk (issue #165):
-	// the request used to wait here for a slot holding the whole file, and
-	// processing kept it - a video's included - in memory until it was
-	// done. The upload's memory is free as soon as this returns; a video
-	// is streamed to ffmpeg rather than read whole.
-	go func(targetPath string, file *pb.File) {
-		mg.maxUploads <- true
-		defer func() { <-mg.maxUploads }()
-
-		start := time.Now()
-		mg.safely("processing", file.Path, func() { mg.processStored(session, file, targetPath) })
-
-		log.Debug("Time processing image:", time.Since(start), targetPath)
-	}(targetPath, file)
+	// Processing happens in the background, from what is now on the disk
+	// (issue #165): the thumbnail in the fast lane, tags and faces in the
+	// slow one (lanes.go). The upload's memory is free as soon as this
+	// returns; a video is streamed to ffmpeg rather than read whole.
+	mg.enqueueMedia(session, file, targetPath)
 
 	return
 }
@@ -1264,6 +1253,26 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 // same as it always did); targetPath is only used to derive the
 // "<hash>_thumbnail" sibling path.
 func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte) {
+	if mg.processMedia(session, file, targetPath, content, stageAll) {
+		mg.donePendingAnalysis(file.Hash)
+	}
+}
+
+// mediaStages picks what processMedia does: the thumbnail (the fast lane,
+// see lanes.go), the analysis - tags and faces - (the slow lane), or both
+// from one decode (backfill, reprocess).
+type mediaStages int
+
+const (
+	stageThumbnail mediaStages = 1 << iota
+	stageAnalysis
+	stageAll = stageThumbnail | stageAnalysis
+)
+
+// processMedia is processMediaContent limited to stages. It reports false
+// when the file could not be decoded at all (already alerted), so the
+// fast lane doesn't queue an analysis bound to fail the same way.
+func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetPath string, content []byte, stages mediaStages) bool {
 	// Issue #171: the file may be deleted while this runs - its content,
 	// thumbnail and tags were then written for a hash nothing uses.
 	defer mg.dropIfOrphaned(file.Hash)
@@ -1302,7 +1311,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			content, err = mg.heicToJpeg(content, 90, orientation)
 			if err != nil {
 				mg.alert("could not be converted from HEIC", file.Path, err)
-				return
+				return false
 			}
 		}
 
@@ -1323,7 +1332,7 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 		}
 		if err != nil {
 			mg.alert("could not be processed", file.Path, err)
-			return
+			return false
 		}
 
 		// Issue #66 follow-up: a plain JPEG straight from the phone (no
@@ -1343,47 +1352,51 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			img = applyOrientation(img, exif.Orientation)
 		}
 
-		tags, err := mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
-		if err != nil {
-			mg.alert("could not be tagged", file.Path, err)
-		}
-		tags = append(tags, locationTags(exif)...)
-		log.Debug("Tags:", tags)
-
-		mg.dao.AddTags(file, tags)
-
-		log.Debug("Time classifying image:", time.Since(startClass), targetPath)
-
-		startThumb := time.Now()
-		// Issue #66 follow-up: img.Bounds() (not a fresh
-		// image.DecodeConfig of content's raw bytes, as this used to
-		// do) reflects the real, orientation-corrected shape — see
-		// thumbnailSource's doc comment for why that distinction
-		// matters.
-		maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-		thumbImg := thumbnailSource(img, maxWidth)
-		// A thumbnail must exist once a file is uploaded, full stop —
-		// NewPublication, the social feed, etc. all read one back via
-		// GetThumbnail unconditionally. This used to only write one
-		// when resizing was actually needed (imgW > maxWidth), leaving
-		// nothing on disk at all for an image that was already narrow
-		// enough — a gap the orientation fix above made easy to hit for
-		// real: a portrait photo's corrected (post-rotation) width can
-		// end up smaller than maxWidth even when its original,
-		// unrotated width wasn't, silently skipping the thumbnail a
-		// post with that photo in it then failed to ever find.
-		var buf bytes.Buffer
-		if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-			mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
-		} else {
-			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-			if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
-				mg.alert("has no thumbnail (it could not be written)", file.Path, err)
+		if stages&stageThumbnail != 0 {
+			startThumb := time.Now()
+			// Issue #66 follow-up: img.Bounds() (not a fresh
+			// image.DecodeConfig of content's raw bytes, as this used to
+			// do) reflects the real, orientation-corrected shape — see
+			// thumbnailSource's doc comment for why that distinction
+			// matters.
+			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+			thumbImg := thumbnailSource(img, maxWidth)
+			// A thumbnail must exist once a file is uploaded, full stop —
+			// NewPublication, the social feed, etc. all read one back via
+			// GetThumbnail unconditionally. This used to only write one
+			// when resizing was actually needed (imgW > maxWidth), leaving
+			// nothing on disk at all for an image that was already narrow
+			// enough — a gap the orientation fix above made easy to hit for
+			// real: a portrait photo's corrected (post-rotation) width can
+			// end up smaller than maxWidth even when its original,
+			// unrotated width wasn't, silently skipping the thumbnail a
+			// post with that photo in it then failed to ever find.
+			var buf bytes.Buffer
+			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
+				mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
+			} else {
+				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
+				if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
+					mg.alert("has no thumbnail (it could not be written)", file.Path, err)
+				}
 			}
-		}
-		log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
+			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
 
-		mg.processFaces(session, file, img)
+		}
+		if stages&stageAnalysis != 0 {
+			tags, err := mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
+			if err != nil {
+				mg.alert("could not be tagged", file.Path, err)
+			}
+			tags = append(tags, locationTags(exif)...)
+			log.Debug("Tags:", tags)
+
+			mg.dao.AddTags(file, tags)
+
+			log.Debug("Time classifying image:", time.Since(startClass), targetPath)
+
+			mg.processFaces(session, file, img)
+		}
 	} else if strings.HasPrefix(file.Mime, "video/") {
 		// Videos get tagged the same way images do — search doesn't
 		// need to know the difference, since it's all just file_tags
@@ -1397,6 +1410,11 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 		// device's own loopback stream - seeking to the frames it samples,
 		// decrypting only those segments - instead of whole in memory or
 		// as a plaintext temp file.
+		// The thumbnail alone needs one frame; tagging samples several.
+		frameCount := cVideoSampleFrames
+		if stages&stageAnalysis == 0 {
+			frameCount = 1
+		}
 		var frames []image.Image
 		var exif *exifinfo.Info
 		var err error
@@ -1404,22 +1422,22 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			src, done, srcErr := mg.videoSource(session, file)
 			if srcErr != nil {
 				mg.alert("could not be processed", file.Path, srcErr)
-				return
+				return false
 			}
-			frames, err = extractVideoFramesFrom(src, cVideoSampleFrames)
+			frames, err = extractVideoFramesFrom(src, frameCount)
 			if err == nil {
 				exif, _ = exifinfo.FromVideoSource(src)
 			}
 			done()
 		} else {
-			frames, err = extractVideoFrames(content, cVideoSampleFrames)
+			frames, err = extractVideoFrames(content, frameCount)
 			if err == nil {
 				exif, _ = exifinfo.FromVideo(content)
 			}
 		}
 		if err != nil {
 			mg.alert("could not be processed", file.Path, err)
-			return
+			return false
 		}
 		if exif == nil {
 			err = errors.New("no metadata")
@@ -1429,38 +1447,43 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 			exif = nil
 		}
 
-		tags := tagVideoFrames(ctx, mg.waitForTagger(), frames)
-		tags = append(tags, locationTags(exif)...)
-		log.Debug("Tags:", tags)
+		if stages&stageAnalysis != 0 {
+			tags := tagVideoFrames(ctx, mg.waitForTagger(), frames)
+			tags = append(tags, locationTags(exif)...)
+			log.Debug("Tags:", tags)
 
-		mg.dao.AddTags(file, tags)
+			mg.dao.AddTags(file, tags)
 
-		log.Debug("Time classifying video:", time.Since(startClass), targetPath)
-
-		startThumb := time.Now()
-		// A thumbnail must exist once a file is uploaded, full stop -
-		// the same rule the image branch above spells out, and the same
-		// bug this had: it only wrote one when the frame was wider than
-		// maxWidth, so a video narrower than the thumbnail cap ended up
-		// with no thumbnail on disk at all. NewPublication reads one
-		// back unconditionally, so posting such a video failed outright
-		// ("open <hash>_thumbnail: no such file or directory") after
-		// half a minute of polling for a file nothing was ever going to
-		// write. thumbnailSource scales only when scaling is needed,
-		// which is what makes "always write one" safe here.
-		maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-		thumbImg := thumbnailSource(frames[0], maxWidth)
-		var buf bytes.Buffer
-		if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-			mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
-		} else {
-			log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-			if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
-				mg.alert("has no thumbnail (it could not be written)", file.Path, err)
-			}
+			log.Debug("Time classifying video:", time.Since(startClass), targetPath)
 		}
-		log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
+
+		if stages&stageThumbnail != 0 {
+			startThumb := time.Now()
+			// A thumbnail must exist once a file is uploaded, full stop -
+			// the same rule the image branch above spells out, and the same
+			// bug this had: it only wrote one when the frame was wider than
+			// maxWidth, so a video narrower than the thumbnail cap ended up
+			// with no thumbnail on disk at all. NewPublication reads one
+			// back unconditionally, so posting such a video failed outright
+			// ("open <hash>_thumbnail: no such file or directory") after
+			// half a minute of polling for a file nothing was ever going to
+			// write. thumbnailSource scales only when scaling is needed,
+			// which is what makes "always write one" safe here.
+			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+			thumbImg := thumbnailSource(frames[0], maxWidth)
+			var buf bytes.Buffer
+			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
+				mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
+			} else {
+				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
+				if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
+					mg.alert("has no thumbnail (it could not be written)", file.Path, err)
+				}
+			}
+			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
+		}
 	}
+	return true
 }
 
 // HasFile reports whether this device already has a file with this exact
@@ -1613,6 +1636,7 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	if err != nil || referenced {
 		return
 	}
+	mg.donePendingAnalysis(hash)
 	if err := mg.dao.DelTagsByHash(hash); err != nil {
 		log.Error("could not remove the tags of deleted content", hash, ":", err)
 	}

@@ -11,7 +11,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -214,12 +213,7 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		return nil, err
 	}
 
-	go func() {
-		// A slot is waited for here, not by the request (issue #165).
-		mg.maxUploads <- true
-		defer func() { <-mg.maxUploads }()
-		mg.safely("processing", file.Path, func() { mg.processStored(ses, file, target) })
-	}()
+	mg.enqueueMedia(ses, file, target)
 	return file, nil
 }
 
@@ -237,21 +231,6 @@ func (mg *Manager) videoSource(ses *session.Session, file *pb.File) (string, fun
 		return "", func() {}, errors.New("no way to stream this video to ffmpeg")
 	}
 	return mg.videoSourceFn(ses, file)
-}
-
-// processStored runs upload processing (thumbnail, tags, faces) on a file
-// already on disk. A video isn't read whole: ffmpeg streams what it needs.
-func (mg *Manager) processStored(ses *session.Session, file *pb.File, target string) {
-	if strings.HasPrefix(file.Mime, "video/") && mg.videoSourceFn != nil {
-		mg.processMediaContent(ses, file, target, nil)
-		return
-	}
-	content, err := blobstore.ReadAll(target, ses)
-	if err != nil {
-		mg.alert("could not be read back for processing", file.Path, err)
-		return
-	}
-	mg.processMediaContent(ses, file, target, content)
 }
 
 // ReadFile returns up to length bytes (at most MaxChunk) of the file at

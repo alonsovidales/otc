@@ -2669,3 +2669,42 @@ func (dao *Dao) NextFreePort(base int) (port int, err error) {
 	}
 	return int(maxPort.Int64) + 1, nil
 }
+
+// AddPendingAnalysis records that hash's tags and faces are still to be
+// worked out (the slow lane, files_manager/lanes.go).
+func (dao *Dao) AddPendingAnalysis(hash string) error {
+	_, err := dao.db.Exec("insert ignore into `pending_analysis` (`hash`, `queued`) values (?, ?)", hash, time.Now().UTC())
+	return err
+}
+
+// DelPendingAnalysis records that hash's analysis is done (or no longer
+// needed: its file is gone).
+func (dao *Dao) DelPendingAnalysis(hash string) error {
+	_, err := dao.db.Exec("delete from `pending_analysis` where `hash` = ?", hash)
+	return err
+}
+
+// PendingAnalysis lists the hashes still waiting for analysis, oldest
+// first.
+func (dao *Dao) PendingAnalysis() (hashes []string, err error) {
+	rows, err := dao.db.Query("select `hash` from `pending_analysis` order by `queued`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var h string
+		if err := rows.Scan(&h); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, h)
+	}
+	return hashes, rows.Err()
+}
+
+// IsPendingAnalysis is whether hash's analysis is still to be done.
+func (dao *Dao) IsPendingAnalysis(hash string) (bool, error) {
+	var n int
+	err := dao.db.QueryRow("select count(*) from `pending_analysis` where `hash` = ?", hash).Scan(&n)
+	return n > 0, err
+}

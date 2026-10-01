@@ -111,3 +111,4 @@
 70	-	02d15feae2b48e00da6253e575f93113dec60562eab779630f080f521ca15b17	Shared galleries open photos quickly (a screen-sized preview, the original only to download) and can be made from selected photos, no group needed.
 71	-	ebf51376e5180d54033d3cb5a0e2a2a53a5fbf3f96ed2d7c251331ff69efb582	Shared galleries always have every thumbnail, even for photos and videos uploaded moments before sharing.
 72	-	158780d5550169ff445a33fee8f670985381ac9f6aabd9a50ba9885264851bd9	Shared galleries can be low resolution only: small copies of the photos, the originals never leave the device; the gallery says so.
+73	2f5e88d4767eb3ca2f1101d0ff1699fba29c9c84eb33e959106c09002a89ee5c	8f8a73ebe7b23c23b8d2f73099136de50375fe620c791f6ad889301f49d4f586	New photos and videos get their thumbnail within seconds, even during a big sync; tags and faces follow once uploads quiet down, and resume after a restart.

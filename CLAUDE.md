@@ -241,6 +241,17 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   own loopback stream (`SetVideoSource`: a short-lived media token), so processing, reprocess
   and the info panel never load a video whole nor write it out in plaintext; share-link zips
   are streamed into a segmented file under the link's key.
+  **Processing lanes** (release 73, `files_manager/lanes.go`): an upload is answered once its
+  bytes and row are stored, then `enqueueMedia` (media only) records its hash in
+  `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers): EXIF, decode,
+  orientation, thumbnail - one frame for a video. It then moves to the *slow lane* (tags,
+  faces; four frames for a video), whose workers only take a job while the fast lane has none
+  queued or running, so during a big sync every thumbnail comes first. `processMedia(...,
+  stages)` is the one pipeline (`processMediaContent` = both stages from one decode, for
+  backfill and Reprocess, and clears the pending row). The queue itself is memory, but
+  `pending_analysis` holds only hashes, so after a restart - when nothing can be decrypted
+  until the owner's key is back - `ResumePendingAnalysis` refills the lanes at the first
+  sign-in (`startBackfillOnce`, before `BackfillMissingThumbnails`, which skips those hashes).
   Issue #180 (release 69): **shared galleries** - an image group (`group_id`), a folder
   (`directory`, recursive) or files (`paths`) are copied by a background job
   (`files_manager/shared_gallery.go`: `CreateSharedGallery` then `GetSharedGalleryJob` polling)
@@ -277,8 +288,7 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   `files_manager/face_refs.go`; at 20 an outlier isn't added and the most redundant reference is
   dropped, so the set stays varied; the cover medoid is over the references;
   `InvalidateFaceRefs` after Reprocess, person delete/merge) issue #52's "People" search: detects faces (YuNet) and embeds them (SFace)
-  via `gocv`, humans only. `files_manager.processFaces` (called from `UploadFile`'s background
-  goroutine) gates this on `settings.face_recognition_enabled` (off unless the owner turns it on - in Settings or the setup wizard; release 43 made the column default 0 again, issue #178, since faces are biometric data) checked *at upload
+  via `gocv`, humans only. `files_manager.processFaces` (called from the slow processing lane) gates this on `settings.face_recognition_enabled` (off unless the owner turns it on - in Settings or the setup wizard; release 43 made the column default 0 again, issue #178, since faces are biometric data) checked *at upload
   time* - enabling it later never retroactively processes anything already in the library, by
   design (see the `faces` table's doc comment in `db.sql`). Requires CGO + a real OpenCV install at
   build time (see Build section); optional at runtime like APNs - a device with `[faces]`

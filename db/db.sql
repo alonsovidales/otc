@@ -247,6 +247,17 @@ create table profile
 ) engine=InnoDB;
 insert into `profile` values('Your Name', '', 'Description');
 
+-- Uploads whose analysis (tags, faces) hasn't run yet: the slow lane's
+-- queue (files_manager/lanes.go). Only hashes - nothing to decrypt with -
+-- so it survives a restart and resumes at the first sign-in after it.
+create table pending_analysis
+(
+  `hash` varchar(64) not null,
+  `queued` datetime not null,
+
+  primary key (`hash`)
+) engine=InnoDB;
+
 -- A share link: a zip of files ("archive") or a gallery (issue #180).
 -- Never the link itself: its secret is the content's key, and lives only
 -- in the link.
