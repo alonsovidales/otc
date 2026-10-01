@@ -122,6 +122,8 @@ fun SettingsView(secrets: SecretsStore) {
     val downloadFromCloud by secrets.downloadFromCloud.collectAsState()
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
     var confirmLogout by remember { mutableStateOf(false) }
+    // Issue #180: the shared links list (SharedLinksView.kt).
+    var showSharedLinks by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         device.loadSettings()
@@ -167,6 +169,10 @@ fun SettingsView(secrets: SecretsStore) {
                         else if (dst.reprocessStatus == "failed") Caption("Last run failed after ${dst.reprocessProcessed} file(s) — try again.", Color(0xFFE53935))
                     }
                 }
+            }
+
+            Section("Sharing", "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.") {
+                RowButton("Shared Links") { showSharedLinks = true }
             }
 
             Section("Change Password") {
@@ -219,6 +225,7 @@ fun SettingsView(secrets: SecretsStore) {
         Toast(dst.toast, Modifier.align(Alignment.TopCenter))
     }
 
+    if (showSharedLinks) SharedLinksView(onClose = { showSharedLinks = false })
     if (confirmLogout) {
         AlertDialog(
             onDismissRequest = { confirmLogout = false },

@@ -59,6 +59,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import cloud.offthe.otc.proto.SharedGallerySource
+import cloud.offthe.otc.ui.share.SharedGalleryShareFlow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -135,6 +137,8 @@ fun PhotoGalleryView(deviceId: String) {
     var newGroupName by remember { mutableStateOf<String?>(null) }
     var renameGroupName by remember { mutableStateOf<String?>(null) }
     var confirmDeleteGroup by remember { mutableStateOf(false) }
+    // Issue #180: "Share as gallery" on a group - what is being shared.
+    var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
     var personPendingDelete by remember { mutableStateOf<String?>(null) }
     var editingPersonName by remember { mutableStateOf("") }
@@ -180,7 +184,11 @@ fun PhotoGalleryView(deviceId: String) {
                     Spacer(Modifier.width(6.dp))
                     Text(g.name, Modifier.clickable { renameGroupName = g.name })
                     Text(" · ${g.fileCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.Share, "Share as gallery", Modifier.size(16.dp).clickable {
+                        gallerySource = SharedGallerySource.newBuilder().setGroupId(g.id).build()
+                    }, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
                     Icon(Icons.Default.Delete, "Delete group", Modifier.size(16.dp).clickable { confirmDeleteGroup = true }, tint = Color(0xFFE53935))
                     Spacer(Modifier.width(6.dp))
                     Text("×", Modifier.clickable { vm.leaveGroup() })
@@ -277,10 +285,14 @@ fun PhotoGalleryView(deviceId: String) {
                         if (cover != null) Image(cover.asImageBitmap(), null, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
                         else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Book, null) }
                         Spacer(Modifier.width(12.dp))
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(g.name)
                             Text("${g.fileCount} ${if (g.fileCount == 1) "picture" else "pictures"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        IconButton(onClick = {
+                            showGroups = false
+                            gallerySource = SharedGallerySource.newBuilder().setGroupId(g.id).build()
+                        }) { Icon(Icons.Default.Share, "Share as gallery", tint = MaterialTheme.colorScheme.primary) }
                     }
                 }
             }
@@ -307,6 +319,7 @@ fun PhotoGalleryView(deviceId: String) {
             onChange = { renameGroupName = it }, onConfirm = { renameGroupName = null; scope.launch { vm.renameActiveGroup(name) } }, onDismiss = { renameGroupName = null },
         )
     }
+    gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
     if (confirmDeleteGroup) {
         ConfirmDialog(
             "Delete the group \"${st.activeGroup?.name ?: ""}\"?", "The pictures themselves are kept.", "Delete group",

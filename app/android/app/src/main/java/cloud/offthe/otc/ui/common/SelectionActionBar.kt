@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,6 +43,8 @@ fun SelectionActionBar(
     onDelete: () -> Unit,
     onGroup: (() -> Unit)? = null,
     onUpload: (() -> Unit)? = null,
+    // Issue #180: "Share as gallery", offered when the selection is one folder.
+    onGallery: (() -> Unit)? = null,
 ) {
     Column(Modifier.padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (count > 0) {
@@ -55,6 +58,7 @@ fun SelectionActionBar(
             Row(Modifier.padding(vertical = 6.dp, horizontal = 8.dp)) {
                 if (onUpload != null) Item("Upload", Icons.Default.Upload, enabled = busy == null, onClick = onUpload, modifier = Modifier.weight(1f))
                 Item("Share", Icons.Default.Share, busy = busy == SelectionActionTask.SHARE, enabled = count > 0 && busy == null, onClick = onShare, modifier = Modifier.weight(1f))
+                if (onGallery != null) Item("Gallery", Icons.Default.PhotoLibrary, enabled = busy == null, onClick = onGallery, modifier = Modifier.weight(1f))
                 Item("Download", Icons.Default.Download, busy = busy == SelectionActionTask.DOWNLOAD, enabled = count > 0 && busy == null, onClick = onDownload, modifier = Modifier.weight(1f))
                 if (onGroup != null) Item("Group", Icons.Default.MenuBook, enabled = count > 0 && busy == null, onClick = onGroup, modifier = Modifier.weight(1f))
                 Item("Delete", Icons.Default.Delete, tint = Color(0xFFE53935), enabled = count > 0 && busy == null, onClick = onDelete, modifier = Modifier.weight(1f))

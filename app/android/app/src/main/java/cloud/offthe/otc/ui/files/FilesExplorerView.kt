@@ -62,6 +62,8 @@ import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.ListFiles
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.ShareFilesLink
+import cloud.offthe.otc.proto.SharedGallerySource
+import cloud.offthe.otc.ui.share.SharedGalleryShareFlow
 import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.SelectionActionTask
 import cloud.offthe.otc.ui.common.Share
@@ -316,6 +318,9 @@ fun FilesExplorerView(initialPath: String) {
     val context = LocalContext.current
     var pathField by remember { mutableStateOf(initialPath) }
     var refreshing by remember { mutableStateOf(false) }
+    // Issue #180: "Share as gallery" on a folder - what is being shared.
+    var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
+    val selectedFolder = st.selected.singleOrNull()?.let { p -> st.rows.firstOrNull { it.path == p && it.isDir && it.path != ".." } }
 
     LaunchedEffect(Unit) { vm.load() }
     LaunchedEffect(st.path) { pathField = st.path }
@@ -410,6 +415,9 @@ fun FilesExplorerView(initialPath: String) {
                     else vm.setConfirmDelete(true)
                 },
                 onUpload = { importer.launch(arrayOf("*/*")) },
+                onGallery = selectedFolder?.let { row ->
+                    { gallerySource = SharedGallerySource.newBuilder().setDirectory(vm.fullPath(row)).build() }
+                },
             )
             Spacer(Modifier.size(8.dp))
         }
@@ -445,6 +453,7 @@ fun FilesExplorerView(initialPath: String) {
             confirmButton = { TextButton(onClick = { vm.closeVersions() }) { Text("Done") } },
         )
     }
+    gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
     if (st.confirmDeleteSelected) {
         val n = st.selected.size
         AlertDialog(
