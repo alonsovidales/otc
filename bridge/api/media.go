@@ -170,6 +170,9 @@ func (api *API) fetchMediaRange(w http.ResponseWriter, r *http.Request, token st
 		return nil, 0, "", false
 	}
 
+	if !api.allowOneOff(w, r) {
+		return nil, 0, "", false
+	}
 	respFrame, err := api.websocket.ForwardOneOff(r.Host, frame)
 	if err != nil {
 		// Same reasoning as proxyStaticAsset's own unreachable case: the

@@ -13,6 +13,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
@@ -95,12 +96,48 @@ type API struct {
 	tld string
 	// cluster is issue #144; nil on a single bridge.
 	cluster *cluster.Cluster
+	// oneOffPerAddr limits the device GETs (static assets, /media) one
+	// address can make (issue #163): each spends a device connection.
+	oneOffPerAddr *limits.Rate
+}
+
+// cOneOffPerSecond/cOneOffBurst: a page load fetches a few dozen assets at
+// once and a video player a range every second or two, well within these.
+const (
+	cOneOffPerSecond = 10
+	cOneOffBurst     = 60
+)
+
+// requestAddr is the client's address: the connecting one, or - for a
+// request another node of the cluster forwarded, which its internal
+// listener marked only after checking the cluster token - the one that
+// node saw.
+func requestAddr(r *http.Request) string {
+	if r.Header.Get(cluster.HopHeader) == "1" {
+		if fwd := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); fwd != "" {
+			return fwd
+		}
+	}
+	return clientaddr.Of(r)
+}
+
+// allowOneOff applies oneOffPerAddr, answering 429 when it says no.
+func (api *API) allowOneOff(w http.ResponseWriter, r *http.Request) bool {
+	if api.oneOffPerAddr == nil || api.oneOffPerAddr.Allow(requestAddr(r)) {
+		return true
+	}
+	if w != nil {
+		w.Header().Set("Retry-After", "5")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}
+	return false
 }
 
 // Init Initializes the API and starts listening on the specified ports serving
 // both the HTTP API and the static content
 func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, clu *cluster.Cluster, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
+		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -323,6 +360,9 @@ func (api *API) serveOwnPage(w http.ResponseWriter, r *http.Request, page string
 // copy of anything if the device can't answer.
 func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 	log.Debug("proxying static asset:", r.Host, r.URL.Path)
+	if !api.allowOneOff(w, r) {
+		return
+	}
 	req := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqGetStaticAsset{
@@ -394,7 +434,7 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 		// almost certainly a bot filling in every field it can find.
 		Website string `json:"website"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -523,7 +563,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		Secret     string `json:"secret"`
 		SetupToken string `json:"setup_token"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -688,7 +728,7 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 	var body struct {
 		Name string `json:"name"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -801,7 +841,7 @@ func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 		Addr  string `json:"addr"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}

@@ -108,6 +108,16 @@ type bridgePool struct {
 	lock         *sync.Mutex
 }
 
+// size is how many idle connections the pool holds; 0 for no pool.
+func (p *bridgePool) size() int {
+	if p == nil {
+		return 0
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	return len(p.availableConns)
+}
+
 // deviceRelay wraps one paired device connection with request/response
 // multiplexing by envelope id, so several client requests can be in flight
 // to the same device connection at once instead of strictly one at a time.
@@ -230,15 +240,15 @@ func (d *deviceRelay) readLoop() {
 			d.failAll()
 			return
 		}
-		var env pb.RespEnvelope
-		if err := proto.Unmarshal(frame, &env); err != nil {
+		id, err := envelopeID(frame)
+		if err != nil {
 			log.Error("bad proto from device:", err)
 			continue
 		}
 		d.mu.Lock()
-		ch, ok := d.waiters[env.Id]
+		ch, ok := d.waiters[id]
 		if ok {
-			delete(d.waiters, env.Id)
+			delete(d.waiters, id)
 		}
 		d.mu.Unlock()
 		if ok {
@@ -316,6 +326,34 @@ func clientAddr(r *http.Request, conn *gorilla.Conn) string {
 	return host
 }
 
+// envelopeID reads a Req/RespEnvelope's id (field 1) without decoding
+// the rest (issue #163): relaying a frame never needs its payload, and a
+// full proto.Unmarshal of a large file chunk just to correlate it cost a
+// second copy of it.
+func envelopeID(frame []byte) (int32, error) {
+	b := frame
+	for len(b) > 0 {
+		num, typ, n := protowire.ConsumeTag(b)
+		if n < 0 {
+			return 0, protowire.ParseError(n)
+		}
+		b = b[n:]
+		if num == 1 && typ == protowire.VarintType {
+			v, m := protowire.ConsumeVarint(b)
+			if m < 0 {
+				return 0, protowire.ParseError(m)
+			}
+			return int32(v), nil
+		}
+		m := protowire.ConsumeFieldValue(num, typ, b)
+		if m < 0 {
+			return 0, protowire.ParseError(m)
+		}
+		b = b[m:]
+	}
+	return 0, nil // no id field: proto3's default, 0
+}
+
 func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 	return d.forwardWithTimeout(frame, cForwardTimeout)
 }
@@ -333,22 +371,22 @@ func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 // testing, against a device redeployed and restarted many times over one
 // long session).
 func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, error) {
-	var env pb.ReqEnvelope
-	if err := proto.Unmarshal(frame, &env); err != nil {
+	id, err := envelopeID(frame)
+	if err != nil {
 		return nil, fmt.Errorf("bad proto: %w", err)
 	}
 
 	ch := make(chan []byte, 1)
 	d.mu.Lock()
-	d.waiters[env.Id] = ch
+	d.waiters[id] = ch
 	d.mu.Unlock()
 
 	d.writeMu.Lock()
-	err := d.conn.WriteMessage(gorilla.BinaryMessage, frame)
+	err = d.conn.WriteMessage(gorilla.BinaryMessage, frame)
 	d.writeMu.Unlock()
 	if err != nil {
 		d.mu.Lock()
-		delete(d.waiters, env.Id)
+		delete(d.waiters, id)
 		d.mu.Unlock()
 		return nil, err
 	}
@@ -369,7 +407,7 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 		return resp, nil
 	case <-time.After(timeout):
 		d.mu.Lock()
-		delete(d.waiters, env.Id)
+		delete(d.waiters, id)
 		d.mu.Unlock()
 		return nil, fmt.Errorf("timed out waiting for device response")
 	}
@@ -398,7 +436,9 @@ type Manager struct {
 	openRegistration bool
 	upgrader         gorilla.Upgrader
 	bridges          map[string]*bridgePool // The domain is the key and the value the pool of connections
-	bridgesMu        sync.RWMutex           // guards the bridges map itself, not each pool's own contents (pool.lock does that)
+	// oneOffSlots: domain -> chan struct{} of cOneOffConcurrent (issue #163).
+	oneOffSlots sync.Map
+	bridgesMu   sync.RWMutex // guards the bridges map itself, not each pool's own contents (pool.lock does that)
 
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
@@ -726,6 +766,30 @@ var cOneOffForwardTimeout = 45 * time.Second
 // stale entries without ever being able to drain the pool.
 const cOneOffMaxAttempts = 3
 
+// cOneOffConcurrent caps the one-off requests (static assets, /media)
+// in flight per device (issue #163). Each spends a pool connection, and
+// the device refills its pool a couple at a time: unbounded, a burst of
+// GETs - a page load, or anyone hammering a device's address - emptied
+// the pool and left the device's real clients with "no connection".
+// Waiting past cOneOffSlotWait answers "busy" instead.
+const cOneOffConcurrent = 3
+
+var cOneOffSlotWait = 10 * time.Second
+
+// cInternalErrorMsg is what a client is told when the bridge's own store
+// fails; the error itself is logged, never sent (issue #163).
+const cInternalErrorMsg = "The bridge could not do this right now, try again later"
+
+// ErrDeviceBusy is ForwardOneOff's answer when the device already has
+// cOneOffConcurrent one-off requests in flight for longer than
+// cOneOffSlotWait.
+var ErrDeviceBusy = errors.New("the device is busy, try again shortly")
+
+func (mg *Manager) oneOffSlot(domain string) chan struct{} {
+	ch, _ := mg.oneOffSlots.LoadOrStore(domain, make(chan struct{}, cOneOffConcurrent))
+	return ch.(chan struct{})
+}
+
 // ForwardOneOff sends frame to one connection from domain's pool and
 // returns the raw response frame, always closing that connection
 // afterward - unlike Listen's own default pass-through case below, which
@@ -757,6 +821,14 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 	mg.bridgesMu.RUnlock()
 	if !ok {
 		return nil, errors.New("device is offline")
+	}
+
+	slot := mg.oneOffSlot(domain)
+	select {
+	case slot <- struct{}{}:
+		defer func() { <-slot }()
+	case <-time.After(cOneOffSlotWait):
+		return nil, ErrDeviceBusy
 	}
 
 	for attempt := 0; attempt < cOneOffMaxAttempts; attempt++ {
@@ -804,12 +876,12 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 // response at all to a client that correlates by id (see WSClient's
 // waiters map on the web side, and OTCConnection's on iOS).
 func deviceUnreachableFrame(reqFrame []byte) ([]byte, error) {
-	var req pb.ReqEnvelope
-	if err := proto.Unmarshal(reqFrame, &req); err != nil {
+	id, err := envelopeID(reqFrame)
+	if err != nil {
 		return nil, err
 	}
 	return proto.Marshal(&pb.RespEnvelope{
-		Id:           req.Id,
+		Id:           id,
 		Error:        true,
 		ErrorMessage: cDeviceUnreachableMsg,
 		Payload: &pb.RespEnvelope_RespAck{
@@ -1015,14 +1087,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				} else if err != nil {
 					log.Error("error trying to register:", err)
 					resp.Error = true
-					resp.ErrorMessage = err.Error()
-				} else if ok && len(pool.availableConns) >= maxConnectionsPerDevice() {
+					resp.ErrorMessage = cInternalErrorMsg
+				} else if size := pool.size(); ok && size >= maxConnectionsPerDevice() {
 					// Issue #53 follow-up: a device now grows its own pool
 					// dynamically under load (see websocket.ensureBridgePool
 					// on the device side) rather than dialing a fixed count
 					// once - this is the backstop against that (or anything
 					// else) growing one device's pool unbounded.
-					log.Error("device at its connection cap, rejecting:", domain, len(pool.availableConns))
+					log.Error("device at its connection cap, rejecting:", domain, size)
 					resp.Error = true
 					resp.ErrorMessage = "Device connection pool is full"
 				} else {
@@ -1057,8 +1129,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						pool.lock.Unlock()
 					} else {
 						mg.bridgesMu.Unlock()
-						log.Debug("Adding to the pool:", len(pool.availableConns))
 						pool.lock.Lock()
+						log.Debug("Adding to the pool:", len(pool.availableConns))
 						pool.availableConns = append(pool.availableConns, relay)
 						mg.onDeviceConnectionRegistered(domain, pool)
 						pool.lock.Unlock()
@@ -1103,7 +1175,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if err != nil {
 					log.Error("error rotating secret:", err)
 					resp.Error = true
-					resp.ErrorMessage = err.Error()
+					resp.ErrorMessage = cInternalErrorMsg
 				} else if !ok {
 					log.Error("rotate secret rejected: no matching device/secret")
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), p.ReqRotateBridgeSecret.Domain, p.ReqRotateBridgeSecret.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
@@ -1175,7 +1247,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if err != nil && err != sql.ErrNoRows {
 					log.Error("error validating device for disabled-state update:", err)
 					resp.Error = true
-					resp.ErrorMessage = err.Error()
+					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
 					log.Error("disabled-state update rejected: invalid device/secret for", req.Domain)
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
@@ -1186,7 +1258,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				} else if err := mg.dao.SetDeviceDisabled(req.Domain, req.Disabled); err != nil {
 					log.Error("error storing disabled-state update:", err)
 					resp.Error = true
-					resp.ErrorMessage = err.Error()
+					resp.ErrorMessage = cInternalErrorMsg
 				} else {
 					log.Info("Set device disabled:", req.Domain, req.Disabled)
 					resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1214,7 +1286,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if err != nil && err != sql.ErrNoRows {
 					log.Error("error validating device for push relay:", err)
 					resp.Error = true
-					resp.ErrorMessage = err.Error()
+					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
 					log.Error("push relay rejected: invalid device/secret for", req.Domain)
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
@@ -1225,7 +1297,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				} else if ps, err := push.Init(&domainPushStorage{dao: mg.dao, domain: req.Domain}); err != nil {
 					log.Error("could not init push for relay:", req.Domain, err)
 					resp.Error = true
-					resp.ErrorMessage = err.Error()
+					resp.ErrorMessage = cInternalErrorMsg
 				} else {
 					ps.NotifyMobile(req.Title, req.Body, push.Target{Kind: req.Kind, PubUUID: req.PubUuid, CommentUUID: req.CommentUuid})
 					resp.Payload = &pb.RespEnvelope_RespBridgeNotifyAck{
@@ -1254,7 +1326,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if err != nil && err != sql.ErrNoRows {
 					log.Error("error validating device for push registration update:", err)
 					resp.Error = true
-					resp.ErrorMessage = err.Error()
+					resp.ErrorMessage = cInternalErrorMsg
 				} else if !defined || !validSecret {
 					log.Error("push registration update rejected: invalid device/secret for", req.Domain)
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
@@ -1270,7 +1342,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, req.ApnsTokens, req.FcmTokens, webSubs); err != nil {
 						log.Error("error storing push registrations:", err)
 						resp.Error = true
-						resp.ErrorMessage = err.Error()
+						resp.ErrorMessage = cInternalErrorMsg
 					} else {
 						resp.Payload = &pb.RespEnvelope_RespUpdatePushRegistrationsAck{
 							RespUpdatePushRegistrationsAck: &pb.UpdatePushRegistrationsAck{Ok: true},

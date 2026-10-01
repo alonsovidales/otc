@@ -385,6 +385,17 @@ lets a device running an older build still work correctly through the bridge. `b
 holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
 independently of a device's web build.
 
+Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`
+(64 KB, 15 s to arrive - the servers bound only headers, since a whole-request `ReadTimeout`
+would also cut the websockets the cluster router proxies); one-off device GETs (static assets,
+`/media`) are limited per address (`oneOffPerAddr`, 10/s, burst 60 - the forwarded address for a
+cluster hop) and per device to `cOneOffConcurrent` (3) in flight, so they can't drain a device's
+pool; `auth_events` takes one row per address and reason a minute; relays read only an
+envelope's id (`envelopeID`, protowire) instead of unmarshalling every frame; store errors reach
+clients as `cInternalErrorMsg`; sign-ups are limited to 5 an hour per address, sign-in answers
+the same for unknown, wrong and Google/Apple-only accounts, and new bridge passwords use bcrypt
+cost 12 (`limits.BcryptCost`; account hashes are upgraded at the next sign-in).
+
 ### Bridge accounts (`bridge/accounts`, issue #124)
 
 Every domain registered on the bridge belongs to an account (`devices.account_id`). The package

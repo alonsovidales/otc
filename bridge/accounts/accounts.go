@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/clientaddr"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"net"
 	"net/http"
 	"net/mail"
@@ -98,6 +99,9 @@ type Accounts struct {
 
 	limiterMu sync.Mutex
 	failures  map[string][]time.Time
+	// signups limits account creation per address (issue #163): each is
+	// a bcrypt, and each answer says whether an email has an account.
+	signups *limits.Rate
 	jwks      jwksCache
 }
 
@@ -122,6 +126,7 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
 		providers:        map[string]*provider{},
 		failures:         map[string][]time.Time{},
+		signups:          limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour),
 	}
 	a.loadProviders()
 	go a.pruneLoop()
@@ -404,11 +409,15 @@ func (a *Accounts) signedIn(w http.ResponseWriter, r *http.Request, acc *dao.Acc
 // Signup creates an email+password account. POST /api/account/signup
 // {email, password, name, surname, country, accept_terms}.
 func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
+	if a.signups != nil && !a.signups.Allow(clientIP(r)) {
+		writeError(w, http.StatusTooManyRequests, "too many sign-ups from this address, try again later")
+		return
+	}
 	var body struct {
 		Email, Password, Name, Surname, Country string
 		AcceptTerms                             bool `json:"accept_terms"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -440,7 +449,7 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "there is already an account with that email - sign in instead")
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not sign up right now")
 		return
@@ -461,6 +470,19 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	a.signedIn(w, r, &acc, http.StatusCreated)
 }
 
+// dummyHash is compared against when the email has no password, at the
+// same cost as a real one so the timing doesn't tell them apart.
+var dummyHash = func() string {
+	h, err := bcrypt.GenerateFromPassword([]byte("not a password"), limits.BcryptCost)
+	if err != nil {
+		panic(err)
+	}
+	return string(h)
+}()
+
+// cSignupsPerHour bounds account creation per address.
+const cSignupsPerHour = 5
+
 // Login checks an email and password. POST /api/account/login.
 func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
@@ -470,7 +492,7 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct{ Email, Password string }
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -483,20 +505,26 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	// bcrypt runs either way, so the timing says nothing about whether the
 	// email exists.
-	hash := "$2a$10$invalidinvalidinvaliduinvalidinvalidinvalidinvalidin"
+	hash := dummyHash
 	if acc != nil && acc.PasswordHash != "" {
 		hash = acc.PasswordHash
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(body.Password)) != nil || acc == nil || acc.PasswordHash == "" {
 		a.loginFailed(ip, now)
-		if acc != nil && acc.PasswordHash == "" {
-			writeError(w, http.StatusUnauthorized, "that account signs in with Google or Apple - use the account page, then a setup code")
-			return
-		}
-		writeError(w, http.StatusUnauthorized, "wrong email or password")
+		// The same answer whether or not the email has an account, or
+		// one without a password (issue #163).
+		writeError(w, http.StatusUnauthorized, "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)")
 		return
 	}
 	a.loginSucceeded(ip)
+	// Older hashes move to the current cost while the password is at hand.
+	if cost, err := bcrypt.Cost([]byte(acc.PasswordHash)); err == nil && cost < limits.BcryptCost {
+		if h, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost); err == nil {
+			if err := a.dao.SetAccountPassword(acc.ID, string(h)); err != nil {
+				log.Error("error rehashing a password:", err)
+			}
+		}
+	}
 	a.signedIn(w, r, acc, http.StatusOK)
 }
 
@@ -524,7 +552,7 @@ func (a *Accounts) Me(w http.ResponseWriter, r *http.Request, accountID string) 
 // sign-in.
 func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, accountID string) {
 	var body struct{ Name, Surname, Country string }
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -558,7 +586,7 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 // gets a new cookie and carries on.
 func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID string) {
 	var body struct{ Password, Current string }
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.Password) < cMinPassword {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || len(body.Password) < cMinPassword {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("the password needs at least %d characters", cMinPassword))
 		return
 	}
@@ -587,7 +615,7 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 		writeError(w, http.StatusUnauthorized, "sign in again (with Google or Apple) to set a password")
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return

@@ -27,6 +27,7 @@ require (
 	golang.org/x/crypto v0.55.0
 	golang.org/x/image v0.44.0
 	golang.org/x/sys v0.48.0
+	golang.org/x/term v0.46.0
 	google.golang.org/protobuf v1.36.8
 )
 

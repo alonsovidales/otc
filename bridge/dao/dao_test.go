@@ -358,3 +358,21 @@ func TestDeleteDeviceLiftsTheHold(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// Issue #163: a client retrying a bad secret writes one row a minute.
+func TestAuthEventDueThrottles(t *testing.T) {
+	d := &Dao{}
+	now := time.Unix(1000, 0)
+	if !d.authEventDue("203.0.113.7:1111", "invalid_secret", now) {
+		t.Fatal("the first event was dropped")
+	}
+	if d.authEventDue("203.0.113.7:2222", "invalid_secret", now.Add(time.Second)) {
+		t.Fatal("a second event from the same host within a minute was kept")
+	}
+	if !d.authEventDue("203.0.113.7:2222", "unregistered_domain", now.Add(time.Second)) {
+		t.Fatal("another reason was throttled with the first")
+	}
+	if !d.authEventDue("203.0.113.7:3333", "invalid_secret", now.Add(time.Minute)) {
+		t.Fatal("still throttled after a minute")
+	}
+}

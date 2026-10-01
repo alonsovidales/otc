@@ -3,6 +3,8 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
@@ -13,9 +15,11 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 	"github.com/google/uuid"
+	"golang.org/x/term"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 )
 
@@ -36,15 +40,22 @@ func main() {
 	dao := dao.Init()
 	adm := admin.Init(dao, sessionSecret())
 
-	// One-off admin bootstrap: `otc_bridge <env> set-admin-password <user> <pass>`
+	// One-off admin bootstrap: `otc_bridge <env> set-admin-password <user>`
 	// sets/changes an admin panel login and exits, rather than starting the
 	// server. There's no HTTP endpoint for this on purpose - it should only
-	// be settable by whoever already has shell access to the bridge.
+	// be settable by whoever already has shell access to the bridge. The
+	// password is read from the terminal without echo (or from stdin when
+	// piped), never from the command line, where `ps` and the shell's
+	// history would keep it (issue #163).
 	if len(os.Args) > 2 && os.Args[2] == "set-admin-password" {
-		if len(os.Args) != 5 {
-			log.Fatal("usage: otc_bridge <env> set-admin-password <username> <password>")
+		if len(os.Args) != 4 {
+			log.Fatal("usage: otc_bridge <env> set-admin-password <username>  (the password is asked for)")
 		}
-		if err := adm.SetPassword(os.Args[3], os.Args[4]); err != nil {
+		password, err := readAdminPassword()
+		if err != nil {
+			log.Fatal("error reading the password:", err)
+		}
+		if err := adm.SetPassword(os.Args[3], password); err != nil {
 			log.Fatal("error setting admin password:", err)
 		}
 		log.Info("Admin password set for user:", os.Args[3])
@@ -104,4 +115,36 @@ func logLevel() int {
 		os.Exit(1)
 	}
 	return l
+}
+
+// readAdminPassword asks for the password twice on a terminal, without
+// echo, or reads one line from a pipe.
+func readAdminPassword() (string, error) {
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		if err != nil && line == "" {
+			return "", err
+		}
+		return strings.TrimRight(line, "\r\n"), nil
+	}
+	fmt.Fprint(os.Stderr, "Password: ")
+	first, err := term.ReadPassword(fd)
+	fmt.Fprintln(os.Stderr)
+	if err != nil {
+		return "", err
+	}
+	fmt.Fprint(os.Stderr, "Again: ")
+	second, err := term.ReadPassword(fd)
+	fmt.Fprintln(os.Stderr)
+	if err != nil {
+		return "", err
+	}
+	if string(first) != string(second) {
+		return "", errors.New("the passwords don't match")
+	}
+	if len(first) < 12 {
+		return "", errors.New("use at least 12 characters")
+	}
+	return string(first), nil
 }

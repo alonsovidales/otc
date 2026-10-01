@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"net/http"
 	"strconv"
 	"strings"
@@ -120,7 +121,7 @@ func verifySessionToken(secret []byte, token string, now time.Time) (username st
 // ---------------------------------------------------------------------
 
 func hashPassword(plain string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(plain), limits.BcryptCost)
 	return string(hash), err
 }
 
@@ -189,7 +190,7 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -402,7 +403,7 @@ func (a *Admin) AddDevice(w http.ResponseWriter, r *http.Request) {
 		OwnerUuid string `json:"ownerUuid"`
 		Secret    string `json:"secret"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -513,7 +514,7 @@ func (a *Admin) SetContactRequestRead(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Read bool `json:"read"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}

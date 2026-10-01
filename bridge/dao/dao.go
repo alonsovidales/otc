@@ -10,6 +10,7 @@ import (
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/push"
 	_ "github.com/go-sql-driver/mysql"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -70,7 +71,16 @@ type Dao struct {
 	metrics     map[metricKey]*metricCounts
 	stopMetrics chan struct{}
 	metricsDone chan struct{}
+
+	// Issue #163: when an auth event was last written per address and
+	// reason, so a client retrying a bad secret in a loop writes one row a
+	// minute, not one per attempt.
+	authEventsMu  sync.Mutex
+	lastAuthEvent map[string]time.Time
 }
+
+// cAuthEventEvery is how often one address may add a row per reason.
+const cAuthEventEvery = time.Minute
 
 // NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
 // real MySQL dial and its log-pruner goroutine. Exported for tests that
@@ -478,10 +488,33 @@ func (dao *Dao) SetContactRequestRead(id int, isRead bool) (err error) {
 
 // LogAuthEvent records a failed/suspicious bridge-registration attempt.
 func (dao *Dao) LogAuthEvent(uuid, domain, ownerUuidAttempted, remoteAddr, reason string) (err error) {
+	if !dao.authEventDue(remoteAddr, reason, time.Now()) {
+		return nil
+	}
 	_, err = dao.db.Exec(
 		"insert into `auth_events` (`uuid`, `domain`, `owner_uuid_attempted`, `remote_addr`, `dt`, `reason`) values (?, ?, ?, ?, now(), ?)",
 		uuid, domain, ownerUuidAttempted, remoteAddr, reason)
 	return
+}
+
+// authEventDue reports whether an event for this address and reason
+// should be written now, and if so records that it was.
+func (dao *Dao) authEventDue(remoteAddr, reason string, now time.Time) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	key := host + "|" + reason
+	dao.authEventsMu.Lock()
+	defer dao.authEventsMu.Unlock()
+	if dao.lastAuthEvent == nil || len(dao.lastAuthEvent) > 100000 {
+		dao.lastAuthEvent = map[string]time.Time{}
+	}
+	if last, ok := dao.lastAuthEvent[key]; ok && now.Sub(last) < cAuthEventEvery {
+		return false
+	}
+	dao.lastAuthEvent[key] = now
+	return true
 }
 
 // AuthEvent is a row from the auth_events table.
