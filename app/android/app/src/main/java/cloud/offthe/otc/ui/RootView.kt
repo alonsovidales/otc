@@ -60,6 +60,13 @@ fun RootView() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // The first sync right after setup (or sign-in): the app is already in
+    // the foreground then, and the resume the lifecycle observer above
+    // relies on never came - photos waited until the app was reopened. A
+    // no-op when a sync is already running; without media permission the
+    // permission prompt's result starts it instead.
+    LaunchedEffect(configured) { if (configured && PhotoSync.hasPermission()) PhotoSync.runForegroundAsync() }
+
     // Issue #133: a no-op on first launch (the model's init already started
     // it), the restart after Log Out + sign in.
     LaunchedEffect(configured) { if (configured) SocialFeedViewModel.startAutoLoad() }

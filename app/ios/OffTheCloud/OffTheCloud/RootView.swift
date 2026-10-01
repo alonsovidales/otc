@@ -33,6 +33,12 @@ struct RootView: View {
                     .environmentObject(notifications)
                     .environmentObject(social)
                     .onAppear {
+                        // The first sync right after setup or sign-in: the
+                        // app is already active then, so the scenePhase
+                        // change below never comes and photos waited for a
+                        // relaunch. A no-op if a sync is already running
+                        // (the cold-launch one, say). As on Android.
+                        Task { try? await PhotoSync.shared.runForeground() }
                         SyncScheduler.scheduleNext() // schedule background sync
                         notifications.startPolling()
                         // Issue #133: a no-op on first launch (init already
