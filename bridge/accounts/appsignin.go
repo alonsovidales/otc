@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -37,18 +36,11 @@ const cAppCodeTTL = 5 * time.Minute
 
 var challengePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 
-type appCode struct {
-	accountID string
-	challenge string
-	expires   time.Time
+// codeHash is what is stored of a code: a leaked table can't be replayed.
+func codeHash(code string) string {
+	sum := sha256.Sum256([]byte(code))
+	return hex.EncodeToString(sum[:])
 }
-
-type appCodes struct {
-	mu    sync.Mutex
-	codes map[string]appCode
-}
-
-var pendingAppCodes = &appCodes{codes: map[string]appCode{}}
 
 // isAppReturn is whether a return URL is the apps' own address.
 func isAppReturn(u *url.URL) bool {
@@ -80,15 +72,10 @@ func (a *Accounts) appRedirect(accountID, returnURL string) string {
 		return "/account"
 	}
 	code := hex.EncodeToString(buf)
-	pendingAppCodes.mu.Lock()
-	now := time.Now()
-	for k, c := range pendingAppCodes.codes {
-		if now.After(c.expires) {
-			delete(pendingAppCodes.codes, k)
-		}
+	// Issue #144: in the database - the exchange can reach another node.
+	if err := a.dao.SaveAppCode(codeHash(code), accountID, challenge, time.Now(), cAppCodeTTL); err != nil {
+		return "/account"
 	}
-	pendingAppCodes.codes[code] = appCode{accountID: accountID, challenge: challenge, expires: now.Add(cAppCodeTTL)}
-	pendingAppCodes.mu.Unlock()
 
 	return AppReturn + "?code=" + code
 }
@@ -111,15 +98,17 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	pendingAppCodes.mu.Lock()
-	c, ok := pendingAppCodes.codes[strings.TrimSpace(body.Code)]
-	delete(pendingAppCodes.codes, strings.TrimSpace(body.Code)) // single use, right or wrong
-	pendingAppCodes.mu.Unlock()
-	if !ok || time.Now().After(c.expires) || !verifierMatches(body.Verifier, c.challenge) {
+	// Single use, right or wrong.
+	accountID, challenge, created, ok, err := a.dao.ConsumeAppCode(codeHash(strings.TrimSpace(body.Code)))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not finish the sign-in")
+		return
+	}
+	if !ok || time.Since(created) > cAppCodeTTL || !verifierMatches(body.Verifier, challenge) {
 		writeError(w, http.StatusUnauthorized, "that sign-in has expired - try again")
 		return
 	}
-	tok, err := a.IssueSetupToken(c.accountID)
+	tok, err := a.IssueSetupToken(accountID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not finish the sign-in")
 		return

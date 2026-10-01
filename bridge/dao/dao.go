@@ -819,6 +819,45 @@ func (dao *Dao) SaveOAuthState(state, returnURL string) error {
 
 // ConsumeOAuthState takes a state out and returns where its sign-in
 // should return to; found is false for an unknown or stale one.
+// SaveAppCode stores a one-time app sign-in code (by its hash), and drops
+// the ones older than ttl.
+func (dao *Dao) SaveAppCode(codeHash, accountID, challenge string, now time.Time, ttl time.Duration) error {
+	if _, err := dao.db.Exec("delete from `app_signin_codes` where `created` < ?", now.Add(-ttl).UTC()); err != nil {
+		return err
+	}
+	_, err := dao.db.Exec("insert into `app_signin_codes` (`code_hash`, `account_id`, `challenge`, `created`) values (?, ?, ?, ?)",
+		codeHash, accountID, challenge, now.UTC())
+	return err
+}
+
+// ConsumeAppCode takes an app sign-in code: one use only, even for two
+// requests at the same moment (as ConsumeOAuthState).
+func (dao *Dao) ConsumeAppCode(codeHash string) (accountID, challenge string, created time.Time, found bool, err error) {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return "", "", time.Time{}, false, err
+	}
+	defer tx.Rollback()
+	err = tx.QueryRow("select `account_id`, `challenge`, `created` from `app_signin_codes` where `code_hash` = ? for update", codeHash).Scan(&accountID, &challenge, &created)
+	if err == sql.ErrNoRows {
+		return "", "", time.Time{}, false, nil
+	}
+	if err != nil {
+		return "", "", time.Time{}, false, err
+	}
+	res, err := tx.Exec("delete from `app_signin_codes` where `code_hash` = ?", codeHash)
+	if err != nil {
+		return "", "", time.Time{}, false, err
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		return "", "", time.Time{}, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return "", "", time.Time{}, false, err
+	}
+	return accountID, challenge, created, true, nil
+}
+
 func (dao *Dao) ConsumeOAuthState(state string) (returnURL string, found bool, err error) {
 	// Issue #164: one use only, even for two callbacks at the same moment -
 	// the row is locked while read and whoever deletes it is the one who

@@ -382,7 +382,7 @@ account step also offers "Continue with Apple/Google" (the wizard's `/api/provid
 runs `/account/auth/<p>/start?return=otcsetup://done&challenge=…` in the system sign-in sheet
 (`ASWebAuthenticationSession` / a Custom Tab + `SetupSignInCallbackActivity`) and, PKCE-style,
 the redirect carries only a one-time code that `POST /api/account/app-exchange` trades with the
-app's verifier for a setup token (`bridge/accounts/appsignin.go`) - a custom scheme can be
+app's verifier for a setup token (`bridge/accounts/appsignin.go`) - kept in the database (`app_signin_codes`, by SHA-256, single use), never one node's memory: the callback and the exchange can reach different bridge nodes (#144) - a custom scheme can be
 claimed by any Android app. "Continue without an account" sets `skip_bridge`, and `install.sh` gets `OTC_BRIDGE_ADDR=""`
 (local-only, name `otc`). Schema: `bridge/db/db.sql` + `bridge/db/migrations/001-accounts.sql`
 for an existing bridge (no updater on the bridge: run it by hand, it is idempotent). Issue #139: the admin

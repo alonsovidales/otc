@@ -131,3 +131,13 @@ a Gmail app password is in the Keychain (its spaces don't matter):
 After a change made on purpose (a new port, a key, a deployed binary):
 `bash bridge/cluster/servercheck.sh --accept`. Run now:
 `launchctl kickstart gui/$(id -u)/cloud.offthe.servercheck`.
+
+## Rule: no request-to-request state in a node's memory
+
+Round-robin DNS sends consecutive requests of one flow to either node, so
+anything one request leaves for a later one lives in MySQL (or Redis):
+OAuth states (`oauth_states`), app sign-in codes (`app_signin_codes`, was
+in memory until 2026-10-01 - "that sign-in has expired" on Android),
+setup tokens, setup beacons. Sessions are signed cookies, checked against
+the database's epoch. Per-node memory is fine only for limits that may
+count per node (login throttling).

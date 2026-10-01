@@ -88,6 +88,21 @@ create table account_tokens
   key (`expires`)
 ) engine=InnoDB;
 
+-- A sign-in started in an app (setup over Bluetooth): the one-time code
+-- the app trades, with its PKCE verifier, for a setup token. Here, not in
+-- one node's memory, since the callback and the exchange can land on
+-- different bridge nodes (issue #144). Only the code's SHA-256 is stored.
+create table app_signin_codes
+(
+  `code_hash` char(64) not null,
+  `account_id` varchar(36) not null,
+  `challenge` varchar(64) not null,
+  `created` datetime not null,
+
+  primary key (`code_hash`),
+  key (`created`)
+);
+
 -- OAuth "state" for an in-flight provider sign-in, with where to send the
 -- browser afterwards.
 create table oauth_states
