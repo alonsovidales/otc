@@ -236,10 +236,21 @@
       <div class="hero-install" id="install">
         <span class="hero-install-label">Get your device running</span>
         <div class="install-tabs" role="tablist">
-          <button class="install-tab" role="tab" id="tab-script" aria-selected="true" aria-controls="panel-script" type="button">Install script</button>
-          <button class="install-tab" role="tab" id="tab-image" aria-selected="false" aria-controls="panel-image" type="button">Raspberry Pi 5 image</button>
+          <button class="install-tab" role="tab" id="tab-image" aria-selected="true" aria-controls="panel-image" type="button">Raspberry Pi 5 image</button>
+          <button class="install-tab" role="tab" id="tab-script" aria-selected="false" aria-controls="panel-script" type="button">Install script</button>
         </div>
-        <div class="install-panel on" id="panel-script" role="tabpanel" aria-labelledby="tab-script">
+        <div class="install-panel on" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
+          <div class="install-req">For a <strong>Raspberry Pi 5 with at least 8 GB of RAM</strong>, a MicroSD card for the system and, optionally, two USB disks for RAID-1. No keyboard, monitor or Linux knowledge needed.</div>
+          <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ Download the image (≈ 530 MB)</a>
+          <ol>
+            <li><strong>Flash it</strong> to the MicroSD card with <a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a>: "Use custom", pick the file, write. Skip Imager's own customisation step.</li>
+            <li><strong>Plug in</strong> the disks, insert the card and power the Pi on. After a minute it announces itself over Bluetooth.</li>
+            <li><strong>Set it up from your phone</strong> with the app (iOS or Android): on the welcome screen tap <strong>Set up a new device</strong>. It finds the Pi over Bluetooth and runs the setup right there - your phone stays on its own WiFi. It asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes.</li>
+            <li><strong>Sign in</strong> when it's done: the app connects to the new device by itself with the password you chose, or open <code>https://&lt;name&gt;.off-the.cloud</code> in a browser.</li>
+          </ol>
+          <p>The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: <a href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz.sha256">.sha256</a>.</p>
+        </div>
+        <div class="install-panel" id="panel-script" role="tabpanel" aria-labelledby="tab-script">
           <p>One command on any machine you can already log into: Ubuntu, Debian, Raspberry Pi OS and other Debian-based distros (64-bit).</p>
           <div class="code-card">
             <div class="code-head">
@@ -251,17 +262,6 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/inst
   | sudo bash -s -- &lt;subdomain&gt;</pre>
           </div>
           <p>It installs everything and builds the software from source, then starts the service at <code>http://&lt;device-ip&gt;:8080/</code>. Safe to re-run to update. RAID-1 storage and the WiFi setup are not part of this path — see the image for a from-scratch Raspberry Pi.</p>
-        </div>
-        <div class="install-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
-          <div class="install-req">For a <strong>Raspberry Pi 5 with at least 8 GB of RAM</strong>, a MicroSD card for the system and, optionally, two USB disks for RAID-1. No keyboard, monitor or Linux knowledge needed.</div>
-          <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ Download the image (≈ 530 MB)</a>
-          <ol>
-            <li><strong>Flash it</strong> to the MicroSD card with <a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a>: "Use custom", pick the file, write. Skip Imager's own customisation step.</li>
-            <li><strong>Plug in</strong> the disks, insert the card and power the Pi on. After a minute it announces itself over Bluetooth.</li>
-            <li><strong>Set it up from your phone</strong> with the app (iOS or Android): on the welcome screen tap <strong>Set up a new device</strong>. It finds the Pi over Bluetooth and runs the setup right there - your phone stays on its own WiFi. It asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes.</li>
-            <li><strong>Sign in</strong> when it's done: the app connects to the new device by itself with the password you chose, or open <code>https://&lt;name&gt;.off-the.cloud</code> in a browser.</li>
-          </ol>
-          <p>The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: <a href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz.sha256">.sha256</a>.</p>
         </div>
         <a class="hero-install-alt" href="#contact">Want to reach it from outside your home network? Ask about Bridge access →</a>
       </div>
@@ -520,7 +520,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/inst
       });
     };
     tabs.forEach(t => t.addEventListener('click', () => selectTab(t.id)));
-    if (location.hash === '#image') selectTab('tab-image');
+    if (location.hash === '#script') selectTab('tab-script');
 
     const copyBtn = document.getElementById('copy-curl');
     copyBtn.addEventListener('click', async () => {
