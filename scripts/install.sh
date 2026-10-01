@@ -428,6 +428,11 @@ chown otc:otc /var/log/otc /var/www /var/lib/otc /var/lib/otc/users "$STORAGE_PA
 # Issue #157: the storage is the service's alone (everything in it is
 # read through the service).
 chmod 750 "$STORAGE_PATH" "$UNENC_PATH"
+# MariaDB's datadir lives under the storage root on the RAID
+# ($MOUNT_POINT/mysql, step 10), and the mysql user has to pass through it:
+# others may traverse the root (o+x) but not list or read it - everything
+# inside stays 0600/0750. Without this MariaDB can't start (2026-10-01).
+chmod o+x "$STORAGE_PATH" "$MOUNT_POINT"
 chmod 755 /var/log/otc
 
 # ---------------------------------------------------------------------------

@@ -106,3 +106,4 @@
 65	-	65cf0b6b57fc3c252f087cdbe822fe64c4c98a8e46d9eec29d23d1842b2e5231	Fixes the update that stopped at release 62: devices build again and get releases 62-64 (memory hardening, lower memory use, bridge relays).
 66	-	730b6d179d1be6afabd0a66635a177802e537362cfbcfcd2ed4d3341f4415a12	The bridge secret is no longer shown or editable in Settings; the device manages it itself.
 67	-	89fb5d3e537bb0b947b959591c2551d45604fc8c9245d76959bd660c68dad7d9	A file whose content is missing raises one alert, not a new one every few minutes while a sync client keeps asking for it.
+68	df30a4e75562b4959f94e545cdba54da396d64da0af69a9ad3c777af20263e1d	c373cec9bc5260fad5ce15efc599227ca1a215ec4214989ec4ceb2084892d9b7	Fixes MariaDB not starting after a restart: release 58 made the storage folder closed even to the database it holds.
