@@ -95,7 +95,17 @@ export default function SharedGalleryView() {
             try {
               const b = await fetchPart(i, GetSharedGalleryItem_Part.THUMBNAIL);
               if (!cancelled) setThumbs(t => ({ ...t, [i]: objectURL(b) }));
-            } catch { /* no thumbnail: the tile shows the file's name */ }
+            } catch {
+              // A gallery made before its files had thumbnails: the
+              // screen-sized preview stands in; without one either, the
+              // tile shows the file's name.
+              if (g.items[i].hasPreview) {
+                try {
+                  const b = await fetchPart(i, GetSharedGalleryItem_Part.PREVIEW);
+                  if (!cancelled) setThumbs(t => ({ ...t, [i]: objectURL(b) }));
+                } catch { /* the name, then */ }
+              }
+            }
           }
         };
         await Promise.all([worker(), worker(), worker(), worker()]);

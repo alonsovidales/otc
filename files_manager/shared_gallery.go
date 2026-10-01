@@ -275,23 +275,32 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 			return "", fmt.Errorf("could not copy %s: %w", item.Name, err)
 		}
 		stored += n
-		if thumb, err := mg.readThumbnail(ses, f); err == nil && len(thumb) > 0 {
-			if n, err := writeSealed(galleryFile(id, i, pb.GetSharedGalleryItem_THUMBNAIL), thumb, keys); err == nil {
-				item.Thumb = true
-				stored += n
-			}
-		}
 		// Every photo gets a screen-sized preview (a 9 MB original took
 		// seconds to show, blurred meanwhile); a GIF stays itself, as it
 		// may be animated.
+		var shown image.Image
 		if strings.HasPrefix(f.Mime, "image/") && f.Mime != "image/gif" {
-			if prev, err := mg.galleryPreview(ses, f); err == nil {
+			if prev, img, err := mg.galleryPreview(ses, f); err == nil {
+				shown = img
 				if n, err := writeSealed(galleryFile(id, i, pb.GetSharedGalleryItem_PREVIEW), prev, keys); err == nil {
 					item.Preview = true
 					stored += n
 				}
 			} else {
 				log.Error("shared gallery: no preview for a", f.Mime, "file:", err)
+			}
+		}
+		// The library's thumbnail - or, for a file the device hasn't
+		// processed yet (just uploaded: 13 of 76 tiles were empty on a
+		// freshly installed device), one made here.
+		thumb, err := mg.readThumbnail(ses, f)
+		if err != nil || len(thumb) == 0 {
+			thumb = mg.galleryThumbnail(ses, f, shown)
+		}
+		if len(thumb) > 0 {
+			if n, err := writeSealed(galleryFile(id, i, pb.GetSharedGalleryItem_THUMBNAIL), thumb, keys); err == nil {
+				item.Thumb = true
+				stored += n
 			}
 		}
 		man.Items = append(man.Items, item)
@@ -359,12 +368,12 @@ func fileSize(p string) int64 {
 // galleryPreview is a JPEG of a photo, at most cGalleryPreviewMaxPx on its
 // long side and turned the way the photo is meant to be seen (its EXIF
 // orientation, as thumbnails do) - HEIC the way the library shows it.
-func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, error) {
+func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, image.Image, error) {
 	release := mg.ReserveBytes(int64(f.Size) * cDownloadCopies)
 	defer release()
 	content, err := blobstore.ReadAll(blobPath(f.Hash), ses)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var img image.Image
 	if isHeicFile(f.Path, f.Mime) {
@@ -374,16 +383,16 @@ func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, err
 		}
 		full, err := mg.heicToJpeg(content, cGalleryPreviewQ, orientation)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if img, err = decodeImage(full); err != nil {
-			return full, nil
+			return full, nil, nil
 		}
 	} else {
 		var err error
 		if img, err = decodeImage(content); err != nil {
 			if img, err = decodeWithFFmpeg(content); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		if ex, err := extractExif(content, f.Mime, f.Path); err == nil && ex != nil {
@@ -401,9 +410,46 @@ func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, err
 	}
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: cGalleryPreviewQ}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return buf.Bytes(), nil
+	return buf.Bytes(), img, nil
+}
+
+// galleryThumbnail makes a thumbnail for a file the library has none for
+// yet: from the photo already decoded for its preview, or a frame of the
+// video. Nil when it can't.
+func (mg *Manager) galleryThumbnail(ses *session.Session, f *pb.File, shown image.Image) []byte {
+	width := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+	if width <= 0 {
+		width = 1000
+	}
+	if strings.HasPrefix(f.Mime, "video/") {
+		src, done, err := mg.videoSource(ses, f)
+		if err != nil {
+			return nil
+		}
+		defer done()
+		thumb, err := GenerateVideoThumbnailFrom(src, width)
+		if err != nil {
+			log.Error("shared gallery: no thumbnail for a video:", err)
+			return nil
+		}
+		return thumb
+	}
+	if shown == nil {
+		return nil
+	}
+	img := shown
+	if b := img.Bounds(); b.Dx() > width {
+		dst := image.NewRGBA(image.Rect(0, 0, width, b.Dy()*width/b.Dx()))
+		draw.CatmullRom.Scale(dst, dst.Bounds(), img, b, draw.Over, nil)
+		img = dst
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
+		return nil
+	}
+	return buf.Bytes()
 }
 
 // openGallery checks a visitor's link and reads its manifest.
