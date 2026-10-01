@@ -1358,6 +1358,11 @@ export interface Settings {
    */
   socialStorageLimitMb: number;
   socialStorageUsedBytes: bigint;
+  /**
+   * Issue #181: tag photos and videos with what they show (on by default).
+   * Toggled with SetImageTaggingEnabled.
+   */
+  imageTaggingEnabled: boolean;
 }
 
 /**
@@ -1444,6 +1449,14 @@ export interface SetSocialStorageLimit {
  * missing backfill feature.
  */
 export interface SetFaceRecognitionEnabled {
+  enabled: boolean;
+}
+
+/**
+ * SetImageTaggingEnabled (issue #181) turns the tagging model on or off
+ * for what is processed from now on. Answers with the generic Ack.
+ */
+export interface SetImageTaggingEnabled {
   enabled: boolean;
 }
 
@@ -2424,6 +2437,7 @@ export interface ReqEnvelope {
     | { $case: "reqGetSharedGalleryStream"; reqGetSharedGalleryStream: GetSharedGalleryStream }
     | { $case: "reqListSharedLinks"; reqListSharedLinks: ListSharedLinks }
     | { $case: "reqDeleteSharedLink"; reqDeleteSharedLink: DeleteSharedLink }
+    | { $case: "reqSetImageTaggingEnabled"; reqSetImageTaggingEnabled: SetImageTaggingEnabled }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -10442,6 +10456,7 @@ function createBaseSettings(): Settings {
     faceRecognitionEnabled: false,
     socialStorageLimitMb: 0,
     socialStorageUsedBytes: 0n,
+    imageTaggingEnabled: false,
   };
 }
 
@@ -10464,6 +10479,9 @@ export const Settings: MessageFns<Settings> = {
         throw new globalThis.Error("value provided for field message.socialStorageUsedBytes of type int64 too large");
       }
       writer.uint32(40).int64(message.socialStorageUsedBytes);
+    }
+    if (message.imageTaggingEnabled !== false) {
+      writer.uint32(48).bool(message.imageTaggingEnabled);
     }
     return writer;
   },
@@ -10515,6 +10533,14 @@ export const Settings: MessageFns<Settings> = {
           message.socialStorageUsedBytes = reader.int64() as bigint;
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.imageTaggingEnabled = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -10533,6 +10559,7 @@ export const Settings: MessageFns<Settings> = {
         : false,
       socialStorageLimitMb: isSet(object.socialStorageLimitMb) ? globalThis.Number(object.socialStorageLimitMb) : 0,
       socialStorageUsedBytes: isSet(object.socialStorageUsedBytes) ? BigInt(object.socialStorageUsedBytes) : 0n,
+      imageTaggingEnabled: isSet(object.imageTaggingEnabled) ? globalThis.Boolean(object.imageTaggingEnabled) : false,
     };
   },
 
@@ -10553,6 +10580,9 @@ export const Settings: MessageFns<Settings> = {
     if (message.socialStorageUsedBytes !== 0n) {
       obj.socialStorageUsedBytes = message.socialStorageUsedBytes.toString();
     }
+    if (message.imageTaggingEnabled !== false) {
+      obj.imageTaggingEnabled = message.imageTaggingEnabled;
+    }
     return obj;
   },
 
@@ -10566,6 +10596,7 @@ export const Settings: MessageFns<Settings> = {
     message.faceRecognitionEnabled = object.faceRecognitionEnabled ?? false;
     message.socialStorageLimitMb = object.socialStorageLimitMb ?? 0;
     message.socialStorageUsedBytes = object.socialStorageUsedBytes ?? 0n;
+    message.imageTaggingEnabled = object.imageTaggingEnabled ?? false;
     return message;
   },
 };
@@ -11412,6 +11443,64 @@ export const SetFaceRecognitionEnabled: MessageFns<SetFaceRecognitionEnabled> = 
   },
   fromPartial<I extends Exact<DeepPartial<SetFaceRecognitionEnabled>, I>>(object: I): SetFaceRecognitionEnabled {
     const message = createBaseSetFaceRecognitionEnabled();
+    message.enabled = object.enabled ?? false;
+    return message;
+  },
+};
+
+function createBaseSetImageTaggingEnabled(): SetImageTaggingEnabled {
+  return { enabled: false };
+}
+
+export const SetImageTaggingEnabled: MessageFns<SetImageTaggingEnabled> = {
+  encode(message: SetImageTaggingEnabled, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetImageTaggingEnabled {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetImageTaggingEnabled();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetImageTaggingEnabled {
+    return { enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false };
+  },
+
+  toJSON(message: SetImageTaggingEnabled): unknown {
+    const obj: any = {};
+    if (message.enabled !== false) {
+      obj.enabled = message.enabled;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetImageTaggingEnabled>, I>>(base?: I): SetImageTaggingEnabled {
+    return SetImageTaggingEnabled.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetImageTaggingEnabled>, I>>(object: I): SetImageTaggingEnabled {
+    const message = createBaseSetImageTaggingEnabled();
     message.enabled = object.enabled ?? false;
     return message;
   },
@@ -18425,6 +18514,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqDeleteSharedLink":
         DeleteSharedLink.encode(message.payload.reqDeleteSharedLink, writer.uint32(1002).fork()).join();
         break;
+      case "reqSetImageTaggingEnabled":
+        SetImageTaggingEnabled.encode(message.payload.reqSetImageTaggingEnabled, writer.uint32(1010).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -19525,6 +19617,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 126: {
+          if (tag !== 1010) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetImageTaggingEnabled",
+            reqSetImageTaggingEnabled: SetImageTaggingEnabled.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -19924,6 +20027,11 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqListSharedLinks", reqListSharedLinks: ListSharedLinks.fromJSON(object.reqListSharedLinks) }
         : isSet(object.reqDeleteSharedLink)
         ? { $case: "reqDeleteSharedLink", reqDeleteSharedLink: DeleteSharedLink.fromJSON(object.reqDeleteSharedLink) }
+        : isSet(object.reqSetImageTaggingEnabled)
+        ? {
+          $case: "reqSetImageTaggingEnabled",
+          reqSetImageTaggingEnabled: SetImageTaggingEnabled.fromJSON(object.reqSetImageTaggingEnabled),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -20176,6 +20284,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqListSharedLinks = ListSharedLinks.toJSON(message.payload.reqListSharedLinks);
     } else if (message.payload?.$case === "reqDeleteSharedLink") {
       obj.reqDeleteSharedLink = DeleteSharedLink.toJSON(message.payload.reqDeleteSharedLink);
+    } else if (message.payload?.$case === "reqSetImageTaggingEnabled") {
+      obj.reqSetImageTaggingEnabled = SetImageTaggingEnabled.toJSON(message.payload.reqSetImageTaggingEnabled);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -21149,6 +21259,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqDeleteSharedLink",
             reqDeleteSharedLink: DeleteSharedLink.fromPartial(object.payload.reqDeleteSharedLink),
+          };
+        }
+        break;
+      }
+      case "reqSetImageTaggingEnabled": {
+        if (
+          object.payload?.reqSetImageTaggingEnabled !== undefined && object.payload?.reqSetImageTaggingEnabled !== null
+        ) {
+          message.payload = {
+            $case: "reqSetImageTaggingEnabled",
+            reqSetImageTaggingEnabled: SetImageTaggingEnabled.fromPartial(object.payload.reqSetImageTaggingEnabled),
           };
         }
         break;

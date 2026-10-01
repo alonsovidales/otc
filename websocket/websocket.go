@@ -2464,6 +2464,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			RespSettings: &pb.Settings{
 				Domain:                 ch.mg.settings.Domain(),
 				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled(),
+				ImageTaggingEnabled:    ch.mg.settings.ImageTaggingEnabled(),
 				SocialStorageLimitMb:   int32(limitMB),
 				SocialStorageUsedBytes: used,
 			},
@@ -2498,6 +2499,17 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: true},
 			}
+		}
+
+	// Issue #181: the tagging model, like face recognition, can be off.
+	case *pb.ReqEnvelope_ReqSetImageTaggingEnabled:
+		log.Info("Set image tagging enabled:", p.ReqSetImageTaggingEnabled.Enabled)
+		if err := ch.mg.settings.SetImageTaggingEnabled(p.ReqSetImageTaggingEnabled.Enabled); err != nil {
+			log.Error("error trying to update image_tagging_enabled:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
 	case *pb.ReqEnvelope_ReqListPeople:

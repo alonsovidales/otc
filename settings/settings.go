@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/log"
 )
 
 // Settings is the device's identity and switches. Issue #171: requests
@@ -25,6 +26,8 @@ type Settings struct {
 	// enabled doc comment for why turning it on never retroactively
 	// processes anything already uploaded.
 	faceRecognitionEnabled bool
+	// imageTaggingEnabled (issue #181) - on by default.
+	imageTaggingEnabled bool
 }
 
 func Init(dao *dao.Dao) (*Settings, error) {
@@ -37,8 +40,16 @@ func Init(dao *dao.Dao) (*Settings, error) {
 		return nil, err
 	}
 
+	imageTaggingEnabled, err := dao.GetImageTaggingEnabled()
+	if err != nil {
+		// A database the release script hasn't reached yet: tag, as before.
+		log.Error("could not read image_tagging_enabled, tagging stays on:", err)
+		imageTaggingEnabled = true
+	}
+
 	return &Settings{
 		dao:                    dao,
+		imageTaggingEnabled:    imageTaggingEnabled,
 		domain:                 domain,
 		deviceUuid:             deviceUuid,
 		bridgeSecret:           bridgeSecret,
@@ -102,6 +113,25 @@ func (st *Settings) SetFaceRecognitionEnabled(enabled bool) (err error) {
 		st.mu.Unlock()
 	}
 
+	return err
+}
+
+// ImageTaggingEnabled is issue #181's switch.
+func (st *Settings) ImageTaggingEnabled() bool {
+	st.mu.RLock()
+	defer st.mu.RUnlock()
+	return st.imageTaggingEnabled
+}
+
+// SetImageTaggingEnabled toggles the tagging model for what is processed
+// from now on.
+func (st *Settings) SetImageTaggingEnabled(enabled bool) (err error) {
+	err = st.dao.SetImageTaggingEnabled(enabled)
+	if err == nil {
+		st.mu.Lock()
+		st.imageTaggingEnabled = enabled
+		st.mu.Unlock()
+	}
 	return err
 }
 

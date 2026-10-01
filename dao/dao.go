@@ -1855,6 +1855,19 @@ func (dao *Dao) SetFaceRecognitionEnabled(enabled bool) (err error) {
 	return
 }
 
+// GetImageTaggingEnabled/SetImageTaggingEnabled back issue #181's switch
+// for the tagging model. Like face recognition, it applies to what is
+// processed while it is on.
+func (dao *Dao) GetImageTaggingEnabled() (enabled bool, err error) {
+	err = dao.db.QueryRow("select `image_tagging_enabled` from `settings`").Scan(&enabled)
+	return
+}
+
+func (dao *Dao) SetImageTaggingEnabled(enabled bool) (err error) {
+	_, err = dao.db.Exec("update `settings` set `image_tagging_enabled` = ?", enabled)
+	return
+}
+
 // CreatePerson inserts a brand new, still-unnamed person (issue #52) -
 // every detected face either matches an existing one (see
 // ListFaceEmbeddings) or gets one of these created for it.

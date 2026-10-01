@@ -236,7 +236,12 @@ create table settings
   -- Issue #153: how much space friends' posts (their photos and videos,
   -- kept here so the feed works when they're offline) may take, in MB;
   -- the oldest are removed past it. The owner's own posts don't count.
-  `social_storage_limit_mb` int not null default 5120
+  `social_storage_limit_mb` int not null default 5120,
+  -- Issue #181: tag photos and videos with what they show (the RAM++
+  -- model), for search. On by default; like face recognition it only
+  -- affects what is processed while it is on. Place tags from the
+  -- photo's own location data are added either way.
+  `image_tagging_enabled` tinyint(1) not null default 1
 ) engine=InnoDB;
 
 create table profile

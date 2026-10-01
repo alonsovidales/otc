@@ -1258,6 +1258,17 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 	}
 }
 
+// imageTaggingEnabled is issue #181's switch, read per file like face
+// recognition's. Tagging stays on when it can't be read.
+func (mg *Manager) imageTaggingEnabled() bool {
+	enabled, err := mg.dao.GetImageTaggingEnabled()
+	if err != nil {
+		log.Error("error checking image_tagging_enabled, tagging:", err)
+		return true
+	}
+	return enabled
+}
+
 // mediaStages picks what processMedia does: the thumbnail (the fast lane,
 // see lanes.go), the analysis - tags and faces - (the slow lane), or both
 // from one decode (backfill, reprocess).
@@ -1384,9 +1395,12 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 
 		}
 		if stages&stageAnalysis != 0 {
-			tags, err := mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
-			if err != nil {
-				mg.alert("could not be tagged", file.Path, err)
+			var tags []imagestagger.RAMTag
+			if mg.imageTaggingEnabled() {
+				tags, err = mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
+				if err != nil {
+					mg.alert("could not be tagged", file.Path, err)
+				}
 			}
 			tags = append(tags, locationTags(exif)...)
 			log.Debug("Tags:", tags)
@@ -1448,7 +1462,10 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		}
 
 		if stages&stageAnalysis != 0 {
-			tags := tagVideoFrames(ctx, mg.waitForTagger(), frames)
+			var tags []imagestagger.RAMTag
+			if mg.imageTaggingEnabled() {
+				tags = tagVideoFrames(ctx, mg.waitForTagger(), frames)
+			}
 			tags = append(tags, locationTags(exif)...)
 			log.Debug("Tags:", tags)
 

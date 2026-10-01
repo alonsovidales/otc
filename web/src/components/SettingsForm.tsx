@@ -43,6 +43,8 @@ export default function SettingsForm() {
   // it on only affects photos uploaded from that point on; it never scans
   // whatever's already in the library.
   const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(false);
+  const [imageTaggingEnabled, setImageTaggingEnabled] = useState(true);
+  const [imageTaggingBusy, setImageTaggingBusy] = useState(false);
   const [faceRecognitionBusy, setFaceRecognitionBusy] = useState(false);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
@@ -88,6 +90,27 @@ export default function SettingsForm() {
       setStatus({ kind: "error", text: err?.message ?? String(err) });
     } finally {
       setFaceRecognitionBusy(false);
+    }
+  };
+
+  // Issue #181: the tagging model can be turned off like face recognition.
+  const toggleImageTagging = async () => {
+    setImageTaggingBusy(true);
+    setStatus(null);
+    const next = !imageTaggingEnabled;
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqSetImageTaggingEnabled", reqSetImageTaggingEnabled: { enabled: next } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setImageTaggingEnabled(next);
+      } else {
+        setStatus({ kind: "error", text: resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not update this setting.") });
+      }
+    } catch (err: any) {
+      setStatus({ kind: "error", text: err?.message ?? String(err) });
+    } finally {
+      setImageTaggingBusy(false);
     }
   };
 
@@ -206,6 +229,7 @@ export default function SettingsForm() {
         if (resp.payload?.$case === "respSettings") {
           const s: PbSettings = resp.payload.respSettings;
           setFaceRecognitionEnabled(!!s.faceRecognitionEnabled);
+          setImageTaggingEnabled(!!s.imageTaggingEnabled);
           const limitMb = s.socialStorageLimitMb || 5120;
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
           setSocialUsedBytes(Number(s.socialStorageUsedBytes ?? 0));
@@ -363,6 +387,19 @@ export default function SettingsForm() {
         </p>
         <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
           {faceRecognitionBusy ? "Working…" : faceRecognitionEnabled ? "Disable Face Recognition" : "Enable Face Recognition"}
+        </button>
+      </section>
+
+      <section className="sf-section">
+        <h3>Image Tagging</h3>
+        <p className="sf-hint">
+          Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake)
+          so you can search for it. It runs on this device and nothing leaves it. Turning it off
+          saves processing time; places from a photo's own location data are still searchable.
+          It only affects what is uploaded while it is off.
+        </p>
+        <button className="sf-btn" disabled={imageTaggingBusy} onClick={() => void toggleImageTagging()}>
+          {imageTaggingBusy ? "Working…" : imageTaggingEnabled ? "Disable Image Tagging" : "Enable Image Tagging"}
         </button>
       </section>
 

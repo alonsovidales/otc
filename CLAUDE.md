@@ -293,6 +293,10 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   design (see the `faces` table's doc comment in `db.sql`). Requires CGO + a real OpenCV install at
   build time (see Build section); optional at runtime like APNs - a device with `[faces]`
   unconfigured just has the feature unavailable, nothing else affected.
+  Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
+  (on by default, `SetImageTaggingEnabled`, read per file in the slow lane by
+  `imageTaggingEnabled`); when off only the place tags from a file's own location data are
+  written. Web, iOS and Android show it under Face Recognition.
 - `bg_processor` — background job runner invoked from `files_manager`/`websocket`.
 - `websocket` — the `/ws` connection handler and dispatch switch described above; also owns
   `ensureBridgePool()`/`openBridgeConn()`, which the device uses to dial *out* to the bridge relay

@@ -26,6 +26,7 @@ import cloud.offthe.otc.proto.ReqSetupTailscale
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RespUserMetrics
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
+import cloud.offthe.otc.proto.SetImageTaggingEnabled
 import cloud.offthe.otc.proto.StartReprocess
 import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.proto.StopReprocess
@@ -92,6 +93,7 @@ class DeviceSettingsViewModel : ViewModel() {
         val oldKey: String = "", val newKey: String = "", val confirmKey: String = "", val savingKey: Boolean = false,
         val toast: String? = null,
         val faceRecognitionEnabled: Boolean = false, val savingFaceRecognition: Boolean = false,
+        val imageTaggingEnabled: Boolean = true, val savingImageTagging: Boolean = false,
         val reprocessStatus: String = "", val reprocessTotal: Int = 0, val reprocessProcessed: Int = 0,
         val startingReprocess: Boolean = false, val cancellingReprocess: Boolean = false, val reprocessConfirm: ReprocessConfirm? = null,
     ) {
@@ -148,7 +150,7 @@ class DeviceSettingsViewModel : ViewModel() {
         try {
             val resp = OTCConnection.request { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS) {
-                state.update { it.copy(faceRecognitionEnabled = resp.respSettings.faceRecognitionEnabled) }
+                state.update { it.copy(faceRecognitionEnabled = resp.respSettings.faceRecognitionEnabled, imageTaggingEnabled = resp.respSettings.imageTaggingEnabled) }
             }
         } catch (_: Exception) {}
     }
@@ -160,6 +162,16 @@ class DeviceSettingsViewModel : ViewModel() {
             if (!resp.ackOk()) { state.update { it.copy(faceRecognitionEnabled = !enabled) }; toast(resp.ackError("Update failed")) }
         } catch (e: Exception) { state.update { it.copy(faceRecognitionEnabled = !enabled) }; toast("Error updating this setting") }
         finally { state.update { it.copy(savingFaceRecognition = false) } }
+    }
+
+    /** Issue #181: the tagging model, like face recognition, can be off. */
+    suspend fun toggleImageTagging(enabled: Boolean) {
+        state.update { it.copy(savingImageTagging = true, imageTaggingEnabled = enabled) }
+        try {
+            val resp = OTCConnection.request { it.setReqSetImageTaggingEnabled(SetImageTaggingEnabled.newBuilder().setEnabled(enabled)) }
+            if (!resp.ackOk()) { state.update { it.copy(imageTaggingEnabled = !enabled) }; toast(resp.ackError("Update failed")) }
+        } catch (e: Exception) { state.update { it.copy(imageTaggingEnabled = !enabled) }; toast("Error updating this setting") }
+        finally { state.update { it.copy(savingImageTagging = false) } }
     }
 
     /** Same RSA-OAEP flow as sign-in (issue #2); the stored password follows on success. */

@@ -589,6 +589,8 @@ apply_schema_migrations() {
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
     -- Issue #178: off unless chosen - for a column added before, the default only.
     ALTER TABLE settings ALTER COLUMN face_recognition_enabled SET DEFAULT 0;
+    -- Issue #181: image tagging can be turned off.
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS image_tagging_enabled TINYINT(1) NOT NULL DEFAULT 1;
     -- Issue #153: the space friends' posts may take, in MB.
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS social_storage_limit_mb INT NOT NULL DEFAULT 5120;
     -- When a friend's device was last heard from (re-link rule).

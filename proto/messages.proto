@@ -849,6 +849,9 @@ message Settings {
   // default; the oldest are removed past it), and how much they take now.
   int32 social_storage_limit_mb = 4;
   int64 social_storage_used_bytes = 5;
+  // Issue #181: tag photos and videos with what they show (on by default).
+  // Toggled with SetImageTaggingEnabled.
+  bool image_tagging_enabled = 6;
 }
 
 // Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -925,6 +928,12 @@ message SetSocialStorageLimit {
 // comment in db.sql for why that's a deliberate design choice, not a
 // missing backfill feature.
 message SetFaceRecognitionEnabled {
+  bool enabled = 1;
+}
+
+// SetImageTaggingEnabled (issue #181) turns the tagging model on or off
+// for what is processed from now on. Answers with the generic Ack.
+message SetImageTaggingEnabled {
   bool enabled = 1;
 }
 
@@ -1790,6 +1799,7 @@ message ReqEnvelope {
     GetSharedGalleryStream req_get_shared_gallery_stream = 123;
     ListSharedLinks req_list_shared_links = 124;
     DeleteSharedLink req_delete_shared_link = 125;
+    SetImageTaggingEnabled req_set_image_tagging_enabled = 126;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

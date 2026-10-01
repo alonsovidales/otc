@@ -145,6 +145,13 @@ fun SettingsView(secrets: SecretsStore) {
                 }
             }
 
+            Section("Image Tagging", "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.") {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Image Tagging", Modifier.weight(1f))
+                    Switch(checked = dst.imageTaggingEnabled, enabled = !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
+                }
+            }
+
             Section("Reprocess Media", "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.") {
                 when (dst.reprocessStatus) {
                     "running" -> {

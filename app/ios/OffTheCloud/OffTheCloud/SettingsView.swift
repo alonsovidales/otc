@@ -30,6 +30,9 @@ final class DeviceSettingsViewModel: ObservableObject {
     // processes anything already in the library.
     @Published var faceRecognitionEnabled = false
     @Published var savingFaceRecognition = false
+    // Issue #181: the tagging model, on by default.
+    @Published var imageTaggingEnabled = true
+    @Published var savingImageTagging = false
 
     // Issue #73: full-library reprocess - re-runs tagging/face detection
     // against every already-uploaded photo/video (e.g. after a detection
@@ -154,6 +157,7 @@ final class DeviceSettingsViewModel: ObservableObject {
             let resp = try await ws.request { $0.payload = .reqGetSettings(Msg_GetSettings()) }
             if case .respSettings(let s) = resp.payload {
                 faceRecognitionEnabled = s.faceRecognitionEnabled
+                imageTaggingEnabled = s.imageTaggingEnabled
             }
         } catch { /* leave blank - the rest of the screen still works */ }
     }
@@ -176,6 +180,29 @@ final class DeviceSettingsViewModel: ObservableObject {
             }
         } catch {
             faceRecognitionEnabled = !enabled
+            showToast("Error updating this setting")
+        }
+    }
+
+    func toggleImageTagging(_ enabled: Bool) async {
+        savingImageTagging = true
+        defer { savingImageTagging = false }
+        var req = Msg_SetImageTaggingEnabled()
+        req.enabled = enabled
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetImageTaggingEnabled(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                imageTaggingEnabled = enabled
+            } else {
+                imageTaggingEnabled = !enabled
+                if case .respAck(let ack) = resp.payload {
+                    showToast(ack.errorMsg.isEmpty ? "Update failed" : ack.errorMsg)
+                } else if resp.error {
+                    showToast(resp.errorMessage.isEmpty ? "Update failed" : resp.errorMessage)
+                }
+            }
+        } catch {
+            imageTaggingEnabled = !enabled
             showToast("Error updating this setting")
         }
     }
@@ -294,6 +321,20 @@ struct SettingsView: View {
                         )
                     )
                     .disabled(device.savingFaceRecognition)
+                }
+
+                Section(
+                    header: Text("Image Tagging"),
+                    footer: Text("Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.")
+                ) {
+                    Toggle(
+                        "Image Tagging",
+                        isOn: Binding(
+                            get: { device.imageTaggingEnabled },
+                            set: { newValue in Task { await device.toggleImageTagging(newValue) } }
+                        )
+                    )
+                    .disabled(device.savingImageTagging)
                 }
 
                 Section(
