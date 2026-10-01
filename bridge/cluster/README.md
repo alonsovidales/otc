@@ -118,13 +118,15 @@ Read-only over SSH:
   SSH logins (and from where) and failed attempts, and a security
   fingerprint compared with a baseline kept on the Mac - listening ports,
   uid 0 and login users, every `authorized_keys`, sudoers, sshd config,
-  crontabs, systemd units, ufw rules, our binaries, kernel modules;
+  crontabs, systemd units, ufw rules, our binaries; and kernel modules that
+  taint the kernel while unsigned or from no package (a rootkit - not ZFS,
+  which Ubuntu ships signed);
 - from outside: the sites and both nodes answer, DNS, and MySQL, Redis and
   the internal port are closed to the internet.
 
 Reports: `~/Library/Logs/otc-servercheck/` (`latest.txt`, a month kept); a
 macOS notification on any problem; each report emailed through Gmail when
-an app password is in the Keychain:
+a Gmail app password is in the Keychain (its spaces don't matter):
 `security add-generic-password -s otc-servercheck-smtp -a vidales.miguelez@gmail.com -w`.
 After a change made on purpose (a new port, a key, a deployed binary):
 `bash bridge/cluster/servercheck.sh --accept`. Run now:

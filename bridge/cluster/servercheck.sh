@@ -101,7 +101,19 @@ fp crontabs "$(cat /etc/crontab /etc/cron.d/* /var/spool/cron/crontabs/* 2>/dev/
 fp systemd_units "$(ls /etc/systemd/system/*.service /etc/systemd/system/*.timer /etc/systemd/system/*.path 2>/dev/null | sort | tr "\n" " ")"
 fp ufw_rules "$(ufw status 2>/dev/null | sort | sha256sum | cut -c1-16)"
 for b in /usr/bin/otc_bridge /usr/local/sbin/* /usr/local/bin/*; do [ -f "$b" ] && fp "binary:$b" "$(sha256sum < "$b" | cut -c1-16)"; done
-fp kernel_modules "$(lsmod | awk "NR>1{print \$1}" | sort | sha256sum | cut -c1-16)"
+# Not the module list - the kernel loads modules on demand (firewall,
+# networking), so it changes on its own. A kernel rootkit is a module that
+# taints the kernel and is unsigned or comes from no package; the ZFS that
+# Ubuntu ships also taints it (CDDL: P, O) but is signed and packaged, so
+# it is not counted.
+bad_mods=""
+for m in /sys/module/*; do
+  t=$(cat "$m/taint" 2>/dev/null); [ -n "$t" ] || continue
+  n=${m##*/}; f=$(modinfo -F filename "$n" 2>/dev/null | head -1)
+  case "$t" in *E*) bad_mods="$bad_mods $n(unsigned)"; continue ;; esac
+  if [ -z "$f" ] || ! dpkg -S "$f" >/dev/null 2>&1; then bad_mods="$bad_mods $n(no package)"; fi
+done
+h untrusted_modules "$bad_mods"
 '
 
 check_host() {
@@ -127,6 +139,7 @@ check_host() {
       redis_ping) [ "$val" = PONG ] || bad "$host: Redis answers '$val'" ;;
       cert_days_left) [ "${val:-0}" -gt 20 ] || bad "$host: certificate expires in ${val} days (renewal failing?)" ;;
       ssh_failed_6h) [ "${val:-0}" -lt 500 ] || bad "$host: ${val} failed SSH attempts in 6h" ;;
+      untrusted_modules) [ -z "${val// /}" ] || bad "$host: kernel modules that are unsigned or from no package: $val" ;;
       deleted_exe_gone) [ -z "${val// /}" ] || bad "$host: processes running from executables that no longer exist: $val" ;;
       modified_system_files) [ -z "${val// /}" ] || bad "$host: system files differ from their packages: $val" ;;
     esac
@@ -181,7 +194,10 @@ cp "$REPORT" "$LOGDIR/latest.txt"
 
 send_mail() {
   local pass subject netrc msg
-  pass=$(security find-generic-password -s otc-servercheck-smtp -a "$MAILTO" -w 2>/dev/null) || return 0
+  # Google shows app passwords in groups of four; the spaces aren't part
+  # of it (and would end it in the netrc file).
+  pass=$(security find-generic-password -s otc-servercheck-smtp -a "$MAILTO" -w 2>/dev/null | tr -d '[:space:]') || return 0
+  [ -n "$pass" ] || return 0
   if [ ${#PROBLEMS[@]} -eq 0 ]; then subject="OTC servers: all good"; else subject="OTC servers: ${#PROBLEMS[@]} problem(s)"; fi
   netrc=$(mktemp); msg=$(mktemp); chmod 600 "$netrc" "$msg"
   # The password goes to curl in a file, never on its command line.
