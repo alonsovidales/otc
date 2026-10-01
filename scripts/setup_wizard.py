@@ -1383,14 +1383,19 @@ function renderName(rebind){const a=state.account||{};
  ${rebind?'':ownerFields()}
  ${rebind?'':profileFields()}
  <div class="row"><button id="claim" ${name.ok&&(rebind||ownerValid())?'':'disabled'}>${rebind?'Register':'Continue'}</button>${rebind?'':'<button class="ghost" id="back">Back</button>'}</div>`;
- const inp=$('#nm');inp.focus();let t;inp.oninput=()=>{name.val=inp.value.trim().toLowerCase();name.ok=null;name.msg='';clearTimeout(t);if(!name.val)return render();t=setTimeout(check,400)};
+ nameRebind=rebind;const inp=$('#nm');inp.focus();let t;inp.oninput=()=>{name.val=inp.value.trim().toLowerCase();name.ok=null;name.msg='';clearTimeout(t);nameStatus();if(name.val)t=setTimeout(check,400)};
  if(!rebind){wireOwner(()=>{$('#claim').disabled=!(name.ok&&ownerValid())});wireProfile()}
  const bk=$('#back');if(bk)bk.onclick=()=>{step=3;render()};
  $('#claim').onclick=async()=>{$('#claim').disabled=true;$('#nmsg').innerHTML='<span class="spin"></span>Reserving…';const r=await post('/api/name',{name:name.val});
   if(!r.ok){name.ok=false;name.msg=r.error||'Could not reserve that name';if(r.code==='login_required'){step=3;acct.msg=r.error}render();return}
   name.domain=r.domain;if(rebind){refresh();return}
   const i=await post('/api/install',await installBody());if(!i.ok){name.msg=i.error||'Could not start the install';name.ok=false;render();return}step=5;refresh()}}
-async function check(){const v=name.val;const r=await api('/api/name?name='+encodeURIComponent(v));if(name.val!==v)return;if(!r.ok){name.ok=false;name.msg=r.error||'Could not check that name'}else{name.ok=r.available;name.msg=r.available?`${r.domain} is available`:`${r.domain} is already taken - if it is one of your own, continuing moves it to this device`;if(!r.available)name.ok=true}render()}
+async function check(){const v=name.val;const r=await api('/api/name?name='+encodeURIComponent(v));if(name.val!==v)return;if(!r.ok){name.ok=false;name.msg=r.error||'Could not check that name'}else{name.ok=r.available;name.msg=r.available?`${r.domain} is available`:`${r.domain} is already taken - if it is one of your own, continuing moves it to this device`;if(!r.available)name.ok=true}nameStatus()}
+// The name check's answer only changes the message and the button: the
+// field itself is never redrawn, so the cursor stays where the person is
+// typing (a full render put it back at the start, on Android).
+let nameRebind=false;
+function nameStatus(){const m=$('#nmsg'),c=$('#claim');if(!m||!c)return render();m.textContent=name.msg;m.className='msg '+(name.ok===true?'ok':name.ok===false?'bad':'');c.disabled=!(name.ok&&(nameRebind||ownerValid()))}
 function renderInstall(){const i=state.install;const pct=i.total?Math.round(100*i.step/i.total):0;const dom=i.domain||state.domain||name.domain;
  if(i.phase==='online'&&!dom){view.innerHTML=`<h2>Ready 🎉</h2><p class="hint">Everything is installed. On your home network the device answers at</p><p style="font-size:1.2rem"><a href="http://otc.local:8080"><b>http://otc.local:8080</b></a></p><p class="hint">Open that address from any device at home - it will ask you to choose the owner password first. Want it reachable from anywhere later? Create an account at ${esc(state.bridge)} and run the setup again.</p><p class="hint">The "Off The Cloud" hotspot switches off in a minute.</p>`;return}
  if(i.phase==='online'&&window.otcApp){view.innerHTML=`<h2>Ready 🎉</h2><p class="hint">${i.recovery?'Your device is back, with everything it had.':'Everything is installed.'}${dom?` It lives at <b>${esc(dom)}</b>.`:''}</p><p class="hint">${i.recovery?'Enter its password below to open it in the app.':'Choose its password below - the app then opens it straight away.'}</p>`;return}
