@@ -69,7 +69,7 @@ struct SelectionActionBar: View {
                 item("Share", symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
                     .disabled(count == 0)
                 if let onGallery {
-                    item("Gallery", symbol: "photo.on.rectangle.angled", action: onGallery)
+                    item("Share as gallery", symbol: "photo.on.rectangle.angled", action: onGallery)
                         .disabled(count == 0)
                 }
                 item("Download", symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
@@ -110,7 +110,8 @@ struct SelectionActionBar: View {
                     }
                 }
                 .frame(height: 22)
-                Text(title).font(.caption2)
+                // "Share as gallery" wraps onto two lines in a full bar.
+                Text(title).font(.caption2).multilineTextAlignment(.center).lineLimit(2)
             }
             // Equal shares of the bar, and the whole share is tappable -
             // not just the glyph and its label.

@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 
 /** Which action is waiting on the device, if any. */
 enum class SelectionActionTask { SHARE, DOWNLOAD }
@@ -58,7 +59,7 @@ fun SelectionActionBar(
             Row(Modifier.padding(vertical = 6.dp, horizontal = 8.dp)) {
                 if (onUpload != null) Item("Upload", Icons.Default.Upload, enabled = busy == null, onClick = onUpload, modifier = Modifier.weight(1f))
                 Item("Share", Icons.Default.Share, busy = busy == SelectionActionTask.SHARE, enabled = count > 0 && busy == null, onClick = onShare, modifier = Modifier.weight(1f))
-                if (onGallery != null) Item("Gallery", Icons.Default.PhotoLibrary, enabled = busy == null, onClick = onGallery, modifier = Modifier.weight(1f))
+                if (onGallery != null) Item("Share as gallery", Icons.Default.PhotoLibrary, enabled = busy == null, onClick = onGallery, modifier = Modifier.weight(1f))
                 Item("Download", Icons.Default.Download, busy = busy == SelectionActionTask.DOWNLOAD, enabled = count > 0 && busy == null, onClick = onDownload, modifier = Modifier.weight(1f))
                 if (onGroup != null) Item("Group", Icons.Default.MenuBook, enabled = count > 0 && busy == null, onClick = onGroup, modifier = Modifier.weight(1f))
                 Item("Delete", Icons.Default.Delete, tint = Color(0xFFE53935), enabled = count > 0 && busy == null, onClick = onDelete, modifier = Modifier.weight(1f))
@@ -78,7 +79,7 @@ private fun Item(
                 if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Icon(icon, contentDescription = title, tint = if (enabled) tint else tint.copy(alpha = 0.4f))
             }
-            Text(title, style = MaterialTheme.typography.labelSmall, color = if (enabled) tint else tint.copy(alpha = 0.4f))
+            Text(title, style = MaterialTheme.typography.labelSmall, color = if (enabled) tint else tint.copy(alpha = 0.4f), textAlign = TextAlign.Center, maxLines = 2)
         }
     }
 }
