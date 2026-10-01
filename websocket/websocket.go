@@ -860,6 +860,13 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 		return fm.ReserveForDownload(p.ReqGetFile.Path, p.ReqGetFile.Hash)
 	case *pb.ReqEnvelope_ReqGetPublicationMedia:
 		return fm.ReservePublicationMedia(p.ReqGetPublicationMedia.Hash)
+	case *pb.ReqEnvelope_ReqGetSharedGalleryItem:
+		// Issue #180: like a share link's parts.
+		n := int64(p.ReqGetSharedGalleryItem.Length)
+		if n <= 0 || n > filesmanager.MaxChunk {
+			n = filesmanager.MaxChunk
+		}
+		return fm.ReserveBytes(n * 2)
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
 		// Issue #166: reachable by anyone with a link - one part at a time.
 		n := int64(p.ReqDownloadSharedLink.Length)
@@ -1072,6 +1079,12 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		return "", 0, "", 0, fmt.Errorf("nothing to stream")
 	}
 
+	return ch.streamURL(res)
+}
+
+// streamURL mints a stream for res - or answers "fetch it the usual way"
+// (an empty url) for a file not worth streaming.
+func (ch *connHandler) streamURL(res mediastream.Resource) (url string, size int64, mime string, expiresAtMs int64, err error) {
 	// Both of these answer "don't stream this, fetch it the usual way",
 	// which every client already handles - an empty url is a normal
 	// reply, not an error.
@@ -1498,6 +1511,40 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			},
 		}
 
+	// Issue #180: a shared gallery, for anyone with its link. Every
+	// failure is the same answer, so a guess learns nothing.
+	case *pb.ReqEnvelope_ReqOpenSharedGallery:
+		log.Info("Open shared gallery")
+		g, err := ch.mg.filesManager.OpenSharedGallery(p.ReqOpenSharedGallery.Uuid, p.ReqOpenSharedGallery.Secret)
+		if err != nil {
+			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespSharedGallery{RespSharedGallery: g}
+
+	case *pb.ReqEnvelope_ReqGetSharedGalleryItem:
+		r := p.ReqGetSharedGalleryItem
+		data, size, mime, err := ch.mg.filesManager.ReadSharedGalleryItem(r.Uuid, r.Secret, int(r.Index), r.Part, r.Offset, int(r.Length))
+		if err != nil {
+			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{Mime: mime, Size: size, Offset: r.Offset, Data: data}}
+
+	case *pb.ReqEnvelope_ReqGetSharedGalleryStream:
+		r := p.ReqGetSharedGalleryStream
+		res, err := ch.mg.filesManager.SharedGalleryStream(r.Uuid, r.Secret, int(r.Index))
+		if err != nil {
+			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
+			break
+		}
+		url, size, mime, exp, err := ch.streamURL(res)
+		if err != nil {
+			resp.Error, resp.ErrorMessage = true, err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespMediaUrl{RespMediaUrl: &pb.RespMediaURL{Url: url, TotalSize: size, Mime: mime, ExpiresAtUnixMs: exp}}
+
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
 		log.Info("Download link")
 
@@ -1507,6 +1554,11 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 				resp.Error = true
 				resp.ErrorMessage = fmt.Sprintf("error trying to download file: %s", err)
 				break
+			}
+			// Issue #180: the list in Settings counts downloads - one per
+			// download, at its first part.
+			if r.Offset == 0 {
+				ch.mg.filesManager.CountSharedLinkOpen(r.Uuid)
 			}
 			resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{
 				Mime: "application/zip", Size: size, Offset: r.Offset, Data: data,
@@ -1854,6 +1906,49 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 				},
 			}
 		}
+
+	// Issue #180: shared galleries and the list of share links.
+	case *pb.ReqEnvelope_ReqPreviewSharedGallery:
+		pv, err := ch.mg.filesManager.PreviewSharedGallery(p.ReqPreviewSharedGallery.Source)
+		if err != nil {
+			resp.Error, resp.ErrorMessage = true, err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespSharedGalleryPreview{RespSharedGalleryPreview: pv}
+
+	case *pb.ReqEnvelope_ReqCreateSharedGallery:
+		log.Info("Create shared gallery")
+		r := p.ReqCreateSharedGallery
+		job, err := ch.mg.filesManager.StartSharedGallery(ses, r.Source, r.Description, r.TtlHours, ch.mg.settings.Domain())
+		if err != nil {
+			resp.Error, resp.ErrorMessage = true, err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespSharedGalleryJob{RespSharedGalleryJob: job}
+
+	case *pb.ReqEnvelope_ReqGetSharedGalleryJob:
+		job, ok := filesmanager.SharedGalleryJobState(p.ReqGetSharedGalleryJob.JobId)
+		if !ok {
+			resp.Error, resp.ErrorMessage = true, "no such job"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespSharedGalleryJob{RespSharedGalleryJob: job}
+
+	case *pb.ReqEnvelope_ReqListSharedLinks:
+		links, err := ch.mg.filesManager.ListSharedLinks(ses)
+		if err != nil {
+			resp.Error, resp.ErrorMessage = true, err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespSharedLinks{RespSharedLinks: &pb.SharedLinks{Links: links}}
+
+	case *pb.ReqEnvelope_ReqDeleteSharedLink:
+		log.Info("Delete shared link")
+		if err := ch.mg.filesManager.DeleteSharedLinkNow(p.ReqDeleteSharedLink.Uuid); err != nil {
+			resp.Error, resp.ErrorMessage = true, err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 
 	case *pb.ReqEnvelope_ReqShareFilesLink:
 		log.Debug("Sharing files with path:", p.ReqShareFilesLink.Paths)

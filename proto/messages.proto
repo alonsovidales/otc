@@ -438,6 +438,117 @@ message GetPublicationMedia {
 // <video> element or AVPlayer, which then fetch it with ordinary HTTP
 // range requests - the player starts on the first chunk and only ever
 // pulls the parts it actually plays.
+// Issue #180: a shared gallery - a set of photos and videos, copied and
+// re-encrypted under a key of its own, opened by anyone with the link
+// (https://<device>/shared#<uuid>.<secret>). The secret is never stored on
+// the device: without the link nothing in the gallery can be read.
+
+// What to share: exactly one of these.
+message SharedGallerySource {
+  repeated string paths = 1;   // these files
+  string group_id = 2;         // an image group (issue #115)
+  string directory = 3;        // the photos and videos under a folder
+}
+
+message PreviewSharedGallery {
+  SharedGallerySource source = 1;
+}
+
+message SharedGalleryPreview {
+  int32 files = 1;       // photos and videos that will be shared
+  int64 bytes = 2;       // their total size (what the copy takes on disk)
+  int32 skipped = 3;     // other files in the source, not shared
+}
+
+message CreateSharedGallery {
+  SharedGallerySource source = 1;
+  string description = 2;
+  int32 ttl_hours = 3;   // 0: the device's default ([otc] shared-link-ttl-hours)
+}
+
+message GetSharedGalleryJob {
+  string job_id = 1;
+}
+
+// The copy runs in the background; the client polls with
+// GetSharedGalleryJob until finished.
+message SharedGalleryJob {
+  string job_id = 1;
+  int32 done = 2;
+  int32 total = 3;
+  int64 bytes_done = 4;
+  int64 bytes_total = 5;
+  bool finished = 6;
+  string error = 7;      // set when finished and it failed
+  string link = 8;       // set when finished and it worked; shown once, never stored
+}
+
+// Public: anyone with the link.
+message OpenSharedGallery {
+  string uuid = 1;
+  string secret = 2;
+}
+
+message SharedGalleryItem {
+  int32 index = 1;
+  string name = 2;
+  string mime = 3;
+  int64 size = 4;
+  google.protobuf.Timestamp taken = 5;
+  bool has_preview = 6;  // a browser-ready JPEG exists (HEIC, RAW...)
+}
+
+message SharedGallery {
+  string description = 1;
+  google.protobuf.Timestamp created = 2;
+  google.protobuf.Timestamp expires = 3;
+  repeated SharedGalleryItem items = 4;
+}
+
+message GetSharedGalleryItem {
+  enum Part {
+    THUMBNAIL = 0;
+    PREVIEW = 1;    // the browser-ready version (the original when it is one)
+    ORIGINAL = 2;
+  }
+  string uuid = 1;
+  string secret = 2;
+  int32 index = 3;
+  Part part = 4;
+  int64 offset = 5;
+  int32 length = 6;      // at most 4 MB
+}
+
+// A video of the gallery, streamed: answered with a RespMediaURL.
+message GetSharedGalleryStream {
+  string uuid = 1;
+  string secret = 2;
+  int32 index = 3;
+}
+
+// The owner's list of share links (Settings).
+message ListSharedLinks {}
+
+message SharedLinkInfo {
+  string uuid = 1;
+  string kind = 2;        // "gallery" or "archive" (a zip of files)
+  string description = 3;
+  google.protobuf.Timestamp created = 4;
+  google.protobuf.Timestamp expires = 5;
+  int32 opens = 6;
+  google.protobuf.Timestamp last_opened = 7;  // unset if never opened
+  int64 bytes = 8;        // what it takes on disk
+  int32 files = 9;
+}
+
+message SharedLinks {
+  repeated SharedLinkInfo links = 1;
+}
+
+message DeleteSharedLink {
+  string uuid = 1;
+}
+
 message ReqGetMediaURL {
   // Exactly one of: a library path (the owner's own file), or a
   // publication's media, addressed the same way GetPublicationMedia does.
@@ -1665,6 +1776,15 @@ message ReqEnvelope {
     BeginUpload req_begin_upload = 115;
     UploadChunk req_upload_chunk = 116;
     FinishUpload req_finish_upload = 117;
+    // Issue #180: shared galleries.
+    PreviewSharedGallery req_preview_shared_gallery = 118;
+    CreateSharedGallery req_create_shared_gallery = 119;
+    GetSharedGalleryJob req_get_shared_gallery_job = 120;
+    OpenSharedGallery req_open_shared_gallery = 121;
+    GetSharedGalleryItem req_get_shared_gallery_item = 122;
+    GetSharedGalleryStream req_get_shared_gallery_stream = 123;
+    ListSharedLinks req_list_shared_links = 124;
+    DeleteSharedLink req_delete_shared_link = 125;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1755,5 +1875,10 @@ message RespEnvelope {
     FileChunk resp_file_chunk = 58;
     UploadStarted resp_upload_started = 59;
     UploadProgress resp_upload_progress = 60;
+    // Issue #180: shared galleries.
+    SharedGalleryPreview resp_shared_gallery_preview = 61;
+    SharedGalleryJob resp_shared_gallery_job = 62;
+    SharedGallery resp_shared_gallery = 63;
+    SharedLinks resp_shared_links = 64;
   }
 }

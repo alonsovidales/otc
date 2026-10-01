@@ -247,11 +247,22 @@ create table profile
 ) engine=InnoDB;
 insert into `profile` values('Your Name', '', 'Description');
 
+-- A share link: a zip of files ("archive") or a gallery (issue #180).
+-- Never the link itself: its secret is the content's key, and lives only
+-- in the link.
 create table shared_links
 (
   `uuid` varchar(64) not null,
-  `size` int not null,
-  `created` datetime not null
+  `size` bigint not null,
+  `created` datetime not null,
+  `kind` varchar(16) not null default 'archive',
+  `description` blob null,          -- encrypted with the owner's key
+  `files` int not null default 0,
+  `opens` int not null default 0,
+  `last_opened` datetime null,
+  `expires` datetime null,          -- null: created + [otc] shared-link-ttl-hours
+
+  primary key (`uuid`)
 ) engine=InnoDB;
 
 -- `salt` is nullable on purpose: it's the marker between the two key-

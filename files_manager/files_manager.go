@@ -345,6 +345,13 @@ func (mg *Manager) deleteSharedLink(pathUuid string) {
 		log.Error("error removing expired shared link content:", pathUuid, err)
 		return
 	}
+	// Issue #180: a gallery is a folder of its own.
+	if galleryUUID.MatchString(pathUuid) {
+		if err := os.RemoveAll(galleryDir(pathUuid)); err != nil {
+			log.Error("error removing a shared gallery:", pathUuid, err)
+			return
+		}
+	}
 
 	if err := mg.dao.DeleteSharedLink(pathUuid); err != nil {
 		log.Error("error deleting expired shared link row:", pathUuid, err)

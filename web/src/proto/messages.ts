@@ -841,13 +841,177 @@ export interface GetPublicationMedia {
   hash: string;
 }
 
+/** What to share: exactly one of these. */
+export interface SharedGallerySource {
+  /** these files */
+  paths: string[];
+  /** an image group (issue #115) */
+  groupId: string;
+  /** the photos and videos under a folder */
+  directory: string;
+}
+
+export interface PreviewSharedGallery {
+  source?: SharedGallerySource | undefined;
+}
+
+export interface SharedGalleryPreview {
+  /** photos and videos that will be shared */
+  files: number;
+  /** their total size (what the copy takes on disk) */
+  bytes: bigint;
+  /** other files in the source, not shared */
+  skipped: number;
+}
+
+export interface CreateSharedGallery {
+  source?: SharedGallerySource | undefined;
+  description: string;
+  /** 0: the device's default ([otc] shared-link-ttl-hours) */
+  ttlHours: number;
+}
+
+export interface GetSharedGalleryJob {
+  jobId: string;
+}
+
 /**
- * Issue #110: streaming instead of downloading a whole video before it
- * can start playing. The client asks for a URL it can hand straight to a
- * <video> element or AVPlayer, which then fetch it with ordinary HTTP
- * range requests - the player starts on the first chunk and only ever
- * pulls the parts it actually plays.
+ * The copy runs in the background; the client polls with
+ * GetSharedGalleryJob until finished.
  */
+export interface SharedGalleryJob {
+  jobId: string;
+  done: number;
+  total: number;
+  bytesDone: bigint;
+  bytesTotal: bigint;
+  finished: boolean;
+  /** set when finished and it failed */
+  error: string;
+  /** set when finished and it worked; shown once, never stored */
+  link: string;
+}
+
+/** Public: anyone with the link. */
+export interface OpenSharedGallery {
+  uuid: string;
+  secret: string;
+}
+
+export interface SharedGalleryItem {
+  index: number;
+  name: string;
+  mime: string;
+  size: bigint;
+  taken?:
+    | Date
+    | undefined;
+  /** a browser-ready JPEG exists (HEIC, RAW...) */
+  hasPreview: boolean;
+}
+
+export interface SharedGallery {
+  description: string;
+  created?: Date | undefined;
+  expires?: Date | undefined;
+  items: SharedGalleryItem[];
+}
+
+export interface GetSharedGalleryItem {
+  uuid: string;
+  secret: string;
+  index: number;
+  part: GetSharedGalleryItem_Part;
+  offset: bigint;
+  /** at most 4 MB */
+  length: number;
+}
+
+export const GetSharedGalleryItem_Part = {
+  THUMBNAIL: 0,
+  /** PREVIEW - the browser-ready version (the original when it is one) */
+  PREVIEW: 1,
+  ORIGINAL: 2,
+  UNRECOGNIZED: -1,
+} as const;
+
+export type GetSharedGalleryItem_Part = typeof GetSharedGalleryItem_Part[keyof typeof GetSharedGalleryItem_Part];
+
+export namespace GetSharedGalleryItem_Part {
+  export type THUMBNAIL = typeof GetSharedGalleryItem_Part.THUMBNAIL;
+  export type PREVIEW = typeof GetSharedGalleryItem_Part.PREVIEW;
+  export type ORIGINAL = typeof GetSharedGalleryItem_Part.ORIGINAL;
+  export type UNRECOGNIZED = typeof GetSharedGalleryItem_Part.UNRECOGNIZED;
+}
+
+export function getSharedGalleryItem_PartFromJSON(object: any): GetSharedGalleryItem_Part {
+  switch (object) {
+    case 0:
+    case "THUMBNAIL":
+      return GetSharedGalleryItem_Part.THUMBNAIL;
+    case 1:
+    case "PREVIEW":
+      return GetSharedGalleryItem_Part.PREVIEW;
+    case 2:
+    case "ORIGINAL":
+      return GetSharedGalleryItem_Part.ORIGINAL;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return GetSharedGalleryItem_Part.UNRECOGNIZED;
+  }
+}
+
+export function getSharedGalleryItem_PartToJSON(object: GetSharedGalleryItem_Part): string {
+  switch (object) {
+    case GetSharedGalleryItem_Part.THUMBNAIL:
+      return "THUMBNAIL";
+    case GetSharedGalleryItem_Part.PREVIEW:
+      return "PREVIEW";
+    case GetSharedGalleryItem_Part.ORIGINAL:
+      return "ORIGINAL";
+    case GetSharedGalleryItem_Part.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+/** A video of the gallery, streamed: answered with a RespMediaURL. */
+export interface GetSharedGalleryStream {
+  uuid: string;
+  secret: string;
+  index: number;
+}
+
+/** The owner's list of share links (Settings). */
+export interface ListSharedLinks {
+}
+
+export interface SharedLinkInfo {
+  uuid: string;
+  /** "gallery" or "archive" (a zip of files) */
+  kind: string;
+  description: string;
+  created?: Date | undefined;
+  expires?: Date | undefined;
+  opens: number;
+  /** unset if never opened */
+  lastOpened?:
+    | Date
+    | undefined;
+  /** what it takes on disk */
+  bytes: bigint;
+  files: number;
+}
+
+export interface SharedLinks {
+  links: SharedLinkInfo[];
+}
+
+export interface DeleteSharedLink {
+  uuid: string;
+}
+
 export interface ReqGetMediaURL {
   /**
    * Exactly one of: a library path (the owner's own file), or a
@@ -2242,6 +2406,16 @@ export interface ReqEnvelope {
     | { $case: "reqUploadChunk"; reqUploadChunk: UploadChunk }
     | { $case: "reqFinishUpload"; reqFinishUpload: FinishUpload }
     | //
+    /** Issue #180: shared galleries. */
+    { $case: "reqPreviewSharedGallery"; reqPreviewSharedGallery: PreviewSharedGallery }
+    | { $case: "reqCreateSharedGallery"; reqCreateSharedGallery: CreateSharedGallery }
+    | { $case: "reqGetSharedGalleryJob"; reqGetSharedGalleryJob: GetSharedGalleryJob }
+    | { $case: "reqOpenSharedGallery"; reqOpenSharedGallery: OpenSharedGallery }
+    | { $case: "reqGetSharedGalleryItem"; reqGetSharedGalleryItem: GetSharedGalleryItem }
+    | { $case: "reqGetSharedGalleryStream"; reqGetSharedGalleryStream: GetSharedGalleryStream }
+    | { $case: "reqListSharedLinks"; reqListSharedLinks: ListSharedLinks }
+    | { $case: "reqDeleteSharedLink"; reqDeleteSharedLink: DeleteSharedLink }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2354,6 +2528,12 @@ export interface RespEnvelope {
     { $case: "respFileChunk"; respFileChunk: FileChunk }
     | { $case: "respUploadStarted"; respUploadStarted: UploadStarted }
     | { $case: "respUploadProgress"; respUploadProgress: UploadProgress }
+    | //
+    /** Issue #180: shared galleries. */
+    { $case: "respSharedGalleryPreview"; respSharedGalleryPreview: SharedGalleryPreview }
+    | { $case: "respSharedGalleryJob"; respSharedGalleryJob: SharedGalleryJob }
+    | { $case: "respSharedGallery"; respSharedGallery: SharedGallery }
+    | { $case: "respSharedLinks"; respSharedLinks: SharedLinks }
     | undefined;
 }
 
@@ -5811,6 +5991,1507 @@ export const GetPublicationMedia: MessageFns<GetPublicationMedia> = {
     const message = createBaseGetPublicationMedia();
     message.pubUuid = object.pubUuid ?? "";
     message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
+function createBaseSharedGallerySource(): SharedGallerySource {
+  return { paths: [], groupId: "", directory: "" };
+}
+
+export const SharedGallerySource: MessageFns<SharedGallerySource> = {
+  encode(message: SharedGallerySource, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.paths) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.groupId !== "") {
+      writer.uint32(18).string(message.groupId);
+    }
+    if (message.directory !== "") {
+      writer.uint32(26).string(message.directory);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SharedGallerySource {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSharedGallerySource();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.directory = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SharedGallerySource {
+    return {
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
+      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
+      directory: isSet(object.directory) ? globalThis.String(object.directory) : "",
+    };
+  },
+
+  toJSON(message: SharedGallerySource): unknown {
+    const obj: any = {};
+    if (message.paths?.length) {
+      obj.paths = message.paths;
+    }
+    if (message.groupId !== "") {
+      obj.groupId = message.groupId;
+    }
+    if (message.directory !== "") {
+      obj.directory = message.directory;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SharedGallerySource>, I>>(base?: I): SharedGallerySource {
+    return SharedGallerySource.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SharedGallerySource>, I>>(object: I): SharedGallerySource {
+    const message = createBaseSharedGallerySource();
+    message.paths = object.paths?.map((e) => e) || [];
+    message.groupId = object.groupId ?? "";
+    message.directory = object.directory ?? "";
+    return message;
+  },
+};
+
+function createBasePreviewSharedGallery(): PreviewSharedGallery {
+  return { source: undefined };
+}
+
+export const PreviewSharedGallery: MessageFns<PreviewSharedGallery> = {
+  encode(message: PreviewSharedGallery, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.source !== undefined) {
+      SharedGallerySource.encode(message.source, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PreviewSharedGallery {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePreviewSharedGallery();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.source = SharedGallerySource.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PreviewSharedGallery {
+    return { source: isSet(object.source) ? SharedGallerySource.fromJSON(object.source) : undefined };
+  },
+
+  toJSON(message: PreviewSharedGallery): unknown {
+    const obj: any = {};
+    if (message.source !== undefined) {
+      obj.source = SharedGallerySource.toJSON(message.source);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PreviewSharedGallery>, I>>(base?: I): PreviewSharedGallery {
+    return PreviewSharedGallery.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PreviewSharedGallery>, I>>(object: I): PreviewSharedGallery {
+    const message = createBasePreviewSharedGallery();
+    message.source = (object.source !== undefined && object.source !== null)
+      ? SharedGallerySource.fromPartial(object.source)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSharedGalleryPreview(): SharedGalleryPreview {
+  return { files: 0, bytes: 0n, skipped: 0 };
+}
+
+export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
+  encode(message: SharedGalleryPreview, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.files !== 0) {
+      writer.uint32(8).int32(message.files);
+    }
+    if (message.bytes !== 0n) {
+      if (BigInt.asIntN(64, message.bytes) !== message.bytes) {
+        throw new globalThis.Error("value provided for field message.bytes of type int64 too large");
+      }
+      writer.uint32(16).int64(message.bytes);
+    }
+    if (message.skipped !== 0) {
+      writer.uint32(24).int32(message.skipped);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SharedGalleryPreview {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSharedGalleryPreview();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.files = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.bytes = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.skipped = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SharedGalleryPreview {
+    return {
+      files: isSet(object.files) ? globalThis.Number(object.files) : 0,
+      bytes: isSet(object.bytes) ? BigInt(object.bytes) : 0n,
+      skipped: isSet(object.skipped) ? globalThis.Number(object.skipped) : 0,
+    };
+  },
+
+  toJSON(message: SharedGalleryPreview): unknown {
+    const obj: any = {};
+    if (message.files !== 0) {
+      obj.files = Math.round(message.files);
+    }
+    if (message.bytes !== 0n) {
+      obj.bytes = message.bytes.toString();
+    }
+    if (message.skipped !== 0) {
+      obj.skipped = Math.round(message.skipped);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SharedGalleryPreview>, I>>(base?: I): SharedGalleryPreview {
+    return SharedGalleryPreview.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SharedGalleryPreview>, I>>(object: I): SharedGalleryPreview {
+    const message = createBaseSharedGalleryPreview();
+    message.files = object.files ?? 0;
+    message.bytes = object.bytes ?? 0n;
+    message.skipped = object.skipped ?? 0;
+    return message;
+  },
+};
+
+function createBaseCreateSharedGallery(): CreateSharedGallery {
+  return { source: undefined, description: "", ttlHours: 0 };
+}
+
+export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
+  encode(message: CreateSharedGallery, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.source !== undefined) {
+      SharedGallerySource.encode(message.source, writer.uint32(10).fork()).join();
+    }
+    if (message.description !== "") {
+      writer.uint32(18).string(message.description);
+    }
+    if (message.ttlHours !== 0) {
+      writer.uint32(24).int32(message.ttlHours);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CreateSharedGallery {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCreateSharedGallery();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.source = SharedGallerySource.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.ttlHours = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CreateSharedGallery {
+    return {
+      source: isSet(object.source) ? SharedGallerySource.fromJSON(object.source) : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      ttlHours: isSet(object.ttlHours) ? globalThis.Number(object.ttlHours) : 0,
+    };
+  },
+
+  toJSON(message: CreateSharedGallery): unknown {
+    const obj: any = {};
+    if (message.source !== undefined) {
+      obj.source = SharedGallerySource.toJSON(message.source);
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.ttlHours !== 0) {
+      obj.ttlHours = Math.round(message.ttlHours);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CreateSharedGallery>, I>>(base?: I): CreateSharedGallery {
+    return CreateSharedGallery.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CreateSharedGallery>, I>>(object: I): CreateSharedGallery {
+    const message = createBaseCreateSharedGallery();
+    message.source = (object.source !== undefined && object.source !== null)
+      ? SharedGallerySource.fromPartial(object.source)
+      : undefined;
+    message.description = object.description ?? "";
+    message.ttlHours = object.ttlHours ?? 0;
+    return message;
+  },
+};
+
+function createBaseGetSharedGalleryJob(): GetSharedGalleryJob {
+  return { jobId: "" };
+}
+
+export const GetSharedGalleryJob: MessageFns<GetSharedGalleryJob> = {
+  encode(message: GetSharedGalleryJob, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.jobId !== "") {
+      writer.uint32(10).string(message.jobId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetSharedGalleryJob {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetSharedGalleryJob();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.jobId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetSharedGalleryJob {
+    return { jobId: isSet(object.jobId) ? globalThis.String(object.jobId) : "" };
+  },
+
+  toJSON(message: GetSharedGalleryJob): unknown {
+    const obj: any = {};
+    if (message.jobId !== "") {
+      obj.jobId = message.jobId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetSharedGalleryJob>, I>>(base?: I): GetSharedGalleryJob {
+    return GetSharedGalleryJob.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetSharedGalleryJob>, I>>(object: I): GetSharedGalleryJob {
+    const message = createBaseGetSharedGalleryJob();
+    message.jobId = object.jobId ?? "";
+    return message;
+  },
+};
+
+function createBaseSharedGalleryJob(): SharedGalleryJob {
+  return { jobId: "", done: 0, total: 0, bytesDone: 0n, bytesTotal: 0n, finished: false, error: "", link: "" };
+}
+
+export const SharedGalleryJob: MessageFns<SharedGalleryJob> = {
+  encode(message: SharedGalleryJob, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.jobId !== "") {
+      writer.uint32(10).string(message.jobId);
+    }
+    if (message.done !== 0) {
+      writer.uint32(16).int32(message.done);
+    }
+    if (message.total !== 0) {
+      writer.uint32(24).int32(message.total);
+    }
+    if (message.bytesDone !== 0n) {
+      if (BigInt.asIntN(64, message.bytesDone) !== message.bytesDone) {
+        throw new globalThis.Error("value provided for field message.bytesDone of type int64 too large");
+      }
+      writer.uint32(32).int64(message.bytesDone);
+    }
+    if (message.bytesTotal !== 0n) {
+      if (BigInt.asIntN(64, message.bytesTotal) !== message.bytesTotal) {
+        throw new globalThis.Error("value provided for field message.bytesTotal of type int64 too large");
+      }
+      writer.uint32(40).int64(message.bytesTotal);
+    }
+    if (message.finished !== false) {
+      writer.uint32(48).bool(message.finished);
+    }
+    if (message.error !== "") {
+      writer.uint32(58).string(message.error);
+    }
+    if (message.link !== "") {
+      writer.uint32(66).string(message.link);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SharedGalleryJob {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSharedGalleryJob();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.jobId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.done = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.total = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.bytesDone = reader.int64() as bigint;
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.bytesTotal = reader.int64() as bigint;
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.finished = reader.bool();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.error = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.link = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SharedGalleryJob {
+    return {
+      jobId: isSet(object.jobId) ? globalThis.String(object.jobId) : "",
+      done: isSet(object.done) ? globalThis.Number(object.done) : 0,
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      bytesDone: isSet(object.bytesDone) ? BigInt(object.bytesDone) : 0n,
+      bytesTotal: isSet(object.bytesTotal) ? BigInt(object.bytesTotal) : 0n,
+      finished: isSet(object.finished) ? globalThis.Boolean(object.finished) : false,
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+      link: isSet(object.link) ? globalThis.String(object.link) : "",
+    };
+  },
+
+  toJSON(message: SharedGalleryJob): unknown {
+    const obj: any = {};
+    if (message.jobId !== "") {
+      obj.jobId = message.jobId;
+    }
+    if (message.done !== 0) {
+      obj.done = Math.round(message.done);
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.bytesDone !== 0n) {
+      obj.bytesDone = message.bytesDone.toString();
+    }
+    if (message.bytesTotal !== 0n) {
+      obj.bytesTotal = message.bytesTotal.toString();
+    }
+    if (message.finished !== false) {
+      obj.finished = message.finished;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    if (message.link !== "") {
+      obj.link = message.link;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SharedGalleryJob>, I>>(base?: I): SharedGalleryJob {
+    return SharedGalleryJob.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SharedGalleryJob>, I>>(object: I): SharedGalleryJob {
+    const message = createBaseSharedGalleryJob();
+    message.jobId = object.jobId ?? "";
+    message.done = object.done ?? 0;
+    message.total = object.total ?? 0;
+    message.bytesDone = object.bytesDone ?? 0n;
+    message.bytesTotal = object.bytesTotal ?? 0n;
+    message.finished = object.finished ?? false;
+    message.error = object.error ?? "";
+    message.link = object.link ?? "";
+    return message;
+  },
+};
+
+function createBaseOpenSharedGallery(): OpenSharedGallery {
+  return { uuid: "", secret: "" };
+}
+
+export const OpenSharedGallery: MessageFns<OpenSharedGallery> = {
+  encode(message: OpenSharedGallery, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OpenSharedGallery {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseOpenSharedGallery();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): OpenSharedGallery {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: OpenSharedGallery): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<OpenSharedGallery>, I>>(base?: I): OpenSharedGallery {
+    return OpenSharedGallery.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<OpenSharedGallery>, I>>(object: I): OpenSharedGallery {
+    const message = createBaseOpenSharedGallery();
+    message.uuid = object.uuid ?? "";
+    message.secret = object.secret ?? "";
+    return message;
+  },
+};
+
+function createBaseSharedGalleryItem(): SharedGalleryItem {
+  return { index: 0, name: "", mime: "", size: 0n, taken: undefined, hasPreview: false };
+}
+
+export const SharedGalleryItem: MessageFns<SharedGalleryItem> = {
+  encode(message: SharedGalleryItem, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.index !== 0) {
+      writer.uint32(8).int32(message.index);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.mime !== "") {
+      writer.uint32(26).string(message.mime);
+    }
+    if (message.size !== 0n) {
+      if (BigInt.asIntN(64, message.size) !== message.size) {
+        throw new globalThis.Error("value provided for field message.size of type int64 too large");
+      }
+      writer.uint32(32).int64(message.size);
+    }
+    if (message.taken !== undefined) {
+      Timestamp.encode(toTimestamp(message.taken), writer.uint32(42).fork()).join();
+    }
+    if (message.hasPreview !== false) {
+      writer.uint32(48).bool(message.hasPreview);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SharedGalleryItem {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSharedGalleryItem();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.index = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.mime = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.size = reader.int64() as bigint;
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.taken = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.hasPreview = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SharedGalleryItem {
+    return {
+      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
+      size: isSet(object.size) ? BigInt(object.size) : 0n,
+      taken: isSet(object.taken) ? fromJsonTimestamp(object.taken) : undefined,
+      hasPreview: isSet(object.hasPreview) ? globalThis.Boolean(object.hasPreview) : false,
+    };
+  },
+
+  toJSON(message: SharedGalleryItem): unknown {
+    const obj: any = {};
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.mime !== "") {
+      obj.mime = message.mime;
+    }
+    if (message.size !== 0n) {
+      obj.size = message.size.toString();
+    }
+    if (message.taken !== undefined) {
+      obj.taken = message.taken.toISOString();
+    }
+    if (message.hasPreview !== false) {
+      obj.hasPreview = message.hasPreview;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SharedGalleryItem>, I>>(base?: I): SharedGalleryItem {
+    return SharedGalleryItem.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SharedGalleryItem>, I>>(object: I): SharedGalleryItem {
+    const message = createBaseSharedGalleryItem();
+    message.index = object.index ?? 0;
+    message.name = object.name ?? "";
+    message.mime = object.mime ?? "";
+    message.size = object.size ?? 0n;
+    message.taken = object.taken ?? undefined;
+    message.hasPreview = object.hasPreview ?? false;
+    return message;
+  },
+};
+
+function createBaseSharedGallery(): SharedGallery {
+  return { description: "", created: undefined, expires: undefined, items: [] };
+}
+
+export const SharedGallery: MessageFns<SharedGallery> = {
+  encode(message: SharedGallery, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.description !== "") {
+      writer.uint32(10).string(message.description);
+    }
+    if (message.created !== undefined) {
+      Timestamp.encode(toTimestamp(message.created), writer.uint32(18).fork()).join();
+    }
+    if (message.expires !== undefined) {
+      Timestamp.encode(toTimestamp(message.expires), writer.uint32(26).fork()).join();
+    }
+    for (const v of message.items) {
+      SharedGalleryItem.encode(v!, writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SharedGallery {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSharedGallery();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.expires = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.items.push(SharedGalleryItem.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SharedGallery {
+    return {
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+      expires: isSet(object.expires) ? fromJsonTimestamp(object.expires) : undefined,
+      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => SharedGalleryItem.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: SharedGallery): unknown {
+    const obj: any = {};
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.created !== undefined) {
+      obj.created = message.created.toISOString();
+    }
+    if (message.expires !== undefined) {
+      obj.expires = message.expires.toISOString();
+    }
+    if (message.items?.length) {
+      obj.items = message.items.map((e) => SharedGalleryItem.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SharedGallery>, I>>(base?: I): SharedGallery {
+    return SharedGallery.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SharedGallery>, I>>(object: I): SharedGallery {
+    const message = createBaseSharedGallery();
+    message.description = object.description ?? "";
+    message.created = object.created ?? undefined;
+    message.expires = object.expires ?? undefined;
+    message.items = object.items?.map((e) => SharedGalleryItem.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseGetSharedGalleryItem(): GetSharedGalleryItem {
+  return { uuid: "", secret: "", index: 0, part: 0, offset: 0n, length: 0 };
+}
+
+export const GetSharedGalleryItem: MessageFns<GetSharedGalleryItem> = {
+  encode(message: GetSharedGalleryItem, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    if (message.index !== 0) {
+      writer.uint32(24).int32(message.index);
+    }
+    if (message.part !== 0) {
+      writer.uint32(32).int32(message.part);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(40).int64(message.offset);
+    }
+    if (message.length !== 0) {
+      writer.uint32(48).int32(message.length);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetSharedGalleryItem {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetSharedGalleryItem();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.index = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.part = reader.int32() as any;
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.length = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetSharedGalleryItem {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
+      part: isSet(object.part) ? getSharedGalleryItem_PartFromJSON(object.part) : 0,
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      length: isSet(object.length) ? globalThis.Number(object.length) : 0,
+    };
+  },
+
+  toJSON(message: GetSharedGalleryItem): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    if (message.part !== 0) {
+      obj.part = getSharedGalleryItem_PartToJSON(message.part);
+    }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.length !== 0) {
+      obj.length = Math.round(message.length);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetSharedGalleryItem>, I>>(base?: I): GetSharedGalleryItem {
+    return GetSharedGalleryItem.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetSharedGalleryItem>, I>>(object: I): GetSharedGalleryItem {
+    const message = createBaseGetSharedGalleryItem();
+    message.uuid = object.uuid ?? "";
+    message.secret = object.secret ?? "";
+    message.index = object.index ?? 0;
+    message.part = object.part ?? 0;
+    message.offset = object.offset ?? 0n;
+    message.length = object.length ?? 0;
+    return message;
+  },
+};
+
+function createBaseGetSharedGalleryStream(): GetSharedGalleryStream {
+  return { uuid: "", secret: "", index: 0 };
+}
+
+export const GetSharedGalleryStream: MessageFns<GetSharedGalleryStream> = {
+  encode(message: GetSharedGalleryStream, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    if (message.index !== 0) {
+      writer.uint32(24).int32(message.index);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetSharedGalleryStream {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetSharedGalleryStream();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.index = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetSharedGalleryStream {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
+    };
+  },
+
+  toJSON(message: GetSharedGalleryStream): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetSharedGalleryStream>, I>>(base?: I): GetSharedGalleryStream {
+    return GetSharedGalleryStream.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetSharedGalleryStream>, I>>(object: I): GetSharedGalleryStream {
+    const message = createBaseGetSharedGalleryStream();
+    message.uuid = object.uuid ?? "";
+    message.secret = object.secret ?? "";
+    message.index = object.index ?? 0;
+    return message;
+  },
+};
+
+function createBaseListSharedLinks(): ListSharedLinks {
+  return {};
+}
+
+export const ListSharedLinks: MessageFns<ListSharedLinks> = {
+  encode(_: ListSharedLinks, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListSharedLinks {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListSharedLinks();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ListSharedLinks {
+    return {};
+  },
+
+  toJSON(_: ListSharedLinks): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListSharedLinks>, I>>(base?: I): ListSharedLinks {
+    return ListSharedLinks.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListSharedLinks>, I>>(_: I): ListSharedLinks {
+    const message = createBaseListSharedLinks();
+    return message;
+  },
+};
+
+function createBaseSharedLinkInfo(): SharedLinkInfo {
+  return {
+    uuid: "",
+    kind: "",
+    description: "",
+    created: undefined,
+    expires: undefined,
+    opens: 0,
+    lastOpened: undefined,
+    bytes: 0n,
+    files: 0,
+  };
+}
+
+export const SharedLinkInfo: MessageFns<SharedLinkInfo> = {
+  encode(message: SharedLinkInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.kind !== "") {
+      writer.uint32(18).string(message.kind);
+    }
+    if (message.description !== "") {
+      writer.uint32(26).string(message.description);
+    }
+    if (message.created !== undefined) {
+      Timestamp.encode(toTimestamp(message.created), writer.uint32(34).fork()).join();
+    }
+    if (message.expires !== undefined) {
+      Timestamp.encode(toTimestamp(message.expires), writer.uint32(42).fork()).join();
+    }
+    if (message.opens !== 0) {
+      writer.uint32(48).int32(message.opens);
+    }
+    if (message.lastOpened !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastOpened), writer.uint32(58).fork()).join();
+    }
+    if (message.bytes !== 0n) {
+      if (BigInt.asIntN(64, message.bytes) !== message.bytes) {
+        throw new globalThis.Error("value provided for field message.bytes of type int64 too large");
+      }
+      writer.uint32(64).int64(message.bytes);
+    }
+    if (message.files !== 0) {
+      writer.uint32(72).int32(message.files);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SharedLinkInfo {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSharedLinkInfo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.kind = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.created = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.expires = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.opens = reader.int32();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.lastOpened = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.bytes = reader.int64() as bigint;
+          continue;
+        }
+        case 9: {
+          if (tag !== 72) {
+            break;
+          }
+
+          message.files = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SharedLinkInfo {
+    return {
+      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
+      expires: isSet(object.expires) ? fromJsonTimestamp(object.expires) : undefined,
+      opens: isSet(object.opens) ? globalThis.Number(object.opens) : 0,
+      lastOpened: isSet(object.lastOpened) ? fromJsonTimestamp(object.lastOpened) : undefined,
+      bytes: isSet(object.bytes) ? BigInt(object.bytes) : 0n,
+      files: isSet(object.files) ? globalThis.Number(object.files) : 0,
+    };
+  },
+
+  toJSON(message: SharedLinkInfo): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.created !== undefined) {
+      obj.created = message.created.toISOString();
+    }
+    if (message.expires !== undefined) {
+      obj.expires = message.expires.toISOString();
+    }
+    if (message.opens !== 0) {
+      obj.opens = Math.round(message.opens);
+    }
+    if (message.lastOpened !== undefined) {
+      obj.lastOpened = message.lastOpened.toISOString();
+    }
+    if (message.bytes !== 0n) {
+      obj.bytes = message.bytes.toString();
+    }
+    if (message.files !== 0) {
+      obj.files = Math.round(message.files);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SharedLinkInfo>, I>>(base?: I): SharedLinkInfo {
+    return SharedLinkInfo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SharedLinkInfo>, I>>(object: I): SharedLinkInfo {
+    const message = createBaseSharedLinkInfo();
+    message.uuid = object.uuid ?? "";
+    message.kind = object.kind ?? "";
+    message.description = object.description ?? "";
+    message.created = object.created ?? undefined;
+    message.expires = object.expires ?? undefined;
+    message.opens = object.opens ?? 0;
+    message.lastOpened = object.lastOpened ?? undefined;
+    message.bytes = object.bytes ?? 0n;
+    message.files = object.files ?? 0;
+    return message;
+  },
+};
+
+function createBaseSharedLinks(): SharedLinks {
+  return { links: [] };
+}
+
+export const SharedLinks: MessageFns<SharedLinks> = {
+  encode(message: SharedLinks, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.links) {
+      SharedLinkInfo.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SharedLinks {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSharedLinks();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.links.push(SharedLinkInfo.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SharedLinks {
+    return {
+      links: globalThis.Array.isArray(object?.links) ? object.links.map((e: any) => SharedLinkInfo.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: SharedLinks): unknown {
+    const obj: any = {};
+    if (message.links?.length) {
+      obj.links = message.links.map((e) => SharedLinkInfo.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SharedLinks>, I>>(base?: I): SharedLinks {
+    return SharedLinks.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SharedLinks>, I>>(object: I): SharedLinks {
+    const message = createBaseSharedLinks();
+    message.links = object.links?.map((e) => SharedLinkInfo.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseDeleteSharedLink(): DeleteSharedLink {
+  return { uuid: "" };
+}
+
+export const DeleteSharedLink: MessageFns<DeleteSharedLink> = {
+  encode(message: DeleteSharedLink, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteSharedLink {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteSharedLink();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DeleteSharedLink {
+    return { uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "" };
+  },
+
+  toJSON(message: DeleteSharedLink): unknown {
+    const obj: any = {};
+    if (message.uuid !== "") {
+      obj.uuid = message.uuid;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DeleteSharedLink>, I>>(base?: I): DeleteSharedLink {
+    return DeleteSharedLink.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeleteSharedLink>, I>>(object: I): DeleteSharedLink {
+    const message = createBaseDeleteSharedLink();
+    message.uuid = object.uuid ?? "";
     return message;
   },
 };
@@ -16663,6 +18344,30 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqFinishUpload":
         FinishUpload.encode(message.payload.reqFinishUpload, writer.uint32(938).fork()).join();
         break;
+      case "reqPreviewSharedGallery":
+        PreviewSharedGallery.encode(message.payload.reqPreviewSharedGallery, writer.uint32(946).fork()).join();
+        break;
+      case "reqCreateSharedGallery":
+        CreateSharedGallery.encode(message.payload.reqCreateSharedGallery, writer.uint32(954).fork()).join();
+        break;
+      case "reqGetSharedGalleryJob":
+        GetSharedGalleryJob.encode(message.payload.reqGetSharedGalleryJob, writer.uint32(962).fork()).join();
+        break;
+      case "reqOpenSharedGallery":
+        OpenSharedGallery.encode(message.payload.reqOpenSharedGallery, writer.uint32(970).fork()).join();
+        break;
+      case "reqGetSharedGalleryItem":
+        GetSharedGalleryItem.encode(message.payload.reqGetSharedGalleryItem, writer.uint32(978).fork()).join();
+        break;
+      case "reqGetSharedGalleryStream":
+        GetSharedGalleryStream.encode(message.payload.reqGetSharedGalleryStream, writer.uint32(986).fork()).join();
+        break;
+      case "reqListSharedLinks":
+        ListSharedLinks.encode(message.payload.reqListSharedLinks, writer.uint32(994).fork()).join();
+        break;
+      case "reqDeleteSharedLink":
+        DeleteSharedLink.encode(message.payload.reqDeleteSharedLink, writer.uint32(1002).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -17675,6 +19380,94 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqFinishUpload", reqFinishUpload: FinishUpload.decode(reader, reader.uint32()) };
           continue;
         }
+        case 118: {
+          if (tag !== 946) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqPreviewSharedGallery",
+            reqPreviewSharedGallery: PreviewSharedGallery.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 119: {
+          if (tag !== 954) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqCreateSharedGallery",
+            reqCreateSharedGallery: CreateSharedGallery.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 120: {
+          if (tag !== 962) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetSharedGalleryJob",
+            reqGetSharedGalleryJob: GetSharedGalleryJob.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 121: {
+          if (tag !== 970) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqOpenSharedGallery",
+            reqOpenSharedGallery: OpenSharedGallery.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 122: {
+          if (tag !== 978) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetSharedGalleryItem",
+            reqGetSharedGalleryItem: GetSharedGalleryItem.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 123: {
+          if (tag !== 986) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetSharedGalleryStream",
+            reqGetSharedGalleryStream: GetSharedGalleryStream.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 124: {
+          if (tag !== 994) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListSharedLinks",
+            reqListSharedLinks: ListSharedLinks.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 125: {
+          if (tag !== 1002) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqDeleteSharedLink",
+            reqDeleteSharedLink: DeleteSharedLink.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -18040,6 +19833,40 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqUploadChunk", reqUploadChunk: UploadChunk.fromJSON(object.reqUploadChunk) }
         : isSet(object.reqFinishUpload)
         ? { $case: "reqFinishUpload", reqFinishUpload: FinishUpload.fromJSON(object.reqFinishUpload) }
+        : isSet(object.reqPreviewSharedGallery)
+        ? {
+          $case: "reqPreviewSharedGallery",
+          reqPreviewSharedGallery: PreviewSharedGallery.fromJSON(object.reqPreviewSharedGallery),
+        }
+        : isSet(object.reqCreateSharedGallery)
+        ? {
+          $case: "reqCreateSharedGallery",
+          reqCreateSharedGallery: CreateSharedGallery.fromJSON(object.reqCreateSharedGallery),
+        }
+        : isSet(object.reqGetSharedGalleryJob)
+        ? {
+          $case: "reqGetSharedGalleryJob",
+          reqGetSharedGalleryJob: GetSharedGalleryJob.fromJSON(object.reqGetSharedGalleryJob),
+        }
+        : isSet(object.reqOpenSharedGallery)
+        ? {
+          $case: "reqOpenSharedGallery",
+          reqOpenSharedGallery: OpenSharedGallery.fromJSON(object.reqOpenSharedGallery),
+        }
+        : isSet(object.reqGetSharedGalleryItem)
+        ? {
+          $case: "reqGetSharedGalleryItem",
+          reqGetSharedGalleryItem: GetSharedGalleryItem.fromJSON(object.reqGetSharedGalleryItem),
+        }
+        : isSet(object.reqGetSharedGalleryStream)
+        ? {
+          $case: "reqGetSharedGalleryStream",
+          reqGetSharedGalleryStream: GetSharedGalleryStream.fromJSON(object.reqGetSharedGalleryStream),
+        }
+        : isSet(object.reqListSharedLinks)
+        ? { $case: "reqListSharedLinks", reqListSharedLinks: ListSharedLinks.fromJSON(object.reqListSharedLinks) }
+        : isSet(object.reqDeleteSharedLink)
+        ? { $case: "reqDeleteSharedLink", reqDeleteSharedLink: DeleteSharedLink.fromJSON(object.reqDeleteSharedLink) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -18276,6 +20103,22 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqUploadChunk = UploadChunk.toJSON(message.payload.reqUploadChunk);
     } else if (message.payload?.$case === "reqFinishUpload") {
       obj.reqFinishUpload = FinishUpload.toJSON(message.payload.reqFinishUpload);
+    } else if (message.payload?.$case === "reqPreviewSharedGallery") {
+      obj.reqPreviewSharedGallery = PreviewSharedGallery.toJSON(message.payload.reqPreviewSharedGallery);
+    } else if (message.payload?.$case === "reqCreateSharedGallery") {
+      obj.reqCreateSharedGallery = CreateSharedGallery.toJSON(message.payload.reqCreateSharedGallery);
+    } else if (message.payload?.$case === "reqGetSharedGalleryJob") {
+      obj.reqGetSharedGalleryJob = GetSharedGalleryJob.toJSON(message.payload.reqGetSharedGalleryJob);
+    } else if (message.payload?.$case === "reqOpenSharedGallery") {
+      obj.reqOpenSharedGallery = OpenSharedGallery.toJSON(message.payload.reqOpenSharedGallery);
+    } else if (message.payload?.$case === "reqGetSharedGalleryItem") {
+      obj.reqGetSharedGalleryItem = GetSharedGalleryItem.toJSON(message.payload.reqGetSharedGalleryItem);
+    } else if (message.payload?.$case === "reqGetSharedGalleryStream") {
+      obj.reqGetSharedGalleryStream = GetSharedGalleryStream.toJSON(message.payload.reqGetSharedGalleryStream);
+    } else if (message.payload?.$case === "reqListSharedLinks") {
+      obj.reqListSharedLinks = ListSharedLinks.toJSON(message.payload.reqListSharedLinks);
+    } else if (message.payload?.$case === "reqDeleteSharedLink") {
+      obj.reqDeleteSharedLink = DeleteSharedLink.toJSON(message.payload.reqDeleteSharedLink);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -19179,6 +21022,80 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqPreviewSharedGallery": {
+        if (object.payload?.reqPreviewSharedGallery !== undefined && object.payload?.reqPreviewSharedGallery !== null) {
+          message.payload = {
+            $case: "reqPreviewSharedGallery",
+            reqPreviewSharedGallery: PreviewSharedGallery.fromPartial(object.payload.reqPreviewSharedGallery),
+          };
+        }
+        break;
+      }
+      case "reqCreateSharedGallery": {
+        if (object.payload?.reqCreateSharedGallery !== undefined && object.payload?.reqCreateSharedGallery !== null) {
+          message.payload = {
+            $case: "reqCreateSharedGallery",
+            reqCreateSharedGallery: CreateSharedGallery.fromPartial(object.payload.reqCreateSharedGallery),
+          };
+        }
+        break;
+      }
+      case "reqGetSharedGalleryJob": {
+        if (object.payload?.reqGetSharedGalleryJob !== undefined && object.payload?.reqGetSharedGalleryJob !== null) {
+          message.payload = {
+            $case: "reqGetSharedGalleryJob",
+            reqGetSharedGalleryJob: GetSharedGalleryJob.fromPartial(object.payload.reqGetSharedGalleryJob),
+          };
+        }
+        break;
+      }
+      case "reqOpenSharedGallery": {
+        if (object.payload?.reqOpenSharedGallery !== undefined && object.payload?.reqOpenSharedGallery !== null) {
+          message.payload = {
+            $case: "reqOpenSharedGallery",
+            reqOpenSharedGallery: OpenSharedGallery.fromPartial(object.payload.reqOpenSharedGallery),
+          };
+        }
+        break;
+      }
+      case "reqGetSharedGalleryItem": {
+        if (object.payload?.reqGetSharedGalleryItem !== undefined && object.payload?.reqGetSharedGalleryItem !== null) {
+          message.payload = {
+            $case: "reqGetSharedGalleryItem",
+            reqGetSharedGalleryItem: GetSharedGalleryItem.fromPartial(object.payload.reqGetSharedGalleryItem),
+          };
+        }
+        break;
+      }
+      case "reqGetSharedGalleryStream": {
+        if (
+          object.payload?.reqGetSharedGalleryStream !== undefined && object.payload?.reqGetSharedGalleryStream !== null
+        ) {
+          message.payload = {
+            $case: "reqGetSharedGalleryStream",
+            reqGetSharedGalleryStream: GetSharedGalleryStream.fromPartial(object.payload.reqGetSharedGalleryStream),
+          };
+        }
+        break;
+      }
+      case "reqListSharedLinks": {
+        if (object.payload?.reqListSharedLinks !== undefined && object.payload?.reqListSharedLinks !== null) {
+          message.payload = {
+            $case: "reqListSharedLinks",
+            reqListSharedLinks: ListSharedLinks.fromPartial(object.payload.reqListSharedLinks),
+          };
+        }
+        break;
+      }
+      case "reqDeleteSharedLink": {
+        if (object.payload?.reqDeleteSharedLink !== undefined && object.payload?.reqDeleteSharedLink !== null) {
+          message.payload = {
+            $case: "reqDeleteSharedLink",
+            reqDeleteSharedLink: DeleteSharedLink.fromPartial(object.payload.reqDeleteSharedLink),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -19410,6 +21327,18 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respUploadProgress":
         UploadProgress.encode(message.payload.respUploadProgress, writer.uint32(482).fork()).join();
+        break;
+      case "respSharedGalleryPreview":
+        SharedGalleryPreview.encode(message.payload.respSharedGalleryPreview, writer.uint32(490).fork()).join();
+        break;
+      case "respSharedGalleryJob":
+        SharedGalleryJob.encode(message.payload.respSharedGalleryJob, writer.uint32(498).fork()).join();
+        break;
+      case "respSharedGallery":
+        SharedGallery.encode(message.payload.respSharedGallery, writer.uint32(506).fork()).join();
+        break;
+      case "respSharedLinks":
+        SharedLinks.encode(message.payload.respSharedLinks, writer.uint32(514).fork()).join();
         break;
     }
     return writer;
@@ -19943,6 +21872,47 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 61: {
+          if (tag !== 490) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respSharedGalleryPreview",
+            respSharedGalleryPreview: SharedGalleryPreview.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 62: {
+          if (tag !== 498) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respSharedGalleryJob",
+            respSharedGalleryJob: SharedGalleryJob.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 63: {
+          if (tag !== 506) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respSharedGallery",
+            respSharedGallery: SharedGallery.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 64: {
+          if (tag !== 514) {
+            break;
+          }
+
+          message.payload = { $case: "respSharedLinks", respSharedLinks: SharedLinks.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -20090,6 +22060,20 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respUploadStarted", respUploadStarted: UploadStarted.fromJSON(object.respUploadStarted) }
         : isSet(object.respUploadProgress)
         ? { $case: "respUploadProgress", respUploadProgress: UploadProgress.fromJSON(object.respUploadProgress) }
+        : isSet(object.respSharedGalleryPreview)
+        ? {
+          $case: "respSharedGalleryPreview",
+          respSharedGalleryPreview: SharedGalleryPreview.fromJSON(object.respSharedGalleryPreview),
+        }
+        : isSet(object.respSharedGalleryJob)
+        ? {
+          $case: "respSharedGalleryJob",
+          respSharedGalleryJob: SharedGalleryJob.fromJSON(object.respSharedGalleryJob),
+        }
+        : isSet(object.respSharedGallery)
+        ? { $case: "respSharedGallery", respSharedGallery: SharedGallery.fromJSON(object.respSharedGallery) }
+        : isSet(object.respSharedLinks)
+        ? { $case: "respSharedLinks", respSharedLinks: SharedLinks.fromJSON(object.respSharedLinks) }
         : undefined,
     };
   },
@@ -20212,6 +22196,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respUploadStarted = UploadStarted.toJSON(message.payload.respUploadStarted);
     } else if (message.payload?.$case === "respUploadProgress") {
       obj.respUploadProgress = UploadProgress.toJSON(message.payload.respUploadProgress);
+    } else if (message.payload?.$case === "respSharedGalleryPreview") {
+      obj.respSharedGalleryPreview = SharedGalleryPreview.toJSON(message.payload.respSharedGalleryPreview);
+    } else if (message.payload?.$case === "respSharedGalleryJob") {
+      obj.respSharedGalleryJob = SharedGalleryJob.toJSON(message.payload.respSharedGalleryJob);
+    } else if (message.payload?.$case === "respSharedGallery") {
+      obj.respSharedGallery = SharedGallery.toJSON(message.payload.respSharedGallery);
+    } else if (message.payload?.$case === "respSharedLinks") {
+      obj.respSharedLinks = SharedLinks.toJSON(message.payload.respSharedLinks);
     }
     return obj;
   },
@@ -20658,6 +22650,44 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respUploadProgress",
             respUploadProgress: UploadProgress.fromPartial(object.payload.respUploadProgress),
+          };
+        }
+        break;
+      }
+      case "respSharedGalleryPreview": {
+        if (
+          object.payload?.respSharedGalleryPreview !== undefined && object.payload?.respSharedGalleryPreview !== null
+        ) {
+          message.payload = {
+            $case: "respSharedGalleryPreview",
+            respSharedGalleryPreview: SharedGalleryPreview.fromPartial(object.payload.respSharedGalleryPreview),
+          };
+        }
+        break;
+      }
+      case "respSharedGalleryJob": {
+        if (object.payload?.respSharedGalleryJob !== undefined && object.payload?.respSharedGalleryJob !== null) {
+          message.payload = {
+            $case: "respSharedGalleryJob",
+            respSharedGalleryJob: SharedGalleryJob.fromPartial(object.payload.respSharedGalleryJob),
+          };
+        }
+        break;
+      }
+      case "respSharedGallery": {
+        if (object.payload?.respSharedGallery !== undefined && object.payload?.respSharedGallery !== null) {
+          message.payload = {
+            $case: "respSharedGallery",
+            respSharedGallery: SharedGallery.fromPartial(object.payload.respSharedGallery),
+          };
+        }
+        break;
+      }
+      case "respSharedLinks": {
+        if (object.payload?.respSharedLinks !== undefined && object.payload?.respSharedLinks !== null) {
+          message.payload = {
+            $case: "respSharedLinks",
+            respSharedLinks: SharedLinks.fromPartial(object.payload.respSharedLinks),
           };
         }
         break;

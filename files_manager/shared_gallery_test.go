@@ -1,0 +1,183 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package filesmanager
+
+import (
+	"bytes"
+	"database/sql/driver"
+	"image"
+	"image/color"
+	"image/png"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/alonsovidales/otc/blobstore"
+	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/dao"
+	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/session"
+)
+
+// galleryTestEnv points [otc] storage-path at a temporary folder and gives
+// a real session (its vault in a mocked database).
+func galleryTestEnv(t *testing.T) (string, *session.Session) {
+	t.Helper()
+	dir := t.TempDir()
+	storage := filepath.Join(dir, "storage") + "/"
+	os.MkdirAll(storage, 0o750)
+	os.MkdirAll(filepath.Join(dir, "etc"), 0o750)
+	os.WriteFile(filepath.Join(dir, "etc", "otc_gallerytest.ini"), []byte("[otc]\nstorage-path="+storage+"\n"), 0o600)
+	t.Chdir(dir)
+	if err := cfg.Init("otc", "gallerytest"); err != nil {
+		t.Fatal(err)
+	}
+	sesDB, sesMock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { sesDB.Close() })
+	sesMock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+	sesMock.ExpectExec("insert into `vault`").WillReturnResult(sqlmock.NewResult(1, 1))
+	ses, err := session.New("owner-uuid", "test-password", true, dao.NewWithDB(sesDB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return storage, ses
+}
+
+// libraryFile stores content as the owner's encrypted blob.
+func libraryFile(t *testing.T, ses *session.Session, name, mime string, content []byte) *pb.File {
+	t.Helper()
+	hash := strings.Repeat(string(rune('a'+len(name)%6)), 64)
+	w, err := blobstore.Create(blobPath(hash), ses)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Write(content)
+	if err := w.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	return &pb.File{Path: "/photos/" + name, Hash: hash, Mime: mime, Size: int32(len(content)), Created: timestamppb.Now()}
+}
+
+func TestSharedGalleryRoundTrip(t *testing.T) {
+	storage, ses := galleryTestEnv(t)
+	photo := bytes.Repeat([]byte("JPEGDATA"), 100000) // 800 KB, "image/jpeg": shown as is
+	img := image.NewRGBA(image.Rect(0, 0, 40, 30))
+	img.Set(5, 5, color.RGBA{255, 0, 0, 255})
+	var pngBuf bytes.Buffer
+	png.Encode(&pngBuf, img)
+	files := []*pb.File{
+		libraryFile(t, ses, "beach.jpg", "image/jpeg", photo),
+		libraryFile(t, ses, "scan.tif", "image/x-scan", pngBuf.Bytes()), // not for browsers: gets a JPEG preview
+	}
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	var insertedDesc []byte
+	mock.ExpectExec("insert into `shared_links`").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), descCapture{&insertedDesc}, 2, sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	job := &galleryJob{state: &pb.SharedGalleryJob{}}
+	link, err := mg.buildSharedGallery(ses, files, "Summer 2026", time.Hour, "cala.off-the.cloud", job)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	frag := strings.TrimPrefix(link, "https://cala.off-the.cloud/shared#")
+	parts := strings.SplitN(frag, ".", 2)
+	if frag == link || len(parts) != 2 || !galleryUUID.MatchString(parts[0]) || !gallerySecret.MatchString(parts[1]) {
+		t.Fatalf("link %q", link)
+	}
+	id, secret := parts[0], parts[1]
+	if job.state.Done != 2 || job.state.BytesDone != int64(len(photo)+pngBuf.Len()) {
+		t.Errorf("progress %+v", job.state)
+	}
+	if bytes.Contains(insertedDesc, []byte("Summer")) || bytes.Contains(insertedDesc, []byte(secret)) {
+		t.Error("the description went to the database in the clear (or with the secret)")
+	}
+	if d, err := ses.Decrypt(insertedDesc); err != nil || string(d) != "Summer 2026" {
+		t.Errorf("stored description doesn't decrypt to the owner's: %q %v", d, err)
+	}
+	// Nothing on disk is readable without the link.
+	filepath.Walk(filepath.Join(storage, "shared", id), func(p string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() {
+			raw, _ := os.ReadFile(p)
+			if bytes.Contains(raw, []byte("JPEGDATA")) || bytes.Contains(raw, []byte("Summer")) {
+				t.Errorf("%s holds plaintext", p)
+			}
+		}
+		return nil
+	})
+
+	alive := func() {
+		mock.ExpectQuery("select `created`, `expires` from `shared_links`").
+			WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now(), time.Now().Add(time.Hour)))
+	}
+	alive()
+	mock.ExpectExec("update `shared_links` set `opens`").WillReturnResult(sqlmock.NewResult(0, 1))
+	g, err := mg.OpenSharedGallery(id, secret)
+	if err != nil || g.Description != "Summer 2026" || len(g.Items) != 2 || g.Items[0].Name != "beach.jpg" || g.Items[0].HasPreview || !g.Items[1].HasPreview {
+		t.Fatalf("open: %+v %v", g, err)
+	}
+
+	// The original, in parts, byte for byte.
+	var got []byte
+	for off := int64(0); ; {
+		alive()
+		data, total, mime, err := mg.ReadSharedGalleryItem(id, secret, 0, pb.GetSharedGalleryItem_ORIGINAL, off, 300000)
+		if err != nil || mime != "image/jpeg" || total != int64(len(photo)) {
+			t.Fatalf("read at %d: %v %s %d", off, err, mime, total)
+		}
+		got = append(got, data...)
+		off += int64(len(data))
+		if off >= total {
+			break
+		}
+	}
+	if !bytes.Equal(got, photo) {
+		t.Fatal("the original came back different")
+	}
+	alive()
+	prev, _, mime, err := mg.ReadSharedGalleryItem(id, secret, 1, pb.GetSharedGalleryItem_PREVIEW, 0, 0)
+	if err != nil || mime != "image/jpeg" || len(prev) < 3 || prev[0] != 0xFF || prev[1] != 0xD8 {
+		t.Fatalf("preview: %v %s", err, mime)
+	}
+
+	// A wrong secret is the same answer as no gallery.
+	alive()
+	if _, err := mg.OpenSharedGallery(id, strings.Repeat("0", 64)); err != ErrNoSuchGallery {
+		t.Fatalf("wrong secret: %v", err)
+	}
+	if _, err := mg.OpenSharedGallery("../../etc", secret); err != ErrNoSuchGallery {
+		t.Fatalf("a path for a uuid: %v", err)
+	}
+
+	// Expired: refused, and its files go.
+	mock.ExpectQuery("select `created`, `expires` from `shared_links`").
+		WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now().Add(-2*time.Hour), time.Now().Add(-time.Hour)))
+	mock.ExpectExec("delete from `shared_links`").WillReturnResult(sqlmock.NewResult(0, 1))
+	if _, err := mg.OpenSharedGallery(id, secret); err != ErrNoSuchGallery {
+		t.Fatalf("expired: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(storage, "shared", id)); !os.IsNotExist(err) {
+		t.Fatal("an expired gallery's files are still there")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type descCapture struct{ to *[]byte }
+
+func (d descCapture) Match(v driver.Value) bool {
+	b, ok := v.([]byte)
+	*d.to = b
+	return ok
+}

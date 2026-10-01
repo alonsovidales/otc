@@ -575,6 +575,15 @@ apply_schema_migrations() {
     # statement here is IF-NOT-EXISTS/idempotent, safe to run on a fresh
     # install too (where db.sql just created them already).
     mysql "$db" <<'SQL'
+    -- Issue #180: share links list (kind, description, opens) and galleries.
+    ALTER TABLE shared_links MODIFY size BIGINT NOT NULL;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'archive';
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS description BLOB NULL;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS files INT NOT NULL DEFAULT 0;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS opens INT NOT NULL DEFAULT 0;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS last_opened DATETIME NULL;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS expires DATETIME NULL;
+    CREATE INDEX IF NOT EXISTS shared_links_uuid ON shared_links (uuid);
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_recognition_enabled TINYINT(1) NOT NULL DEFAULT 0;
     -- Issue #178: off unless chosen - for a column added before, the default only.
     ALTER TABLE settings ALTER COLUMN face_recognition_enabled SET DEFAULT 0;

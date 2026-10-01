@@ -735,11 +735,11 @@ func (dao *Dao) GetSharedLinkCreated(pathUuid string) (created time.Time, err er
 	return
 }
 
-// GetExpiredSharedLinkUuids returns the uuids of every shared link created
-// before cutoff, so the caller can remove their on-disk content and delete
-// the rows.
+// GetExpiredSharedLinkUuids returns the uuids of every shared link past its
+// expiry - its own (issue #180), or created before cutoff when it has none
+// - so the caller can remove their on-disk content and delete the rows.
 func (dao *Dao) GetExpiredSharedLinkUuids(cutoff time.Time) (uuids []string, err error) {
-	rows, err := dao.db.Query("select `uuid` from `shared_links` where `created` < ?", cutoff)
+	rows, err := dao.db.Query("select `uuid` from `shared_links` where (`expires` is not null and `expires` < ?) or (`expires` is null and `created` < ?)", time.Now().UTC(), cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -754,6 +754,57 @@ func (dao *Dao) GetExpiredSharedLinkUuids(cutoff time.Time) (uuids []string, err
 	}
 
 	return uuids, rows.Err()
+}
+
+// SharedLinkRow is one share link as the owner's list shows it (#180).
+type SharedLinkRow struct {
+	Uuid        string
+	Kind        string
+	Description []byte // encrypted with the owner's key
+	Created     time.Time
+	Expires     sql.NullTime
+	Opens       int
+	LastOpened  sql.NullTime
+	Bytes       int64
+	Files       int
+}
+
+// InsertSharedGallery records a gallery (issue #180): never its link.
+func (dao *Dao) InsertSharedGallery(uuid string, bytes int64, files int, description []byte, expires time.Time) error {
+	_, err := dao.db.Exec("insert into `shared_links` (`uuid`, `size`, `created`, `kind`, `description`, `files`, `expires`) values (?, ?, ?, 'gallery', ?, ?, ?)",
+		uuid, bytes, time.Now().UTC(), description, files, expires.UTC())
+	return err
+}
+
+// ListSharedLinks is every share link, newest first.
+func (dao *Dao) ListSharedLinks() ([]SharedLinkRow, error) {
+	rows, err := dao.db.Query("select `uuid`, `kind`, `description`, `created`, `expires`, `opens`, `last_opened`, `size`, `files` from `shared_links` order by `created` desc")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SharedLinkRow
+	for rows.Next() {
+		var r SharedLinkRow
+		if err := rows.Scan(&r.Uuid, &r.Kind, &r.Description, &r.Created, &r.Expires, &r.Opens, &r.LastOpened, &r.Bytes, &r.Files); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// GetSharedLinkExpiry is a link's creation and its own expiry (unset for
+// links that use the device's default). sql.ErrNoRows: no such link.
+func (dao *Dao) GetSharedLinkExpiry(uuid string) (created time.Time, expires sql.NullTime, err error) {
+	err = dao.db.QueryRow("select `created`, `expires` from `shared_links` where `uuid` = ?", uuid).Scan(&created, &expires)
+	return
+}
+
+// RecordSharedLinkOpen counts one opening of a share link.
+func (dao *Dao) RecordSharedLinkOpen(uuid string) error {
+	_, err := dao.db.Exec("update `shared_links` set `opens` = `opens` + 1, `last_opened` = ? where `uuid` = ?", time.Now().UTC(), uuid)
+	return err
 }
 
 // DeleteSharedLink removes a shared link row, once its on-disk content has
