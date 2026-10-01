@@ -241,6 +241,22 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   own loopback stream (`SetVideoSource`: a short-lived media token), so processing, reprocess
   and the info panel never load a video whole nor write it out in plaintext; share-link zips
   are streamed into a segmented file under the link's key.
+  Issue #180 (release 69): **shared galleries** - an image group (`group_id`), a folder
+  (`directory`, recursive) or files (`paths`) are copied by a background job
+  (`files_manager/shared_gallery.go`: `CreateSharedGallery` then `GetSharedGalleryJob` polling)
+  into `<storage>/shared/<uuid>/` - `manifest`, `<i>.orig`, `<i>.thumb`, and `<i>.prev` (a JPEG
+  for what browsers can't show: HEIC, RAW, TIFF) - all sealed under `getCipher(secret)`. The
+  link is `https://<domain>/shared#<uuid>.<secret>`: the secret only ever lives in the link's
+  fragment (never sent to a server, never stored); `shared_links` keeps the uuid, `kind`
+  (archive/gallery), `description` (under the owner's key), `files`, `opens`, `last_opened`,
+  `expires` (1/7/30 days, default the old TTL). The web route `/shared` renders
+  `SharedGalleryView` before anything else of the app, for anyone: thumbnails, a viewer (photos
+  by their preview, videos streamed through a `/media/<token>` minted for the gallery file
+  under the link's key), download all or a selection. Visitors' requests
+  (`OpenSharedGallery`, `GetSharedGalleryItem`, `GetSharedGalleryStream`) are public and answer
+  every failure identically. Owners: share from an image group or a folder (web, iOS, Android:
+  `SharedGalleryShareFlow`), and Settings > Shared Links (`SharedLinksView` /
+  `SharedLinksPanel`) lists every link with its opens and size, and deletes a link with its copy.
   Issue #166 (release 63): a share link is downloaded in parts (the web page asks for 4 MiB
   ranges; a whole-archive `DownloadSharedLink` is refused above 4 MiB), and every reply carrying
   file content holds the content budget until it is on the wire (`connHandler.reserveMemory`:
