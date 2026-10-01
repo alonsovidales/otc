@@ -105,3 +105,4 @@
 64	-	becca685ab9cc13817b3fbe4c515519750ec6dcd81b9f81079cbae8fe4d7fe93	Apps and friends keep reaching the device through the bridge however many are connected at once.
 65	-	65cf0b6b57fc3c252f087cdbe822fe64c4c98a8e46d9eec29d23d1842b2e5231	Fixes the update that stopped at release 62: devices build again and get releases 62-64 (memory hardening, lower memory use, bridge relays).
 66	-	730b6d179d1be6afabd0a66635a177802e537362cfbcfcd2ed4d3341f4415a12	The bridge secret is no longer shown or editable in Settings; the device manages it itself.
+67	-	89fb5d3e537bb0b947b959591c2551d45604fc8c9245d76959bd660c68dad7d9	A file whose content is missing raises one alert, not a new one every few minutes while a sync client keeps asking for it.

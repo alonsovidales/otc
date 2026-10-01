@@ -859,8 +859,12 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 		var content []byte
 		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
 		if errors.Is(err, os.ErrNotExist) {
+			// Alerted once, as ReadFile does: the daily integrity check
+			// keeps reporting it.
+			if !missingBlobs.has(file.Hash) {
+				mg.alert("could not be read", path, err)
+			}
 			missingBlobs.set(file.Hash, true)
-			mg.alert("could not be read", path, err)
 			return nil, fmt.Errorf("the content of %s is missing on this device", path)
 		}
 		if err != nil {

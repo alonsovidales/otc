@@ -272,9 +272,16 @@ func (mg *Manager) ReadFile(ses *session.Session, path, versionHash string, offs
 	blob, err := blobstore.Open(blobPath(file.Hash), ses)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			// Alerted once: a client asking again for content the device
+			// already knows is gone (a sync client retrying every pass)
+			// raised a new alert every five minutes, all day.
+			if !missingBlobs.has(file.Hash) {
+				mg.alert("could not be read", path, err)
+			}
 			missingBlobs.set(file.Hash, true)
+		} else {
+			mg.alert("could not be read", path, err)
 		}
-		mg.alert("could not be read", path, err)
 		return nil, nil, 0, fmt.Errorf("the content of %s is missing or unreadable on this device", path)
 	}
 	defer blob.Close()
