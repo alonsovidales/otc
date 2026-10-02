@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/limits"
+	"golang.org/x/net/publicsuffix"
 	"net"
 	"net/http"
 	"net/mail"
@@ -102,7 +103,7 @@ type Accounts struct {
 	// signups limits account creation per address (issue #163): each is
 	// a bcrypt, and each answer says whether an email has an account.
 	signups *limits.Rate
-	jwks      jwksCache
+	jwks    jwksCache
 }
 
 // Init reads [accounts] from the config: open-registration, and the
@@ -771,8 +772,17 @@ func validReturnURL(raw string) (string, bool) {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", false
 	}
-	host := u.Hostname()
-	if host == "otc" || host == "otc.local" || strings.HasSuffix(host, ".local") {
+	host := strings.ToLower(u.Hostname())
+	if host == "otc" || host == "otc.local" || strings.HasSuffix(host, ".local") ||
+		strings.HasSuffix(host, ".home.arpa") || strings.HasSuffix(host, ".internal") {
+		return raw, true
+	}
+	// A name under a top-level domain the internet doesn't have (a home
+	// router's "pit.otc", "nas.lan", "box.home"): only a local resolver
+	// answers for it, so no one else can be behind it - as safe as .local.
+	// A private suffix in the public list (github.io) has a dot, and an
+	// ICANN one is a real TLD: neither counts.
+	if suffix, icann := publicsuffix.PublicSuffix(host); !icann && !strings.Contains(suffix, ".") && net.ParseIP(host) == nil {
 		return raw, true
 	}
 	ip := net.ParseIP(host)
@@ -781,6 +791,17 @@ func validReturnURL(raw string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// ReturnAllowed answers whether a provider sign-in may come back to the
+// given address (GET /api/account/return-allowed?return=...), so the
+// device's web app shows the Google and Apple buttons only where they can
+// work - with validReturnURL itself as the one rule. Public and
+// cookie-less: it only says yes or no about an address.
+func (a *Accounts) ReturnAllowed(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	_, ok := validReturnURL(r.URL.Query().Get("return"))
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": ok && r.URL.Query().Get("return") != ""})
 }
 
 // ErrInvalidReturn is what a sign-in start with a bad return URL fails with.

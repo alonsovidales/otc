@@ -34,7 +34,7 @@ func TestAppReturnNeedsAChallenge(t *testing.T) {
 		"otcsetup://done?challenge=" + challenge: true,
 		"otcsetup://evil":                        false,
 		"otcsetup://done?challenge=x":            false,
-		"https://evil.example/":                  false,
+		"https://evil.com/":                      false,
 		"http://192.168.1.10/":                   true,
 	} {
 		if _, ok := validReturnURL(raw); ok != want {
@@ -122,4 +122,30 @@ func (h hashCapture) Match(v driver.Value) bool {
 	s, ok := v.(string)
 	*h.to = s
 	return ok && len(s) == 64
+}
+
+// A sign-in comes back only to addresses no one else can be behind: the
+// device's own names, private addresses, and names under a top-level
+// domain the internet doesn't have (a home router's "pit.otc").
+func TestValidReturnURLLocalNames(t *testing.T) {
+	for raw, want := range map[string]bool{
+		"http://pit.otc:8080/settings": true,
+		"http://nas.lan/":              true,
+		"http://box.home.arpa/":        true, // RFC 8375, home networks
+		"http://nas.internal/":         true, // ICANN's reserved private TLD
+		"http://otc.local:8080/":       true,
+		"http://otc/":                  true,
+		"http://10.0.0.5:8080/":        true,
+		"https://evil.com/":            false,
+		"https://pit.off-the.cloud/":   false,
+		"https://someone.github.io/":   false,
+		"https://example.ts.net/":      false,
+		"http://8.8.8.8/":              false,
+		"javascript:alert(1)":          false,
+		"https://evil.com@pit.otc/":    true, // the host is pit.otc
+	} {
+		if _, ok := validReturnURL(raw); ok != want {
+			t.Errorf("validReturnURL(%q) = %v, want %v", raw, ok, want)
+		}
+	}
 }

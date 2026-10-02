@@ -33,7 +33,8 @@ const providerLabels: Record<string, string> = { apple: "Continue with Apple", g
 
 // Where the bridge agrees to send a provider sign-in back to - its
 // validReturnURL: the device's own name, a .local name, or a private or
-// loopback address.
+// loopback address. The quick answer; anything else (a router's own names,
+// "pit.otc") is asked of the bridge itself, which has the full rule.
 function returnAllowed(host: string): boolean {
   if (host === "otc" || host === "localhost" || host.endsWith(".local")) return true;
   const m = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
@@ -53,6 +54,9 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onStatusRef = useRef(onStatus);
+  // Issue #182 follow-up: whether Google/Apple sign-in can come back to
+  // this page's address - asked of the bridge when the quick check says no.
+  const [providerReturnOk, setProviderReturnOk] = useState(() => returnAllowed(window.location.hostname));
   onStatusRef.current = onStatus;
 
   const refresh = useCallback(async () => {
@@ -75,6 +79,17 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (providerReturnOk || !access?.bridge || !access.providers?.length) return;
+    let alive = true;
+    const ret = encodeURIComponent(window.location.origin + window.location.pathname);
+    fetch(`https://${access.bridge}/api/account/return-allowed?return=${ret}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(j => { if (alive && j?.ok) setProviderReturnOk(true); })
+      .catch(() => { /* stays hidden: the setup code still works */ });
+    return () => { alive = false; };
+  }, [access?.bridge, access?.providers, providerReturnOk]);
 
   // Switching on ends with the device restarting: poll until it's back on
   // the bridge.
@@ -223,7 +238,7 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
     );
   }
 
-  const providers = returnAllowed(window.location.hostname) ? access.providers : [];
+  const providers = providerReturnOk ? access.providers : [];
   const nameValid = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(name.trim().toLowerCase());
 
   return (
