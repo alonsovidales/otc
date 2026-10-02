@@ -11,7 +11,7 @@ entries for the iOS app; change both together.
   the real signing key and a lost upload key can be reset from Play Console, but that takes days.
   Upload-key certificate SHA-256:
   `BE:E2:F4:79:51:7C:E1:B0:97:46:38:8B:D8:65:E9:C0:37:39:99:3E:7D:01:D6:30:C7:04:EB:A1:A8:74:3E:58`
-- Bundle for Play:
+- Bundle for Play: `make android-release` (or by hand:)
   ```
   cd app/android
   OTC_UPLOAD_PASSWORD="$(security find-generic-password -s otc-android-upload -a otc-upload -w)" \

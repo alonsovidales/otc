@@ -147,6 +147,24 @@ desktop-publish:
 
 .PHONY: desktop desktop-mac desktop-publish
 
+# Issue #129: the Android app. `android` is the debug APK (adb install -r
+# it); `android-release` is the Play bundle, signed with the upload key in
+# ~/.otc/otc-upload.jks whose password comes from the Keychain for this one
+# build - see docs/play-store/README.md. google-services.json is copied in
+# by hand (never committed), or the build has no push notifications.
+ANDROID_DIR := app/android
+android:
+	cd $(ANDROID_DIR) && ./gradlew -q assembleDebug
+	@ls -la $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk
+
+android-release:
+	@test -f $(HOME)/.otc/otc-upload.jks || { echo "no upload key at ~/.otc/otc-upload.jks"; exit 1; }
+	@test -f $(ANDROID_DIR)/app/google-services.json || echo "warning: app/google-services.json is missing - no push notifications"
+	cd $(ANDROID_DIR) && OTC_UPLOAD_PASSWORD="$$(security find-generic-password -s otc-android-upload -a otc-upload -w)" ./gradlew -q bundleRelease
+	@ls -la $(ANDROID_DIR)/app/build/outputs/bundle/release/app-release.aab
+
+.PHONY: android android-release
+
 clean:
 	@echo "$(OK_COLOR)==> Deletig Protobuf files...$(NO_COLOR)"
 	-rm -rf proto/generated/
