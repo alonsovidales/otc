@@ -2,7 +2,7 @@
 .fb-wrap.drag { outline: 2px dashed var(--ember); outline-offset: 4px; }
 
 .fb-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.fb-path { display: flex; align-items: center; gap: 8px; }
+.fb-path { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .fb-label { color: var(--mist-dim); }
 .fb-path-input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; width: 480px; max-width: 70vw; background: var(--ink-2); color: var(--mist); }
 
@@ -68,7 +68,7 @@
 
 /* Issue #51: the refresh button beside the path. Same box as the input so
    the row reads as one control; spins while the listing is in flight. */
-.fb-refresh { width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--ink-2); color: var(--mist); cursor: pointer; display: grid; place-items: center; }
+.fb-refresh { margin-left: auto; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--ink-2); color: var(--mist); cursor: pointer; display: grid; place-items: center; }
 .fb-refresh:hover { background: var(--panel); }
 .fb-refresh:disabled { cursor: default; opacity: 0.7; }
 .fb-refresh.spinning svg { animation: fb-spin 0.9s linear infinite; }
@@ -94,8 +94,8 @@
 .fb-versions-size { color: var(--mist-dim); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* List / grid switch, next to Refresh. */
-.fb-viewmode { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.fb-viewmode button { display: grid; place-items: center; width: 34px; height: 32px; border: 0; background: transparent; color: var(--mist-dim); cursor: pointer; }
+.fb-viewmode { display: inline-flex; flex: none; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--ink-2); }
+.fb-viewmode button { display: grid; place-items: center; width: 36px; height: 34px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--mist-dim); cursor: pointer; }
 .fb-viewmode button + button { border-left: 1px solid var(--line); }
 .fb-viewmode button.on { background: var(--panel); color: var(--mist); }
 .fb-viewmode button:focus-visible { outline: 2px solid var(--ember); outline-offset: -2px; }
