@@ -451,7 +451,7 @@ final class SyncModel: ObservableObject {
         panel.canChooseFiles = false
         panel.prompt = "Back Up"
         panel.message = "Choose a folder to back up to the device. This Mac stays the original."
-        if panel.runModal() == .OK, let url = panel.url {
+        if runFolderPanel(panel) == .OK, let url = panel.url {
             do {
                 let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
                 _ = url.startAccessingSecurityScopedResource()
@@ -474,7 +474,7 @@ final class SyncModel: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        if panel.runModal() == .OK, let url = panel.url {
+        if runFolderPanel(panel) == .OK, let url = panel.url {
             // Two-way like every folder: it syncs to this Mac's own place
             // on the device, and with nothing there yet its first pass
             // uploads what the folder holds.
@@ -1718,4 +1718,16 @@ private final class ChunkSink: @unchecked Sendable {
     func close() {
         try? handle.close()
     }
+}
+
+/// Runs a folder chooser from this menu-bar app. The app isn't the active
+/// one while its popover is open, so a panel run as-is came up without
+/// focus: visible, but with its sidebar greyed out and not answering clicks
+/// until something activated the app. Activating first gives it the focus
+/// it needs.
+@MainActor
+func runFolderPanel(_ panel: NSOpenPanel) -> NSApplication.ModalResponse {
+    NSApp.activate(ignoringOtherApps: true)
+    panel.makeKeyAndOrderFront(nil)
+    return panel.runModal()
 }

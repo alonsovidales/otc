@@ -162,7 +162,7 @@ struct PopoverView: View {
         panel.canChooseFiles = false
         panel.prompt = "Choose"
         panel.message = "Choose where to download “\(remotePath)” and keep it in sync."
-        if panel.runModal() == .OK, let url = panel.url {
+        if runFolderPanel(panel) == .OK, let url = panel.url {
             sync.addRemoteFolder(remotePath: remotePath, localURL: url)
         }
     }
