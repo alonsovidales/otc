@@ -31,6 +31,9 @@ final class PhotoGalleryVM: ObservableObject {
         var thumbData: Data?
         var localURL: URL?
         var isLocalOnly: Bool
+        // The Files grid's cached thumbnail, when the viewer is opened from
+        // there (it holds decoded images, not the bytes thumbData carries).
+        var thumbImage: UIImage? = nil
     }
 
     // Shared, already-authenticated connection (see OTCConnection.swift)
@@ -203,7 +206,30 @@ final class PhotoGalleryVM: ObservableObject {
         self.localFolder = localPhotosFolder
     }
 
+    // The Files section opens its photos and videos in this same viewer:
+    // an instance made with init() only ever shows the list handed to
+    // showFiles - no search, no paging, no local merge.
+    private var fixedList = false
+    /// Called with the path after the viewer deleted a file, so the screen
+    /// that opened it can re-read its listing.
+    var onDeleted: ((String) -> Void)?
+
+    init() {
+        self.deviceID = ""
+        self.localFolder = nil
+        self.fixedList = true
+    }
+
+    /// Fills the viewer with these items (a folder's photos and videos, in
+    /// the order the Files screen shows them) and opens the one at startAt.
+    func showFiles(_ files: [Item], startAt: Int) {
+        items = files
+        selected.removeAll()
+        open(index: startAt)
+    }
+
     func onAppearInitial() {
+        guard !fixedList else { return }
         Task {
             await loadTags()
             await loadPeople()
@@ -490,6 +516,7 @@ final class PhotoGalleryVM: ObservableObject {
 
     // MARK: Paging
     func resetAndLoadFirstPage() async {
+        guard !fixedList else { return }
         // Invalidates any still-in-flight fetchPage from the *previous*
         // selection before this one's own request even goes out - see
         // searchGeneration's doc comment.
@@ -512,7 +539,7 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     func loadMoreIfNeeded(current item: Item?) async {
-        guard let item else { return }
+        guard !fixedList, let item else { return }
         guard !endReached else { return }
         // Near the end is the only thing worth acting on - checked before
         // the in-flight case below so a tile appearing at the top of the
@@ -884,6 +911,7 @@ final class PhotoGalleryVM: ObservableObject {
 
             items.remove(at: idx)
             selected.remove(item.path)
+            onDeleted?(item.path)
             if items.isEmpty {
                 closeModal()
             } else {
@@ -1738,8 +1766,9 @@ private struct PhotoTile: View {
 /// photos by sliding the strip of previous/current/next (three views, so
 /// a library of thousands costs nothing), share/save-to-Photos/delete
 /// along the bottom (issue #9), info top-left (issue #41), pinch to zoom
-/// (issue #36). Mirrors the Android viewer's pager.
-private struct ImageModal: View {
+/// (issue #36). Mirrors the Android viewer's pager. The Files section
+/// opens its photos and videos in it too (PhotoGalleryVM.showFiles).
+struct ImageModal: View {
     @ObservedObject var vm: PhotoGalleryVM
     let save: () -> Void
     let share: () -> Void
@@ -1897,7 +1926,7 @@ private struct ImageModal: View {
     private func thumb(_ item: PhotoGalleryVM.Item) -> UIImage? {
         if let u = item.localURL, let img = UIImage(contentsOfFile: u.path) { return img }
         if let d = item.thumbData { return UIImage(data: d) }
-        return nil
+        return item.thumbImage
     }
 }
 

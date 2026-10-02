@@ -50,8 +50,14 @@ import java.util.UUID
 // filter (issue #52, AND semantics), image groups (issue #115), the date
 // scrubber (issue #77), a search generation counter that discards stale
 // replies, and the paging that keeps asking until a page adds something.
+//
+// The same view model also drives the viewer opened from the Files section
+// (showFiles): a separate instance holding just that folder's photos and
+// videos, with no search or paging.
 class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
-    data class Item(val id: String, val path: String, val mime: String, val size: Int, val thumb: ByteArray?)
+    // preview: an already decoded placeholder (the Files grid's thumbnail),
+    // used when there are no thumb bytes.
+    data class Item(val id: String, val path: String, val mime: String, val size: Int, val thumb: ByteArray?, val preview: Bitmap? = null)
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
     data class PendingMerge(val target: Person, val source: Person)
 
@@ -113,6 +119,21 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     private var morePending = false
     private val maxPagesWithoutProgress = 12
     private val maxFetchRetries = 2
+    // Files viewer: a fixed list (no search, no paging), and what to do
+    // after a delete there (refresh the folder listing).
+    private var fixedList = false
+    private var onDeleted: (() -> Unit)? = null
+
+    /** Files section: view [items] (a folder's photos and videos, in its order) starting at [startAt]. */
+    fun showFiles(items: List<Item>, startAt: Int, onDeleted: () -> Unit) {
+        fixedList = true
+        this.onDeleted = onDeleted
+        searchJob?.cancel()
+        searchGeneration += 1
+        token = null
+        _state.update { it.copy(items = items, endReached = true, loading = false, selected = emptySet()) }
+        open(startAt)
+    }
 
     fun onAppearInitial() = viewModelScope.launch {
         loadTags(); loadPeople(); resetAndLoadFirstPage()
@@ -297,6 +318,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     }
 
     suspend fun resetAndLoadFirstPage() {
+        if (fixedList) return
         searchGeneration += 1
         token = ""
         _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selected = emptySet(), scrubFrac = null, placeholderCount = null) }
@@ -307,7 +329,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
 
     suspend fun loadMoreIfNeeded(item: Item?) {
         val st = _state.value
-        if (item == null || st.endReached) return
+        if (item == null || st.endReached || fixedList) return
         val idx = st.items.indexOf(item)
         if (idx < 0 || idx < st.items.size - 12) return
         if (st.loading) { morePending = true; return }
@@ -382,6 +404,8 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     fun closeModal() {
         hiResOrder.clear()
         _state.update { it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null) }
+        // The Files viewer's list only lives while it is open.
+        if (fixedList) _state.update { it.copy(items = emptyList()) }
     }
 
     private fun cacheHiRes(path: String, bmp: Bitmap) {
@@ -456,7 +480,8 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         val st = _state.value
         st.hiRes?.let { return it }
         val idx = st.openIndex ?: return null
-        return st.items.getOrNull(idx)?.thumb?.let { decodeBitmap(it) }
+        val item = st.items.getOrNull(idx) ?: return null
+        return item.thumb?.let { decodeBitmap(it) } ?: item.preview
     }
 
     /** Issue #9: write the loaded image to a temp file and hand it to the share sheet. */
@@ -495,6 +520,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         } catch (e: Exception) { alert("Delete failed: ${e.message}"); return@launch }
         _state.update { st -> st.copy(items = st.items.filterIndexed { i, _ -> i != idx }, selected = st.selected - item.path) }
         if (_state.value.items.isEmpty()) closeModal() else open(minOf(idx, _state.value.items.size - 1))
+        onDeleted?.invoke()
     }
 
     fun toggleSelect(path: String) = _state.update { st -> st.copy(selected = if (path in st.selected) st.selected - path else st.selected + path) }

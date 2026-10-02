@@ -3,12 +3,12 @@
 // src/components/PhotoGallery.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
-import { requestStreamURL, canStream } from "../net/media";
-import type { RespEnvelope, File as MsgFile, TagsList, FileExifInfo, Person, ImageGroup } from "../proto/messages";
+import type { RespEnvelope, File as MsgFile, TagsList, Person, ImageGroup } from "../proto/messages";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import './PhotoGallery.css';
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
+import MediaViewer from "./MediaViewer";
 
 type Chip = string;
 type Token = string | null;
@@ -20,13 +20,6 @@ type Token = string | null;
 // Doing that hands the browser a Blob claiming to be video/mp4 over
 // genuinely-JPEG bytes, and it refuses to render it in an <img> at all.
 // The composer hit precisely this when it started offering videos.
-// How long a video may show no sign of life at all - no bytes, no
-// metadata, no error - before the viewer stops waiting on it. Generous on
-// purpose: since issue #110 the source is streamed from the device over
-// the bridge, and a large video on a slow link legitimately takes a
-// while to produce its first frame. Every progress event pushes this
-// back, so it only fires on a genuine stall.
-const cVideoStallMs = 30000;
 
 // Issue #113: how far a finger must travel on the date scrubber before it
 // counts as scrubbing rather than the start of a scroll.
@@ -426,31 +419,6 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
 
   // -------- modal (hi-res) --------------------------------------------------
   const [openIdx, setOpenIdx] = useState<number | null>(null);
-  const [hiURL, setHiURL] = useState<string | null>(null);
-  // Issue #106: why the opened video isn't playing, when it isn't.
-  //
-  // "codec" means the browser told us so - it rejected the source or
-  // failed to decode it. iPhones record HEVC (hvc1) by default, which
-  // Safari plays and some browsers can't decode at all.
-  //
-  // "stalled" means it simply never arrived: no error, no metadata, no
-  // bytes for a long time. That is a transfer problem, not a codec one,
-  // and it must not be reported as HEVC. It used to be: this was a flat
-  // boolean set by an 8-second timer on readyState === 0, which was a
-  // fair proxy back when the video was a blob already in memory (it
-  // could only be stuck if the browser refused to decode it). Issue
-  // #110 made the source a URL streamed from the device, so those 8
-  // seconds now cover real network loading - and a large video over the
-  // bridge routinely takes longer, producing a confident, wrong "it's
-  // recorded in HEVC" for files that are nothing of the sort (reproduced
-  // against an H.264 file this session).
-  const [videoProblem, setVideoProblem] = useState<null | "codec" | "stalled">(null);
-
-  // -------- "More info" panel (issue #41) ------------------------------------
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [infoLoading, setInfoLoading] = useState(false);
-  const [infoData, setInfoData] = useState<FileExifInfo | null>(null);
-
   // -------- requests --------------------------------------------------------
   const loadTags = useCallback(async () => {
     const resp = await useWS.request(e => {
@@ -624,78 +592,8 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     else setPlaceholderCount(null);
   };
 
-  // Which photo the viewer is on: every openAt (and closing) moves it on,
-  // and a full-size image, stream URL or info that arrives for an earlier
-  // one is dropped - stepping to the next photo before the current one
-  // had loaded used to show the next one and then the previous one's
-  // full-size image over it.
-  const viewGenRef = useRef(0);
-  useEffect(() => {
-    if (openIdx == null) viewGenRef.current += 1;
-  }, [openIdx]);
-
-  // open modal and fetch hi-res for current index
-  const openAt = useCallback(
-    async (idx: number) => {
-      const gen = ++viewGenRef.current;
-      const current = () => gen === viewGenRef.current;
-      setOpenIdx(idx);
-      setHiURL(null);
-      setVideoProblem(null);
-      setInfoOpen(false);
-      setInfoData(null);
-      setZoomScale(1);
-      const f = items[idx];
-      try {
-        // Issue #110: a video streams from a URL rather than arriving in
-        // one piece - the player starts on the first chunk and only
-        // fetches what it plays. The device declines small clips (they
-        // were already a single round trip), and anything it declines
-        // falls straight through to the fetch below.
-        if (canStream(f.mime)) {
-          const streamURL = await requestStreamURL({ path: f.path });
-          if (!current()) return;
-          if (streamURL) {
-            setHiURL(streamURL);
-            return;
-          }
-        }
-        const resp = await useWS.request(e => {
-          (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: f.path } };
-        });
-        if (!current()) return;
-        if (resp.payload?.$case === "respFile") {
-          const full = resp.payload.respFile!;
-          setHiURL(bytesToURL(full.content, full.mime || "image/jpeg"));
-        }
-      } catch {
-        // keep thumb
-      }
-    },
-    [items]
-  );
-
-  // Issue #41: fetch and show a photo/video's camera/EXIF metadata,
-  // computed live on the server from the file's own bytes.
-  const openInfo = useCallback(async () => {
-    if (openIdx == null) return;
-    const gen = viewGenRef.current;
-    setInfoOpen(true);
-    setInfoLoading(true);
-    setInfoData(null);
-    try {
-      const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = { $case: "reqGetFileInfo", reqGetFileInfo: { path: items[openIdx].path } };
-      });
-      if (gen !== viewGenRef.current) return;
-      if (resp.payload?.$case === "respFileInfo") {
-        setInfoData(resp.payload.respFileInfo);
-      }
-    } finally {
-      if (gen === viewGenRef.current) setInfoLoading(false);
-    }
-  }, [openIdx, items]);
-  const closeInfo = useCallback(() => { setInfoOpen(false); setInfoData(null); }, []);
+  // open the viewer (MediaViewer) on an item
+  const openAt = useCallback((idx: number) => setOpenIdx(idx), []);
 
   // -------- initial load ----------------------------------------------------
   // Just the autocomplete tag list - the photo list itself is fetched by
@@ -834,65 +732,6 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     } finally {
       setPreparing(null);
     }
-  };
-
-  // -------- keyboard in modal ----------------------------------------------
-  useEffect(() => {
-    if (openIdx == null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenIdx(null);
-      if (e.key === "ArrowRight" && openIdx < items.length - 1) openAt(openIdx + 1);
-      if (e.key === "ArrowLeft" && openIdx > 0) openAt(openIdx - 1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [openIdx, items.length, openAt]);
-
-  // -------- swipe in modal (issue #18) --------------------------------------
-  const modalTouchStartX = useRef<number | null>(null);
-  // Issue #36: pinch-to-zoom, matching the native apps — a genuine 2-finger
-  // pinch on touch devices, and trackpad pinch (which browsers report as a
-  // ctrlKey+wheel event, there's no native "pinch" DOM event) on desktop.
-  const [zoomScale, setZoomScale] = useState(1);
-  const pinchStartDist = useRef<number | null>(null);
-  const pinchStartScale = useRef(1);
-
-  const touchDistance = (t: React.TouchList) => {
-    const dx = t[0].clientX - t[1].clientX;
-    const dy = t[0].clientY - t[1].clientY;
-    return Math.hypot(dx, dy);
-  };
-
-  const onModalTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      pinchStartDist.current = touchDistance(e.touches);
-      pinchStartScale.current = zoomScale;
-    } else {
-      modalTouchStartX.current = e.touches[0].clientX;
-    }
-  };
-  const onModalTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinchStartDist.current) {
-      e.preventDefault();
-      const scale = pinchStartScale.current * (touchDistance(e.touches) / pinchStartDist.current);
-      setZoomScale(Math.min(4, Math.max(1, scale)));
-    }
-  };
-  const onModalTouchEnd = (e: React.TouchEvent) => {
-    if (pinchStartDist.current != null) {
-      pinchStartDist.current = null;
-      return; // was pinching, not swiping — don't also page through images
-    }
-    if (modalTouchStartX.current == null || openIdx == null || zoomScale !== 1) return;
-    const dx = e.changedTouches[0].clientX - modalTouchStartX.current;
-    if (dx < -30 && openIdx < items.length - 1) openAt(openIdx + 1);
-    else if (dx > 30 && openIdx > 0) openAt(openIdx - 1);
-    modalTouchStartX.current = null;
-  };
-  const onModalWheel = (e: React.WheelEvent) => {
-    if (!e.ctrlKey) return; // plain scroll shouldn't zoom, only trackpad pinch
-    e.preventDefault();
-    setZoomScale(s => Math.min(4, Math.max(1, s - e.deltaY * 0.01)));
   };
 
   // -------- render ----------------------------------------------------------
@@ -1277,203 +1116,9 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         </div>
       )}
 
-      {/* modal */}
+      {/* modal: the shared viewer (MediaViewer.tsx), also used by Files */}
       {openIdx != null && (
-        <div className="pg-modal" onClick={() => setOpenIdx(null)}>
-          <div className="pg-modal-inner" onClick={(e) => e.stopPropagation()}>
-            {/* Issue #130: a header row of its own, like the mobile
-                viewers, rather than two glyphs floated over the picture's
-                top-right corner - those vanished against a bright sky and,
-                on a phone-width browser, sat past the right edge of the
-                screen entirely, which is why "the web can't show the
-                metadata": the button that opens it was never in view. */}
-            <div className="pg-modal-hdr">
-              {/* Issue #41: camera/EXIF metadata + location, on demand. */}
-              <button className={"pg-info-btn" + (infoOpen ? " on" : "")} title="More info" onClick={infoOpen ? closeInfo : openInfo}>
-                <span className="pg-info-glyph">i</span> Info
-              </button>
-              <span className="pg-modal-title">{items[openIdx].path.split("/").pop()}</span>
-              <button className="pg-close" title="Close" onClick={() => setOpenIdx(null)}>×</button>
-            </div>
-            {openIdx > 0 && <button className="pg-nav left" onClick={() => openAt(openIdx - 1)}>‹</button>}
-            {openIdx < items.length - 1 && <button className="pg-nav right" onClick={() => openAt(openIdx + 1)}>›</button>}
-            <div
-              className="pg-modal-imgwrap"
-              onTouchStart={onModalTouchStart}
-              onTouchMove={onModalTouchMove}
-              onTouchEnd={onModalTouchEnd}
-              onWheel={onModalWheel}
-            >
-              {(() => {
-                const f = items[openIdx];
-                const thumb = bytesToURL(f.content); // always a JPEG thumbnail
-                // Issue #106: a video opens as something you can actually
-                // play. Until the full file arrives (hiURL), its own
-                // thumbnail stands in - the same still the grid shows -
-                // rather than an empty black box.
-                if (isVideoFile(f)) {
-                  if (!hiURL) return <img src={thumb} alt={f.path} />;
-                  if (videoProblem) {
-                    return (
-                      <div className="pg-video-unplayable">
-                        <img src={thumb} alt={f.path} />
-                        {videoProblem === "codec" ? (
-                          <>
-                            <p>This browser can't play this video.</p>
-                            <p className="pg-video-unplayable-hint">
-                              It may be recorded in HEVC, which not every browser can decode -
-                              Safari handles it, and recent Chrome does on hardware that
-                              supports it.
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p>This video is taking too long to load.</p>
-                            <p className="pg-video-unplayable-hint">
-                              Nothing has arrived from your device for a while - it may be
-                              busy or hard to reach right now. Trying again usually works.
-                            </p>
-                          </>
-                        )}
-                        <a className="pg-video-download" href={hiURL} download={f.path.split("/").pop()}>
-                          Download it
-                        </a>
-                      </div>
-                    );
-                  }
-                  return (
-                    <video
-                      src={hiURL}
-                      controls
-                      autoPlay
-                      playsInline
-                      // The browser is the only thing that actually knows
-                      // why a video won't play, so ask it rather than
-                      // inferring: only a decode failure or an outright
-                      // rejection of the source is a codec problem.
-                      // Anything else (a network error, a slow transfer)
-                      // is reported as what it is.
-                      onError={(e) => {
-                        const code = (e.currentTarget as HTMLVideoElement).error?.code;
-                        setVideoProblem(
-                          code === MediaError.MEDIA_ERR_DECODE ||
-                          code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
-                            ? "codec"
-                            : "stalled"
-                        );
-                      }}
-                      onLoadedMetadata={(e) => {
-                        if ((e.currentTarget as HTMLVideoElement).videoWidth === 0) setVideoProblem("codec");
-                      }}
-                      ref={(el) => {
-                        if (!el) return;
-                        // A stall is "no sign of life for a while", not
-                        // "not finished yet" - so every event that proves
-                        // something is still happening pushes the
-                        // deadline back, and a video that streams in
-                        // slowly is left alone to do it.
-                        let timer: ReturnType<typeof setTimeout>;
-                        const giveUp = () => { if (el.readyState === 0) setVideoProblem("stalled"); };
-                        const arm = () => {
-                          clearTimeout(timer);
-                          timer = setTimeout(giveUp, cVideoStallMs);
-                        };
-                        arm();
-                        for (const ev of ["progress", "loadedmetadata", "loadeddata", "canplay", "playing"]) {
-                          el.addEventListener(ev, arm);
-                        }
-                        el.addEventListener("loadedmetadata", () => clearTimeout(timer), { once: true });
-                      }}
-                    />
-                  );
-                }
-                return (
-                  <img
-                    src={hiURL || thumb}
-                    alt={f.path}
-                    style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }}
-                  />
-                );
-              })()}
-            </div>
-
-            {infoOpen && (
-              <div className="pg-info-panel" onClick={(e) => e.stopPropagation()}>
-                <div className="pg-info-hdr">
-                  <span>More info</span>
-                  <button className="pg-info-close" onClick={closeInfo}>×</button>
-                </div>
-                {infoLoading ? (
-                  <div className="pg-info-loading">Loading…</div>
-                ) : !infoData ? (
-                  <div className="pg-info-loading">No metadata found</div>
-                ) : (
-                  <div className="pg-info-body">
-                    {(infoData.cameraMake || infoData.cameraModel) && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">Camera</span>
-                        <span>{[infoData.cameraMake, infoData.cameraModel].filter(Boolean).join(" ")}</span>
-                      </div>
-                    )}
-                    {infoData.takenAt && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">Taken</span>
-                        <span>{infoData.takenAt.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {!!(infoData.width && infoData.height) && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">Dimensions</span>
-                        <span>{infoData.width} × {infoData.height}</span>
-                      </div>
-                    )}
-                    {infoData.exposureTime && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">Exposure</span>
-                        <span>{infoData.exposureTime}</span>
-                      </div>
-                    )}
-                    {infoData.fNumber && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">Aperture</span>
-                        <span>{infoData.fNumber}</span>
-                      </div>
-                    )}
-                    {!!infoData.iso && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">ISO</span>
-                        <span>{infoData.iso}</span>
-                      </div>
-                    )}
-                    {infoData.focalLength && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">Focal length</span>
-                        <span>{infoData.focalLength}</span>
-                      </div>
-                    )}
-                    {(infoData.city || infoData.country) && (
-                      <div className="pg-info-row">
-                        <span className="pg-info-label">Location</span>
-                        <span>{[infoData.city, infoData.country].filter(Boolean).join(", ")}</span>
-                      </div>
-                    )}
-                    {infoData.hasGps && (
-                      <iframe
-                        className="pg-info-map"
-                        title="Photo location"
-                        loading="lazy"
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${infoData.longitude - 0.02}%2C${infoData.latitude - 0.02}%2C${infoData.longitude + 0.02}%2C${infoData.latitude + 0.02}&layer=mapnik&marker=${infoData.latitude}%2C${infoData.longitude}`}
-                      />
-                    )}
-                    {!infoData.cameraMake && !infoData.cameraModel && !infoData.hasGps && !infoData.exposureTime && (
-                      <div className="pg-info-loading">No EXIF metadata in this file</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <MediaViewer items={items} index={openIdx} onIndexChange={openAt} onClose={() => setOpenIdx(null)} />
       )}
 
       {/* styles */}

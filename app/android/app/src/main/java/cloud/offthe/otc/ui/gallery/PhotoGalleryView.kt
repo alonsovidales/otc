@@ -512,11 +512,12 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
  * The full-screen viewer: a pager that slides between photos (the
  * neighbours are drawn from the view model's small full-size cache),
  * pinch to zoom (issue #36), share/save/delete (issue #9), info (issue
- * #41). Mirrors the iOS viewer's strip of previous/current/next.
+ * #41). Mirrors the iOS viewer's strip of previous/current/next. Also
+ * the Files section's viewer (FilesExplorerView, via showFiles).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State) {
+internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
@@ -573,7 +574,7 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
             return@Box
         }
-        val image = st.hiResImages[item.path] ?: rememberThumb(item.thumb)
+        val image = st.hiResImages[item.path] ?: item.preview ?: rememberThumb(item.thumb)
         if (image == null) { CircularProgressIndicator(color = Color.White); return@Box }
         // Pinch to zoom, and pan while zoomed in. Everything else - a
         // one-finger swipe on a photo at normal size - is left unconsumed

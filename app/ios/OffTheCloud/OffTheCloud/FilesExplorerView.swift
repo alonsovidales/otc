@@ -6,8 +6,8 @@
 //
 //  Native port of the web app's Files tab (web/src/components/FilesExplorer.tsx):
 //  path navigation, upload (via the document picker — the native analogue of
-//  the web's drag-and-drop), multi-select delete/share/download-zip, and an
-//  image viewer for image files.
+//  the web's drag-and-drop), multi-select delete/share/download-zip, and the
+//  Images section's own viewer for photos and videos.
 
 import SwiftUI
 import CryptoKit
@@ -205,6 +205,25 @@ final class FilesExplorerViewModel: ObservableObject {
         row.path.contains("/") ? row.path : joinPath(path, row.path)
     }
 
+    /// The folder's photos and videos as the viewer's items, in the order
+    /// the list and grid show them, each with the grid's thumbnail if it
+    /// has one (the viewer fetches the full-size image either way).
+    func viewerItems() -> [PhotoGalleryVM.Item] {
+        rows.filter(isMedia).map { row in
+            let full = fullPath(for: row)
+            return PhotoGalleryVM.Item(
+                id: "\(full)#\(row.raw.hash)#\(row.size)",
+                path: full,
+                mime: row.raw.mime,
+                size: Int(row.size),
+                thumbData: nil,
+                localURL: nil,
+                isLocalOnly: false,
+                thumbImage: thumbs[thumbKey(for: row)]
+            )
+        }
+    }
+
     func open(_ row: FileRow) async {
         if row.isDir {
             // issue #21: dirnamePath() already returns "/" once we're back
@@ -389,6 +408,9 @@ final class FilesExplorerViewModel: ObservableObject {
 
 struct FilesExplorerView: View {
     @StateObject private var vm: FilesExplorerViewModel
+    // Photos and videos open in the Images section's viewer, over this
+    // folder's photos and videos only (see PhotoGalleryVM.showFiles).
+    @StateObject private var viewer = PhotoGalleryVM()
     @State private var pathField: String
     @State private var showImporter = false
     // Issue #180: set to start the "Share as Gallery" flow.
@@ -640,10 +662,42 @@ struct FilesExplorerView: View {
             Button("Delete", role: .destructive) { Task { await vm.deleteSelected() } }
             Button("Cancel", role: .cancel) {}
         }
+        // Presented exactly as PhotoGalleryView presents it.
+        .fullScreenCover(isPresented: Binding(
+            get: { viewer.openIndex != nil },
+            set: { if !$0 { viewer.closeModal() } }
+        )) {
+            ImageModal(
+                vm: viewer,
+                save: { viewer.saveToPhotos(viewer.hiResImage ?? viewerThumb()) },
+                share: { viewer.shareCurrentPhoto(viewer.hiResImage ?? viewerThumb()) },
+                delete: { viewer.deleteCurrentPhoto() }
+            )
+        }
+    }
+
+    /// The open item's grid thumbnail, standing in for save/share until
+    /// the full-size image arrives (as the Images section does).
+    private func viewerThumb() -> UIImage? {
+        guard let i = viewer.openIndex, viewer.items.indices.contains(i) else { return nil }
+        return viewer.items[i].thumbImage
     }
 
     /// What a tap on a row (or a grid tile) does: open the folder or file.
+    /// A photo or video opens in the Images section's viewer, starting at
+    /// it and swiping through the folder's other photos and videos.
     private func tap(_ row: FileRow) {
+        // Not while another file's open is in flight (issue #71): its
+        // Quick Look sheet couldn't show over the viewer.
+        if vm.isMedia(row) {
+            guard vm.openingPath == nil else { return }
+            let items = vm.viewerItems()
+            guard let start = items.firstIndex(where: { $0.path == vm.fullPath(for: row) }) else { return }
+            // A delete from the viewer re-reads the folder.
+            viewer.onDeleted = { _ in Task { await vm.load() } }
+            viewer.showFiles(items, startAt: start)
+            return
+        }
         // Issue #71: ignore taps while any row's open is already in flight -
         // see openingPath's own doc comment for why that's the fix, not
         // just the spinner on the row.

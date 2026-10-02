@@ -108,17 +108,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import cloud.offthe.otc.ui.common.FileTypeIcon
 import cloud.offthe.otc.ui.common.decodeBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import cloud.offthe.otc.ui.gallery.ImageModal
+import cloud.offthe.otc.ui.gallery.PhotoGalleryViewModel
 import java.util.Date
 
 // Port of FilesExplorerView.swift: path navigation, per-row checkboxes,
 // upload from the phone, share/download/delete of the selection, and
-// opening a file in whatever app handles it. Shown as a list or a grid of
-// tiles (photo/video thumbnails from GetThumbnails, else FileTypeIcon).
+// opening a file in whatever app handles it - photos and videos in the
+// Images section's viewer instead. Shown as a list or a grid of tiles
+// (photo/video thumbnails from GetThumbnails, else FileTypeIcon).
 
 private fun isDir(f: PbFile) = f.mime == "inode/directory"
 private fun isImg(f: PbFile) = f.mime.startsWith("image/")
 private fun isVideo(f: PbFile) = f.mime.startsWith("video/")
-// The grid asks the device for a thumbnail only for these.
+// The grid asks the device for a thumbnail only for these, and these open
+// in the Images viewer.
 private fun isMedia(row: FileRow) = !row.isDir &&
     (isImg(row.raw) || isVideo(row.raw) || row.name.endsWith(".heic", ignoreCase = true))
 private fun joinPath(base: String, leaf: String) = base.trimEnd('/') + "/" + leaf.trimStart('/')
@@ -204,7 +209,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         launchLoad()
     }
 
-    private fun launchLoad() = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { load() }
+    fun launchLoad() = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { load() }
 
     fun fullPath(row: FileRow) = if (row.path.contains("/")) row.path else joinPath(path, row.path)
 
@@ -409,8 +414,24 @@ fun FilesExplorerView(initialPath: String) {
     var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
     val selectedFolder = st.selected.singleOrNull()?.let { p -> st.rows.firstOrNull { it.path == p && it.isDir && it.path != ".." } }
 
+    // Photos and videos open in the Images section's viewer, its own
+    // instance, paging through this folder's photos and videos only.
+    val viewer: PhotoGalleryViewModel = viewModel(key = "files-viewer") { PhotoGalleryViewModel("") }
+    val vst by viewer.state.collectAsState()
+
     LaunchedEffect(Unit) { vm.load() }
     LaunchedEffect(st.path) { pathField = st.path }
+
+    fun openRow(row: FileRow) {
+        if (!isMedia(row)) { if (st.openingPath == null) scope.launch { vm.open(context, row) }; return }
+        val media = st.rows.filter { isMedia(it) }
+        // The grid's thumbnail is the placeholder until the full size arrives.
+        val items = media.map { r ->
+            val full = vm.fullPath(r)
+            PhotoGalleryViewModel.Item("$full#${r.raw.hash}#${r.size}", full, r.raw.mime, r.size, null, st.thumbs[vm.thumbKey(r)]?.asAndroidBitmap())
+        }
+        viewer.showFiles(items, media.indexOf(row)) { vm.launchLoad() }
+    }
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
         for (uri in uris) {
@@ -453,7 +474,7 @@ fun FilesExplorerView(initialPath: String) {
                         FileGridCell(
                             row, selected = row.path in st.selected, opening = st.openingPath == row.path,
                             thumb = if (isMedia(row)) st.thumbs[vm.thumbKey(row)] else null,
-                            onOpen = { if (st.openingPath == null) scope.launch { vm.open(context, row) } },
+                            onOpen = { openRow(row) },
                             onToggle = { vm.toggleSelect(row.path) },
                             onVersions = { scope.launch { vm.openVersions(row) } },
                         )
@@ -463,7 +484,7 @@ fun FilesExplorerView(initialPath: String) {
                         val selected = row.path in st.selected
                         Row(
                             Modifier.fillMaxWidth()
-                                .clickable(enabled = st.openingPath == null) { scope.launch { vm.open(context, row) } }
+                                .clickable(enabled = st.openingPath == null) { openRow(row) }
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -568,6 +589,10 @@ fun FilesExplorerView(initialPath: String) {
             confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); scope.launch { vm.deleteSelected() } }) { Text("Delete", color = Color(0xFFE53935)) } },
             dismissButton = { TextButton(onClick = { vm.setConfirmDelete(false) }) { Text("Cancel") } },
         )
+    }
+    if (vst.openIndex != null) ImageModal(viewer, vst)
+    vst.alert?.let {
+        AlertDialog(onDismissRequest = { viewer.dismissAlert() }, text = { Text(it) }, confirmButton = { TextButton(onClick = { viewer.dismissAlert() }) { Text("OK") } })
     }
 }
 

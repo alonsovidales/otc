@@ -11,6 +11,7 @@ import type {
 import { loadFilesPath, saveFilesPath } from "../net/uiState";
 import SharedGalleryShare from "./SharedGalleryShare";
 import FileTypeIcon from "./FileTypeIcon";
+import MediaViewer, { type ViewerItem } from "./MediaViewer";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 
@@ -244,6 +245,10 @@ export default function FilesExplorer({
 
   // -------- click entries (4, 5) ----------
   const openEntry = async (f: PbFile) => {
+    if (!isDir(f) && isMedia(f)) {
+      openMedia(f);
+      return;
+    }
     if (isDir(f)) {
       let newPath = '';
       if (f.path === "..") {
@@ -474,6 +479,19 @@ export default function FilesExplorer({
     })();
     return () => { alive = false; };
   }, [viewMode, listing, fullPathOf]);
+
+  // Photos and videos open in the Images section's own viewer
+  // (MediaViewer), paging through this folder's photos and videos.
+  const [mediaViewer, setMediaViewer] = useState<{ items: ViewerItem[]; index: number } | null>(null);
+  const openMedia = (f: PbFile) => {
+    const media = listing.filter(x => !isDir(x) && isMedia(x));
+    const items: ViewerItem[] = media.map(x => {
+      const full = fullPathOf(x);
+      return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined };
+    });
+    const index = Math.max(0, media.findIndex(x => x.path === f.path));
+    setMediaViewer({ items, index });
+  };
 
   const rows = useMemo(() => listing.map((f) => ({
     k: rowKey(f),
@@ -709,6 +727,15 @@ export default function FilesExplorer({
       )}
 
       <div className="fb-tip">Tip: Drag files here to upload to <code>{path}</code>.</div>
+
+      {mediaViewer && (
+        <MediaViewer
+          items={mediaViewer.items}
+          index={mediaViewer.index}
+          onIndexChange={i => setMediaViewer(v => (v ? { ...v, index: i } : v))}
+          onClose={() => setMediaViewer(null)}
+        />
+      )}
 
       {/* Issue #132: the versions pop-up - every older version of the
           file with when it was replaced and its size; each downloads. */}
