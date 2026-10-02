@@ -116,3 +116,4 @@
 75	-	b9c7604b127903f6059288e285b78f160f90fb229e814b8a62796eb2e217434a	Leave the bridge from Settings: the device keeps everything and works at home (otc.local); a device whose account was deleted switches to that by itself.
 76	-	5e27fb71050db57a4537a960aaae8030f5eb74f6a0be858ffb96707a295dace7	Leaving the bridge points the apps at the device's own address on your network (e.g. 192.168.1.20:8080) instead of otc.local, which Android often can't find.
 77	-	0b44784f175f6738f58da72f21d733c80125d07428ee178d14b067dbafa08dbb	Stepping to the next photo before the full-size one has loaded no longer shows the previous photo over it.
+78	-	acb7955a7293155593f525a1505f072623bd36358561aa5567e88cae4bb266b5	Deleting or merging a person no longer reloads every photo, and its confirmation is a proper small dialog.

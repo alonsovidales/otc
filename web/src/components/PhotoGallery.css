@@ -28,7 +28,14 @@
 .pg-person-actions { display: flex; gap: 6px; }
 .pg-person-merge, .pg-person-delete { border: 0; background: transparent; cursor: pointer; font-size: 10px; opacity: 0.6; padding: 0; }
 .pg-person-merge:hover, .pg-person-delete:hover { opacity: 1; }
-.pg-person-confirm p { color: var(--mist); max-width: 280px; }
+/* The small confirmation dialogs (delete or merge a person, the groups
+   picker): a compact card, not the photo viewer's full-width box. */
+.pg-modal-inner.pg-person-confirm { width: min(92vw, 440px); padding: 20px 22px 18px; gap: 16px; overflow: auto; }
+.pg-person-confirm p { color: var(--mist); margin: 0; line-height: 1.5; }
+.pg-person-confirm .pg-modal-actions button { padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.pg-person-confirm .pg-modal-actions .pg-secondary { background: transparent; border: 1px solid var(--line); color: var(--mist); }
+.pg-person-confirm .pg-modal-actions .pg-secondary:hover { background: var(--panel); }
+.pg-person-confirm .pg-modal-actions .pg-danger { background: var(--danger); border: 1px solid var(--danger); color: var(--ink); }
 .pg-merge-hint { border-top: 0; padding-top: 0; margin-top: 0; margin-bottom: 4px; }
 .pg-link-btn { border: 0; background: transparent; color: var(--gold); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
 /* Issue #76: the strip itself is collapsed to one row via an inline

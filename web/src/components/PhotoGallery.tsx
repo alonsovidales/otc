@@ -248,7 +248,9 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     });
     if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
       setAllPeople(prev => prev.filter(p => p.id !== id));
-      setSelectedPeople(prev => prev.filter(x => x !== id));
+      // Only a person the photos are filtered by changes the grid: a new
+      // array either way made the search effect reload every photo.
+      setSelectedPeople(prev => (prev.includes(id) ? prev.filter(x => x !== id) : prev));
     }
   };
   // Clicking a person's avatar while merge-picking is active merges instead
@@ -274,7 +276,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       };
     });
     if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setSelectedPeople(prev => prev.filter(x => x !== source.id));
+      setSelectedPeople(prev => (prev.includes(source.id) ? prev.filter(x => x !== source.id) : prev));
       await loadPeople(); // re-sort by the merged face count (issue #75) rather than patch counts by hand
     }
   };
@@ -1097,7 +1099,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
                   onKeyDown={e => { if (e.key === "Enter") void createGroupFromSelection(groupPicker.name); }}
                 />
                 <div className="pg-modal-actions">
-                  <button onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
+                  <button className="pg-secondary" onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
                   <button onClick={() => void createGroupFromSelection(groupPicker.name)} disabled={groupBusy || !groupPicker.name.trim()}>
                     {groupBusy ? <Spinner label="Creating…" /> : "Create"}
                   </button>
@@ -1127,7 +1129,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
                     </ul>
                   )}
                 <div className="pg-modal-actions">
-                  <button onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
+                  <button className="pg-secondary" onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
                   <button onClick={() => setGroupPicker({ mode: "create", name: "" })} disabled={groupBusy}>New group…</button>
                 </div>
               </>
@@ -1141,7 +1143,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
           <div className="pg-modal-inner pg-person-confirm" onClick={e => e.stopPropagation()}>
             <p>Delete this person? This removes every face matched to them — it can't be undone.</p>
             <div className="pg-modal-actions">
-              <button onClick={() => setConfirmDeletePersonId(null)}>Cancel</button>
+              <button className="pg-secondary" onClick={() => setConfirmDeletePersonId(null)}>Cancel</button>
               <button className="pg-danger" onClick={() => void deletePerson(confirmDeletePersonId)}>Delete</button>
             </div>
           </div>
@@ -1158,7 +1160,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
               {pendingMerge.target.name || "Unnamed"} instead — this can't be undone.
             </p>
             <div className="pg-modal-actions">
-              <button onClick={() => setPendingMerge(null)}>Cancel</button>
+              <button className="pg-secondary" onClick={() => setPendingMerge(null)}>Cancel</button>
               <button className="pg-danger" onClick={() => void confirmMerge()}>Merge</button>
             </div>
           </div>
