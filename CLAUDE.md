@@ -385,6 +385,22 @@ lets a device running an older build still work correctly through the bridge. `b
 holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
 independently of a device's web build.
 
+Issue #182 (and #175/#176): accounts can be deleted - `DELETE /api/account/me` (`{"confirm":
+"delete", "password"}`, or a sign-in within 15 minutes for Google/Apple-only accounts;
+`dao.DeleteAccount` removes the account, its logins, tokens and app codes, releases its domains
+with the usual 30-day hold and forgets their push rows and metrics) - and exported (`GET
+/api/account/export`, JSON). A device gives its own name back with `BridgeReleaseDomain`
+(authenticated by its secret, like `RotateBridgeSecret`). An unknown name is answered with
+`error_code = "domain_not_registered"`; a primary device that keeps getting it for 15 minutes
+(`websocket/bridge_leave.go`) leaves the bridge by itself, with an Alert. Leaving (that, or the
+owner's "Leave the bridge" - `ReqDisableBridge` from the web BridgePanel and the apps' Settings >
+Bridge and Account) sets the domain back to `otc` and writes `off <left|released>` to
+`bridge.request`: the root runner empties `[otc] bridge-addr`, records `{"state":"off"}` (read
+back as `RespBridgeAccess.left_reason`) and restarts the device local-only at
+`http://otc.local:8080`; the apps switch their endpoint to `ws://otc.local:8080/ws`. The privacy
+notice is `bridge/static/privacy.html` (`/privacy`), linked from the landing footer, the account
+page, BridgePanel and the apps' sign-in and Settings; contact messages are pruned after a year.
+
 Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`
 (64 KB, 15 s to arrive - the servers bound only headers, since a whole-request `ReadTimeout`
 would also cut the websockets the cluster router proxies); one-off device GETs (static assets,

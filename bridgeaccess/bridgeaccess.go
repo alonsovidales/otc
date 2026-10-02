@@ -218,6 +218,49 @@ func RequestSwitchOn() error {
 	return nil
 }
 
+// Why a device left the bridge (issue #182), as RespBridgeAccess.left_reason.
+const (
+	// LeftByOwner: the owner switched it off from Settings.
+	LeftByOwner = "left"
+	// LeftReleased: the bridge stopped knowing its name - its account was
+	// deleted, or the name released from the account page.
+	LeftReleased = "released"
+)
+
+// RequestSwitchOff asks the root side to take the device off the bridge
+// (issue #182): [otc] bridge-addr is emptied and the device restarts
+// local-only, reachable at http://otc.local:8080 - as if it had been set
+// up without the bridge. The database identity is the caller's to reset.
+func RequestSwitchOff(reason string) error {
+	if err := CanSwitchOn(); err != nil {
+		return err
+	}
+	if reason != LeftByOwner && reason != LeftReleased {
+		return fmt.Errorf("unknown reason %q", reason)
+	}
+	if err := os.WriteFile(cRequestPath, []byte("off "+reason+"\n"), 0o644); err != nil { // perms: rw-r--r--
+		return fmt.Errorf("switching the bridge off: %w", err)
+	}
+	return nil
+}
+
+// LeftReason is why this device is local-only after having been on the
+// bridge, from the root side's last status; empty if it never left.
+func LeftReason() string {
+	raw, err := os.ReadFile(cStatusFile)
+	if err != nil {
+		return ""
+	}
+	var st struct{ State, Message string }
+	if json.Unmarshal(raw, &st) != nil || st.State != "off" {
+		return ""
+	}
+	if st.Message == LeftByOwner || st.Message == LeftReleased {
+		return st.Message
+	}
+	return ""
+}
+
 func call(method, path string, body any, out any) (int, error) {
 	var rd io.Reader
 	if body != nil {

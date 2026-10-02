@@ -51,16 +51,16 @@ entries for the iOS app; change both together.
   > - Set up a new device over Bluetooth, straight from the app.
   >
   > Everything you upload is encrypted at rest on your device. When you are away from home the
-  > app reaches it through our relay, which passes the encrypted connection along and stores none
-  > of your content.
+  > app reaches it through our relay over an encrypted connection; the relay stores none of your
+  > content. Prefer that nothing passes through us? Use it at home, through Tailscale Funnel, or
+  > with a relay of your own.
   >
   > Off The Cloud needs an Off The Cloud device. The server and the apps are open source (AGPL).
 
 - **Category**: Photography (alternatively Productivity). **Tags**: backup, photos, storage.
 - **Contact email**: the owner's support address. **Website**: `https://off-the.cloud`.
-- **Privacy policy URL**: required by Play, and none is published yet (the bridge serves no
-  privacy page). It has to exist before the listing can be submitted. The same page should serve
-  the App Store entry.
+- **Privacy policy URL**: `https://off-the.cloud/privacy` (issue #175). The same page serves the
+  App Store entry.
 
 ## Graphics
 
@@ -78,12 +78,15 @@ Answers as the app works today. Play counts data as "collected" when it leaves t
 a server the user owns, unless one of Play's exemptions applies. Check each answer against the
 current Play Console wording before submitting.
 
-- **Encrypted in transit**: yes (TLS to the relay, and the device's own encryption on top).
-- **Users can request deletion**: content is deleted on the user's own device. The account page
-  removes domains, but **there is no way to delete a bridge account yet**: needed before
-  submitting, see #182.
-- **Photos and videos, Files and docs**: sent to the user's own device. They are not readable by
-  us and pass through the relay encrypted. Purpose: app functionality (backup). Not shared with
+- **Encrypted in transit**: yes, TLS on both legs. It is not end-to-end: the relay decrypts and
+  re-encrypts, so content is readable in its memory while it passes, though never stored. The
+  device password is end-to-end (RSA-OAEP to the device's key). `/privacy` says this plainly.
+- **Users can request deletion**: content is deleted on the user's own device. The account is
+  deleted on the account page ("Delete my account", #182), also reached from the app's Settings >
+  Bridge and Account; its data can be downloaded there first.
+- **Photos and videos, Files and docs**: sent to the user's own device. Away from home they pass
+  through the relay, which is not end-to-end encrypted (see above) and stores none of it.
+  Purpose: app functionality (backup). Not shared with
   third parties.
 - **Name, email address** (only when the device is set up in the app with an account, including
   Sign in with Apple or Google): stored by the bridge for the account. Purpose: account
@@ -104,7 +107,8 @@ current Play Console wording before submitting.
 - **Content rating**: questionnaire. It has user-generated content shared with friends: the
   friend-to-friend feed, with blocking and removal of friends.
 - **Account deletion**: Play requires it for an app that creates accounts (the in-app setup
-  does). It doesn't exist yet: see #182. Once it does, the URL to give is
+  does). Done in #182: Settings > Bridge and Account > Delete My Account in the app, and the
+  account page on the web. The URL to give is
   `https://off-the.cloud/account`.
 - **Permissions to explain**: photos and videos (backup), media location (map and place search),
   notifications, and Bluetooth (setting up a new device).

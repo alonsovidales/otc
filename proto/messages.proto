@@ -662,7 +662,18 @@ message RespBridgeAccess {
   // The account sign-ins the bridge offers besides email ("apple",
   // "google"), for the web app's buttons.
   repeated string providers = 6;
+  // Issue #182: why a device is local-only after having been on the
+  // bridge ("left": the owner switched it off; "released": the bridge no
+  // longer knew its name - the account was deleted or the name given
+  // back). Empty otherwise.
+  string left_reason = 7;
 }
+
+// Issue #182: an owner's client asks the device to leave the bridge and
+// work locally (at http://otc.local:8080), as if set up without it. The
+// device gives its name back (BridgeReleaseDomain) and restarts local-only.
+// Answers with RespBridgeAccess (pending while it restarts).
+message ReqDisableBridge {}
 
 // Either email + password, or a setup code (from the bridge's account
 // page, or handed back by a provider sign-in). Answers with
@@ -1239,6 +1250,16 @@ message RotateBridgeSecret {
   string secret = 3;
 }
 
+// Issue #182: sent by a device to the bridge, authenticated like
+// RotateBridgeSecret by its current secret: the bridge deletes the
+// device's domain (held for its account for 30 days, like a release from
+// the account page) and forgets its push registrations. Answers with Ack.
+message BridgeReleaseDomain {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+}
+
 message RotateBridgeSecretAck {
   string new_secret = 1;
 }
@@ -1800,6 +1821,9 @@ message ReqEnvelope {
     ListSharedLinks req_list_shared_links = 124;
     DeleteSharedLink req_delete_shared_link = 125;
     SetImageTaggingEnabled req_set_image_tagging_enabled = 126;
+    // Issue #182: leaving the bridge.
+    ReqDisableBridge req_disable_bridge = 127;
+    BridgeReleaseDomain req_bridge_release_domain = 128;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

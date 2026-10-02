@@ -190,6 +190,7 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             TailscaleSection()
+            BridgeAccountSection(secrets)
 
             Section("Status") { StatusSectionContent(status) }
 
@@ -430,6 +431,48 @@ private fun TailscaleSection() {
         st.note?.let { Caption(it) }
         st.error?.let { Caption(it, Color(0xFFE53935)) }
     }
+}
+
+/** Issue #182: leaving the bridge and deleting the account. Mirrors iOS's BridgeAccountSection. */
+@Composable
+private fun BridgeAccountSection(secrets: SecretsStore) {
+    val vm: BridgeAccountViewModel = viewModel()
+    val st by vm.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var confirmLeave by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { vm.load() }
+    if (!st.visible) return
+    fun open(path: String) = Share.openInBrowser(context, "https://${st.bridge}/$path")
+    Section("Bridge and Account", if (st.enabled) "Leaving gives the name back; the device keeps working at home, at http://otc.local:8080." else null) {
+        if (st.enabled) {
+            Caption("Reachable from anywhere at ${st.domain}")
+            RowButton("Leave the Bridge", enabled = !st.busy, destructive = true) { confirmLeave = true }
+            RowButton("Delete My Account…", enabled = !st.busy, destructive = true) { confirmDelete = true }
+        } else {
+            if (st.leftReason == "released") Caption("This device left the bridge: ${st.bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still there.", Color(0xFFFF9800))
+            Caption("Only reachable on your home network. Join the bridge from Settings in the device's web app.")
+            RowButton("Your Account Page") { open("account") }
+        }
+        RowButton("Privacy") { open("privacy") }
+        st.note?.let { Caption(it) }
+        st.error?.let { Caption(it, Color(0xFFE53935)) }
+    }
+    if (confirmLeave) AlertDialog(
+        onDismissRequest = { confirmLeave = false },
+        title = { Text("Leave the bridge?") },
+        text = { Text("${st.domain} is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.") },
+        confirmButton = { TextButton(onClick = { confirmLeave = false; scope.launch { vm.leave(secrets) } }) { Text("Leave the Bridge", color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
+    )
+    if (confirmDelete) AlertDialog(
+        onDismissRequest = { confirmDelete = false },
+        title = { Text("Delete your account?") },
+        text = { Text("This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.") },
+        confirmButton = { TextButton(onClick = { confirmDelete = false; scope.launch { if (vm.leave(secrets)) open("account?delete=1") } }) { Text("Leave and Delete", color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+    )
 }
 
 @Composable

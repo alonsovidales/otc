@@ -94,6 +94,9 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Issue #175: what the bridge keeps, before signing in.
+            val context = androidx.compose.ui.platform.LocalContext.current
+            androidx.compose.material3.TextButton(onClick = { cloud.offthe.otc.ui.common.Share.openInBrowser(context, "https://off-the.cloud/privacy") }) { Text("Privacy") }
         }
     }
 }

@@ -1159,6 +1159,22 @@ export interface RespBridgeAccess {
    * "google"), for the web app's buttons.
    */
   providers: string[];
+  /**
+   * Issue #182: why a device is local-only after having been on the
+   * bridge ("left": the owner switched it off; "released": the bridge no
+   * longer knew its name - the account was deleted or the name given
+   * back). Empty otherwise.
+   */
+  leftReason: string;
+}
+
+/**
+ * Issue #182: an owner's client asks the device to leave the bridge and
+ * work locally (at http://otc.local:8080), as if set up without it. The
+ * device gives its name back (BridgeReleaseDomain) and restarts local-only.
+ * Answers with RespBridgeAccess (pending while it restarts).
+ */
+export interface ReqDisableBridge {
 }
 
 /**
@@ -1806,6 +1822,18 @@ export interface RotateBridgeSecret {
   secret: string;
 }
 
+/**
+ * Issue #182: sent by a device to the bridge, authenticated like
+ * RotateBridgeSecret by its current secret: the bridge deletes the
+ * device's domain (held for its account for 30 days, like a release from
+ * the account page) and forgets its push registrations. Answers with Ack.
+ */
+export interface BridgeReleaseDomain {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+}
+
 export interface RotateBridgeSecretAck {
   newSecret: string;
 }
@@ -2438,6 +2466,10 @@ export interface ReqEnvelope {
     | { $case: "reqListSharedLinks"; reqListSharedLinks: ListSharedLinks }
     | { $case: "reqDeleteSharedLink"; reqDeleteSharedLink: DeleteSharedLink }
     | { $case: "reqSetImageTaggingEnabled"; reqSetImageTaggingEnabled: SetImageTaggingEnabled }
+    | //
+    /** Issue #182: leaving the bridge. */
+    { $case: "reqDisableBridge"; reqDisableBridge: ReqDisableBridge }
+    | { $case: "reqBridgeReleaseDomain"; reqBridgeReleaseDomain: BridgeReleaseDomain }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -8468,7 +8500,7 @@ export const ReqGetBridgeAccess: MessageFns<ReqGetBridgeAccess> = {
 };
 
 function createBaseRespBridgeAccess(): RespBridgeAccess {
-  return { enabled: false, domain: "", bridge: "", pending: false, error: "", providers: [] };
+  return { enabled: false, domain: "", bridge: "", pending: false, error: "", providers: [], leftReason: "" };
 }
 
 export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
@@ -8490,6 +8522,9 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
     }
     for (const v of message.providers) {
       writer.uint32(50).string(v!);
+    }
+    if (message.leftReason !== "") {
+      writer.uint32(58).string(message.leftReason);
     }
     return writer;
   },
@@ -8549,6 +8584,14 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
           message.providers.push(reader.string());
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.leftReason = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8568,6 +8611,7 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
       providers: globalThis.Array.isArray(object?.providers)
         ? object.providers.map((e: any) => globalThis.String(e))
         : [],
+      leftReason: isSet(object.leftReason) ? globalThis.String(object.leftReason) : "",
     };
   },
 
@@ -8591,6 +8635,9 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
     if (message.providers?.length) {
       obj.providers = message.providers;
     }
+    if (message.leftReason !== "") {
+      obj.leftReason = message.leftReason;
+    }
     return obj;
   },
 
@@ -8605,6 +8652,50 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
     message.pending = object.pending ?? false;
     message.error = object.error ?? "";
     message.providers = object.providers?.map((e) => e) || [];
+    message.leftReason = object.leftReason ?? "";
+    return message;
+  },
+};
+
+function createBaseReqDisableBridge(): ReqDisableBridge {
+  return {};
+}
+
+export const ReqDisableBridge: MessageFns<ReqDisableBridge> = {
+  encode(_: ReqDisableBridge, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqDisableBridge {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqDisableBridge();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ReqDisableBridge {
+    return {};
+  },
+
+  toJSON(_: ReqDisableBridge): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqDisableBridge>, I>>(base?: I): ReqDisableBridge {
+    return ReqDisableBridge.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqDisableBridge>, I>>(_: I): ReqDisableBridge {
+    const message = createBaseReqDisableBridge();
     return message;
   },
 };
@@ -14098,6 +14189,98 @@ export const RotateBridgeSecret: MessageFns<RotateBridgeSecret> = {
   },
 };
 
+function createBaseBridgeReleaseDomain(): BridgeReleaseDomain {
+  return { ownerUuid: "", domain: "", secret: "" };
+}
+
+export const BridgeReleaseDomain: MessageFns<BridgeReleaseDomain> = {
+  encode(message: BridgeReleaseDomain, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeReleaseDomain {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBridgeReleaseDomain();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BridgeReleaseDomain {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+    };
+  },
+
+  toJSON(message: BridgeReleaseDomain): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BridgeReleaseDomain>, I>>(base?: I): BridgeReleaseDomain {
+    return BridgeReleaseDomain.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BridgeReleaseDomain>, I>>(object: I): BridgeReleaseDomain {
+    const message = createBaseBridgeReleaseDomain();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    return message;
+  },
+};
+
 function createBaseRotateBridgeSecretAck(): RotateBridgeSecretAck {
   return { newSecret: "" };
 }
@@ -18517,6 +18700,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetImageTaggingEnabled":
         SetImageTaggingEnabled.encode(message.payload.reqSetImageTaggingEnabled, writer.uint32(1010).fork()).join();
         break;
+      case "reqDisableBridge":
+        ReqDisableBridge.encode(message.payload.reqDisableBridge, writer.uint32(1018).fork()).join();
+        break;
+      case "reqBridgeReleaseDomain":
+        BridgeReleaseDomain.encode(message.payload.reqBridgeReleaseDomain, writer.uint32(1026).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -19628,6 +19817,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 127: {
+          if (tag !== 1018) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqDisableBridge",
+            reqDisableBridge: ReqDisableBridge.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 128: {
+          if (tag !== 1026) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqBridgeReleaseDomain",
+            reqBridgeReleaseDomain: BridgeReleaseDomain.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -20032,6 +20243,13 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqSetImageTaggingEnabled",
           reqSetImageTaggingEnabled: SetImageTaggingEnabled.fromJSON(object.reqSetImageTaggingEnabled),
         }
+        : isSet(object.reqDisableBridge)
+        ? { $case: "reqDisableBridge", reqDisableBridge: ReqDisableBridge.fromJSON(object.reqDisableBridge) }
+        : isSet(object.reqBridgeReleaseDomain)
+        ? {
+          $case: "reqBridgeReleaseDomain",
+          reqBridgeReleaseDomain: BridgeReleaseDomain.fromJSON(object.reqBridgeReleaseDomain),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -20286,6 +20504,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqDeleteSharedLink = DeleteSharedLink.toJSON(message.payload.reqDeleteSharedLink);
     } else if (message.payload?.$case === "reqSetImageTaggingEnabled") {
       obj.reqSetImageTaggingEnabled = SetImageTaggingEnabled.toJSON(message.payload.reqSetImageTaggingEnabled);
+    } else if (message.payload?.$case === "reqDisableBridge") {
+      obj.reqDisableBridge = ReqDisableBridge.toJSON(message.payload.reqDisableBridge);
+    } else if (message.payload?.$case === "reqBridgeReleaseDomain") {
+      obj.reqBridgeReleaseDomain = BridgeReleaseDomain.toJSON(message.payload.reqBridgeReleaseDomain);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -21270,6 +21492,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqSetImageTaggingEnabled",
             reqSetImageTaggingEnabled: SetImageTaggingEnabled.fromPartial(object.payload.reqSetImageTaggingEnabled),
+          };
+        }
+        break;
+      }
+      case "reqDisableBridge": {
+        if (object.payload?.reqDisableBridge !== undefined && object.payload?.reqDisableBridge !== null) {
+          message.payload = {
+            $case: "reqDisableBridge",
+            reqDisableBridge: ReqDisableBridge.fromPartial(object.payload.reqDisableBridge),
+          };
+        }
+        break;
+      }
+      case "reqBridgeReleaseDomain": {
+        if (object.payload?.reqBridgeReleaseDomain !== undefined && object.payload?.reqBridgeReleaseDomain !== null) {
+          message.payload = {
+            $case: "reqBridgeReleaseDomain",
+            reqBridgeReleaseDomain: BridgeReleaseDomain.fromPartial(object.payload.reqBridgeReleaseDomain),
           };
         }
         break;

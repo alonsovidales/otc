@@ -400,6 +400,7 @@ struct SettingsView: View {
                 // Issue #80: Tailscale Funnel as an alternative to the
                 // bridge. Primary-only too - see TailscaleSection.
                 TailscaleSection()
+                BridgeAccountSection()
 
                 // Issue #180: galleries and zip links shared from Images
                 // and Files - when they expire, how often they were opened,

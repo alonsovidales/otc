@@ -25,6 +25,7 @@ type Access = {
   pending: boolean;
   error: string;
   providers: string[];
+  leftReason?: string;
 };
 
 const providerLabels: Record<string, string> = { apple: "Continue with Apple", google: "Continue with Google" };
@@ -164,6 +165,33 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
       `https://${access.bridge}/account/auth/${provider}/start?return=${encodeURIComponent(back)}`;
   };
 
+  // Issue #182: leaving the bridge. The device gives its name back and
+  // restarts local-only; this page, if it came through the bridge, stops
+  // answering - the device is then at http://otc.local:8080 at home.
+  const leave = async () => {
+    if (!window.confirm(
+      `Take this device off the bridge? ${access?.domain} is given back and the device restarts. ` +
+      "It keeps everything on it and works at home, at http://otc.local:8080, but is no longer " +
+      "reachable from outside or by your friends. You can join again later.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        (e as any).payload = { $case: "reqDisableBridge", reqDisableBridge: {} };
+      });
+      if (resp.payload?.$case !== "respBridgeAccess") {
+        setError(resp.errorMessage || "Could not leave the bridge.");
+        return;
+      }
+      const a = resp.payload.respBridgeAccess;
+      setAccess({ ...a, providers: a.providers ?? [] });
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (hidden || !access) return null;
 
   if (access.enabled) {
@@ -174,6 +202,18 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
           Reachable from anywhere at{" "}
           <a href={`https://${access.domain}`} target="_blank" rel="noreferrer">{access.domain}</a>.
         </p>
+        <p className="up-note">
+          Leaving the bridge gives the name back; the device keeps working at home. To delete your
+          Off The Cloud account as well, leave first, then use{" "}
+          <a href={`https://${access.bridge}/account?delete=1`} target="_blank" rel="noreferrer">your account page</a>.
+          {" "}<a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">Privacy</a>
+        </p>
+        <div className="up-actions">
+          <button className="sf-btn sf-danger" disabled={busy} onClick={() => void leave()}>
+            {busy ? "Leaving…" : "Leave the bridge"}
+          </button>
+        </div>
+        {error && <p className="up-error">{error}</p>}
       </section>
     );
   }
@@ -185,13 +225,24 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
     <section className="sf-section">
       <h3>Bridge access</h3>
 
-      {access.pending ? (
+      {access.pending && access.leftReason === "left" ? (
+        <p className="up-note">
+          Leaving {access.bridge}… the device restarts, which takes about a minute. From then on
+          open it at home, at <a href="http://otc.local:8080">http://otc.local:8080</a>.
+        </p>
+      ) : access.pending ? (
         <p className="up-note">
           Joining {access.bridge}… the device restarts to finish, which takes about a minute. You
           may need to sign in again afterwards.
         </p>
       ) : (
         <>
+          {access.leftReason === "released" && (
+            <p className="up-error">
+              This device left the bridge: {access.bridge} no longer knew its name (its account was
+              deleted, or the name released). Everything on it is still here.
+            </p>
+          )}
           <p className="up-note">
             This device is only reachable on your home network. Through the {access.bridge} bridge
             it gets its own address, so you can reach it from anywhere and add friends. You'll need
@@ -232,7 +283,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
                 <a href={`https://${access.bridge}/account`} target="_blank" rel="noreferrer">
                   {access.bridge}/account
                 </a>
-                , choose “Get a setup code” and paste it here.
+                , choose “Get a setup code” and paste it here.{" "}
+                <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">Privacy</a>
               </p>
               <div className="sf-row">
                 <label htmlFor="bp-code">Setup code</label>

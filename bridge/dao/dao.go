@@ -181,6 +181,10 @@ func (dao *Dao) PruneOldLogs(before time.Time) (err error) {
 	if _, err = dao.db.Exec("delete from `released_domains` where `released_at` < ?", time.Now().Add(-cNameHold)); err != nil {
 		return fmt.Errorf("pruning released_domains: %w", err)
 	}
+	// Issue #176: contact messages are kept at most a year (/privacy).
+	if _, err = dao.db.Exec("delete from `contact_requests` where `created` < ?", time.Now().AddDate(-1, 0, 0)); err != nil {
+		return fmt.Errorf("pruning contact_requests: %w", err)
+	}
 	return nil
 }
 

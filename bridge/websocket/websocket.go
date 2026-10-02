@@ -776,6 +776,37 @@ const cOneOffConcurrent = 3
 
 var cOneOffSlotWait = 10 * time.Second
 
+// CodeDomainNotRegistered is the RespEnvelope.error_code a device gets
+// when it dials in with a name the bridge doesn't know (issue #182).
+const CodeDomainNotRegistered = "domain_not_registered"
+
+// dropPool closes every connection domain's device holds on this node,
+// once its name is gone: they would go on relaying for a name that is no
+// longer its (issue #182).
+func (mg *Manager) dropPool(domain string) {
+	mg.bridgesMu.RLock()
+	pool, ok := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	if !ok {
+		return
+	}
+	pool.lock.Lock()
+	conns := pool.availableConns
+	pool.availableConns = nil
+	pool.lock.Unlock()
+	for _, c := range conns {
+		c.Close()
+	}
+}
+
+// DropDomains is dropPool for each domain (an account's, when it is
+// deleted).
+func (mg *Manager) DropDomains(domains []string) {
+	for _, d := range domains {
+		mg.dropPool(d)
+	}
+}
+
 // cInternalErrorMsg is what a client is told when the bridge's own store
 // fails; the error itself is logged, never sent (issue #163).
 const cInternalErrorMsg = "The bridge could not do this right now, try again later"
@@ -1050,6 +1081,10 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(), "- the domain is not registered to any account")
 						resp.Error = true
 						resp.ErrorMessage = "This domain is not registered: create an account at https://" + mg.baseHost() + "/account and add it there, or run the setup again signed in"
+						// Issue #182: a device whose name stays unknown here
+						// (its account deleted, the name released) goes on
+						// working locally.
+						resp.ErrorCode = CodeDomainNotRegistered
 						if logErr := mg.dao.LogAuthEvent(uuid.New().String(), domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "unregistered_domain"); logErr != nil {
 							log.Error("error logging auth event:", logErr)
 						}
@@ -1191,6 +1226,34 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 				}
 
+				respBin, _ := proto.Marshal(resp)
+				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
+
+			case *pb.ReqEnvelope_ReqBridgeReleaseDomain:
+				// Issue #182: the device leaves the bridge. Authenticated by
+				// its current secret, like ReqRotateBridgeSecret above.
+				defer conn.Close()
+				req := p.ReqBridgeReleaseDomain
+				ok, err := mg.dao.ReleaseDeviceDomain(req.OwnerUuid, req.Domain, req.Secret)
+				switch {
+				case err != nil:
+					log.Error("error releasing a device's domain:", err)
+					resp.Error = true
+					resp.ErrorMessage = cInternalErrorMsg
+				case !ok:
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+						log.Error("error logging auth event:", logErr)
+					}
+					resp.Error = true
+					resp.ErrorMessage = "Invalid Secret"
+				default:
+					log.Info("device released its domain:", req.Domain)
+					mg.dropPool(req.Domain)
+					resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+				}
 				respBin, _ := proto.Marshal(resp)
 				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
 					log.Error("error responding:", err)

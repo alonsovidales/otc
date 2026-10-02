@@ -162,6 +162,8 @@ type Manager struct {
 	// ReqGetInstanceRole's own doc comment for why that's not just a
 	// cosmetic UI-side check).
 	sup *supervisor.Supervisor
+	// Issue #182: the bridge answering that this device's name is unknown.
+	leave leaveState
 	// staticPath (issue #95) is this instance's own built web assets
 	// directory - the same one api.API serves directly over plain HTTP,
 	// now also reachable over this connection via ReqGetStaticAsset so the
@@ -420,6 +422,7 @@ func (mg *Manager) bridgeAccess(withProviders bool) *pb.RespBridgeAccess {
 		return out
 	}
 	out.Pending, out.Error = bridgeaccess.Status()
+	out.LeftReason = bridgeaccess.LeftReason()
 	if withProviders && !out.Pending {
 		out.Providers = bridgeaccess.Providers()
 	}
@@ -485,9 +488,13 @@ func (mg *Manager) openBridgeConn() {
 	// backing off and retrying like every other failure path here).
 	if respAck.Error {
 		log.Error("bridge rejected registration:", respAck.ErrorMessage)
+		if respAck.ErrorCode == cCodeDomainNotRegistered {
+			mg.nameUnknownOnBridge()
+		}
 		mg.failedBridgeDial()
 		return
 	}
+	mg.nameKnownOnBridge()
 	onboard, ok := respAck.Payload.(*pb.RespEnvelope_RespBridgeAckOnboard)
 	if !ok || onboard.RespBridgeAckOnboard == nil {
 		log.Error("unexpected bridge register response:", respAck.Payload)
@@ -2805,6 +2812,30 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		resp.Payload = &pb.RespEnvelope_RespBridgeSignedIn{
 			RespBridgeSignedIn: &pb.RespBridgeSignedIn{SetupToken: token, Email: email},
 		}
+
+	// Issue #182: the owner takes the device off the bridge.
+	case *pb.ReqEnvelope_ReqDisableBridge:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		if !bridgeaccess.Enabled() {
+			resp.Error = true
+			resp.ErrorMessage = "this device is not on the bridge"
+			break
+		}
+		releaseErr, err := ch.mg.leaveBridge()
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		out := &pb.RespBridgeAccess{Bridge: bridgeaccess.Bridge(), Pending: true, LeftReason: bridgeaccess.LeftByOwner}
+		if releaseErr != nil {
+			out.Error = "The bridge could not be reached, so the name is still registered: release it on the account page."
+		}
+		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: out}
 
 	case *pb.ReqEnvelope_ReqEnableBridge:
 		if ch.mg.sup == nil {

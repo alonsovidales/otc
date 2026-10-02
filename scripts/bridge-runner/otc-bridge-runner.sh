@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # The root half of switching the bridge on from Settings (issue #145), for
-# a device set up without it.
+# a device set up without it - and off again (issue #182): a request
+# reading "off <reason>" empties bridge-addr instead, and the device
+# restarts local-only, as if it had been set up without the bridge.
 #
 # The device has already done everything it can as the otc user: signed
 # the owner in, reserved the name on the bridge and stored the new
@@ -22,6 +24,9 @@ STATUS_FILE=/var/lib/otc/bridge-status.json
 ENV_FILE=/etc/otc/otc-install.env
 DEFAULT_BRIDGE=off-the.cloud
 
+# Only "off left" / "off released" mean anything; any other content is
+# the switch-on request it always was.
+request="$(head -c 64 "$REQUEST" 2>/dev/null | head -1)"
 rm -f "$REQUEST"
 
 # Written to a fresh temp file and moved into place: the directory is the
@@ -50,6 +55,45 @@ env_name="$(systemctl show -p ExecStart --value otc.service 2>/dev/null \
 ini="/etc/otc_${env_name:-dev}.ini"
 [ -f "$ini" ] || { status failed "the device's config ($ini) is missing"; exit 1; }
 
+# set_bridge_addr writes [otc] bridge-addr=$1 in place (install.sh always
+# writes the line, empty on a local-only device); a config without the
+# line gets it under [otc].
+set_bridge_addr() {
+    local value="$1" tmp
+    tmp="$(mktemp "$ini.XXXXXX")"
+    awk -v bridge="$value" '
+        /^[[:space:]]*\[/ {
+            if (section == "[otc]" && !done) { print "bridge-addr=" bridge; done = 1 }
+            section = $0; gsub(/[[:space:]]/, "", section)
+        }
+        section == "[otc]" && $0 ~ /^[[:space:]]*bridge-addr[[:space:]]*=/ {
+            print "bridge-addr=" bridge; done = 1; next
+        }
+        { print }
+        END { if (section == "[otc]" && !done) print "bridge-addr=" bridge }
+    ' "$ini" > "$tmp" || { rm -f "$tmp"; return 1; }
+    chmod --reference="$ini" "$tmp" 2>/dev/null || chmod 644 "$tmp"
+    chown --reference="$ini" "$tmp" 2>/dev/null || true
+    mv "$tmp" "$ini"
+}
+
+case "$request" in
+    "off left"|"off released")
+        reason="${request#off }"
+        if [ -z "$(ini_value "$ini" bridge-addr)" ]; then
+            status off "$reason"
+            exit 0
+        fi
+        status running "Switching the bridge off"
+        set_bridge_addr "" || { status failed "could not update $ini"; exit 1; }
+        # bridge-default stays: Settings can join the bridge again later.
+        status off "$reason"
+        echo "bridge switched off ($reason)"
+        systemctl restart otc.service
+        exit 0
+        ;;
+esac
+
 if [ -n "$(ini_value "$ini" bridge-addr)" ]; then
     status done "the device is already on the bridge"
     exit 0
@@ -76,23 +120,7 @@ if [ "$name" = "$subdomain" ] || ! [[ "$name" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-
     exit 1
 fi
 
-# bridge-addr is set in place (install.sh always writes the line, empty on
-# a local-only device); a config without the line gets it under [otc].
-tmp="$(mktemp "$ini.XXXXXX")"
-awk -v bridge="$bridge" '
-    /^[[:space:]]*\[/ {
-        if (section == "[otc]" && !done) { print "bridge-addr=" bridge; done = 1 }
-        section = $0; gsub(/[[:space:]]/, "", section)
-    }
-    section == "[otc]" && $0 ~ /^[[:space:]]*bridge-addr[[:space:]]*=/ {
-        print "bridge-addr=" bridge; done = 1; next
-    }
-    { print }
-    END { if (section == "[otc]" && !done) print "bridge-addr=" bridge }
-' "$ini" > "$tmp" || { rm -f "$tmp"; status failed "could not update $ini"; exit 1; }
-chmod --reference="$ini" "$tmp" 2>/dev/null || chmod 644 "$tmp"
-chown --reference="$ini" "$tmp" 2>/dev/null || true
-mv "$tmp" "$ini"
+set_bridge_addr "$bridge" || { status failed "could not update $ini"; exit 1; }
 
 # The install identity follows the database, so re-running the installer
 # later presents the same identity (its OTC_DB_PASS is left alone).

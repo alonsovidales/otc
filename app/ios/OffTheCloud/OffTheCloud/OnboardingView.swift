@@ -56,6 +56,10 @@ struct OnboardingView: View {
                         Label("Set up a new device", systemImage: "antenna.radiowaves.left.and.right")
                     }
                 }
+                // Issue #175: what the bridge keeps, before signing in.
+                Section {
+                    Link("Privacy", destination: URL(string: "https://off-the.cloud/privacy")!)
+                }
             }
             .navigationTitle("Welcome")
         }

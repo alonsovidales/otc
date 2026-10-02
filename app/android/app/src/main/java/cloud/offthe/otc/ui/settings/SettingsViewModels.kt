@@ -16,6 +16,8 @@ import cloud.offthe.otc.proto.Profile
 import cloud.offthe.otc.proto.ReqApplyUpdate
 import cloud.offthe.otc.proto.ReqCheckUpdate
 import cloud.offthe.otc.proto.ReqCreateUser
+import cloud.offthe.otc.proto.ReqDisableBridge
+import cloud.offthe.otc.proto.ReqGetBridgeAccess
 import cloud.offthe.otc.proto.ReqDeleteUser
 import cloud.offthe.otc.proto.ReqGetInstanceRole
 import cloud.offthe.otc.proto.ReqGetTailscaleStatus
@@ -389,5 +391,58 @@ class UsersManagementViewModel : ViewModel() {
             if (resp.ackOk()) loadUsers() else state.update { it.copy(toast = resp.errorMessage.ifEmpty { "Could not update this user." }) }
         } catch (e: Exception) { state.update { it.copy(toast = e.message) } }
         finally { state.update { it.copy(busyActiveUuid = null) } }
+    }
+}
+
+/** The address a local-only device answers at (issue #182). */
+const val LOCAL_DEVICE_ENDPOINT = "ws://otc.local:8080/ws"
+
+/**
+ * Issue #182: the bridge and the Off The Cloud account, from Settings.
+ * Leaving gives the device's name back; it restarts local-only and the app
+ * then talks to it at [LOCAL_DEVICE_ENDPOINT]. Mirrors iOS's
+ * BridgeAccountViewModel and the web app's BridgePanel.
+ */
+class BridgeAccountViewModel : ViewModel() {
+    data class State(
+        val visible: Boolean = false, val enabled: Boolean = false, val domain: String = "", val bridge: String = "off-the.cloud",
+        val pending: Boolean = false, val leftReason: String = "", val busy: Boolean = false, val note: String? = null, val error: String? = null,
+    )
+    val state = MutableStateFlow(State())
+
+    suspend fun load() {
+        try {
+            val resp = OTCConnection.request { it.setReqGetBridgeAccess(ReqGetBridgeAccess.getDefaultInstance()) }
+            // An additional user's instance answers with an error: not theirs.
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_BRIDGE_ACCESS) { state.update { it.copy(visible = false) }; return }
+            apply(resp.respBridgeAccess)
+            state.update { it.copy(visible = true) }
+        } catch (_: Exception) { state.update { it.copy(visible = false) } }
+    }
+
+    private fun apply(a: cloud.offthe.otc.proto.RespBridgeAccess) = state.update {
+        it.copy(enabled = a.enabled, domain = a.domain, bridge = a.bridge.ifEmpty { "off-the.cloud" }, pending = a.pending,
+            leftReason = a.leftReason, error = a.error.ifEmpty { it.error })
+    }
+
+    /** Takes the device off the bridge and points the app at its local address. */
+    suspend fun leave(secrets: SecretsStore): Boolean {
+        state.update { it.copy(busy = true, note = null, error = null) }
+        try {
+            val resp = OTCConnection.request { it.setReqDisableBridge(ReqDisableBridge.getDefaultInstance()) }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_BRIDGE_ACCESS) {
+                state.update { it.copy(error = resp.errorMessage.ifEmpty { "Could not leave the bridge." }) }
+                return false
+            }
+            apply(resp.respBridgeAccess)
+            secrets.setEndpoint(LOCAL_DEVICE_ENDPOINT)
+            secrets.persist()
+            OTCConnection.invalidate()
+            state.update { it.copy(note = "The device is restarting off the bridge. From now on the app reaches it on your home network, at otc.local.") }
+            return true
+        } catch (e: Exception) {
+            state.update { it.copy(error = e.message ?: "Could not leave the bridge.") }
+            return false
+        } finally { state.update { it.copy(busy = false) } }
     }
 }

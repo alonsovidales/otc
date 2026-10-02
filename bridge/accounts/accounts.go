@@ -631,6 +631,63 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+// ConfirmOwner checks, before something that can't be undone (deleting
+// the account, issue #182), that whoever holds this session is the
+// account's owner right now: its password, or for an account that signs
+// in only with Google or Apple, a sign-in within cFreshSignIn. It answers
+// the request itself when the check fails.
+func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountID, password string) bool {
+	acc, err := a.dao.GetAccount(accountID)
+	if err != nil || acc == nil {
+		writeError(w, http.StatusInternalServerError, "could not check your account right now")
+		return false
+	}
+	now := time.Now()
+	if acc.PasswordHash != "" {
+		ip := clientIP(r)
+		if !a.loginAllowed(ip, now) {
+			writeError(w, http.StatusTooManyRequests, "too many attempts - try again in a few minutes")
+			return false
+		}
+		if bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(password)) != nil {
+			a.loginFailed(ip, now)
+			writeError(w, http.StatusUnauthorized, "the password is not right")
+			return false
+		}
+		a.loginSucceeded(ip)
+		return true
+	}
+	c, err := r.Cookie(cSessionCookie)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "sign in again (with Google or Apple), then delete the account within 15 minutes")
+		return false
+	}
+	if _, issued, ok := a.session(c.Value, now); !ok || now.Sub(issued) > cFreshSignIn {
+		writeError(w, http.StatusUnauthorized, "sign in again (with Google or Apple), then delete the account within 15 minutes")
+		return false
+	}
+	return true
+}
+
+// EndSession drops this browser's session cookie (after the account is
+// gone).
+func (a *Accounts) EndSession(w http.ResponseWriter, r *http.Request) { a.clearSession(w, r) }
+
+// Export answers everything kept for the account as a JSON download
+// (issue #176, GDPR Art. 15/20). GET /api/account/export.
+func (a *Accounts) Export(w http.ResponseWriter, r *http.Request, accountID string) {
+	out, err := a.dao.ExportAccount(accountID)
+	if err != nil || out == nil {
+		writeError(w, http.StatusInternalServerError, "could not export your data right now")
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="off-the-cloud-account.json"`)
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(out)
+}
+
 // LogoutEverywhere ends every session of the account, this one included
 // (issue #164). POST /api/account/logout-everywhere.
 func (a *Accounts) LogoutEverywhere(w http.ResponseWriter, r *http.Request, accountID string) {

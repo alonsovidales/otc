@@ -73,6 +73,7 @@
   <main>
     <div id="banner"></div>
     <div id="view"><p class="hint">Loading…</p></div>
+    <p class="hint" style="margin-top:32px"><a href="/privacy">Privacy</a> · <a href="/">Off The Cloud</a></p>
   </main>
   <script>
   // Issue #124: the account page. Everything here talks to /api/account/*
@@ -210,8 +211,29 @@
           <p class="hint" style="margin-top:12px">Changing the password signs you out everywhere else. Left signed in on a computer you don't use any more?</p>
           <button class="btn danger small" id="out-all">Sign out everywhere</button>
         </div>
+        <div class="card wide" id="data-card"><h2>Your data and your account</h2>
+          <p class="hint">Download everything this bridge keeps about you: your details, how you sign in, your domains and their traffic counts. What <a href="/privacy">we keep, and why</a>.</p>
+          <a class="btn ghost" href="/api/account/export" download>Download my data</a>
+          <p class="hint" style="margin-top:16px"><b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>http://otc.local:8080</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.</p>
+          ${me.has_password ? `<label>Your password</label><input id="del-pw" type="password" autocomplete="current-password">` : `<p class="hint">You sign in with Google or Apple: sign in again just before deleting (within 15 minutes).</p>`}
+          <label>Type <b>delete</b> to confirm</label><input id="del-confirm" autocapitalize="none" spellcheck="false">
+          <button class="btn danger" id="del-go">Delete my account</button><div class="msg" id="del-msg"></div>
+        </div>
         <div class="card wide">${termsHTML()}</div>
       </div>`;
+    // Issue #182: deleting the account.
+    $('#del-go').onclick = async () => {
+      const m = $('#del-msg'); m.textContent = ''; m.className = 'msg';
+      if ($('#del-confirm').value.trim().toLowerCase() !== 'delete') { m.textContent = 'Type delete to confirm'; m.className = 'msg bad'; return; }
+      $('#del-go').disabled = true;
+      const r = await api('DELETE', '/api/account/me', { confirm: 'delete', password: me.has_password ? $('#del-pw').value : '' });
+      $('#del-go').disabled = false;
+      if (!r.ok) { m.textContent = r.error || 'Could not delete the account'; m.className = 'msg bad'; return; }
+      me = null; domains = [];
+      $('#who').innerHTML = '';
+      $('#view').innerHTML = `<h1>Your account is deleted</h1><p class="lead">${r.released && r.released.length ? 'Released: ' + r.released.map(esc).join(', ') + '. ' : ''}Your devices go on working at home, at <code>http://otc.local:8080</code>.</p><p><a href="/">Back to the home page</a></p>`;
+    };
+    if (params.get('delete') === '1') { const c = $('#data-card'); c.scrollIntoView({ block: 'start' }); c.style.outline = '2px solid var(--bad)'; }
     // Issue #164: the current password is asked for; every other session
     // ends with the change (this one carries on with a new cookie).
     $('#pw-go').onclick = async () => {
@@ -253,7 +275,7 @@
     });
     document.querySelectorAll('[data-release]').forEach((b) => b.onclick = async () => {
       const domain = b.dataset.release;
-      if (!confirm(`Release ${domain}? Its device loses the bridge and anyone can register that name.`)) return;
+      if (!confirm(`Release ${domain}? Its device goes on working at home only (http://otc.local:8080), and the name stays reserved for you for 30 days.`)) return;
       const r = await api('DELETE', `/api/account/domains/${encodeURIComponent(domain)}`);
       if (!r.ok) { $('#dom-out').innerHTML = `<div class="msg bad">${esc(r.error || 'Could not release that domain')}</div>`; return; }
       const d = await api('GET', '/api/account/domains'); domains = d.domains || []; render();

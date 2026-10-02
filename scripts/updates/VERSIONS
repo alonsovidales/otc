@@ -113,3 +113,4 @@
 72	-	158780d5550169ff445a33fee8f670985381ac9f6aabd9a50ba9885264851bd9	Shared galleries can be low resolution only: small copies of the photos, the originals never leave the device; the gallery says so.
 73	2f5e88d4767eb3ca2f1101d0ff1699fba29c9c84eb33e959106c09002a89ee5c	8f8a73ebe7b23c23b8d2f73099136de50375fe620c791f6ad889301f49d4f586	New photos and videos get their thumbnail within seconds, even during a big sync; tags and faces follow once uploads quiet down, and resume after a restart.
 74	3cfaf81894ab6437b9a9e4afd0aefb1335a750e2bc2278440306d2d7a49ec179	20af0c2d33ef41c1836476bdcf5bd5ae3b0d707321f3a22647d4e9d8f58eb0a3	Image tagging can be turned off in Settings, like face recognition: new photos and videos are then only searchable by place.
+75	-	b9c7604b127903f6059288e285b78f160f90fb229e814b8a62796eb2e217434a	Leave the bridge from Settings: the device keeps everything and works at home (otc.local); a device whose account was deleted switches to that by itself.

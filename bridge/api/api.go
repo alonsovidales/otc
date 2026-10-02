@@ -218,6 +218,9 @@ func (api *API) registerAPIs() {
 		api.muxHTTPServer.HandleFunc("POST /api/account/logout", acc.Logout)
 		api.muxHTTPServer.HandleFunc("GET /api/account/me", acc.RequireAuth(acc.Me))
 		api.muxHTTPServer.HandleFunc("PUT /api/account/me", acc.RequireAuth(acc.UpdateProfile))
+		// Issue #182/#176: deleting the account, and exporting its data.
+		api.muxHTTPServer.HandleFunc("DELETE /api/account/me", acc.RequireAuth(api.accountDelete))
+		api.muxHTTPServer.HandleFunc("GET /api/account/export", acc.RequireAuth(acc.Export))
 		api.muxHTTPServer.HandleFunc("PUT /api/account/password", acc.RequireAuth(acc.SetPassword))
 		api.muxHTTPServer.HandleFunc("POST /api/account/logout-everywhere", acc.RequireAuth(acc.LogoutEverywhere))
 		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token", acc.RequireAuth(acc.SetupToken))
@@ -800,7 +803,35 @@ func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, acc
 		return
 	}
 	log.Info("domain released from the account page:", domain)
+	api.websocket.DropDomains([]string{domain})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// accountDelete deletes the signed-in account (issue #182): body
+// {"confirm": "delete", "password": "..."} - the password for an account
+// that has one, otherwise a sign-in within the last 15 minutes. Its
+// domains are released; their devices find out the next time they dial
+// in and go on working locally. DELETE /api/account/me.
+func (api *API) accountDelete(w http.ResponseWriter, r *http.Request, accountID string) {
+	var body struct{ Confirm, Password string }
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Confirm != "delete" {
+		writeJSONErr(w, http.StatusBadRequest, `confirm with {"confirm": "delete"}`)
+		return
+	}
+	if !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
+		return
+	}
+	domains, err := api.dao.DeleteAccount(accountID)
+	if err != nil {
+		log.Error("error deleting an account:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not delete the account right now")
+		return
+	}
+	api.websocket.DropDomains(domains)
+	api.accounts.EndSession(w, r)
+	// The account's id only (issue #162: no personal data in logs).
+	log.Info("account deleted:", accountID, "domains released:", len(domains))
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "released": domains})
 }
 
 // newSecret is a device's bridge secret as the wizard makes them: 48 hex

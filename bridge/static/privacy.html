@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Off The Cloud privacy</title>
+  <meta name="description" content="What the Off The Cloud bridge (off-the.cloud) keeps about you, why, for how long, and your rights." />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  <style>
+    :root{
+      --ink:#10231f; --ink-2:#0b1815; --ember:#ff6b4a; --gold:#ffc857; --mist:#eaf2ef; --mist-dim:#b9c9c4;
+      --line:rgba(234,242,239,.12); --panel:rgba(234,242,239,.05);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.6 'Manrope',system-ui,-apple-system,sans-serif;color:var(--mist);background:var(--ink)}
+    a{color:var(--gold)}
+    header{border-bottom:1px solid var(--line);background:var(--ink-2)}
+    .nav{max-width:860px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px}
+    .brand{display:flex;align-items:center;gap:10px;color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+    .brand img{width:32px;height:32px;border-radius:8px}
+    main{max-width:860px;margin:0 auto;padding:32px 20px 72px}
+    h1{font-family:'Unbounded',sans-serif;font-size:1.6rem;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+    h2{font-family:'Unbounded',sans-serif;font-size:1.05rem;margin:36px 0 10px;text-wrap:balance}
+    p,li{max-width:68ch}
+    .lead{color:var(--mist-dim);margin:0 0 8px}
+    .key{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:22px 0}
+    .key p{margin:6px 0}
+    .tbl{overflow-x:auto;margin:12px 0}
+    table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+    th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+    th{color:var(--mist-dim);font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+    code{font-size:.92em}
+    footer{color:var(--mist-dim);font-size:14px;margin-top:48px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a class="brand" href="/"><img src="/logo.png" alt="" width="32" height="32">Off The Cloud</a>
+    </div>
+  </header>
+  <main>
+    <h1>Privacy</h1>
+    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 2 October 2026.</p>
+
+    <div class="key">
+      <p><b>Your photos, videos and files are on your own device, not here.</b> Off The Cloud is a device in your home. This page is about the bridge at <b>off-the.cloud</b>: the service that gives your device a name, lets you reach it from outside your home, and connects it with your friends' devices. You only need it, and an account, for that. A device used at home (at <code>http://otc.local:8080</code>) or through Tailscale Funnel never talks to us.</p>
+      <p><b>The bridge relays your connection; it does not store what passes through it.</b> Read <a href="#relay">how the relay works</a>: it is not end-to-end encrypted.</p>
+    </div>
+
+    <h2>Who we are</h2>
+    <p>The bridge is run by Off The Cloud, the controller for the data on this page. Write to <a href="mailto:info@off-the.cloud">info@off-the.cloud</a> about anything here, or use the <a href="/#contact">contact form</a>.</p>
+    <p>What is stored on your device is yours: you decide what goes on it and who sees it, and we have no access to it.</p>
+
+    <h2>What we keep, why, and for how long</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>What</th><th>Why</th><th>Legal basis</th><th>Kept</th></tr></thead>
+      <tbody>
+        <tr><td><b>Your account</b>: email, name, surname, country of residence, a hash of your password (never the password), and which Google or Apple sign-in it is linked to; when it was created and last used</td><td>To give you your device names and let you manage them</td><td>Contract (Art. 6(1)(b) GDPR)</td><td>Until you delete the account</td></tr>
+        <tr><td><b>Your devices' names</b> (e.g. <i>casa</i>.off-the.cloud), each device's identity and secret, whether it is switched off, and when an app last reached it</td><td>To route connections to the right device and keep anyone else from using its name</td><td>Contract</td><td>Until the name is released or the account deleted. A released name stays reserved for 30 days, so no one can pose as your device to your friends.</td></tr>
+        <tr><td><b>Traffic counts</b> per device and hour: number of requests and bytes, never their content</td><td>To run the service and find abuse</td><td>Legitimate interest (Art. 6(1)(f))</td><td>90 days</td></tr>
+        <tr><td><b>Security log</b>: rejected attempts to connect as a device, with the address they came from</td><td>To detect someone trying to take over a device's name</td><td>Legitimate interest</td><td>90 days</td></tr>
+        <tr><td><b>Notification addresses</b>: the Apple and Google push tokens and browser push subscriptions your device registers, and the text of each notification while it is sent</td><td>To tell your phone that a friend posted or that your device went offline</td><td>Contract</td><td>Until your device removes them or its name is released. Notification text is not stored.</td></tr>
+        <tr><td><b>Setup codes and sign-in links</b>: short-lived codes linking a new device or app to your account</td><td>Setting up a device</td><td>Contract</td><td>15 minutes, or until used</td></tr>
+        <tr><td><b>Setup beacon</b>: a device's address on your home network while it is being set up</td><td>So the setup page can find the device again if your phone loses it</td><td>Contract</td><td>10 minutes</td></tr>
+        <tr><td><b>Contact messages</b>: name, email and message</td><td>To answer you</td><td>Legitimate interest</td><td>Until the matter is closed, at most 12 months</td></tr>
+        <tr><td><b>Server logs</b>: technical errors with IP addresses; no emails or file names</td><td>To keep the service working and secure</td><td>Legitimate interest</td><td>Rotated out by size, normally within a few weeks</td></tr>
+      </tbody>
+    </table></div>
+    <p>No advertising, no analytics or tracking, no cookies other than the one that keeps you signed in to your account page (it expires after 30 days), and we never sell data.</p>
+
+    <h2 id="relay">How the relay works</h2>
+    <p>Devices sit behind home routers, so the apps and browsers connect to the bridge and the bridge passes the connection to your device. The connection to the bridge is encrypted (HTTPS/TLS), and so is the device's own connection to it, but <b>the bridge itself decrypts and re-encrypts the traffic</b>: it is not end-to-end encrypted. While a request passes through, its content is in the bridge's memory. It is not stored or logged, and only the traffic counts above are kept.</p>
+    <p>Your device password never crosses the bridge in readable form: the apps encrypt it with a key only your device holds. Everything on your device is encrypted at rest with a key derived from that password.</p>
+    <p>If you would rather nothing passed through us, use your device at home, through Tailscale Funnel, or with a bridge of your own; the bridge is open source too.</p>
+
+    <h2>Who else is involved</h2>
+    <ul>
+      <li><b>OVH</b> (France) hosts the bridge's servers and its domain name, in the EU.</li>
+      <li><b>Apple</b> and <b>Google</b>: if you sign in with them, they confirm who you are and give us your email and name. Push notifications to iPhones go through Apple, and to Android phones through Google (Firebase Cloud Messaging). Both are in the US and certified under the EU-US Data Privacy Framework.</li>
+      <li><b>GitHub</b> (US, Data Privacy Framework): devices download their software updates from GitHub directly, which sees your device's internet address.</li>
+    </ul>
+    <p>No one else receives your data, unless the law requires it.</p>
+
+    <h2>Your rights</h2>
+    <p>You can see, correct and download everything the bridge keeps about you, and delete it, from your <a href="/account">account page</a>: <b>Download my data</b> gives it to you as a file, and <b>Delete my account</b> removes it. Your devices then go on working at home. You can also object to what we keep for our legitimate interests, ask us to limit it, or ask anything at <a href="mailto:info@off-the.cloud">info@off-the.cloud</a>; we answer within a month.</p>
+    <p>You can complain to a data protection authority. In the Netherlands it is the <a href="https://autoriteitpersoonsgegevens.nl">Autoriteit Persoonsgegevens</a>; you can also go to the one where you live.</p>
+
+    <h2>The apps</h2>
+    <p>The Off The Cloud apps talk to your device, through the bridge when you are away. The iPhone and Android apps send your photos and videos to your device and keep your device password in the phone's secure storage. The map in a photo's details comes from OpenStreetMap on Android and Apple Maps on iPhone, which receive the map area being shown. The apps contain no analytics or advertising.</p>
+
+    <h2>Age</h2>
+    <p>Accounts are for people aged 16 and over.</p>
+
+    <h2>Changes</h2>
+    <p>If this changes in a way that matters, we tell account holders by email before it applies.</p>
+
+    <footer><a href="/">Off The Cloud</a> · <a href="/account">Your account</a> · <a href="https://github.com/alonsovidales/otc">Source code</a></footer>
+  </main>
+</body>
+</html>
