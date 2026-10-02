@@ -36,6 +36,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 )
@@ -98,6 +99,11 @@ type Accounts struct {
 	openRegistration bool
 	providers        map[string]*provider
 
+	// mailer sends verification and reset emails; nil without [smtp].
+	mailer *mailer.Mailer
+	// emailsPerAddr limits the "send me an email" requests per address.
+	emailsPerAddr *limits.Rate
+
 	limiterMu sync.Mutex
 	failures  map[string][]time.Time
 	// signups limits account creation per address (issue #163): each is
@@ -128,6 +134,7 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		providers:        map[string]*provider{},
 		failures:         map[string][]time.Time{},
 		signups:          limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour),
+		emailsPerAddr:    limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour),
 	}
 	a.loadProviders()
 	go a.pruneLoop()
@@ -253,6 +260,10 @@ func (a *Accounts) RequireAuth(next func(w http.ResponseWriter, r *http.Request,
 // lookalikes) the account page shows and the wizard accepts typed by
 // hand, and that sign-in through the wizard hands over directly.
 func (a *Accounts) IssueSetupToken(accountID string) (string, error) {
+	// A device name is only ever registered for a proven email.
+	if !a.Verified(accountID) {
+		return "", ErrEmailNotVerified
+	}
 	buf := make([]byte, cSetupCodeLen)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
@@ -287,6 +298,9 @@ func (a *Accounts) AccountForSetupToken(token string) (accountID string, ok bool
 	id, found, err := a.dao.AccountForToken(token, cPurposeSetup)
 	if err != nil {
 		log.Error("error looking up a setup token:", err)
+		return "", false
+	}
+	if found && !a.Verified(id) {
 		return "", false
 	}
 
@@ -386,6 +400,7 @@ func accountJSON(acc *dao.Account) map[string]any {
 		"created": acc.Created, "free_until": acc.FreeUntil,
 		"profile_complete": acc.Name != "" && acc.Surname != "" && acc.Country != "",
 		"has_password":     acc.PasswordHash != "",
+		"email_verified":   acc.EmailVerified,
 	}
 }
 
@@ -396,6 +411,23 @@ func (a *Accounts) signedIn(w http.ResponseWriter, r *http.Request, acc *dao.Acc
 	_ = a.dao.TouchAccount(acc.ID)
 	out := map[string]any{"account": accountJSON(acc)}
 	if r.URL.Query().Get("for") == "setup" {
+		if !acc.EmailVerified {
+			// No setup code until the email is proven. "error" is what a
+			// wizard from an older image shows; a current one checks
+			// verify_email and waits for the link instead.
+			out["verify_email"] = true
+			out["error"] = fmt.Sprintf("Confirm your email first: we sent a link to %s. Open it, then sign in here again to continue.", acc.Email)
+			if status == http.StatusOK {
+				// A sign-in, not the sign-up that just sent one: send the
+				// link again in case the first one got lost.
+				status = http.StatusForbidden
+				if err := a.sendVerification(acc); err != nil {
+					log.Error("could not send a verification email for", acc.ID, ":", err)
+				}
+			}
+			writeJSON(w, status, out)
+			return
+		}
 		tok, err := a.IssueSetupToken(acc.ID)
 		if err != nil {
 			log.Error("error issuing a setup token:", err)
@@ -468,6 +500,9 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	// The account's id, never its email or the address it came from
 	// (issue #162: personal data kept in logs with no retention).
 	log.Info("account created:", acc.ID)
+	if err := a.sendVerification(&acc); err != nil {
+		log.Error("could not send the verification email for", acc.ID, ":", err)
+	}
 	a.signedIn(w, r, &acc, http.StatusCreated)
 }
 
@@ -704,6 +739,10 @@ func (a *Accounts) LogoutEverywhere(w http.ResponseWriter, r *http.Request, acco
 // GET /api/account/setup-token.
 func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID string) {
 	tok, err := a.IssueSetupToken(accountID)
+	if errors.Is(err, ErrEmailNotVerified) {
+		writeError(w, http.StatusForbidden, "confirm your email first - open the link we sent you, or ask for a new one above")
+		return
+	}
 	if err != nil {
 		log.Error("error issuing a setup token:", err)
 		writeError(w, http.StatusInternalServerError, "could not make a setup code right now")
@@ -806,3 +845,197 @@ func (a *Accounts) ReturnAllowed(w http.ResponseWriter, r *http.Request) {
 
 // ErrInvalidReturn is what a sign-in start with a bad return URL fails with.
 var ErrInvalidReturn = errors.New("that return address is not allowed")
+
+// ---------------------------------------------------------------------
+// Email verification and password reset
+// ---------------------------------------------------------------------
+
+// ErrEmailNotVerified: the account hasn't proven its email, so it gets no
+// setup code and can't register a device name.
+var ErrEmailNotVerified = errors.New("the account's email is not verified")
+
+const (
+	cPurposeVerify   = "verify"
+	cPurposeReset    = "reset"
+	cVerifyTTL       = 48 * time.Hour
+	cResetTTL        = time.Hour
+	cEmailEvery      = 2 * time.Minute // one email per account and purpose
+	cEmailsPerHour   = 10              // per address, all kinds
+	cResendOnSetupIn = 10 * time.Minute
+)
+
+// SetMailer gives the account emails a way out (main, after [smtp]).
+func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
+
+// Verified is whether accountID proved its email.
+func (a *Accounts) Verified(accountID string) bool {
+	acc, err := a.dao.GetAccount(accountID)
+	return err == nil && acc != nil && acc.EmailVerified
+}
+
+func hashEmailToken(t string) string {
+	sum := sha256.Sum256([]byte(t))
+	return fmt.Sprintf("%x", sum[:])
+}
+
+// emailLink makes a link for purpose, stores its hash and mails it. The
+// token rides in the URL's fragment, which a browser never sends to a
+// server: the account page reads it and posts it back.
+func (a *Accounts) emailLink(acc *dao.Account, purpose string, ttl time.Duration, subject, body func(link string) string) error {
+	if a.mailer == nil {
+		return mailer.ErrNotConfigured
+	}
+	if last, err := a.dao.LastEmailTokenSent(acc.ID, purpose); err == nil && time.Since(last) < cEmailEvery {
+		return nil // one is on its way already
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return err
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	if err := a.dao.SaveEmailToken(hashEmailToken(token), acc.ID, purpose, ttl); err != nil {
+		return err
+	}
+	link := fmt.Sprintf("https://%s/account#%s=%s", a.tld, purpose, token)
+	return a.mailer.Send(acc.Email, subject(link), body(link))
+}
+
+func greeting(acc *dao.Account) string {
+	if acc.Name != "" {
+		return "Hello " + acc.Name + ","
+	}
+	return "Hello,"
+}
+
+func (a *Accounts) sendVerification(acc *dao.Account) error {
+	return a.emailLink(acc, cPurposeVerify, cVerifyTTL,
+		func(string) string { return "Confirm your email for Off The Cloud" },
+		func(link string) string {
+			return greeting(acc) + "\n\nPlease confirm that this is your email address by opening this link:\n\n" + link +
+				"\n\nThe link works for 48 hours. Once your email is confirmed you can register your devices on the bridge." +
+				"\n\nIf you didn't create an Off The Cloud account, ignore this email: nothing is registered for this address without the confirmation." +
+				"\n\n- Off The Cloud\nhttps://" + a.tld + "\n"
+		})
+}
+
+func (a *Accounts) sendReset(acc *dao.Account) error {
+	return a.emailLink(acc, cPurposeReset, cResetTTL,
+		func(string) string { return "Reset your Off The Cloud password" },
+		func(link string) string {
+			return greeting(acc) + "\n\nSomeone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n" + link +
+				"\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else." +
+				"\n\nIf you didn't ask for this, ignore this email: your password stays as it is." +
+				"\n\n- Off The Cloud\nhttps://" + a.tld + "\n"
+		})
+}
+
+// Verify confirms an email with the link's token. POST /api/account/verify
+// {token}. Public: the token is the proof.
+func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
+	var body struct{ Token string }
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Token == "" {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	id, ok, err := a.dao.ConsumeEmailToken(hashEmailToken(body.Token), cPurposeVerify)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not confirm right now")
+		return
+	}
+	if !ok {
+		writeError(w, http.StatusBadRequest, "that link is not valid any more - sign in and ask for a new one")
+		return
+	}
+	if err := a.dao.SetEmailVerified(id); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not confirm right now")
+		return
+	}
+	log.Info("email verified for account", id)
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// ResendVerification mails a new verification link to the signed-in
+// account. POST /api/account/resend-verification.
+func (a *Accounts) ResendVerification(w http.ResponseWriter, r *http.Request, accountID string) {
+	if a.emailsPerAddr != nil && !a.emailsPerAddr.Allow(clientIP(r)) {
+		writeError(w, http.StatusTooManyRequests, "too many emails asked for from here, try again later")
+		return
+	}
+	acc, err := a.dao.GetAccount(accountID)
+	if err != nil || acc == nil {
+		writeError(w, http.StatusInternalServerError, "could not send it right now")
+		return
+	}
+	if acc.EmailVerified {
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
+	if err := a.sendVerification(acc); err != nil {
+		log.Error("could not send a verification email for", acc.ID, ":", err)
+		writeError(w, http.StatusInternalServerError, "could not send the email right now")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// Forgot mails a password-reset link. POST /api/account/forgot {email}.
+// The answer is the same whether or not the email has an account.
+func (a *Accounts) Forgot(w http.ResponseWriter, r *http.Request) {
+	if a.emailsPerAddr != nil && !a.emailsPerAddr.Allow(clientIP(r)) {
+		writeError(w, http.StatusTooManyRequests, "too many emails asked for from here, try again later")
+		return
+	}
+	var body struct{ Email string }
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if email, ok := validEmail(body.Email); ok {
+		if acc, err := a.dao.GetAccountByEmail(email); err == nil && acc != nil {
+			if err := a.sendReset(acc); err != nil {
+				log.Error("could not send a reset email for", acc.ID, ":", err)
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// Reset sets a new password with a reset link's token, which also proves
+// the email; every other session ends. POST /api/account/reset {token,
+// password}.
+func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
+	var body struct{ Token, Password string }
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Token == "" {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if len(body.Password) < cMinPassword {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("the password needs at least %d characters", cMinPassword))
+		return
+	}
+	id, ok, err := a.dao.ConsumeEmailToken(hashEmailToken(body.Token), cPurposeReset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not reset it right now")
+		return
+	}
+	if !ok {
+		writeError(w, http.StatusBadRequest, "that link is not valid any more - ask for a new one")
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not reset it right now")
+		return
+	}
+	if err := a.dao.SetAccountPassword(id, string(hash)); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not reset it right now")
+		return
+	}
+	_ = a.dao.SetEmailVerified(id)
+	if _, err := a.dao.BumpAccountSessionEpoch(id); err != nil {
+		log.Error("error ending an account's other sessions:", err)
+	}
+	a.setSession(w, r, id)
+	log.Info("password reset for account", id)
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}

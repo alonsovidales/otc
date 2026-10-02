@@ -21,7 +21,7 @@ func TestDeleteAccountRemovesEverything(t *testing.T) {
 	mock.ExpectQuery("select `domain` from `devices` where `account_id` = ?").WithArgs("acc").
 		WillReturnRows(sqlmock.NewRows([]string{"domain"}).AddRow("cala.off-the.cloud"))
 	mock.ExpectBegin()
-	for _, table := range []string{"devices", "account_logins", "account_tokens", "app_signin_codes", "accounts"} {
+	for _, table := range []string{"devices", "account_logins", "account_tokens", "app_signin_codes", "account_email_tokens", "accounts"} {
 		mock.ExpectExec("delete from `" + table + "`").WithArgs("acc").WillReturnResult(sqlmock.NewResult(0, 1))
 	}
 	mock.ExpectCommit()

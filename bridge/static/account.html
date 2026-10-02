@@ -95,7 +95,47 @@
 
   function banner(text, kind) { $('#banner').innerHTML = text ? `<div class="banner" style="${kind === 'ok' ? 'color:var(--ok);border-color:rgba(127,209,165,.5)' : ''}">${esc(text)}</div>` : ''; }
 
+  // The links in our emails carry their token in the fragment (#verify=,
+  // #reset=), which the browser never sends anywhere: it is read here and
+  // posted, then dropped from the address bar.
+  const link = (() => {
+    const m = location.hash.match(/^#(verify|reset)=([A-Za-z0-9_-]{20,})$/);
+    if (m) history.replaceState(null, '', location.pathname + location.search);
+    return m ? { kind: m[1], token: m[2] } : null;
+  })();
+
+  async function loadLists() {
+    const [p, c] = await Promise.all([api('GET', '/api/account/providers'), api('GET', '/api/account/countries')]);
+    providers = p.providers || []; terms = p.terms || {}; countries = c.ok ? c : {};
+    delete countries.ok; delete countries.status;
+  }
+
+  function renderReset(token) {
+    $('#who').innerHTML = '';
+    $('#view').innerHTML = `<h1>Choose a new password</h1>
+      <div class="grid"><div class="card"><h2>New password</h2>
+        <label>New password <small>(8 characters or more)</small></label><input id="rs-pass" type="password" autocomplete="new-password">
+        <button class="btn" id="rs-go">Set the password</button><div class="msg" id="rs-msg"></div>
+        <p class="hint" style="margin-top:12px">Setting it signs your account out everywhere else.</p>
+      </div></div>`;
+    $('#rs-pass').focus();
+    $('#rs-go').onclick = async () => {
+      const m = $('#rs-msg'); m.textContent = ''; $('#rs-go').disabled = true;
+      const r = await api('POST', '/api/account/reset', { token, password: $('#rs-pass').value });
+      $('#rs-go').disabled = false;
+      if (!r.ok) { m.textContent = r.error || 'Could not set it'; m.className = 'msg bad'; return; }
+      banner('Your new password is set, and you are signed in.', 'ok');
+      load();
+    };
+  }
+
   async function load() {
+    if (link && link.kind === 'reset' && !link.used) { link.used = true; await loadLists(); return renderReset(link.token); }
+    if (link && link.kind === 'verify' && !link.used) {
+      link.used = true;
+      const r = await api('POST', '/api/account/verify', { token: link.token });
+      banner(r.ok ? 'Your email is confirmed. You can register your devices now.' : (r.error || 'Could not confirm the email'), r.ok ? 'ok' : '');
+    }
     const [p, c] = await Promise.all([api('GET', '/api/account/providers'), api('GET', '/api/account/countries')]);
     providers = p.providers || []; terms = p.terms || {}; countries = c.ok ? c : {};
     delete countries.ok; delete countries.status;
@@ -123,6 +163,11 @@
           <label>Email</label><input id="li-email" type="email" autocomplete="email">
           <label>Password</label><input id="li-pass" type="password" autocomplete="current-password">
           <button class="btn" id="li-go">Sign in</button><div class="msg" id="li-msg"></div>
+          <p class="hint" style="margin-top:10px"><a href="#" id="fp-open">Forgot your password?</a></p>
+          <div id="fp" hidden>
+            <label>Your account's email</label><input id="fp-email" type="email" autocomplete="email">
+            <button class="btn ghost" id="fp-go">Email me a reset link</button><div class="msg" id="fp-msg"></div>
+          </div>
           ${providerButtons('')}
         </div>
         <div class="card"><h2>Create an account</h2>
@@ -145,6 +190,15 @@
       location.href = '/account' + (params.get('return') ? '?complete=0&return=' + encodeURIComponent(params.get('return')) : '');
     };
     $('#li-pass').onkeydown = (e) => { if (e.key === 'Enter') $('#li-go').click(); };
+    $('#fp-open').onclick = (e) => { e.preventDefault(); $('#fp').hidden = false; $('#fp-email').value = $('#li-email').value; $('#fp-email').focus(); };
+    $('#fp-go').onclick = async () => {
+      const m = $('#fp-msg'); m.textContent = ''; m.className = 'msg'; $('#fp-go').disabled = true;
+      const r = await api('POST', '/api/account/forgot', { email: $('#fp-email').value });
+      $('#fp-go').disabled = false;
+      if (!r.ok) { m.textContent = r.error || 'Could not send it right now'; m.className = 'msg bad'; return; }
+      m.textContent = 'If there is an account for that email, a link to reset its password is on its way. It works for an hour.';
+      m.className = 'msg';
+    };
     $('#su-go').onclick = async () => {
       $('#su-msg').textContent = ''; $('#su-go').disabled = true;
       const r = await api('POST', '/api/account/signup', { name: $('#su-name').value, surname: $('#su-surname').value, country: $('#su-country').value, email: $('#su-email').value, password: $('#su-pass').value, accept_terms: $('#su-terms').checked });
@@ -180,9 +234,13 @@
 
   function renderAccount() {
     const free = me.free_until ? new Date(me.free_until).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    const unverified = !me.email_verified ? `<div class="card wide" style="border-color:var(--gold)"><h2>Confirm your email</h2>
+          <p class="hint">We sent a link to <b>${esc(me.email)}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes.</p>
+          <button class="btn ghost" id="vr-go">Send the link again</button><div class="msg" id="vr-msg"></div></div>` : '';
     $('#view').innerHTML = `<h1>Hello, ${esc(me.name)}</h1>
       <p class="lead">${esc(domains.length)} of ${esc(maxDomains)} domains registered · free until <b>${esc(free)}</b> · <a href="/account?complete=1">your details</a></p>
       <div class="grid">
+        ${unverified}
         <div class="card"><h2>Setting up a device?</h2>
           <p class="hint">Flash the image, join its "Off The Cloud" WiFi and follow the setup. At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes.</p>
           <div id="code"></div>
@@ -221,6 +279,14 @@
         </div>
         <div class="card wide">${termsHTML()}</div>
       </div>`;
+    const vr = $('#vr-go');
+    if (vr) vr.onclick = async () => {
+      const m = $('#vr-msg'); m.textContent = ''; vr.disabled = true;
+      const r = await api('POST', '/api/account/resend-verification');
+      vr.disabled = false;
+      m.textContent = r.ok ? 'Sent - check your inbox (and the spam folder).' : (r.error || 'Could not send it right now');
+      m.className = r.ok ? 'msg' : 'msg bad';
+    };
     // Issue #182: deleting the account.
     $('#del-go').onclick = async () => {
       const m = $('#del-msg'); m.textContent = ''; m.className = 'msg';

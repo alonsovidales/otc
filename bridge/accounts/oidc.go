@@ -234,7 +234,8 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		}
 		if acc == nil {
 			now := time.Now()
-			created := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0)}
+			// Google and Apple verify the email themselves.
+			created := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0), EmailVerified: true}
 			if err := a.dao.CreateAccount(created); err != nil {
 				log.Error("error creating an account from", p.name, ":", err)
 				http.Error(w, "could not sign in right now", http.StatusInternalServerError)
@@ -245,6 +246,14 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := a.dao.LinkAccountLogin(p.name, subject, acc.ID); err != nil {
 			log.Error("error linking a", p.name, "login:", err)
+		}
+		// The provider proved the address: an email sign-up still waiting
+		// for its link is verified now.
+		if !acc.EmailVerified {
+			if err := a.dao.SetEmailVerified(acc.ID); err != nil {
+				log.Error("could not mark an email verified:", err)
+			}
+			acc.EmailVerified = true
 		}
 	}
 	a.setSession(w, r, acc.ID)

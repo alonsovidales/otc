@@ -994,6 +994,13 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:  # noqa: BLE001
                 self.send_json(502, {"error": f"could not reach {CONFIG['bridge']}: {e}"})
                 return
+            # The bridge gives no setup code to an account whose email isn't
+            # confirmed yet: the page asks the person to open the link and
+            # signs in again.
+            if data.get("verify_email"):
+                self.send_json(202, {"verify": True,
+                                     "email": (data.get("account") or {}).get("email", fields["email"])})
+                return
             if status not in (200, 201) or not data.get("setup_token"):
                 self.send_json(status if status >= 400 else 502, {"error": data.get("error", "could not sign in")})
                 return
@@ -1324,6 +1331,15 @@ function renderDisks(){const two=disks.sel.length===2;const rec=disks.recovery;
 async function loadProviders(){if(acct.providers)return;acct.providers=[];if(!window.otcApp||!window.otcSetupSignIn)return;try{const r=await api('/api/providers');acct.providers=r.providers||[];if(step===3)render()}catch(e){}}
 async function providerSignIn(p){acct.msg='';try{const tok=await window.otcSetupSignIn(p);if(!tok)return;const r=await post('/api/account',{action:'code',setup_token:tok});if(!r.ok){acct.msg=r.error||'Could not sign in';render();return}acct.mode='login';await refresh();render()}catch(e){acct.msg=String(e&&e.message||e||'Sign-in cancelled');render()}}
 function renderAccount(){const a=state.account||{};const m=acct.mode;loadProviders();
+ if(acct.verify&&!a.email){view.innerHTML=`<h2>3 · Confirm your email</h2><p class="hint">We sent a link to <b>${esc(acct.verify.email)}</b>. Open it - on this phone or any other device - to confirm the address is yours, then come back and continue. Can't find it? Look in the spam folder.</p>
+  <div class="row"><button id="v-go">I've confirmed it - continue</button><button class="ghost" id="v-back">Back</button></div><div class="msg ${acct.msg?'bad':''}" id="amsg">${esc(acct.msg)}</div>`;
+  $('#v-back').onclick=()=>{acct.verify=null;acct.msg='';acct.mode='login';render()};
+  $('#v-go').onclick=async()=>{$('#v-go').disabled=true;$('#amsg').innerHTML='<span class="spin"></span>Checking…';$('#amsg').className='msg';
+   const r=await post('/api/account',{action:'login',email:acct.verify.email,password:acct.verify.password});
+   if(r.ok&&r.verify){acct.msg='Not confirmed yet - open the link in the email (we have just sent it again).';render();return}
+   if(!r.ok){acct.msg=r.error||'Could not sign in';render();return}
+   acct.verify=null;acct.msg='';acct.mode='login';await refresh();step=4;render()};
+  return}
  if(a.email&&m!=='change'){view.innerHTML=`<h2>3 · Your account</h2><p class="hint">Signed in as <b>${esc(a.email)}</b>. The device's name will be registered to this account.</p>
   <div class="row"><button id="next">Continue</button><button class="ghost" id="change">Use another account</button></div>`;
   $('#next').onclick=()=>{step=4;render()};$('#change').onclick=()=>{acct.mode='change';render()};return}
@@ -1365,6 +1381,7 @@ function renderAccount(){const a=state.account||{};const m=acct.mode;loadProvide
   else if(m==='signup')body={action:'signup',email:$('#a-email').value,password:$('#a-pass').value,name:$('#a-name').value,surname:$('#a-surname').value,country:$('#a-country').value,accept_terms:$('#a-terms').checked};
   else body={action:'code',setup_token:$('#a-code').value};
   const r=await post('/api/account',body);if(!r.ok){acct.msg=r.error||'Could not sign in';render();return}
+  if(r.verify){acct.verify={email:r.email||body.email,password:body.password};acct.msg='';render();return}
   acct.msg='';acct.mode='login';await refresh();step=4;render()}}
 async function loadCountries(){if(!acct.countries){const r=await api('/api/countries');if(r.ok){delete r.ok;delete r.status;acct.countries=r}else{$('#amsg').textContent=r.error||'Could not load the country list - check the device is online';$('#amsg').className='msg bad';return}}
  const sel=$('#a-country');if(!sel)return;const cur=sel.value;sel.innerHTML='<option value="">Choose…</option>'+Object.entries(acct.countries).sort((x,y)=>x[1].localeCompare(y[1])).map(([c,n])=>`<option value="${c}" ${c===cur?'selected':''}>${esc(n)}</option>`).join('')}

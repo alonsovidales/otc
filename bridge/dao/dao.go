@@ -739,6 +739,8 @@ type Account struct {
 	Created      time.Time
 	LastSeen     time.Time
 	FreeUntil    time.Time
+	// EmailVerified: the owner proved the email (a link, or Google/Apple).
+	EmailVerified bool
 }
 
 // AccountDomain is one of an account's registered domains, as the account
@@ -751,8 +753,8 @@ type AccountDomain struct {
 
 func (dao *Dao) CreateAccount(a Account) error {
 	_, err := dao.db.Exec(
-		"insert into `accounts` (`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		a.ID, a.Email, a.Name, a.Surname, a.Country, sql.NullString{String: a.PasswordHash, Valid: a.PasswordHash != ""}, a.Created, a.LastSeen, a.FreeUntil)
+		"insert into `accounts` (`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		a.ID, a.Email, a.Name, a.Surname, a.Country, sql.NullString{String: a.PasswordHash, Valid: a.PasswordHash != ""}, a.Created, a.LastSeen, a.FreeUntil, a.EmailVerified)
 
 	return err
 }
@@ -760,7 +762,7 @@ func (dao *Dao) CreateAccount(a Account) error {
 func (dao *Dao) scanAccount(row *sql.Row) (*Account, error) {
 	a := &Account{}
 	var hash sql.NullString
-	err := row.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &hash, &a.Created, &a.LastSeen, &a.FreeUntil)
+	err := row.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &hash, &a.Created, &a.LastSeen, &a.FreeUntil, &a.EmailVerified)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -772,7 +774,7 @@ func (dao *Dao) scanAccount(row *sql.Row) (*Account, error) {
 	return a, nil
 }
 
-const cAccountColumns = "`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`"
+const cAccountColumns = "`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`"
 
 // GetAccount is nil, nil for an id nobody has.
 func (dao *Dao) GetAccount(id string) (*Account, error) {
@@ -843,9 +845,10 @@ func (dao *Dao) PruneAccountTokens() error {
 	if _, err := dao.db.Exec("delete from `account_tokens` where `expires` < ?", time.Now()); err != nil {
 		return err
 	}
-	_, err := dao.db.Exec("delete from `oauth_states` where `created` < ?", time.Now().Add(-time.Hour))
-
-	return err
+	if _, err := dao.db.Exec("delete from `oauth_states` where `created` < ?", time.Now().Add(-time.Hour)); err != nil {
+		return err
+	}
+	return dao.PruneEmailTokens()
 }
 
 func (dao *Dao) SaveOAuthState(state, returnURL string) error {

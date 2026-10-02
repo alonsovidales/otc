@@ -11,6 +11,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/api"
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
@@ -71,6 +72,15 @@ func main() {
 	// Issue #124: user accounts, sharing the admin panel's session secret
 	// (a different cookie, the same signing key).
 	acc := accounts.Init(dao, sessionSecret(), cfg.GetStr("otc-api", "tld"))
+	// Verification and password-reset emails ([smtp]).
+	if m, err := mailer.Init(); err != nil {
+		log.Error("email is off:", err)
+	} else {
+		if m == nil {
+			log.Info("no [smtp] section: account emails are off")
+		}
+		acc.SetMailer(m)
+	}
 
 	api.Init(
 		webSocket,

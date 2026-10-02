@@ -57,9 +57,27 @@ create table accounts
   -- Issue #164: session cookies carry the epoch they were issued under;
   -- bumped (password change, "sign out everywhere") to end every session.
   `session_epoch` int not null default 0,
+  -- Whether the owner proved the email is theirs: a verification link
+  -- (email sign-ups) or Google/Apple (who verify it themselves). An
+  -- unverified account can't register device names.
+  `email_verified` tinyint(1) not null default 0,
 
   primary key (`id`),
   unique (`email`)
+) engine=InnoDB;
+
+-- Email verification and password-reset links (SHA-256 of the token; the
+-- token itself is only in the email). Single use, short-lived.
+create table account_email_tokens
+(
+  `token_hash` char(64) not null,
+  `account_id` varchar(36) not null,
+  `purpose` varchar(16) not null,   -- "verify" or "reset"
+  `created` datetime not null,
+  `expires` datetime not null,
+  primary key (`token_hash`),
+  key (`account_id`),
+  key (`expires`)
 ) engine=InnoDB;
 
 -- A sign-in provider's identity for an account (google/apple + the

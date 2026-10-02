@@ -42,7 +42,7 @@
   </header>
   <main>
     <h1>Privacy</h1>
-    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 2 October 2026.</p>
+    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 3 October 2026.</p>
 
     <div class="key">
       <p><b>Your photos, videos and files are on your own device, not here.</b> Off The Cloud is a device in your home. This page is about the bridge at <b>off-the.cloud</b>: the service that gives your device a name, lets you reach it from outside your home, and connects it with your friends' devices. You only need it, and an account, for that. A device used at home (at <code>http://otc.local:8080</code>) or through Tailscale Funnel never talks to us.</p>
@@ -63,6 +63,7 @@
         <tr><td><b>Security log</b>: rejected attempts to connect as a device, with the address they came from</td><td>To detect someone trying to take over a device's name</td><td>Legitimate interest</td><td>90 days</td></tr>
         <tr><td><b>Notification addresses</b>: the Apple and Google push tokens and browser push subscriptions your device registers, and the text of each notification while it is sent</td><td>To tell your phone that a friend posted or that your device went offline</td><td>Contract</td><td>Until your device removes them or its name is released. Notification text is not stored.</td></tr>
         <tr><td><b>Setup codes and sign-in links</b>: short-lived codes linking a new device or app to your account</td><td>Setting up a device</td><td>Contract</td><td>15 minutes, or until used</td></tr>
+        <tr><td><b>Email links</b>: to confirm your email (needed before registering a device) and to reset your password - only a fingerprint of each link is kept</td><td>Proving the email is yours; recovering your account</td><td>Contract</td><td>48 hours (confirmation) or 1 hour (reset), or until used</td></tr>
         <tr><td><b>Setup beacon</b>: a device's address on your home network while it is being set up</td><td>So the setup page can find the device again if your phone loses it</td><td>Contract</td><td>10 minutes</td></tr>
         <tr><td><b>Contact messages</b>: name, email and message</td><td>To answer you</td><td>Legitimate interest</td><td>Until the matter is closed, at most 12 months</td></tr>
         <tr><td><b>Server logs</b>: technical errors with IP addresses; no emails or file names</td><td>To keep the service working and secure</td><td>Legitimate interest</td><td>Rotated out by size, normally within a few weeks</td></tr>
@@ -79,6 +80,7 @@
     <ul>
       <li><b>OVH</b> (France) hosts the bridge's servers and its domain name, in the EU.</li>
       <li><b>Apple</b> and <b>Google</b>: if you sign in with them, they confirm who you are and give us your email and name. Push notifications to iPhones go through Apple, and to Android phones through Google (Firebase Cloud Messaging). Both are in the US and certified under the EU-US Data Privacy Framework.</li>
+      <li><b>Proton</b> (Switzerland, which the EU recognises as protecting data adequately) sends our emails - the link to confirm your email and password-reset links - and receives what you write to info@off-the.cloud.</li>
       <li><b>GitHub</b> (US, Data Privacy Framework): devices download their software updates from GitHub directly, which sees your device's internet address.</li>
     </ul>
     <p>No one else receives your data, unless the law requires it.</p>

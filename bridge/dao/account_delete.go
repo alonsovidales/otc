@@ -45,6 +45,7 @@ func (dao *Dao) DeleteAccount(accountID string) (domains []string, err error) {
 		"delete from `account_logins` where `account_id` = ?",
 		"delete from `account_tokens` where `account_id` = ?",
 		"delete from `app_signin_codes` where `account_id` = ?",
+		"delete from `account_email_tokens` where `account_id` = ?",
 		"delete from `accounts` where `id` = ?",
 	} {
 		if _, err := tx.Exec(q, accountID); err != nil {

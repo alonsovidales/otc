@@ -221,6 +221,12 @@ func (api *API) registerAPIs() {
 		// Issue #182/#176: deleting the account, and exporting its data.
 		api.muxHTTPServer.HandleFunc("DELETE /api/account/me", acc.RequireAuth(api.accountDelete))
 		api.muxHTTPServer.HandleFunc("GET /api/account/export", acc.RequireAuth(acc.Export))
+		// Email verification (mandatory before registering names) and
+		// password reset.
+		api.muxHTTPServer.HandleFunc("POST /api/account/verify", acc.Verify)
+		api.muxHTTPServer.HandleFunc("POST /api/account/resend-verification", acc.RequireAuth(acc.ResendVerification))
+		api.muxHTTPServer.HandleFunc("POST /api/account/forgot", acc.Forgot)
+		api.muxHTTPServer.HandleFunc("POST /api/account/reset", acc.Reset)
 		api.muxHTTPServer.HandleFunc("PUT /api/account/password", acc.RequireAuth(acc.SetPassword))
 		api.muxHTTPServer.HandleFunc("POST /api/account/logout-everywhere", acc.RequireAuth(acc.LogoutEverywhere))
 		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token", acc.RequireAuth(acc.SetupToken))
@@ -729,6 +735,10 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 // and shown once, for the installer's environment file. POST
 // /api/account/domains {name}.
 func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
+	if !api.accounts.Verified(accountID) {
+		writeJSONErr(w, http.StatusForbidden, "confirm your email first - open the link we sent you, or ask for a new one above")
+		return
+	}
 	var body struct {
 		Name string `json:"name"`
 	}

@@ -73,6 +73,7 @@ func TestAppCodeAcrossNodes(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"account_id", "challenge", "created"}).AddRow("acc-1", challenge, time.Now().UTC()))
 	mockB.ExpectExec("delete from `app_signin_codes`").WithArgs(stored).WillReturnResult(sqlmock.NewResult(0, 1))
 	mockB.ExpectCommit()
+	verifiedRow(mockB, "acc-1", true)
 	mockB.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
 	w := httptest.NewRecorder()
 	nodeB.AppExchange(w, httptest.NewRequest("POST", "/api/account/app-exchange",

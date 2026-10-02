@@ -410,6 +410,19 @@ since `.local` names don't resolve everywhere (Android) - `otc.local:8080` only 
 notice is `bridge/static/privacy.html` (`/privacy`), linked from the landing footer, the account
 page, BridgePanel and the apps' sign-in and Settings; contact messages are pruned after a year.
 
+Email (`bridge/mailer`, `[smtp]` in the bridge's ini: host `smtp.protonmail.ch`, port 587,
+username/from `info@off-the.cloud`, `password-file=/etc/otc/smtp-token` - a Proton SMTP token,
+0600 for the service's user, pushed from the Mac's Keychain item `otc-bridge-smtp`, never in the
+ini or the repo): verification is mandatory - an email sign-up gets a link (`#verify=` in the URL
+fragment, 48 h, only its SHA-256 in `account_email_tokens`) and `IssueSetupToken`,
+`AccountForSetupToken` and manual name registration refuse an unverified account; Google/Apple
+accounts are verified by the provider, and linking one verifies an email account; accounts from
+before migration 007 were kept verified. `?for=setup` sign-in/sign-up of an unverified account
+answers `verify_email: true` (and resends the link on a sign-in); the setup wizard shows "Confirm
+your email" and signs in again. Password reset: `/api/account/forgot` (same answer for any
+email) mails a one-hour `#reset=` link; `/api/account/reset` sets the password, verifies the
+email and ends every other session.
+
 Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`
 (64 KB, 15 s to arrive - the servers bound only headers, since a whole-request `ReadTimeout`
 would also cut the websockets the cluster router proxies); one-off device GETs (static assets,

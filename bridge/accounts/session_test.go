@@ -65,8 +65,69 @@ func accountRow(mock sqlmock.Sqlmock, hash string) {
 		h = hash
 	}
 	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(
-		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until"}).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", h, time.Now(), time.Now(), time.Now()))
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified"}).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", h, time.Now(), time.Now(), time.Now(), true))
+}
+
+// verifiedRow answers the account lookup IssueSetupToken makes.
+func verifiedRow(mock sqlmock.Sqlmock, id string, verified bool) {
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified"}).
+		AddRow(id, "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), verified))
+}
+
+// No setup code - so no device name - for an email nobody proved.
+func TestSetupTokenNeedsAVerifiedEmail(t *testing.T) {
+	a, mock := testAccounts(t)
+	verifiedRow(mock, "acc1", false)
+	if _, err := a.IssueSetupToken("acc1"); err != ErrEmailNotVerified {
+		t.Fatalf("an unverified account got a setup code: %v", err)
+	}
+	verifiedRow(mock, "acc1", true)
+	mock.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
+	if _, err := a.IssueSetupToken("acc1"); err != nil {
+		t.Fatalf("a verified account got no setup code: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A verification link works once.
+func TestVerifyLinkIsSingleUse(t *testing.T) {
+	a, mock := testAccounts(t)
+	h := hashEmailToken("tok")
+	mock.ExpectBegin()
+	mock.ExpectQuery("from `account_email_tokens`").WithArgs(h, cPurposeVerify, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	mock.ExpectExec("delete from `account_email_tokens`").WithArgs(h).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	w := httptest.NewRecorder()
+	a.Verify(w, httptest.NewRequest("POST", "/api/account/verify", strings.NewReader(`{"token":"tok"}`)))
+	if w.Code != http.StatusOK {
+		t.Fatalf("a valid link: %d %s", w.Code, w.Body)
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery("from `account_email_tokens`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	mock.ExpectRollback()
+	w = httptest.NewRecorder()
+	a.Verify(w, httptest.NewRequest("POST", "/api/account/verify", strings.NewReader(`{"token":"tok"}`)))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("a used link: %d", w.Code)
+	}
+}
+
+// "Forgot my password" answers the same for an email with no account.
+func TestForgotDoesNotRevealAccounts(t *testing.T) {
+	a, mock := testAccounts(t)
+	mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified"}))
+	w := httptest.NewRecorder()
+	a.Forgot(w, httptest.NewRequest("POST", "/api/account/forgot", strings.NewReader(`{"email":"nobody@example.com"}`)))
+	if w.Code != http.StatusOK {
+		t.Fatalf("unknown email: %d", w.Code)
+	}
 }
 
 func TestChangingThePasswordNeedsTheCurrentOne(t *testing.T) {
