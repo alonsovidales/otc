@@ -115,12 +115,16 @@
     $('#view').innerHTML = `<h1>Choose a new password</h1>
       <div class="grid"><div class="card"><h2>New password</h2>
         <label>New password <small>(8 characters or more)</small></label><input id="rs-pass" type="password" autocomplete="new-password">
+        <label>Repeat the new password</label><input id="rs-pass2" type="password" autocomplete="new-password">
         <button class="btn" id="rs-go">Set the password</button><div class="msg" id="rs-msg"></div>
         <p class="hint" style="margin-top:12px">Setting it signs your account out everywhere else.</p>
       </div></div>`;
     $('#rs-pass').focus();
+    $('#rs-pass2').onkeydown = (e) => { if (e.key === 'Enter') $('#rs-go').click(); };
     $('#rs-go').onclick = async () => {
-      const m = $('#rs-msg'); m.textContent = ''; $('#rs-go').disabled = true;
+      const m = $('#rs-msg'); m.textContent = '';
+      if ($('#rs-pass').value !== $('#rs-pass2').value) { m.textContent = "The two passwords don't match"; m.className = 'msg bad'; return; }
+      $('#rs-go').disabled = true;
       const r = await api('POST', '/api/account/reset', { token, password: $('#rs-pass').value });
       $('#rs-go').disabled = false;
       if (!r.ok) { m.textContent = r.error || 'Could not set it'; m.className = 'msg bad'; return; }
@@ -265,6 +269,7 @@
         <div class="card"><h2>Password and sign-in</h2>
           ${me.has_password ? `<label>Current password</label><input id="pw-cur" type="password" autocomplete="current-password">` : `<p class="hint">You sign in with Google or Apple. You can add a password within 15 minutes of signing in that way.</p>`}
           <label>New password <small>(8 characters or more)</small></label><input id="pw-new" type="password" autocomplete="new-password">
+          <label>Repeat the new password</label><input id="pw-new2" type="password" autocomplete="new-password">
           <button class="btn ghost" id="pw-go">${me.has_password ? 'Change password' : 'Add a password'}</button><div class="msg" id="pw-msg"></div>
           <p class="hint" style="margin-top:12px">Changing the password signs you out everywhere else. Left signed in on a computer you don't use any more?</p>
           <button class="btn danger small" id="out-all">Sign out everywhere</button>
@@ -304,6 +309,7 @@
     // ends with the change (this one carries on with a new cookie).
     $('#pw-go').onclick = async () => {
       const m = $('#pw-msg'); m.textContent = ''; m.className = 'msg';
+      if ($('#pw-new').value !== $('#pw-new2').value) { m.textContent = "The two passwords don't match"; m.className = 'msg bad'; return; }
       const r = await api('PUT', '/api/account/password', { password: $('#pw-new').value, current: me.has_password ? $('#pw-cur').value : '' });
       if (!r.ok) { m.textContent = r.error || 'Could not save the password'; m.className = 'msg bad'; return; }
       me.has_password = true; banner('Password saved. Other sessions are signed out.', 'ok'); render();
