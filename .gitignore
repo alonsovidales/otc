@@ -21,3 +21,6 @@ app/android/app/src/main/proto-gen/
 # Firebase client config (#125) - kept out of git at the owner's request;
 # place it here by hand before building the Android app.
 app/android/app/google-services.json
+# Issue #129: signing keys never go in the repo.
+*.jks
+*.keystore

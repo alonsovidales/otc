@@ -13,6 +13,23 @@ if (file("google-services.json").exists()) {
     logger.warn("app/google-services.json is missing: building without push notifications")
 }
 
+// Issue #129: release signing. The upload keystore lives outside the repo
+// (~/.otc/otc-upload.jks unless OTC_UPLOAD_KEYSTORE says otherwise) and its
+// password comes from the environment - `make android-release` reads it
+// from the macOS Keychain (service otc-android-upload) for the one build.
+// Without them a release build is left unsigned; -Potc.signWithDebug signs
+// it with the debug key instead, to try a minified build on a phone over
+// an installed debug build.
+val uploadKeystore = file(System.getenv("OTC_UPLOAD_KEYSTORE") ?: "${System.getProperty("user.home")}/.otc/otc-upload.jks")
+val uploadPassword: String? = System.getenv("OTC_UPLOAD_PASSWORD")
+
+// Play needs every upload's versionCode to be higher than the last: the
+// commit count only ever grows on main.
+fun gitCommitCount(): Int = try {
+    val p = ProcessBuilder("git", "rev-list", "--count", "HEAD").directory(rootDir).start()
+    p.inputStream.bufferedReader().readText().trim().toInt()
+} catch (e: Exception) { 1 }
+
 android {
     namespace = "cloud.offthe.otc"
     compileSdk = 36
@@ -23,14 +40,31 @@ android {
         applicationId = "cloud.offthe.otc"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
+        versionCode = gitCommitCount()
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        create("upload") {
+            if (uploadKeystore.exists() && uploadPassword != null) {
+                storeFile = uploadKeystore
+                storePassword = uploadPassword
+                keyAlias = "otc-upload"
+                keyPassword = uploadPassword
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = when {
+                project.hasProperty("otc.signWithDebug") -> signingConfigs.getByName("debug")
+                uploadKeystore.exists() && uploadPassword != null -> signingConfigs.getByName("upload")
+                else -> null
+            }
         }
     }
     compileOptions {
@@ -58,6 +92,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.3")
     implementation("androidx.core:core-ktx:1.17.0")
+    // Something transitive still brings Fragment 1.0, which breaks the
+    // ActivityResult APIs (release lint: InvalidFragmentVersionForActivityResult).
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
     // Issue #137: "Continue with Apple/Google" in the Bluetooth setup opens a Custom Tab.
     implementation("androidx.browser:browser:1.9.0")
     // The same protobuf envelope protocol as every other client; lite

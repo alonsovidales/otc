@@ -527,7 +527,11 @@ outside the SDK dir so `sdkmanager` doesn't overwrite them, and kill the 37 serv
 phone is a Motorola moto g06 (Android 15, serial ZY32MBZVJ4). Every iOS screen has an Android counterpart under
 `app/src/main/java/cloud/offthe/otc/` (`ui/` mirrors the SwiftUI views, `net/` the connection,
 `data/` the stores, `sync/` PhotoSync/SyncScheduler/AssetSyncCache); still missing versus iOS:
-push notifications (FCM). One deliberate difference: the photo sync's cloud-id shortcut (release
+push notifications (FCM). Release builds (issue #129, `docs/play-store/README.md`): R8 minify and resource shrinking on,
+signed with the upload key `~/.otc/otc-upload.jks` (password in the Keychain, service
+`otc-android-upload`, passed as `OTC_UPLOAD_PASSWORD`; never in the repo), `versionCode` = the
+commit count; `-Potc.signWithDebug` signs a release build with the debug key to try it over an
+installed debug build. The launcher icon is adaptive (`mipmap-anydpi-v26`). One deliberate difference: the photo sync's cloud-id shortcut (release
 7, `files.cloud_id`, `HasCloudIds`) is iOS-only - `PHCloudIdentifier` is the same for an asset on
 every device on the owner's iCloud account, so a phone asks the device "which of these do you
 already have?" and links the hash instead of downloading the asset from iCloud to hash it. Android
