@@ -67,7 +67,7 @@ entries for the iOS app; change both together.
 - App icon, 512 x 512: `docs/play-store/icon-512.png`. It is the iOS icon, made from the same
   source as the adaptive launcher icon (`mipmap-anydpi-v26/ic_launcher.xml`: the artwork as the
   foreground layer over `#08373F`).
-- Feature graphic, 1024 x 500: still to make.
+- Feature graphic, 1024 x 500: `docs/play-store/feature-graphic.png`.
 - Phone screenshots, at least 2 (up to 8), 16:9 or 9:16, each side 320-3840 px: still to take.
   `docs/screenshots/` has iOS and web ones for reference. They have to come from a phone on a
   demo device with demo photos, not from a real library.
