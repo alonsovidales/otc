@@ -191,6 +191,13 @@ type deviceRelay struct {
 func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan []byte), onDeath: onDeath, stopPing: make(chan struct{})}
 
+	// The registration was read with cUnpairedReadLimit, and gorilla keeps
+	// a connection's limit: from here on this connection carries the
+	// device's replies - a whole photo for a preview, a file download -
+	// which are bounded like relayed requests. Left at 8 MB, every bigger
+	// reply killed the relay and the client saw the device as away.
+	conn.SetReadLimit(cRelayedReadLimit)
+
 	conn.SetReadDeadline(time.Now().Add(cPongWait))
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(cPongWait))
