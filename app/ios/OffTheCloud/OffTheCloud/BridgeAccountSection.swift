@@ -16,8 +16,14 @@
 
 import SwiftUI
 
-/// The address a local-only device answers at.
+/// The address a local-only device answers at when it didn't say its own:
+/// .local names don't resolve on every network.
 let localDeviceEndpoint = "ws://otc.local:8080/ws"
+
+/// The endpoint for a device's home-network address ("192.168.1.20:8080").
+func localEndpoint(_ address: String) -> String {
+    address.isEmpty ? localDeviceEndpoint : "ws://\(address)/ws"
+}
 
 @MainActor
 final class BridgeAccountViewModel: ObservableObject {
@@ -27,6 +33,8 @@ final class BridgeAccountViewModel: ObservableObject {
     @Published var bridge = "off-the.cloud"
     @Published var pending = false
     @Published var leftReason = ""
+    /// The device's address at home, e.g. "192.168.1.20:8080".
+    @Published var localAddress = ""
     @Published var busy = false
     @Published var note: String?
     @Published var error: String?
@@ -51,6 +59,7 @@ final class BridgeAccountViewModel: ObservableObject {
         bridge = a.bridge.isEmpty ? "off-the.cloud" : a.bridge
         pending = a.pending
         leftReason = a.leftReason
+        if !a.localAddress.isEmpty { localAddress = a.localAddress }
         if !a.error.isEmpty { error = a.error }
     }
 
@@ -68,10 +77,10 @@ final class BridgeAccountViewModel: ObservableObject {
                 return false
             }
             apply(a)
-            secrets.endpoint = localDeviceEndpoint
+            secrets.endpoint = localEndpoint(localAddress)
             secrets.persist()
             OTCConnection.shared.invalidate()
-            note = "The device is restarting off the bridge. From now on the app reaches it on your home network, at otc.local."
+            note = "The device is restarting off the bridge. From now on the app reaches it on your home network, at \(localAddress.isEmpty ? "otc.local" : localAddress)."
             return true
         } catch {
             self.error = error.localizedDescription
@@ -97,6 +106,9 @@ struct BridgeAccountSection: View {
                     if vm.enabled {
                         Text("Reachable from anywhere at \(vm.domain)")
                             .font(.caption).foregroundStyle(.secondary)
+                        if !vm.localAddress.isEmpty {
+                            Text("At home: \(vm.localAddress)").font(.caption).foregroundStyle(.secondary)
+                        }
                         Button("Leave the Bridge", role: .destructive) { confirmLeave = true }
                             .disabled(vm.busy)
                         Button("Delete My Account…", role: .destructive) { confirmDelete = true }
@@ -135,7 +147,7 @@ struct BridgeAccountSection: View {
 
     private var footer: String {
         vm.enabled
-            ? "Leaving gives the name back; the device keeps working at home, at http://otc.local:8080."
+            ? "Leaving gives the name back; the device keeps working at home, at http://\(vm.localAddress.isEmpty ? "otc.local:8080" : vm.localAddress)."
             : ""
     }
 

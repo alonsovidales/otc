@@ -445,9 +445,10 @@ private fun BridgeAccountSection(secrets: SecretsStore) {
     LaunchedEffect(Unit) { vm.load() }
     if (!st.visible) return
     fun open(path: String) = Share.openInBrowser(context, "https://${st.bridge}/$path")
-    Section("Bridge and Account", if (st.enabled) "Leaving gives the name back; the device keeps working at home, at http://otc.local:8080." else null) {
+    Section("Bridge and Account", if (st.enabled) "Leaving gives the name back; the device keeps working at home, at http://${st.localAddress.ifEmpty { "otc.local:8080" }}." else null) {
         if (st.enabled) {
             Caption("Reachable from anywhere at ${st.domain}")
+            if (st.localAddress.isNotEmpty()) Caption("At home: ${st.localAddress}")
             RowButton("Leave the Bridge", enabled = !st.busy, destructive = true) { confirmLeave = true }
             RowButton("Delete My Account…", enabled = !st.busy, destructive = true) { confirmDelete = true }
         } else {

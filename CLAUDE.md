@@ -397,7 +397,9 @@ owner's "Leave the bridge" - `ReqDisableBridge` from the web BridgePanel and the
 Bridge and Account) sets the domain back to `otc` and writes `off <left|released>` to
 `bridge.request`: the root runner empties `[otc] bridge-addr`, records `{"state":"off"}` (read
 back as `RespBridgeAccess.left_reason`) and restarts the device local-only at
-`http://otc.local:8080`; the apps switch their endpoint to `ws://otc.local:8080/ws`. The privacy
+its home-network address; `RespBridgeAccess.local_address` (`localAddress()`: the source address of
+the route out, with `[otc-api] port`) is what the apps switch their endpoint to (`ws://<it>/ws`),
+since `.local` names don't resolve everywhere (Android) - `otc.local:8080` only when it is empty. The privacy
 notice is `bridge/static/privacy.html` (`/privacy`), linked from the landing footer, the account
 page, BridgePanel and the apps' sign-in and Settings; contact messages are pruned after a year.
 

@@ -26,6 +26,7 @@ type Access = {
   error: string;
   providers: string[];
   leftReason?: string;
+  localAddress?: string;
 };
 
 const providerLabels: Record<string, string> = { apple: "Continue with Apple", google: "Continue with Google" };
@@ -165,13 +166,17 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
       `https://${access.bridge}/account/auth/${provider}/start?return=${encodeURIComponent(back)}`;
   };
 
+  // The device's address at home (issue #182): .local names don't resolve
+  // everywhere, so its own LAN address comes first.
+  const localUrl = access?.localAddress ? `http://${access.localAddress}` : "http://otc.local:8080";
+
   // Issue #182: leaving the bridge. The device gives its name back and
   // restarts local-only; this page, if it came through the bridge, stops
   // answering - the device is then at http://otc.local:8080 at home.
   const leave = async () => {
     if (!window.confirm(
       `Take this device off the bridge? ${access?.domain} is given back and the device restarts. ` +
-      "It keeps everything on it and works at home, at http://otc.local:8080, but is no longer " +
+      `It keeps everything on it and works at home, at ${localUrl}, but is no longer ` +
       "reachable from outside or by your friends. You can join again later.")) return;
     setBusy(true);
     setError(null);
@@ -228,7 +233,7 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
       {access.pending && access.leftReason === "left" ? (
         <p className="up-note">
           Leaving {access.bridge}… the device restarts, which takes about a minute. From then on
-          open it at home, at <a href="http://otc.local:8080">http://otc.local:8080</a>.
+          open it at home, at <a href={localUrl}>{localUrl}</a>.
         </p>
       ) : access.pending ? (
         <p className="up-note">

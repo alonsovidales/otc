@@ -1809,6 +1809,11 @@ public nonisolated struct Msg_RespBridgeAccess: Sendable {
   /// back). Empty otherwise.
   public var leftReason: String = String()
 
+  /// The device's address on the home network ("192.168.1.20:8080"), for
+  /// a client to reach it by once it is local-only: .local names don't
+  /// resolve everywhere (Android). Empty when it can't be worked out.
+  public var localAddress: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -8392,7 +8397,7 @@ nonisolated extension Msg_ReqGetBridgeAccess: SwiftProtobuf.Message, SwiftProtob
 
 nonisolated extension Msg_RespBridgeAccess: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespBridgeAccess"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0\u{1}domain\0\u{1}bridge\0\u{1}pending\0\u{1}error\0\u{1}providers\0\u{3}left_reason\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0\u{1}domain\0\u{1}bridge\0\u{1}pending\0\u{1}error\0\u{1}providers\0\u{3}left_reason\0\u{3}local_address\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -8407,6 +8412,7 @@ nonisolated extension Msg_RespBridgeAccess: SwiftProtobuf.Message, SwiftProtobuf
       case 5: try { try decoder.decodeSingularStringField(value: &self.error) }()
       case 6: try { try decoder.decodeRepeatedStringField(value: &self.providers) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.leftReason) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.localAddress) }()
       default: break
       }
     }
@@ -8434,6 +8440,9 @@ nonisolated extension Msg_RespBridgeAccess: SwiftProtobuf.Message, SwiftProtobuf
     if !self.leftReason.isEmpty {
       try visitor.visitSingularStringField(value: self.leftReason, fieldNumber: 7)
     }
+    if !self.localAddress.isEmpty {
+      try visitor.visitSingularStringField(value: self.localAddress, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -8445,6 +8454,7 @@ nonisolated extension Msg_RespBridgeAccess: SwiftProtobuf.Message, SwiftProtobuf
     if lhs.error != rhs.error {return false}
     if lhs.providers != rhs.providers {return false}
     if lhs.leftReason != rhs.leftReason {return false}
+    if lhs.localAddress != rhs.localAddress {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -416,7 +416,7 @@ func bridgeConfigured() bool {
 // bridge which account sign-ins it offers - only worth the round trip when
 // the device isn't on it yet.
 func (mg *Manager) bridgeAccess(withProviders bool) *pb.RespBridgeAccess {
-	out := &pb.RespBridgeAccess{Enabled: bridgeaccess.Enabled(), Bridge: bridgeaccess.Bridge()}
+	out := &pb.RespBridgeAccess{Enabled: bridgeaccess.Enabled(), Bridge: bridgeaccess.Bridge(), LocalAddress: localAddress()}
 	if out.Enabled {
 		out.Domain = mg.settings.Domain()
 		return out
@@ -2831,7 +2831,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 			break
 		}
-		out := &pb.RespBridgeAccess{Bridge: bridgeaccess.Bridge(), Pending: true, LeftReason: bridgeaccess.LeftByOwner}
+		out := &pb.RespBridgeAccess{Bridge: bridgeaccess.Bridge(), Pending: true, LeftReason: bridgeaccess.LeftByOwner, LocalAddress: localAddress()}
 		if releaseErr != nil {
 			out.Error = "The bridge could not be reached, so the name is still registered: release it on the account page."
 		}

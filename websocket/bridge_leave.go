@@ -5,8 +5,10 @@ package websocket
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -66,7 +68,7 @@ func (mg *Manager) nameUnknownOnBridge() {
 	_, domain, _ := mg.settings.Identity()
 	log.Info("the bridge no longer knows", domain, "- switching to local-only")
 	if err := mg.dao.AddErrorNotification("This device left the bridge",
-		fmt.Sprintf("The bridge no longer knows %s: its account was deleted or the name released. The device goes on working at home, at http://otc.local:8080 - set the apps to that address, or join the bridge again in Settings.", domain)); err != nil {
+		fmt.Sprintf("The bridge no longer knows %s: its account was deleted or the name released. The device goes on working at home, at %s - set the apps to that address, or join the bridge again in Settings.", domain, localURL())); err != nil {
 		log.Error("could not add the notification:", err)
 	}
 	if err := mg.switchToLocal(bridgeaccess.LeftReleased); err != nil {
@@ -108,6 +110,36 @@ func (mg *Manager) switchToLocal(reason string) error {
 	}
 	mg.settings.SetIdentity(owner, cLocalDomain, secret)
 	return bridgeaccess.RequestSwitchOff(reason)
+}
+
+// localAddress is this device's address on the home network with its
+// HTTP port ("192.168.1.20:8080"): the source address of the route to the
+// internet (a UDP "connection" sends nothing). Empty if there is none.
+func localAddress() string {
+	c, err := net.Dial("udp", "1.1.1.1:53")
+	if err != nil {
+		return ""
+	}
+	defer c.Close()
+	addr, ok := c.LocalAddr().(*net.UDPAddr)
+	if !ok || addr.IP.IsLoopback() || !addr.IP.IsPrivate() {
+		return ""
+	}
+	port := 8080
+	if cfg.HasSection("otc-api") {
+		if p := cfg.GetInt("otc-api", "port"); p > 0 {
+			port = int(p)
+		}
+	}
+	return net.JoinHostPort(addr.IP.String(), strconv.Itoa(port))
+}
+
+// localURL is how the owner opens the device at home.
+func localURL() string {
+	if a := localAddress(); a != "" {
+		return "http://" + a
+	}
+	return "http://otc.local:8080"
 }
 
 // releaseBridgeDomain asks the bridge to delete this device's name

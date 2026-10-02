@@ -667,6 +667,10 @@ message RespBridgeAccess {
   // longer knew its name - the account was deleted or the name given
   // back). Empty otherwise.
   string left_reason = 7;
+  // The device's address on the home network ("192.168.1.20:8080"), for
+  // a client to reach it by once it is local-only: .local names don't
+  // resolve everywhere (Android). Empty when it can't be worked out.
+  string local_address = 8;
 }
 
 // Issue #182: an owner's client asks the device to leave the bridge and

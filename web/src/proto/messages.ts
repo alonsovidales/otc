@@ -1166,6 +1166,12 @@ export interface RespBridgeAccess {
    * back). Empty otherwise.
    */
   leftReason: string;
+  /**
+   * The device's address on the home network ("192.168.1.20:8080"), for
+   * a client to reach it by once it is local-only: .local names don't
+   * resolve everywhere (Android). Empty when it can't be worked out.
+   */
+  localAddress: string;
 }
 
 /**
@@ -8500,7 +8506,16 @@ export const ReqGetBridgeAccess: MessageFns<ReqGetBridgeAccess> = {
 };
 
 function createBaseRespBridgeAccess(): RespBridgeAccess {
-  return { enabled: false, domain: "", bridge: "", pending: false, error: "", providers: [], leftReason: "" };
+  return {
+    enabled: false,
+    domain: "",
+    bridge: "",
+    pending: false,
+    error: "",
+    providers: [],
+    leftReason: "",
+    localAddress: "",
+  };
 }
 
 export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
@@ -8525,6 +8540,9 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
     }
     if (message.leftReason !== "") {
       writer.uint32(58).string(message.leftReason);
+    }
+    if (message.localAddress !== "") {
+      writer.uint32(66).string(message.localAddress);
     }
     return writer;
   },
@@ -8592,6 +8610,14 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
           message.leftReason = reader.string();
           continue;
         }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.localAddress = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8612,6 +8638,7 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
         ? object.providers.map((e: any) => globalThis.String(e))
         : [],
       leftReason: isSet(object.leftReason) ? globalThis.String(object.leftReason) : "",
+      localAddress: isSet(object.localAddress) ? globalThis.String(object.localAddress) : "",
     };
   },
 
@@ -8638,6 +8665,9 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
     if (message.leftReason !== "") {
       obj.leftReason = message.leftReason;
     }
+    if (message.localAddress !== "") {
+      obj.localAddress = message.localAddress;
+    }
     return obj;
   },
 
@@ -8653,6 +8683,7 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
     message.error = object.error ?? "";
     message.providers = object.providers?.map((e) => e) || [];
     message.leftReason = object.leftReason ?? "";
+    message.localAddress = object.localAddress ?? "";
     return message;
   },
 };

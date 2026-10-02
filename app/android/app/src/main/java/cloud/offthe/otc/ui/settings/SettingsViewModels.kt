@@ -394,8 +394,11 @@ class UsersManagementViewModel : ViewModel() {
     }
 }
 
-/** The address a local-only device answers at (issue #182). */
+/** The address a local-only device answers at when it didn't say its own (issue #182). */
 const val LOCAL_DEVICE_ENDPOINT = "ws://otc.local:8080/ws"
+
+/** The endpoint for a device's home-network address ("192.168.1.20:8080"). */
+fun localEndpoint(address: String) = if (address.isEmpty()) LOCAL_DEVICE_ENDPOINT else "ws://$address/ws"
 
 /**
  * Issue #182: the bridge and the Off The Cloud account, from Settings.
@@ -406,7 +409,7 @@ const val LOCAL_DEVICE_ENDPOINT = "ws://otc.local:8080/ws"
 class BridgeAccountViewModel : ViewModel() {
     data class State(
         val visible: Boolean = false, val enabled: Boolean = false, val domain: String = "", val bridge: String = "off-the.cloud",
-        val pending: Boolean = false, val leftReason: String = "", val busy: Boolean = false, val note: String? = null, val error: String? = null,
+        val pending: Boolean = false, val leftReason: String = "", val localAddress: String = "", val busy: Boolean = false, val note: String? = null, val error: String? = null,
     )
     val state = MutableStateFlow(State())
 
@@ -422,7 +425,7 @@ class BridgeAccountViewModel : ViewModel() {
 
     private fun apply(a: cloud.offthe.otc.proto.RespBridgeAccess) = state.update {
         it.copy(enabled = a.enabled, domain = a.domain, bridge = a.bridge.ifEmpty { "off-the.cloud" }, pending = a.pending,
-            leftReason = a.leftReason, error = a.error.ifEmpty { it.error })
+            leftReason = a.leftReason, localAddress = a.localAddress.ifEmpty { it.localAddress }, error = a.error.ifEmpty { it.error })
     }
 
     /** Takes the device off the bridge and points the app at its local address. */
@@ -435,10 +438,10 @@ class BridgeAccountViewModel : ViewModel() {
                 return false
             }
             apply(resp.respBridgeAccess)
-            secrets.setEndpoint(LOCAL_DEVICE_ENDPOINT)
+            secrets.setEndpoint(localEndpoint(state.value.localAddress))
             secrets.persist()
             OTCConnection.invalidate()
-            state.update { it.copy(note = "The device is restarting off the bridge. From now on the app reaches it on your home network, at otc.local.") }
+            state.update { it.copy(note = "The device is restarting off the bridge. From now on the app reaches it on your home network, at ${it.localAddress.ifEmpty { "otc.local" }}.") }
             return true
         } catch (e: Exception) {
             state.update { it.copy(error = e.message ?: "Could not leave the bridge.") }
