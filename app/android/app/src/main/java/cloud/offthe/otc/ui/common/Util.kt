@@ -6,9 +6,20 @@ import android.graphics.BitmapFactory
 import java.text.DateFormat
 import java.util.Date
 
-fun decodeBitmap(bytes: ByteArray): Bitmap? = try {
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-} catch (e: Exception) { null }
+/**
+ * Decodes an image, scaled down by a power of two until its longest side is
+ * at most [maxSide] px. A full-size original decoded as-is can pass what a
+ * Canvas will draw (about 100 MB): a 45-megapixel photo opened in the viewer
+ * took the app down with "trying to draw too large bitmap". 4096 px is still
+ * sharper than any phone screen, and at most 64 MB.
+ */
+fun decodeBitmap(bytes: ByteArray, maxSide: Int = 4096): Bitmap? = try {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > maxSide) sample *= 2
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+} catch (e: Exception) { null } catch (e: OutOfMemoryError) { null }
 
 /** "3m ago" / "2h ago" / "5d ago", then the date - the feed's own convention. */
 fun relativeTime(epochMs: Long): String {

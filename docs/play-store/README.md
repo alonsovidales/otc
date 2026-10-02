@@ -68,9 +68,11 @@ entries for the iOS app; change both together.
   source as the adaptive launcher icon (`mipmap-anydpi-v26/ic_launcher.xml`: the artwork as the
   foreground layer over `#08373F`).
 - Feature graphic, 1024 x 500: `docs/play-store/feature-graphic.png`.
-- Phone screenshots, at least 2 (up to 8), 16:9 or 9:16, each side 320-3840 px: still to take.
-  `docs/screenshots/` has iOS and web ones for reference. They have to come from a phone on a
-  demo device with demo photos, not from a real library.
+- Phone screenshots: `docs/play-store/screenshots/` - 1-library, 2-people (search by face),
+  3-viewer, 4-share-gallery, 5-friends-feed; `alt-library-beach` is an alternative first shot
+  (its last row shows a child). Taken from the Fold's cover screen against Pit (the demo device,
+  photos of people who consented), status and gesture bars cropped, padded to Play's 2:1
+  maximum (1142 x 2284).
 
 ## Data safety
 
