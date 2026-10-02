@@ -92,3 +92,30 @@
 .fb-versions-item { display: grid; grid-template-columns: 1fr 90px auto; align-items: center; gap: 8px; padding: 8px 4px; border-top: 1px solid var(--line); color: var(--mist); }
 .fb-versions-item.current { border-top: 0; font-weight: 600; }
 .fb-versions-size { color: var(--mist-dim); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* List / grid switch, next to Refresh. */
+.fb-viewmode { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.fb-viewmode button { display: grid; place-items: center; width: 34px; height: 32px; border: 0; background: transparent; color: var(--mist-dim); cursor: pointer; }
+.fb-viewmode button + button { border-left: 1px solid var(--line); }
+.fb-viewmode button.on { background: var(--panel); color: var(--mist); }
+.fb-viewmode button:focus-visible { outline: 2px solid var(--ember); outline-offset: -2px; }
+
+/* The grid: a tile per entry, thumbnails for photos and videos, a type
+   icon for everything else (FileTypeIcon.tsx). */
+.fb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 16px 12px; padding: 4px; }
+.fb-grid-note { grid-column: 1 / -1; color: var(--mist-dim); padding: 12px; }
+.fb-tile { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fb-tile-art { position: relative; aspect-ratio: 1; width: 100%; display: grid; place-items: center; overflow: hidden; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); padding: 0; cursor: pointer; }
+.fb-tile-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fb-tile-art:hover { border-color: var(--mist-dim); }
+.fb-tile-art:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.fb-tile.selected .fb-tile-art { border-color: var(--ember); box-shadow: 0 0 0 2px var(--ember); }
+.fb-tile-check { position: absolute; top: 8px; left: 8px; width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: var(--ember); }
+.fb-tile-lock { position: absolute; top: 6px; right: 6px; background: var(--ink-2); border-radius: 6px; padding: 3px; }
+.fb-tile-versions { position: absolute; bottom: 30px; right: 6px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; border: 0; background: var(--gold); color: var(--gold-ink, #111); font-size: 11px; font-weight: 700; cursor: pointer; }
+.fb-tile-name { font-size: 13px; color: var(--mist); text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; line-height: 1.3; }
+.fb-tile-opening { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); color: #fff; font-size: 12px; font-style: italic; }
+.fb-play { position: absolute; left: 8px; bottom: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,.55); display: grid; place-items: center; }
+.fb-folder { width: 62%; fill: var(--gold); }
+.fti-page { fill: #eef1f3; }
+.fti-fold { fill: #c8ced3; }

@@ -118,3 +118,4 @@
 77	-	0b44784f175f6738f58da72f21d733c80125d07428ee178d14b067dbafa08dbb	Stepping to the next photo before the full-size one has loaded no longer shows the previous photo over it.
 78	-	acb7955a7293155593f525a1505f072623bd36358561aa5567e88cae4bb266b5	Deleting or merging a person no longer reloads every photo, and its confirmation is a proper small dialog.
 79	-	6f75725dde4a8cd630ad5df9a8711bf8900994217ea85f6d80f7e14c8cf1dc50	Joining the bridge offers Google and Apple sign-in on your router's own names for the device too (like pit.lan), and says how to get them where it can't.
+80	-	56ba9fe1b132cb019db5454cffc9a6fc86a2848281ff489f58c0aaa4248f3231	Files can be shown as a grid: photos and videos by their thumbnail, documents by an icon of their type (PDF, Word, Excel...).

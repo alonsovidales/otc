@@ -879,6 +879,9 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 			n = filesmanager.MaxChunk
 		}
 		return fm.ReserveBytes(n * 2)
+	case *pb.ReqEnvelope_ReqGetThumbnails:
+		// The Files grid: a batch of thumbnails, at most about 8 MB.
+		return fm.ReserveBytes(16 << 20)
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
 		// Issue #166: reachable by anyone with a link - one part at a time.
 		n := int64(p.ReqDownloadSharedLink.Length)
@@ -2157,6 +2160,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 					Files: files,
 				},
 			}
+		}
+
+	case *pb.ReqEnvelope_ReqGetThumbnails:
+		resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+			RespListOfFiles: &pb.ListOfFiles{Files: ch.mg.filesManager.Thumbnails(ses, p.ReqGetThumbnails.Paths)},
 		}
 
 	case *pb.ReqEnvelope_ReqGetTags:

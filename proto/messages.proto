@@ -265,6 +265,14 @@ message ListFiles {
   bool recursive = 2;
 }
 
+// The Files grid's thumbnails: for each path that is a photo or video with
+// a stored thumbnail, a File with its path, mime and the thumbnail as
+// content; any other path is left out. At most 48 paths, and about 8 MB of
+// thumbnails, per request. Answers with ListOfFiles.
+message GetThumbnails {
+  repeated string paths = 1;
+}
+
 message SearchPhotos {
   repeated string tags = 1;
   string token = 2;
@@ -1828,6 +1836,8 @@ message ReqEnvelope {
     // Issue #182: leaving the bridge.
     ReqDisableBridge req_disable_bridge = 127;
     BridgeReleaseDomain req_bridge_release_domain = 128;
+    // The Files grid view.
+    GetThumbnails req_get_thumbnails = 129;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

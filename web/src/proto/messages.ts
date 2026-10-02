@@ -640,6 +640,16 @@ export interface ListFiles {
   recursive: boolean;
 }
 
+/**
+ * The Files grid's thumbnails: for each path that is a photo or video with
+ * a stored thumbnail, a File with its path, mime and the thumbnail as
+ * content; any other path is left out. At most 48 paths, and about 8 MB of
+ * thumbnails, per request. Answers with ListOfFiles.
+ */
+export interface GetThumbnails {
+  paths: string[];
+}
+
 export interface SearchPhotos {
   tags: string[];
   token: string;
@@ -2476,6 +2486,9 @@ export interface ReqEnvelope {
     /** Issue #182: leaving the bridge. */
     { $case: "reqDisableBridge"; reqDisableBridge: ReqDisableBridge }
     | { $case: "reqBridgeReleaseDomain"; reqBridgeReleaseDomain: BridgeReleaseDomain }
+    | //
+    /** The Files grid view. */
+    { $case: "reqGetThumbnails"; reqGetThumbnails: GetThumbnails }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -4693,6 +4706,64 @@ export const ListFiles: MessageFns<ListFiles> = {
     const message = createBaseListFiles();
     message.path = object.path ?? "";
     message.recursive = object.recursive ?? false;
+    return message;
+  },
+};
+
+function createBaseGetThumbnails(): GetThumbnails {
+  return { paths: [] };
+}
+
+export const GetThumbnails: MessageFns<GetThumbnails> = {
+  encode(message: GetThumbnails, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.paths) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetThumbnails {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetThumbnails();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetThumbnails {
+    return { paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [] };
+  },
+
+  toJSON(message: GetThumbnails): unknown {
+    const obj: any = {};
+    if (message.paths?.length) {
+      obj.paths = message.paths;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetThumbnails>, I>>(base?: I): GetThumbnails {
+    return GetThumbnails.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetThumbnails>, I>>(object: I): GetThumbnails {
+    const message = createBaseGetThumbnails();
+    message.paths = object.paths?.map((e) => e) || [];
     return message;
   },
 };
@@ -18737,6 +18808,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqBridgeReleaseDomain":
         BridgeReleaseDomain.encode(message.payload.reqBridgeReleaseDomain, writer.uint32(1026).fork()).join();
         break;
+      case "reqGetThumbnails":
+        GetThumbnails.encode(message.payload.reqGetThumbnails, writer.uint32(1034).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -19870,6 +19944,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 129: {
+          if (tag !== 1034) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetThumbnails",
+            reqGetThumbnails: GetThumbnails.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -20281,6 +20366,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqBridgeReleaseDomain",
           reqBridgeReleaseDomain: BridgeReleaseDomain.fromJSON(object.reqBridgeReleaseDomain),
         }
+        : isSet(object.reqGetThumbnails)
+        ? { $case: "reqGetThumbnails", reqGetThumbnails: GetThumbnails.fromJSON(object.reqGetThumbnails) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -20539,6 +20626,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqDisableBridge = ReqDisableBridge.toJSON(message.payload.reqDisableBridge);
     } else if (message.payload?.$case === "reqBridgeReleaseDomain") {
       obj.reqBridgeReleaseDomain = BridgeReleaseDomain.toJSON(message.payload.reqBridgeReleaseDomain);
+    } else if (message.payload?.$case === "reqGetThumbnails") {
+      obj.reqGetThumbnails = GetThumbnails.toJSON(message.payload.reqGetThumbnails);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -21541,6 +21630,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqBridgeReleaseDomain",
             reqBridgeReleaseDomain: BridgeReleaseDomain.fromPartial(object.payload.reqBridgeReleaseDomain),
+          };
+        }
+        break;
+      }
+      case "reqGetThumbnails": {
+        if (object.payload?.reqGetThumbnails !== undefined && object.payload?.reqGetThumbnails !== null) {
+          message.payload = {
+            $case: "reqGetThumbnails",
+            reqGetThumbnails: GetThumbnails.fromPartial(object.payload.reqGetThumbnails),
           };
         }
         break;

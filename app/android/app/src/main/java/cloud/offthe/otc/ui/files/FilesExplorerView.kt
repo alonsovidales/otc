@@ -52,11 +52,13 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.GetFile
+import cloud.offthe.otc.proto.GetThumbnails
 import cloud.offthe.otc.proto.HasFile
 import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.ListFiles
@@ -86,14 +88,39 @@ import androidx.compose.ui.text.font.FontWeight
 import cloud.offthe.otc.proto.ListFileVersions
 import cloud.offthe.otc.proto.SetUploadOnly
 import java.text.DateFormat
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import cloud.offthe.otc.ui.common.FileTypeIcon
+import cloud.offthe.otc.ui.common.decodeBitmap
 import java.util.Date
 
 // Port of FilesExplorerView.swift: path navigation, per-row checkboxes,
 // upload from the phone, share/download/delete of the selection, and
-// opening a file in whatever app handles it.
+// opening a file in whatever app handles it. Shown as a list or a grid of
+// tiles (photo/video thumbnails from GetThumbnails, else FileTypeIcon).
 
 private fun isDir(f: PbFile) = f.mime == "inode/directory"
 private fun isImg(f: PbFile) = f.mime.startsWith("image/")
+private fun isVideo(f: PbFile) = f.mime.startsWith("video/")
+// The grid asks the device for a thumbnail only for these.
+private fun isMedia(row: FileRow) = !row.isDir &&
+    (isImg(row.raw) || isVideo(row.raw) || row.name.endsWith(".heic", ignoreCase = true))
 private fun joinPath(base: String, leaf: String) = base.trimEnd('/') + "/" + leaf.trimStart('/')
 private fun dirnamePath(p: String): String {
     val clean = if (p.endsWith("/") && p != "/") p.dropLast(1) else p
@@ -127,7 +154,22 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         // Issue #132: the versions pop-up - the file and its older versions.
         val versionsOf: Pair<FileRow, List<PbFile>>? = null,
         val versionsLoading: Boolean = false,
+        // List or grid, kept across launches ("files_view_mode").
+        val grid: Boolean = prefs.getString(VIEW_MODE_KEY, "list") == "grid",
+        // Grid thumbnails for the session, by thumbKey.
+        val thumbs: Map<String, ImageBitmap> = emptyMap(),
     )
+
+    companion object {
+        private const val VIEW_MODE_KEY = "files_view_mode"
+        private const val THUMB_BATCH = 24
+        private val prefs get() = OTCApp.instance.getSharedPreferences("otc_settings", Context.MODE_PRIVATE)
+    }
+
+    // Thumbnails asked for and not answered yet, or that the device said it
+    // has none of - neither is asked again this session.
+    private val thumbsPending = mutableSetOf<String>()
+    private val noThumb = mutableSetOf<String>()
 
     private val _state = MutableStateFlow(State(path = initialPath))
     val state: StateFlow<State> = _state
@@ -144,6 +186,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                     FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.size, f, f.uploadOnly, f.versions)
                 }
                 _state.update { it.copy(rows = rows, selected = emptySet()) }
+                if (_state.value.grid) launchThumbnails()
             } else if (resp.error) {
                 _state.update { it.copy(error = resp.errorMessage.ifEmpty { "Failed to list path" }) }
             } else {
@@ -164,6 +207,50 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     private fun launchLoad() = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { load() }
 
     fun fullPath(row: FileRow) = if (row.path.contains("/")) row.path else joinPath(path, row.path)
+
+    fun thumbKey(row: FileRow) = fullPath(row) + "\u0000" + row.raw.hash
+
+    fun setGrid(grid: Boolean) {
+        prefs.edit().putString(VIEW_MODE_KEY, if (grid) "grid" else "list").apply()
+        _state.update { it.copy(grid = grid) }
+        if (grid) launchThumbnails()
+    }
+
+    private fun launchThumbnails() = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { loadThumbnails() }
+
+    /**
+     * The folder's photos and videos, in batches of 24 full paths. Paths the
+     * answer leaves out have no thumbnail; anything that arrives after the
+     * folder changed is dropped.
+     */
+    private suspend fun loadThumbnails() {
+        val folder = path
+        val have = _state.value.thumbs
+        val wanted = synchronized(thumbsPending) {
+            _state.value.rows.filter { isMedia(it) }.map { thumbKey(it) to fullPath(it) }
+                .filter { (k, _) -> k !in have && k !in noThumb && k !in thumbsPending }
+                .also { list -> thumbsPending.addAll(list.map { it.first }) }
+        }
+        for (batch in wanted.chunked(THUMB_BATCH)) {
+            if (path != folder) break
+            try {
+                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { b -> b.second })) }
+                if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) continue
+                val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
+                val got = mutableMapOf<String, ImageBitmap>()
+                for ((key, full) in batch) {
+                    val bmp = byPath[full]?.let { decodeBitmap(it.content.toByteArray(), maxSide = 512) }
+                    if (bmp != null) got[key] = bmp.asImageBitmap()
+                    else synchronized(thumbsPending) { noThumb.add(key) }
+                }
+                if (path == folder) _state.update { it.copy(thumbs = it.thumbs + got) }
+            } catch (_: Exception) {
+            } finally {
+                synchronized(thumbsPending) { thumbsPending.removeAll(batch.map { it.first }.toSet()) }
+            }
+        }
+        synchronized(thumbsPending) { thumbsPending.removeAll(wanted.map { it.first }.toSet()) }
+    }
 
     fun toggleSelect(p: String) = _state.update {
         it.copy(selected = if (p in it.selected) it.selected - p else it.selected + p)
@@ -344,6 +431,10 @@ fun FilesExplorerView(initialPath: String) {
                     modifier = Modifier.weight(1f),
                 )
                 if (st.loading) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+                // List <-> grid; the icon is the mode a tap switches to.
+                IconButton(onClick = { vm.setGrid(!st.grid) }) {
+                    Icon(if (st.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, if (st.grid) "Show as list" else "Show as grid")
+                }
             }
             st.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }
 
@@ -352,7 +443,22 @@ fun FilesExplorerView(initialPath: String) {
                 onRefresh = { scope.launch { refreshing = true; vm.load(); refreshing = false } },
                 modifier = Modifier.weight(1f),
             ) {
-                LazyColumn(Modifier.fillMaxSize()) {
+                if (st.grid) LazyVerticalGrid(
+                    GridCells.Adaptive(104.dp), Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(st.rows, key = { it.path }) { row ->
+                        FileGridCell(
+                            row, selected = row.path in st.selected, opening = st.openingPath == row.path,
+                            thumb = if (isMedia(row)) st.thumbs[vm.thumbKey(row)] else null,
+                            onOpen = { if (st.openingPath == null) scope.launch { vm.open(context, row) } },
+                            onToggle = { vm.toggleSelect(row.path) },
+                            onVersions = { scope.launch { vm.openVersions(row) } },
+                        )
+                    }
+                } else LazyColumn(Modifier.fillMaxSize()) {
                     items(st.rows, key = { it.path }) { row ->
                         val selected = row.path in st.selected
                         Row(
@@ -462,6 +568,67 @@ fun FilesExplorerView(initialPath: String) {
             confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); scope.launch { vm.deleteSelected() } }) { Text("Delete", color = Color(0xFFE53935)) } },
             dismissButton = { TextButton(onClick = { vm.setConfirmDelete(false) }) { Text("Cancel") } },
         )
+    }
+}
+
+/**
+ * One grid tile: the folder, thumbnail or file-type icon, with the list's
+ * selection circle (top left), lock (folders, top right), versions count
+ * (bottom right) and a play badge on videos (bottom left); the name below.
+ */
+@Composable
+private fun FileGridCell(
+    row: FileRow, selected: Boolean, opening: Boolean, thumb: ImageBitmap?,
+    onOpen: () -> Unit, onToggle: () -> Unit, onVersions: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow).clickable(onClick = onOpen),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                row.isDir -> Icon(Icons.Default.Folder, null, Modifier.fillMaxSize(0.62f), tint = MaterialTheme.colorScheme.primary)
+                thumb != null -> Image(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                else -> FileTypeIcon(row.name, Modifier.fillMaxSize().padding(14.dp))
+            }
+            if (!row.isDir && isVideo(row.raw) && thumb != null) {
+                Box(Modifier.align(Alignment.BottomStart).padding(6.dp).size(24.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.PlayArrow, "Video", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+            if (!row.isDir && row.versions > 0) {
+                Row(
+                    Modifier.align(Alignment.BottomEnd).padding(4.dp).clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onVersions)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.History, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(2.dp))
+                    Text("${row.versions}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            if (row.isDir && row.uploadOnly) {
+                Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), CircleShape),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Lock, "Upload only", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                }
+            }
+            if (row.path != "..") {
+                Box(Modifier.align(Alignment.TopStart).padding(4.dp).size(28.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)).clickable(onClick = onToggle),
+                    contentAlignment = Alignment.Center) {
+                    Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, if (selected) "Deselect" else "Select",
+                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (opening) CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp)
+        }
+        Spacer(Modifier.size(4.dp))
+        Text(row.name, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
 }
 

@@ -10,6 +10,7 @@ import type {
 } from "../proto/messages";
 import { loadFilesPath, saveFilesPath } from "../net/uiState";
 import SharedGalleryShare from "./SharedGalleryShare";
+import FileTypeIcon from "./FileTypeIcon";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 
@@ -21,6 +22,18 @@ type Props = {
 
 const isDir = (f: PbFile) => f.mime === "inode/directory";
 const isImg = (f: PbFile) => f.mime?.startsWith("image/");
+// What the grid shows a thumbnail for (GetThumbnails answers these).
+const isMedia = (f: PbFile) => !!f.mime && (f.mime.startsWith("image/") || f.mime.startsWith("video/")) || /\.heic$/i.test(f.path);
+const isVideo = (f: PbFile) => !!f.mime?.startsWith("video/");
+
+// The Files list or grid, remembered in this browser.
+type ViewMode = "list" | "grid";
+const cViewModeKey = "otc.files.viewMode";
+function loadViewMode(): ViewMode {
+  try { return localStorage.getItem(cViewModeKey) === "grid" ? "grid" : "list"; } catch { return "list"; }
+}
+// The grid asks for thumbnails this many paths at a time.
+const cThumbBatch = 24;
 
 const fmtBytes = (n?: number) =>
   typeof n === "number"
@@ -418,6 +431,50 @@ export default function FilesExplorer({
   const uploadsPct = uploads.length ? Math.round((uploadsDone / uploads.length) * 100) : 0;
 
   // ---- rows prepared for display ----
+  // -------- grid view ----------
+  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
+  const switchView = (m: ViewMode) => {
+    setViewMode(m);
+    try { localStorage.setItem(cViewModeKey, m); } catch { /* remembered for this visit only */ }
+  };
+  // Thumbnails by full path ("" for one the device has none of), kept
+  // while the page is open; object URLs are released on the way out.
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const thumbsRef = useRef<Record<string, string>>({});
+  thumbsRef.current = thumbs;
+  const thumbsAsked = useRef<Set<string>>(new Set());
+  useEffect(() => () => { Object.values(thumbsRef.current).forEach(u => u && URL.revokeObjectURL(u)); }, []);
+  const fullPathOf = useCallback((f: PbFile) => (f.path.includes("/") ? f.path : joinPath(path, f.path)), [path]);
+  useEffect(() => {
+    if (viewMode !== "grid") return;
+    const want = listing.filter(f => !isDir(f) && isMedia(f)).map(fullPathOf).filter(p => !thumbsAsked.current.has(p));
+    if (!want.length) return;
+    want.forEach(p => thumbsAsked.current.add(p));
+    let alive = true;
+    (async () => {
+      for (let i = 0; i < want.length && alive; i += cThumbBatch) {
+        const batch = want.slice(i, i + cThumbBatch);
+        try {
+          const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+            (e as any).payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch } };
+          });
+          const got: Record<string, string> = {};
+          if (resp.payload?.$case === "respListOfFiles") {
+            for (const f of resp.payload.respListOfFiles.files) {
+              if (f.content?.length) got[f.path] = bytesToURL(f.content as Uint8Array, "image/jpeg");
+            }
+          }
+          // A path the device didn't answer has no thumbnail: its type icon stays.
+          for (const p of batch) if (!(p in got)) got[p] = "";
+          setThumbs(t => ({ ...t, ...got }));
+        } catch {
+          batch.forEach(p => thumbsAsked.current.delete(p)); // tried again on the next visit
+        }
+      }
+    })();
+    return () => { alive = false; };
+  }, [viewMode, listing, fullPathOf]);
+
   const rows = useMemo(() => listing.map((f) => ({
     k: rowKey(f),
     name: f.path === ".." ? ".." : leafName(f.path),
@@ -471,6 +528,20 @@ export default function FilesExplorer({
               <path d="M20 4v5h-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+          <div className="fb-viewmode" role="group" aria-label="View">
+            <button className={viewMode === "list" ? "on" : ""} aria-pressed={viewMode === "list"} title="List" onClick={() => switchView("list")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="4" cy="6" r="1.5" fill="currentColor" /><circle cx="4" cy="12" r="1.5" fill="currentColor" /><circle cx="4" cy="18" r="1.5" fill="currentColor" />
+              </svg>
+            </button>
+            <button className={viewMode === "grid" ? "on" : ""} aria-pressed={viewMode === "grid"} title="Grid" onClick={() => switchView("grid")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" fill="currentColor" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" fill="currentColor" />
+                <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
         </div>
       {selected.length > 0 && (
         <div className="fb-actions">
@@ -533,6 +604,44 @@ export default function FilesExplorer({
         </div>
       )}
 
+      {viewMode === "grid" ? (
+        <div className="fb-grid">
+          {loading && <div className="fb-grid-note">Loading…</div>}
+          {!loading && rows.length === 0 && <div className="fb-grid-note">This folder is empty.</div>}
+          {!loading && rows.map(r => {
+            const full = r.name === ".." ? "" : fullPathOf(r.file);
+            const thumb = !r.isDir ? thumbs[full] : undefined;
+            return (
+              <div className={`fb-tile${sel[r.k] ? " selected" : ""}`} key={r.k}>
+                <button className="fb-tile-art" onClick={() => openEntry(r.file)} disabled={openingPath !== null} title={r.name}>
+                  {r.isDir
+                    ? <svg className="fb-folder" viewBox="0 0 64 52" aria-hidden="true"><path d="M4 6a4 4 0 0 1 4-4h16l6 6h26a4 4 0 0 1 4 4v34a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" /></svg>
+                    : thumb
+                      ? <img src={thumb} alt="" loading="lazy" />
+                      : <FileTypeIcon name={r.name} size={72} />}
+                  {!r.isDir && thumb && isVideo(r.file) && (
+                    <span className="fb-play" aria-label="Video"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M8 5v14l11-7z" fill="#fff" /></svg></span>
+                  )}
+                  {openingPath === r.file.path && <span className="fb-tile-opening">Opening…</span>}
+                </button>
+                {r.name !== ".." && (
+                  <input className="fb-tile-check" type="checkbox" checked={!!sel[r.k]} onChange={() => toggleOne(r.file)} aria-label={`Select ${r.name}`} />
+                )}
+                {r.name !== ".." && r.isDir && (
+                  <button className={`fb-lock fb-tile-lock${r.uploadOnly ? " on" : ""}`} onClick={() => void toggleUploadOnly(r.file)}
+                    title={r.uploadOnly ? "Upload only. Click to clear." : "Make upload only"} aria-pressed={r.uploadOnly}>
+                    {lockIcon(r.uploadOnly)}
+                  </button>
+                )}
+                {!r.isDir && r.versions > 0 && (
+                  <button className="fb-tile-versions" onClick={() => void openVersions(r.file)} title="Older versions of this file">{r.versions}</button>
+                )}
+                <div className="fb-tile-name" title={r.name}>{r.name}</div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div className="fb-table">
         <div className="fb-head">
           <div className="c c-check"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></div>
@@ -597,7 +706,9 @@ export default function FilesExplorer({
         </div>
       </div>
 
-      <div className="fb-tip">Tip: Drag files into the table to upload to <code>{path}</code>.</div>
+      )}
+
+      <div className="fb-tip">Tip: Drag files here to upload to <code>{path}</code>.</div>
 
       {/* Issue #132: the versions pop-up - every older version of the
           file with when it was replaced and its size; each downloads. */}

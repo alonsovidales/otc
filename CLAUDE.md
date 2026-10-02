@@ -241,6 +241,13 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   own loopback stream (`SetVideoSource`: a short-lived media token), so processing, reprocess
   and the info panel never load a video whole nor write it out in plaintext; share-link zips
   are streamed into a segmented file under the link's key.
+  **Files grid** (release 80): the Files section on the web, iOS and Android switches between the
+  list and a grid (remembered per browser/app). The grid shows each photo or video by its
+  thumbnail - `GetThumbnails{paths}` answers up to 48 paths (about 8 MB) per request with the
+  stored thumbnails, leaving out paths without one - and everything else by a generic labelled
+  document icon whose colour says the type (PDF red, DOC blue, XLS green, PPT orange...; the
+  mapping is the same in `FileTypeIcon.tsx`, `FileTypeIcon.swift` and `FileTypeIcon.kt` - change
+  all three together; no vendor logos).
   **Processing lanes** (release 73, `files_manager/lanes.go`): an upload is answered once its
   bytes and row are stored, then `enqueueMedia` (media only) records its hash in
   `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers): EXIF, decode,

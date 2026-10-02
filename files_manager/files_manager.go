@@ -692,6 +692,40 @@ func (mg *Manager) GetThumbnail(session *session.Session, file *pb.File) (conten
 	return content, err
 }
 
+// Thumbnails limits for the Files grid (GetThumbnails).
+const (
+	MaxThumbnailsPerRequest = 48
+	maxThumbnailsBytes      = 8 << 20
+)
+
+// Thumbnails returns, for each path that is a photo or video with a stored
+// thumbnail, its row with the thumbnail as content - the Files grid view.
+// Anything else (a folder, a document, a thumbnail not made yet) is left
+// out, and it stops at maxThumbnailsBytes: the client asks for the rest.
+func (mg *Manager) Thumbnails(ses *session.Session, paths []string) []*pb.File {
+	if len(paths) > MaxThumbnailsPerRequest {
+		paths = paths[:MaxThumbnailsPerRequest]
+	}
+	var out []*pb.File
+	total := 0
+	for _, p := range paths {
+		f, err := mg.dao.GetFileByPath(p)
+		if err != nil || !isMedia(f) {
+			continue
+		}
+		thumb, err := mg.readThumbnail(ses, f)
+		if err != nil {
+			continue
+		}
+		if total+len(thumb) > maxThumbnailsBytes && len(out) > 0 {
+			break
+		}
+		total += len(thumb)
+		out = append(out, &pb.File{Path: f.Path, Hash: f.Hash, Mime: f.Mime, Size: f.Size, Content: thumb})
+	}
+	return out
+}
+
 // readThumbnail is GetThumbnail without the logging, for callers where a
 // thumbnail that doesn't exist yet is expected (os.IsNotExist on err).
 func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byte, error) {
