@@ -430,7 +430,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
 
     /** Issue #110: streamed when the device offers a URL, downloaded otherwise. */
     private suspend fun fetchVideo(it: Item) {
-        MediaStream.url(forPath = it.path)?.let { url -> _state.update { s -> s.copy(videoUrl = url) }; return }
+        // Still on this video? Stepping on before a slow stream URL or
+        // download came back used to start the previous video over the next one.
+        fun stillOpen() = _state.value.openIndex?.let { i -> _state.value.items.getOrNull(i)?.path } == it.path
+        MediaStream.url(forPath = it.path)?.let { url -> if (stillOpen()) _state.update { s -> s.copy(videoUrl = url) }; return }
         try {
             val resp = OTCConnection.request { e -> e.setReqGetFile(GetFile.newBuilder().setPath(it.path)) }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || !resp.respFile.hasContent()) return
@@ -442,7 +445,9 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
                 else -> it.path.substringAfterLast('.', "mp4").lowercase()
             }
             val tmp = File(OTCApp.instance.cacheDir, "${UUID.randomUUID()}.$ext")
+            if (!stillOpen()) return
             withContext(Dispatchers.IO) { tmp.writeBytes(resp.respFile.content.toByteArray()) }
+            if (!stillOpen()) { tmp.delete(); return }
             _state.update { s -> s.copy(videoUrl = tmp.toURI().toString()) }
         } catch (_: Exception) {}
     }

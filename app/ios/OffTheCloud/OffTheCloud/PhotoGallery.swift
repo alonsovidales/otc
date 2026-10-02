@@ -935,6 +935,10 @@ final class PhotoGalleryVM: ObservableObject {
     /// (as the social feed used to) leaves a QuickTime recording - what an
     /// iPhone actually produces - mislabelled and silently unplayable.
     private func fetchVideo(_ it: Item) async {
+        // Still on this video? Stepping on before a slow stream URL or
+        // download came back used to start the previous video over the
+        // next one.
+        func stillOpen() -> Bool { openIndex.flatMap { items.indices.contains($0) ? items[$0].path : nil } == it.path }
         if let u = it.localURL {
             self.videoPlayer = AVPlayer(url: u)
             return
@@ -946,6 +950,7 @@ final class PhotoGalleryVM: ObservableObject {
         // small enough that streaming wouldn't pay for itself is declined
         // by the device, and falls through to the download below.
         if let streamURL = await MediaStream.url(forPath: it.path) {
+            guard stillOpen() else { return }
             print("[video] streaming \(it.path) from \(streamURL.absoluteString)")
             let player = AVPlayer(url: streamURL)
             Self.logFailure(of: player, what: "stream")
@@ -962,7 +967,7 @@ final class PhotoGalleryVM: ObservableObject {
                 req.payload = .reqGetFile(gf)
                 e = req
             }
-            guard case .respFile(let f) = resp.payload, f.hasContent else { return }
+            guard stillOpen(), case .respFile(let f) = resp.payload, f.hasContent else { return }
             let ext: String
             switch f.mime.lowercased() {
             case "video/quicktime": ext = "mov"
@@ -978,6 +983,7 @@ final class PhotoGalleryVM: ObservableObject {
                 .appendingPathExtension(ext)
             try f.content.write(to: tmp)
             print("[video] downloaded \(it.path): \(f.content.count) bytes, \(f.mime), .\(ext)")
+            guard stillOpen() else { return }
             let player = AVPlayer(url: tmp)
             Self.logFailure(of: player, what: "download")
             self.videoPlayer = player

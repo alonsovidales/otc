@@ -622,9 +622,21 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     else setPlaceholderCount(null);
   };
 
+  // Which photo the viewer is on: every openAt (and closing) moves it on,
+  // and a full-size image, stream URL or info that arrives for an earlier
+  // one is dropped - stepping to the next photo before the current one
+  // had loaded used to show the next one and then the previous one's
+  // full-size image over it.
+  const viewGenRef = useRef(0);
+  useEffect(() => {
+    if (openIdx == null) viewGenRef.current += 1;
+  }, [openIdx]);
+
   // open modal and fetch hi-res for current index
   const openAt = useCallback(
     async (idx: number) => {
+      const gen = ++viewGenRef.current;
+      const current = () => gen === viewGenRef.current;
       setOpenIdx(idx);
       setHiURL(null);
       setVideoProblem(null);
@@ -640,6 +652,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         // falls straight through to the fetch below.
         if (canStream(f.mime)) {
           const streamURL = await requestStreamURL({ path: f.path });
+          if (!current()) return;
           if (streamURL) {
             setHiURL(streamURL);
             return;
@@ -648,6 +661,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         const resp = await useWS.request(e => {
           (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: f.path } };
         });
+        if (!current()) return;
         if (resp.payload?.$case === "respFile") {
           const full = resp.payload.respFile!;
           setHiURL(bytesToURL(full.content, full.mime || "image/jpeg"));
@@ -663,6 +677,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
   // computed live on the server from the file's own bytes.
   const openInfo = useCallback(async () => {
     if (openIdx == null) return;
+    const gen = viewGenRef.current;
     setInfoOpen(true);
     setInfoLoading(true);
     setInfoData(null);
@@ -670,11 +685,12 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = { $case: "reqGetFileInfo", reqGetFileInfo: { path: items[openIdx].path } };
       });
+      if (gen !== viewGenRef.current) return;
       if (resp.payload?.$case === "respFileInfo") {
         setInfoData(resp.payload.respFileInfo);
       }
     } finally {
-      setInfoLoading(false);
+      if (gen === viewGenRef.current) setInfoLoading(false);
     }
   }, [openIdx, items]);
   const closeInfo = useCallback(() => { setInfoOpen(false); setInfoData(null); }, []);
