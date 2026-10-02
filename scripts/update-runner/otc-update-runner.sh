@@ -65,11 +65,44 @@ OTC_REPO_RAW="${OTC_REPO_RAW%/}"
 OTC_REPO_GH="${OTC_REPO_GH%/}"
 case "$OTC_REPO_RAW" in https://*) ;; *) status failed "refusing a non-HTTPS update repository: $OTC_REPO_RAW"; exit 1 ;; esac
 
-status running "Fetching the updater"
-mkdir -p "$RUN_DIR" && chmod 700 "$RUN_DIR"
-if ! curl -fsSL --retry 3 --retry-delay 2 -o "$RUN_DIR/update.sh" "$OTC_REPO_RAW/scripts/update.sh"; then
-    status failed "could not download the updater from $OTC_REPO_RAW"
-    exit 1
-fi
+# Issue #160: nothing from the repository is run unverified. The release
+# manifest is signed with the project's release key (Ed25519, kept off
+# GitHub; scripts/release.sh) and checked here against the public key this
+# device pins in a root-owned file; the manifest carries the hash of each
+# release's own source archive, and the updater that runs is the one in
+# that verified archive - never a file fetched from a branch.
+KEY=/etc/otc/release-signing.pub
+[ -f "$KEY" ] || { status failed "this device has no release signing key ($KEY) - reinstall or update by hand"; exit 1; }
 
-exec /bin/bash "$RUN_DIR/update.sh"
+status running "Checking the release signature"
+rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR" && chmod 700 "$RUN_DIR"
+fetch() { curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"; }
+fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS" "$RUN_DIR/VERSIONS" \
+    && fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS.sig" "$RUN_DIR/VERSIONS.sig.b64" \
+    || { status failed "could not download the release manifest"; exit 1; }
+base64 -d < "$RUN_DIR/VERSIONS.sig.b64" > "$RUN_DIR/VERSIONS.sig" 2>/dev/null \
+    && openssl pkeyutl -verify -pubin -inkey "$KEY" -rawin -in "$RUN_DIR/VERSIONS" -sigfile "$RUN_DIR/VERSIONS.sig" >/dev/null 2>&1 \
+    || { status failed "the release manifest is not signed with this project's release key - nothing was installed"; exit 1; }
+
+installed="$(cat /etc/otc/version 2>/dev/null || echo 0)"
+target=""; src_sha=""
+while IFS=$'\t' read -r version _script _assets _summary src; do
+    case "$version" in ''|\#*) continue ;; esac
+    if [ "$version" -gt "$installed" ] 2>/dev/null; then target="$version"; src_sha="$src"; fi
+done < "$RUN_DIR/VERSIONS"
+if [ -z "$target" ]; then
+    status uptodate "Already up to date"
+    exit 0
+fi
+case "$src_sha" in [0-9a-f]*) ;; *) status failed "release $target has no signed source archive"; exit 1 ;; esac
+
+status running "Downloading release $target"
+fetch "$OTC_REPO_GH/releases/download/v$target/src.tar.gz" "$RUN_DIR/src.tar.gz" \
+    || { status failed "could not download the source of release $target"; exit 1; }
+actual="$(sha256sum "$RUN_DIR/src.tar.gz" | awk '{print $1}')"
+[ "$actual" = "$src_sha" ] || { status failed "the source of release $target does not match its signed hash"; exit 1; }
+mkdir -p "$RUN_DIR/src" && tar -xzf "$RUN_DIR/src.tar.gz" -C "$RUN_DIR/src" --strip-components=1 \
+    || { status failed "could not unpack release $target"; exit 1; }
+
+export OTC_VERIFIED_MANIFEST="$RUN_DIR/VERSIONS" OTC_VERIFIED_SRC="$RUN_DIR/src"
+exec /bin/bash "$RUN_DIR/src/scripts/update.sh"

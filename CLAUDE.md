@@ -622,45 +622,28 @@ answering, and the runner starts it and sets `--operator=otc` (which needs the d
 not reached anybody: the version number in the manifest is the only signal a device has
 that anything is new.
 
-```bash
-# 1. Pick the next version number (the manifest's last line + 1).
-N=2
+Issue #160: releases are **signed**. Cut one with `scripts/release.sh "Summary shown in
+Settings"` from a clean, pushed `main` - nothing else. If the release needs a schema or
+config change, first commit its script as `scripts/updates/<N>.sh` (N = the manifest's
+last version + 1; it runs as root on the primary and on every per-user database and MUST
+be idempotent). The tool builds the web bundle, tags `vN`, makes the release's own source
+archive (`src.tar.gz`, `git archive` + `gzip -n`; the manifest and its signature are
+`export-ignore`d in `.gitattributes`, since they carry its hash), appends the manifest line
+(version, script sha, web sha, summary, source sha), signs the whole manifest with the
+release key into `scripts/updates/VERSIONS.sig`, pushes, publishes the GitHub release with
+both archives and checks what was published. The key is Ed25519 at
+`~/.otc/otc-release-signing.pem` on the Mac mini (passphrase in the Keychain item
+`otc-release-signing`; never on GitHub - back it up offline); its public half is
+`scripts/release-signing.pub`, which devices pin in `/etc/otc/release-signing.pub`.
 
-# 2. Only if this release needs a schema or config change, write its script.
-#    Most releases don't. It runs as root, on the primary and on every
-#    per-user database, and MUST be idempotent - a device with no
-#    /etc/otc/version runs the whole history from 1.
-vim scripts/updates/$N.sh
-SCRIPT_SHA=$(shasum -a 256 scripts/updates/$N.sh | awk '{print $1}')   # or "-" if there is no script
-
-# 3. Build the web bundle and package it. Every release should ship this,
-#    even a backend-only one: the device installs the assets belonging to
-#    the version it is moving to, so skipping it leaves a device running
-#    new server code behind an older UI.
-npm run build --prefix web
-tar -czf web-dist.tar.gz -C web/dist .
-ASSETS_SHA=$(shasum -a 256 web-dist.tar.gz | awk '{print $1}')
-
-# 4. Add the manifest line: version, script sha, assets sha, summary.
-#    The summary is shown in Settings - write it for whoever is deciding
-#    whether to press Update.
-printf '%s\t%s\t%s\t%s\n' "$N" "$SCRIPT_SHA" "$ASSETS_SHA" "What changed" \
-    >> scripts/updates/VERSIONS
-
-# 5. Commit and push to main. The manifest is read from main, so this is
-#    what makes the release visible to devices.
-git add -A && git commit -m "Release $N: what changed" && git push
-
-# 6. Tag that commit and publish the release with the assets attached.
-#    The device downloads the source by tag, so the tag must exist and must
-#    include the manifest line above.
-git tag "v$N" && git push origin "v$N"
-gh release create "v$N" web-dist.tar.gz --title "v$N" --notes "What changed"
-```
-
-Order matters: the manifest must be on `main` before the tag, the tag must exist before a
-device tries to update, and the checksums must be of the exact files published — the
-device verifies both before running a script as root or replacing the web app.
+On a device, `otc-update-runner` downloads the manifest and its signature, verifies it with
+the pinned key, downloads the target release's `src.tar.gz`, checks it against the signed
+hash, and runs the `update.sh` inside it (`OTC_VERIFIED_MANIFEST`/`OTC_VERIFIED_SRC`): release
+scripts come from that verified source and are checked against the signed manifest, the web
+bundle too, and nothing is ever run from `main`. A device whose runner predates this ran
+`update.sh` from `main` once: that copy does the same checks with the key embedded in it,
+then hands over to the verified release (which installs the key and the new runner).
+Forks publishing their own releases replace `scripts/release-signing.pub` with their key.
 
 **Checking it worked**: a device shows its version under Settings → Device version, and
 the full log of any run is at `/var/log/otc/update.log`, with the current state in

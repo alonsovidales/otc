@@ -63,8 +63,45 @@ status running "Checking for updates"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/VERSIONS" "$REPO_RAW/scripts/updates/VERSIONS" \
-    || fail "could not fetch the release manifest"
+# Issue #160: this runs only from a verified release. otc-update-runner
+# checks the manifest's signature and the release's source archive and
+# starts the update.sh inside that archive, with OTC_VERIFIED_MANIFEST and
+# OTC_VERIFIED_SRC set. An updater from before signed releases instead ran
+# this file straight from main: then this copy does the same checks itself,
+# with the release key below (the one time a device has to trust main), and
+# hands over to the verified release's own update.sh - which installs the
+# key (/etc/otc/release-signing.pub) and the new runner for every update
+# after.
+RELEASE_KEY='-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAtVgLIKBzcqMNM2nUnK9xfgpqWrLTuZsk8ylhyI0BK9g=
+-----END PUBLIC KEY-----'
+if [ -z "${OTC_VERIFIED_SRC:-}" ] || [ -z "${OTC_VERIFIED_MANIFEST:-}" ]; then
+    stage="$(mktemp -d /root/otc-update.XXXXXX)" || fail "no room to stage the update"
+    printf '%s\n' "$RELEASE_KEY" > "$stage/key.pub"
+    curl -fsSL --retry 3 --retry-delay 2 -o "$stage/VERSIONS" "$REPO_RAW/scripts/updates/VERSIONS" \
+        && curl -fsSL --retry 3 --retry-delay 2 -o "$stage/VERSIONS.sig.b64" "$REPO_RAW/scripts/updates/VERSIONS.sig" \
+        || fail "could not fetch the release manifest"
+    base64 -d < "$stage/VERSIONS.sig.b64" > "$stage/VERSIONS.sig" 2>/dev/null \
+        && openssl pkeyutl -verify -pubin -inkey "$stage/key.pub" -rawin -in "$stage/VERSIONS" -sigfile "$stage/VERSIONS.sig" >/dev/null 2>&1 \
+        || fail "the release manifest is not signed with this project's release key - nothing was installed"
+    boot_target=""; boot_src=""
+    while IFS=$'\t' read -r version _s _a _d src; do
+        case "$version" in ''|\#*) continue ;; esac
+        boot_target="$version"; boot_src="$src"
+    done < "$stage/VERSIONS"
+    case "$boot_src" in [0-9a-f]*) ;; *) fail "release $boot_target has no signed source archive" ;; esac
+    curl -fsSL --retry 3 --retry-delay 2 -o "$stage/src.tar.gz" "$REPO_GH/releases/download/v$boot_target/src.tar.gz" \
+        || fail "could not download the source of release $boot_target"
+    [ "$(sha256sum "$stage/src.tar.gz" | awk '{print $1}')" = "$boot_src" ] \
+        || fail "the source of release $boot_target does not match its signed hash"
+    mkdir -p "$stage/src" && tar -xzf "$stage/src.tar.gz" -C "$stage/src" --strip-components=1 \
+        || fail "could not unpack release $boot_target"
+    export OTC_VERIFIED_MANIFEST="$stage/VERSIONS" OTC_VERIFIED_SRC="$stage/src"
+    echo "verified release $boot_target (signature and source); continuing with its own updater"
+    exec /bin/bash "$stage/src/scripts/update.sh"
+fi
+
+cp "$OTC_VERIFIED_MANIFEST" "$tmp/VERSIONS" || fail "the verified manifest is missing"
 
 installed="$(cat "$VERSION_FILE" 2>/dev/null || echo 0)"
 echo "installed version: $installed"
@@ -74,7 +111,7 @@ echo "installed version: $installed"
 pending=()
 target=""
 target_assets_sha=""
-while IFS=$'\t' read -r version script_sha assets_sha summary; do
+while IFS=$'\t' read -r version script_sha assets_sha summary _src_sha; do
     case "$version" in ''|\#*) continue ;; esac
     if [ "$version" -gt "$installed" ] 2>/dev/null; then
         pending+=("$version"$'\t'"$script_sha")
@@ -106,12 +143,11 @@ for entry in "${pending[@]}"; do
         continue
     fi
 
-    curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/$version.sh" "$REPO_RAW/scripts/updates/$version.sh" \
-        || fail "could not download release $version"
+    # From the verified source (every release keeps the earlier scripts),
+    # and checked against the signed manifest before it runs as root.
+    cp "$OTC_VERIFIED_SRC/scripts/updates/$version.sh" "$tmp/$version.sh" 2>/dev/null \
+        || fail "release $version's script is not in the verified source"
 
-    # Checked before anything is executed as root. HTTPS already rules out
-    # a MITM; this is what catches a truncated or corrupted download, and
-    # a manifest that has drifted from the scripts it names.
     actual="$(sha256sum "$tmp/$version.sh" | awk '{print $1}')"
     if [ "$actual" != "$sha" ]; then
         fail "release $version failed its checksum (expected $sha, got $actual)"
@@ -129,17 +165,11 @@ done
 # rather than in each release script.
 # Pinned to the release's own tag rather than whatever main holds right
 # now, so what gets built is exactly what this version is.
-status running "Downloading the code for release $target"
-curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/src.tar.gz" \
-    "$REPO_GH/archive/refs/tags/v$target.tar.gz" \
-    || fail "could not download the source for release $target"
-
-mkdir -p "$tmp/src"
-tar -xzf "$tmp/src.tar.gz" -C "$tmp/src" --strip-components=1 || fail "could not unpack the latest code"
-
+# The release's own source archive, already checked against the signed
+# manifest by whoever started this script (see the top).
 status running "Staging the source"
 mkdir -p "$SRC_DIR"
-rsync -a --delete --exclude '.git' "$tmp/src/" "$SRC_DIR/" || fail "could not stage the new source"
+rsync -a --delete --exclude '.git' "$OTC_VERIFIED_SRC/" "$SRC_DIR/" || fail "could not stage the new source"
 
 cd "$SRC_DIR" || fail "no source directory at $SRC_DIR"
 export PATH="/usr/local/bin:$PATH:/usr/local/go/bin"
@@ -157,10 +187,16 @@ case "$(uname -m)" in
     x86_64)        PROTOC_ARCH=x86_64 ;;
     *)             fail "unsupported architecture $(uname -m)" ;;
 esac
+# Pinned by hash (issue #160), like every download that ends up running.
+case "$PROTOC_ARCH" in
+    aarch_64) PROTOC_SHA=6427349140e01f06e049e707a58709a4f221ae73ab9a0425bc4a00c8d0e1ab32 ;;
+    x86_64)   PROTOC_SHA=3e866620c5be27664f3d2fa2d656b5f3e09b5152b42f1bedbf427b333e90021a ;;
+esac
 if ! command -v protoc >/dev/null 2>&1 || ! protoc --version | grep -q " ${PROTOC_VERSION}$"; then
     curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/protoc.zip" \
         "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
         || fail "could not download protoc ${PROTOC_VERSION}"
+    [ "$(sha256sum "$tmp/protoc.zip" | awk '{print $1}')" = "$PROTOC_SHA" ] || fail "protoc ${PROTOC_VERSION} does not match its pinned hash"
     rm -rf /opt/protoc && mkdir -p /opt/protoc
     (cd /opt/protoc && unzip -q "$tmp/protoc.zip") || fail "could not unpack protoc"
     ln -sf /opt/protoc/bin/protoc /usr/local/bin/protoc
@@ -192,6 +228,8 @@ install -m 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binar
 # format) reach devices installed earlier. The update runner has already
 # exec'd into this script, so replacing its file is safe.
 install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
+# Issue #160: the key every later update's manifest must be signed with.
+install -m 0644 "$SRC_DIR/scripts/release-signing.pub" /etc/otc/release-signing.pub
 if [ -f "$SRC_DIR/scripts/raid_watch.py" ] && [ -f /usr/local/bin/raid_watch.py ]; then
     install -m 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
     systemctl try-restart raid-watch.service >/dev/null 2>&1 || true

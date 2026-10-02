@@ -1,0 +1,4 @@
+# Issue #160: the release manifest carries the source archive's hash, so it
+# is left out of that archive (git archive, scripts/release.sh).
+scripts/updates/VERSIONS export-ignore
+scripts/updates/VERSIONS.sig export-ignore

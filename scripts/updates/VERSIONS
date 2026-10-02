@@ -2,7 +2,12 @@
 #
 # One release per line, OLDEST FIRST, tab-separated:
 #
-#   <version>	<script sha256 or ->	<web-dist.tar.gz sha256 or ->	<summary>
+#   <version>	<script sha256 or ->	<web-dist.tar.gz sha256 or ->	<summary>	<src.tar.gz sha256>
+#
+# Issue #160: the whole file is signed (VERSIONS.sig, Ed25519, the release
+# key - scripts/release.sh) and a device checks it against the key it pins
+# before running anything; src.tar.gz is the release's own source archive,
+# which it builds from. Releases before 83 have no fifth column.
 #
 # A device stores the version it is on in /etc/otc/version and applies every
 # release *after* that one, in order, to reach the newest. That is what
