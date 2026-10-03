@@ -9,6 +9,10 @@ package tray
 
 import (
 	"fmt"
+	"github.com/alonsovidales/otc/app/desktop/internal/selfupdate"
+	"github.com/alonsovidales/otc/app/desktop/internal/service"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -51,6 +55,7 @@ type ui struct {
 	cpu       *systray.MenuItem // the storage line's submenu: the device's
 	mem       *systray.MenuItem // load, shown when the pointer rests on it
 	update    *systray.MenuItem // issue #183: a major or critical device update
+	appUpdate *systray.MenuItem // a newer otc-sync (selfupdate)
 	empty     *systray.MenuItem
 	folders   []*folderItem
 	addLocal  *systray.MenuItem
@@ -87,6 +92,7 @@ func (u *ui) onReady() {
 	systray.SetTooltip("Off The Cloud — Sync")
 	u.build(nil)
 	u.apply()
+	go u.watchUpdates()
 	go func() {
 		for {
 			select {
@@ -108,6 +114,8 @@ func (u *ui) build(folders []config.FolderStatus) {
 	}
 	systray.ResetMenu()
 	title := systray.AddMenuItem("Off The Cloud — Sync", "")
+	u.appUpdate = systray.AddMenuItem("", "")
+	u.appUpdate.Hide()
 	title.Disable()
 	u.status = systray.AddMenuItem("Not connected", "")
 	u.status.Disable()
@@ -151,12 +159,14 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.stopLoop = stop
 	items := u.folders
 	addLocal, addRem, settings, autost, quit := u.addLocal, u.addRem, u.settings, u.autost, u.quit
-	addBackup, explain := u.addBackup, u.explain
+	addBackup, explain, appUpdate := u.addBackup, u.explain, u.appUpdate
 	go func() {
 		for {
 			select {
 			case <-stop:
 				return
+			case <-appUpdate.ClickedCh:
+				go u.installUpdate()
 			case <-addBackup.ClickedCh:
 				go u.addBackup_()
 			case <-explain.ClickedCh:
@@ -195,6 +205,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 func (u *ui) apply() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	defer u.showUpdate() // the menu may have just been rebuilt
 	st := u.c.Snapshot()
 	want := make([]config.FolderStatus, 0, len(st.Folders)+len(st.RemoteFolders))
 	want = append(want, st.Folders...)
@@ -480,4 +491,77 @@ func updateTitle(a *config.UpdateAlert) (title, tooltip string) {
 func memoryTitle(st config.State) string {
 	gb := func(v int64) float64 { return float64(v) * 1.024 / 1000 }
 	return fmt.Sprintf("Memory: %.1f of %.1f GB", gb(st.MemUsed), gb(st.MemSize))
+}
+
+// Version is this build's version, set by main (for the self-update).
+var Version = "dev"
+
+var (
+	pendingMu sync.Mutex
+	pending   *selfupdate.Update
+)
+
+// watchUpdates checks the signed desktop manifest shortly after start and
+// every 6 hours; a newer build shows as "Update otc-sync to X" at the top
+// of the menu.
+func (u *ui) watchUpdates() {
+	time.Sleep(20 * time.Second)
+	for {
+		if up, err := selfupdate.Check(Version); err == nil {
+			pendingMu.Lock()
+			pending = up
+			pendingMu.Unlock()
+			u.mu.Lock()
+			u.showUpdate()
+			u.mu.Unlock()
+		}
+		time.Sleep(6 * time.Hour)
+	}
+}
+
+// showUpdate sets the update item from pending (u.mu held). The item is
+// rebuilt with the menu, so apply() calls this too.
+func (u *ui) showUpdate() {
+	if u.appUpdate == nil {
+		return
+	}
+	pendingMu.Lock()
+	up := pending
+	pendingMu.Unlock()
+	if up == nil {
+		u.appUpdate.Hide()
+		return
+	}
+	u.appUpdate.SetTitle("⬆ Update otc-sync to " + up.Version)
+	u.appUpdate.SetTooltip(up.Notes)
+	u.appUpdate.Enable()
+	u.appUpdate.Show()
+}
+
+// installUpdate is the one click: download, check it against the signed
+// manifest, replace this program, restart the service (Linux) and start
+// the new tray once this one has quit.
+func (u *ui) installUpdate() {
+	pendingMu.Lock()
+	up := pending
+	pendingMu.Unlock()
+	if up == nil {
+		return
+	}
+	u.appUpdate.SetTitle("Updating to " + up.Version + "…")
+	u.appUpdate.Disable()
+	if err := selfupdate.Apply(up); err != nil {
+		u.appUpdate.SetTitle("⬆ Update otc-sync to " + up.Version)
+		u.appUpdate.Enable()
+		_ = zenity.Error("The update could not be installed:\n\n"+err.Error(), zenity.Title("Off The Cloud"))
+		return
+	}
+	service.RestartIfActive()
+	if exe, err := selfupdate.Executable(); err == nil {
+		cmd := exec.Command(exe, os.Args[1:]...)
+		cmd.Env = append(os.Environ(), "OTC_SYNC_RELAUNCH=1")
+		_ = cmd.Start()
+	}
+	u.c.Quit()
+	systray.Quit()
 }

@@ -122,8 +122,10 @@ web:
 # The desktop sync client for Linux and Windows (app/desktop, issues #119
 # and #120): pure Go, so it cross-compiles from anywhere. `desktop-mac`
 # builds the same program for this Mac, for development only - the real
-# macOS client is the Swift app in app/macos.
-DESKTOP_VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+# macOS client is the Swift app in app/macos. These are development builds
+# ("dev": they never update themselves); published builds carry the version
+# in app/desktop/VERSION and come from scripts/desktop-release.sh.
+DESKTOP_VERSION ?= dev
 DESKTOP_LDFLAGS := -s -w -X main.version=$(DESKTOP_VERSION)
 desktop:
 	@echo "$(OK_COLOR)==> Building the desktop sync client (Linux amd64/arm64, Windows amd64/arm64)...$(NO_COLOR)"
@@ -137,13 +139,11 @@ desktop:
 desktop-mac:
 	go build -ldflags "$(DESKTOP_LDFLAGS)" -o dist/otc-sync-mac ./app/desktop/cmd/otc-sync
 
-DESKTOP_RELEASE := desktop
+# Publishing (website downloads + the apps' self-update): signed, versioned.
+# NOTES="what changed" make desktop-publish
 desktop-publish:
-	@ls dist/otc-sync-linux-amd64 dist/otc-sync-windows-amd64.exe >/dev/null 2>&1 || { echo "run 'make desktop' first"; exit 1; }
-	@gh release view $(DESKTOP_RELEASE) >/dev/null 2>&1 || gh release create $(DESKTOP_RELEASE) --title "Windows and Linux sync client" \
-		--notes "otc-sync: the Off The Cloud folder sync client for Windows (tray app) and Linux (tray app, command line, systemd service). Rebuilt whenever the client changes; see README.md 'The Windows and Linux clients'."
-	gh release upload $(DESKTOP_RELEASE) dist/otc-sync-linux-amd64 dist/otc-sync-linux-arm64 dist/otc-sync-windows-amd64.exe dist/otc-sync-windows-arm64.exe --clobber
-	@echo "$(OK_COLOR)==> https://github.com/alonsovidales/otc/releases/tag/$(DESKTOP_RELEASE)$(NO_COLOR)"
+	@[ -n "$(NOTES)" ] || { echo 'usage: NOTES="what changed" make desktop-publish'; exit 1; }
+	scripts/desktop-release.sh "$(NOTES)"
 
 .PHONY: desktop desktop-mac desktop-publish
 

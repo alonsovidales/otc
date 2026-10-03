@@ -493,8 +493,22 @@ wildcards (`likeArg`), and `/admin/api/domains` feeds the device pickers.
 
 `otc-sync` is the Windows and Linux counterpart of the macOS menu bar app, written in Go inside
 this module (it shares `proto/generated`), pure Go so `make desktop` cross-compiles all four
-binaries into `dist/` from any machine and `make desktop-publish` uploads them to the rolling
-GitHub release `desktop`. Its packages are one-to-one with the Swift files: `wsclient` =
+binaries into `dist/` from any machine (version `dev`: development builds never update
+themselves). Publishing is `scripts/desktop-release.sh [--patch] "notes"` (or `NOTES=… make
+desktop-publish`): it bumps `app/desktop/VERSION`, builds the four binaries with it, writes
+`desktop.json` (version, notes, per `GOOS-GOARCH` the download URL and SHA-256), signs it with the
+release key (`scripts/sign-file.sh`, the same key and Keychain passphrase as `release.sh`) into
+`desktop.json.sig`, uploads everything to the rolling GitHub release `desktop` (binaries first,
+manifest last), checks what was published and commits the version. The website's Downloads section
+(`bridge/static/landing.html#download`, highlights the visitor's OS) links to those stable URLs.
+Self-update (`internal/selfupdate`): the tray checks 20 s after start and every 6 h, verifies the
+manifest with the embedded release key, and shows "⬆ Update otc-sync to X"; a click downloads the
+platform's file next to the executable, checks its SHA-256 and swaps it in (Windows renames the
+running exe to `.old`, removed at the next start), restarts the systemd user service if it runs,
+and relaunches. `otc-sync update` does the same from the command line. Linux installs go to
+`~/.local/bin` so the user can replace the binary; a root-owned one asks for `sudo otc-sync update`.
+The Mac app's direct download (Developer ID + notarization + Sparkle, not the App Store build) is
+still to do. Its packages are one-to-one with the Swift files: `wsclient` =
 WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with a watcher and a
 10-minute reconcile, two-way remote folders with the three-way merge and a 1-minute poll,
 hash-first uploads, RAID polling), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch

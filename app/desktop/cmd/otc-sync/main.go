@@ -46,6 +46,7 @@ import (
 	"github.com/alonsovidales/otc/app/desktop/internal/autostart"
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
+	"github.com/alonsovidales/otc/app/desktop/internal/selfupdate"
 	"github.com/alonsovidales/otc/app/desktop/internal/service"
 	"github.com/alonsovidales/otc/app/desktop/internal/tray"
 	"github.com/alonsovidales/otc/app/desktop/internal/wsclient"
@@ -54,6 +55,14 @@ import (
 var version = "dev"
 
 func main() {
+	tray.Version = version
+	// A self-update left the old program aside on Windows; and a tray that
+	// a self-update started waits for the one it replaced to have quit.
+	selfupdate.Cleanup()
+	if os.Getenv("OTC_SYNC_RELAUNCH") == "1" {
+		os.Unsetenv("OTC_SYNC_RELAUNCH")
+		time.Sleep(3 * time.Second)
+	}
 	args := os.Args[1:]
 	cmd := ""
 	if len(args) > 0 {
@@ -92,6 +101,8 @@ func main() {
 		err = cmdAutostart(args)
 	case "version":
 		fmt.Println("otc-sync", version)
+	case "update":
+		err = cmdUpdate()
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -104,12 +115,33 @@ func main() {
 	}
 }
 
+// cmdUpdate installs a newer otc-sync if the signed manifest has one, and
+// restarts the service (the tray updates itself from its menu).
+func cmdUpdate() error {
+	up, err := selfupdate.Check(version)
+	if err != nil {
+		return err
+	}
+	if up == nil {
+		fmt.Println("otc-sync", version, "is up to date")
+		return nil
+	}
+	fmt.Println("updating otc-sync", version, "->", up.Version)
+	if err := selfupdate.Apply(up); err != nil {
+		return err
+	}
+	service.RestartIfActive()
+	fmt.Println("updated to", up.Version, "- restart the tray app to use it")
+	return nil
+}
+
 func usage() {
 	fmt.Print(`otc-sync - Off The Cloud folder sync
 
   otc-sync                      tray app (or the daemon, without a display)
   otc-sync tray | run           the tray app | the daemon with no UI
   otc-sync status               what the running daemon is doing
+  otc-sync update               install a newer version, if there is one (signed releases only)
   otc-sync settings --name cala [--password-stdin | --password-prompt]
   otc-sync settings --address ws://192.168.1.10:8080/ws
   otc-sync folders              the folders being synced

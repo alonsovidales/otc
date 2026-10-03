@@ -92,3 +92,11 @@ func Status() error { return systemctl("status", "--no-pager", unitName) }
 
 // Supported is whether this platform has the service mode at all.
 const Supported = true
+
+// RestartIfActive restarts the user service when it is running - after
+// a self-update replaced the program it runs.
+func RestartIfActive() {
+	if exec.Command("systemctl", "--user", "is-active", "--quiet", unitName).Run() == nil {
+		_ = systemctl("restart", unitName)
+	}
+}

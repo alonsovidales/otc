@@ -13,3 +13,6 @@ func Uninstall() error     { return errUnsupported }
 func Status() error        { return errUnsupported }
 
 const Supported = false
+
+// RestartIfActive: there is no service to restart off Linux.
+func RestartIfActive() {}

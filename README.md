@@ -29,7 +29,10 @@ A menu-bar app that keeps folders on your computer in sync with the device - wat
 The same sync client for Windows and Linux, `otc-sync`: a tray icon with the same menu (status,
 the RAID's health as the icon's colour, your folders, add a local or a remote folder, settings),
 plus a command line, and on Linux it can run as a service on a machine nobody logs into. It
-starts at login on its own. Download the binary for your system from the
+starts at login on its own, and updates itself: when a new version is out, the menu shows
+"⬆ Update otc-sync to …" and one click installs it (`otc-sync update` on the command line).
+Updates are signed with the project's release key and checked before they are installed.
+Download it from [off-the.cloud](https://off-the.cloud/#download) or the
 [desktop release](https://github.com/alonsovidales/otc/releases/tag/desktop):
 
 | System | File |
@@ -46,7 +49,7 @@ since that path is what starts at login.
 *Linux, with a desktop*:
 
 ```
-sudo install -m 0755 otc-sync-linux-amd64 /usr/local/bin/otc-sync
+install -Dm755 otc-sync-linux-amd64 ~/.local/bin/otc-sync   # yours, so it can update itself
 otc-sync            # the tray app; registers itself under ~/.config/autostart
 ```
 

@@ -161,6 +161,19 @@
     }
     .note strong{color:var(--mist)}
 
+    /* Desktop downloads */
+    .dl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1040px;margin:0 auto}
+    @media (max-width:900px){ .dl-grid{grid-template-columns:1fr} }
+    .dl-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px}
+    .dl-card.mine{border-color:var(--gold)}
+    .dl-card h3{margin:0;font-size:19px}
+    .dl-card .mine-tag{display:none;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+    .dl-card.mine .mine-tag{display:block}
+    .dl-card p{margin:0;color:var(--mist-dim);font-size:15.5px;line-height:1.55}
+    .dl-card .btn{width:fit-content}
+    .dl-card .alt{font-size:14.5px;color:var(--mist-dim)}
+    .dl-card code{font-size:13.5px;word-break:break-all}
+
     /* FAQ */
     .faq{display:grid;gap:10px;max-width:1040px;margin:0 auto}
     details{
@@ -212,6 +225,7 @@
       </div>
       <nav class="navlinks">
         <a href="#get-started">Get started</a>
+        <a href="#download">Download</a>
         <a href="#what">What it is</a>
         <a href="#screenshots">Gallery</a>
         <a href="#faq">FAQ</a>
@@ -293,6 +307,41 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           it wipes and mirrors two USB disks during setup, and if a Pi ever dies you flash a new card, attach the
           same disks and the wizard offers to recover everything. The status LEDs and every configuration option
           are in the <a href="https://github.com/alonsovidales/otc#readme">README</a>.
+        </div>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Computer apps</span>
+          <h2>Keep your folders in sync</h2>
+          <p>Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray and update themselves: when a new version is out, one click installs it.</p>
+        </div>
+        <div class="dl-grid">
+          <div class="dl-card" data-os="windows">
+            <span class="mine-tag">Your system</span>
+            <h3>Windows</h3>
+            <p>Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray and starts at login.</p>
+            <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe" download>Download for Windows</a>
+            <span class="alt">ARM PC? <a href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-arm64.exe" download>Windows on ARM</a>. The app isn't code-signed yet, so Windows may warn you: choose <em>More info → Run anyway</em>.</span>
+          </div>
+          <div class="dl-card" data-os="linux">
+            <span class="mine-tag">Your system</span>
+            <h3>Linux</h3>
+            <p>A tray app on a desktop, or a command line and a service on a server or a Pi.</p>
+            <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64" download>Download for Linux</a>
+            <span class="alt">ARM (e.g. a Raspberry Pi)? <a href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-arm64" download>Linux ARM64</a>. Then:<br><code>install -Dm755 otc-sync-linux-* ~/.local/bin/otc-sync &amp;&amp; otc-sync</code></span>
+          </div>
+          <div class="dl-card" data-os="mac">
+            <span class="mine-tag">Your system</span>
+            <h3>macOS</h3>
+            <p>A menu bar app with the same folders and sync rules. A direct download is on its way; until then, ask us for a build through the contact form.</p>
+            <a class="btn secondary" href="#contact">Ask for the Mac app</a>
+          </div>
+        </div>
+        <div class="note">
+          <strong>Every update is signed.</strong> The apps only install a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <a href="https://github.com/alonsovidales/otc">GitHub</a>, and every file is listed on the <a href="https://github.com/alonsovidales/otc/releases/tag/desktop">desktop release</a>.
         </div>
       </div>
     </section>
@@ -534,6 +583,14 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
       }
       setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
     });
+
+    // Downloads: highlight the visitor's system and list it first.
+    (() => {
+      const ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent;
+      const os = /win/i.test(ua) ? 'windows' : /mac|iphone|ipad/i.test(ua) ? 'mac' : /linux|x11|cros/i.test(ua) && !/android/i.test(navigator.userAgent) ? 'linux' : '';
+      const card = os && document.querySelector('.dl-card[data-os="' + os + '"]');
+      if (card) { card.classList.add('mine'); card.parentNode.prepend(card); }
+    })();
 
     const form = document.getElementById('contact-form');
     const msgEl = document.getElementById('contact-msg');
