@@ -1698,6 +1698,8 @@ func (dao *Dao) notificationTypeToStr(t pb.NotificationType) string {
 		return "FriendAccepted"
 	case pb.NotificationType_NotificationError:
 		return "Error"
+	case pb.NotificationType_NotificationUpdate:
+		return "Update"
 	}
 	return ""
 }
@@ -1716,8 +1718,26 @@ func (dao *Dao) strToNotificationType(s string) pb.NotificationType {
 		return pb.NotificationType_NotificationFriendAccepted
 	case "Error":
 		return pb.NotificationType_NotificationError
+	case "Update":
+		return pb.NotificationType_NotificationUpdate
 	}
 	return pb.NotificationType_NotificationLikePublication
+}
+
+// AddUpdateNotification (issue #183) tells the owner about a major or
+// critical update, once: a notification with the same title (which names
+// the version) is not added again.
+func (dao *Dao) AddUpdateNotification(title, detail string) error {
+	var n int
+	if err := dao.db.QueryRow("select count(*) from `notifications` where `type` = 'Update' and `title` = ?", title).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Update', 'This device', '', ?, ?, 1)",
+		uuid.New(), title, detail)
+	return err
 }
 
 // errorNotificationWindow is how long a group of errors stays open

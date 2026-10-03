@@ -1,0 +1,12 @@
+# OTC release kinds and versions (issue #183).
+#
+#   <release>	<minor|major|critical>	<major.minor>
+#
+# minor: everything else. major: changes that affect security, stability or
+# durability - the device tells its owner in Notifications. critical: breaks
+# compatibility with the bridge or the apps if not installed, or a serious
+# security fix - every app shows a banner until it is installed.
+# Signed like VERSIONS (RELEASES.sig, scripts/release.sh); kept apart from
+# it because the update runners read VERSIONS by position. Releases before
+# 84 have no version and show as builds.
+84	major	1.0

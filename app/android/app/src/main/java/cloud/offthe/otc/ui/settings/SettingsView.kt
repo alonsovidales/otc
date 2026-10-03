@@ -385,20 +385,39 @@ private fun UpdateSection() {
     if (!st.isPrimary) return
     Section("Device version") {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (st.currentVersion > 0) "Version ${st.currentVersion}" else "Version —")
-            if (st.hasUpdate) Text(" → ${st.latestVersion}", fontWeight = FontWeight.Bold)
+            Text(if (st.currentVersion > 0) st.installedText else "Version —")
+            if (st.hasUpdate) { Text(" → ${st.latestText}", fontWeight = FontWeight.Bold); KindBadge(st.latestKind) }
             Spacer(Modifier.weight(1f))
             if (!st.hasUpdate && !st.running && st.checkError.isEmpty()) Caption("Up to date")
         }
-        st.pending.forEach { r -> Row { Text("${r.version} ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall); Caption(r.summary) } }
+        st.pending.forEach { r ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(r.label.ifEmpty { "build ${r.version}" }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                KindBadge(r.kind)
+                Spacer(Modifier.width(6.dp))
+                Caption(r.summary)
+            }
+        }
         if (st.running) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(st.message.ifEmpty { "Updating…" }) }
         if (st.state == "failed") Caption(if (st.lastUpdated.isEmpty()) "Update failed: ${st.message}" else "Update failed on ${st.lastUpdated}: ${st.message}", Color(0xFFE53935))
         if (st.checkError.isNotEmpty()) Caption("Couldn't reach the update server just now, so this may be out of date.")
         RowButton(if (st.checking) "Checking…" else "Check again", enabled = !st.checking && !st.running) { scope.launch { vm.check() } }
-        if (st.hasUpdate) RowButton(if (st.starting) "Starting…" else "Update to ${st.latestVersion}", enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
+        if (st.hasUpdate) RowButton(if (st.starting) "Starting…" else "Update to ${st.latestText}", enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
         if (st.hasUpdate || st.running) Caption("The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.")
         st.error?.let { Caption(it, Color(0xFFE53935)) }
     }
+}
+
+/** Issue #183: "Major" (orange) or "Critical" (red) next to a release; nothing for a minor one. */
+@Composable
+private fun KindBadge(kind: String) {
+    val (label, color) = when (kind) {
+        "major" -> "Major" to Color(0xFFFF9800)
+        "critical" -> "Critical" to Color(0xFFE53935)
+        else -> return
+    }
+    Text(label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(start = 6.dp).background(color, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
 }
 
 @Composable

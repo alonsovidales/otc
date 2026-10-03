@@ -27,7 +27,7 @@ struct NotificationsListView: View {
         case .notificationNewComment: return "commented on your post"
         case .notificationFriendRequest: return "sent you a friend request"
         case .notificationFriendAccepted: return "accepted your friend request"
-        case .notificationError, .UNRECOGNIZED: return ""
+        case .notificationError, .notificationUpdate, .UNRECOGNIZED: return ""
         }
     }
 
@@ -46,6 +46,8 @@ struct NotificationsListView: View {
                     List(model.notifications, id: \.uuid) { n in
                         if n.type == .notificationError {
                             errorRow(n)
+                        } else if n.type == .notificationUpdate {
+                            updateRow(n)
                         } else {
                         HStack(spacing: 8) {
                         Button {
@@ -105,6 +107,45 @@ struct NotificationsListView: View {
             .navigationTitle("Notifications")
         }
         .task { await model.openPanel() }
+    }
+
+    /// Issue #183: a device update worth knowing about - which one in the
+    /// title, what it changes in the details. A tap opens Settings at its
+    /// update section.
+    @ViewBuilder
+    private func updateRow(_ n: Msg_Notification) -> some View {
+        Button {
+            model.handleTap(n)
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundStyle(.blue)
+                    .font(.title3)
+                    .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(n.title).bold()
+                        .foregroundStyle(.primary)
+                        .font(.subheadline)
+                    if n.hasDt {
+                        Text(Self.relativeFormatter.localizedString(for: n.dt.date, relativeTo: Date()))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !n.details.isEmpty {
+                        Text(n.details)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 4)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
     }
 
     /// Issue #64: a device error, or a group of them. One line (the first

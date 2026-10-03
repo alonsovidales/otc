@@ -21,6 +21,9 @@ final class UpdateViewModel: ObservableObject {
     @Published var isPrimary = false
     @Published var currentVersion: Int32 = 0
     @Published var latestVersion: Int32 = 0
+    // Issue #183: "major.minor" names; empty from a device on old releases.
+    @Published var currentLabel = ""
+    @Published var latestLabel = ""
     @Published var pending: [Msg_UpdateRelease] = []
     @Published var state = ""
     @Published var message = ""
@@ -35,6 +38,16 @@ final class UpdateViewModel: ObservableObject {
 
     var hasUpdate: Bool { !pending.isEmpty }
     var running: Bool { state == "running" }
+
+    /// Issue #183: "1.1 (build 42)", or "build 42" without a label.
+    var installedText: String {
+        guard currentVersion > 0 else { return "—" }
+        return currentLabel.isEmpty ? "build \(currentVersion)" : "\(currentLabel) (build \(currentVersion))"
+    }
+
+    /// The newest release's name, and its kind when it is pending.
+    var latestText: String { latestLabel.isEmpty ? "build \(latestVersion)" : latestLabel }
+    var latestKind: String { pending.first { $0.version == latestVersion }?.kind ?? "" }
 
     func load() async {
         do {
@@ -64,6 +77,8 @@ final class UpdateViewModel: ObservableObject {
             }
             currentVersion = info.currentVersion
             latestVersion = info.latestVersion
+            currentLabel = info.currentLabel
+            latestLabel = info.latestLabel
             pending = info.pending
             state = info.state
             message = info.message
@@ -126,10 +141,11 @@ struct UpdateSection: View {
         if vm.isPrimary {
             Section(header: Text("Device version")) {
                 HStack {
-                    Text(vm.currentVersion > 0 ? "Version \(vm.currentVersion)" : "Version —")
+                    Text(vm.installedText)
                         .monospacedDigit()
                     if vm.hasUpdate {
-                        Text("→ \(vm.latestVersion)").monospacedDigit().bold()
+                        Text("→ \(vm.latestText)").monospacedDigit().bold()
+                        ReleaseKindBadge(kind: vm.latestKind)
                     }
                     Spacer()
                     if !vm.hasUpdate && !vm.running && vm.checkError.isEmpty {
@@ -139,7 +155,9 @@ struct UpdateSection: View {
 
                 ForEach(Array(vm.pending.enumerated()), id: \.offset) { _, release in
                     HStack(alignment: .top, spacing: 6) {
-                        Text("\(release.version)").monospacedDigit().bold()
+                        Text(release.label.isEmpty ? "build \(release.version)" : release.label)
+                            .monospacedDigit().bold()
+                        ReleaseKindBadge(kind: release.kind)
                         Text(release.summary).foregroundStyle(.secondary)
                     }
                     .font(.caption)
@@ -175,7 +193,7 @@ struct UpdateSection: View {
                 .disabled(vm.checking || vm.running)
 
                 if vm.hasUpdate {
-                    Button(vm.starting ? "Starting…" : "Update to \(vm.latestVersion)") {
+                    Button(vm.starting ? "Starting…" : "Update to \(vm.latestText)") {
                         Task { await vm.apply() }
                     }
                     .disabled(vm.starting || vm.running)
@@ -194,6 +212,31 @@ struct UpdateSection: View {
         } else {
             // Nothing to show, but the role still has to be asked for.
             Color.clear.frame(height: 0).task { await vm.load() }
+        }
+    }
+}
+
+/// Issue #183: "Major" (orange) or "Critical" (red) next to a release;
+/// nothing for a minor one or a release from before kinds existed.
+private struct ReleaseKindBadge: View {
+    let kind: String
+
+    var body: some View {
+        if let (text, color) = style {
+            Text(text)
+                .font(.caption2.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(color, in: Capsule())
+        }
+    }
+
+    private var style: (String, Color)? {
+        switch kind {
+        case "major": return ("Major", .orange)
+        case "critical": return ("Critical", .red)
+        default: return nil
         }
     }
 }

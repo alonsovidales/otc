@@ -246,15 +246,26 @@ type State struct {
 	RaidSummary string `json:"raid_summary"`
 	// The device's load, as its status reports it (units of 1.024 MB):
 	// the storage bar and the CPU/memory pop-up next to RaidSummary.
-	StorageUsed   int64          `json:"storage_used,omitempty"`
-	StorageSize   int64          `json:"storage_size,omitempty"`
-	CPUPercent    float64        `json:"cpu_percent,omitempty"`
-	MemUsed       int64          `json:"mem_used,omitempty"`
-	MemSize       int64          `json:"mem_size,omitempty"`
+	StorageUsed int64   `json:"storage_used,omitempty"`
+	StorageSize int64   `json:"storage_size,omitempty"`
+	CPUPercent  float64 `json:"cpu_percent,omitempty"`
+	MemUsed     int64   `json:"mem_used,omitempty"`
+	MemSize     int64   `json:"mem_size,omitempty"`
+	// Issue #183: a major or critical device update not installed yet
+	// (the status's update_alert); nil when there is none.
+	UpdateAlert   *UpdateAlert   `json:"update_alert,omitempty"`
 	Folders       []FolderStatus `json:"folders"`
 	RemoteFolders []FolderStatus `json:"remote_folders"`
 	PID           int            `json:"pid"`
 	Updated       time.Time      `json:"updated"`
+}
+
+// UpdateAlert is the status's update_alert: Level is "major" or
+// "critical", Version e.g. "2.0", Summary what the update is about.
+type UpdateAlert struct {
+	Level   string `json:"level"`
+	Version string `json:"version"`
+	Summary string `json:"summary,omitempty"`
 }
 
 // LoadState reads what the running engine last wrote; nil when none has.

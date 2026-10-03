@@ -32,6 +32,7 @@ object NotificationsModel {
     private val _loadingList = MutableStateFlow(false)
     private val _pendingDeepLink = MutableStateFlow<DeepLink?>(null)
     private val _alertsRequested = MutableStateFlow(false)
+    private val _settingsRequested = MutableStateFlow(false)
     private val _awaitingAnswer = MutableStateFlow<Set<String>>(emptySet())
     private val _acceptedHere = MutableStateFlow<Set<String>>(emptySet())
     /** Domains whose friend request is still waiting: their alert gets an Accept button. */
@@ -44,6 +45,8 @@ object NotificationsModel {
     val pendingDeepLink: StateFlow<DeepLink?> = _pendingDeepLink
     /** Issue #125: a tapped push asks MainView to show the Alerts tab. */
     val alertsRequested: StateFlow<Boolean> = _alertsRequested
+    /** Issue #183: a tapped update alert asks MainView to show Settings. */
+    val settingsRequested: StateFlow<Boolean> = _settingsRequested
 
     fun requestAlerts() { _alertsRequested.value = true }
 
@@ -60,6 +63,7 @@ object NotificationsModel {
         }
     }
     fun consumeAlertsRequest() { _alertsRequested.value = false }
+    fun consumeSettingsRequest() { _settingsRequested.value = false }
 
     private var pollJob: Job? = null
 
@@ -142,6 +146,7 @@ object NotificationsModel {
     }
 
     fun handleTap(n: Notification) {
+        if (n.type == NotificationType.NotificationUpdate) { _settingsRequested.value = true; return }
         _pendingDeepLink.value = when (n.type) {
             NotificationType.NotificationFriendRequest, NotificationType.NotificationFriendAccepted -> DeepLink.FriendRequests
             else -> if (n.pubUuid.isEmpty()) return else DeepLink.Post(n.pubUuid, n.commentUuid.ifEmpty { null })

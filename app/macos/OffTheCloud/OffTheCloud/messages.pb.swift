@@ -267,6 +267,10 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
   /// notification (see dao.AddErrorNotification), so the list is never
   /// flooded. actor fields are unused; title/details/occurrences carry it.
   case notificationError // = 5
+
+  /// Issue #183: a major or critical update is available - title says which
+  /// version, details what it changes; opens Settings.
+  case notificationUpdate // = 6
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -281,6 +285,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     case 3: self = .notificationFriendRequest
     case 4: self = .notificationFriendAccepted
     case 5: self = .notificationError
+    case 6: self = .notificationUpdate
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -293,6 +298,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     case .notificationFriendRequest: return 3
     case .notificationFriendAccepted: return 4
     case .notificationError: return 5
+    case .notificationUpdate: return 6
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -305,6 +311,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     .notificationFriendRequest,
     .notificationFriendAccepted,
     .notificationError,
+    .notificationUpdate,
   ]
 
 }
@@ -333,43 +340,120 @@ public nonisolated struct Msg_GetStatus: Sendable {
   public init() {}
 }
 
-public nonisolated struct Msg_Status: Sendable {
+public nonisolated struct Msg_Status: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var online: Bool = false
+  public var online: Bool {
+    get {_storage._online}
+    set {_uniqueStorage()._online = newValue}
+  }
 
   /// total physical devices in the RAID array (0 if none)
-  public var disks: Int32 = 0
+  public var disks: Int32 {
+    get {_storage._disks}
+    set {_uniqueStorage()._disks = newValue}
+  }
 
-  public var errors: [Msg_StatusErrors] = []
+  public var errors: [Msg_StatusErrors] {
+    get {_storage._errors}
+    set {_uniqueStorage()._errors = newValue}
+  }
 
-  public var raidSize: Int32 = 0
+  public var raidSize: Int32 {
+    get {_storage._raidSize}
+    set {_uniqueStorage()._raidSize = newValue}
+  }
 
-  public var raidUsage: Int32 = 0
+  public var raidUsage: Int32 {
+    get {_storage._raidUsage}
+    set {_uniqueStorage()._raidUsage = newValue}
+  }
 
-  public var diskSize: Int32 = 0
+  public var diskSize: Int32 {
+    get {_storage._diskSize}
+    set {_uniqueStorage()._diskSize = newValue}
+  }
 
-  public var diskUsage: Int32 = 0
+  public var diskUsage: Int32 {
+    get {_storage._diskUsage}
+    set {_uniqueStorage()._diskUsage = newValue}
+  }
 
-  public var cpuUsagePrc: Float = 0
+  public var cpuUsagePrc: Float {
+    get {_storage._cpuUsagePrc}
+    set {_uniqueStorage()._cpuUsagePrc = newValue}
+  }
 
-  public var memSize: Int32 = 0
+  public var memSize: Int32 {
+    get {_storage._memSize}
+    set {_uniqueStorage()._memSize = newValue}
+  }
 
-  public var memUsage: Int32 = 0
+  public var memUsage: Int32 {
+    get {_storage._memUsage}
+    set {_uniqueStorage()._memUsage = newValue}
+  }
 
   /// Issue #65: parsed from /proc/mdstat - see status.readRaidStatus.
-  public var raidState: Msg_RaidState = .raidUnknown
+  public var raidState: Msg_RaidState {
+    get {_storage._raidState}
+    set {_uniqueStorage()._raidState = newValue}
+  }
 
   /// e.g. "raid1", "raid5"; "" if no array
-  public var raidLevel: String = String()
+  public var raidLevel: String {
+    get {_storage._raidLevel}
+    set {_uniqueStorage()._raidLevel = newValue}
+  }
 
   /// active/in-sync devices, out of `disks`
-  public var raidDevicesActive: Int32 = 0
+  public var raidDevicesActive: Int32 {
+    get {_storage._raidDevicesActive}
+    set {_uniqueStorage()._raidDevicesActive = newValue}
+  }
 
   /// only meaningful when raid_state == Syncing
-  public var raidSyncPercent: Float = 0
+  public var raidSyncPercent: Float {
+    get {_storage._raidSyncPercent}
+    set {_uniqueStorage()._raidSyncPercent = newValue}
+  }
+
+  /// Issue #183: a major or critical update this device hasn't installed
+  /// yet (unset when there is none). Every app polls Status, so a critical
+  /// one reaches them all: they show a banner until it's installed.
+  public var updateAlert: Msg_UpdateAlert {
+    get {_storage._updateAlert ?? Msg_UpdateAlert()}
+    set {_uniqueStorage()._updateAlert = newValue}
+  }
+  /// Returns true if `updateAlert` has been explicitly set.
+  public var hasUpdateAlert: Bool {_storage._updateAlert != nil}
+  /// Clears the value of `updateAlert`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateAlert() {_uniqueStorage()._updateAlert = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// Issue #183: releases are minor, major (security, stability or durability)
+/// or critical (breaks compatibility with the bridge or the apps if not
+/// installed, or a serious security fix).
+public nonisolated struct Msg_UpdateAlert: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// "major" or "critical"
+  public var level: String = String()
+
+  /// the version it updates to, e.g. "2.0"
+  public var version: String = String()
+
+  public var summary: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1774,6 +1858,12 @@ public nonisolated struct Msg_UpdateRelease: Sendable {
 
   public var version: Int32 = 0
 
+  /// Issue #183: "minor", "major" or "critical", and its "major.minor"
+  /// label (empty for releases from before labels, which show as builds).
+  public var kind: String = String()
+
+  public var label: String = String()
+
   /// Named "summary" rather than "description": SwiftProtobuf renames a
   /// field called description to description_p, because it would collide
   /// with CustomStringConvertible - and every client would then be reading
@@ -1811,6 +1901,11 @@ public nonisolated struct Msg_RespUpdateInfo: Sendable {
   /// from "no updates": one means try again later, the other means there
   /// is nothing to do.
   public var checkError: String = String()
+
+  /// Issue #183: the installed version's label ("1.1"; empty before labels).
+  public var currentLabel: String = String()
+
+  public var latestLabel: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -5971,7 +6066,7 @@ nonisolated extension Msg_BridgeOnboardErrorType: SwiftProtobuf._ProtoNameProvid
 }
 
 nonisolated extension Msg_NotificationType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0\u{1}NotificationError\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0\u{1}NotificationError\0\u{1}NotificationUpdate\0")
 }
 
 nonisolated extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -6030,7 +6125,175 @@ nonisolated extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Status"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
+
+  fileprivate class _StorageClass {
+    var _online: Bool = false
+    var _disks: Int32 = 0
+    var _errors: [Msg_StatusErrors] = []
+    var _raidSize: Int32 = 0
+    var _raidUsage: Int32 = 0
+    var _diskSize: Int32 = 0
+    var _diskUsage: Int32 = 0
+    var _cpuUsagePrc: Float = 0
+    var _memSize: Int32 = 0
+    var _memUsage: Int32 = 0
+    var _raidState: Msg_RaidState = .raidUnknown
+    var _raidLevel: String = String()
+    var _raidDevicesActive: Int32 = 0
+    var _raidSyncPercent: Float = 0
+    var _updateAlert: Msg_UpdateAlert? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _online = source._online
+      _disks = source._disks
+      _errors = source._errors
+      _raidSize = source._raidSize
+      _raidUsage = source._raidUsage
+      _diskSize = source._diskSize
+      _diskUsage = source._diskUsage
+      _cpuUsagePrc = source._cpuUsagePrc
+      _memSize = source._memSize
+      _memUsage = source._memUsage
+      _raidState = source._raidState
+      _raidLevel = source._raidLevel
+      _raidDevicesActive = source._raidDevicesActive
+      _raidSyncPercent = source._raidSyncPercent
+      _updateAlert = source._updateAlert
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularBoolField(value: &_storage._online) }()
+        case 3: try { try decoder.decodeSingularInt32Field(value: &_storage._disks) }()
+        case 4: try { try decoder.decodeRepeatedMessageField(value: &_storage._errors) }()
+        case 5: try { try decoder.decodeSingularInt32Field(value: &_storage._raidSize) }()
+        case 6: try { try decoder.decodeSingularInt32Field(value: &_storage._raidUsage) }()
+        case 7: try { try decoder.decodeSingularInt32Field(value: &_storage._diskSize) }()
+        case 8: try { try decoder.decodeSingularInt32Field(value: &_storage._diskUsage) }()
+        case 9: try { try decoder.decodeSingularFloatField(value: &_storage._cpuUsagePrc) }()
+        case 10: try { try decoder.decodeSingularInt32Field(value: &_storage._memSize) }()
+        case 11: try { try decoder.decodeSingularInt32Field(value: &_storage._memUsage) }()
+        case 12: try { try decoder.decodeSingularEnumField(value: &_storage._raidState) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._raidLevel) }()
+        case 14: try { try decoder.decodeSingularInt32Field(value: &_storage._raidDevicesActive) }()
+        case 15: try { try decoder.decodeSingularFloatField(value: &_storage._raidSyncPercent) }()
+        case 16: try { try decoder.decodeSingularMessageField(value: &_storage._updateAlert) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._online != false {
+        try visitor.visitSingularBoolField(value: _storage._online, fieldNumber: 1)
+      }
+      if _storage._disks != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._disks, fieldNumber: 3)
+      }
+      if !_storage._errors.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._errors, fieldNumber: 4)
+      }
+      if _storage._raidSize != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._raidSize, fieldNumber: 5)
+      }
+      if _storage._raidUsage != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._raidUsage, fieldNumber: 6)
+      }
+      if _storage._diskSize != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._diskSize, fieldNumber: 7)
+      }
+      if _storage._diskUsage != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._diskUsage, fieldNumber: 8)
+      }
+      if _storage._cpuUsagePrc.bitPattern != 0 {
+        try visitor.visitSingularFloatField(value: _storage._cpuUsagePrc, fieldNumber: 9)
+      }
+      if _storage._memSize != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._memSize, fieldNumber: 10)
+      }
+      if _storage._memUsage != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._memUsage, fieldNumber: 11)
+      }
+      if _storage._raidState != .raidUnknown {
+        try visitor.visitSingularEnumField(value: _storage._raidState, fieldNumber: 12)
+      }
+      if !_storage._raidLevel.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._raidLevel, fieldNumber: 13)
+      }
+      if _storage._raidDevicesActive != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._raidDevicesActive, fieldNumber: 14)
+      }
+      if _storage._raidSyncPercent.bitPattern != 0 {
+        try visitor.visitSingularFloatField(value: _storage._raidSyncPercent, fieldNumber: 15)
+      }
+      try { if let v = _storage._updateAlert {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_Status, rhs: Msg_Status) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._online != rhs_storage._online {return false}
+        if _storage._disks != rhs_storage._disks {return false}
+        if _storage._errors != rhs_storage._errors {return false}
+        if _storage._raidSize != rhs_storage._raidSize {return false}
+        if _storage._raidUsage != rhs_storage._raidUsage {return false}
+        if _storage._diskSize != rhs_storage._diskSize {return false}
+        if _storage._diskUsage != rhs_storage._diskUsage {return false}
+        if _storage._cpuUsagePrc != rhs_storage._cpuUsagePrc {return false}
+        if _storage._memSize != rhs_storage._memSize {return false}
+        if _storage._memUsage != rhs_storage._memUsage {return false}
+        if _storage._raidState != rhs_storage._raidState {return false}
+        if _storage._raidLevel != rhs_storage._raidLevel {return false}
+        if _storage._raidDevicesActive != rhs_storage._raidDevicesActive {return false}
+        if _storage._raidSyncPercent != rhs_storage._raidSyncPercent {return false}
+        if _storage._updateAlert != rhs_storage._updateAlert {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_UpdateAlert: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateAlert"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}level\0\u{1}version\0\u{1}summary\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -6038,86 +6301,31 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBoolField(value: &self.online) }()
-      case 3: try { try decoder.decodeSingularInt32Field(value: &self.disks) }()
-      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.errors) }()
-      case 5: try { try decoder.decodeSingularInt32Field(value: &self.raidSize) }()
-      case 6: try { try decoder.decodeSingularInt32Field(value: &self.raidUsage) }()
-      case 7: try { try decoder.decodeSingularInt32Field(value: &self.diskSize) }()
-      case 8: try { try decoder.decodeSingularInt32Field(value: &self.diskUsage) }()
-      case 9: try { try decoder.decodeSingularFloatField(value: &self.cpuUsagePrc) }()
-      case 10: try { try decoder.decodeSingularInt32Field(value: &self.memSize) }()
-      case 11: try { try decoder.decodeSingularInt32Field(value: &self.memUsage) }()
-      case 12: try { try decoder.decodeSingularEnumField(value: &self.raidState) }()
-      case 13: try { try decoder.decodeSingularStringField(value: &self.raidLevel) }()
-      case 14: try { try decoder.decodeSingularInt32Field(value: &self.raidDevicesActive) }()
-      case 15: try { try decoder.decodeSingularFloatField(value: &self.raidSyncPercent) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.level) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.version) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.summary) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.online != false {
-      try visitor.visitSingularBoolField(value: self.online, fieldNumber: 1)
+    if !self.level.isEmpty {
+      try visitor.visitSingularStringField(value: self.level, fieldNumber: 1)
     }
-    if self.disks != 0 {
-      try visitor.visitSingularInt32Field(value: self.disks, fieldNumber: 3)
+    if !self.version.isEmpty {
+      try visitor.visitSingularStringField(value: self.version, fieldNumber: 2)
     }
-    if !self.errors.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.errors, fieldNumber: 4)
-    }
-    if self.raidSize != 0 {
-      try visitor.visitSingularInt32Field(value: self.raidSize, fieldNumber: 5)
-    }
-    if self.raidUsage != 0 {
-      try visitor.visitSingularInt32Field(value: self.raidUsage, fieldNumber: 6)
-    }
-    if self.diskSize != 0 {
-      try visitor.visitSingularInt32Field(value: self.diskSize, fieldNumber: 7)
-    }
-    if self.diskUsage != 0 {
-      try visitor.visitSingularInt32Field(value: self.diskUsage, fieldNumber: 8)
-    }
-    if self.cpuUsagePrc.bitPattern != 0 {
-      try visitor.visitSingularFloatField(value: self.cpuUsagePrc, fieldNumber: 9)
-    }
-    if self.memSize != 0 {
-      try visitor.visitSingularInt32Field(value: self.memSize, fieldNumber: 10)
-    }
-    if self.memUsage != 0 {
-      try visitor.visitSingularInt32Field(value: self.memUsage, fieldNumber: 11)
-    }
-    if self.raidState != .raidUnknown {
-      try visitor.visitSingularEnumField(value: self.raidState, fieldNumber: 12)
-    }
-    if !self.raidLevel.isEmpty {
-      try visitor.visitSingularStringField(value: self.raidLevel, fieldNumber: 13)
-    }
-    if self.raidDevicesActive != 0 {
-      try visitor.visitSingularInt32Field(value: self.raidDevicesActive, fieldNumber: 14)
-    }
-    if self.raidSyncPercent.bitPattern != 0 {
-      try visitor.visitSingularFloatField(value: self.raidSyncPercent, fieldNumber: 15)
+    if !self.summary.isEmpty {
+      try visitor.visitSingularStringField(value: self.summary, fieldNumber: 3)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Msg_Status, rhs: Msg_Status) -> Bool {
-    if lhs.online != rhs.online {return false}
-    if lhs.disks != rhs.disks {return false}
-    if lhs.errors != rhs.errors {return false}
-    if lhs.raidSize != rhs.raidSize {return false}
-    if lhs.raidUsage != rhs.raidUsage {return false}
-    if lhs.diskSize != rhs.diskSize {return false}
-    if lhs.diskUsage != rhs.diskUsage {return false}
-    if lhs.cpuUsagePrc != rhs.cpuUsagePrc {return false}
-    if lhs.memSize != rhs.memSize {return false}
-    if lhs.memUsage != rhs.memUsage {return false}
-    if lhs.raidState != rhs.raidState {return false}
-    if lhs.raidLevel != rhs.raidLevel {return false}
-    if lhs.raidDevicesActive != rhs.raidDevicesActive {return false}
-    if lhs.raidSyncPercent != rhs.raidSyncPercent {return false}
+  public static func ==(lhs: Msg_UpdateAlert, rhs: Msg_UpdateAlert) -> Bool {
+    if lhs.level != rhs.level {return false}
+    if lhs.version != rhs.version {return false}
+    if lhs.summary != rhs.summary {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -8552,7 +8760,7 @@ nonisolated extension Msg_ReqCheckUpdate: SwiftProtobuf.Message, SwiftProtobuf._
 
 nonisolated extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateRelease"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{1}summary\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{1}summary\0\u{1}kind\0\u{1}label\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -8562,6 +8770,8 @@ nonisolated extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._M
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularInt32Field(value: &self.version) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.summary) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.kind) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.label) }()
       default: break
       }
     }
@@ -8574,11 +8784,19 @@ nonisolated extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.summary.isEmpty {
       try visitor.visitSingularStringField(value: self.summary, fieldNumber: 2)
     }
+    if !self.kind.isEmpty {
+      try visitor.visitSingularStringField(value: self.kind, fieldNumber: 3)
+    }
+    if !self.label.isEmpty {
+      try visitor.visitSingularStringField(value: self.label, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_UpdateRelease, rhs: Msg_UpdateRelease) -> Bool {
     if lhs.version != rhs.version {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.label != rhs.label {return false}
     if lhs.summary != rhs.summary {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -8587,7 +8805,7 @@ nonisolated extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespUpdateInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_version\0\u{3}latest_version\0\u{1}pending\0\u{1}state\0\u{1}message\0\u{3}last_updated\0\u{3}check_error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_version\0\u{3}latest_version\0\u{1}pending\0\u{1}state\0\u{1}message\0\u{3}last_updated\0\u{3}check_error\0\u{3}current_label\0\u{3}latest_label\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -8602,6 +8820,8 @@ nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._
       case 5: try { try decoder.decodeSingularStringField(value: &self.message) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self.lastUpdated) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.checkError) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.currentLabel) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.latestLabel) }()
       default: break
       }
     }
@@ -8629,6 +8849,12 @@ nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._
     if !self.checkError.isEmpty {
       try visitor.visitSingularStringField(value: self.checkError, fieldNumber: 7)
     }
+    if !self.currentLabel.isEmpty {
+      try visitor.visitSingularStringField(value: self.currentLabel, fieldNumber: 8)
+    }
+    if !self.latestLabel.isEmpty {
+      try visitor.visitSingularStringField(value: self.latestLabel, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -8640,6 +8866,8 @@ nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.message != rhs.message {return false}
     if lhs.lastUpdated != rhs.lastUpdated {return false}
     if lhs.checkError != rhs.checkError {return false}
+    if lhs.currentLabel != rhs.currentLabel {return false}
+    if lhs.latestLabel != rhs.latestLabel {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

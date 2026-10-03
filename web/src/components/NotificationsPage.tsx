@@ -37,6 +37,7 @@ function formatWhen(d?: Date): string {
 function describe(n: PbNotification): string {
   switch (n.type) {
     case NotificationType.NotificationError: return "";
+    case NotificationType.NotificationUpdate: return "";
     case NotificationType.NotificationLikePublication: return "liked your post";
     case NotificationType.NotificationLikeComment: return "liked your comment";
     case NotificationType.NotificationNewComment: return "commented on your post";
@@ -80,10 +81,13 @@ export function useNotificationCount(authenticated: boolean): [number, () => voi
 export default function NotificationsPage({
   onOpenPost,
   onOpenFriendRequests,
+  onOpenSettings,
   onAcknowledged,
 }: {
   onOpenPost: (pubUuid: string, commentUuid: string | null) => void;
   onOpenFriendRequests: () => void;
+  // Issue #183: an update notification opens Settings, where Update is.
+  onOpenSettings?: () => void;
   // Lets App.tsx zero the TopTabs badge the instant this page marks
   // everything read, rather than waiting for that separate poll to catch up.
   onAcknowledged: () => void;
@@ -162,6 +166,10 @@ export default function NotificationsPage({
   };
 
   const onClickNotification = (n: PbNotification) => {
+    if (n.type === NotificationType.NotificationUpdate) {
+      onOpenSettings?.();
+      return;
+    }
     if (n.type === NotificationType.NotificationError) {
       setPinnedDetails((p) => ({ ...p, [n.uuid]: !p[n.uuid] }));
       return;
@@ -184,13 +192,21 @@ export default function NotificationsPage({
           {notifications.map(n => {
             const { avatar, thumb } = images.get(n.uuid) ?? { avatar: null, thumb: null };
             const isError = n.type === NotificationType.NotificationError;
+            const isUpdate = n.type === NotificationType.NotificationUpdate;
             return (
               <li
                 key={n.uuid}
                 className={`np-item${n.acknowledged ? "" : " np-unacknowledged"}${isError ? " np-error" : ""}${pinnedDetails[n.uuid] ? " np-pinned" : ""}`}
                 onClick={() => onClickNotification(n)}
               >
-                {isError ? (
+                {isUpdate ? (
+                  <div className="np-avatar np-avatar-placeholder np-update-icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+                      <path d="M12 7v8M8.5 11.5 12 15l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                ) : isError ? (
                   <div className="np-avatar np-avatar-placeholder np-error-icon" aria-hidden="true">
                     <svg width="20" height="20" viewBox="0 0 24 24">
                       <path d="M12 3 2 21h20L12 3z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
@@ -204,7 +220,9 @@ export default function NotificationsPage({
                   <div className="np-avatar np-avatar-placeholder">👤</div>
                 )}
                 <span className="np-item-text">
-                  {isError ? (
+                  {isUpdate ? (
+                    <><strong>{n.title}</strong>{n.details ? <> - {n.details}</> : null}</>
+                  ) : isError ? (
                     <>
                       {/* Issue #64: one line in the list; the whole list of
                           errors on hover (or pinned by a click). */}

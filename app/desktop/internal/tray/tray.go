@@ -50,6 +50,7 @@ type ui struct {
 	raid      *systray.MenuItem
 	cpu       *systray.MenuItem // the storage line's submenu: the device's
 	mem       *systray.MenuItem // load, shown when the pointer rests on it
+	update    *systray.MenuItem // issue #183: a major or critical device update
 	empty     *systray.MenuItem
 	folders   []*folderItem
 	addLocal  *systray.MenuItem
@@ -118,6 +119,9 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.cpu.Disable()
 	u.mem = u.raid.AddSubMenuItem("", "")
 	u.mem.Disable()
+	u.update = systray.AddMenuItem("", "")
+	u.update.Disable()
+	u.update.Hide()
 	systray.AddSeparator()
 	u.empty = systray.AddMenuItem("No folders yet — add one below.", "")
 	u.empty.Disable()
@@ -217,6 +221,13 @@ func (u *ui) apply() {
 		u.raid.Show()
 	} else {
 		u.raid.Hide()
+	}
+	if title, tip := updateTitle(st.UpdateAlert); title != "" {
+		u.update.SetTitle(title)
+		u.update.SetTooltip(tip)
+		u.update.Show()
+	} else {
+		u.update.Hide()
 	}
 	if st.Raid != u.lastIcon {
 		systray.SetIcon(icons.For(st.Raid))
@@ -444,6 +455,24 @@ func storageTitle(st config.State) string {
 	full := int(frac*cells + 0.5)
 	return fmt.Sprintf("%s  %s%s %.0f%% used", st.RaidSummary,
 		strings.Repeat("■", full), strings.Repeat("□", cells-full), frac*100)
+}
+
+// updateTitle is the device-update line (issue #183) and its tooltip, the
+// update's summary; "" when the device has no major or critical update
+// waiting. A menu item has no colour, so a critical one leads with a
+// warning sign, like the macOS popover's red line.
+func updateTitle(a *config.UpdateAlert) (title, tooltip string) {
+	if a == nil {
+		return "", ""
+	}
+	switch a.Level {
+	case "critical":
+		return "⚠ Critical device update " + a.Version +
+			" - install it from the device's Settings as soon as possible", a.Summary
+	case "major":
+		return "Device update " + a.Version + " available", a.Summary
+	}
+	return "", ""
 }
 
 // memoryTitle: "Memory: 2.1 of 8.2 GB". The status counts in units of

@@ -229,11 +229,16 @@ class StatusViewModel : ViewModel() {
 class UpdateViewModel : ViewModel() {
     data class State(
         val isPrimary: Boolean = false, val currentVersion: Int = 0, val latestVersion: Int = 0, val pending: List<UpdateRelease> = emptyList(),
+        val currentLabel: String = "", val latestLabel: String = "",
         val state: String = "", val message: String = "", val checkError: String = "", val lastUpdated: String = "",
         val checking: Boolean = false, val starting: Boolean = false, val error: String? = null,
     ) {
         val hasUpdate get() = pending.isNotEmpty()
         val running get() = state == "running"
+        /** Issue #183: "1.1 (build 45)", or "build 45" for an older release. */
+        val installedText get() = if (currentLabel.isNotEmpty()) "$currentLabel (build $currentVersion)" else "build $currentVersion"
+        val latestText get() = latestLabel.ifEmpty { "build $latestVersion" }
+        val latestKind get() = pending.firstOrNull { it.version == latestVersion }?.kind ?: ""
     }
     val state = MutableStateFlow(State())
     private var poll: Job? = null
@@ -250,7 +255,7 @@ class UpdateViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqCheckUpdate(ReqCheckUpdate.getDefaultInstance()) }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_UPDATE_INFO) { if (resp.error) state.update { it.copy(error = resp.errorMessage) }; return }
             val i = resp.respUpdateInfo
-            state.update { it.copy(currentVersion = i.currentVersion, latestVersion = i.latestVersion, pending = i.pendingList, state = i.state, message = i.message, checkError = i.checkError, lastUpdated = i.lastUpdated, error = null) }
+            state.update { it.copy(currentVersion = i.currentVersion, latestVersion = i.latestVersion, currentLabel = i.currentLabel, latestLabel = i.latestLabel, pending = i.pendingList, state = i.state, message = i.message, checkError = i.checkError, lastUpdated = i.lastUpdated, error = null) }
         } catch (_: Exception) {
         } finally {
             state.update { it.copy(checking = false) }

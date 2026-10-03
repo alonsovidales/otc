@@ -23,6 +23,7 @@ import { promptForPushIfNeverAsked } from "./net/webPush";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
+import UpdateBanner from "./components/UpdateBanner";
 import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
 import SharedGalleryView from "./components/SharedGalleryView";
@@ -406,6 +407,7 @@ function App() {
           </button>
         }
       </div>
+      {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
       <main>
         {/* Issue #84: "Profile" is only ever the anonymous-visitor landing
             page now - the editable form moved into Settings, and
@@ -445,6 +447,7 @@ function App() {
               setTab("Social");
             }}
             onOpenFriendRequests={() => setTab("Friends")}
+            onOpenSettings={() => setTab("Settings")}
             onAcknowledged={clearNotificationCount}
           />
         ) : signedOutPlaceholder)}

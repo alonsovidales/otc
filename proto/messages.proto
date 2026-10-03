@@ -60,6 +60,19 @@ message Status {
   string raid_level = 13;           // e.g. "raid1", "raid5"; "" if no array
   int32 raid_devices_active = 14;   // active/in-sync devices, out of `disks`
   float raid_sync_percent = 15;     // only meaningful when raid_state == Syncing
+  // Issue #183: a major or critical update this device hasn't installed
+  // yet (unset when there is none). Every app polls Status, so a critical
+  // one reaches them all: they show a banner until it's installed.
+  UpdateAlert update_alert = 16;
+}
+
+// Issue #183: releases are minor, major (security, stability or durability)
+// or critical (breaks compatibility with the bridge or the apps if not
+// installed, or a serious security fix).
+message UpdateAlert {
+  string level = 1;   // "major" or "critical"
+  string version = 2; // the version it updates to, e.g. "2.0"
+  string summary = 3;
 }
 
 message Auth {
@@ -645,6 +658,10 @@ message ReqCheckUpdate {}
 
 message UpdateRelease {
   int32 version = 1;
+  // Issue #183: "minor", "major" or "critical", and its "major.minor"
+  // label (empty for releases from before labels, which show as builds).
+  string kind = 3;
+  string label = 4;
   // Named "summary" rather than "description": SwiftProtobuf renames a
   // field called description to description_p, because it would collide
   // with CustomStringConvertible - and every client would then be reading
@@ -668,6 +685,9 @@ message RespUpdateInfo {
   // from "no updates": one means try again later, the other means there
   // is nothing to do.
   string check_error = 7;
+  // Issue #183: the installed version's label ("1.1"; empty before labels).
+  string current_label = 8;
+  string latest_label = 9;
 }
 
 // Starts the update and answers immediately - it takes minutes and ends
@@ -1546,6 +1566,9 @@ enum NotificationType {
   // notification (see dao.AddErrorNotification), so the list is never
   // flooded. actor fields are unused; title/details/occurrences carry it.
   NotificationError = 5;
+  // Issue #183: a major or critical update is available - title says which
+  // version, details what it changes; opens Settings.
+  NotificationUpdate = 6;
 }
 
 message Notification {

@@ -307,6 +307,11 @@ export const NotificationType = {
    * flooded. actor fields are unused; title/details/occurrences carry it.
    */
   NotificationError: 5,
+  /**
+   * NotificationUpdate - Issue #183: a major or critical update is available - title says which
+   * version, details what it changes; opens Settings.
+   */
+  NotificationUpdate: 6,
   UNRECOGNIZED: -1,
 } as const;
 
@@ -319,6 +324,7 @@ export namespace NotificationType {
   export type NotificationFriendRequest = typeof NotificationType.NotificationFriendRequest;
   export type NotificationFriendAccepted = typeof NotificationType.NotificationFriendAccepted;
   export type NotificationError = typeof NotificationType.NotificationError;
+  export type NotificationUpdate = typeof NotificationType.NotificationUpdate;
   export type UNRECOGNIZED = typeof NotificationType.UNRECOGNIZED;
 }
 
@@ -342,6 +348,9 @@ export function notificationTypeFromJSON(object: any): NotificationType {
     case 5:
     case "NotificationError":
       return NotificationType.NotificationError;
+    case 6:
+    case "NotificationUpdate":
+      return NotificationType.NotificationUpdate;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -363,6 +372,8 @@ export function notificationTypeToJSON(object: NotificationType): string {
       return "NotificationFriendAccepted";
     case NotificationType.NotificationError:
       return "NotificationError";
+    case NotificationType.NotificationUpdate:
+      return "NotificationUpdate";
     case NotificationType.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -397,6 +408,25 @@ export interface Status {
   raidDevicesActive: number;
   /** only meaningful when raid_state == Syncing */
   raidSyncPercent: number;
+  /**
+   * Issue #183: a major or critical update this device hasn't installed
+   * yet (unset when there is none). Every app polls Status, so a critical
+   * one reaches them all: they show a banner until it's installed.
+   */
+  updateAlert?: UpdateAlert | undefined;
+}
+
+/**
+ * Issue #183: releases are minor, major (security, stability or durability)
+ * or critical (breaks compatibility with the bridge or the apps if not
+ * installed, or a serious security fix).
+ */
+export interface UpdateAlert {
+  /** "major" or "critical" */
+  level: string;
+  /** the version it updates to, e.g. "2.0" */
+  version: string;
+  summary: string;
 }
 
 export interface Auth {
@@ -1132,6 +1162,12 @@ export interface ReqCheckUpdate {
 export interface UpdateRelease {
   version: number;
   /**
+   * Issue #183: "minor", "major" or "critical", and its "major.minor"
+   * label (empty for releases from before labels, which show as builds).
+   */
+  kind: string;
+  label: string;
+  /**
    * Named "summary" rather than "description": SwiftProtobuf renames a
    * field called description to description_p, because it would collide
    * with CustomStringConvertible - and every client would then be reading
@@ -1162,6 +1198,9 @@ export interface RespUpdateInfo {
    * is nothing to do.
    */
   checkError: string;
+  /** Issue #183: the installed version's label ("1.1"; empty before labels). */
+  currentLabel: string;
+  latestLabel: string;
 }
 
 /**
@@ -2803,6 +2842,7 @@ function createBaseStatus(): Status {
     raidLevel: "",
     raidDevicesActive: 0,
     raidSyncPercent: 0,
+    updateAlert: undefined,
   };
 }
 
@@ -2849,6 +2889,9 @@ export const Status: MessageFns<Status> = {
     }
     if (message.raidSyncPercent !== 0) {
       writer.uint32(125).float(message.raidSyncPercent);
+    }
+    if (message.updateAlert !== undefined) {
+      UpdateAlert.encode(message.updateAlert, writer.uint32(130).fork()).join();
     }
     return writer;
   },
@@ -2972,6 +3015,14 @@ export const Status: MessageFns<Status> = {
           message.raidSyncPercent = reader.float();
           continue;
         }
+        case 16: {
+          if (tag !== 130) {
+            break;
+          }
+
+          message.updateAlert = UpdateAlert.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2997,6 +3048,7 @@ export const Status: MessageFns<Status> = {
       raidLevel: isSet(object.raidLevel) ? globalThis.String(object.raidLevel) : "",
       raidDevicesActive: isSet(object.raidDevicesActive) ? globalThis.Number(object.raidDevicesActive) : 0,
       raidSyncPercent: isSet(object.raidSyncPercent) ? globalThis.Number(object.raidSyncPercent) : 0,
+      updateAlert: isSet(object.updateAlert) ? UpdateAlert.fromJSON(object.updateAlert) : undefined,
     };
   },
 
@@ -3044,6 +3096,9 @@ export const Status: MessageFns<Status> = {
     if (message.raidSyncPercent !== 0) {
       obj.raidSyncPercent = message.raidSyncPercent;
     }
+    if (message.updateAlert !== undefined) {
+      obj.updateAlert = UpdateAlert.toJSON(message.updateAlert);
+    }
     return obj;
   },
 
@@ -3066,6 +3121,101 @@ export const Status: MessageFns<Status> = {
     message.raidLevel = object.raidLevel ?? "";
     message.raidDevicesActive = object.raidDevicesActive ?? 0;
     message.raidSyncPercent = object.raidSyncPercent ?? 0;
+    message.updateAlert = (object.updateAlert !== undefined && object.updateAlert !== null)
+      ? UpdateAlert.fromPartial(object.updateAlert)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseUpdateAlert(): UpdateAlert {
+  return { level: "", version: "", summary: "" };
+}
+
+export const UpdateAlert: MessageFns<UpdateAlert> = {
+  encode(message: UpdateAlert, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.level !== "") {
+      writer.uint32(10).string(message.level);
+    }
+    if (message.version !== "") {
+      writer.uint32(18).string(message.version);
+    }
+    if (message.summary !== "") {
+      writer.uint32(26).string(message.summary);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdateAlert {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdateAlert();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.level = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.version = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.summary = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpdateAlert {
+    return {
+      level: isSet(object.level) ? globalThis.String(object.level) : "",
+      version: isSet(object.version) ? globalThis.String(object.version) : "",
+      summary: isSet(object.summary) ? globalThis.String(object.summary) : "",
+    };
+  },
+
+  toJSON(message: UpdateAlert): unknown {
+    const obj: any = {};
+    if (message.level !== "") {
+      obj.level = message.level;
+    }
+    if (message.version !== "") {
+      obj.version = message.version;
+    }
+    if (message.summary !== "") {
+      obj.summary = message.summary;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UpdateAlert>, I>>(base?: I): UpdateAlert {
+    return UpdateAlert.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UpdateAlert>, I>>(object: I): UpdateAlert {
+    const message = createBaseUpdateAlert();
+    message.level = object.level ?? "";
+    message.version = object.version ?? "";
+    message.summary = object.summary ?? "";
     return message;
   },
 };
@@ -8586,13 +8736,19 @@ export const ReqCheckUpdate: MessageFns<ReqCheckUpdate> = {
 };
 
 function createBaseUpdateRelease(): UpdateRelease {
-  return { version: 0, summary: "" };
+  return { version: 0, kind: "", label: "", summary: "" };
 }
 
 export const UpdateRelease: MessageFns<UpdateRelease> = {
   encode(message: UpdateRelease, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.version !== 0) {
       writer.uint32(8).int32(message.version);
+    }
+    if (message.kind !== "") {
+      writer.uint32(26).string(message.kind);
+    }
+    if (message.label !== "") {
+      writer.uint32(34).string(message.label);
     }
     if (message.summary !== "") {
       writer.uint32(18).string(message.summary);
@@ -8615,6 +8771,22 @@ export const UpdateRelease: MessageFns<UpdateRelease> = {
           message.version = reader.int32();
           continue;
         }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.kind = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.label = reader.string();
+          continue;
+        }
         case 2: {
           if (tag !== 18) {
             break;
@@ -8635,6 +8807,8 @@ export const UpdateRelease: MessageFns<UpdateRelease> = {
   fromJSON(object: any): UpdateRelease {
     return {
       version: isSet(object.version) ? globalThis.Number(object.version) : 0,
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      label: isSet(object.label) ? globalThis.String(object.label) : "",
       summary: isSet(object.summary) ? globalThis.String(object.summary) : "",
     };
   },
@@ -8643,6 +8817,12 @@ export const UpdateRelease: MessageFns<UpdateRelease> = {
     const obj: any = {};
     if (message.version !== 0) {
       obj.version = Math.round(message.version);
+    }
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.label !== "") {
+      obj.label = message.label;
     }
     if (message.summary !== "") {
       obj.summary = message.summary;
@@ -8656,13 +8836,25 @@ export const UpdateRelease: MessageFns<UpdateRelease> = {
   fromPartial<I extends Exact<DeepPartial<UpdateRelease>, I>>(object: I): UpdateRelease {
     const message = createBaseUpdateRelease();
     message.version = object.version ?? 0;
+    message.kind = object.kind ?? "";
+    message.label = object.label ?? "";
     message.summary = object.summary ?? "";
     return message;
   },
 };
 
 function createBaseRespUpdateInfo(): RespUpdateInfo {
-  return { currentVersion: 0, latestVersion: 0, pending: [], state: "", message: "", lastUpdated: "", checkError: "" };
+  return {
+    currentVersion: 0,
+    latestVersion: 0,
+    pending: [],
+    state: "",
+    message: "",
+    lastUpdated: "",
+    checkError: "",
+    currentLabel: "",
+    latestLabel: "",
+  };
 }
 
 export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
@@ -8687,6 +8879,12 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     }
     if (message.checkError !== "") {
       writer.uint32(58).string(message.checkError);
+    }
+    if (message.currentLabel !== "") {
+      writer.uint32(66).string(message.currentLabel);
+    }
+    if (message.latestLabel !== "") {
+      writer.uint32(74).string(message.latestLabel);
     }
     return writer;
   },
@@ -8754,6 +8952,22 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
           message.checkError = reader.string();
           continue;
         }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.currentLabel = reader.string();
+          continue;
+        }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          message.latestLabel = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8774,6 +8988,8 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
       message: isSet(object.message) ? globalThis.String(object.message) : "",
       lastUpdated: isSet(object.lastUpdated) ? globalThis.String(object.lastUpdated) : "",
       checkError: isSet(object.checkError) ? globalThis.String(object.checkError) : "",
+      currentLabel: isSet(object.currentLabel) ? globalThis.String(object.currentLabel) : "",
+      latestLabel: isSet(object.latestLabel) ? globalThis.String(object.latestLabel) : "",
     };
   },
 
@@ -8800,6 +9016,12 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     if (message.checkError !== "") {
       obj.checkError = message.checkError;
     }
+    if (message.currentLabel !== "") {
+      obj.currentLabel = message.currentLabel;
+    }
+    if (message.latestLabel !== "") {
+      obj.latestLabel = message.latestLabel;
+    }
     return obj;
   },
 
@@ -8815,6 +9037,8 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     message.message = object.message ?? "";
     message.lastUpdated = object.lastUpdated ?? "";
     message.checkError = object.checkError ?? "";
+    message.currentLabel = object.currentLabel ?? "";
+    message.latestLabel = object.latestLabel ?? "";
     return message;
   },
 };

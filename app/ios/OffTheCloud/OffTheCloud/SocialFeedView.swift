@@ -673,7 +673,8 @@ struct SocialFeedView: View {
             case .friendRequests:
                 showingFriendships = true
                 notifications.pendingDeepLink = nil
-            case nil:
+            case .updates, nil:
+                // Issue #183: SettingsView's to handle.
                 break
             }
         }

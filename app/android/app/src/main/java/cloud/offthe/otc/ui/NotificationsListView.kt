@@ -52,6 +52,7 @@ import cloud.offthe.otc.proto.NotificationType
 import cloud.offthe.otc.ui.common.decodeBitmap
 import cloud.offthe.otc.ui.common.relativeTime
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -82,6 +83,7 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(list, key = { it.uuid }) { n ->
                         if (n.type == NotificationType.NotificationError) ErrorRow(n)
+                        else if (n.type == NotificationType.NotificationUpdate) UpdateRow(n) { model.handleTap(n) }
                         else NotificationRow(n, model) { model.handleTap(n) }
                     }
                 }
@@ -167,6 +169,31 @@ private fun ErrorRow(n: Notification) {
         }
         Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, if (expanded) "Collapse" else "Expand",
             tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Issue #183: a device update (major or critical) - its title says which,
+ *  its details what it changes; a tap opens Settings, where it installs. */
+@Composable
+private fun UpdateRow(n: Notification, onTap: () -> Unit) {
+    val bg = if (n.acknowledged) Color.Transparent else Color(0x14FFEB3B)
+    Row(
+        Modifier.fillMaxWidth().background(bg).clickable(onClick = onTap).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.SystemUpdate, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(n.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            if (n.details.isNotEmpty()) {
+                Text(n.details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+            }
+            if (n.hasDt()) {
+                Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
 

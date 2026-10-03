@@ -17,6 +17,8 @@ struct RootView: View {
     // Issue #79: shared with MainView, which needs to know whether Social
     // is empty to decide the app's default launch tab.
     @StateObject private var social = SocialFeedViewModel.shared
+    // Issue #183: the device's critical-update alert, banner over every tab.
+    @StateObject private var updateAlert = UpdateAlertModel.shared
     // Issue #70: "send the app to background, take a photo and open it
     // again, there is no upload, I have to kill and restart it" -
     // OTCApp.init() only ever runs once per cold launch, so returning
@@ -32,6 +34,7 @@ struct RootView: View {
                     .environmentObject(upload)
                     .environmentObject(notifications)
                     .environmentObject(social)
+                    .environmentObject(updateAlert)
                     .onAppear {
                         // The first sync right after setup or sign-in: the
                         // app is already active then, so the scenePhase
@@ -41,6 +44,7 @@ struct RootView: View {
                         Task { try? await PhotoSync.shared.runForeground() }
                         SyncScheduler.scheduleNext() // schedule background sync
                         notifications.startPolling()
+                        updateAlert.startPolling()
                         // Issue #133: a no-op on first launch (init already
                         // started it), the restart after Log Out + sign in.
                         social.startAutoLoad()
@@ -59,6 +63,9 @@ struct RootView: View {
                 // makes this a no-op if a photo-library-change-triggered
                 // sync (or the cold-launch one) is already in flight.
                 Task { try? await PhotoSync.shared.runForeground() }
+                // Issue #183: a no-op while already polling; after a
+                // background stint it asks again straight away.
+                updateAlert.startPolling()
             case .background:
                 // Re-arm the next opportunistic background task on *every*
                 // backgrounding, not just once via MainView's .onAppear
@@ -67,6 +74,8 @@ struct RootView: View {
                 // cycle) - otherwise only the very first background window
                 // after a cold launch ever had a pending task at all.
                 SyncScheduler.scheduleNext()
+                // Issue #183: only polled while the app is active.
+                updateAlert.stopPolling()
             default:
                 break
             }

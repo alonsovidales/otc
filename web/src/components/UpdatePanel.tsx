@@ -13,16 +13,26 @@ import type { RespEnvelope } from "../proto/messages";
 import Spinner from "./Spinner";
 import "./UpdatePanel.css";
 
-type Release = { version: number; description: string };
+// Issue #183: releases have kinds and "major.minor" labels; one without a
+// label (from before them) shows as a build.
+type Release = { version: number; description: string; kind: string; label: string };
 type UpdateInfo = {
   currentVersion: number;
   latestVersion: number;
+  currentLabel: string;
+  latestLabel: string;
   pending: Release[];
   state: string;
   message: string;
   lastUpdated: string;
   checkError: string;
 };
+
+// "1.1 (build 85)", or "build 79" for a release from before labels.
+function versionText(label: string, build: number) {
+  if (!build) return "—";
+  return label ? `${label} (build ${build})` : `build ${build}`;
+}
 
 // While an update runs the device rebuilds and restarts itself, so the
 // socket drops partway through - polling is how the panel picks the story
@@ -68,7 +78,9 @@ export default function UpdatePanel() {
         setInfo({
           currentVersion: u.currentVersion,
           latestVersion: u.latestVersion,
-          pending: u.pending.map(p => ({ version: p.version, description: p.summary })),
+          currentLabel: u.currentLabel,
+          latestLabel: u.latestLabel,
+          pending: u.pending.map(p => ({ version: p.version, description: p.summary, kind: p.kind, label: p.label })),
           state: u.state,
           message: u.message,
           lastUpdated: u.lastUpdated,
@@ -140,8 +152,8 @@ export default function UpdatePanel() {
         <>
           <div className="up-line">
             <span className="up-version">
-              Version {info.currentVersion || "—"}
-              {hasUpdate && <> → <strong>{info.latestVersion}</strong></>}
+              Version {versionText(info.currentLabel, info.currentVersion)}
+              {hasUpdate && <> → <strong>{versionText(info.latestLabel, info.latestVersion)}</strong></>}
             </span>
             {!hasUpdate && !running && !info.checkError && (
               <span className="up-ok">Up to date</span>
@@ -152,7 +164,9 @@ export default function UpdatePanel() {
             <ul className="up-releases">
               {info.pending.map(r => (
                 <li key={r.version}>
-                  <strong>{r.version}</strong> {r.description}
+                  <strong>{r.label || `build ${r.version}`}</strong>
+                  {(r.kind === "major" || r.kind === "critical") && <span className={`up-kind ${r.kind}`}>{r.kind === "critical" ? "Critical" : "Major"}</span>}
+                  {" "}{r.description}
                 </li>
               ))}
             </ul>
@@ -185,7 +199,7 @@ export default function UpdatePanel() {
             </button>
             {hasUpdate && (
               <button className="sf-btn primary" onClick={() => void apply()} disabled={starting || running}>
-                {starting ? "Starting…" : `Update to ${info.latestVersion}`}
+                {starting ? "Starting…" : `Update to ${info.latestLabel || info.latestVersion}`}
               </button>
             )}
           </div>

@@ -644,6 +644,18 @@ both archives and checks what was published. The key is Ed25519 at
 `otc-release-signing`; never on GitHub - back it up offline); its public half is
 `scripts/release-signing.pub`, which devices pin in `/etc/otc/release-signing.pub`.
 
+Issue #183: a release is **minor** (default), **major** (`--major`: security, stability or
+durability) or **critical** (`--critical`: breaks compatibility with the bridge or the apps if not
+installed, or a serious security fix), and has a `major.minor` version: a minor adds to the minor
+number, a major or critical starts the next major. Release 84 is 1.0; earlier ones have no version
+and show as builds. Kinds and versions are in `scripts/updates/RELEASES` (`<release> <kind>
+<version>`), signed into `RELEASES.sig` by `release.sh` and checked by the device with Go's Ed25519
+(`updater/kinds.go`) - a separate file because the runners read `VERSIONS` by position. The main
+instance checks for updates by itself every 6 hours (`updater.Watch`): a pending major or critical
+update adds one `Update` notification per version, and `Status.update_alert` carries it to every
+app; a critical one shows a banner in the web app, iOS and Android (and a line in the Mac app and
+otc-sync) until it is installed. Settings shows "1.1 (build 85)" and badges pending releases.
+
 On a device, `otc-update-runner` downloads the manifest and its signature, verifies it with
 the pinned key, downloads the target release's `src.tar.gz`, checks it against the signed
 hash, and runs the `update.sh` inside it (`OTC_VERIFIED_MANIFEST`/`OTC_VERIFIED_SRC`): release

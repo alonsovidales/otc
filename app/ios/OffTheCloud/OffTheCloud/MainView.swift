@@ -7,6 +7,7 @@ struct MainView: View {
     @EnvironmentObject var upload: UploadModel
     @EnvironmentObject var notifications: NotificationsModel
     @EnvironmentObject var social: SocialFeedViewModel
+    @EnvironmentObject var updateAlert: UpdateAlertModel
     // Issue #78: bare-TabView-with-no-selection couldn't be switched
     // programmatically at all - a tapped notification needs to be able to
     // jump to Social or Profile on its own, not just rely on the user
@@ -68,6 +69,15 @@ struct MainView: View {
                 .tag(5)
             }
         }
+        // Issue #183: a critical device update, over every tab until it
+        // is installed. Update goes the same way as an update alert does.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let alert = updateAlert.critical {
+                CriticalUpdateBanner(alert: alert) {
+                    notifications.pendingDeepLink = .updates
+                }
+            }
+        }
         // Issue #122: no upload indicator over the tabs any more. The
         // full detail lives in Settings > Uploads, and a sync running in
         // the background is not something every screen needs to announce.
@@ -81,6 +91,10 @@ struct MainView: View {
             switch link {
             case .post, .friendRequests:
                 selectedTab = 1
+            case .updates:
+                // Issue #183: an update alert or the critical banner -
+                // Settings scrolls itself to its update section.
+                selectedTab = 5
             case nil:
                 break
             }

@@ -269,6 +269,21 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// this feature shipped.
 	go mg.syncPushRegistrationsToBridge()
 
+	// Issue #183: check for updates by itself, on the main instance (the
+	// one that can install them), and tell the owner about a major or
+	// critical one in Notifications.
+	if sup != nil {
+		go updater.Watch(func(a *updater.Alert) {
+			title := fmt.Sprintf("Update %s is available", a.Version)
+			if a.Level == updater.KindCritical {
+				title = fmt.Sprintf("Critical update %s - please install it soon", a.Version)
+			}
+			if err := dao.AddUpdateNotification(title, a.Summary+" Install it from Settings."); err != nil {
+				log.Error("could not add the update notification:", err)
+			}
+		})
+	}
+
 	// Stored videos reach ffmpeg (thumbnails, tags, metadata) through this
 	// device's own stream on loopback: a short-lived media token over the
 	// segmented file, so ffmpeg's range requests decrypt only what they
@@ -1166,10 +1181,14 @@ func buildUpdateInfo() *pb.RespUpdateInfo {
 	}
 
 	out.LatestVersion = int32(info.LatestVersion)
+	out.CurrentLabel = info.CurrentLabel
+	out.LatestLabel = info.LatestLabel
 	for _, release := range info.Pending {
 		out.Pending = append(out.Pending, &pb.UpdateRelease{
 			Version: int32(release.Version),
 			Summary: release.Description,
+			Kind:    release.Kind,
+			Label:   release.Label,
 		})
 	}
 
@@ -2368,6 +2387,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			log.Debug("Current status:", st)
+			// Issue #183: a pending major or critical update, for the
+			// apps' banner (critical) and badges.
+			if a := updater.CurrentAlert(); a != nil {
+				st.UpdateAlert = &pb.UpdateAlert{Level: a.Level, Version: a.Version, Summary: a.Summary}
+			}
 
 			resp.Payload = &pb.RespEnvelope_RespStatus{
 				RespStatus: st,

@@ -392,6 +392,9 @@ func (e *Engine) Snapshot() config.State {
 		}
 		st.CPUPercent = float64(d.CpuUsagePrc)
 		st.MemUsed, st.MemSize = int64(d.MemUsage), int64(d.MemSize)
+		if a := d.GetUpdateAlert(); a != nil && (a.GetLevel() == "major" || a.GetLevel() == "critical") {
+			st.UpdateAlert = &config.UpdateAlert{Level: a.GetLevel(), Version: a.GetVersion(), Summary: a.GetSummary()}
+		}
 	}
 	for _, f := range e.cfg.Folders {
 		st.Folders = append(st.Folders, toStatus(f.ID, f.Path, "", e.folderStates[f.ID]))

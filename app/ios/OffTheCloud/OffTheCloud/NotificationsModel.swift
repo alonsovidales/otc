@@ -25,6 +25,8 @@ final class NotificationsModel: ObservableObject {
     enum DeepLink: Equatable {
         case post(pubUuid: String, commentUuid: String?)
         case friendRequests
+        /// Issue #183: an update alert - Settings, at its update section.
+        case updates
     }
 
     @Published var unacknowledgedCount: Int = 0
@@ -137,6 +139,8 @@ final class NotificationsModel: ObservableObject {
         switch n.type {
         case .notificationFriendRequest, .notificationFriendAccepted:
             pendingDeepLink = .friendRequests
+        case .notificationUpdate:
+            pendingDeepLink = .updates
         default:
             guard !n.pubUuid.isEmpty else { return }
             pendingDeepLink = .post(pubUuid: n.pubUuid, commentUuid: n.commentUuid.isEmpty ? nil : n.commentUuid)

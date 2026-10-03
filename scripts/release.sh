@@ -4,7 +4,15 @@
 # Cuts a device release (issue #160: signed releases), from a clean, pushed
 # main:
 #
-#   scripts/release.sh "Summary shown in Settings"
+#   scripts/release.sh [--major|--critical] "Summary shown in Settings"
+#
+# Issue #183: a release is minor by default; --major for changes to
+# security, stability or durability (devices notify their owners),
+# --critical for one that breaks compatibility with the bridge or the apps
+# if not installed, or a serious security fix (every app shows a banner).
+# Its version label follows: a minor adds to the minor number (1.4 -> 1.5),
+# a major or critical starts the next major (1.5 -> 2.0). Both go into
+# scripts/updates/RELEASES, signed into RELEASES.sig.
 #
 # If scripts/updates/<N>.sh exists (N = the manifest's last version + 1) it
 # is the release's migration script. In order:
@@ -26,11 +34,18 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-SUMMARY="${1:?usage: scripts/release.sh \"summary\"}"
+KIND=minor
+case "${1:-}" in
+    --major) KIND=major; shift ;;
+    --critical) KIND=critical; shift ;;
+esac
+SUMMARY="${1:?usage: scripts/release.sh [--major|--critical] \"summary\"}"
 case "$SUMMARY" in *$'\t'*|*$'\n'*) echo "the summary can't contain tabs or newlines"; exit 1 ;; esac
 KEY="${OTC_RELEASE_KEY:-$HOME/.otc/otc-release-signing.pem}"
 MANIFEST=scripts/updates/VERSIONS
 SIG=scripts/updates/VERSIONS.sig
+KINDS=scripts/updates/RELEASES
+KINDS_SIG=scripts/updates/RELEASES.sig
 OPENSSL="$(command -v /opt/homebrew/bin/openssl || command -v openssl)"
 
 [ -f "$KEY" ] || { echo "no release signing key at $KEY"; exit 1; }
@@ -51,7 +66,10 @@ if [ -f "scripts/updates/$N.sh" ]; then
 else
     SCRIPT_SHA=-
 fi
-echo "release $N (migration script: $SCRIPT_SHA)"
+last_label="$(grep -v '^#' "$KINDS" | awk -F'\t' 'NF>=3{l=$3} END{print l}')"
+lmaj="${last_label%%.*}"; lmin="${last_label#*.}"
+if [ "$KIND" = minor ]; then LABEL="$lmaj.$((lmin + 1))"; else LABEL="$((lmaj + 1)).0"; fi
+echo "release $N = version $LABEL ($KIND; migration script: $SCRIPT_SHA)"
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 
@@ -68,31 +86,45 @@ if tar -tzf "$work/src.tar.gz" | grep -q "scripts/updates/VERSIONS"; then
 fi
 
 printf '%s\t%s\t%s\t%s\t%s\n' "$N" "$SCRIPT_SHA" "$WEB_SHA" "$SUMMARY" "$SRC_SHA" >> "$MANIFEST"
-# Retried: the signature has been seen to fail once in a while with the
-# passphrase in hand, and work a moment later.
-signed=""
-for attempt in 1 2 3 4 5; do
-    if "$OPENSSL" pkeyutl -sign -inkey "$KEY" -passin env:KEY_PASS -rawin -in "$MANIFEST" -out "$work/VERSIONS.sig.bin" 2>/dev/null; then
-        signed=1; break
-    fi
-    sleep 2
-done
-[ -n "$signed" ] || { git checkout -- "$MANIFEST"; git tag -d "v$N" >/dev/null; echo "signing failed - the tag and the manifest line were undone"; exit 1; }
+printf '%s\t%s\t%s\n' "$N" "$KIND" "$LABEL" >> "$KINDS"
+
+# sign FILE OUT: the raw Ed25519 signature of FILE. The key is decrypted
+# with `openssl pkcs8` and piped straight into the signer, never written;
+# retried, since signing has been seen to fail now and then and work a
+# moment later.
+sign() {
+    local attempt
+    for attempt in 1 2 3 4 5; do
+        if "$OPENSSL" pkcs8 -in "$KEY" -passin env:KEY_PASS 2>/dev/null \
+            | "$OPENSSL" pkeyutl -sign -inkey /dev/stdin -rawin -in "$1" -out "$2" 2>/dev/null; then
+            return 0
+        fi
+        sleep 2
+    done
+    return 1
+}
+if ! sign "$MANIFEST" "$work/VERSIONS.sig.bin" || ! sign "$KINDS" "$work/RELEASES.sig.bin"; then
+    git checkout -- "$MANIFEST" "$KINDS"; git tag -d "v$N" >/dev/null
+    echo "signing failed - the tag and the manifest lines were undone"; exit 1
+fi
 base64 < "$work/VERSIONS.sig.bin" | tr -d '\n' > "$SIG"; echo >> "$SIG"
+base64 < "$work/RELEASES.sig.bin" | tr -d '\n' > "$KINDS_SIG"; echo >> "$KINDS_SIG"
 # Signed with the private key, checked with the public one devices pin.
 base64 -d < "$SIG" > "$work/check.sig"
 "$OPENSSL" pkeyutl -verify -pubin -inkey scripts/release-signing.pub -rawin -in "$MANIFEST" -sigfile "$work/check.sig" >/dev/null
+base64 -d < "$KINDS_SIG" > "$work/check2.sig"
+"$OPENSSL" pkeyutl -verify -pubin -inkey scripts/release-signing.pub -rawin -in "$KINDS" -sigfile "$work/check2.sig" >/dev/null
 
 git push -q origin "v$N"
-git add "$MANIFEST" "$SIG"
-git commit -q -m "Release $N: $SUMMARY"
+git add "$MANIFEST" "$SIG" "$KINDS" "$KINDS_SIG"
+git commit -q -m "Release $N ($LABEL, $KIND): $SUMMARY"
 git push -q origin main
 
-gh release create "v$N" "$work/web-dist.tar.gz" "$work/src.tar.gz" --title "v$N" --notes "$SUMMARY" >/dev/null
+gh release create "v$N" "$work/web-dist.tar.gz" "$work/src.tar.gz" --title "$LABEL (v$N)" --notes "$SUMMARY" >/dev/null
 repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 for f in web-dist.tar.gz src.tar.gz; do
     want="$(shasum -a 256 "$work/$f" | awk '{print $1}')"
     got="$(curl -fsSL "https://github.com/$repo/releases/download/v$N/$f" | shasum -a 256 | awk '{print $1}')"
     [ "$want" = "$got" ] || { echo "published $f does not match ($got, expected $want)"; exit 1; }
 done
-echo "release $N published and signed: web $WEB_SHA, source $SRC_SHA"
+echo "release $N (version $LABEL, $KIND) published and signed: web $WEB_SHA, source $SRC_SHA"

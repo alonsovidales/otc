@@ -90,6 +90,11 @@ struct PopoverView: View {
                 }
             }
 
+            // Issue #183: a major or critical device update waiting.
+            if let alert = sync.updateAlert {
+                UpdateAlertView(alert: alert)
+            }
+
             if showSettings {
                 SettingsInlineView()
             }
@@ -611,6 +616,29 @@ private struct StorageStatusView: View {
                 DeviceLoadView(status: s)
             }
         }
+    }
+}
+
+/// The device-update line (issue #183): red with a warning sign for a
+/// critical update, a plain line for a major one; the summary as help.
+/// otc-sync's tray shows the same line under the storage one.
+private struct UpdateAlertView: View {
+    let alert: Msg_UpdateAlert
+
+    var body: some View {
+        Group {
+            if alert.level == "critical" {
+                Label("Critical device update \(alert.version) - install it from the device's Settings as soon as possible",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.red)
+            } else {
+                Text("Device update \(alert.version) available")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.caption)
+        .fixedSize(horizontal: false, vertical: true)
+        .help(alert.summary)
     }
 }
 

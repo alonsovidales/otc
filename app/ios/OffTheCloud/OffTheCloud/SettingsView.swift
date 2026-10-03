@@ -295,12 +295,16 @@ final class StatusViewModel: ObservableObject {
 struct SettingsView: View {
     @EnvironmentObject var secrets: SecretsStore
     @EnvironmentObject var upload: UploadModel
+    @EnvironmentObject var notifications: NotificationsModel
     @StateObject private var device = DeviceSettingsViewModel()
     @StateObject private var status = StatusViewModel()
     @State private var confirmLogout = false
 
     var body: some View {
         NavigationStack {
+            // Issue #183: an update alert (or the critical banner) lands
+            // here scrolled to the update section.
+            ScrollViewReader { proxy in
             Form {
                 // Issue #84: first thing in Settings, not bundled in with
                 // friend management on its own tab (which used to be the
@@ -479,6 +483,7 @@ struct SettingsView: View {
                 // Issue #94: in-place updates. Renders nothing on a
                 // non-primary instance - see UpdateSection.
                 UpdateSection()
+                    .id(Self.updateSectionID)
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Settings". Still .inline so there's no big empty
@@ -491,6 +496,9 @@ struct SettingsView: View {
                         .background(.ultraThinMaterial, in: Capsule())
                         .padding(.top, 8)
                 }
+            }
+            .onAppear { scrollToUpdatesIfAsked(proxy) }
+            .onChange(of: notifications.pendingDeepLink) { _, _ in scrollToUpdatesIfAsked(proxy) }
             }
         }
         .task {
@@ -535,6 +543,19 @@ struct SettingsView: View {
 }
 
 extension SettingsView {
+    fileprivate static let updateSectionID = "updates"
+
+    /// Issue #183: consumes a `.updates` deep link. The short wait lets a
+    /// tab that was just switched to (and built) lay out first.
+    fileprivate func scrollToUpdatesIfAsked(_ proxy: ScrollViewProxy) {
+        guard notifications.pendingDeepLink == .updates else { return }
+        notifications.pendingDeepLink = nil
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            withAnimation { proxy.scrollTo(Self.updateSectionID, anchor: .top) }
+        }
+    }
+
     /// Log Out (the same as SettingsView.kt's logOut): stop everything that
     /// talks to the device, forget what it told us, wipe what this phone
     /// stores. RootView shows onboarding the moment the secrets clear, and
@@ -579,6 +600,7 @@ enum AppLogOut {
                 }
             }
             NotificationsModel.shared.reset()
+            UpdateAlertModel.shared.reset()
             UploadModel.shared.reset()
             SocialFeedViewModel.shared.reset()
             OTCConnection.shared.reset()

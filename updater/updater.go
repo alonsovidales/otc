@@ -106,6 +106,9 @@ func updateScriptURL() string { return repoRaw() + "/scripts/update.sh" }
 type Release struct {
 	Version     int
 	Description string
+	// Issue #183: from RELEASES (kinds.go); minor and "" when unknown.
+	Kind  string
+	Label string
 }
 
 // Status is what the Settings screen shows. Read from the file the runner
@@ -124,6 +127,9 @@ type Info struct {
 	LatestVersion  int
 	Pending        []Release
 	Status         Status
+	// Issue #183: the labels of the installed and the newest release.
+	CurrentLabel string
+	LatestLabel  string
 }
 
 // InstalledVersion reads the release this device is on. A missing or
@@ -169,9 +175,24 @@ func Check() (*Info, error) {
 		CurrentVersion: InstalledVersion(),
 		Status:         CurrentStatus(),
 	}
+	// Issue #183: kinds and labels, when the signed file can be had; without
+	// it every release counts as minor and shows by number.
+	kinds, err := fetchKinds()
+	if err != nil {
+		log.Debug("release kinds unavailable:", err)
+	}
 	for _, release := range releases {
+		if m, ok := kinds[release.Version]; ok {
+			release.Kind, release.Label = m.kind, m.label
+		} else {
+			release.Kind = KindMinor
+		}
 		if release.Version > info.LatestVersion {
 			info.LatestVersion = release.Version
+			info.LatestLabel = release.Label
+		}
+		if release.Version == info.CurrentVersion {
+			info.CurrentLabel = release.Label
 		}
 		if release.Version > info.CurrentVersion {
 			info.Pending = append(info.Pending, release)
