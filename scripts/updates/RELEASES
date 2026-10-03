@@ -10,3 +10,4 @@
 # it because the update runners read VERSIONS by position. Releases before
 # 84 have no version and show as builds.
 84	major	1.0
+85	minor	1.1
