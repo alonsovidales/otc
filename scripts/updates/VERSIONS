@@ -129,3 +129,4 @@
 83	-	1a652b14c2e07a3ea810b07bbbbf1ddffb36c1aa85a91234d5a0b8a99dbe3f03	Updates are signed now: the device checks each release's signature and source before installing anything.	9b0ca78f4f21e4733347997b08cbec9fd00d39b179cd8a1a4c9115e79d1ba3ea
 84	-	986e9bd07838459a81ff78ab6c4010baf9206090b9c2c4e6f2c072e2f5ca2271	Settings > Logs: watch the device's logs live, copy them, or send them to us when something goes wrong.	2da1af5bd4f98ddb31274a8466cbf5adbb2134ea75ed88523731070244e84687
 85	-	9ee691be3c4ba6db34ab0dff3742958608a14de9a92abfca00013bd30f867c27	Versions are now numbered (this is 1.1); important updates are announced in Notifications, critical ones with a banner in every app.	1e926b14fbc0b5fa14c0400b2bb9e073f577f6ea48dd57741a5029a6ce827c43
+86	-	4b8d8652e1e088d11c8f00efb8577934485bf3742e165d8a27c69dc2d4fb50c7	Photos opened full screen say 'Low res' until the full-size photo has loaded.	93051f9cd06cbfb294fd545974580b64a75c8fb6b036df73b3328c565ebc9b22
