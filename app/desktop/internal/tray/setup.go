@@ -32,7 +32,7 @@ func (u *ui) setupDevice() {
 	opts := []zenity.Option{zenity.Title(setupTitle)}
 
 	if err := zenity.Question("This prepares the SD card for a new Off The Cloud device:\n\n"+
-		"1. Download the device image (about 560 MB) and check its signature.\n"+
+		"1. Download the device image (about 560 MB).\n"+
 		"2. Write it to an SD card of 8 GB or more - everything on the card is erased.\n"+
 		"3. Delete the download.\n\n"+
 		"You need a Raspberry Pi 5 with 8 GB of RAM, the SD card and two USB disks.",

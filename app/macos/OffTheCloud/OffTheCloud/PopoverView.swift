@@ -67,13 +67,6 @@ struct PopoverView: View {
                 Text("Off The Cloud — Sync")
                     .font(.headline)
                 Spacer()
-                Button {
-                    openSetupWizard()
-                } label: {
-                    Image(systemName: "externaldrive.badge.plus")
-                }
-                .buttonStyle(.plain)
-                .help("Set Up a New Device…")
                 // Settings inline inside the popover
                 Button {
                     showSettings.toggle()
@@ -104,19 +97,9 @@ struct PopoverView: View {
                 UpdateAlertView(alert: alert)
             }
 
-            if showSettings {
-                SettingsInlineView()
-            }
-
-            // No device yet: the way to get one.
-            if settings.domain.isEmpty {
-                Button {
-                    openSetupWizard()
-                } label: {
-                    Label("New here? Set Up a New Device…", systemImage: "externaldrive.badge.plus")
-                }
-                .buttonStyle(.link)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Nothing configured: the settings are the first thing shown.
+            if showSettings || !settings.ready {
+                SettingsInlineView(onSetUpDevice: openSetupWizard)
             }
 
             // Folders list — no ScrollView: the panel itself grows to fit
@@ -399,7 +382,12 @@ struct FolderStateView: View {
     }
 }
 
+/// Settings: connected (configured), the device and a Disconnect button;
+/// not configured, the device and password fields with Connect. Below,
+/// always, the big "Set Up a New Device…" (issue #184).
 struct SettingsInlineView: View {
+    var onSetUpDevice: () -> Void
+
     @ObservedObject private var settings = SettingsStore.shared
     @ObservedObject private var sync = SyncModel.shared
     // Edited locally and applied with the Connect button - not bound to
@@ -408,13 +396,10 @@ struct SettingsInlineView: View {
     // typed (issue #117's lock-out, seen live as "Wrong password").
     @State private var domain = ""
     @State private var password = ""
-    @State private var loaded = false
+    @State private var confirmDisconnect = false
 
-    private var dirty: Bool { domain != settings.domain || password != settings.password }
-    // Unchanged settings can still be retried while not connected (after
-    // "Wrong password" nothing else would try again).
-    private var canConnect: Bool {
-        !domain.isEmpty && !password.isEmpty && (dirty || sync.overallStatus != "Connected")
+    private var deviceLabel: String {
+        SettingsStore.bridgeName(fromDomain: settings.domain).map { "\($0).\(SettingsStore.bridgeDomain)" } ?? settings.domain
     }
 
     var body: some View {
@@ -423,49 +408,81 @@ struct SettingsInlineView: View {
                 Text("Settings").font(.subheadline.bold())
                 Spacer()
             }
+            if settings.ready {
+                connected
+            } else {
+                connectForm
+            }
+            Toggle("Start at login", isOn: $settings.startAtLogin)
+                .toggleStyle(.checkbox)
+                .font(.footnote)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+            Button(action: onSetUpDevice) {
+                Label("Set Up a New Device…", systemImage: "externaldrive.badge.plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+        .padding(8)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .alert("Disconnect from \(deviceLabel)?", isPresented: $confirmDisconnect) {
+            Button("Disconnect", role: .destructive) {
+                domain = ""
+                password = ""
+                sync.disconnect()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this Mac and on the device. You can add the folders again after connecting.")
+        }
+    }
+
+    private var connected: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "externaldrive.connected.to.line.below")
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(deviceLabel).font(.callout)
+                Text(sync.overallStatus).font(.footnote).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if sync.overallStatus != "Connected" {
+                // After "Wrong password" nothing else would try again.
+                Button("Retry") { sync.reconnectNow() }
+                    .controlSize(.small)
+            }
+            Button("Disconnect…") { confirmDisconnect = true }
+                .controlSize(.small)
+        }
+    }
+
+    private var connectForm: some View {
+        VStack(spacing: 8) {
             // Issue #121: the device's name is all the bridge needs; a
             // custom address is behind the toggle.
             DeviceAddressFields(domain: $domain)
             SecureField("Password", text: $password)
                 .textFieldStyle(.roundedBorder)
-                .onSubmit { if canConnect { apply() } }
-            Toggle("Start at login", isOn: $settings.startAtLogin)
-                .toggleStyle(.checkbox)
-                .font(.footnote)
+                .onSubmit { if canConnect { connect() } }
             HStack {
-                Image(systemName: settings.ready && !dirty ? "checkmark.circle" : "exclamationmark.triangle")
-                    .foregroundStyle(settings.ready && !dirty ? .green : .orange)
-                Text(statusLine)
+                Text("Enter your device and its password.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Connect") { apply() }
+                Button("Connect") { connect() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .disabled(!canConnect)
             }
         }
-        .padding(8)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
-        .onAppear {
-            guard !loaded else { return }
-            loaded = true
-            domain = settings.domain
-            password = settings.password
-        }
     }
 
-    private var statusLine: String {
-        if dirty { return "Press Connect to apply." }
-        return settings.ready ? "Syncing will start automatically." : "Enter both device and password, then Connect."
-    }
+    private var canConnect: Bool { !domain.isEmpty && !password.isEmpty }
 
-    private func apply() {
-        if dirty {
-            settings.apply(domain: domain, password: password)
-        } else {
-            sync.reconnectNow()
-        }
+    private func connect() {
+        settings.apply(domain: domain, password: password)
     }
 }
 

@@ -275,6 +275,7 @@ struct SetupWizardView: View {
             case .bluetooth:
                 VStack(spacing: 0) {
                     BluetoothSetupView { domain, password in
+                        guard Self.switchDevice(to: domain) else { return }
                         SettingsStore.shared.apply(domain: domain, password: password)
                         usedDomain = domain
                         step = .done
@@ -313,13 +314,31 @@ struct SetupWizardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Syncing with the new device while another one is set up means
+    /// disconnecting from that one first - same as Settings' Disconnect:
+    /// its folders are removed, so they never sync with the new device.
+    @MainActor
+    static func switchDevice(to domain: String) -> Bool {
+        let settings = SettingsStore.shared
+        guard settings.ready, settings.domain != domain else { return true }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Switch this Mac to the new device?"
+        alert.informativeText = "This Mac is connected to \(settings.domain). Switching removes all your synced folders from this app, so none of them starts syncing with the new device by mistake. The files themselves stay on this Mac and on the old device."
+        alert.addButton(withTitle: "Switch")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        SyncModel.shared.disconnect()
+        return true
+    }
+
     // MARK: steps
 
     private var intro: some View {
         Group {
             header("Set up a new device", "A Raspberry Pi 5 (8 GB) with a microSD card and two USB disks becomes your Off The Cloud device.")
             VStack(alignment: .leading, spacing: 10) {
-                bullet("1", "Download the Off The Cloud image (about 550 MB). It is checked against the project's signed checksum.")
+                bullet("1", "Download the Off The Cloud image (about 550 MB).")
                 bullet("2", "Write it to the microSD card with Raspberry Pi Imager.")
                 bullet("3", "Put the card in the Pi, connect the disks, power it on and finish the setup here over Bluetooth, or on your phone.")
             }
@@ -340,7 +359,7 @@ struct SetupWizardView: View {
 
     private var download: some View {
         Group {
-            header("Downloading the image", "Into your Downloads folder, then checked against its signed checksum.")
+            header("Downloading the image", "Into your Downloads folder.")
             switch image.state {
             case .idle, .checkingRelease:
                 ProgressView().progressViewStyle(.linear)
@@ -357,7 +376,7 @@ struct SetupWizardView: View {
                 ProgressView(value: p)
                 Text("Checking the download…").font(.footnote).foregroundStyle(.secondary)
             case .ready:
-                Label("Downloaded and verified: \(SetupImage.name)", systemImage: "checkmark.seal.fill")
+                Label("Downloaded: \(SetupImage.name)", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             case .failed(let message):
                 Label(message, systemImage: "exclamationmark.triangle.fill")

@@ -509,6 +509,17 @@ and relaunches. `otc-sync update` does the same from the command line. Linux ins
 `~/.local/bin` so the user can replace the binary; a root-owned one asks for `sudo otc-sync update`.
 The Mac app is distributed only through the Mac App Store (which updates it); its card on the
 Downloads section says "coming soon" until the listing is live, then links to it.
+**Connect / Disconnect.** Both desktop apps show the device and password fields only while
+nothing is configured. That form is open from the start: the Mac's inline Settings, and the tray's
+dialog at launch. Once connected they show the device and a Disconnect button: Mac Settings >
+"Disconnect…" (plus Retry while not connected), the tray's "Disconnect from <device>…", and
+`otc-sync disconnect [--yes]`. Disconnecting asks first, then removes every folder from the app and
+clears the address and password (`SyncModel.disconnect` / config with no folders and no domain).
+The files stay where they are. This is because folders kept across a change of device would sync
+with, or delete on, the other device. The Mac wizard's "Sync this Mac with my device" asks the same
+when another device is set (`SetupWizardView.switchDevice`). "Set Up a New Device…" is the large
+button at the bottom of the Mac's Settings, and its own section above Quit in the tray.
+
 **Setting up a new device from a computer (issue #184).** Both desktop apps have "Set Up a New
 Device…". They download `off-the-cloud-rpi-lite-arm64.img.xz` from the `image` release and trust it
 only through the release-key signature over its SHA-256 (`.sha256.sig`, signed by `make

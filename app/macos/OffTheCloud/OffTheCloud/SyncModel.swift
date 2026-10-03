@@ -417,6 +417,16 @@ final class SyncModel: ObservableObject {
         startSync()
     }
 
+    /// Forgets the device: every folder is removed from the app (the files
+    /// stay where they are, here and on the device) and the address and
+    /// password are cleared - folders kept across a change of device would
+    /// start syncing with, or deleting on, a different device.
+    func disconnect() {
+        folders.forEach(removeFolder)
+        remoteFolders.forEach(removeRemoteFolder)
+        settings?.apply(domain: "", password: "")
+    }
+
     // MARK: - RAID health (issue #69)
 
     private func startRaidPolling() {

@@ -94,6 +94,9 @@ func (u *ui) onReady() {
 	u.build(nil)
 	u.apply()
 	go u.watchUpdates()
+	if !u.configured() { // nothing set up yet: the settings come first
+		go u.settingsDialog()
+	}
 	go func() {
 		for {
 			select {
@@ -151,9 +154,11 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.addLocal = systray.AddMenuItem("Sync a Folder from This Computer…", "Two ways: kept the same here and on the device, changes and deletions included")
 	u.addRem = systray.AddMenuItem("Sync a Folder from the Device…", "Two ways, starting from a folder already on the device")
 	u.explain = systray.AddMenuItem("What Do These Do?", "The difference between backing up and syncing")
-	u.setup = systray.AddMenuItem("Set Up a New Device…", "Prepare the SD card for a new Raspberry Pi device")
-	u.settings = systray.AddMenuItem("Settings…", "Device and password")
+	// Connected: the device and Disconnect; not: the device and password.
+	u.settings = systray.AddMenuItem(u.settingsTitle(), "")
 	u.autost = systray.AddMenuItemCheckbox("Start at login", "", u.c.AutostartEnabled())
+	systray.AddSeparator()
+	u.setup = systray.AddMenuItem("Set Up a New Device…", "Prepare the SD card for a new Raspberry Pi device")
 	systray.AddSeparator()
 	u.quit = systray.AddMenuItem("Quit", "")
 
@@ -180,7 +185,11 @@ func (u *ui) build(folders []config.FolderStatus) {
 			case <-setup.ClickedCh:
 				go u.setupDevice()
 			case <-settings.ClickedCh:
-				go u.settingsDialog()
+				if u.configured() {
+					go u.disconnectDialog()
+				} else {
+					go u.settingsDialog()
+				}
 			case <-autost.ClickedCh:
 				go u.toggleAutostart()
 			case <-quit.ClickedCh:
@@ -228,6 +237,7 @@ func (u *ui) apply() {
 		u.build(want)
 	}
 	u.status.SetTitle(statusDot(st.Status) + " " + st.Status)
+	u.settings.SetTitle(u.settingsTitle())
 	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
 		u.raid.SetTitle(storageTitle(st))
 		u.cpu.SetTitle(fmt.Sprintf("CPU: %.0f%%", st.CPUPercent))
@@ -447,6 +457,50 @@ func (u *ui) settingsDialog() {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
+}
+
+func (u *ui) configured() bool {
+	return u.c.Config().Domain != "" && u.c.Password() != ""
+}
+
+func deviceLabel(domain string) string {
+	if name := config.BridgeName(domain); name != "" {
+		return config.BridgeDomainForName(name)
+	}
+	return domain
+}
+
+func (u *ui) settingsTitle() string {
+	if u.configured() {
+		return "Disconnect from " + deviceLabel(u.c.Config().Domain) + "…"
+	}
+	return "Connect to a Device…"
+}
+
+// disconnectDialog forgets the device: every folder is removed (the files
+// stay where they are, here and on the device) and the address and
+// password are cleared - folders kept across a change of device would
+// start syncing with, or deleting on, a different device. Same as the
+// Mac's Settings > Disconnect.
+func (u *ui) disconnectDialog() {
+	cfg := u.c.Config()
+	if zenity.Question("All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. "+
+		"The files themselves stay on this computer and on the device. You can add the folders again after connecting.",
+		zenity.Title("Disconnect from "+deviceLabel(cfg.Domain)+"?"), zenity.OKLabel("Disconnect"), zenity.WarningIcon) != nil {
+		return
+	}
+	cfg.Folders = nil
+	cfg.RemoteFolders = nil
+	cfg.Domain = ""
+	if err := u.c.SaveConfig(cfg); err != nil {
+		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		return
+	}
+	if err := u.c.SetPassword(""); err != nil {
+		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+	}
+	Refresh()
+	u.settingsDialog()
 }
 
 func (u *ui) toggleAutostart() {

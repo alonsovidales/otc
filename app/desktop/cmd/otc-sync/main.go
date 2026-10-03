@@ -94,6 +94,8 @@ func main() {
 		err = cmdAddRemote(args)
 	case "remove":
 		err = cmdRemove(args)
+	case "disconnect":
+		err = cmdDisconnect(args)
 	case "ls":
 		err = cmdLs(args)
 	case "service":
@@ -220,6 +222,8 @@ func usage() {
   otc-sync add-remote <remote-path> <dir>
                                 two-way sync between a device folder and a local one
   otc-sync remove <id|path>     stop syncing a folder (nothing is deleted)
+  otc-sync disconnect [--yes]   forget the device: removes every folder (the files stay)
+                                and the device and password, before connecting elsewhere
   otc-sync ls [remote-path]     browse the device's folders
   otc-sync service install|uninstall|status
                                 run the daemon as a systemd user service (Linux)
@@ -753,6 +757,33 @@ func cmdAddRemote(args []string) error {
 	}
 	fmt.Printf("added %s ⇄ %s as %s\n", remote, dir, f.ID)
 
+	return nil
+}
+
+// cmdDisconnect is the tray's "Disconnect from …": folders kept across a
+// change of device would start syncing with, or deleting on, a different
+// device, so they all go with it (the files themselves stay).
+func cmdDisconnect(args []string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if len(args) == 0 || args[0] != "--yes" {
+		fmt.Printf("Disconnect from %s? All %d synced folders are removed from otc-sync (the files stay on this computer and on the device). Type yes to continue: ",
+			cfg.Domain, len(cfg.Folders)+len(cfg.RemoteFolders))
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		if strings.TrimSpace(line) != "yes" {
+			return errors.New("cancelled")
+		}
+	}
+	cfg.Folders, cfg.RemoteFolders, cfg.Domain = nil, nil, ""
+	if err := cfg.Save(); err != nil {
+		return err
+	}
+	if err := config.SavePassword(""); err != nil {
+		return err
+	}
+	fmt.Println("Disconnected. Connect to a device with: otc-sync settings --name <device> --password-prompt")
 	return nil
 }
 
