@@ -1,0 +1,5 @@
+/* "Low res" on a photo still shown from its thumbnail (LowResBadge.tsx). */
+.lowres-badge { position: absolute; right: 12px; bottom: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; font-weight: 600; pointer-events: none; z-index: 2; }
+.lowres-spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: lowres-spin .8s linear infinite; }
+@keyframes lowres-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lowres-spin { animation: none; } }

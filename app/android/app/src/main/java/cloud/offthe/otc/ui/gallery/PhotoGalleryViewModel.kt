@@ -82,6 +82,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         // pager can draw the neighbour it slides towards and swiping back
         // doesn't fetch again. hiRes is the open one's (mirrors iOS).
         val hiResImages: Map<String, Bitmap> = emptyMap(),
+        // Paths whose full-size image is being fetched: until it arrives
+        // the page shows the thumbnail with a "Low res" pill and a spinner;
+        // after a failure, the pill alone.
+        val hiResLoading: Set<String> = emptySet(),
         val videoUrl: String? = null,
         val alert: String? = null,
         val preparing: SelectionActionTask? = null,
@@ -440,6 +444,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         if (it.mime.startsWith("video/")) { if (!prefetch) fetchVideo(it); return }
         if (it.path in _state.value.hiResImages || it.path in inFlightHiRes) return
         inFlightHiRes += it.path
+        _state.update { s -> s.copy(hiResLoading = s.hiResLoading + it.path) }
         try {
             val resp = OTCConnection.request { e -> e.setReqGetFile(GetFile.newBuilder().setPath(it.path)) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) {
@@ -449,6 +454,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         } catch (_: Exception) {
         } finally {
             inFlightHiRes -= it.path
+            _state.update { s -> s.copy(hiResLoading = s.hiResLoading - it.path) }
         }
     }
 

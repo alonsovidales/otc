@@ -10,6 +10,7 @@ import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
 import type { RespEnvelope, FileExifInfo } from "../proto/messages";
 import "./PhotoGallery.css";
+import LowResBadge from "./LowResBadge";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -40,6 +41,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   const [infoLoading, setInfoLoading] = useState(false);
   const [infoData, setInfoData] = useState<FileExifInfo | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  // Whether the full-size fetch is still going (for the Low res badge).
+  const [hiLoading, setHiLoading] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Which item the viewer is on: every change of item (and closing) moves
   // it on, and a full-size image, stream URL or info that arrives for an
@@ -58,6 +62,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
     setInfoData(null);
     setZoomScale(1);
     if (!item) return;
+    setHiLoading(true);
     (async () => {
       try {
         // Issue #110: a video streams from a URL; the device declines
@@ -77,6 +82,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
         }
       } catch {
         // the thumbnail stays
+      } finally {
+        if (current()) setHiLoading(false);
       }
     })();
   }, [item?.path, item?.mime]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -257,11 +264,15 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
               );
             }
             return (
-              <img
-                src={hiURL || thumb}
-                alt={f.path}
-                style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }}
-              />
+              <>
+                <img
+                  ref={imgRef}
+                  src={hiURL || thumb}
+                  alt={f.path}
+                  style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }}
+                />
+                {!hiURL && thumb && <LowResBadge imgRef={imgRef} loading={hiLoading} />}
+              </>
             );
           })()}
         </div>

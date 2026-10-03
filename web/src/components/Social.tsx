@@ -13,6 +13,7 @@ import type {
   File as PbFile,
 } from "../proto/messages";
 import "./Social.css";
+import LowResBadge from "./LowResBadge";
 import Spinner from "./Spinner";
 
 // When the post was published, shown in the feed. Relative for anything
@@ -339,6 +340,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   const [viewerIdx, setViewerIdx] = useState(0);
   const [viewerURL, setViewerURL] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
+  // Whether the photo shown is its full-size original yet (Low res badge).
+  const [viewerHiRes, setViewerHiRes] = useState(false);
+  const viewerImgRef = useRef<HTMLImageElement>(null);
   // Issue #60: a video post needs two separate URLs, not one swapped
   // low->hi like an image - viewerPosterURL is the thumbnail (always a
   // JPEG, shown immediately), viewerVideoURL is the actual playable file,
@@ -372,6 +376,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       setViewerPosterURL(null);
       setViewerVideoURL(null);
     }
+    setViewerHiRes(false);
 
     // then fetch the full file - the actual video bytes for a video, or
     // the hi-res original for an image
@@ -411,6 +416,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             if (prev && prev !== full) URL.revokeObjectURL(prev);
             return full;
           });
+          setViewerHiRes(true);
         }
       }
     } finally {
@@ -978,8 +984,8 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   if ((viewerPub?.files.length ?? 0) > 1) navByClickX(e, prevImg, nextImg);
                 }}
               >
-                <img className="sv-full" src={viewerURL} alt="full" />
-                {viewerLoading && <div className="sv-loading">Loading…</div>}
+                <img className="sv-full" ref={viewerImgRef} src={viewerURL} alt="full" />
+                {!viewerHiRes && <LowResBadge imgRef={viewerImgRef} loading={viewerLoading} />}
                 {(viewerPub?.files.length ?? 0) > 1 && (
                   <div className="sv-dots" aria-hidden="true">
                     {viewerPub!.files.map((_, i) => (

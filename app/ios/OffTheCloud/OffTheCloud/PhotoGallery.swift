@@ -165,6 +165,10 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var hiResImages: [String: UIImage] = [:]
     private var hiResOrder: [String] = []
     private var inFlightHiRes = Set<String>()
+    // Photos whose full-size fetch came back empty or errored - the viewer
+    // keeps showing the thumbnail, and its "Low res" badge drops the
+    // spinner since nothing is on its way any more.
+    @Published private(set) var hiResFailed = Set<String>()
     private let cHiResCacheSize = 8
     var hiResImage: UIImage? {
         guard let i = openIndex, items.indices.contains(i) else { return nil }
@@ -787,6 +791,7 @@ final class PhotoGalleryVM: ObservableObject {
         openIndex = nil
         hiResImages.removeAll()
         hiResOrder.removeAll()
+        hiResFailed.removeAll()
         videoPlayer?.pause()
         videoPlayer = nil
     }
@@ -941,6 +946,7 @@ final class PhotoGalleryVM: ObservableObject {
             return
         }
         inFlightHiRes.insert(it.path)
+        hiResFailed.remove(it.path)
         defer { inFlightHiRes.remove(it.path) }
         do {
             let resp = try await ws.request { e in
@@ -952,8 +958,10 @@ final class PhotoGalleryVM: ObservableObject {
             }
             if case .respFile(let f) = resp.payload, let img = UIImage(data: f.content) {
                 cacheHiRes(img, for: it.path)
+            } else {
+                hiResFailed.insert(it.path)
             }
-        } catch { /* ignore */ }
+        } catch { hiResFailed.insert(it.path) }
     }
 
     /// Issue #106/#107: fetches a video and hands back a player.
@@ -1905,6 +1913,15 @@ struct ImageModal: View {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFit()
+                        // On the photo's own frame, so it sits in the
+                        // picture's corner rather than the black margin,
+                        // and before the pinch so zooming doesn't grow it.
+                        .overlay(alignment: .bottomTrailing) {
+                            if showsLowRes(item) {
+                                LowResBadge(loading: !vm.hiResFailed.contains(item.path))
+                                    .padding(12)
+                            }
+                        }
                         .scaleEffect(i == vm.openIndex ? pinchScale : 1, anchor: pinchAnchor)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
                         // Simultaneous so pinching isn't swallowed by the
@@ -1922,11 +1939,38 @@ struct ImageModal: View {
         .frame(width: size.width, height: size.height)
     }
 
+    /// Still drawn from its thumbnail: the full-size image hasn't arrived
+    /// (or failed to). A local file's "thumbnail" is the file itself, and
+    /// a video is never decoded into a full-size image at all.
+    private func showsLowRes(_ item: PhotoGalleryVM.Item) -> Bool {
+        !item.mime.hasPrefix("video/") && item.localURL == nil && vm.hiResImages[item.path] == nil
+    }
+
     /// The grid's own thumbnail, shown until the full-size image arrives.
     private func thumb(_ item: PhotoGalleryVM.Item) -> UIImage? {
         if let u = item.localURL, let img = UIImage(contentsOfFile: u.path) { return img }
         if let d = item.thumbData { return UIImage(data: d) }
         return item.thumbImage
+    }
+}
+
+/// Marks a photo the viewer is still showing from its thumbnail. The
+/// spinner means the full-size image is on its way; without it, it isn't
+/// coming.
+private struct LowResBadge: View {
+    let loading: Bool
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if loading {
+                ProgressView().tint(.white).controlSize(.mini)
+            }
+            Text("Low res").font(.system(size: 11, weight: .semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.black.opacity(0.55), in: Capsule())
     }
 }
 

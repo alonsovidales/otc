@@ -574,8 +574,12 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
             return@Box
         }
-        val image = st.hiResImages[item.path] ?: item.preview ?: rememberThumb(item.thumb)
+        val hiRes = st.hiResImages[item.path]
+        val image = hiRes ?: item.preview ?: rememberThumb(item.thumb)
         if (image == null) { CircularProgressIndicator(color = Color.White); return@Box }
+        // Still the thumbnail: the full-size image hasn't arrived (or
+        // failed). Photos only - a video page's poster is never "low res".
+        val lowRes = hiRes == null && !item.mime.startsWith("video/")
         // Pinch to zoom, and pan while zoomed in. Everything else - a
         // one-finger swipe on a photo at normal size - is left unconsumed
         // for the pager, which is what turns the page. (detectTransform-
@@ -602,6 +606,33 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
                     }
                 },
         )
+        if (lowRes) BoxWithConstraints(Modifier.fillMaxSize()) {
+            // The pill sits in the photo's own lower-right corner, so
+            // the fitted (letterboxed) rectangle, not the page's.
+            val fit = minOf(maxWidth / image.width.toFloat(), maxHeight / image.height.toFloat())
+            Box(Modifier.align(Alignment.Center).size(fit * image.width.toFloat(), fit * image.height.toFloat())) {
+                LowResPill(loading = item.path in st.hiResLoading, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp))
+            }
+        }
+    }
+}
+
+/**
+ * Shown over a full-screen photo while it is still drawn from its
+ * thumbnail; loading adds a small spinner (the full-size image is on
+ * its way, rather than having failed).
+ */
+@Composable
+internal fun LowResPill(loading: Boolean, modifier: Modifier = Modifier) {
+    Row(
+        modifier.background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (loading) {
+            CircularProgressIndicator(color = Color.White, strokeWidth = 1.5.dp, modifier = Modifier.size(10.dp))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text("Low res", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

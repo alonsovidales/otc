@@ -193,7 +193,7 @@
    outside it, off-screen on a phone); swiping still pages too. */
 .pg-nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(0,0,0,0.45); color: var(--mist); font-size: 28px; line-height: 1; padding: 8px 12px; border-radius: 999px; cursor: pointer; }
 .pg-nav.left { left: 10px; } .pg-nav.right { right: 10px; }
-.pg-modal-imgwrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; touch-action: none; background: var(--ink); }
+.pg-modal-imgwrap { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; touch-action: none; background: var(--ink); }
 .pg-modal-imgwrap img { width: 100%; height: calc(94vh - 45px); object-fit: contain; background: var(--ink); }
 .pg-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
