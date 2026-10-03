@@ -248,6 +248,14 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   document icon whose colour says the type (PDF red, DOC blue, XLS green, PPT orange...; the
   mapping is the same in `FileTypeIcon.tsx`, `FileTypeIcon.swift` and `FileTypeIcon.kt` - change
   all three together; no vendor logos).
+  **Logs** (Settings > Logs, web/iOS/Android, main instance only): `GetLogs{source "app"|"update",
+  offset, max_bytes, wait_seconds}` reads the device's log (`[logger] log_file`) or the update log
+  (`/var/log/otc-update/update.log`) in whole lines; with `wait_seconds` and nothing new the device
+  holds the request until the log grows (25 s at most), so the clients' loop of requests is a live
+  stream that the bridge relays unchanged. `SendLogs{note}` gzips the end of both logs and sends
+  them with `BridgeSendLogs` (device secret) to the bridge, which mails them to info@off-the.cloud
+  with the owner's account email as Reply-To (3 an hour per device). The screens warn that logs can
+  include file names, search words, Wi-Fi names and addresses.
   **Processing lanes** (release 73, `files_manager/lanes.go`): an upload is answered once its
   bytes and row are stored, then `enqueueMedia` (media only) records its hash in
   `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers): EXIF, decode,

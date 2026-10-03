@@ -9,6 +9,7 @@ import ProfileCard from "./ProfileCard";
 import UpdatePanel from "./UpdatePanel";
 import SharedLinksPanel from "./SharedLinksPanel";
 import TailscalePanel from "./TailscalePanel";
+import LogsPanel from "./LogsPanel";
 import BridgePanel from "./BridgePanel";
 import type {
   ReqEnvelope,
@@ -376,6 +377,9 @@ export default function SettingsForm() {
       {/* Issue #80: Tailscale Funnel as an alternative to the bridge.
           Primary-only too - Funnel publishes the whole machine. */}
       <TailscalePanel />
+
+      {/* Live device logs; copy or send them for support. */}
+      <LogsPanel />
 
       <section className="sf-section">
         <h3>Face Recognition</h3>

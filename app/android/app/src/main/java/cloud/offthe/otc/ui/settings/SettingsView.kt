@@ -124,6 +124,9 @@ fun SettingsView(secrets: SecretsStore) {
     var confirmLogout by remember { mutableStateOf(false) }
     // Issue #180: the shared links list (SharedLinksView.kt).
     var showSharedLinks by remember { mutableStateOf(false) }
+    // Settings > Logs (LogsView.kt), primary instance only like Tailscale and Users.
+    var showLogs by remember { mutableStateOf(false) }
+    var isPrimary by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         device.loadSettings()
@@ -131,6 +134,7 @@ fun SettingsView(secrets: SecretsStore) {
         device.loadReprocessStatus()
         if (device.state.value.reprocessStatus == "running") device.pollReprocessStatusWhileRunning()
     }
+    LaunchedEffect(Unit) { isPrimary = isPrimaryInstance() }
     DisposableEffect(Unit) { onDispose { status.stop(); device.stopPollingReprocessStatus() } }
 
     Box(Modifier.fillMaxSize()) {
@@ -228,12 +232,18 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             UpdateSection()
+            if (isPrimary) {
+                Section("Logs", "What the device and its updates write down as they run - live, to read, share or send to us when something goes wrong.") {
+                    RowButton("Logs") { showLogs = true }
+                }
+            }
             Spacer(Modifier.height(24.dp))
         }
         Toast(dst.toast, Modifier.align(Alignment.TopCenter))
     }
 
     if (showSharedLinks) SharedLinksView(onClose = { showSharedLinks = false })
+    if (showLogs) LogsView(onClose = { showLogs = false })
     if (confirmLogout) {
         AlertDialog(
             onDismissRequest = { confirmLogout = false },

@@ -273,6 +273,47 @@ message GetThumbnails {
   repeated string paths = 1;
 }
 
+// Settings > Logs: a piece of the device's own log (source "app") or of
+// the update log ("update"), from byte offset (-1: the last max_bytes), at
+// most max_bytes (256 KB at most). Answers with Logs. Primary instance
+// only. next_offset is where to ask from next (see wait_seconds).
+message GetLogs {
+  string source = 1;
+  int64 offset = 2;
+  int32 max_bytes = 3;
+  // The live view: with nothing after offset yet, the device holds the
+  // request until the log grows or this many seconds pass (25 at most), so
+  // new lines show up the moment they're written - a stream over plain
+  // requests, which the bridge relays as they are.
+  int32 wait_seconds = 4;
+}
+
+message Logs {
+  string text = 1;
+  int64 next_offset = 2;
+  // The log's size now; smaller than the offset asked for means it was
+  // rotated, and text starts again from its beginning.
+  int64 size = 3;
+}
+
+// Settings > Logs > "Send to us": the device mails the last part of both
+// logs, with the owner's note, to the project through the bridge
+// (BridgeSendLogs). Answers with Ack. Needs the bridge.
+message SendLogs {
+  string note = 1;
+}
+
+// Sent by a device to the bridge, authenticated like RotateBridgeSecret by
+// its secret: the bridge mails the logs (gzip) to the project's address.
+// Answers with Ack.
+message BridgeSendLogs {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+  string note = 4;
+  bytes logs = 5;
+}
+
 message SearchPhotos {
   repeated string tags = 1;
   string token = 2;
@@ -1838,6 +1879,10 @@ message ReqEnvelope {
     BridgeReleaseDomain req_bridge_release_domain = 128;
     // The Files grid view.
     GetThumbnails req_get_thumbnails = 129;
+    // Settings > Logs.
+    GetLogs req_get_logs = 130;
+    SendLogs req_send_logs = 131;
+    BridgeSendLogs req_bridge_send_logs = 132;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1933,5 +1978,6 @@ message RespEnvelope {
     SharedGalleryJob resp_shared_gallery_job = 62;
     SharedGallery resp_shared_gallery = 63;
     SharedLinks resp_shared_links = 64;
+    Logs resp_logs = 65;
   }
 }

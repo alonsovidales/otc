@@ -650,6 +650,57 @@ export interface GetThumbnails {
   paths: string[];
 }
 
+/**
+ * Settings > Logs: a piece of the device's own log (source "app") or of
+ * the update log ("update"), from byte offset (-1: the last max_bytes), at
+ * most max_bytes (256 KB at most). Answers with Logs. Primary instance
+ * only. next_offset is where to ask from next (see wait_seconds).
+ */
+export interface GetLogs {
+  source: string;
+  offset: bigint;
+  maxBytes: number;
+  /**
+   * The live view: with nothing after offset yet, the device holds the
+   * request until the log grows or this many seconds pass (25 at most), so
+   * new lines show up the moment they're written - a stream over plain
+   * requests, which the bridge relays as they are.
+   */
+  waitSeconds: number;
+}
+
+export interface Logs {
+  text: string;
+  nextOffset: bigint;
+  /**
+   * The log's size now; smaller than the offset asked for means it was
+   * rotated, and text starts again from its beginning.
+   */
+  size: bigint;
+}
+
+/**
+ * Settings > Logs > "Send to us": the device mails the last part of both
+ * logs, with the owner's note, to the project through the bridge
+ * (BridgeSendLogs). Answers with Ack. Needs the bridge.
+ */
+export interface SendLogs {
+  note: string;
+}
+
+/**
+ * Sent by a device to the bridge, authenticated like RotateBridgeSecret by
+ * its secret: the bridge mails the logs (gzip) to the project's address.
+ * Answers with Ack.
+ */
+export interface BridgeSendLogs {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+  note: string;
+  logs: Uint8Array;
+}
+
 export interface SearchPhotos {
   tags: string[];
   token: string;
@@ -2490,6 +2541,11 @@ export interface ReqEnvelope {
     /** The Files grid view. */
     { $case: "reqGetThumbnails"; reqGetThumbnails: GetThumbnails }
     | //
+    /** Settings > Logs. */
+    { $case: "reqGetLogs"; reqGetLogs: GetLogs }
+    | { $case: "reqSendLogs"; reqSendLogs: SendLogs }
+    | { $case: "reqBridgeSendLogs"; reqBridgeSendLogs: BridgeSendLogs }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2608,6 +2664,7 @@ export interface RespEnvelope {
     | { $case: "respSharedGalleryJob"; respSharedGalleryJob: SharedGalleryJob }
     | { $case: "respSharedGallery"; respSharedGallery: SharedGallery }
     | { $case: "respSharedLinks"; respSharedLinks: SharedLinks }
+    | { $case: "respLogs"; respLogs: Logs }
     | undefined;
 }
 
@@ -4764,6 +4821,397 @@ export const GetThumbnails: MessageFns<GetThumbnails> = {
   fromPartial<I extends Exact<DeepPartial<GetThumbnails>, I>>(object: I): GetThumbnails {
     const message = createBaseGetThumbnails();
     message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseGetLogs(): GetLogs {
+  return { source: "", offset: 0n, maxBytes: 0, waitSeconds: 0 };
+}
+
+export const GetLogs: MessageFns<GetLogs> = {
+  encode(message: GetLogs, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.source !== "") {
+      writer.uint32(10).string(message.source);
+    }
+    if (message.offset !== 0n) {
+      if (BigInt.asIntN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type int64 too large");
+      }
+      writer.uint32(16).int64(message.offset);
+    }
+    if (message.maxBytes !== 0) {
+      writer.uint32(24).int32(message.maxBytes);
+    }
+    if (message.waitSeconds !== 0) {
+      writer.uint32(32).int32(message.waitSeconds);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetLogs {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetLogs();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.source = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.offset = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.maxBytes = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.waitSeconds = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetLogs {
+    return {
+      source: isSet(object.source) ? globalThis.String(object.source) : "",
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
+      maxBytes: isSet(object.maxBytes) ? globalThis.Number(object.maxBytes) : 0,
+      waitSeconds: isSet(object.waitSeconds) ? globalThis.Number(object.waitSeconds) : 0,
+    };
+  },
+
+  toJSON(message: GetLogs): unknown {
+    const obj: any = {};
+    if (message.source !== "") {
+      obj.source = message.source;
+    }
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
+    }
+    if (message.maxBytes !== 0) {
+      obj.maxBytes = Math.round(message.maxBytes);
+    }
+    if (message.waitSeconds !== 0) {
+      obj.waitSeconds = Math.round(message.waitSeconds);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetLogs>, I>>(base?: I): GetLogs {
+    return GetLogs.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetLogs>, I>>(object: I): GetLogs {
+    const message = createBaseGetLogs();
+    message.source = object.source ?? "";
+    message.offset = object.offset ?? 0n;
+    message.maxBytes = object.maxBytes ?? 0;
+    message.waitSeconds = object.waitSeconds ?? 0;
+    return message;
+  },
+};
+
+function createBaseLogs(): Logs {
+  return { text: "", nextOffset: 0n, size: 0n };
+}
+
+export const Logs: MessageFns<Logs> = {
+  encode(message: Logs, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.text !== "") {
+      writer.uint32(10).string(message.text);
+    }
+    if (message.nextOffset !== 0n) {
+      if (BigInt.asIntN(64, message.nextOffset) !== message.nextOffset) {
+        throw new globalThis.Error("value provided for field message.nextOffset of type int64 too large");
+      }
+      writer.uint32(16).int64(message.nextOffset);
+    }
+    if (message.size !== 0n) {
+      if (BigInt.asIntN(64, message.size) !== message.size) {
+        throw new globalThis.Error("value provided for field message.size of type int64 too large");
+      }
+      writer.uint32(24).int64(message.size);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Logs {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseLogs();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.nextOffset = reader.int64() as bigint;
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.size = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Logs {
+    return {
+      text: isSet(object.text) ? globalThis.String(object.text) : "",
+      nextOffset: isSet(object.nextOffset) ? BigInt(object.nextOffset) : 0n,
+      size: isSet(object.size) ? BigInt(object.size) : 0n,
+    };
+  },
+
+  toJSON(message: Logs): unknown {
+    const obj: any = {};
+    if (message.text !== "") {
+      obj.text = message.text;
+    }
+    if (message.nextOffset !== 0n) {
+      obj.nextOffset = message.nextOffset.toString();
+    }
+    if (message.size !== 0n) {
+      obj.size = message.size.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Logs>, I>>(base?: I): Logs {
+    return Logs.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Logs>, I>>(object: I): Logs {
+    const message = createBaseLogs();
+    message.text = object.text ?? "";
+    message.nextOffset = object.nextOffset ?? 0n;
+    message.size = object.size ?? 0n;
+    return message;
+  },
+};
+
+function createBaseSendLogs(): SendLogs {
+  return { note: "" };
+}
+
+export const SendLogs: MessageFns<SendLogs> = {
+  encode(message: SendLogs, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.note !== "") {
+      writer.uint32(10).string(message.note);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SendLogs {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSendLogs();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.note = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SendLogs {
+    return { note: isSet(object.note) ? globalThis.String(object.note) : "" };
+  },
+
+  toJSON(message: SendLogs): unknown {
+    const obj: any = {};
+    if (message.note !== "") {
+      obj.note = message.note;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SendLogs>, I>>(base?: I): SendLogs {
+    return SendLogs.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SendLogs>, I>>(object: I): SendLogs {
+    const message = createBaseSendLogs();
+    message.note = object.note ?? "";
+    return message;
+  },
+};
+
+function createBaseBridgeSendLogs(): BridgeSendLogs {
+  return { ownerUuid: "", domain: "", secret: "", note: "", logs: new Uint8Array(0) };
+}
+
+export const BridgeSendLogs: MessageFns<BridgeSendLogs> = {
+  encode(message: BridgeSendLogs, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    if (message.note !== "") {
+      writer.uint32(34).string(message.note);
+    }
+    if (message.logs.length !== 0) {
+      writer.uint32(42).bytes(message.logs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeSendLogs {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBridgeSendLogs();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.note = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.logs = reader.bytes();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BridgeSendLogs {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      note: isSet(object.note) ? globalThis.String(object.note) : "",
+      logs: isSet(object.logs) ? bytesFromBase64(object.logs) : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: BridgeSendLogs): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.note !== "") {
+      obj.note = message.note;
+    }
+    if (message.logs.length !== 0) {
+      obj.logs = base64FromBytes(message.logs);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BridgeSendLogs>, I>>(base?: I): BridgeSendLogs {
+    return BridgeSendLogs.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BridgeSendLogs>, I>>(object: I): BridgeSendLogs {
+    const message = createBaseBridgeSendLogs();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    message.note = object.note ?? "";
+    message.logs = object.logs ?? new Uint8Array(0);
     return message;
   },
 };
@@ -18811,6 +19259,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetThumbnails":
         GetThumbnails.encode(message.payload.reqGetThumbnails, writer.uint32(1034).fork()).join();
         break;
+      case "reqGetLogs":
+        GetLogs.encode(message.payload.reqGetLogs, writer.uint32(1042).fork()).join();
+        break;
+      case "reqSendLogs":
+        SendLogs.encode(message.payload.reqSendLogs, writer.uint32(1050).fork()).join();
+        break;
+      case "reqBridgeSendLogs":
+        BridgeSendLogs.encode(message.payload.reqBridgeSendLogs, writer.uint32(1058).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -19955,6 +20412,33 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 130: {
+          if (tag !== 1042) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetLogs", reqGetLogs: GetLogs.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 131: {
+          if (tag !== 1050) {
+            break;
+          }
+
+          message.payload = { $case: "reqSendLogs", reqSendLogs: SendLogs.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 132: {
+          if (tag !== 1058) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqBridgeSendLogs",
+            reqBridgeSendLogs: BridgeSendLogs.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -20368,6 +20852,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         : isSet(object.reqGetThumbnails)
         ? { $case: "reqGetThumbnails", reqGetThumbnails: GetThumbnails.fromJSON(object.reqGetThumbnails) }
+        : isSet(object.reqGetLogs)
+        ? { $case: "reqGetLogs", reqGetLogs: GetLogs.fromJSON(object.reqGetLogs) }
+        : isSet(object.reqSendLogs)
+        ? { $case: "reqSendLogs", reqSendLogs: SendLogs.fromJSON(object.reqSendLogs) }
+        : isSet(object.reqBridgeSendLogs)
+        ? { $case: "reqBridgeSendLogs", reqBridgeSendLogs: BridgeSendLogs.fromJSON(object.reqBridgeSendLogs) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -20628,6 +21118,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqBridgeReleaseDomain = BridgeReleaseDomain.toJSON(message.payload.reqBridgeReleaseDomain);
     } else if (message.payload?.$case === "reqGetThumbnails") {
       obj.reqGetThumbnails = GetThumbnails.toJSON(message.payload.reqGetThumbnails);
+    } else if (message.payload?.$case === "reqGetLogs") {
+      obj.reqGetLogs = GetLogs.toJSON(message.payload.reqGetLogs);
+    } else if (message.payload?.$case === "reqSendLogs") {
+      obj.reqSendLogs = SendLogs.toJSON(message.payload.reqSendLogs);
+    } else if (message.payload?.$case === "reqBridgeSendLogs") {
+      obj.reqBridgeSendLogs = BridgeSendLogs.toJSON(message.payload.reqBridgeSendLogs);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -21643,6 +22139,27 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetLogs": {
+        if (object.payload?.reqGetLogs !== undefined && object.payload?.reqGetLogs !== null) {
+          message.payload = { $case: "reqGetLogs", reqGetLogs: GetLogs.fromPartial(object.payload.reqGetLogs) };
+        }
+        break;
+      }
+      case "reqSendLogs": {
+        if (object.payload?.reqSendLogs !== undefined && object.payload?.reqSendLogs !== null) {
+          message.payload = { $case: "reqSendLogs", reqSendLogs: SendLogs.fromPartial(object.payload.reqSendLogs) };
+        }
+        break;
+      }
+      case "reqBridgeSendLogs": {
+        if (object.payload?.reqBridgeSendLogs !== undefined && object.payload?.reqBridgeSendLogs !== null) {
+          message.payload = {
+            $case: "reqBridgeSendLogs",
+            reqBridgeSendLogs: BridgeSendLogs.fromPartial(object.payload.reqBridgeSendLogs),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -21886,6 +22403,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respSharedLinks":
         SharedLinks.encode(message.payload.respSharedLinks, writer.uint32(514).fork()).join();
+        break;
+      case "respLogs":
+        Logs.encode(message.payload.respLogs, writer.uint32(522).fork()).join();
         break;
     }
     return writer;
@@ -22460,6 +22980,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respSharedLinks", respSharedLinks: SharedLinks.decode(reader, reader.uint32()) };
           continue;
         }
+        case 65: {
+          if (tag !== 522) {
+            break;
+          }
+
+          message.payload = { $case: "respLogs", respLogs: Logs.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -22621,6 +23149,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respSharedGallery", respSharedGallery: SharedGallery.fromJSON(object.respSharedGallery) }
         : isSet(object.respSharedLinks)
         ? { $case: "respSharedLinks", respSharedLinks: SharedLinks.fromJSON(object.respSharedLinks) }
+        : isSet(object.respLogs)
+        ? { $case: "respLogs", respLogs: Logs.fromJSON(object.respLogs) }
         : undefined,
     };
   },
@@ -22751,6 +23281,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respSharedGallery = SharedGallery.toJSON(message.payload.respSharedGallery);
     } else if (message.payload?.$case === "respSharedLinks") {
       obj.respSharedLinks = SharedLinks.toJSON(message.payload.respSharedLinks);
+    } else if (message.payload?.$case === "respLogs") {
+      obj.respLogs = Logs.toJSON(message.payload.respLogs);
     }
     return obj;
   },
@@ -23236,6 +23768,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
             $case: "respSharedLinks",
             respSharedLinks: SharedLinks.fromPartial(object.payload.respSharedLinks),
           };
+        }
+        break;
+      }
+      case "respLogs": {
+        if (object.payload?.respLogs !== undefined && object.payload?.respLogs !== null) {
+          message.payload = { $case: "respLogs", respLogs: Logs.fromPartial(object.payload.respLogs) };
         }
         break;
       }

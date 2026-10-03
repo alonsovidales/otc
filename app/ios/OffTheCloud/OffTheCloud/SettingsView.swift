@@ -413,6 +413,11 @@ struct SettingsView: View {
                     StatusSectionContent(vm: status)
                 }
 
+                // The device's logs, live, with Share and "Send to us".
+                // Renders nothing on a non-primary instance - see
+                // LogsSection.
+                LogsSection()
+
                 // Issue #122: the only place upload progress is shown. There
                 // used to be a hairline over every tab as well (issue #14);
                 // a background sync isn't worth announcing everywhere.

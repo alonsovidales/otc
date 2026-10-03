@@ -183,3 +183,11 @@ func (dao *Dao) ExportAccount(accountID string) (*AccountExport, error) {
 	}
 	return out, nil
 }
+
+// AccountEmailForDomain is the email of the account domain belongs to, ""
+// when it has none.
+func (dao *Dao) AccountEmailForDomain(domain string) string {
+	var email sql.NullString
+	_ = dao.db.QueryRow("select a.`email` from `devices` d join `accounts` a on a.`id` = d.`account_id` where d.`domain` = ?", domain).Scan(&email)
+	return email.String
+}

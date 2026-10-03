@@ -80,6 +80,7 @@ func main() {
 			log.Info("no [smtp] section: account emails are off")
 		}
 		acc.SetMailer(m)
+		webSocket.SetMailer(m)
 	}
 
 	api.Init(

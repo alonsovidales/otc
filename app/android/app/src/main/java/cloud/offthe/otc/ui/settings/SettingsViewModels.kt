@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 // Ports of the view models behind SettingsView.swift, ProfileEditor.swift,
 // UpdateSection.swift, TailscaleSection.swift and UsersManagementView.swift.
 
-private suspend fun isPrimaryInstance(): Boolean = try {
+internal suspend fun isPrimaryInstance(): Boolean = try {
     val r = OTCConnection.request { it.setReqGetInstanceRole(ReqGetInstanceRole.getDefaultInstance()) }
     r.payloadCase == RespEnvelope.PayloadCase.RESP_INSTANCE_ROLE && r.respInstanceRole.isPrimary
 } catch (e: Exception) { false }

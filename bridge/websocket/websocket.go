@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/limits"
+	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -445,7 +447,10 @@ type Manager struct {
 	bridges          map[string]*bridgePool // The domain is the key and the value the pool of connections
 	// oneOffSlots: domain -> chan struct{} of cOneOffConcurrent (issue #163).
 	oneOffSlots sync.Map
-	bridgesMu   sync.RWMutex // guards the bridges map itself, not each pool's own contents (pool.lock does that)
+	// mailer and logsPerDomain: devices' "Send logs to us".
+	mailer        *mailer.Mailer
+	logsPerDomain *limits.Rate
+	bridgesMu     sync.RWMutex // guards the bridges map itself, not each pool's own contents (pool.lock does that)
 
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
@@ -556,6 +561,7 @@ func (mg *Manager) HasLocal(domain string) bool {
 
 func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 	mg = &Manager{
+		logsPerDomain:    limits.NewRate(3.0/3600, 3),
 		baseUrl:          baseUrl,
 		dao:              dao,
 		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
@@ -782,6 +788,19 @@ const cOneOffMaxAttempts = 3
 const cOneOffConcurrent = 3
 
 var cOneOffSlotWait = 10 * time.Second
+
+// cMaxLogsBytes bounds a device's gzip'd logs (Settings > Logs).
+const cMaxLogsBytes = 2 << 20
+
+func orNone(s string) string {
+	if s == "" {
+		return "(none)"
+	}
+	return s
+}
+
+// SetMailer lets "Send logs" reach the project (main, after [smtp]).
+func (mg *Manager) SetMailer(m *mailer.Mailer) { mg.mailer = m }
 
 // CodeDomainNotRegistered is the RespEnvelope.error_code a device gets
 // when it dials in with a name the bridge doesn't know (issue #182).
@@ -1260,6 +1279,46 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					log.Info("device released its domain:", req.Domain)
 					mg.dropPool(req.Domain)
 					resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+				}
+				respBin, _ := proto.Marshal(resp)
+				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					log.Error("error responding:", err)
+				}
+				return
+
+			case *pb.ReqEnvelope_ReqBridgeSendLogs:
+				// Settings > Logs > "Send to us": a device's logs, mailed to
+				// the project with its owner's email as Reply-To.
+				// Authenticated by the device's secret; 3 an hour per device.
+				defer conn.Close()
+				req := p.ReqBridgeSendLogs
+				defined, valid, err := mg.dao.IsValidDevice(req.OwnerUuid, req.Domain, req.Secret)
+				switch {
+				case err != nil && defined:
+					log.Error("error checking a device sending logs:", err)
+					resp.Error, resp.ErrorMessage = true, cInternalErrorMsg
+				case !defined || !valid:
+					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
+						log.Error("error logging auth event:", logErr)
+					}
+					resp.Error, resp.ErrorMessage = true, "Invalid Secret"
+				case len(req.Logs) > cMaxLogsBytes:
+					resp.Error, resp.ErrorMessage = true, "the logs are too big to send"
+				case !mg.logsPerDomain.Allow(req.Domain):
+					resp.Error, resp.ErrorMessage = true, "logs were sent from this device a few times already - try again in an hour"
+				case mg.mailer == nil:
+					resp.Error, resp.ErrorMessage = true, "the bridge can't send email right now"
+				default:
+					owner := mg.dao.AccountEmailForDomain(req.Domain)
+					body := fmt.Sprintf("Logs sent from %s for debugging.\nAccount: %s\n\nNote from the owner:\n%s\n", req.Domain, orNone(owner), orNone(strings.TrimSpace(req.Note)))
+					att := &mailer.Attachment{Name: "otc-logs-" + req.Domain + ".txt.gz", ContentType: "application/gzip", Data: req.Logs}
+					if err := mg.mailer.SendWith(mg.mailer.Self(), owner, "Logs from "+req.Domain, body, att); err != nil {
+						log.Error("could not mail a device's logs:", err)
+						resp.Error, resp.ErrorMessage = true, "the logs could not be sent right now"
+					} else {
+						log.Info("logs mailed for", req.Domain)
+						resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+					}
 				}
 				respBin, _ := proto.Marshal(resp)
 				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {

@@ -1,0 +1,20 @@
+/* Settings > Logs (LogsPanel.tsx). */
+.lg-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; z-index: 60; padding: 16px; }
+.lg-dialog { width: min(1100px, 100%); height: min(86vh, 900px); display: flex; flex-direction: column; gap: 10px; background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.lg-head { display: flex; align-items: center; gap: 14px; }
+.lg-head h3 { margin: 0; }
+.lg-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.lg-tabs button { padding: 6px 14px; border: 0; border-radius: 0; background: transparent; color: var(--mist-dim); font-weight: 600; }
+.lg-tabs button.on { background: var(--panel); color: var(--mist); }
+.lg-close { margin-left: auto; padding: 0 8px; border: 0; background: transparent; color: var(--mist); font-size: 26px; line-height: 1; }
+.lg-warning { margin: 0; padding: 8px 12px; border-radius: 8px; background: rgba(255,200,87,.08); border: 1px solid rgba(255,200,87,.35); color: var(--mist); font-size: 13px; }
+.lg-text { flex: 1; min-height: 0; margin: 0; overflow: auto; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #111; color: #d6e2de; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+.lg-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lg-grow { flex: 1; }
+.lg-live { font-size: 12px; color: var(--mist-dim); }
+.lg-live.on::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3ecf8e; margin-right: 6px; vertical-align: 1px; }
+.lg-error { margin: 0; color: var(--danger); font-size: 13px; }
+.lg-ok { margin: 0; color: #3ecf8e; font-size: 13px; }
+.lg-send { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); }
+.lg-send p { margin: 0; font-size: 13px; color: var(--mist); }
+.lg-send textarea { width: 100%; box-sizing: border-box; resize: vertical; }

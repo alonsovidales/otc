@@ -2821,6 +2821,38 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			RespBridgeSignedIn: &pb.RespBridgeSignedIn{SetupToken: token, Email: email},
 		}
 
+	// Settings > Logs: read live (held open until new lines arrive),
+	// copied, or sent to the project. The owner's, on the main instance.
+	case *pb.ReqEnvelope_ReqGetLogs:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		r := p.ReqGetLogs
+		l, err := readLog(r.Source, r.Offset, int(r.MaxBytes), time.Duration(r.WaitSeconds)*time.Second)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespLogs{RespLogs: l}
+
+	case *pb.ReqEnvelope_ReqSendLogs:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		if err := ch.mg.sendLogsToBridge(p.ReqSendLogs.Note); err != nil {
+			log.Error("could not send the logs:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		log.Info("logs sent to the project for support")
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+
 	// Issue #182: the owner takes the device off the bridge.
 	case *pb.ReqEnvelope_ReqDisableBridge:
 		if ch.mg.sup == nil {
