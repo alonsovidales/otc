@@ -46,6 +46,7 @@ import (
 	"github.com/alonsovidales/otc/app/desktop/internal/autostart"
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
+	"github.com/alonsovidales/otc/app/desktop/internal/flasher"
 	"github.com/alonsovidales/otc/app/desktop/internal/selfupdate"
 	"github.com/alonsovidales/otc/app/desktop/internal/service"
 	"github.com/alonsovidales/otc/app/desktop/internal/tray"
@@ -103,6 +104,10 @@ func main() {
 		fmt.Println("otc-sync", version)
 	case "update":
 		err = cmdUpdate()
+	case "flash":
+		err = cmdFlash(args)
+	case "flash-device": // the elevated half of `flash` and the tray's wizard
+		err = flasher.HelperMain(args)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -135,6 +140,66 @@ func cmdUpdate() error {
 	return nil
 }
 
+// cmdFlash is the setup wizard's card writing for a terminal (issue #184).
+func cmdFlash(args []string) error {
+	disks, err := flasher.ListDisks()
+	if err != nil {
+		return err
+	}
+	if len(args) == 0 {
+		if len(disks) == 0 {
+			fmt.Println("No SD card or USB disk found - insert the card and run this again.")
+			return nil
+		}
+		fmt.Println("Cards and removable disks:")
+		for _, d := range disks {
+			fmt.Println("  " + d.Label())
+		}
+		fmt.Println("\nWrite the image with: otc-sync flash <disk>")
+		return nil
+	}
+	var disk *flasher.Disk
+	for i := range disks {
+		if disks[i].ID == args[0] {
+			disk = &disks[i]
+		}
+	}
+	if disk == nil {
+		return fmt.Errorf("%s is not a removable disk - run `otc-sync flash` to list them", args[0])
+	}
+	if disk.Size < flasher.MinCardSize {
+		return fmt.Errorf("the card is too small (%s) - it needs 8 GB or more", flasher.HumanSize(disk.Size))
+	}
+	fmt.Printf("Everything on %s will be erased. Type yes to continue: ", disk.Label())
+	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	if strings.TrimSpace(line) != "yes" {
+		return errors.New("cancelled")
+	}
+	path, err := flasher.Download(context.Background(), func(done, total int64) {
+		if total > 0 {
+			fmt.Printf("\rDownloading the image… %d%%   ", done*100/total)
+		}
+	})
+	fmt.Println()
+	if err != nil {
+		return err
+	}
+	last := ""
+	err = flasher.WriteElevated(path, *disk, func(p flasher.Progress) {
+		if t := p.Text(); t != last {
+			last = t
+			fmt.Printf("\r%-60s", t)
+		}
+	})
+	fmt.Println()
+	if err != nil {
+		return err
+	}
+	_ = os.Remove(path)
+	fmt.Println(flasher.NextSteps)
+	return nil
+}
+
 func usage() {
 	fmt.Print(`otc-sync - Off The Cloud folder sync
 
@@ -142,6 +207,8 @@ func usage() {
   otc-sync tray | run           the tray app | the daemon with no UI
   otc-sync status               what the running daemon is doing
   otc-sync update               install a newer version, if there is one (signed releases only)
+  otc-sync flash [disk]         write the Off The Cloud device image to an SD card: without a
+                                disk, lists the cards; with one, downloads, verifies and writes
   otc-sync settings --name cala [--password-stdin | --password-prompt]
   otc-sync settings --address ws://192.168.1.10:8080/ws
   otc-sync folders              the folders being synced

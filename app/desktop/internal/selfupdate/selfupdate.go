@@ -91,12 +91,11 @@ func publicKey() (ed25519.PublicKey, error) {
 }
 
 // Fetch downloads the manifest and checks its signature.
-func Fetch() (*Manifest, error) {
-	url := ManifestURL
-	if u := os.Getenv("DESKTOP_MANIFEST"); u != "" {
-		url = u
-	}
-	body, err := get(url, 1<<20)
+// FetchSigned downloads url and url+".sig" (base64 Ed25519) and returns the
+// body only if it is signed with the release key - the desktop manifest
+// and, for the setup wizard (issue #184), the device image's SHA-256.
+func FetchSigned(url string, max int64) ([]byte, error) {
+	body, err := get(url, max)
 	if err != nil {
 		return nil, err
 	}
@@ -106,14 +105,26 @@ func Fetch() (*Manifest, error) {
 	}
 	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sigB64)))
 	if err != nil {
-		return nil, fmt.Errorf("the manifest's signature is malformed: %w", err)
+		return nil, fmt.Errorf("the signature of %s is malformed: %w", url, err)
 	}
 	pub, err := publicKey()
 	if err != nil {
 		return nil, err
 	}
 	if !ed25519.Verify(pub, body, sig) {
-		return nil, errors.New("the desktop manifest is not signed with the release key")
+		return nil, fmt.Errorf("%s is not signed with the release key", url)
+	}
+	return body, nil
+}
+
+func Fetch() (*Manifest, error) {
+	url := ManifestURL
+	if u := os.Getenv("DESKTOP_MANIFEST"); u != "" {
+		url = u
+	}
+	body, err := FetchSigned(url, 1<<20)
+	if err != nil {
+		return nil, err
 	}
 	var m Manifest
 	if err := json.Unmarshal(body, &m); err != nil {

@@ -508,7 +508,36 @@ running exe to `.old`, removed at the next start), restarts the systemd user ser
 and relaunches. `otc-sync update` does the same from the command line. Linux installs go to
 `~/.local/bin` so the user can replace the binary; a root-owned one asks for `sudo otc-sync update`.
 The Mac app is distributed only through the Mac App Store (which updates it); its card on the
-Downloads section says "coming soon" until the listing is live, then links to it. Its packages are one-to-one with the Swift files: `wsclient` =
+Downloads section says "coming soon" until the listing is live, then links to it.
+**Setting up a new device from a computer (issue #184).** Both desktop apps have "Set Up a New
+Device…". They download `off-the-cloud-rpi-lite-arm64.img.xz` from the `image` release and trust it
+only through the release-key signature over its SHA-256 (`.sha256.sig`, signed by `make
+image-publish` via `scripts/sign-file.sh`). otc-sync (`internal/flasher`, tray `setup.go`, CLI
+`otc-sync flash [disk]`) writes the card itself. It lists removable disks only:
+- on Linux, sysfs `removable`, USB or `mmcblk`, minus any disk holding `/`, `/boot`, swap and so
+  on, followed through device-mapper slaves;
+- on Windows, `Get-Disk` with bus type USB, SD or MMC, not boot or system.
+
+It needs 8 GB or more. Writing runs elevated as the hidden `otc-sync flash-device` (pkexec, or UAC
+through `ShellExecuteExW runas`), which reports progress as JSON lines in a status file the
+wizard polls. The elevated process re-checks that the disk is removable, fetches the signed hash
+itself and hashes the image before and while writing. It prepares the card: Linux unmounts it
+and opens it `O_EXCL`; Windows runs diskpart `clean` and opens the drive `NO_BUFFERING` with
+page-aligned buffers. It blanks the first MiB, streams the xz (ulikunitz/xz), writes the first
+chunk last so nothing mounts a half-written card, then syncs. On Linux it drops the cache
+(`BLKFLSBUF`) and reads everything back against the decompressed hash before ejecting
+(udisksctl power-off). The download is deleted after a successful write.
+
+The Mac app (`SetupWizardView.swift`) is sandboxed and can't write raw disks. It downloads into
+`~/Downloads` (`ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER`) with the same checks, opens Raspberry Pi
+Imager with the image (bundle `com.raspberrypi.rpi-imager`; it also selects the file in Finder for
+"Use custom"), deletes the image after "I've Written the Card", and can continue over Bluetooth:
+`BluetoothSetupView.swift` is the iOS file with an AppKit view layer, and finishing there points
+the Mac's sync at the new device. otc-sync continues on the phone or through the hotspot
+(`http://10.42.0.1/`), the parity exception the owner chose. Tested by flashing a loop device in
+the Lima VM (`OTC_FLASH_TEST_DISK`, honoured only for root) and a virtual USB disk in the Windows
+VM (`run.sh -drive file=card.raw,if=none,id=card,format=raw -device
+usb-storage,drive=card,removable=on`). Its packages are one-to-one with the Swift files: `wsclient` =
 WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with a watcher and a
 10-minute reconcile, two-way remote folders with the three-way merge and a 1-minute poll,
 hash-first uploads, RAID polling), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch

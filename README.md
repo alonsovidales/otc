@@ -42,6 +42,11 @@ Download it from [off-the.cloud](https://off-the.cloud/#download) or the
 | Linux (Intel/AMD) | `otc-sync-linux-amd64` |
 | Linux (ARM, e.g. a Raspberry Pi) | `otc-sync-linux-arm64` |
 
+*Setting up a new device*: "Set Up a New Device…" in the tray menu (or `otc-sync flash` in a
+terminal) downloads the device image, checks its signature, writes it to an SD card (it asks for
+administrator permission and lists only cards and removable disks), verifies the card and deletes
+the download. The Mac app has the same wizard and uses Raspberry Pi Imager to write the card.
+
 *Windows*: run the `.exe` once; it appears in the tray, asks for your device and password under
 Settings…, and registers itself to start at login. Keep it somewhere permanent (not Downloads),
 since that path is what starts at login.

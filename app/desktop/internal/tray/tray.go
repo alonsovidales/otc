@@ -56,6 +56,7 @@ type ui struct {
 	mem       *systray.MenuItem // load, shown when the pointer rests on it
 	update    *systray.MenuItem // issue #183: a major or critical device update
 	appUpdate *systray.MenuItem // a newer otc-sync (selfupdate)
+	setup     *systray.MenuItem // issue #184: the SD card wizard
 	empty     *systray.MenuItem
 	folders   []*folderItem
 	addLocal  *systray.MenuItem
@@ -150,6 +151,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.addLocal = systray.AddMenuItem("Sync a Folder from This Computer…", "Two ways: kept the same here and on the device, changes and deletions included")
 	u.addRem = systray.AddMenuItem("Sync a Folder from the Device…", "Two ways, starting from a folder already on the device")
 	u.explain = systray.AddMenuItem("What Do These Do?", "The difference between backing up and syncing")
+	u.setup = systray.AddMenuItem("Set Up a New Device…", "Prepare the SD card for a new Raspberry Pi device")
 	u.settings = systray.AddMenuItem("Settings…", "Device and password")
 	u.autost = systray.AddMenuItemCheckbox("Start at login", "", u.c.AutostartEnabled())
 	systray.AddSeparator()
@@ -159,7 +161,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.stopLoop = stop
 	items := u.folders
 	addLocal, addRem, settings, autost, quit := u.addLocal, u.addRem, u.settings, u.autost, u.quit
-	addBackup, explain, appUpdate := u.addBackup, u.explain, u.appUpdate
+	addBackup, explain, appUpdate, setup := u.addBackup, u.explain, u.appUpdate, u.setup
 	go func() {
 		for {
 			select {
@@ -175,6 +177,8 @@ func (u *ui) build(folders []config.FolderStatus) {
 				go u.addLocal_()
 			case <-addRem.ClickedCh:
 				go u.addRemote()
+			case <-setup.ClickedCh:
+				go u.setupDevice()
 			case <-settings.ClickedCh:
 				go u.settingsDialog()
 			case <-autost.ClickedCh:
