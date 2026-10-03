@@ -29,6 +29,15 @@ struct CloudSyncApp: App {
             MenuBarLabel()
         }
         .menuBarExtraStyle(.window) // resizable popover
+
+        // Issue #184: the new-device wizard, opened from the popover. Never
+        // at launch - this is a menu bar app.
+        Window("Set Up a New Device", id: "setup") {
+            SetupWizardView()
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+        .defaultLaunchBehavior(.suppressed)
     }
 }
 

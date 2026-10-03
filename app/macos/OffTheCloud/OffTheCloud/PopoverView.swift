@@ -25,6 +25,8 @@ struct PopoverView: View {
     // The three ways to add a folder, each with its explanation - inline,
     // for the same reason as the remote picker below.
     @State private var showAddChooser = false
+    // Issue #184: the new-device wizard lives in its own window.
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         // Issue #47: swapped in *inline*, not as a .sheet() — a sheet
@@ -65,6 +67,13 @@ struct PopoverView: View {
                 Text("Off The Cloud — Sync")
                     .font(.headline)
                 Spacer()
+                Button {
+                    openSetupWizard()
+                } label: {
+                    Image(systemName: "externaldrive.badge.plus")
+                }
+                .buttonStyle(.plain)
+                .help("Set Up a New Device…")
                 // Settings inline inside the popover
                 Button {
                     showSettings.toggle()
@@ -97,6 +106,17 @@ struct PopoverView: View {
 
             if showSettings {
                 SettingsInlineView()
+            }
+
+            // No device yet: the way to get one.
+            if settings.domain.isEmpty {
+                Button {
+                    openSetupWizard()
+                } label: {
+                    Label("New here? Set Up a New Device…", systemImage: "externaldrive.badge.plus")
+                }
+                .buttonStyle(.link)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // Folders list — no ScrollView: the panel itself grows to fit
@@ -155,6 +175,12 @@ struct PopoverView: View {
             // Start binding only once; safe if already bound.
             sync.bind(settings: settings)
         }
+    }
+
+    /// Opens the wizard in front: a menu bar app isn't the active app.
+    private func openSetupWizard() {
+        openWindow(id: "setup")
+        NSApp.activate()
     }
 
     /// Same NSOpenPanel SyncModel.addFolder() uses for a local folder — the
