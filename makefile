@@ -88,7 +88,10 @@ image-publish:
 	@test -f dist/$(IMAGE_NAME).img.xz || { echo "dist/$(IMAGE_NAME).img.xz not found - run 'make image' first"; exit 1; }
 	@gh release view $(IMAGE_RELEASE) >/dev/null 2>&1 || gh release create $(IMAGE_RELEASE) --title "Raspberry Pi image" \
 		--notes "Flash with Raspberry Pi Imager (Use custom, no customisation), boot, open the Off The Cloud app and tap Set up a new device (Bluetooth). Rebuilt whenever the setup scripts change; the software itself is installed at setup time."
-	gh release upload $(IMAGE_RELEASE) dist/$(IMAGE_NAME).img.xz dist/$(IMAGE_NAME).img.xz.sha256 --clobber
+	@# Issue #184: the desktop apps' setup wizard trusts the image only through
+	@# this signature (release key, like device releases) over its SHA-256.
+	scripts/sign-file.sh dist/$(IMAGE_NAME).img.xz.sha256 dist/$(IMAGE_NAME).img.xz.sha256.sig
+	gh release upload $(IMAGE_RELEASE) dist/$(IMAGE_NAME).img.xz dist/$(IMAGE_NAME).img.xz.sha256 dist/$(IMAGE_NAME).img.xz.sha256.sig --clobber
 	@echo "$(OK_COLOR)==> https://github.com/alonsovidales/otc/releases/download/$(IMAGE_RELEASE)/$(IMAGE_NAME).img.xz$(NO_COLOR)"
 
 .PHONY: image-publish
