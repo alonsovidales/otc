@@ -257,17 +257,55 @@ enum PiImager {
     }
 }
 
+/// Where the wizard is, kept outside its window: closing the window, or
+/// the window going away while the person is in Imager, resumes at the
+/// same step (and a download keeps going). Cancel and Done start over.
+@MainActor
+final class SetupWizardSession: ObservableObject {
+    static let shared = SetupWizardSession()
+
+    @Published var step: SetupWizardView.Step = .intro
+    @Published var deleted = false
+    @Published var usedDomain = ""
+    let image = SetupImageModel()
+
+    func reset() {
+        image.cancel()
+        step = .intro
+        deleted = false
+        usedDomain = ""
+    }
+}
+
 struct SetupWizardView: View {
     enum Step {
         case intro, download, write, continueSetup, bluetooth, phone, done
     }
 
-    @StateObject private var image = SetupImageModel()
-    @State private var step: Step = .intro
+    @ObservedObject private var session = SetupWizardSession.shared
+    @ObservedObject private var image = SetupWizardSession.shared.image
     @State private var imagerURL: URL? = PiImager.appURL
-    @State private var deleted = false
-    @State private var usedDomain = ""
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismissWindow
+
+    private var step: Step {
+        get { session.step }
+        nonmutating set { session.step = newValue }
+    }
+    private var deleted: Bool {
+        get { session.deleted }
+        nonmutating set { session.deleted = newValue }
+    }
+    private var usedDomain: String {
+        get { session.usedDomain }
+        nonmutating set { session.usedDomain = newValue }
+    }
+
+    /// Cancel, Close and Done: the wizard is over, the next one starts
+    /// from the beginning.
+    private func dismiss() {
+        session.reset()
+        dismissWindow()
+    }
 
     var body: some View {
         Group {
@@ -293,8 +331,20 @@ struct SetupWizardView: View {
             }
         }
         .navigationTitle("Set Up a New Device")
+        // A menu bar app has no Dock icon, so its window is hard to find
+        // again after switching to Imager: while the wizard is open the app
+        // is a regular one, in the Dock and in ⌘-Tab.
+        .onAppear {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate()
+            imagerURL = PiImager.appURL
+        }
         .onDisappear {
-            image.cancel()
+            NSApp.setActivationPolicy(.accessory)
+        }
+        // Back from installing Imager: no need to press Check Again.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            imagerURL = PiImager.appURL
         }
     }
 
