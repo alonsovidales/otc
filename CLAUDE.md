@@ -507,8 +507,8 @@ platform's file next to the executable, checks its SHA-256 and swaps it in (Wind
 running exe to `.old`, removed at the next start), restarts the systemd user service if it runs,
 and relaunches. `otc-sync update` does the same from the command line. Linux installs go to
 `~/.local/bin` so the user can replace the binary; a root-owned one asks for `sudo otc-sync update`.
-The Mac app's direct download (Developer ID + notarization + Sparkle, not the App Store build) is
-still to do. Its packages are one-to-one with the Swift files: `wsclient` =
+The Mac app is distributed only through the Mac App Store (which updates it); its card on the
+Downloads section says "coming soon" until the listing is live, then links to it. Its packages are one-to-one with the Swift files: `wsclient` =
 WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with a watcher and a
 10-minute reconcile, two-way remote folders with the three-way merge and a 1-minute poll,
 hash-first uploads, RAID polling), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch
