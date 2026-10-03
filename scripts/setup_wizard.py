@@ -67,7 +67,7 @@ CONFIG = {
     "bridge": os.environ.get("OTC_BRIDGE", "off-the.cloud"),
     "install_url": os.environ.get(
         "OTC_INSTALL_URL",
-        "https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh"),
+        "https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh"),
     # install.sh sources this for the device identity instead of
     # generating its own, so the name reserved on the bridge and the
     # identity the device later presents are the same thing.
@@ -666,7 +666,15 @@ class Install:
                    'for i in 1 2 3 4 5 6 7 8 9 10; do echo "[otc-install] [$i/10] dry-run step $i"; '
                    'echo "[otc-install] doing things for step $i"; sleep 1; done; echo "[otc-install] Done."']
         else:
-            cmd = ["bash", "-c", 'curl -fsSL --retry 3 "$0" | bash -s -- "$1"', CONFIG["install_url"], name]
+            # Issue #160: the image's own copy of verified-install.sh (with
+            # the release key in /etc/otc) installs the newest *signed*
+            # release - nothing from the branch runs. A wizard on an image
+            # from before it fetches that same script.
+            local_installer = "/usr/local/bin/otc-verified-install"
+            if os.path.exists(local_installer):
+                cmd = ["bash", local_installer, name]
+            else:
+                cmd = ["bash", "-c", 'curl -fsSL --retry 3 "$0" | bash -s -- "$1"', CONFIG["install_url"], name]
         Path(CONFIG["install_log"]).parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG["install_log"], "a") as logf:
             logf.write(f"\n=== setup wizard: install started {time.strftime('%F %T')} name={name} disks={disks}\n")

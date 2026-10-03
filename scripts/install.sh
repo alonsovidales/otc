@@ -16,7 +16,10 @@
 #
 # Usage: log into any Debian/Ubuntu box (Raspberry Pi OS included) and run
 #
-#   curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh | sudo bash -s -- <subdomain>
+#   curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh | sudo bash -s -- <subdomain>
+#
+# (issue #160: that installs the newest signed release, running this file
+# from its verified source; run directly, this file hands over to it.)
 #
 # <subdomain> (optional) is this device's bridge subdomain, e.g. "pit" for
 # pit.off-the.cloud — a name you and your friends' clients use to reach this
@@ -67,6 +70,32 @@ die() { echo "[otc-install] ERROR: $*" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || die "needs root — re-run as: curl ... | sudo bash -s -- [subdomain]"
 command -v apt-get >/dev/null 2>&1 || die "only Debian/Ubuntu-family distros are supported (no apt-get found)"
 
+# Issue #160: only a signed release is ever installed. This file is run as
+# part of one (verified-install.sh checks the release's signature, source
+# and web app and sets OTC_VERIFIED_SRC); run any other way - straight from
+# the branch, as `curl | bash` and older setup wizards do - it hands over
+# to verified-install.sh, which installs the newest signed release instead.
+if [ -z "${OTC_VERIFIED_SRC:-}" ]; then
+    log "Handing over to the verified installer: only a signed release is installed"
+    hv="$(mktemp)"
+    curl -fsSL --retry 3 -o "$hv" "${OTC_REPO_RAW:-https://raw.githubusercontent.com/alonsovidales/otc/main}/scripts/verified-install.sh" \
+        || die "could not download the verified installer"
+    exec bash "$hv" "$@"
+fi
+
+# fetch_pinned URL DEST SHA256 - downloads to a temporary file and moves it
+# into place only if it matches the pinned hash (issue #160): nothing
+# downloaded here is run or loaded unchecked.
+fetch_pinned() {
+    local url="$1" dest="$2" want="$3" tmpf
+    tmpf="$(mktemp "${dest}.XXXXXX")"
+    curl -fL --retry 5 --retry-delay 2 -o "$tmpf" "$url" || { rm -f "$tmpf"; die "could not download $url"; }
+    if [ "$(sha256sum "$tmpf" | awk '{print $1}')" != "$want" ]; then
+        rm -f "$tmpf"; die "$url does not match its pinned hash"
+    fi
+    mv -f "$tmpf" "$dest"
+}
+
 # If a previous run got partway through and then died (a killed `curl | bash`,
 # a failed step, a reboot mid-install, ...) there will be pieces of OTC on this
 # box — the binary, the database, the models — but NO /etc/otc/.install-complete
@@ -78,7 +107,8 @@ command -v apt-get >/dev/null 2>&1 || die "only Debian/Ubuntu-family distros are
 # the script writes only when a run reaches the very end is absent. A fully
 # completed install always has the marker, so this only fires on a box where
 # a previous run died mid-way (or one that was hand-assembled).
-if { [ -d /opt/otc-src ] || [ -e /usr/bin/otc ] || [ -d /etc/otc ]; } && [ ! -e /etc/otc/.install-complete ]; then
+# (/etc/otc itself exists on a fresh image: it carries the release key.)
+if { [ -d /opt/otc-src ] || [ -e /usr/bin/otc ] || [ -e /etc/otc/otc-install.env ]; } && [ ! -e /etc/otc/.install-complete ]; then
     echo "[otc-install] NOTE: this machine already has OTC artifacts but no /etc/otc/.install-complete marker,"
     echo "[otc-install]       which means a previous install run did not finish. Re-running now to complete/repair it"
     echo "[otc-install]       (this is safe — every step is idempotent). If you're SURE you want a from-scratch"
@@ -86,9 +116,17 @@ if { [ -d /opt/otc-src ] || [ -e /usr/bin/otc ] || [ -d /etc/otc ]; } && [ ! -e 
     echo ""
 fi
 
+# Pinned by hash with their versions (issue #160): Go's from go.dev's own
+# list, the rest checked once and fixed here.
 case "$(uname -m)" in
-    aarch64) ARCH=arm64; ORT_ARCH=aarch64; PROTOC_ARCH=aarch_64 ;;
-    x86_64)  ARCH=amd64; ORT_ARCH=x64; PROTOC_ARCH=x86_64 ;;
+    aarch64) ARCH=arm64; ORT_ARCH=aarch64; PROTOC_ARCH=aarch_64
+             GO_SHA=a290581cfe4fe28ddd737dde3095f3dbeb7f2e4065cab4eae44dfc53b760c2f7
+             ORT_SHA=15100fb88b4c692cdd6bf2cca5f4a26a3806cebca8136de6681e2aba4b2ea033
+             PROTOC_SHA=6427349140e01f06e049e707a58709a4f221ae73ab9a0425bc4a00c8d0e1ab32 ;;
+    x86_64)  ARCH=amd64; ORT_ARCH=x64; PROTOC_ARCH=x86_64
+             GO_SHA=031f088e5d955bab8657ede27ad4e3bc5b7c1ba281f05f245bcc304f327c987a
+             ORT_SHA=4c436a280d650f8bf32c921a2bf4de7c42cc32884c51c90e47de991708bbb5a4
+             PROTOC_SHA=3e866620c5be27664f3d2fa2d656b5f3e09b5152b42f1bedbf427b333e90021a ;;
     *) die "unsupported architecture $(uname -m) (need arm64 or amd64)" ;;
 esac
 
@@ -193,8 +231,26 @@ apt-get install -y mariadb-server build-essential git curl wget rsync ca-certifi
 # tailnet or is published publicly unless the owner asks for it during
 # setup. Non-fatal: a device without it simply doesn't get the option.
 if ! command -v tailscale >/dev/null 2>&1; then
-    curl -fsSL https://tailscale.com/install.sh | sh \
-        || echo "[otc-install] WARNING: Tailscale could not be installed - the Funnel option won't be offered"
+    # From Tailscale's apt repository, its signing key pinned by hash
+    # (issue #160) - not their install script piped into a root shell.
+    ts_dist=""; ts_code=""
+    if [ -r /etc/os-release ]; then
+        . /etc/os-release
+        case "${ID:-}" in debian|raspbian) ts_dist=debian ;; ubuntu) ts_dist=ubuntu ;; esac
+        ts_code="${VERSION_CODENAME:-}"
+    fi
+    ts_key=/usr/share/keyrings/tailscale-archive-keyring.gpg
+    if [ -n "$ts_dist" ] && [ -n "$ts_code" ] \
+        && curl -fsSL -o "$ts_key.tmp" "https://pkgs.tailscale.com/stable/$ts_dist/$ts_code.noarmor.gpg" \
+        && [ "$(sha256sum "$ts_key.tmp" | awk '{print $1}')" = 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39 ]; then
+        mv -f "$ts_key.tmp" "$ts_key"
+        echo "deb [signed-by=$ts_key] https://pkgs.tailscale.com/stable/$ts_dist $ts_code main" > /etc/apt/sources.list.d/tailscale.list
+        { apt-get update -qq && apt-get install -y tailscale; } \
+            || echo "[otc-install] WARNING: Tailscale could not be installed - the Funnel option won't be offered"
+    else
+        rm -f "$ts_key.tmp"
+        echo "[otc-install] WARNING: Tailscale's repository key could not be checked - the Funnel option won't be offered"
+    fi
 fi
 # The package starts tailscaled at boot; it runs only once the owner turns
 # Funnel on in Settings (otc-tailscale-runner starts it then, and makes
@@ -317,7 +373,7 @@ mkdir -p "$UNENC_PATH"
 log "[4/10] Go $GO_VERSION ($ARCH)"
 if ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go$GO_VERSION "; then
     tmp=$(mktemp -d)
-    curl -fsSL -o "$tmp/go.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz"
+    fetch_pinned "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" "$tmp/go.tar.gz" "$GO_SHA"
     rm -rf /usr/local/go
     tar -C /usr/local -xzf "$tmp/go.tar.gz"
     rm -rf "$tmp"
@@ -326,7 +382,7 @@ fi
 log "[5/10] ONNX Runtime $ONNXRUNTIME_VERSION ($ORT_ARCH)"
 if [ ! -f /opt/onnxruntime/lib/libonnxruntime.so ]; then
     tmp=$(mktemp -d)
-    curl -fsSL -o "$tmp/ort.tgz" "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}.tgz"
+    fetch_pinned "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}.tgz" "$tmp/ort.tgz" "$ORT_SHA"
     tar -xzf "$tmp/ort.tgz" -C "$tmp"
     rm -rf /opt/onnxruntime
     mv "$tmp/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}" /opt/onnxruntime
@@ -336,30 +392,30 @@ fi
 log "[6/10] RAM++ tagging model (~870MB, only downloaded once)"
 mkdir -p "$MODEL_DIR"
 if [ ! -f "$MODEL_ONNX" ] || [ ! -f "$MODEL_TAGS" ] || [ ! -f "$MODEL_THRESHOLDS" ]; then
-    curl -fL --retry 5 --retry-delay 2 -o "$MODEL_ONNX" "$MODEL_HF_REPO/ram_plus_int8.onnx"
-    curl -fL --retry 5 --retry-delay 2 -o "$MODEL_THRESHOLDS" "$MODEL_HF_REPO/ram_tag_list_threshold.txt"
-    curl -fsSL "$RAW_BASE/models/models/tag_list_4585.txt.gz" | gunzip > "$MODEL_TAGS"
+    # The model's hash is the one Hugging Face lists for it (its LFS oid).
+    fetch_pinned "$MODEL_HF_REPO/ram_plus_int8.onnx" "$MODEL_ONNX" 44836da6724dcbdd7446632599c190426af96bd47d4457d47d876b019e10f8bd
+    fetch_pinned "$MODEL_HF_REPO/ram_tag_list_threshold.txt" "$MODEL_THRESHOLDS" b6f81d0de1bc7f9c251af512c413eae976c77dbfbadf700d4e3d90510f4c6447
+    # The tag list ships in the verified release itself.
+    gunzip < "$OTC_VERIFIED_SRC/models/models/tag_list_4585.txt.gz" > "$MODEL_TAGS"
 fi
 
 log "[6/10] Face recognition models (issue #52, ~10MB total, only downloaded once)"
 if [ ! -f "$FACE_DETECTOR_ONNX" ]; then
-    curl -fL --retry 5 --retry-delay 2 -o "$FACE_DETECTOR_ONNX" "$OPENCV_ZOO_RAW/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+    fetch_pinned "$OPENCV_ZOO_RAW/face_detection_yunet/face_detection_yunet_2023mar.onnx" "$FACE_DETECTOR_ONNX" 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
 fi
 if [ ! -f "$FACE_RECOGNIZER_ONNX" ]; then
-    curl -fL --retry 5 --retry-delay 2 -o "$FACE_RECOGNIZER_ONNX" "$OPENCV_ZOO_RAW/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx"
+    fetch_pinned "$OPENCV_ZOO_RAW/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx" "$FACE_RECOGNIZER_ONNX" 2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a
 fi
 chown -R otc:otc "$MODEL_DIR"
 
 # ---------------------------------------------------------------------------
 # 4. Fetch source, build the binary, install the web bundle
 # ---------------------------------------------------------------------------
-log "[7/10] Fetch source"
-if [ -d "$SRC_DIR/.git" ]; then
-    git -C "$SRC_DIR" fetch --depth 1 origin main
-    git -C "$SRC_DIR" reset --hard origin/main
-else
-    git clone --depth 1 "$REPO_URL" "$SRC_DIR"
-fi
+log "[7/10] Source of release ${OTC_RELEASE_VERSION:-?} (verified)"
+# The signed release's own source (verified-install.sh), not a clone of
+# the branch - the same way updates stage it.
+mkdir -p "$SRC_DIR"
+rsync -a --delete --exclude '.git' "$OTC_VERIFIED_SRC/" "$SRC_DIR/" || die "could not stage the source"
 
 log "[8/10] Generate proto/generated (protoc + protoc-gen-go)"
 # proto/generated/*.go is `make pb`'s protoc output, gitignored (not
@@ -376,7 +432,7 @@ log "[8/10] Generate proto/generated (protoc + protoc-gen-go)"
 # elsewhere from a dev machine via `make pb`).
 if ! command -v protoc >/dev/null 2>&1 || ! protoc --version | grep -q " ${PROTOC_VERSION}$"; then
     tmp=$(mktemp -d)
-    curl -fsSL -o "$tmp/protoc.zip" "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip"
+    fetch_pinned "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" "$tmp/protoc.zip" "$PROTOC_SHA"
     rm -rf /opt/protoc
     mkdir -p /opt/protoc
     (cd /opt/protoc && unzip -q "$tmp/protoc.zip")
@@ -403,18 +459,15 @@ log "[8/10] Build the otc binary"
     /usr/local/go/bin/go build -o /usr/bin/otc ./bin/otc.go
 )
 
-log "[9/10] Web app (built from source — always current with the cloned repo)"
+log "[9/10] Web app (release ${OTC_RELEASE_VERSION:-?}, verified)"
+# The release's own prebuilt bundle, checked against the signed manifest
+# by verified-install.sh - the same one updates install. No Node or npm on
+# the device (issue #160: they were fetched with a piped installer).
 mkdir -p /var/www
-# Build from the cloned source so the web bundle always matches the Go binary
-# (a prebuilt release tarball can lag main by days/weeks — the "stale UI"
-# problem this replaced). Install Node.js 22 if it isn't already present.
-if ! command -v node >/dev/null 2>&1 || [ "$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)" -lt 20 ] 2>/dev/null; then
-    log "installing Node.js 22 (needed to build the web app)..."
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-    apt-get install -y nodejs
-fi
-( cd "$SRC_DIR/web" && npm ci && npm run build )
-cp -a "$SRC_DIR/web/dist/." /var/www/
+rm -rf "$SRC_DIR/.web-dist" && mkdir -p "$SRC_DIR/.web-dist"
+tar -xzf "$OTC_VERIFIED_WEB" -C "$SRC_DIR/.web-dist" || die "could not unpack the web app"
+rsync -a --delete "$SRC_DIR/.web-dist/" /var/www/ || die "could not install the web app"
+rm -rf "$SRC_DIR/.web-dist"
 chown -R otc:otc /var/www
 
 log "[9/10] Runtime directories"
@@ -960,8 +1013,9 @@ echo "=========================================================="
 # was just downloaded with the rest of the source - and if that can't be
 # read, the file is left absent, which the updater reads as "the
 # beginning" and is safe because every release script is idempotent.
-if [ -f "$SRC_DIR/scripts/updates/VERSIONS" ]; then
-    latest_release="$(grep -vE '^[[:space:]]*(#|$)' "$SRC_DIR/scripts/updates/VERSIONS" | tail -1 | cut -f1)"
+if [ -n "${OTC_RELEASE_VERSION:-}" ]; then
+    # The signed release just installed (verified-install.sh).
+    latest_release="$OTC_RELEASE_VERSION"
     if [ -n "$latest_release" ]; then
         echo "$latest_release" > /etc/otc/version
         echo "[otc-install] Recorded release $latest_release in /etc/otc/version"

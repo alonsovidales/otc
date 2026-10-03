@@ -107,6 +107,12 @@ echo "=== [4/7] Scripts, units, hostname ==="
 install -m 0755 "$SRC_REPO/scripts/setup_wizard.py"  "$MNT/usr/local/bin/setup_wizard.py"
 install -m 0755 "$SRC_REPO/scripts/network_setup.py" "$MNT/usr/local/bin/network_setup.py"
 install -m 0755 "$SRC_REPO/scripts/setup_ble.py"      "$MNT/usr/local/bin/setup_ble.py"
+# Issue #160: the installer the wizard runs, and the release key it checks
+# releases with - from this image, never fetched: only a signed release is
+# installed.
+install -m 0755 "$SRC_REPO/scripts/verified-install.sh" "$MNT/usr/local/bin/otc-verified-install"
+install -d -m 0755 "$MNT/etc/otc"
+install -m 0644 "$SRC_REPO/scripts/release-signing.pub" "$MNT/etc/otc/release-signing.pub"
 
 cat > "$MNT/etc/systemd/system/network-setup.service" <<'EOF'
 [Unit]

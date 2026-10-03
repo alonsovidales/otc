@@ -258,7 +258,7 @@
               <button class="copy-btn" id="copy-curl" type="button">Copy</button>
             </div>
             <pre><span class="comment"># log into the machine, then:</span>
-curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh \
   | sudo bash -s -- &lt;subdomain&gt;</pre>
           </div>
           <p>It installs everything and builds the software from source, then starts the service at <code>http://&lt;device-ip&gt;:8080/</code>. Safe to re-run to update. RAID-1 storage and the WiFi setup are not part of this path — see the image for a from-scratch Raspberry Pi.</p>
@@ -525,7 +525,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/inst
 
     const copyBtn = document.getElementById('copy-curl');
     copyBtn.addEventListener('click', async () => {
-      const cmd = 'curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh | sudo bash -s -- <subdomain>';
+      const cmd = 'curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh | sudo bash -s -- <subdomain>';
       try {
         await navigator.clipboard.writeText(cmd);
         copyBtn.textContent = 'Copied!';

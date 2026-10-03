@@ -120,7 +120,7 @@ Already have a Debian/Ubuntu-family Linux box you can log into (Ubuntu, Debian o
 64-bit - a Raspberry Pi, an old laptop, a VPS)? Skip flashing anything - log in and run:
 
 ```
-$ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/install.sh | sudo bash -s -- <subdomain>
+$ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh | sudo bash -s -- <subdomain>
 ```
 
 `<subdomain>` is this device's bridge address, e.g. `pit` for `pit.off-the.cloud` - omit it and the

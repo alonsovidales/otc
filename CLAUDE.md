@@ -663,7 +663,15 @@ scripts come from that verified source and are checked against the signed manife
 bundle too, and nothing is ever run from `main`. A device whose runner predates this ran
 `update.sh` from `main` once: that copy does the same checks with the key embedded in it,
 then hands over to the verified release (which installs the key and the new runner).
-Forks publishing their own releases replace `scripts/release-signing.pub` with their key.
+Forks publishing their own releases replace `scripts/release-signing.pub` with their key. Fresh
+installs are verified the same way: `scripts/verified-install.sh` (the image ships it as
+`/usr/local/bin/otc-verified-install` with the key in `/etc/otc/release-signing.pub`; by hand,
+`curl …/verified-install.sh | sudo bash -s -- <name>`) checks the newest release's signature,
+source archive and web bundle, and runs the `install.sh` inside that verified source
+(`OTC_VERIFIED_SRC`, `OTC_VERIFIED_WEB`, `OTC_RELEASE_VERSION`); `install.sh` run any other way hands
+over to it. The install copies that source instead of cloning, installs the release's web bundle
+(no Node or npm on devices), pins Go, ONNX Runtime, protoc and the models by SHA-256
+(`fetch_pinned`), and installs Tailscale from its apt repository with the key pinned by hash.
 
 **Checking it worked**: a device shows its version under Settings → Device version, and
 the full log of any run is at `/var/log/otc/update.log`, with the current state in
