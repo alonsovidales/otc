@@ -34,6 +34,12 @@ SIG=scripts/updates/VERSIONS.sig
 OPENSSL="$(command -v /opt/homebrew/bin/openssl || command -v openssl)"
 
 [ -f "$KEY" ] || { echo "no release signing key at $KEY"; exit 1; }
+# Read before anything changes, so a locked Keychain fails here and not
+# half-way (after the tag). Over SSH: security unlock-keychain first.
+KEY_PASS="$(security find-generic-password -s otc-release-signing -a otc -w 2>/dev/null)" \
+    || { echo "can't read the signing key's passphrase from the Keychain (locked? run: security unlock-keychain)"; exit 1; }
+[ -n "$KEY_PASS" ] || { echo "the Keychain item otc-release-signing is empty"; exit 1; }
+export KEY_PASS
 [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "commit (or stash) your changes first"; git status --short --untracked-files=no; exit 1; }
 git fetch -q origin main
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "HEAD is not origin/main - pull or push first"; exit 1; }
@@ -62,8 +68,8 @@ if tar -tzf "$work/src.tar.gz" | grep -q "scripts/updates/VERSIONS"; then
 fi
 
 printf '%s\t%s\t%s\t%s\t%s\n' "$N" "$SCRIPT_SHA" "$WEB_SHA" "$SUMMARY" "$SRC_SHA" >> "$MANIFEST"
-P="$(security find-generic-password -s otc-release-signing -a otc -w)" \
-    "$OPENSSL" pkeyutl -sign -inkey "$KEY" -passin env:P -rawin -in "$MANIFEST" -out "$work/VERSIONS.sig.bin"
+"$OPENSSL" pkeyutl -sign -inkey "$KEY" -passin env:KEY_PASS -rawin -in "$MANIFEST" -out "$work/VERSIONS.sig.bin" \
+    || { git checkout -- "$MANIFEST"; git tag -d "v$N" >/dev/null; echo "signing failed - the tag and the manifest line were undone"; exit 1; }
 base64 < "$work/VERSIONS.sig.bin" | tr -d '\n' > "$SIG"; echo >> "$SIG"
 # Signed with the private key, checked with the public one devices pin.
 base64 -d < "$SIG" > "$work/check.sig"
