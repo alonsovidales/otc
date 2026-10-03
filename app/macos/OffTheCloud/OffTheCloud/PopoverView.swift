@@ -408,7 +408,9 @@ struct SettingsInlineView: View {
                 Text("Settings").font(.subheadline.bold())
                 Spacer()
             }
-            if settings.ready {
+            if settings.ready && confirmDisconnect {
+                disconnectConfirmation
+            } else if settings.ready {
                 connected
             } else {
                 connectForm
@@ -427,15 +429,34 @@ struct SettingsInlineView: View {
         }
         .padding(8)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
-        .alert("Disconnect from \(deviceLabel)?", isPresented: $confirmDisconnect) {
-            Button("Disconnect", role: .destructive) {
-                domain = ""
-                password = ""
-                sync.disconnect()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
+    }
+
+    // Inline, not an .alert(): an alert takes key status from the
+    // MenuBarExtra(.window) popover, which closes itself on exactly that
+    // and takes the alert with it (same quirk as the remote folder picker).
+    private var disconnectConfirmation: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Disconnect from \(deviceLabel)?", systemImage: "exclamationmark.triangle.fill")
+                .font(.callout.bold())
+                .foregroundStyle(.orange)
             Text("All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this Mac and on the device. You can add the folders again after connecting.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button("Cancel") { confirmDisconnect = false }
+                    .keyboardShortcut(.cancelAction)
+                Button("Disconnect", role: .destructive) {
+                    confirmDisconnect = false
+                    domain = ""
+                    password = ""
+                    sync.disconnect()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+            }
+            .controlSize(.small)
         }
     }
 
