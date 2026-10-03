@@ -157,6 +157,17 @@ struct PopoverView: View {
         .onAppear {
             // Start binding only once; safe if already bound.
             sync.bind(settings: settings)
+            SetupWizardSession.shared.bringToFront()
+        }
+        // onAppear alone isn't guaranteed on every reopening of a
+        // MenuBarExtra window; its becoming key is.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+            let wizard = SetupWizardSession.shared
+            // The popover is the app's only untitled window (open panels and
+            // alerts are titled, and must stay in front of the wizard).
+            if let w = note.object as? NSWindow, w !== wizard.window, !w.styleMask.contains(.titled) {
+                wizard.bringToFront()
+            }
         }
     }
 

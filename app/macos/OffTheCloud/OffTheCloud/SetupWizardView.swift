@@ -269,6 +269,17 @@ final class SetupWizardSession: ObservableObject {
     @Published var usedDomain = ""
     let image = SetupImageModel()
 
+    /// The wizard's window while it is open.
+    weak var window: NSWindow?
+
+    /// Clicking the menu bar icon while the wizard is open brings its
+    /// window back in front of the other apps' windows (without taking
+    /// focus from the popover, which would close it).
+    func bringToFront() {
+        guard let window, window.isVisible else { return }
+        window.orderFrontRegardless()
+    }
+
     func reset() {
         image.cancel()
         step = .intro
@@ -334,6 +345,7 @@ struct SetupWizardView: View {
         // A menu bar app has no Dock icon, so its window is hard to find
         // again after switching to Imager: while the wizard is open the app
         // is a regular one, in the Dock and in ⌘-Tab.
+        .background(WindowFinder { session.window = $0 })
         .onAppear {
             NSApp.setActivationPolicy(.regular)
             NSApp.activate()
@@ -581,5 +593,20 @@ struct SetupWizardView: View {
 
     private static func mb(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+}
+
+/// Hands over the NSWindow a SwiftUI view is in.
+private struct WindowFinder: NSViewRepresentable {
+    var found: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        DispatchQueue.main.async { found(v.window) }
+        return v
+    }
+
+    func updateNSView(_ v: NSView, context: Context) {
+        DispatchQueue.main.async { found(v.window) }
     }
 }
