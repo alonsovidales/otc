@@ -68,8 +68,16 @@ if tar -tzf "$work/src.tar.gz" | grep -q "scripts/updates/VERSIONS"; then
 fi
 
 printf '%s\t%s\t%s\t%s\t%s\n' "$N" "$SCRIPT_SHA" "$WEB_SHA" "$SUMMARY" "$SRC_SHA" >> "$MANIFEST"
-"$OPENSSL" pkeyutl -sign -inkey "$KEY" -passin env:KEY_PASS -rawin -in "$MANIFEST" -out "$work/VERSIONS.sig.bin" \
-    || { git checkout -- "$MANIFEST"; git tag -d "v$N" >/dev/null; echo "signing failed - the tag and the manifest line were undone"; exit 1; }
+# Retried: the signature has been seen to fail once in a while with the
+# passphrase in hand, and work a moment later.
+signed=""
+for attempt in 1 2 3 4 5; do
+    if "$OPENSSL" pkeyutl -sign -inkey "$KEY" -passin env:KEY_PASS -rawin -in "$MANIFEST" -out "$work/VERSIONS.sig.bin" 2>/dev/null; then
+        signed=1; break
+    fi
+    sleep 2
+done
+[ -n "$signed" ] || { git checkout -- "$MANIFEST"; git tag -d "v$N" >/dev/null; echo "signing failed - the tag and the manifest line were undone"; exit 1; }
 base64 < "$work/VERSIONS.sig.bin" | tr -d '\n' > "$SIG"; echo >> "$SIG"
 # Signed with the private key, checked with the public one devices pin.
 base64 -d < "$SIG" > "$work/check.sig"
