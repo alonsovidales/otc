@@ -127,3 +127,4 @@
 81	-	1766b038eea8c6322f7d86560d4c3ed0644a454cd9798aa296ed2d6c9a7dddc9	Photos and videos opened from Files open in the same viewer as Images: full size, zoom, swipe through the folder, info, streaming video.
 82	-	da966d4a36812c35472bd39c50512fee217cc32547dad564cf3639cd1044d61e	Files: the refresh and list/grid buttons sit on the right with their icons centred.
 83	-	1a652b14c2e07a3ea810b07bbbbf1ddffb36c1aa85a91234d5a0b8a99dbe3f03	Updates are signed now: the device checks each release's signature and source before installing anything.	9b0ca78f4f21e4733347997b08cbec9fd00d39b179cd8a1a4c9115e79d1ba3ea
+84	-	986e9bd07838459a81ff78ab6c4010baf9206090b9c2c4e6f2c072e2f5ca2271	Settings > Logs: watch the device's logs live, copy them, or send them to us when something goes wrong.	2da1af5bd4f98ddb31274a8466cbf5adbb2134ea75ed88523731070244e84687
