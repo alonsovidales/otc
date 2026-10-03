@@ -67,6 +67,8 @@
     .btn.secondary{background:transparent;color:var(--mist);border:1px solid var(--line)}
     .btn.ember{background:var(--ember);color:#26100a}
     @media (max-width:760px){ .navlinks{display:none} }
+    .nav-actions{display:flex;gap:10px;flex:none}
+    @media (max-width:480px){ .nav-actions .btn{padding:9px 12px;font-size:14.5px} .brand span{display:none} }
 
     /* Hero */
     .hero{padding:88px 24px 64px;display:grid;gap:22px;justify-items:center;text-align:center}
@@ -230,9 +232,11 @@
         <a href="#screenshots">Gallery</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/alonsovidales/otc">GitHub</a>
-        <a href="/account">Sign in</a>
       </nav>
-      <a class="btn" href="/account?signup=1">Create an account</a>
+      <div class="nav-actions">
+        <a class="btn ember" href="/account">Sign in</a>
+        <a class="btn" href="/account?signup=1">Create an account</a>
+      </div>
     </div>
   </header>
 
