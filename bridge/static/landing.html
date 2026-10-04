@@ -166,6 +166,9 @@
     /* Desktop downloads */
     .dl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1040px;margin:0 auto}
     @media (max-width:900px){ .dl-grid{grid-template-columns:1fr} }
+    .dl-grid.two{grid-template-columns:repeat(2,1fr);max-width:700px}
+    @media (max-width:900px){ .dl-grid.two{grid-template-columns:1fr} }
+    .dl-sub{margin-top:56px}
     .dl-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px}
     .dl-card.mine{border-color:var(--gold)}
     .dl-card h3{margin:0;font-size:19px}
@@ -347,6 +350,28 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         </div>
         <div class="note">
           <strong>Every update is signed.</strong> The apps only install a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <a href="https://github.com/alonsovidales/otc">GitHub</a>, and every file is listed on the <a href="https://github.com/alonsovidales/otc/releases/tag/desktop">desktop release</a>.
+        </div>
+
+        <div class="section-head dl-sub">
+          <span class="eyebrow">Phone apps</span>
+          <h2>Your photos, backed up from your phone</h2>
+          <p>Back up your photos and videos as you take them, browse everything on your device, share with friends, and set up a new device over Bluetooth.</p>
+        </div>
+        <div class="dl-grid two">
+          <div class="dl-card" data-os="ios">
+            <span class="mine-tag">Your system</span>
+            <h3>iPhone and iPad</h3>
+            <p>Backs up your photo library, iCloud photos included, and shows your device's photos, files and friends' posts.</p>
+            <!-- When the app is live: href="https://apps.apple.com/app/id<ID>", class "btn ember", "Get it on the App Store". -->
+            <span class="btn secondary" aria-disabled="true">Coming soon to the App Store</span>
+          </div>
+          <div class="dl-card" data-os="android">
+            <span class="mine-tag">Your system</span>
+            <h3>Android</h3>
+            <p>The same app for Android phones and tablets: photo backup, your device's files and photos, and friends' posts.</p>
+            <!-- When the app is live: href="https://play.google.com/store/apps/details?id=cloud.offthe.otc", class "btn ember", "Get it on Google Play". -->
+            <span class="btn secondary" aria-disabled="true">Coming soon to Google Play</span>
+          </div>
         </div>
       </div>
     </section>
@@ -593,7 +618,11 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
     // Downloads: highlight the visitor's system and list it first.
     (() => {
       const ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent;
-      const os = /win/i.test(ua) ? 'windows' : /mac|iphone|ipad/i.test(ua) ? 'mac' : /linux|x11|cros/i.test(ua) && !/android/i.test(navigator.userAgent) ? 'linux' : '';
+      const all = navigator.userAgent;
+      // iPadOS reports itself as a Mac: a touch screen tells them apart.
+      const os = /android/i.test(all) ? 'android'
+        : /iphone|ipad|ipod/i.test(all) || (/mac/i.test(ua) && navigator.maxTouchPoints > 1) ? 'ios'
+        : /win/i.test(ua) ? 'windows' : /mac/i.test(ua) ? 'mac' : /linux|x11|cros/i.test(ua) ? 'linux' : '';
       const card = os && document.querySelector('.dl-card[data-os="' + os + '"]');
       if (card) { card.classList.add('mine'); card.parentNode.prepend(card); }
     })();
