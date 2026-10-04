@@ -1,5 +1,7 @@
 # App Store screenshots
 
+`screenshots-6.5/` is what App Store Connect asks for when 6.5" is the required size
+(1284 × 2778): the same shots, scaled from the 6.9" ones and trimmed 6 px top and bottom.
 `screenshots-6.9/` holds the iPhone screenshots for App Store Connect, at the 6.9" size Apple requires
 (1320 × 2868, iPhone 18 Pro Max simulator, clock at 9:41, full battery). They were taken against
 Pit, whose photos show people who agreed to it. The website's phone images
