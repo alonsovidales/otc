@@ -542,6 +542,4 @@ type device interface {
 // NextSteps is what to do once the card is written.
 const NextSteps = `The card is ready. Put it in the Raspberry Pi 5, plug in the two USB disks and power it on.
 
-Then, in the Off The Cloud app on your phone (iOS or Android), tap "Set up a new device": it finds the Pi over Bluetooth and walks you through the rest.
-
-No phone app? After a couple of minutes, join the WiFi network "Off The Cloud" from this computer and open http://10.42.0.1/ in your browser.`
+Then, in the Off The Cloud app on your phone (iOS or Android), tap "Set up a new device": it finds the Pi over Bluetooth and walks you through the rest.`

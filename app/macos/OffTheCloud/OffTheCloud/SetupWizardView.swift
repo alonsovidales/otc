@@ -532,7 +532,6 @@ struct SetupWizardView: View {
             header("Continue on your phone", "Keep the phone near the device.")
             VStack(alignment: .leading, spacing: 10) {
                 bullet("•", "In the Off The Cloud app for iPhone or Android, tap Set up a new device. The app finds the device over Bluetooth and shows its setup.")
-                bullet("•", "Or, from any phone or computer, join the WiFi network \"Off The Cloud\": the setup page opens by itself (if it doesn't, open http://10.42.0.1).")
             }
             Text("Once it is installed, add the device to this Mac from the menu bar: Settings, then its name and password.")
                 .font(.footnote).foregroundStyle(.secondary)
