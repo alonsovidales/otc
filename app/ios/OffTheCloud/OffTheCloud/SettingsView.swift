@@ -574,7 +574,12 @@ extension SettingsView {
 /// screen the moment the secrets clear. Same as LogOut.kt.
 @MainActor
 enum AppLogOut {
-    static func run(secrets: SecretsStore, unregisterPush: Bool = true) {
+    /// `keepDevice`: leaving from the "isn't available"/"can't connect"
+    /// screens - everything is wiped as for Log Out, but the device's
+    /// address and password are kept for the connection screen to fill in
+    /// (SecretsStore.lastDevice). Settings' Log Out forgets them too.
+    static func run(secrets: SecretsStore, unregisterPush: Bool = true, keepDevice: Bool = false) {
+        let last = (secrets.endpoint, secrets.password)
         Task {
             // A photo sync in progress owns the connection: stop it first,
             // or the request below queues behind its uploads and Log Out
@@ -608,6 +613,11 @@ enum AppLogOut {
             SyncScheduler.cancel()
             AssetSyncCache.shared.clear()
             secrets.logOut()
+            if keepDevice {
+                SecretsStore.saveLastDevice(endpoint: last.0, password: last.1)
+            } else {
+                SecretsStore.clearLastDevice()
+            }
         }
     }
 }

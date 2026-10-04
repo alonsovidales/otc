@@ -170,9 +170,9 @@ fun MainView(secrets: SecretsStore) {
             val code = statusCode
             val context = androidx.compose.ui.platform.LocalContext.current
             if (code != null) {
-                DeviceUnreachableView(message = lastError ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false) })
+                DeviceUnreachableView(message = lastError ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
             } else if (showConnectionProblem) {
-                ConnectionProblemView(secrets = secrets, onLeave = { logOut(context, secrets, unregisterPush = false) })
+                ConnectionProblemView(secrets = secrets, onLeave = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
             }
         }
     }

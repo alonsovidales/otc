@@ -27,7 +27,11 @@ import kotlinx.coroutines.launch
  * activity-scoped view models are the one thing a wipe of the stores
  * can't reach).
  */
-fun logOut(context: Context, secrets: SecretsStore, unregisterPush: Boolean = true) {
+fun logOut(context: Context, secrets: SecretsStore, unregisterPush: Boolean = true, keepDevice: Boolean = false) {
+    // keepDevice: leaving from the "isn't available"/"can't connect"
+    // screens - wiped as for Log Out, but the device's address and password
+    // stay for the connection screen to fill in (SecretsStore.lastDevice).
+    val last = secrets.endpoint.value to secrets.password.value
     PhotoSync.cancel() // a sync in progress must not outlive the session
     MainScope().launch {
         // Issue #125 (#131 on iOS): tell the device to stop pushing to this
@@ -42,6 +46,7 @@ fun logOut(context: Context, secrets: SecretsStore, unregisterPush: Boolean = tr
         SyncScheduler.cancel()
         AssetSyncCache.clear()
         secrets.logOut()
+        if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()
         val activity = context as? Activity ?: return@launch
         activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         activity.finish()

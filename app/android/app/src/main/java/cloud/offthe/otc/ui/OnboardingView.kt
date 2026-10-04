@@ -34,8 +34,10 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     // A device set up from this phone fills the form (its install may have
     // outlived the Bluetooth link that would have signed in straight away).
     val pending = remember { if (secrets.isConfigured) null else SecretsStore.pendingSetup() }
-    var endpoint by remember { mutableStateOf(pending?.first ?: secrets.endpoint.value) }
-    var password by remember { mutableStateOf(pending?.second ?: secrets.password.value) }
+    // Or the device this phone left while it was down (logOut keepDevice).
+    val last = remember { if (secrets.isConfigured || pending != null) null else SecretsStore.lastDevice() }
+    var endpoint by remember { mutableStateOf(pending?.first ?: last?.first ?: secrets.endpoint.value) }
+    var password by remember { mutableStateOf(pending?.second ?: last?.second ?: secrets.password.value) }
     // Issue #137: a brand-new device is set up from here over Bluetooth;
     // when it is done its address lands in the form and the first sign in
     // sets the owner password.
@@ -67,6 +69,13 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (last != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Filled in from the device you left. Tap Save & Continue to connect to it again, or change it to use another one.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (pending != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(

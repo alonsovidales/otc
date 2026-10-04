@@ -95,11 +95,23 @@ final class SecretsStore: ObservableObject {
     }
 
     static func loadOrCreate() -> SecretsStore {
+        // Items saved before they were made readable after the first
+        // unlock: rewritten once, while the phone is unlocked, so a
+        // background launch with the phone locked (the photo sync) still
+        // reads them - it used to read nothing and show the connection
+        // screen as if the device had been forgotten.
+        if !UserDefaults.standard.bool(forKey: "keychainAfterFirstUnlock"), Keychain.readable {
+            for key in ["endpoint", "password", "device_id", "setup_endpoint", "setup_password", "last_endpoint", "last_password"] {
+                if let v = Keychain.loadString(key: key) { Keychain.saveString(key: key, value: v) }
+            }
+            UserDefaults.standard.set(true, forKey: "keychainAfterFirstUnlock")
+        }
         let endpoint = Keychain.loadString(key: "endpoint") ?? ""
         let password = Keychain.loadString(key: "password") ?? ""
         let deviceId = Keychain.loadString(key: "device_id") ?? {
             let id = UUID().uuidString
-            Keychain.saveString(key: "device_id", value: id)
+            // Never replace the stored id because it couldn't be read.
+            if Keychain.readable { Keychain.saveString(key: "device_id", value: id) }
             return id
         }()
 
@@ -162,8 +174,31 @@ final class SecretsStore: ObservableObject {
         Keychain.delete(key: "setup_password")
     }
 
+    /// The device this phone left from the "isn't available" or "can't
+    /// connect" screens: leaving wipes everything else, but a device that
+    /// is down for a while (a restart, a re-image) is usually the one the
+    /// phone comes back to, so Onboarding fills its form from it.
+    static func saveLastDevice(endpoint: String, password: String) {
+        guard !endpoint.isEmpty else { return }
+        Keychain.saveString(key: "last_endpoint", value: endpoint)
+        Keychain.saveString(key: "last_password", value: password)
+    }
+
+    static func lastDevice() -> (endpoint: String, password: String)? {
+        guard let e = Keychain.loadString(key: "last_endpoint"), !e.isEmpty else { return nil }
+        return (e, Keychain.loadString(key: "last_password") ?? "")
+    }
+
+    static func clearLastDevice() {
+        Keychain.delete(key: "last_endpoint")
+        Keychain.delete(key: "last_password")
+    }
+
     func persist() {
-        if isConfigured { Self.clearPendingSetup() }
+        if isConfigured {
+            Self.clearPendingSetup()
+            Self.clearLastDevice()
+        }
         Keychain.saveString(key: "endpoint", value: endpoint)
         Keychain.saveString(key: "password", value: password)
         Keychain.saveString(key: "device_id", value: deviceId)
@@ -175,16 +210,34 @@ final class SecretsStore: ObservableObject {
 
 // Tiny Keychain helper
 enum Keychain {
+    /// False while the phone is locked before its first unlock (or, for
+    /// items from before the change above, while it is locked at all).
+    static var readable: Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: "device_id",
+            kSecAttrService as String: "OffTheCloud",
+            kSecReturnData as String: kCFBooleanTrue!,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        return SecItemCopyMatching(query as CFDictionary, &item) != errSecInteractionNotAllowed
+    }
+
     static func saveString(key: String, value: String) {
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
             kSecAttrService as String: "OffTheCloud",
-            kSecValueData as String: data
         ]
         let delStatus = SecItemDelete(query as CFDictionary)
-        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        var item = query
+        item[kSecValueData as String] = data
+        // Readable after the first unlock (until a restart), not only while
+        // unlocked: the background photo sync runs with the phone locked.
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        let addStatus = SecItemAdd(item as CFDictionary, nil)
         // Never log `value` here — this is also used for the account password.
         print("Keychain save key=\(key) deleteStatus=\(delStatus) addStatus=\(addStatus)")
     }
@@ -215,3 +268,4 @@ enum Keychain {
         return nil
     }
 }
+

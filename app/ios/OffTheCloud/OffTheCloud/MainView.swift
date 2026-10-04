@@ -110,7 +110,7 @@ struct MainView: View {
         .overlay {
             if let code = connection.statusCode {
                 DeviceUnreachableView(message: connection.lastError ?? "", code: code) {
-                    AppLogOut.run(secrets: secrets, unregisterPush: false)
+                    AppLogOut.run(secrets: secrets, unregisterPush: false, keepDevice: true)
                 }
                     .transition(.opacity)
             } else if showConnectionProblem {
@@ -118,7 +118,7 @@ struct MainView: View {
                 // address or password, an unreachable host - with the
                 // settings to fix it. See ConnectionProblemView.
                 ConnectionProblemView {
-                    AppLogOut.run(secrets: secrets, unregisterPush: false)
+                    AppLogOut.run(secrets: secrets, unregisterPush: false, keepDevice: true)
                 }
                     .transition(.opacity)
             }

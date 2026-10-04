@@ -627,7 +627,16 @@ outside the SDK dir so `sdkmanager` doesn't overwrite them, and kill the 37 serv
 phone is a Motorola moto g06 (Android 15, serial ZY32MBZVJ4). Every iOS screen has an Android counterpart under
 `app/src/main/java/cloud/offthe/otc/` (`ui/` mirrors the SwiftUI views, `net/` the connection,
 `data/` the stores, `sync/` PhotoSync/SyncScheduler/AssetSyncCache); still missing versus iOS:
-push notifications (FCM). Release builds (issue #129, `docs/play-store/README.md`): R8 minify and resource shrinking on,
+push notifications (FCM). Leaving a device from the "isn't available" card (its ✕) or "can't connect" card ("Set up or
+connect a different device") wipes the phone's state the same way Log Out does. It keeps the
+device's address and password as the *last device* (Keychain / EncryptedSharedPreferences
+`last_endpoint`/`last_password`; `AppLogOut.run(keepDevice:)` / `logOut(keepDevice =)`), so
+Onboarding fills them in: a device that is down is usually the one the phone comes back to.
+Settings' Log Out forgets them too. iOS Keychain items are `AfterFirstUnlockThisDeviceOnly`:
+items readable only while unlocked used to make a background launch on a locked phone (the photo
+sync) read an empty address and show the connection screen. Older items are rewritten once
+(`keychainAfterFirstUnlock`), and the device id is never replaced because it couldn't be read.
+Release builds (issue #129, `docs/play-store/README.md`): R8 minify and resource shrinking on,
 signed with the upload key `~/.otc/otc-upload.jks` (password in the Keychain, service
 `otc-android-upload`, passed as `OTC_UPLOAD_PASSWORD`; never in the repo), `versionCode` = the
 commit count; `-Potc.signWithDebug` signs a release build with the debug key to try it over an

@@ -79,7 +79,7 @@ struct DeviceUnreachableView: View {
             Button("Leave", role: .destructive) { onClose?() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and this phone can connect to it again later.")
+            Text("You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.")
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

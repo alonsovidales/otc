@@ -68,7 +68,10 @@ class SecretsStore private constructor(
     val endpointURLString: String get() = normalizedEndpoint(_endpoint.value)
 
     fun persist() {
-        if (isConfigured) clearPendingSetup()
+        if (isConfigured) {
+            clearPendingSetup()
+            clearLastDevice()
+        }
         secure().edit()
             .putString("endpoint", _endpoint.value)
             .putString("password", _password.value)
@@ -105,6 +108,29 @@ class SecretsStore private constructor(
 
         fun clearPendingSetup() {
             secure().edit().remove("setup_endpoint").remove("setup_password").apply()
+        }
+
+        /**
+         * The device this phone left from the "isn't available" or "can't
+         * connect" screens: leaving wipes everything else, but a device that
+         * is down for a while (a restart, a re-image) is usually the one the
+         * phone comes back to, so Onboarding fills its form from it. Same as
+         * SecretsStore.lastDevice on iOS.
+         */
+        fun saveLastDevice(endpoint: String, password: String) {
+            if (endpoint.isEmpty()) return
+            secure().edit().putString("last_endpoint", endpoint).putString("last_password", password).apply()
+        }
+
+        fun lastDevice(): Pair<String, String>? {
+            val s = secure()
+            val e = s.getString("last_endpoint", null)
+            if (e.isNullOrEmpty()) return null
+            return e to (s.getString("last_password", "") ?: "")
+        }
+
+        fun clearLastDevice() {
+            secure().edit().remove("last_endpoint").remove("last_password").apply()
         }
 
         /** One instance per process, loaded on first use (a Keystore round

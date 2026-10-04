@@ -89,7 +89,7 @@ struct ConnectionProblemView: View {
             Button("Leave", role: .destructive) { onLeave?() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and this phone can connect to it again later.")
+            Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.")
         }
     }
 }

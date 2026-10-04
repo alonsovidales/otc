@@ -16,6 +16,7 @@ struct OnboardingView: View {
     @State private var password = ""
     /// Set when the form was filled from a device set up from this phone.
     @State private var pendingNote = false
+    @State private var lastNote = false
 
     var body: some View {
         NavigationStack {
@@ -25,6 +26,10 @@ struct OnboardingView: View {
                     // needs; a custom address is behind the toggle.
                     ConnectionEndpointFields(endpoint: $endpoint)
                     SecureField("Password", text: $password)
+                    if lastNote {
+                        Text("Filled in from the device you left. Tap Save & Continue to connect to it again, or change it to use another one.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     if pendingNote {
                         Text("Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue.")
                             .font(.footnote).foregroundStyle(.secondary)
@@ -70,6 +75,10 @@ struct OnboardingView: View {
                 endpoint = p.endpoint
                 password = p.password
                 pendingNote = true
+            } else if endpoint.isEmpty, password.isEmpty, let l = SecretsStore.lastDevice() {
+                endpoint = l.endpoint
+                password = l.password
+                lastNote = true
             }
         }
     }

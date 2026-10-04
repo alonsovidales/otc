@@ -67,7 +67,7 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: (() -> Unit)? = null) 
         AlertDialog(
             onDismissRequest = { confirmLeave = false },
             title = { Text("Leave this device?") },
-            text = { Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and this phone can connect to it again later.") },
+            text = { Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.") },
             confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave() }) { Text("Leave", color = Color(0xFFE53935)) } },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
         )
@@ -135,7 +135,7 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
         AlertDialog(
             onDismissRequest = { confirmClose = false },
             title = { Text("Leave this device?") },
-            text = { Text("You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and this phone can connect to it again later.") },
+            text = { Text("You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.") },
             confirmButton = { TextButton(onClick = { confirmClose = false; onClose() }) { Text("Leave", color = Color(0xFFE53935)) } },
             dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Cancel") } },
         )
