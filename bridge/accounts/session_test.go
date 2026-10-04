@@ -65,15 +65,15 @@ func accountRow(mock sqlmock.Sqlmock, hash string) {
 		h = hash
 	}
 	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(
-		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified"}).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", h, time.Now(), time.Now(), time.Now(), true))
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", h, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now()))
 }
 
 // verifiedRow answers the account lookup IssueSetupToken makes.
 func verifiedRow(mock sqlmock.Sqlmock, id string, verified bool) {
 	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(
-		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified"}).
-		AddRow(id, "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), verified))
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}).
+		AddRow(id, "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), verified, TermsVersion, time.Now()))
 }
 
 // No setup code - so no device name - for an email nobody proved.
@@ -87,6 +87,23 @@ func TestSetupTokenNeedsAVerifiedEmail(t *testing.T) {
 	mock.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
 	if _, err := a.IssueSetupToken("acc1"); err != nil {
 		t.Fatalf("a verified account got no setup code: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// Issue #175: no setup code until the terms in force are accepted - none
+// recorded (an account from before), or an older version.
+func TestSetupTokenNeedsTheTerms(t *testing.T) {
+	a, mock := testAccounts(t)
+	cols := []string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}
+	for _, version := range []any{nil, "2020-01-01"} {
+		mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(cols).
+			AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, version, nil))
+		if _, err := a.IssueSetupToken("acc1"); err != ErrTermsNotAccepted {
+			t.Fatalf("terms %v: got %v, want ErrTermsNotAccepted", version, err)
+		}
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -122,7 +139,7 @@ func TestVerifyLinkIsSingleUse(t *testing.T) {
 func TestForgotDoesNotRevealAccounts(t *testing.T) {
 	a, mock := testAccounts(t)
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(
-		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified"}))
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}))
 	w := httptest.NewRecorder()
 	a.Forgot(w, httptest.NewRequest("POST", "/api/account/forgot", strings.NewReader(`{"email":"nobody@example.com"}`)))
 	if w.Code != http.StatusOK {

@@ -418,6 +418,17 @@ since `.local` names don't resolve everywhere (Android) - `otc.local:8080` only 
 notice is `bridge/static/privacy.html` (`/privacy`), linked from the landing footer, the account
 page, BridgePanel and the apps' sign-in and Settings; contact messages are pruned after a year.
 
+Terms of use (issue #175): `bridge/static/terms.html` at `/terms` (operator "Off The Cloud",
+info@off-the.cloud; free for two years then 19.99 €/year; the device, its data and its handling are
+the owner's responsibility and Off The Cloud is not liable for data loss; Dutch law). It is linked
+from the landing footer, the privacy notice, the account page and the setup wizard. Accounts
+record `terms_version` + `terms_accepted_at` (migration 008; `accounts.TermsVersion`, bump it when
+the text changes in substance). Email sign-ups accept with the checkbox. Google/Apple accounts
+accept on the "complete your profile" page, where the OIDC callback sends them until they have
+(`TermsAccepted`). Older accounts accept with `POST /api/account/accept-terms` from a prompt on
+the account page. A setup code (`IssueSetupToken`: `ErrTermsNotAccepted`) and a hand-registered
+name both need the terms in force.
+
 Email (`bridge/mailer`, `[smtp]` in the bridge's ini: host `smtp.protonmail.ch`, port 587,
 username/from `info@off-the.cloud`, `password-file=/etc/otc/smtp-token` - a Proton SMTP token,
 0600 for the service's user, pushed from the Mac's Keychain item `otc-bridge-smtp`, never in the

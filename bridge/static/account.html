@@ -89,7 +89,8 @@
   };
   let me = null, domains = [], providers = [], terms = {}, countries = {}, maxDomains = 5;
 
-  const termsHTML = () => `<div class="terms">Creating an account is only necessary to use our bridge: you will get up to <b>${esc(terms.max_domains)} domains</b> like <i>name</i>.${esc(location.hostname)} to connect to your device and also connect with the devices of your friends and family. If you only want to use your device in your local network as a NAS or with Tailscale Funnel, you do not need an account.<br><br>An account for up to ${esc(terms.max_domains)} domains is <b>free for the first ${esc(terms.free_years)} years</b>, and after this period will cost ${esc(terms.price_per_year_eur)} euros a year (we will e-mail you before the period ends). If you need more domains, please contact us at <a href="mailto:${esc(terms.contact)}">${esc(terms.contact)}</a>. An account unused for ${esc(terms.inactive_months)} months is removed and its domains released; we keep only your name, country of residence and email.</div>`;
+  const termsHTML = () => `<div class="terms">Creating an account is only necessary to use our bridge: you will get up to <b>${esc(terms.max_domains)} domains</b> like <i>name</i>.${esc(location.hostname)} to connect to your device and also connect with the devices of your friends and family. If you only want to use your device in your local network as a NAS or with Tailscale Funnel, you do not need an account.<br><br>An account for up to ${esc(terms.max_domains)} domains is <b>free for the first ${esc(terms.free_years)} years</b>, and after this period will cost ${esc(terms.price_per_year_eur)} euros a year (we will e-mail you before the period ends). If you need more domains, please contact us at <a href="mailto:${esc(terms.contact)}">${esc(terms.contact)}</a>. An account unused for ${esc(terms.inactive_months)} months is removed and its domains released; we keep only your name, country of residence and email. Read the full <a href="/terms" target="_blank">terms of use</a> and the <a href="/privacy" target="_blank">privacy notice</a>.</div>`;
+  const termsCheck = (id) => `<label class="check"><input type="checkbox" id="${id}"> <span>I accept the <a href="/terms" target="_blank">terms of use</a> and have read the <a href="/privacy" target="_blank">privacy notice</a>.</span></label>`;
   const providerButtons = (ret) => providers.length ? `<div class="providers">${providers.map(p => `<a href="/account/auth/${p}/start${ret ? '?return=' + encodeURIComponent(ret) : ''}">Continue with ${p === 'google' ? 'Google' : 'Apple'}</a>`).join('')}</div>` : '';
   const countryOptions = (sel) => `<option value="">Choose…</option>` + Object.entries(countries).sort((a, b) => a[1].localeCompare(b[1])).map(([c, n]) => `<option value="${c}" ${c === sel ? 'selected' : ''}>${esc(n)}</option>`).join('');
 
@@ -180,9 +181,9 @@
           <label>Email</label><input id="su-email" type="email" autocomplete="email">
           <label>Password <small>(8 characters or more)</small></label><input id="su-pass" type="password" autocomplete="new-password">
           ${termsHTML()}
-          <label class="check"><input type="checkbox" id="su-terms"> <span>I accept the terms above.</span></label>
+          ${termsCheck('su-terms')}
           <button class="btn" id="su-go">Create account</button><div class="msg" id="su-msg"></div>
-          ${providers.length ? `<p class="hint" style="margin-top:12px">Or create it with a sign-in provider:</p>${providerButtons('')}` : ''}
+          ${providers.length ? `<p class="hint" style="margin-top:12px">Or create it with a sign-in provider (you accept the terms on the next page):</p>${providerButtons('')}` : ''}
         </div>
       </div>`;
     if (signup) $('#su-name').focus(); else $('#li-email').focus();
@@ -220,14 +221,15 @@
         <div class="row"><div><label>Name</label><input id="c-name" value="${esc(me.name)}"></div><div><label>Surname</label><input id="c-surname" value="${esc(me.surname)}"></div></div>
         <label>Country of residence</label><select id="c-country">${countryOptions(me.country)}</select>
         <label>Email</label><input value="${esc(me.email)}" disabled>
-        ${me.profile_complete ? '' : termsHTML()}
+        ${me.profile_complete && me.terms_accepted ? '' : termsHTML()}
+        ${me.terms_accepted ? '' : termsCheck('c-terms')}
         <button class="btn" id="c-go">${ret ? 'Save and continue the setup' : 'Save'}</button>
         ${me.profile_complete ? '<button class="btn ghost" id="c-back">Back</button>' : ''}
         <div class="msg" id="c-msg"></div>
       </div>`;
     $('#c-go').onclick = async () => {
       $('#c-go').disabled = true;
-      const r = await api('PUT', '/api/account/me', { name: $('#c-name').value, surname: $('#c-surname').value, country: $('#c-country').value });
+      const r = await api('PUT', '/api/account/me', { name: $('#c-name').value, surname: $('#c-surname').value, country: $('#c-country').value, accept_terms: !!($('#c-terms') && $('#c-terms').checked) });
       $('#c-go').disabled = false;
       if (!r.ok) { $('#c-msg').textContent = r.error || 'Could not save'; $('#c-msg').className = 'msg bad'; return; }
       if (ret) { location.href = '/api/account/continue?return=' + encodeURIComponent(ret); return; }
@@ -241,10 +243,15 @@
     const unverified = !me.email_verified ? `<div class="card wide" style="border-color:var(--gold)"><h2>Confirm your email</h2>
           <p class="hint">We sent a link to <b>${esc(me.email)}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes.</p>
           <button class="btn ghost" id="vr-go">Send the link again</button><div class="msg" id="vr-msg"></div></div>` : '';
+    const termsPrompt = !me.terms_accepted ? `<div class="card wide" style="border-color:var(--gold)"><h2>Our terms of use</h2>
+          <p class="hint">We have published <a href="/terms" target="_blank">terms of use</a> for accounts and the bridge. Please read and accept them: until then this account can't register device names or give setup codes.</p>
+          ${termsCheck('tm-check')}
+          <button class="btn" id="tm-go">Accept</button><div class="msg" id="tm-msg"></div></div>` : '';
     $('#view').innerHTML = `<h1>Hello, ${esc(me.name)}</h1>
       <p class="lead">${esc(domains.length)} of ${esc(maxDomains)} domains registered · free until <b>${esc(free)}</b> · <a href="/account?complete=1">your details</a></p>
       <div class="grid">
         ${unverified}
+        ${termsPrompt}
         <div class="card"><h2>Setting up a device?</h2>
           <p class="hint">Flash the image, join its "Off The Cloud" WiFi and follow the setup. At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes.</p>
           <div id="code"></div>
@@ -284,6 +291,16 @@
         </div>
         <div class="card wide">${termsHTML()}</div>
       </div>`;
+    const tm = $('#tm-go');
+    if (tm) tm.onclick = async () => {
+      const m = $('#tm-msg');
+      if (!$('#tm-check').checked) { m.textContent = 'Tick the box to accept them.'; m.className = 'msg bad'; return; }
+      tm.disabled = true;
+      const r = await api('POST', '/api/account/accept-terms');
+      tm.disabled = false;
+      if (!r.ok) { m.textContent = r.error || 'Could not save right now'; m.className = 'msg bad'; return; }
+      location.reload();
+    };
     const vr = $('#vr-go');
     if (vr) vr.onclick = async () => {
       const m = $('#vr-msg'); m.textContent = ''; vr.disabled = true;

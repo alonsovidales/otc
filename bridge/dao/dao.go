@@ -741,6 +741,10 @@ type Account struct {
 	FreeUntil    time.Time
 	// EmailVerified: the owner proved the email (a link, or Google/Apple).
 	EmailVerified bool
+	// Issue #175: the terms of use accepted (version, when); empty/zero for
+	// an account from before they were recorded.
+	TermsVersion    string
+	TermsAcceptedAt time.Time
 }
 
 // AccountDomain is one of an account's registered domains, as the account
@@ -753,16 +757,18 @@ type AccountDomain struct {
 
 func (dao *Dao) CreateAccount(a Account) error {
 	_, err := dao.db.Exec(
-		"insert into `accounts` (`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		a.ID, a.Email, a.Name, a.Surname, a.Country, sql.NullString{String: a.PasswordHash, Valid: a.PasswordHash != ""}, a.Created, a.LastSeen, a.FreeUntil, a.EmailVerified)
+		"insert into `accounts` (`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`, `terms_version`, `terms_accepted_at`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		a.ID, a.Email, a.Name, a.Surname, a.Country, sql.NullString{String: a.PasswordHash, Valid: a.PasswordHash != ""}, a.Created, a.LastSeen, a.FreeUntil, a.EmailVerified,
+		sql.NullString{String: a.TermsVersion, Valid: a.TermsVersion != ""}, sql.NullTime{Time: a.TermsAcceptedAt, Valid: !a.TermsAcceptedAt.IsZero()})
 
 	return err
 }
 
 func (dao *Dao) scanAccount(row *sql.Row) (*Account, error) {
 	a := &Account{}
-	var hash sql.NullString
-	err := row.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &hash, &a.Created, &a.LastSeen, &a.FreeUntil, &a.EmailVerified)
+	var hash, termsVersion sql.NullString
+	var termsAt sql.NullTime
+	err := row.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &hash, &a.Created, &a.LastSeen, &a.FreeUntil, &a.EmailVerified, &termsVersion, &termsAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -770,11 +776,21 @@ func (dao *Dao) scanAccount(row *sql.Row) (*Account, error) {
 		return nil, err
 	}
 	a.PasswordHash = hash.String
+	a.TermsVersion = termsVersion.String
+	a.TermsAcceptedAt = termsAt.Time
 
 	return a, nil
 }
 
-const cAccountColumns = "`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`"
+const cAccountColumns = "`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`, `terms_version`, `terms_accepted_at`"
+
+// AcceptTerms records that the account accepted the terms of use version
+// (issue #175).
+func (dao *Dao) AcceptTerms(accountID, version string, at time.Time) error {
+	_, err := dao.db.Exec("update `accounts` set `terms_version` = ?, `terms_accepted_at` = ? where `id` = ?", version, at.UTC(), accountID)
+
+	return err
+}
 
 // GetAccount is nil, nil for an id nobody has.
 func (dao *Dao) GetAccount(id string) (*Account, error) {

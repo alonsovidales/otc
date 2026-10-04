@@ -76,8 +76,21 @@ const (
 	cSetupCodeLen      = 8
 )
 
+// TermsVersion is the version of the terms of use (/terms) in force; an
+// account records the one it accepted (issue #175). Bump it whenever
+// static/terms.html changes in substance: every account is then asked to
+// accept the new text before it gets another setup code.
+const TermsVersion = "2026-10-04"
+
+// TermsAccepted: the account accepted the terms in force.
+func TermsAccepted(acc *dao.Account) bool {
+	return acc != nil && acc.TermsVersion == TermsVersion
+}
+
 // Terms is what the account page and the wizard show at sign-up.
 var Terms = map[string]any{
+	"terms_version":      TermsVersion,
+	"terms_url":          "/terms",
 	"free_years":         FreeYears,
 	"price_per_year_eur": 19.99,
 	"max_domains":        MaxDomains,
@@ -261,8 +274,13 @@ func (a *Accounts) RequireAuth(next func(w http.ResponseWriter, r *http.Request,
 // hand, and that sign-in through the wizard hands over directly.
 func (a *Accounts) IssueSetupToken(accountID string) (string, error) {
 	// A device name is only ever registered for a proven email.
-	if !a.Verified(accountID) {
+	acc, err := a.dao.GetAccount(accountID)
+	if err != nil || acc == nil || !acc.EmailVerified {
 		return "", ErrEmailNotVerified
+	}
+	// Issue #175: and only once the terms in force are accepted.
+	if !TermsAccepted(acc) {
+		return "", ErrTermsNotAccepted
 	}
 	buf := make([]byte, cSetupCodeLen)
 	if _, err := rand.Read(buf); err != nil {
@@ -401,6 +419,7 @@ func accountJSON(acc *dao.Account) map[string]any {
 		"profile_complete": acc.Name != "" && acc.Surname != "" && acc.Country != "",
 		"has_password":     acc.PasswordHash != "",
 		"email_verified":   acc.EmailVerified,
+		"terms_accepted":   TermsAccepted(acc),
 	}
 }
 
@@ -429,6 +448,10 @@ func (a *Accounts) signedIn(w http.ResponseWriter, r *http.Request, acc *dao.Acc
 			return
 		}
 		tok, err := a.IssueSetupToken(acc.ID)
+		if errors.Is(err, ErrTermsNotAccepted) {
+			writeError(w, http.StatusForbidden, cTermsMessage)
+			return
+		}
 		if err != nil {
 			log.Error("error issuing a setup token:", err)
 			writeError(w, http.StatusInternalServerError, "could not start the setup")
@@ -491,6 +514,7 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	acc := dao.Account{
 		ID: uuid.New().String(), Email: email, Name: name, Surname: surname, Country: country,
 		PasswordHash: string(hash), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0),
+		TermsVersion: TermsVersion, TermsAcceptedAt: now,
 	}
 	if err := a.dao.CreateAccount(acc); err != nil {
 		log.Error("error creating an account:", err)
@@ -587,10 +611,31 @@ func (a *Accounts) Me(w http.ResponseWriter, r *http.Request, accountID string) 
 // "complete your profile, then back to the wizard" step of a provider
 // sign-in.
 func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, accountID string) {
-	var body struct{ Name, Surname, Country string }
+	var body struct {
+		Name, Surname, Country string
+		AcceptTerms            bool `json:"accept_terms"`
+	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
+	}
+	// A Google/Apple account accepts the terms here, completing its
+	// profile (issue #175): nothing else is saved without it.
+	current, err := a.dao.GetAccount(accountID)
+	if err != nil || current == nil {
+		writeError(w, http.StatusInternalServerError, "could not save right now")
+		return
+	}
+	if !TermsAccepted(current) {
+		if !body.AcceptTerms {
+			writeError(w, http.StatusBadRequest, "please accept the terms of use")
+			return
+		}
+		if err := a.dao.AcceptTerms(accountID, TermsVersion, time.Now()); err != nil {
+			log.Error("error recording the terms acceptance:", err)
+			writeError(w, http.StatusInternalServerError, "could not save right now")
+			return
+		}
 	}
 	name, ok1 := validName(body.Name)
 	surname, ok2 := validName(body.Surname)
@@ -610,6 +655,18 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 		return
 	}
 	a.signedIn(w, r, acc, http.StatusOK)
+}
+
+// AcceptTerms records that the signed-in account accepts the terms of use
+// in force - for accounts from before they were recorded, or after a new
+// version. POST /api/account/accept-terms.
+func (a *Accounts) AcceptTerms(w http.ResponseWriter, r *http.Request, accountID string) {
+	if err := a.dao.AcceptTerms(accountID, TermsVersion, time.Now()); err != nil {
+		log.Error("error recording the terms acceptance:", err)
+		writeError(w, http.StatusInternalServerError, "could not save right now")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // SetPassword sets or changes the password of the signed-in account (a
@@ -743,6 +800,10 @@ func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID 
 		writeError(w, http.StatusForbidden, "confirm your email first - open the link we sent you, or ask for a new one above")
 		return
 	}
+	if errors.Is(err, ErrTermsNotAccepted) {
+		writeError(w, http.StatusForbidden, cTermsMessage)
+		return
+	}
 	if err != nil {
 		log.Error("error issuing a setup token:", err)
 		writeError(w, http.StatusInternalServerError, "could not make a setup code right now")
@@ -854,6 +915,12 @@ var ErrInvalidReturn = errors.New("that return address is not allowed")
 // setup code and can't register a device name.
 var ErrEmailNotVerified = errors.New("the account's email is not verified")
 
+// ErrTermsNotAccepted: the account hasn't accepted the terms of use in
+// force (issue #175), so it gets no setup code.
+var ErrTermsNotAccepted = errors.New("the account has not accepted the terms of use")
+
+const cTermsMessage = "accept the terms of use first: sign in at off-the.cloud/account and accept them there"
+
 const (
 	cPurposeVerify   = "verify"
 	cPurposeReset    = "reset"
@@ -868,6 +935,12 @@ const (
 func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
 
 // Verified is whether accountID proved its email.
+// HasAcceptedTerms: the account accepted the terms of use in force.
+func (a *Accounts) HasAcceptedTerms(accountID string) bool {
+	acc, err := a.dao.GetAccount(accountID)
+	return err == nil && TermsAccepted(acc)
+}
+
 func (a *Accounts) Verified(accountID string) bool {
 	acc, err := a.dao.GetAccount(accountID)
 	return err == nil && acc != nil && acc.EmailVerified

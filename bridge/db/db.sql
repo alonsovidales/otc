@@ -61,6 +61,9 @@ create table accounts
   -- (email sign-ups) or Google/Apple (who verify it themselves). An
   -- unverified account can't register device names.
   `email_verified` tinyint(1) not null default 0,
+  -- Issue #175: the terms of use (/terms) version accepted, and when.
+  `terms_version` varchar(16) null,
+  `terms_accepted_at` datetime null,
 
   primary key (`id`),
   unique (`email`)

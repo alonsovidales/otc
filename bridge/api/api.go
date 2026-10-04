@@ -218,6 +218,9 @@ func (api *API) registerAPIs() {
 		api.muxHTTPServer.HandleFunc("POST /api/account/logout", acc.Logout)
 		api.muxHTTPServer.HandleFunc("GET /api/account/me", acc.RequireAuth(acc.Me))
 		api.muxHTTPServer.HandleFunc("PUT /api/account/me", acc.RequireAuth(acc.UpdateProfile))
+		// Issue #175: accepting the terms of use (accounts from before
+		// they were recorded, or a new version).
+		api.muxHTTPServer.HandleFunc("POST /api/account/accept-terms", acc.RequireAuth(acc.AcceptTerms))
 		// Issue #182/#176: deleting the account, and exporting its data.
 		api.muxHTTPServer.HandleFunc("DELETE /api/account/me", acc.RequireAuth(api.accountDelete))
 		api.muxHTTPServer.HandleFunc("GET /api/account/export", acc.RequireAuth(acc.Export))
@@ -737,6 +740,10 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
 	if !api.accounts.Verified(accountID) {
 		writeJSONErr(w, http.StatusForbidden, "confirm your email first - open the link we sent you, or ask for a new one above")
+		return
+	}
+	if !api.accounts.HasAcceptedTerms(accountID) {
+		writeJSONErr(w, http.StatusForbidden, "accept the terms of use above first")
 		return
 	}
 	var body struct {

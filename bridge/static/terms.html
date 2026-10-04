@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Off The Cloud terms</title>
+  <meta name="description" content="The terms of use of the Off The Cloud bridge (off-the.cloud): accounts, price, your device and your data, and liability." />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  <style>
+    :root{
+      --ink:#10231f; --ink-2:#0b1815; --ember:#ff6b4a; --gold:#ffc857; --mist:#eaf2ef; --mist-dim:#b9c9c4;
+      --line:rgba(234,242,239,.12); --panel:rgba(234,242,239,.05);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.6 'Manrope',system-ui,-apple-system,sans-serif;color:var(--mist);background:var(--ink)}
+    a{color:var(--gold)}
+    header{border-bottom:1px solid var(--line);background:var(--ink-2)}
+    .nav{max-width:860px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px}
+    .brand{display:flex;align-items:center;gap:10px;color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+    .brand img{width:32px;height:32px;border-radius:8px}
+    main{max-width:860px;margin:0 auto;padding:32px 20px 72px}
+    h1{font-family:'Unbounded',sans-serif;font-size:1.6rem;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+    h2{font-family:'Unbounded',sans-serif;font-size:1.05rem;margin:36px 0 10px;text-wrap:balance}
+    p,li{max-width:68ch}
+    .lead{color:var(--mist-dim);margin:0 0 8px}
+    .key{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:22px 0}
+    .key p{margin:6px 0}
+    .tbl{overflow-x:auto;margin:12px 0}
+    table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+    th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+    th{color:var(--mist-dim);font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+    code{font-size:.92em}
+    footer{color:var(--mist-dim);font-size:14px;margin-top:48px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a class="brand" href="/"><img src="/logo.png" alt="" width="32" height="32">Off The Cloud</a>
+    </div>
+  </header>
+  <main>
+    <h1>Terms of use</h1>
+    <p class="lead">The rules for an Off The Cloud account and the bridge at off-the.cloud. Version 2026-10-04, last updated 4 October 2026.</p>
+
+    <div class="key">
+      <p><b>In short.</b> Your device and everything on it are yours, and so is the responsibility for them: keep your own backups. Off The Cloud is free open-source software, provided as it is. <b>We are not responsible for lost or damaged data, or for problems caused by how the device is handled, set up or looked after.</b> An account is free for its first two years. After that it costs 19.99 euros a year, and we email you before then.</p>
+    </div>
+
+    <h2>Who we are</h2>
+    <p>The bridge and the accounts are run by Off The Cloud, reachable at <a href="mailto:info@off-the.cloud">info@off-the.cloud</a> or through the <a href="/#contact">contact form</a>. How we handle your personal data is in the <a href="/privacy">privacy notice</a>.</p>
+
+    <h2>What these terms cover</h2>
+    <p>These terms cover your account and the bridge: the service that gives your device a name (like <i>casa</i>.off-the.cloud), passes connections from the apps and from your friends' devices to it, sends its notifications, and helps set it up.</p>
+    <p>The Off The Cloud software itself, for the device, the web app, the phone and computer apps, and the bridge, is open source under the <a href="https://github.com/alonsovidales/otc/blob/main/LICENSE">GNU AGPL v3</a>. That licence, not these terms, governs the software, and it comes <b>without any warranty</b>. A device used only at home or through Tailscale Funnel needs no account and does not use the bridge.</p>
+
+    <h2>Your account</h2>
+    <ul>
+      <li>You must be 16 or older.</li>
+      <li>Give your real name, country of residence and an email address you can read; you confirm the email before you can register a device name.</li>
+      <li>Keep your password to yourself. What is done with your account is your responsibility.</li>
+      <li>An account holds up to 5 device names; for more, write to us.</li>
+      <li>An account unused for 6 months may be removed, and its names released.</li>
+      <li>You can delete your account at any time from your <a href="/account">account page</a> or the apps. Its names are released, and stay reserved for 30 days so no one can pose as your device.</li>
+    </ul>
+
+    <h2>Price</h2>
+    <p>An account is free for the first two years after it is created. After that, the bridge costs 19.99 euros a year. We email you before the free period ends, with how to pay. If you don't pay, your device names are released; your device keeps working at home and through Tailscale Funnel.</p>
+
+    <h2>Your device and your data</h2>
+    <p>The device runs in your home, on hardware you chose and look after: the Raspberry Pi, its SD card and disks, power and network. You decide what is stored on it, who can reach it, and what it syncs with. That means:</p>
+    <ul>
+      <li><b>Keep backups of anything you can't afford to lose.</b> The two mirrored disks (RAID 1) protect against one disk failing. They don't protect against both failing, the device being lost, stolen or damaged, files being deleted or overwritten, or mistakes.</li>
+      <li><b>Your device password can't be recovered.</b> Everything on the device is encrypted with a key made from it. If the password is lost, the data can't be read, by you or by us.</li>
+      <li><b>Syncing works both ways.</b> A folder kept in sync with the device sends deletions and changes in both directions. Check what you connect, and to which device.</li>
+      <li><b>Handle the device with care.</b> Use the recommended hardware and a proper power supply, don't unplug it while it updates or writes, and don't modify its system unless you know what you are doing.</li>
+    </ul>
+    <p><b>We are not responsible for any loss, damage, corruption or disclosure of data on your device or synced with it,</b> or for any harm caused by how the device or the software is installed, configured, handled, powered, modified, repaired or looked after. That includes hardware faults, SD cards and disks wearing out, power cuts, updates interrupted by unplugging, and lost passwords.</p>
+
+    <h2>The bridge</h2>
+    <p>We run the bridge with care and keep it secure, but it is provided as it is, without a guarantee that it is always available or free of faults. It may be down for maintenance or for reasons outside our control, and we may change it. If we ever stop running it, we tell account holders by email at least 30 days before, where we can. Your device keeps working at home without it.</p>
+
+    <h2>Acceptable use</h2>
+    <p>Don't use your account or the bridge to break the law, infringe others' rights, or harm others. In particular, don't:</p>
+    <ul>
+      <li>share illegal content through it;</li>
+      <li>attack, overload, probe or bypass the bridge or other people's devices;</li>
+      <li>send spam;</li>
+      <li>take device names that impersonate others or infringe their trademarks.</li>
+    </ul>
+    <p>We may suspend or remove an account or a device name that does, and tell you why unless the law prevents it.</p>
+
+    <h2>Liability</h2>
+    <p>As far as the law allows, we are not liable for indirect or consequential loss, such as lost data, lost profits or the cost of recovering data. Our total liability to you is limited to what you paid us for the bridge in the 12 months before the event. Nothing in these terms limits liability for intent or gross negligence, or any right you have as a consumer that the law does not allow to be limited.</p>
+
+    <h2>Changes</h2>
+    <p>If these terms change in a way that matters, we email account holders before the change applies, and ask you to accept the new version on your account page before setting up another device. If you don't agree, you can delete your account.</p>
+
+    <h2>Law</h2>
+    <p>These terms are governed by Dutch law, and disputes go to the competent court in the Netherlands. If you live elsewhere in the EU, you keep the protection of your own country's mandatory consumer law, and can also go to the courts where you live.</p>
+
+    <footer><a href="/">Off The Cloud</a> · <a href="/privacy">Privacy</a> · <a href="/account">Your account</a> · <a href="https://github.com/alonsovidales/otc">Source code</a></footer>
+  </main>
+</body>
+</html>

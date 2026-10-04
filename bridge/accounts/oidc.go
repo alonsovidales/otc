@@ -259,7 +259,9 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	a.setSession(w, r, acc.ID)
 	_ = a.dao.TouchAccount(acc.ID)
 
-	complete := acc.Name != "" && acc.Surname != "" && acc.Country != ""
+	// Issue #175: a new Google/Apple account accepts the terms on the
+	// same page where it completes its profile.
+	complete := acc.Name != "" && acc.Surname != "" && acc.Country != "" && TermsAccepted(acc)
 	if !complete {
 		q := url.Values{"complete": {"1"}}
 		if returnURL != "" {
