@@ -131,3 +131,4 @@
 85	-	9ee691be3c4ba6db34ab0dff3742958608a14de9a92abfca00013bd30f867c27	Versions are now numbered (this is 1.1); important updates are announced in Notifications, critical ones with a banner in every app.	1e926b14fbc0b5fa14c0400b2bb9e073f577f6ea48dd57741a5029a6ce827c43
 86	-	4b8d8652e1e088d11c8f00efb8577934485bf3742e165d8a27c69dc2d4fb50c7	Photos opened full screen say 'Low res' until the full-size photo has loaded.	93051f9cd06cbfb294fd545974580b64a75c8fb6b036df73b3328c565ebc9b22
 87	-	0357d2a83e22600f36ec84a2e8950e44f923d9ff1ad2de705c0555e19ccfdc68	New devices install only a signed release, with every download checked.	eed7bd8fef3553d9b022fd8ae00bc0f3cd770e723bcd89edaaa0bd9c5240e7a4
+88	-	2522f65984aa0cc7cd81047b67a7959c9f0b3bcaa0fbcc8d04d099bb5987b278	The web app fits phone screens, and the device no longer logs a friend's normal disconnect as an error.	52a756fdb00ff3a31cc796340999702f51c295c02fcbc06df28cfe9a05271491
