@@ -31,6 +31,11 @@ REPO_RAW="${OTC_REPO_RAW:-https://raw.githubusercontent.com/alonsovidales/otc/ma
 REPO_GH="${OTC_REPO_GH:-https://github.com/alonsovidales/otc}"
 SRC_DIR=/opt/otc-src
 VERSION_FILE=/etc/otc/version
+# The last release whose migration script has run. The version itself is
+# only written once the whole update has worked (build and web app
+# included): written per release, a failed build or web download left the
+# device on the new version with the old code and nothing left to retry.
+MIGRATED_FILE=/etc/otc/version.migrated
 STATUS_FILE=/var/lib/otc/update-status.json
 # Root's own directory: /var/log/otc belongs to the otc user, and appending
 # there as root would follow a symlink it put in place of the log.
@@ -104,6 +109,8 @@ fi
 cp "$OTC_VERIFIED_MANIFEST" "$tmp/VERSIONS" || fail "the verified manifest is missing"
 
 installed="$(cat "$VERSION_FILE" 2>/dev/null || echo 0)"
+migrated="$(cat "$MIGRATED_FILE" 2>/dev/null || echo 0)"
+[ "$migrated" -ge "$installed" ] 2>/dev/null || migrated="$installed"
 echo "installed version: $installed"
 
 # Releases are listed oldest first; anything numerically after what is
@@ -136,10 +143,17 @@ for entry in "${pending[@]}"; do
     status running "Applying release $version"
     echo "--- release $version ---"
 
+    # Already run by an update that then failed later on (the build, the
+    # web app): scripts are idempotent, but there is no need.
+    if [ "$version" -le "$migrated" ] 2>/dev/null; then
+        echo "release $version was already applied"
+        continue
+    fi
+
     # Most releases change no schema and carry no script at all.
     if [ "$sha" = "-" ]; then
         echo "release $version has no migration"
-        echo "$version" > "$VERSION_FILE"
+        echo "$version" > "$MIGRATED_FILE"
         continue
     fi
 
@@ -155,9 +169,9 @@ for entry in "${pending[@]}"; do
 
     bash "$tmp/$version.sh" || fail "release $version failed to apply"
 
-    # Written per release, not once at the end: an interrupted run then
-    # resumes from the last one that actually completed.
-    echo "$version" > "$VERSION_FILE"
+    # Written per release: an interrupted run then resumes after the last
+    # script that actually completed.
+    echo "$version" > "$MIGRATED_FILE"
     echo "release $version applied"
 done
 
@@ -259,7 +273,9 @@ fi
 # which is what keeps any architecture supported without a cross-build.
 if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
     status running "Installing the web app"
-    if curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/web-dist.tar.gz" \
+    # Retried for a while: GitHub answers 500 now and then (release 88 on
+    # Pit got four in a row).
+    if curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors -o "$tmp/web-dist.tar.gz" \
         "$REPO_GH/releases/download/v$target/web-dist.tar.gz"; then
         actual="$(sha256sum "$tmp/web-dist.tar.gz" | awk '{print $1}')"
         if [ "$actual" != "$target_assets_sha" ]; then
@@ -276,12 +292,18 @@ if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
         chown -R otc:otc /var/www 2>/dev/null || true
         echo "web assets installed"
     else
-        echo "WARNING: release $target has no web assets attached, keeping the installed web app"
+        # The release has a web app (its hash is in the signed manifest),
+        # it just couldn't be downloaded: fail, so the version stays where
+        # it is and the next run tries again. Carrying on used to leave the
+        # device on the new version with the old web app, for good.
+        fail "could not download the web app for release $target - try the update again"
     fi
 else
     echo "release $target ships no web assets, keeping the installed web app"
 fi
 
+# Everything worked: only now is this the version the device is on.
+echo "$target" > "$VERSION_FILE"
 status done "Updated to version $(cat "$VERSION_FILE")"
 echo "=== update complete, restarting service ==="
 

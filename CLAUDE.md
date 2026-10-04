@@ -780,11 +780,15 @@ over to it. The install copies that source instead of cloning, installs the rele
 (no Node or npm on devices), pins Go, ONNX Runtime, protoc and the models by SHA-256
 (`fetch_pinned`), and installs Tailscale from its apt repository with the key pinned by hash.
 
-**Checking it worked**: a device shows its version under Settings → Device version, and
-the full log of any run is at `/var/log/otc/update.log`, with the current state in
-`/var/lib/otc/update-status.json`. A failed run leaves `/etc/otc/version` on the last
-release that fully applied, so re-running resumes from there; a failed build leaves the
-running binary untouched.
+**Checking it worked**: a device shows its version under Settings → Device version. The full
+log of any run is at `/var/log/otc-update/update.log` (Settings › Logs › Updates), and the current
+state is in `/var/lib/otc/update-status.json`. `/etc/otc/version` is written only once the whole
+update has worked: migrations, build and web app. Release 88 on Pit showed why. GitHub answered 500
+for its web bundle, the script carried on with the old one, and the per-release version write left
+the device "up to date" for good. Each release's migration is recorded in
+`/etc/otc/version.migrated`, so a failed run retries everything else without re-running scripts. A
+web bundle that can't be downloaded fails the update, and a failed build leaves the running binary
+untouched.
 
 **Forks** set `[otc] update-repo` and `[otc] update-releases` so a device updates from its
 own repository rather than silently taking code from upstream.

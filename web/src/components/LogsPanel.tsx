@@ -64,7 +64,7 @@ function LogsViewer({ onClose }: { onClose: () => void }) {
         try {
           const first = offset < 0;
           const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-            (e as any).payload = { $case: "reqGetLogs", reqGetLogs: { source, offset, maxBytes: first ? 65536 : 262144, waitSeconds: first ? 0 : 25 } };
+            (e as any).payload = { $case: "reqGetLogs", reqGetLogs: { source, offset: BigInt(offset), maxBytes: first ? 65536 : 262144, waitSeconds: first ? 0 : 25 } };
           });
           if (!alive) return;
           if (resp.payload?.$case !== "respLogs") throw new Error(resp.errorMessage || "Could not read the logs");
