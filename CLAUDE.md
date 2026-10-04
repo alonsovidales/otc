@@ -419,7 +419,7 @@ notice is `bridge/static/privacy.html` (`/privacy`), linked from the landing foo
 page, BridgePanel and the apps' sign-in and Settings; contact messages are pruned after a year.
 
 Terms of use (issue #175): `bridge/static/terms.html` at `/terms` (operator "Off The Cloud",
-info@off-the.cloud; free for two years then 19.99 €/year; the device, its data and its handling are
+info@off-the.cloud; free for two years then 9.99 € + VAT a year; the device, its data and its handling are
 the owner's responsibility and Off The Cloud is not liable for data loss; Dutch law). It is linked
 from the landing footer, the privacy notice, the account page and the setup wizard. Accounts
 record `terms_version` + `terms_accepted_at` (migration 008; `accounts.TermsVersion`, bump it when

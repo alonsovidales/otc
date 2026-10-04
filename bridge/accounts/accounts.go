@@ -92,7 +92,7 @@ var Terms = map[string]any{
 	"terms_version":      TermsVersion,
 	"terms_url":          "/terms",
 	"free_years":         FreeYears,
-	"price_per_year_eur": 19.99,
+	"price_per_year_eur": 9.99,
 	"max_domains":        MaxDomains,
 	"extra_domain_eur":   5,
 	"inactive_months":    6,

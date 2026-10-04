@@ -641,7 +641,7 @@ hotspot's captive portal only lets the device itself reach the bridge, so the wi
 the phone off to a sign-in provider). An account keeps only a name, surname, country of residence
 and email.
 
-The terms, shown at sign-up: free for the first two years, then 19.99 € a year (an email goes out
+The terms, shown at sign-up: free for the first two years, then 9.99 € + VAT a year (an email goes out
 before the two years are up; nothing is charged today, there is no payment system yet); up to
 five domains per account, extra ones 5 € a year each by writing to info@off-the.cloud; an account
 unused for six months is removed and its domains released.
