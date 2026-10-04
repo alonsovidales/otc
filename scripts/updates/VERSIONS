@@ -132,3 +132,4 @@
 86	-	4b8d8652e1e088d11c8f00efb8577934485bf3742e165d8a27c69dc2d4fb50c7	Photos opened full screen say 'Low res' until the full-size photo has loaded.	93051f9cd06cbfb294fd545974580b64a75c8fb6b036df73b3328c565ebc9b22
 87	-	0357d2a83e22600f36ec84a2e8950e44f923d9ff1ad2de705c0555e19ccfdc68	New devices install only a signed release, with every download checked.	eed7bd8fef3553d9b022fd8ae00bc0f3cd770e723bcd89edaaa0bd9c5240e7a4
 88	-	2522f65984aa0cc7cd81047b67a7959c9f0b3bcaa0fbcc8d04d099bb5987b278	The web app fits phone screens, and the device no longer logs a friend's normal disconnect as an error.	52a756fdb00ff3a31cc796340999702f51c295c02fcbc06df28cfe9a05271491
+89	-	ebd7f2ef156811a9402e3a62d8e19b6fdd21ad5652c7649c6f32c7db31f77b0d	Updates only count as done once the web app is installed too, and Settings > Logs works in the browser again.	df61063b86b1f5189710deb91af9d03e362a22799697b168f9b0d444d50d91b7
