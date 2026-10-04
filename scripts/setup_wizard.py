@@ -1180,7 +1180,7 @@ input[type=text],input[type=password]{width:100%;font:inherit;padding:11px 12px;
 input:focus{outline:2px solid var(--ember);border-color:transparent}
 button{font:inherit;font-weight:600;padding:11px 16px;border-radius:10px;border:0;background:var(--ember);color:var(--ember-ink);cursor:pointer;margin-top:16px}
 button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}button:disabled{opacity:.5;cursor:default}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{margin-top:0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{margin-top:0}.row:has(>button:first-child){margin-top:16px}.row+.list{margin-top:12px}
 .crop{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.crop canvas{width:180px;height:180px;border-radius:12px;background:var(--bg);border:1px solid var(--line);touch-action:none;cursor:grab}
 .crop .side{flex:1;min-width:160px}.crop input[type=range]{width:100%}.check{display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:16px}
 .prof{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}.prof h3{margin:0 0 4px}
@@ -1207,6 +1207,11 @@ a{color:var(--ember)}
 </main>
 <script>
 const $=s=>document.querySelector(s);const view=$('#view');
+// Enter in a field presses the next button after it (Connect, Continue,
+// Install...), as in any form; secondary buttons (.ghost) are skipped.
+document.addEventListener('keydown',e=>{if(e.key!=='Enter'||e.isComposing||e.target.tagName!=='INPUT'||e.target.type==='checkbox')return;
+ const b=[...view.querySelectorAll('button:not(.ghost)')].find(x=>!x.disabled&&(e.target.compareDocumentPosition(x)&Node.DOCUMENT_POSITION_FOLLOWING));
+ if(b){e.preventDefault();b.click()}});
 // The owner password (issue #137 follow-up): chosen with the device's name,
 // sealed with the wizard's one-off RSA key before it leaves the phone - the
 // hotspot is open WiFi and Bluetooth isn't paired - and handed to the app
