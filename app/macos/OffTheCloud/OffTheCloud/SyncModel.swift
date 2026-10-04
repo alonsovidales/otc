@@ -1073,7 +1073,11 @@ final class SyncModel: ObservableObject {
 
             let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
 
-            enum ActionKind { case upload, download, deleteLocal, deleteRemote }
+            // Conflicts (both sides changed the same file): the losing
+            // version is kept as a "(conflict …)" copy next to it, which
+            // then syncs like any new file, instead of being overwritten.
+            // As otc-sync's actDownloadKeepLocal / actUploadKeepRemote.
+            enum ActionKind: Equatable { case upload, download, deleteLocal, deleteRemote, downloadKeepLocal, uploadKeepRemote(remoteHash: String) }
             // hash carries the already-computed local hash through to the
             // .upload case below, purely to avoid hashing the same file
             // twice (issue #58's HasFile check needs it anyway) — unused
@@ -1139,8 +1143,13 @@ final class SyncModel: ObservableObject {
                 if actions.count < 20 {
                     syncLog.info("plan \(relative, privacy: .public): local=\(localHash?.prefix(8) ?? "-", privacy: .public) remote=\(remoteHash?.prefix(8) ?? "-", privacy: .public) last=\(last?.prefix(8) ?? "-", privacy: .public) conflict=\(conflict) remoteWins=\(remoteWins)")
                 }
+                // Both sides have different content: whichever loses is kept.
+                let bothHaveContent = localHash != nil && remoteHash != nil
                 if remoteWins {
-                    if let remoteHash {
+                    if conflict && bothHaveContent, let remoteHash {
+                        actions.append((relative, .downloadKeepLocal, Int(remoteFile?.size ?? 0), remoteHash))
+                        newSynced[relative] = remoteHash
+                    } else if let remoteHash {
                         actions.append((relative, .download, Int(remoteFile?.size ?? 0), remoteHash))
                         newSynced[relative] = remoteHash
                     } else {
@@ -1148,7 +1157,10 @@ final class SyncModel: ObservableObject {
                         newSynced.removeValue(forKey: relative)
                     }
                 } else {
-                    if let localHash {
+                    if conflict && bothHaveContent, let localHash, let remoteHash {
+                        actions.append((relative, .uploadKeepRemote(remoteHash: remoteHash), 0, localHash))
+                        newSynced[relative] = localHash
+                    } else if let localHash {
                         actions.append((relative, .upload, 0, localHash))
                         newSynced[relative] = localHash
                     } else {
@@ -1215,6 +1227,18 @@ final class SyncModel: ObservableObject {
                         switch action.kind {
                         case .upload: newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
                         case .download: try await download(remotePath, to: localURL, expectedHash: action.hash)
+                        case .downloadKeepLocal:
+                            // This Mac's version first, under its conflict
+                            // name; only then the device's over the original.
+                            let copy = Self.conflictURL(for: localURL, from: Host.current().localizedName)
+                            try FileManager.default.moveItem(at: localURL, to: copy)
+                            syncLog.info("conflict on \(action.relative, privacy: .public): this Mac's version kept as \(copy.lastPathComponent, privacy: .public)")
+                            try await download(remotePath, to: localURL, expectedHash: action.hash)
+                        case .uploadKeepRemote(let remoteHash):
+                            let copy = Self.conflictURL(for: localURL, from: nil)
+                            try await download(remotePath, to: copy, expectedHash: remoteHash)
+                            syncLog.info("conflict on \(action.relative, privacy: .public): the other version kept as \(copy.lastPathComponent, privacy: .public)")
+                            newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
                         case .deleteRemote: try await delete(remotePath)
                         // To the Trash, not gone: recoverable if a deletion on
                         // the device was a mistake.
@@ -1294,6 +1318,28 @@ final class SyncModel: ObservableObject {
     /// ends and out of a single websocket message. They go to a
     /// ".otc-part" file next to the destination, which is only renamed
     /// into place once the whole content matches the hash.
+    /// Where the losing version of a conflicting file is kept: "report
+    /// (conflict from MacBook 2026-10-04 20.15).txt" next to it, numbered if
+    /// taken. Same naming as otc-sync's conflictPath.
+    static func conflictURL(for url: URL, from: String?, at date: Date = Date()) -> URL {
+        let dir = url.deletingLastPathComponent()
+        var ext = url.pathExtension
+        var stem = url.deletingPathExtension().lastPathComponent
+        if stem.isEmpty { stem = url.lastPathComponent; ext = "" }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH.mm"
+        let label = from.map { "conflict from \($0) \(f.string(from: date))" } ?? "conflict \(f.string(from: date))"
+        let suffix = ext.isEmpty ? "" : ".\(ext)"
+        var candidate = dir.appendingPathComponent("\(stem) (\(label))\(suffix)")
+        var n = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = dir.appendingPathComponent("\(stem) (\(label) \(n))\(suffix)")
+            n += 1
+        }
+        return candidate
+    }
+
     private func download(_ remotePath: String, to dest: URL, expectedHash: String? = nil) async throws {
         let part = dest.appendingPathExtension("otc-part")
         let sink = try await Task.detached(priority: .utility) {

@@ -957,6 +957,11 @@ const (
 	actDownload
 	actDeleteLocal
 	actDeleteRemote
+	// Conflicts (both sides changed the same file): the losing version is
+	// kept as a "(conflict …)" copy next to it, which then syncs like any
+	// new file, instead of being overwritten.
+	actDownloadKeepLocal // rename the local file to the copy, then download
+	actUploadKeepRemote  // download the device's version to the copy, then upload
 )
 
 type action struct {
@@ -1149,8 +1154,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				remoteWins = remoteDate.After(localDate)
 			}
 		}
+		// Both sides have different content: whichever loses is kept.
+		conflict := localChanged && remoteChanged && hasLocal && remoteFile != nil
 		if remoteWins {
-			if remoteFile != nil {
+			if conflict {
+				actions = append(actions, action{rel, actDownloadKeepLocal, remoteHash})
+				newSynced[rel] = remoteHash
+			} else if remoteFile != nil {
 				actions = append(actions, action{rel, actDownload, remoteHash})
 				newSynced[rel] = remoteHash
 			} else {
@@ -1158,7 +1168,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				delete(newSynced, rel)
 			}
 		} else {
-			if hasLocal {
+			if conflict {
+				actions = append(actions, action{rel, actUploadKeepRemote, localHash + "\x00" + remoteHash})
+				newSynced[rel] = localHash
+			} else if hasLocal {
 				actions = append(actions, action{rel, actUpload, localHash})
 				newSynced[rel] = localHash
 			} else {
@@ -1267,6 +1280,24 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			}
 		case actDownload:
 			err = e.download(remotePath, localPath, a.hash)
+		case actDownloadKeepLocal:
+			// The local version first, under its conflict name; only then
+			// the device's version over the original name.
+			copyPath := conflictPath(localPath, hostLabel(), time.Now())
+			if err = os.Rename(localPath, copyPath); err == nil {
+				log.Printf("conflict on %s: this computer's version kept as %s", a.relative, filepath.Base(copyPath))
+				err = e.download(remotePath, localPath, a.hash)
+			}
+		case actUploadKeepRemote:
+			localHash, remoteHash, _ := strings.Cut(a.hash, "\x00")
+			copyPath := conflictPath(localPath, "", time.Now())
+			if err = e.download(remotePath, copyPath, remoteHash); err == nil {
+				log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
+				var fi os.FileInfo
+				if fi, err = os.Stat(localPath); err == nil {
+					err = e.upload(localPath, remotePath, localHash, fi)
+				}
+			}
 		case actDeleteRemote:
 			err = e.deleteRemote(remotePath)
 		case actDeleteLocal:
@@ -1712,4 +1743,37 @@ func Describe(st config.FolderStatus) string {
 
 		return "checking…"
 	}
+}
+
+// conflictPath is where the losing version of a conflicting file is kept:
+// "report (conflict from laptop 2026-10-04 20.15).txt" next to it, with a
+// number added if that name is taken. from names the computer the version
+// comes from, when known. Same naming as SyncModel.conflictURL on the Mac.
+func conflictPath(path, from string, at time.Time) string {
+	dir, base := filepath.Split(path)
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	if stem == "" { // ".bashrc"
+		stem, ext = base, ""
+	}
+	label := "conflict " + at.Format("2006-01-02 15.04")
+	if from != "" {
+		label = "conflict from " + from + " " + at.Format("2006-01-02 15.04")
+	}
+	candidate := filepath.Join(dir, fmt.Sprintf("%s (%s)%s", stem, label, ext))
+	for i := 2; ; i++ {
+		if _, err := os.Lstat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+		candidate = filepath.Join(dir, fmt.Sprintf("%s (%s %d)%s", stem, label, i, ext))
+	}
+}
+
+// hostLabel is this computer's name for conflict copies.
+func hostLabel() string {
+	h, err := os.Hostname()
+	if err != nil || h == "" {
+		return "this computer"
+	}
+	return strings.TrimSuffix(h, ".local")
 }
