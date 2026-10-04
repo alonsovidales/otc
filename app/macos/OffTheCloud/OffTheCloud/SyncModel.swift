@@ -720,6 +720,10 @@ final class SyncModel: ObservableObject {
 
     private func reconcile(_ folder: TrackedFolder) async {
         guard ws.isConnected() else { return }
+        // The device this pass talks to: a pass still running when the
+        // folder is removed or the app moves to another device (Disconnect,
+        // a new device set up) must stop, not carry on there.
+        let domainAtStart = settings?.domain
 
         // Reconciling now anyway (whatever triggered this call), so any
         // still-pending short retry from a previous failure would just be
@@ -808,6 +812,10 @@ final class SyncModel: ObservableObject {
                 let alreadyThere = localFiles.count - toUpload.count
 
                 for (k, item) in toUpload.enumerated() {
+                    guard folders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else {
+                        syncLog.info("backup \(remotePrefix, privacy: .public): folder removed or device changed - pass stopped")
+                        return
+                    }
                     // The link went (device offline, restarting): stop
                     // here rather than "fail" every remaining file in a
                     // second each, which raced the bar to 100% with
@@ -970,6 +978,11 @@ final class SyncModel: ObservableObject {
     // remote untouched.
     private func reconcileRemoteFolder(_ folder: RemoteFolder) async {
         guard ws.isConnected() else { return }
+        // As reconcile(): a pass outliving its folder, or the device it
+        // started on, stops. One kept running after a Disconnect and a
+        // switch to a new device used to go on downloading and uploading
+        // into the folders of the new one.
+        let domainAtStart = settings?.domain
         // One pass per folder at a time: the 60-second poll, the watcher's
         // debounce and a fresh add can all ask while a big tree is still
         // being hashed, and two passes reading the same baseline would
@@ -1207,6 +1220,10 @@ final class SyncModel: ObservableObject {
                 let totalBytes = max(folderPaths.reduce(Int64(0)) { $0 + bytes($1) }, 1)
                 var bytesDone = totalBytes - actions.reduce(Int64(0)) { $0 + bytes($1.relative) }
                 for (i, action) in actions.enumerated() {
+                    guard remoteFolders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else {
+                        syncLog.info("two-way \(folder.remotePath, privacy: .public): folder removed or device changed - pass stopped")
+                        return
+                    }
                     // As reconcile(): a dropped link ends the pass; what's
                     // left keeps its baseline and goes on reconnect.
                     guard ws.isConnected() else {
@@ -1572,6 +1589,11 @@ final class SyncModel: ObservableObject {
                                                   includingPropertiesForKeys: [.isRegularFileKey],
                                                   options: [.skipsHiddenFiles]) {
             for case let file as URL in e {
+                // A download in progress (download() writes to a
+                // ".otc-part" file first) is not a file of the folder: it
+                // used to be found here and uploaded, half-written. As
+                // otc-sync's scan.
+                if file.lastPathComponent.hasSuffix(".otc-part") { continue }
                 if (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
                     urls.append(file)
                 }

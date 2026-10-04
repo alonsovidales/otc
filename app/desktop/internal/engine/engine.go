@@ -975,6 +975,12 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	if !e.ws.IsConnected() {
 		return
 	}
+	// The device this pass talks to: a pass that outlives its folder or
+	// the device (disconnect, another device set up) stops instead of
+	// carrying on there - as the Mac app's reconcileRemoteFolder.
+	e.mu.Lock()
+	domainAtStart := e.cfg.Domain
+	e.mu.Unlock()
 	e.mu.Lock()
 	if e.folderBusy[f.ID] {
 		e.mu.Unlock()
@@ -1239,6 +1245,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 
 	for i, a := range actions {
+		if !e.stillSyncing(f.ID, domainAtStart) {
+			log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
+			return
+		}
 		// As reconcile(): a dropped link ends the pass; what's left keeps
 		// its baseline and goes on reconnect.
 		if !e.ws.IsConnected() {
@@ -1776,4 +1786,20 @@ func hostLabel() string {
 		return "this computer"
 	}
 	return strings.TrimSuffix(h, ".local")
+}
+
+// stillSyncing: the two-way folder id is still configured and the device
+// is still the one a pass started on.
+func (e *Engine) stillSyncing(id, domain string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cfg.Domain != domain {
+		return false
+	}
+	for _, f := range e.cfg.RemoteFolders {
+		if f.ID == id {
+			return true
+		}
+	}
+	return false
 }
