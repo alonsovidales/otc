@@ -526,6 +526,22 @@ func (a *Admin) SetContactRequestRead(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
+// DeleteContactRequest deletes a contact message (DELETE
+// /admin/api/contact-requests/{id}).
+func (a *Admin) DeleteContactRequest(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if err := a.dao.DeleteContactRequest(id); err != nil {
+		log.Error("error deleting contact request:", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
+}
+
 func isDuplicateKeyErr(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "Duplicate entry")
 }

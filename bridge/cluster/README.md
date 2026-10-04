@@ -97,6 +97,16 @@ host = 10.10.0.2                 ; the primary, from every node
   node holding the device; the offline alert is skipped while another node
   holds it.
 
+## Log retention (issue #176)
+
+The bridge logs to journald (IP addresses included), and the privacy notice promises 30 days.
+Every node (bridge1, bridge2, redis) has `journald-otc.conf` installed as
+`/etc/systemd/journald.conf.d/otc.conf`, followed by `systemctl restart systemd-journald`:
+
+```
+for h in bridge1 bridge2 redis; do scp bridge/cluster/journald-otc.conf $h:/tmp/otc.conf && ssh $h 'sudo install -D -m 0644 /tmp/otc.conf /etc/systemd/journald.conf.d/otc.conf && sudo systemctl restart systemd-journald'; done
+```
+
 ## Capacity and tuning
 
 Measured capacity per node, and how to rerun the load test: `docs/bridge-capacity.md`.

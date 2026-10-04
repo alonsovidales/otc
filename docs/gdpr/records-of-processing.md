@@ -19,7 +19,7 @@ for it. The bridge relays connections to devices in memory and stores none of th
 
 | # | Activity | Personal data | Purpose | Legal basis | Retention | Where (code) |
 |---|---|---|---|---|---|---|
-| 1 | Accounts | email, name, surname, country, bcrypt password hash, linked Google/Apple identity, created and last-seen dates, terms version and acceptance date | Giving owners device names and letting them manage them | Contract, Art. 6(1)(b) | Until the account is deleted; accounts unused for 6 months may be removed | `accounts`, `account_logins` tables; `bridge/accounts` |
+| 1 | Accounts | email, name, surname, country, bcrypt password hash, linked Google/Apple identity, created and last-seen dates, terms version and acceptance date | Giving owners device names and letting them manage them | Contract, Art. 6(1)(b) | Until the account is deleted, or 6 months unused (no sign-in, no client reaching its devices; warned by email a month before, `accounts/inactivity.go`) | `accounts`, `account_logins` tables; `bridge/accounts` |
 | 2 | Device names | domain, device identity and secret, account, switched-off state, last time a client reached it | Routing connections to the right device, protecting the name | Contract | Until released or the account is deleted; released names reserved 30 days | `devices`, `released_domains` |
 | 3 | Traffic metrics | per device and hour: request and byte counts (no content) | Running the service, finding abuse | Legitimate interest, Art. 6(1)(f) | 90 days | `device_metrics` |
 | 4 | Security log | rejected device connections with IP address | Detecting attempts to take over a device name | Legitimate interest | 90 days | `auth_events` |
@@ -29,7 +29,7 @@ for it. The bridge relays connections to devices in memory and stores none of th
 | 8 | Setup beacon | a device's LAN address during setup | Letting the setup page find the device again | Contract | 10 minutes | `setup_beacons` |
 | 9 | Logs sent by owners | last part of the device's logs (may include file names, search words, Wi-Fi names, addresses), note, account email | Support the owner asked for | Consent, Art. 6(1)(a), given per send | Until the problem is solved, at most 12 months | emailed to info@off-the.cloud (Proton) |
 | 10 | Contact messages | name, email, message | Answering | Legitimate interest | Until closed, at most 12 months (pruned automatically) | `contact_requests` |
-| 11 | Server logs | technical errors with IP addresses | Keeping the service working and secure | Legitimate interest | Rotated by size, normally a few weeks | journald on the bridge nodes |
+| 11 | Server logs | technical errors with IP addresses | Keeping the service working and secure | Legitimate interest | 30 days (journald `MaxRetentionSec`, `bridge/cluster/journald-otc.conf`) | journald on the bridge nodes |
 | 12 | Backups | copies of the database (all of 1-10) | Recovering from failure | Legitimate interest | OVH backup retention | OVH Veeam backups of the nodes |
 
 ## Recipients and processors

@@ -64,6 +64,9 @@ create table accounts
   -- Issue #175: the terms of use (/terms) version accepted, and when.
   `terms_version` varchar(16) null,
   `terms_accepted_at` datetime null,
+  -- Issue #176: when the account was warned it will be removed for
+  -- inactivity; NULL once it is used again.
+  `inactivity_warned_at` datetime null,
 
   primary key (`id`),
   unique (`email`)

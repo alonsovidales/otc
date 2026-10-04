@@ -286,6 +286,7 @@ func (api *API) registerAdminAPIs() {
 	api.muxHTTPServer.HandleFunc("GET /admin/api/auth-events", api.admin.RequireAuth(api.admin.AuthEvents))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/contact-requests", api.admin.RequireAuth(api.admin.ContactRequests))
 	api.muxHTTPServer.HandleFunc("POST /admin/api/contact-requests/{id}/read", api.admin.RequireAuth(api.admin.SetContactRequestRead))
+	api.muxHTTPServer.HandleFunc("DELETE /admin/api/contact-requests/{id}", api.admin.RequireAuth(api.admin.DeleteContactRequest))
 }
 
 // serveStatic serves the bridge's own site (the bare domain matching

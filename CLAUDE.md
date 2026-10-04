@@ -429,6 +429,20 @@ accept on the "complete your profile" page, where the OIDC callback sends them u
 the account page. A setup code (`IssueSetupToken`: `ErrTermsNotAccepted`) and a hand-registered
 name both need the terms in force.
 
+Retention (issue #176):
+- **Accounts unused for 6 months are removed.** `accounts/inactivity.go` runs daily on both nodes,
+  and only when email is configured. "Unused" means no account-page sign-in (`last_seen`) and no
+  client reaching any of the account's devices (`devices.last_client_at`). The job:
+  - warns by email a month before (`inactivity_warned_at`, migration 009, claimed with a
+    conditional update so only one node sends it);
+  - forgets the warning once the account is used again;
+  - removes accounts like "Delete my account" would.
+
+  `TestInactivityPassMySQL` runs against the Lima VM's MySQL (`OTC_TEST_MYSQL_DSN`).
+- **Server logs** are kept 30 days: journald `MaxRetentionSec` on every node,
+  `bridge/cluster/journald-otc.conf`.
+- **Contact messages** are deleted after a year, or from the admin panel's Messages tab.
+
 GDPR paperwork (issue #175) lives in `docs/gdpr/`: `records-of-processing.md` (Art. 30, every
 table, purpose, legal basis, retention, processor) and `breach-procedure.md` (72 hours to the
 Autoriteit Persoonsgegevens, with a register). The App Store privacy answers are in

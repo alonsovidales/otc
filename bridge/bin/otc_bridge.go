@@ -95,6 +95,10 @@ func main() {
 		cfg.GetStr("otc-api", "ssl-cert"),
 		cfg.GetStr("otc-api", "ssl-key"))
 
+	// Issue #176: accounts unused for six months are removed (warned a
+	// month before).
+	acc.StartInactivityJob(webSocket.DropDomains)
+
 	log.Info("System started...")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)

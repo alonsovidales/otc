@@ -654,11 +654,23 @@
             <td>${escapeHtml(r.Name)}<br><span class="muted">${escapeHtml(r.Email)}</span></td>
             <td>${escapeHtml(r.Reason)}</td>
             <td class="message-cell">${escapeHtml(r.Message)}</td>
-            <td><button class="btn" data-toggle="${r.Id}" data-read="${r.IsRead ? '1' : '0'}">${r.IsRead ? 'Mark unread' : 'Mark read'}</button></td>
+            <td><button class="btn" data-toggle="${r.Id}" data-read="${r.IsRead ? '1' : '0'}">${r.IsRead ? 'Mark unread' : 'Mark read'}</button>
+              <button class="btn" data-delete="${r.Id}">Delete</button></td>
           </tr>
         `).join('');
       body.querySelectorAll('button[data-toggle]').forEach(btn => {
         btn.addEventListener('click', () => toggleMessageRead(btn.dataset.toggle, btn.dataset.read !== '1'));
+      });
+      body.querySelectorAll('button[data-delete]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this message for good?')) return;
+          try {
+            await api.call('DELETE', `/admin/api/contact-requests/${btn.dataset.delete}`);
+            await refreshMessages();
+          } catch (err) {
+            alert(err.message || 'Failed to delete the message');
+          }
+        });
       });
     }
 

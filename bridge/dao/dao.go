@@ -490,6 +490,14 @@ func (dao *Dao) SetContactRequestRead(id int, isRead bool) (err error) {
 	return
 }
 
+// DeleteContactRequest removes a contact message for good (issue #176: a
+// matter that is closed needs no keeping; the pruner removes the rest
+// after a year).
+func (dao *Dao) DeleteContactRequest(id int) (err error) {
+	_, err = dao.db.Exec("delete from `contact_requests` where `id` = ?", id)
+	return
+}
+
 // LogAuthEvent records a failed/suspicious bridge-registration attempt.
 func (dao *Dao) LogAuthEvent(uuid, domain, ownerUuidAttempted, remoteAddr, reason string) (err error) {
 	if !dao.authEventDue(remoteAddr, reason, time.Now()) {
