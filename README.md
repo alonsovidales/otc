@@ -147,6 +147,8 @@ pre-configured.
 
 **Option 1: Flash the pre-built image (easiest - Raspberry Pi 5, 8 GB+ of RAM)**
 --------------------------------------------------
+Use the **official Raspberry Pi 27 W USB-C power supply** (or a better one): a Pi 5 on a weaker
+supply, with USB disks attached, can restart or hang from low voltage while it processes photos.
 The image is for a **Raspberry Pi 5 with at least 8 GB of RAM** (the tagging model and the build
 from source need the memory). It is a stock Raspberry Pi OS Lite with a first-boot setup wizard on
 it and nothing else (about 530 MB). The wizard asks for your WiFi, the device's name and its disks, then installs the
