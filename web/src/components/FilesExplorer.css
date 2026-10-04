@@ -1,7 +1,7 @@
 .fb-wrap { position: relative; padding: 10px;}
 .fb-wrap.drag { outline: 2px dashed var(--ember); outline-offset: 4px; }
 
-.fb-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.fb-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .fb-path { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .fb-label { color: var(--mist-dim); }
 .fb-path-input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; width: 480px; max-width: 70vw; background: var(--ink-2); color: var(--mist); }
@@ -119,3 +119,9 @@
 .fb-folder { width: 62%; fill: var(--gold); }
 .fti-page { fill: #eef1f3; }
 .fti-fold { fill: #c8ced3; }
+
+/* Phones: the path takes its own line, the buttons and the count the next. */
+@media (max-width: 560px) {
+  .fb-path { flex-basis: 100%; }
+  .fb-path-input { width: auto; max-width: none; flex: 1; min-width: 0; }
+}

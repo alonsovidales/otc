@@ -226,7 +226,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
           Leaving the bridge gives the name back; the device keeps working at home. To delete your
           Off The Cloud account as well, leave first, then use{" "}
           <a href={`https://${access.bridge}/account?delete=1`} target="_blank" rel="noreferrer">your account page</a>.
-          {" "}<a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">Privacy</a>
+          {" "}What the bridge keeps about you is in the{" "}
+          <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">privacy notice</a>.
         </p>
         <div className="up-actions">
           <button className="sf-btn sf-danger" disabled={busy} onClick={() => void leave()}>
@@ -303,8 +304,9 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
                 <a href={`https://${access.bridge}/account`} target="_blank" rel="noreferrer">
                   {access.bridge}/account
                 </a>
-                , choose “Get a setup code” and paste it here.{" "}
-                <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">Privacy</a>
+                , choose “Get a setup code” and paste it here. See the{" "}
+                <a href={`https://${access.bridge}/terms`} target="_blank" rel="noreferrer">terms</a> and the{" "}
+                <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">privacy notice</a>.
               </p>
               <div className="sf-row">
                 <label htmlFor="bp-code">Setup code</label>

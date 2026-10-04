@@ -103,6 +103,10 @@
 .pg-scrubber-tick {
   position: absolute;
   right: 14px;
+  /* Readable over the photos the scrubber floats above. */
+  background: rgba(11, 24, 21, 0.72);
+  padding: 1px 5px;
+  border-radius: 6px;
   transform: translateY(-50%);
   font-size: 10px;
   color: var(--mist-dim);

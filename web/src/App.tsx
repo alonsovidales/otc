@@ -82,9 +82,10 @@ function App() {
   }
   let endpoint = protoWs + window.location.host + '/ws';
   if (window.location.host.startsWith('localhost')) {
-    endpoint = protoWs + 'cala.off-the.cloud/ws';
+    // Development (npm run dev / preview): VITE_DEVICE=pit.off-the.cloud
+    // picks the device; Cala otherwise.
+    endpoint = 'wss://' + (import.meta.env.VITE_DEVICE || 'cala.off-the.cloud') + '/ws';
   }
-  //let endpoint = protoWs + 'cala.off-the.cloud/ws';
   const mobile = !!cfg;
 
   if (mobile) {
@@ -347,7 +348,7 @@ function App() {
           // that's what lets justifyContent:space-between push the usage
           // bar all the way down to the header's own bottom edge instead
           // of floating centered partway down it.
-          <div style={{ flex: 1, alignSelf: "stretch", display: "flex", flexDirection: "column", justifyContent: "space-between", paddingRight: 210 }}>
+          <div className={`header-nav${mobile ? " no-logo" : ""}`}>
             {/* paddingRight (on this whole column, so it covers the nav row
                 AND the status bar below it the same way) matches the
                 logo's own footprint (200px width + 10px left margin) on

@@ -1,6 +1,6 @@
 .pc-card {
   display: grid;
-  grid-template-columns: 140px 1fr;
+  grid-template-columns: 140px minmax(0, 1fr);
   gap: 16px;
   padding: 16px;
   border: 1px solid var(--line);
@@ -47,7 +47,8 @@
 .pc-row label { color: var(--mist-dim); font-size: 14px; padding-top: 10px; }
 
 .pc-input, .pc-textarea {
-  width: 94%;
+  box-sizing: border-box;
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 12px;

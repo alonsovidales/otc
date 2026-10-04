@@ -51,6 +51,33 @@
   margin-left: 10px;
 }
 
+/* The tabs and the usage bar under the logo's row. padding-right matches
+   the logo's footprint (200px + 10px margin) so both centre on the
+   header's full width - only while the logo is there and the screen is
+   wide enough for both: on a phone it used to push the page past the
+   screen's edge (the whole app zoomed out). */
+.header-nav {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-right: 210px;
+}
+.header-nav.no-logo { padding-right: 0; }
+@media (max-width: 860px) {
+  .logo { width: 120px; }
+  .header-nav { padding-right: 0; }
+}
+@media (max-width: 560px) {
+  .header > a:has(.logo) { display: none; }
+  .header-nav { padding: 6px 6px 4px; }
+  .top-tabs { gap: 5px; }
+  .top-tab { font-size: 13px; }
+  body main { margin-top: 64px; }
+}
+
 a {
   font-weight: 500;
   color: var(--ember);
