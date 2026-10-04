@@ -555,7 +555,26 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 			registered = true
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"available": !registered, "domain": api.deviceDomain(name)})
+	out := map[string]any{"available": !registered, "domain": api.deviceDomain(name)}
+	// With the account's setup code (the wizard sends it once signed in),
+	// a taken name also says whether it is that account's own - so the
+	// wizard can warn that continuing moves it off the device using it now
+	// - and whether that device is online. Nothing more for anyone else.
+	if registered && api.accounts != nil {
+		token := ""
+		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			token = strings.TrimPrefix(auth, "Bearer ")
+		}
+		if accountID, ok := api.accounts.AccountForSetupToken(token); ok {
+			owner, _, err := api.dao.DomainAccount(api.deviceDomain(name))
+			yours := err == nil && owner == accountID
+			out["yours"] = yours
+			if yours && api.websocket != nil {
+				out["online"] = api.websocket.IsOnline(api.deviceDomain(name))
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // claimName (issue #38) reserves a device name for the identity the setup
