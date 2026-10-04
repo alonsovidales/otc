@@ -10,9 +10,13 @@ type Props = {
   className?: string;
 };
 
+// A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB" -
+// the same as sizeText in the iOS and Android apps.
 function formatMB(n?: number | null) {
-  if (n == null) return "-";
-  return `${n.toLocaleString()} MB`;
+  if (n === undefined || n === null || Number.isNaN(n)) return "—";
+  if (n >= 100_000) return `${Math.round(n / 1000)} GB`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)} GB`;
+  return `${Math.round(n)} MB`;
 }
 
 function round(num: number) {
@@ -115,10 +119,10 @@ const StatusWidget: React.FC<Props> = ({ refreshMs = 2000, className }) => {
             <div><strong>Free:</strong> {formatMB(freeMB)}</div>
             <div><strong>Disks:</strong> {status.disks || "-"}</div>
             <div><strong>RAID:</strong> {status.raidLevel ? `${status.raidLevel} — ${raidStateLabel(status)}` : raidStateLabel(status)}</div>
-            <div><strong>Used:</strong> {formatMB(status.raidUsage)} / {formatMB(status.raidSize)}</div>
-            <div><strong>Disk:</strong> {formatMB(status.diskUsage)} / {formatMB(status.diskSize)}</div>
+            <div><strong>Used:</strong> {formatMB(status.raidUsage)} of {formatMB(status.raidSize)}</div>
+            <div><strong>Disk:</strong> {formatMB(status.diskUsage)} of {formatMB(status.diskSize)}</div>
             <div><strong>CPU:</strong> {status.cpuUsagePrc != null ? `${round(status.cpuUsagePrc)}%` : "-"}</div>
-            <div><strong>Mem:</strong> {formatMB(status.memUsage)} / {formatMB(status.memSize)}</div>
+            <div><strong>Mem:</strong> {formatMB(status.memUsage)} of {formatMB(status.memSize)}</div>
             {/* Same bottom slot either way: every error listed if there are
                 any, or a plain all-clear line if not - not a duplicate
                 top-of-popover message repeating the first error. */}
