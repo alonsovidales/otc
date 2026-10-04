@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"mime"
 	"net"
@@ -3638,7 +3639,16 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		log.Debug("Waiting for messages")
 		_, frame, releaseFrame, err := wsframe.Read(conn, ch.readLimit(), frameBudget)
 		if err != nil {
-			log.Error("error processing message:", err)
+			// A peer that just goes away - a friend's device closing its
+			// socket after a sync, an app sent to the background - ends the
+			// connection without a close frame (1006). That is how
+			// connections end, not an error, and it filled Settings > Logs
+			// with one "error" every two minutes per friend.
+			if peerGone(err) {
+				log.Debug("connection closed:", err)
+			} else {
+				log.Error("error processing message:", err)
+			}
 			return
 		}
 		if onFirst != nil {
@@ -3701,4 +3711,10 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			}
 		}(&env)
 	}
+}
+
+// peerGone: the error only says the other side went away.
+func peerGone(err error) bool {
+	return gorilla.IsCloseError(err, gorilla.CloseNormalClosure, gorilla.CloseGoingAway, gorilla.CloseAbnormalClosure, gorilla.CloseNoStatusReceived) ||
+		errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed)
 }
