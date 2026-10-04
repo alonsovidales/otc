@@ -55,6 +55,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -168,20 +170,27 @@ fun SocialFeedView() {
     // this bar must not pad for it again (it did, and the masthead sat
     // under a status bar's worth of empty space); 48dp, the icons' own
     // height, is as short as the row can be.
-    Scaffold(contentWindowInsets = WindowInsets(0), topBar = {
+    // The bar is see-through at the top, so the logo - the feed's first
+    // row - sits level with its icons as on iOS, and turns solid once the
+    // feed scrolls under it.
+    val barScroll = TopAppBarDefaults.pinnedScrollBehavior()
+    Scaffold(modifier = Modifier.nestedScroll(barScroll.nestedScrollConnection), contentWindowInsets = WindowInsets(0), topBar = {
         // Issue #81 (as on iOS): the bar itself carries no title - the logo
         // is the feed's first row, so it scrolls away once reading starts.
         TopAppBar(
             title = {},
             windowInsets = WindowInsets(0),
             expandedHeight = 48.dp,
+            scrollBehavior = barScroll,
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             actions = {
                 IconButton(onClick = { showingFriendships = true }) { Icon(Icons.Default.Group, "Friends") }
                 IconButton(onClick = { showingPicker = true }) { Icon(Icons.Outlined.AddCircleOutline, "New post", tint = Ember) }
             },
         )
     }) { pad ->
-        Box(Modifier.padding(pad).fillMaxSize()) {
+        // Not padded for the bar: the content starts under it (see above).
+        Box(Modifier.padding(bottom = pad.calculateBottomPadding()).fillMaxSize()) {
             when {
                 // Issue #22: a real loading state while the first fetch is in
                 // flight, distinct from "genuinely no posts" - both under the
@@ -243,7 +252,8 @@ fun SocialFeedView() {
 /** The OTCLogo masthead: 28dp high at the leading edge, like the iOS logoHeader (issue #126). */
 @Composable
 private fun LogoHeader() {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp)) {
+    // 48dp, the top bar's height: level with its icons.
+    Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Image(
             painter = painterResource(R.drawable.otc_logo),
             contentDescription = "Off The Cloud",

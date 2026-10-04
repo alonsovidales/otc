@@ -183,13 +183,17 @@ struct UsersManagementSection: View {
                         .disabled(vm.creating || !usernameValid)
                 }
             }
-            .task { await vm.checkRole() }
             .alert(vm.toast ?? "", isPresented: Binding(
                 get: { vm.toast != nil },
                 set: { if !$0 { vm.toast = nil } }
             )) {
                 Button("OK", role: .cancel) {}
             }
+        } else {
+            // The role check has to run while nothing is shown yet: a
+            // .task on the section above never ran, since the section
+            // only exists once the check has passed (it was never shown).
+            Color.clear.frame(height: 0).task { await vm.checkRole() }
         }
     }
 

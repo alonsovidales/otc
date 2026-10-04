@@ -356,9 +356,9 @@ private fun StatusSectionContent(vm: StatusViewModel) {
             val usedPct = if (s.raidSize > 0) s.raidUsage.toDouble() / s.raidSize * 100 else 0.0
             val tint = if (usedPct >= 90) Color(0xFFE53935) else if (usedPct >= 70) Color(0xFFFFC107) else Color(0xFF43A047)
             RaidUsageBar(usedPct, tint)
-            Caption("RAID used: ${s.raidUsage} MB / ${s.raidSize} MB")
-            Caption("Disk: ${s.diskUsage} MB / ${s.diskSize} MB")
-            Caption("CPU: %.1f%% · Mem: ${s.memUsage} MB / ${s.memSize} MB".format(s.cpuUsagePrc))
+            Caption("RAID used: ${sizeText(s.raidUsage.toDouble())} of ${sizeText(s.raidSize.toDouble())}")
+            Caption("Disk: ${sizeText(s.diskUsage.toDouble())} of ${sizeText(s.diskSize.toDouble())}")
+            Caption("CPU: %.1f%% · Mem: ${sizeText(s.memUsage.toDouble())} of ${sizeText(s.memSize.toDouble())}".format(s.cpuUsagePrc))
             Caption("RAID: ${if (s.raidLevel.isEmpty()) raidStateLabel(s) else "${s.raidLevel} — ${raidStateLabel(s)}"} · Disks: ${s.disks}")
             s.errorsList.forEach { Caption("⚠️ ${it.message}", Color(0xFFE53935)) }
         }
@@ -556,3 +556,10 @@ private fun UserRow(vm: UsersManagementViewModel, st: UsersManagementViewModel.S
     }
 }
 
+
+/** A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB". Same as iOS's sizeText. */
+internal fun sizeText(mb: Double): String = when {
+    mb >= 100_000 -> "%.0f GB".format(mb / 1000)
+    mb >= 1000 -> "%.1f GB".format(mb / 1000)
+    else -> "%.0f MB".format(mb)
+}

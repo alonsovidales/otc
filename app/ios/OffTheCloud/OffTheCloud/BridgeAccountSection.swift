@@ -140,6 +140,10 @@ struct BridgeAccountSection: View {
                 } message: {
                     Text("This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.")
                 }
+            } else {
+                // Something to hang the load on while hidden: a .task on an
+                // empty Group never runs, so the section never appeared.
+                Color.clear.frame(height: 0)
             }
         }
         .task { await vm.load() }

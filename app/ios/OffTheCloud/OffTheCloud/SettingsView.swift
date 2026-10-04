@@ -622,6 +622,14 @@ enum AppLogOut {
     }
 }
 
+/// A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB".
+/// Same as sizeText in Android's SettingsView.kt.
+func sizeText(_ mb: Double) -> String {
+    if mb >= 100_000 { return String(format: "%.0f GB", mb / 1000) }
+    if mb >= 1000 { return String(format: "%.1f GB", mb / 1000) }
+    return String(format: "%.0f MB", mb)
+}
+
 // Issue #65: a plain, always-visible read of the RAID's own health -
 // "in sync"/"syncing"/"degraded" - rather than something the user has to
 // infer from whether an error banner happens to be showing.
@@ -650,11 +658,11 @@ private struct StatusSectionContent: View {
                 RaidUsageBar(percent: usedPct, tint: usedTint)
                 // The % now lives inside the bar itself - just the MB
                 // figures here, not a repeated "(Z%)" suffix.
-                Text("RAID used: \(s.raidUsage) MB / \(s.raidSize) MB")
+                Text("RAID used: \(sizeText(Double(s.raidUsage))) of \(sizeText(Double(s.raidSize)))")
                     .font(.caption)
-                Text("Disk: \(s.diskUsage) MB / \(s.diskSize) MB")
+                Text("Disk: \(sizeText(Double(s.diskUsage))) of \(sizeText(Double(s.diskSize)))")
                     .font(.caption)
-                Text("CPU: \(String(format: "%.1f", s.cpuUsagePrc))% · Mem: \(s.memUsage) MB / \(s.memSize) MB")
+                Text("CPU: \(String(format: "%.1f", s.cpuUsagePrc))% · Mem: \(sizeText(Double(s.memUsage))) of \(sizeText(Double(s.memSize)))")
                     .font(.caption)
                 Text("RAID: \(s.raidLevel.isEmpty ? raidStateLabel(s) : "\(s.raidLevel) — \(raidStateLabel(s))") · Disks: \(s.disks)")
                     .font(.caption)
