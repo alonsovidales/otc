@@ -429,6 +429,14 @@ accept on the "complete your profile" page, where the OIDC callback sends them u
 the account page. A setup code (`IssueSetupToken`: `ErrTermsNotAccepted`) and a hand-registered
 name both need the terms in force.
 
+GDPR paperwork (issue #175) lives in `docs/gdpr/`: `records-of-processing.md` (Art. 30, every
+table, purpose, legal basis, retention, processor) and `breach-procedure.md` (72 hours to the
+Autoriteit Persoonsgegevens, with a register). The App Store privacy answers are in
+`docs/app-store-privacy.md`, matching the iOS and macOS `PrivacyInfo.xcprivacy` (name, email,
+APNs token, sent logs; photos and files aren't collected because the relay keeps none of
+them). Play's Data safety answers are in `docs/play-store/README.md`. Change these with the
+privacy notice whenever the bridge stores something new.
+
 Email (`bridge/mailer`, `[smtp]` in the bridge's ini: host `smtp.protonmail.ch`, port 587,
 username/from `info@off-the.cloud`, `password-file=/etc/otc/smtp-token` - a Proton SMTP token,
 0600 for the service's user, pushed from the Mac's Keychain item `otc-bridge-smtp`, never in the
