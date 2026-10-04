@@ -789,6 +789,33 @@ const cOneOffConcurrent = 3
 
 var cOneOffSlotWait = 10 * time.Second
 
+// cOneOffConnWait: how long a one-off request waits for a free pool
+// connection. A page load spends several at once (each one-off connection
+// is closed after use) and the device opens replacements a couple at a
+// time within a moment, so failing at once showed up as a missing logo or
+// script on a busy page.
+var cOneOffConnWait = 5 * time.Second
+
+// takeAvailable pops a free connection off the pool, waiting up to wait
+// for the device to open one; nil if none came.
+func takeAvailable(pool *bridgePool, wait time.Duration) *deviceRelay {
+	deadline := time.Now().Add(wait)
+	for {
+		pool.lock.Lock()
+		if len(pool.availableConns) > 0 {
+			c := pool.availableConns[0]
+			pool.availableConns = pool.availableConns[1:]
+			pool.lock.Unlock()
+			return c
+		}
+		pool.lock.Unlock()
+		if time.Now().After(deadline) {
+			return nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // cMaxLogsBytes bounds a device's gzip'd logs (Settings > Logs).
 const cMaxLogsBytes = 2 << 20
 
@@ -889,14 +916,10 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 	}
 
 	for attempt := 0; attempt < cOneOffMaxAttempts; attempt++ {
-		pool.lock.Lock()
-		if len(pool.availableConns) == 0 {
-			pool.lock.Unlock()
+		candidate := takeAvailable(pool, cOneOffConnWait)
+		if candidate == nil {
 			return nil, errors.New("no available connections in the pool for this device")
 		}
-		candidate := pool.availableConns[0]
-		pool.availableConns = pool.availableConns[1:]
-		pool.lock.Unlock()
 
 		respFrame, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
 		candidate.Close()
