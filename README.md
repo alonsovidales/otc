@@ -451,7 +451,7 @@ model-path=/usr/local/models/ram_plus_swin_large_14m.int8.onnx
 tags-path=/usr/local/models/tag_list_4585.txt
 thresholds-path=/usr/local/models/tag_list_4585_thresholds.txt
 tags-per-image=10
-max-images-search=5
+max-images-search=30
 
 # Optional (issue #43) - push notifications to the iOS app when a friend
 # posts. Omit this whole section and it's simply skipped (the device token

@@ -99,6 +99,15 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
     return () => obs.disconnect();
   }, [fetchPage]);
 
+  // A page that doesn't fill the grid leaves nothing to scroll, so the
+  // sentinel never "comes into view" again and loading stopped there (a
+  // device answers 5-30 photos a page): keep going until it is full.
+  useEffect(() => {
+    const g = gridRef.current;
+    if (!g || loading || done || items.length === 0) return;
+    if (g.scrollHeight <= g.clientHeight + 400) void fetchPage(false);
+  }, [items, loading, done, fetchPage]);
+
   const pick = async (f: MsgFile) => {
     setOpening(f.path);
     setError(null);

@@ -834,7 +834,7 @@ model-path=$MODEL_ONNX
 tags-path=$MODEL_TAGS
 thresholds-path=$MODEL_THRESHOLDS
 tags-per-image=10
-max-images-search=5
+max-images-search=30
 
 # Issue #52: face recognition ("People" search), humans only - off by
 # default (toggle it from Settings in the app), regardless of this section
