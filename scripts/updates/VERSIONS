@@ -134,3 +134,4 @@
 88	-	2522f65984aa0cc7cd81047b67a7959c9f0b3bcaa0fbcc8d04d099bb5987b278	The web app fits phone screens, and the device no longer logs a friend's normal disconnect as an error.	52a756fdb00ff3a31cc796340999702f51c295c02fcbc06df28cfe9a05271491
 89	-	ebd7f2ef156811a9402e3a62d8e19b6fdd21ad5652c7649c6f32c7db31f77b0d	Updates only count as done once the web app is installed too, and Settings > Logs works in the browser again.	df61063b86b1f5189710deb91af9d03e362a22799697b168f9b0d444d50d91b7
 90	-	11c20b898e4b0aec1f3fae33b18b1988e17796658a9f7fd2a86a3c360ed11514	The server status pop-up shows sizes in GB.	c841f155469703b53ef33e1f2aa57573bdd8e54167d6e332c8922b8f759fc3cb
+91	df705851d8cd252a4c476c1cdfa4ca4a230c8d5cd1551cc71da2f8f449f1bfd9	15b8e23f9a957790e8b1b2d2c5409640390bca7aa4edec442d1bb8c7a141d12a	The profile photo picker shows all your photos, and photo grids load faster.	0dcc0db578abf246702d5bb308578acf3ca81966e2a1c190366ee525667ef870
