@@ -14,6 +14,10 @@ import LowResBadge from "./LowResBadge";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
+// Steps closer together than this are a held arrow key or a burst of
+// swipes: the full-size fetch waits this long and is skipped if the viewer
+// has moved on by then.
+const cRapidStepMs = 250;
 
 /** One item: its path and mime, and its thumbnail (JPEG) if there is one. */
 export type ViewerItem = { path: string; mime?: string; content?: Uint8Array | number[] | null; thumbURL?: string };
@@ -55,6 +59,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   // show the next one and then the previous one's image over it.
   const viewGenRef = useRef(0);
   useEffect(() => () => { viewGenRef.current += 1; }, []);
+  // When the previous item was opened (see cRapidStepMs).
+  const lastStepRef = useRef(0);
 
   const item = items[index];
 
@@ -83,7 +89,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
     setZoomScale(1);
     if (!item) return;
     setHiLoading(true);
-    (async () => {
+    const fetchFull = async () => {
       try {
         // Issue #110: a video streams from a URL; the device declines
         // small clips, which fall through to the whole-file fetch.
@@ -105,7 +111,20 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
       } finally {
         if (current()) setHiLoading(false);
       }
-    })();
+    };
+    // A held arrow key steps about 30 times a second, and every full-size
+    // GetFile it sent ran to the end on the device (a HEIC decode and a
+    // share of its memory budget each) only to be dropped here, while the
+    // photo the user stopped on queued behind them - a request already
+    // sent can't be called back. The first open and a deliberate step
+    // still fetch at once; of a burst, only its first step and the item
+    // it ends on fetch.
+    const now = Date.now();
+    const rapid = now - lastStepRef.current < cRapidStepMs;
+    lastStepRef.current = now;
+    if (!rapid) { void fetchFull(); return; }
+    const timer = setTimeout(() => void fetchFull(), cRapidStepMs);
+    return () => clearTimeout(timer);
   }, [item?.path, item?.mime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Issue #41: camera/EXIF metadata, computed on the device from the file.
