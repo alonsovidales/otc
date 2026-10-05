@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -589,8 +590,31 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 		return "", err
 	}
 	zw := zip.NewWriter(out)
+	// Every entry is deflated, so each marks its own end: Go always puts a
+	// file's CRC and sizes after its data, and a reader that streams the
+	// archive (java.util.zip.ZipInputStream, funzip) only
+	// accepts that for deflated entries, not stored ones. Media that is
+	// already compressed goes in at flate.NoCompression - stored deflate
+	// blocks, nearly as fast as zip.Store - and the rest at the level
+	// archive/zip uses itself. One writer per level is reset per entry:
+	// zip closes an entry's writer before it asks for the next one.
+	level := zipDeflateLevel
+	deflaters := map[int]*flate.Writer{}
+	zw.RegisterCompressor(zip.Deflate, func(w io.Writer) (io.WriteCloser, error) {
+		if fw := deflaters[level]; fw != nil {
+			fw.Reset(w)
+			return fw, nil
+		}
+		fw, err := flate.NewWriter(w, level)
+		if err != nil {
+			return nil, err
+		}
+		deflaters[level] = fw
+		return fw, nil
+	})
 	for _, file := range files {
-		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zipMethodFor(file.Mime)}
+		level = zipLevelFor(file.Mime)
+		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zip.Deflate}
 		h.SetModTime(file.Modified.AsTime())
 		h.SetMode(0644)
 		wr, err := zw.CreateHeader(h)
@@ -632,25 +656,28 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	return "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret, nil
 }
 
-// zipMethodFor is how a file goes into a share archive: stored as it is
-// when its format is already compressed (photos, videos, most audio,
-// archives) - deflating those took most of the time a share of photos or
-// videos took on a Pi, for about 1% - deflated otherwise, and whenever the
-// type is unknown.
-func zipMethodFor(mime string) uint16 {
+// zipDeflateLevel is the level archive/zip deflates at by default.
+const zipDeflateLevel = 5
+
+// zipLevelFor is how hard a file is deflated in a share archive: not at
+// all (flate.NoCompression) when its format is already compressed (photos,
+// videos, most audio, archives) - deflating those took most of the time a
+// share of photos or videos took on a Pi, for about 1% - and at
+// zipDeflateLevel otherwise, and whenever the type is unknown.
+func zipLevelFor(mime string) int {
 	m := strings.ToLower(strings.TrimSpace(strings.SplitN(mime, ";", 2)[0]))
 	switch {
 	case strings.HasPrefix(m, "video/"):
-		return zip.Store
+		return flate.NoCompression
 	case strings.HasPrefix(m, "audio/") && m != "audio/wav" && m != "audio/x-wav" && m != "audio/vnd.wave" && m != "audio/aiff" && m != "audio/x-aiff":
-		return zip.Store
+		return flate.NoCompression
 	}
 	switch m {
 	case "image/jpeg", "image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence", "image/png", "image/gif", "image/webp", "image/avif", "image/jxl",
 		"application/zip", "application/gzip", "application/x-gzip", "application/x-7z-compressed", "application/x-rar-compressed", "application/vnd.rar", "application/x-xz", "application/x-bzip2", "application/zstd":
-		return zip.Store
+		return flate.NoCompression
 	}
-	return zip.Deflate
+	return zipDeflateLevel
 }
 
 // linkKeys opens a share link's archive with the key from its secret.

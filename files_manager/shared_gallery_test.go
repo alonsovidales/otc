@@ -5,7 +5,10 @@ package filesmanager
 import (
 	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"database/sql/driver"
+	"encoding/binary"
+	"hash/crc32"
 	"image"
 	"image/color"
 	_ "image/jpeg"
@@ -364,26 +367,35 @@ func TestOpenSharedLinkRangeOnlyExpiresArchives(t *testing.T) {
 	}
 }
 
-// A share archive stores photos as they are and deflates the rest, and
-// every file comes out of it byte for byte.
+// A share archive leaves photos and videos uncompressed and compresses
+// the rest, every entry is deflated so a streaming unzipper can read it,
+// and every file comes out of it byte for byte.
 func TestGetSharedLinkStoresMediaAndDeflatesTheRest(t *testing.T) {
 	storage, ses := galleryTestEnv(t)
 	photo := bytes.Repeat([]byte("JPEG"), 5000)
 	notes := bytes.Repeat([]byte("some notes "), 5000)
+	clip := bytes.Repeat([]byte("MP4 "), 40000) // more than one stored block
+	readme := bytes.Repeat([]byte("read me "), 5000)
+	// Names of different lengths: libraryFile derives the hash from it.
+	// Media and text alternate, so each level's writer is used again.
 	files := []*pb.File{
 		libraryFile(t, ses, "a.jpg", "image/jpeg", photo),
 		libraryFile(t, ses, "notes.txt", "text/plain; charset=utf-8", notes),
+		libraryFile(t, ses, "clip.mp4", "video/mp4", clip),
+		libraryFile(t, ses, "readme", "", readme),
 	}
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	for _, f := range files {
+	paths := make([]string, len(files))
+	for i, f := range files {
+		paths[i] = f.Path
 		mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = \\?").WithArgs(f.Path).
 			WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
 				AddRow(f.Hash, f.Mime, time.Now(), time.Now(), f.Path, f.Size))
 	}
 	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
 	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
-	link, err := mg.GetSharedLink(ses, []string{files[0].Path, files[1].Path}, "cala.off-the.cloud")
+	link, err := mg.GetSharedLink(ses, paths, "cala.off-the.cloud")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,25 +403,35 @@ func TestGetSharedLinkStoresMediaAndDeflatesTheRest(t *testing.T) {
 		t.Error(err) // one query per file, not two
 	}
 	id, secret, _ := strings.Cut(strings.TrimPrefix(link, "https://cala.off-the.cloud/"+CDownloadAttr), "_")
+	defer os.Remove(filepath.Join(storage, id))
 	raw, err := blobstore.ReadAll(filepath.Join(storage, id), linkKeys{getCipher(secret)})
 	if err != nil {
 		t.Fatal(err)
 	}
+	want := map[string]struct {
+		compressed bool
+		content    []byte
+	}{"a.jpg": {false, photo}, "notes.txt": {true, notes}, "clip.mp4": {false, clip}, "readme": {true, readme}}
+
+	// Through the central directory, as Finder or unzip read it.
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]struct {
-		method  uint16
-		content []byte
-	}{"a.jpg": {zip.Store, photo}, "notes.txt": {zip.Deflate, notes}}
+	if len(zr.File) != len(want) {
+		t.Errorf("%d entries, want %d", len(zr.File), len(want))
+	}
 	for _, zf := range zr.File {
 		w, ok := want[zf.Name]
 		if !ok {
 			t.Fatalf("unexpected entry %q", zf.Name)
 		}
-		if zf.Method != w.method {
-			t.Errorf("%s: method %d, want %d", zf.Name, zf.Method, w.method)
+		if zf.Method != zip.Deflate {
+			t.Errorf("%s: method %d, want deflate", zf.Name, zf.Method)
+		}
+		// The content repeats, so any compression would shrink it a lot.
+		if compressed := zf.CompressedSize64 < zf.UncompressedSize64/2; compressed != w.compressed {
+			t.Errorf("%s: %d bytes stored for %d, compressed %v, want %v", zf.Name, zf.CompressedSize64, zf.UncompressedSize64, compressed, w.compressed)
 		}
 		rc, err := zf.Open()
 		if err != nil {
@@ -421,7 +443,72 @@ func TestGetSharedLinkStoresMediaAndDeflatesTheRest(t *testing.T) {
 			t.Errorf("%s: content changed (%v)", zf.Name, err)
 		}
 	}
-	os.Remove(filepath.Join(storage, id))
+
+	// Front to back, as a streaming reader does.
+	streamed := streamZip(t, raw)
+	if len(streamed) != len(want) {
+		t.Errorf("streamed %d entries, want %d", len(streamed), len(want))
+	}
+	for name, w := range want {
+		if !bytes.Equal(streamed[name], w.content) {
+			t.Errorf("%s: streamed content changed", name)
+		}
+	}
+}
+
+// streamZip reads an archive front to back from its local headers only,
+// never its central directory, the way java.util.zip.ZipInputStream or
+// funzip do. archive/zip writes each file's CRC and sizes after its data,
+// so such a reader finds where an entry ends only when the entry is
+// deflated: a stored one fails the test.
+func streamZip(t *testing.T, raw []byte) map[string][]byte {
+	t.Helper()
+	r := bytes.NewReader(raw)
+	got := map[string][]byte{}
+	for {
+		var hdr [30]byte
+		if _, err := io.ReadFull(r, hdr[:]); err != nil {
+			t.Fatalf("local header: %v", err)
+		}
+		switch sig := binary.LittleEndian.Uint32(hdr[0:]); sig {
+		case 0x02014b50: // the central directory: no more entries
+			return got
+		case 0x04034b50:
+		default:
+			t.Fatalf("signature %#x where an entry should start", sig)
+		}
+		flags := binary.LittleEndian.Uint16(hdr[6:])
+		method := binary.LittleEndian.Uint16(hdr[8:])
+		name := make([]byte, binary.LittleEndian.Uint16(hdr[26:]))
+		if _, err := io.ReadFull(r, name); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := r.Seek(int64(binary.LittleEndian.Uint16(hdr[28:])), io.SeekCurrent); err != nil {
+			t.Fatal(err)
+		}
+		if flags&0x8 == 0 {
+			t.Fatalf("%s: sizes in the local header, not after the data", name)
+		}
+		if method != zip.Deflate {
+			t.Fatalf("%s: method %d with its sizes after its data: a streaming reader can't find its end", name, method)
+		}
+		// bytes.Reader is an io.ByteReader: flate stops at the end of
+		// the stream instead of reading ahead.
+		content, err := io.ReadAll(flate.NewReader(r))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		var dd [16]byte // signature, CRC-32, 32-bit sizes (small files)
+		if _, err := io.ReadFull(r, dd[:]); err != nil {
+			t.Fatal(err)
+		}
+		if binary.LittleEndian.Uint32(dd[0:]) != 0x08074b50 ||
+			binary.LittleEndian.Uint32(dd[4:]) != crc32.ChecksumIEEE(content) ||
+			binary.LittleEndian.Uint32(dd[12:]) != uint32(len(content)) {
+			t.Fatalf("%s: the data descriptor doesn't follow the deflated data", name)
+		}
+		got[string(name)] = content
+	}
 }
 
 // The manifest is decrypted once for a page's many requests, but every
