@@ -251,3 +251,51 @@ func TestPairingCannotDrainThePool(t *testing.T) {
 		t.Errorf("pool has %d connections left, want %d", left, poolSize-cPairMaxAttempts)
 	}
 }
+
+// A socket that never sends anything, or stalls inside its first frame,
+// is closed after cUnpairedReadTimeout; a paired client may go quiet for
+// as long as it likes.
+func TestUnpairedConnectionsTimeOutPairedOnesDoNot(t *testing.T) {
+	restore := cUnpairedReadTimeout
+	cUnpairedReadTimeout = 200 * time.Millisecond
+	defer func() { cUnpairedReadTimeout = restore }()
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(false))
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	dial, host := newTestBridge(t, mg)
+
+	expectClosed(t, dial()) // says nothing at all
+
+	// The start of a message (more than the client's write buffer, so a
+	// first fragment goes out), then nothing.
+	stalled := dial()
+	w, err := stalled.NextWriter(gorilla.BinaryMessage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write(make([]byte, 10000)); err != nil {
+		t.Fatal(err)
+	}
+	expectClosed(t, stalled)
+
+	srv, wsURL := newEchoDeviceServer(t, func(int32) time.Duration { return 0 })
+	t.Cleanup(srv.Close)
+	mg.bridges[host] = &bridgePool{lock: new(sync.Mutex), availableConns: []*deviceRelay{dialRelay(t, wsURL)}}
+	paired := dial()
+	for i, wait := range []time.Duration{0, 3 * cUnpairedReadTimeout} {
+		time.Sleep(wait)
+		if err := paired.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, int32(i+1))); err != nil {
+			t.Fatal(err)
+		}
+		if resp := readResp(t, paired); resp.Id != int32(i+1) || resp.Error {
+			t.Fatalf("request %d: got id %d error %v %q", i+1, resp.Id, resp.Error, resp.ErrorMessage)
+		}
+	}
+}

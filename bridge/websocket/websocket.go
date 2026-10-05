@@ -155,6 +155,15 @@ var (
 	cPingPeriod = (cPongWait * 8) / 10
 )
 
+// cUnpairedReadTimeout bounds each read on a connection not yet paired
+// with a device - the wait for a message and the message itself. Every
+// real peer sends its first message as soon as the socket opens (the web's
+// DeviceUnreachable screen re-asks every 5 s on the same socket); without
+// it, anyone could hold sockets open forever, each with up to cFree of an
+// unfinished first frame. Long enough for a 2 MB log upload on a slow
+// uplink. Var so tests can shrink it.
+var cUnpairedReadTimeout = 2 * time.Minute
+
 type deviceRelay struct {
 	conn    *gorilla.Conn
 	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
@@ -1051,10 +1060,20 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		limit := int64(cUnpairedReadLimit)
 		if relay != nil {
 			limit = cRelayedReadLimit
+		} else {
+			// Paired clients may sit idle as long as they like: the
+			// deadline is cleared when the pairing happens.
+			conn.SetReadDeadline(time.Now().Add(cUnpairedReadTimeout))
 		}
 		_, frame, releaseFrame, err := wsframe.Read(conn, limit, frameBudget)
 		if err != nil {
-			log.Error("error processing message:", err)
+			var ne net.Error
+			if relay == nil && errors.As(err, &ne) && ne.Timeout() {
+				// A background tab, mostly: not worth an error line each.
+				log.Debug("closing an unpaired connection that went quiet:", err)
+			} else {
+				log.Error("error processing message:", err)
+			}
 			return
 		}
 
@@ -1667,6 +1686,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 						picked = candidate
 						relay = candidate
+						conn.SetReadDeadline(time.Time{})
 						// Single use connection, close as soon as it is
 						// finished since they are authenticated. Close()
 						// triggers candidate's onDeath exactly once (via
