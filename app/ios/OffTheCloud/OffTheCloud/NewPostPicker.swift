@@ -508,12 +508,16 @@ final class NewPostPickerVM: ObservableObject {
     /// same file rather than uploaded twice.
     private static func uploadIfNeeded(_ asset: PHAsset) async throws -> String {
         let ws = OTCConnection.shared
-        let secrets = SecretsStore.loadOrCreate()
+        // Off the main actor: synchronous Keychain reads (see
+        // OTCConnection.connectAndAuth).
+        let deviceId = await Task.detached(priority: .userInitiated) {
+            SecretsStore.loadOrCreate().deviceId
+        }.value
         guard let rawName = PhotoSync.shared.resourceFilename(for: asset) else {
             throw NSError(domain: "NewPostPicker", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not read this photo"])
         }
         let cleanName = rawName.replacingOccurrences(of: "/", with: "_")
-        let path = "/ios/\(secrets.deviceId)/\(cleanName)"
+        let path = "/ios/\(deviceId)/\(cleanName)"
         let created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
 
         // Cache hit (already synced under some other path before, e.g. a
@@ -542,9 +546,15 @@ final class NewPostPickerVM: ObservableObject {
         // This is the user explicitly waiting on posting *this* photo
         // right now, not a background bulk sync - always allow the iCloud
         // fetch if needed, regardless of the "Sync from iCloud" setting
-        // PhotoSync itself respects.
-        let (data, _, _) = try PhotoSync.shared.readData(for: asset, allowNetwork: true)
-        let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        // PhotoSync itself respects. Off the main actor: readData blocks
+        // its thread until the whole original is downloaded, then the
+        // hash reads every byte - the UI froze for all of it, the
+        // "Uploading 1 of n…" status included.
+        let (data, hash) = try await Task.detached(priority: .userInitiated) { () throws -> (Data, String) in
+            let (data, _, _) = try PhotoSync.shared.readData(for: asset, allowNetwork: true)
+            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            return (data, hash)
+        }.value
 
         let hasResp = try await ws.request { e in
             var hf = Msg_HasFile()
