@@ -1180,18 +1180,21 @@ func (dao *Dao) ListAdminDevices(accountID, q string, limit, offset int) (device
 		return nil, 0, err
 	}
 
-	query := "select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, ''), coalesce(a.`email`, ''), " +
-		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))), d.`disabled`, d.`created`, d.`last_client_at`, " +
+	// The page is picked first (p), and only its devices' metrics summed:
+	// grouping the whole join before the limit summed 30 days of hourly
+	// rows for every device on each page and keystroke of the search.
+	tail, targs := pageClause(limit, offset)
+	query := "select p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`, " +
 		"coalesce(sum(case when m.`hour_bucket` >= date_format(now() - interval 1 hour, '%Y-%m-%d %H:00:00') then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(case when m.`hour_bucket` >= now() - interval 1 day then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(m.`bytes_in` + m.`bytes_out`), 0) " +
-		"from `devices` d left join `accounts` a on a.`id` = d.`account_id` " +
-		"left join `device_metrics` m on m.`domain` = d.`domain` and m.`hour_bucket` >= now() - interval 30 day" +
-		where +
-		" group by d.`domain`, d.`owner_uuid`, d.`account_id`, a.`email`, a.`name`, a.`surname`, d.`disabled`, d.`created`, d.`last_client_at`" +
-		" order by d.`domain`"
-	tail, targs := pageClause(limit, offset)
-	rows, err := dao.db.Query(query+tail, append(args, targs...)...)
+		"from (select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, '') as `account_id`, coalesce(a.`email`, '') as `email`, " +
+		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))) as `name`, d.`disabled`, d.`created`, d.`last_client_at` " +
+		"from `devices` d left join `accounts` a on a.`id` = d.`account_id`" + where + " order by d.`domain`" + tail + ") p " +
+		"left join `device_metrics` m on m.`domain` = p.`domain` and m.`hour_bucket` >= now() - interval 30 day" +
+		" group by p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`" +
+		" order by p.`domain`"
+	rows, err := dao.db.Query(query, append(args, targs...)...)
 	if err != nil {
 		return nil, 0, err
 	}
