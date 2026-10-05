@@ -2029,7 +2029,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	case *pb.ReqEnvelope_ReqBeginUpload:
 		r := p.ReqBeginUpload
 		log.Debug("Chunked upload of", r.Path, "-", r.Size, "bytes")
-		id, err := ch.mg.filesManager.BeginUpload(ses, r.Path, r.Size, r.ForceOverride, r.Created, r.Modified, r.CloudId)
+		id, err := ch.mg.filesManager.BeginUpload(ses, r.Path, r.Size, r.ForceOverride, r.Created, r.Modified, r.CloudId, ch)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error starting the upload: %s", err)
@@ -3623,6 +3623,12 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		closeOnce.Do(func() {
 			conn.Close()
 		})
+	}
+	// Deferred before wg.Wait, so it runs after it: the chunked uploads
+	// this connection left unfinished are dropped once none of its
+	// requests is still running (a FinishUpload in flight still commits).
+	if mg.filesManager != nil {
+		defer mg.filesManager.AbortUploadsOf(ch)
 	}
 	// However this loop exits, wait for every goroutine it started before
 	// returning - handleConnection returning is what lets a caller's own

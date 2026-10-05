@@ -85,7 +85,9 @@ func NewWriter(w io.Writer, aead cipher.AEAD) (*Writer, error) {
 	if _, err := w.Write(header); err != nil {
 		return nil, err
 	}
-	return &Writer{w: w, aead: aead, header: header, buf: make([]byte, 0, SegmentSize)}, nil
+	// buf is allocated at the first Write: an upload begun and never sent
+	// to held a whole segment for nothing.
+	return &Writer{w: w, aead: aead, header: header}, nil
 }
 
 func (s *Writer) seal(data []byte, last bool) error {
@@ -102,6 +104,9 @@ func (s *Writer) Write(p []byte) (int, error) {
 		return 0, errors.New("segcrypt: write after close")
 	}
 	n := len(p)
+	if s.buf == nil && n > 0 {
+		s.buf = make([]byte, 0, SegmentSize)
+	}
 	for len(p) > 0 {
 		room := SegmentSize - len(s.buf)
 		take := min(room, len(p))
