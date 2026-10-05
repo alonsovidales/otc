@@ -10,7 +10,6 @@
 //  Images section's own viewer for photos and videos.
 
 import SwiftUI
-import CryptoKit
 import UniformTypeIdentifiers
 import QuickLook
 
@@ -353,13 +352,23 @@ final class FilesExplorerViewModel: ObservableObject {
         return link.link
     }
 
-    func upload(data: Data, filename: String) async {
+    /// Streams the file: hashed off the main actor in 4 MiB pieces, then
+    /// sent chunk by chunk. Reading it whole (and hashing it here) put
+    /// every picked file in memory at once and froze the UI - a few large
+    /// videos and iOS killed the app.
+    func upload(fileAt url: URL, filename: String) async {
         let path = joinPath(path, filename)
+        // Unreadable (or a folder): skipped without a word, as before.
+        let hash: String
+        do {
+            hash = try await Task.detached(priority: .userInitiated) { try OTCConnection.sha256Hex(of: url) }.value
+        } catch {
+            return
+        }
         do {
             // Issue #58: skip re-sending content the device already has
             // under some other path — see PhotoSync.swift's identical
             // check for the full reasoning.
-            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
             let hasResp = try await ws.request { e in
                 var hf = Msg_HasFile()
                 hf.hash = hash
@@ -377,7 +386,7 @@ final class FilesExplorerViewModel: ObservableObject {
                 }
             } else {
                 // Issue #165: chunked, never the whole file in one message.
-                resp = try await ws.uploadChunked(path: path, source: .data(data),
+                resp = try await ws.uploadChunked(path: path, source: .file(url),
                                                   forceOverride: false, sha256: hash)
             }
             if resp.error { showToast("Upload failed: \(resp.errorMessage)") }
@@ -583,9 +592,11 @@ struct FilesExplorerView: View {
             guard case .success(let urls) = result else { return }
             for url in urls {
                 guard url.startAccessingSecurityScopedResource() else { continue }
-                defer { url.stopAccessingSecurityScopedResource() }
-                if let data = try? Data(contentsOf: url) {
-                    Task { await vm.upload(data: data, filename: url.lastPathComponent) }
+                // Kept open until this file's upload is done: it is read
+                // as it is sent now.
+                Task {
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    await vm.upload(fileAt: url, filename: url.lastPathComponent)
                 }
             }
         }
