@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import android.app.ActivityManager
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -393,10 +394,21 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         }
     }
 
-    // Viewer
+    // Viewer. hiResOrder: the cached full-size images, least recently used first.
     private val hiResOrder = mutableListOf<String>()
     private val inFlightHiRes = mutableSetOf<String>()
     private val hiResCacheSize = 8
+    // And a byte budget: a 12 MP photo decodes to 48 MB, so eight of them
+    // could hold ~400 MB. The open photo and its neighbours stay regardless.
+    private val hiResBudgetBytes: Long = run {
+        val am = OTCApp.instance.getSystemService(ActivityManager::class.java)
+        val mb = when {
+            am == null -> 128
+            am.isLowRamDevice -> 64
+            else -> (am.memoryClass / 2).coerceIn(96, 192)
+        }
+        mb.toLong() shl 20
+    }
 
     fun open(index: Int) {
         if (index !in _state.value.items.indices) return
@@ -414,11 +426,26 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     }
 
     private fun cacheHiRes(path: String, bmp: Bitmap) {
-        if (path !in _state.value.hiResImages) hiResOrder += path
-        val evicted = mutableListOf<String>()
-        while (hiResOrder.size > hiResCacheSize) evicted += hiResOrder.removeAt(0)
-        _state.update { it.copy(hiResImages = (it.hiResImages - evicted.toSet()) + (path to bmp)) }
+        hiResOrder -= path
+        hiResOrder += path
+        val st = _state.value
+        val keep = st.openIndex?.let { i -> (i - 1..i + 1).mapNotNull { st.items.getOrNull(it)?.path }.toSet() } ?: emptySet()
+        val images = st.hiResImages + (path to bmp)
+        var total = images.values.sumOf { it.allocationByteCount.toLong() }
+        val evicted = mutableSetOf<String>()
+        val oldest = hiResOrder.iterator()
+        while (oldest.hasNext() && (hiResOrder.size > hiResCacheSize || total > hiResBudgetBytes)) {
+            val p = oldest.next()
+            if (p in keep) continue
+            oldest.remove()
+            evicted += p
+            total -= images[p]?.allocationByteCount?.toLong() ?: 0
+        }
+        _state.update { it.copy(hiResImages = (it.hiResImages - evicted) + (path to bmp)) }
     }
+
+    // Swiped back to: the newest again, so it isn't the next one evicted while shown.
+    private fun touchHiRes(path: String) { if (hiResOrder.remove(path)) hiResOrder += path }
     fun prev() { _state.value.openIndex?.let { if (it > 0) open(it - 1) } }
     fun next() { _state.value.openIndex?.let { if (it < _state.value.items.size - 1) open(it + 1) } }
 
@@ -443,7 +470,8 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     private suspend fun fetchHiRes(index: Int, prefetch: Boolean = false) {
         val it = _state.value.items.getOrNull(index) ?: return
         if (it.mime.startsWith("video/")) { if (!prefetch) fetchVideo(it); return }
-        if (it.path in _state.value.hiResImages || it.path in inFlightHiRes) return
+        if (it.path in _state.value.hiResImages) { touchHiRes(it.path); return }
+        if (it.path in inFlightHiRes) return
         inFlightHiRes += it.path
         _state.update { s -> s.copy(hiResLoading = s.hiResLoading + it.path) }
         try {
