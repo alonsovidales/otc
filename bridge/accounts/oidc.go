@@ -223,10 +223,10 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if acc != nil && acc.PasswordHash != "" {
-			// A password account nobody verified the email of: whoever
-			// signed up with it may not be the person now proving they
-			// own the address. The provider sign-in wins - the password
-			// is cleared (a new one can be set from the account page).
+			// A password account for this email: whoever signed up with
+			// it may not be the person now proving they own the address.
+			// The provider sign-in wins - the password is cleared (a new
+			// one can be set from the account page).
 			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
 				log.Error("could not clear the password of an account being linked:", err)
 			}
@@ -254,6 +254,12 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 				log.Error("could not mark an email verified:", err)
 			}
 			acc.EmailVerified = true
+			// Whoever signed up with this unproven address may still hold
+			// a session: end it, as Reset does. The provider user gets the
+			// fresh cookie set just below.
+			if _, err := a.dao.BumpAccountSessionEpoch(acc.ID); err != nil {
+				log.Error("error ending an account's other sessions:", err)
+			}
 		}
 	}
 	a.setSession(w, r, acc.ID)
