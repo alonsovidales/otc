@@ -3,8 +3,11 @@
 package websocket
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
+	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -112,14 +115,81 @@ func TestWriteReplyDeliversALargeReplyToASlowReader(t *testing.T) {
 	if time.Since(start) < cReplyStall {
 		t.Fatal("the reader was meant to take longer than one stall period in all")
 	}
+}
 
-	// A small reply is still one frame, as before.
-	url, result = replyServer(t, []byte("small"))
-	c = dialSmallBuffer(t, url)
-	if _, b, err := c.ReadMessage(); err != nil || string(b) != "small" {
-		t.Fatalf("small reply: %q, %v", b, err)
+// A reply of up to cReplyPiece still goes out as one frame, as before.
+// gorilla's ReadMessage joins continuation frames, so this reads the
+// frame header off the socket itself.
+func TestWriteReplySendsASmallReplyAsOneFrame(t *testing.T) {
+	boundary := make([]byte, cReplyPiece)
+	rand.Read(boundary)
+	for _, payload := range [][]byte{[]byte("small"), boundary} {
+		url, result := replyServer(t, payload)
+		br := dialRaw(t, url)
+
+		fin, opcode, size := readFrameHeader(t, br)
+		if !fin || opcode != gorilla.BinaryMessage || size != uint64(len(payload)) {
+			t.Fatalf("%d-byte reply: first frame fin=%v opcode=%d length=%d, want one binary frame of %d",
+				len(payload), fin, opcode, size, len(payload))
+		}
+		got := make([]byte, size)
+		if _, err := io.ReadFull(br, got); err != nil || !bytes.Equal(got, payload) {
+			t.Fatalf("%d-byte reply: payload differs (%v)", len(payload), err)
+		}
+		if err := <-result; err != nil {
+			t.Fatalf("writeReply: %v", err)
+		}
 	}
-	if err := <-result; err != nil {
-		t.Fatalf("writeReply: %v", err)
+}
+
+// dialRaw opens a websocket by hand and returns the socket's reader just
+// past the handshake, so frames can be read as they were sent.
+func dialRaw(t *testing.T, url string) *bufio.Reader {
+	t.Helper()
+	host := strings.TrimPrefix(url, "ws://")
+	c, err := net.Dial("tcp", host)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
 	}
+	t.Cleanup(func() { c.Close() })
+	c.SetDeadline(time.Now().Add(10 * time.Second))
+	fmt.Fprintf(c, "GET / HTTP/1.1\r\nHost: %s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"+
+		"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n", host)
+	br := bufio.NewReader(c)
+	resp, err := http.ReadResponse(br, nil)
+	if err != nil {
+		t.Fatalf("handshake: %v", err)
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("handshake: status %d", resp.StatusCode)
+	}
+	return br
+}
+
+// readFrameHeader reads one unmasked (server to client) frame header.
+func readFrameHeader(t *testing.T, br *bufio.Reader) (fin bool, opcode int, size uint64) {
+	t.Helper()
+	var h [2]byte
+	if _, err := io.ReadFull(br, h[:]); err != nil {
+		t.Fatalf("frame header: %v", err)
+	}
+	if h[1]&0x80 != 0 {
+		t.Fatal("a reply frame from the device was masked")
+	}
+	fin, opcode, size = h[0]&0x80 != 0, int(h[0]&0x0f), uint64(h[1]&0x7f)
+	switch size {
+	case 126:
+		var ext [2]byte
+		if _, err := io.ReadFull(br, ext[:]); err != nil {
+			t.Fatalf("frame length: %v", err)
+		}
+		size = uint64(binary.BigEndian.Uint16(ext[:]))
+	case 127:
+		var ext [8]byte
+		if _, err := io.ReadFull(br, ext[:]); err != nil {
+			t.Fatalf("frame length: %v", err)
+		}
+		size = binary.BigEndian.Uint64(ext[:])
+	}
+	return fin, opcode, size
 }
