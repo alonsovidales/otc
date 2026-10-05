@@ -74,3 +74,54 @@ func TestSafeRelative(t *testing.T) {
 		}
 	}
 }
+
+// Hidden files and partial downloads on the device are left there: the
+// local scan never sees them, so downloading them made the next pass
+// delete them from the device.
+func TestTwoWayLeavesHiddenDeviceFilesAlone(t *testing.T) {
+	withConfigDir(t)
+	local := t.TempDir()
+	if err := os.WriteFile(filepath.Join(local, ".env"), []byte("mine"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d := twoWayDevice(map[string][]byte{
+		"/r/.env":        []byte("theirs"),
+		"/r/.git/config": []byte("[core]"),
+		"/r/x.otc-part":  []byte("partial"),
+		"/r/a.txt":       []byte("visible"),
+	})
+	conn := connectedEngine(t, d)
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/r", LocalPath: local}
+	e := New(&config.Config{RemoteFolders: []config.RemoteFolder{f}}, "", nil)
+	e.ws = conn.ws
+
+	for pass := 0; pass < 2; pass++ {
+		e.reconcileRemoteFolder(f)
+	}
+
+	if got, _ := os.ReadFile(filepath.Join(local, "a.txt")); string(got) != "visible" {
+		t.Fatalf("a.txt not downloaded: %q", got)
+	}
+	if got, _ := os.ReadFile(filepath.Join(local, ".env")); string(got) != "mine" {
+		t.Errorf("the local .env was overwritten: %q", got)
+	}
+	for _, p := range []string{".git", "x.otc-part"} {
+		if _, err := os.Stat(filepath.Join(local, p)); !os.IsNotExist(err) {
+			t.Errorf("%s was downloaded (%v)", p, err)
+		}
+	}
+	if len(d.deletes) != 0 {
+		t.Errorf("deleted from the device: %v", d.deletes)
+	}
+}
+
+func TestNotSynced(t *testing.T) {
+	for rel, want := range map[string]bool{
+		"a.txt": false, "sub/a.txt": false, ".env": true, "sub/.git/config": true,
+		"x.otc-part": true, "sub/y.jpg.otc-part": true, "a.b/c": false,
+	} {
+		if got := notSynced(rel); got != want {
+			t.Errorf("notSynced(%q) = %v, want %v", rel, got, want)
+		}
+	}
+}

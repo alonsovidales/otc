@@ -729,8 +729,12 @@ func (e *Engine) processChangedPath(path string, f config.Folder) {
 	known := e.remoteHashes[f.ID][remotePath]
 	e.mu.Unlock()
 	if err == nil && !fi.IsDir() {
-		if isHidden(path) {
-			return
+		rel, relErr := filepath.Rel(f.Path, path)
+		if relErr != nil {
+			rel = filepath.Base(path)
+		}
+		if notSynced(filepath.ToSlash(rel)) {
+			return // as the reconcile: not part of the backup
 		}
 		h, err := e.cachedHash(f.ID, path)
 		if err != nil || h == known {
@@ -999,6 +1003,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			if !under || !safeRelative(rel) {
 				skipped++
 
+				continue
+			}
+			if notSynced(rel) {
+				// Never seen here either (enumerateFiles): listing it
+				// meant a download, then a delete from the device.
 				continue
 			}
 			remoteByRel[rel] = rf
@@ -1662,6 +1671,14 @@ func safeRelative(rel string) bool {
 	}
 
 	return filepath.IsLocal(filepath.FromSlash(rel))
+}
+
+// notSynced: paths this client never syncs - hidden ones (as
+// enumerateFiles and the Mac's .skipsHiddenFiles) and its own partial
+// downloads. rel is relative to the folder, so a folder that itself sits
+// under a dot directory is still synced.
+func notSynced(rel string) bool {
+	return isHidden(rel) || strings.HasSuffix(rel, ".otc-part")
 }
 
 func isHidden(p string) bool {
