@@ -298,13 +298,33 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 // ContinueSetup sends a signed-in browser back to the wizard with a fresh
 // setup token: the last step of "complete your profile" after a provider
 // sign-in that started in the wizard. GET /api/account/continue?return=.
+//
+// Only the account page itself may send the browser here: the Lax cookie
+// rides on any site's link, and that site would pick where the token goes
+// (an address on the same LAN) or the app flow's PKCE challenge.
 func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, accountID string) {
+	if !a.sameOriginNavigation(r) {
+		log.Info("refused a cross-site /api/account/continue")
+		http.Error(w, "open this from your account page", http.StatusForbidden)
+		return
+	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
 	if !ok || returnURL == "" {
 		http.Error(w, ErrInvalidReturn.Error(), http.StatusBadRequest)
 		return
 	}
 	http.Redirect(w, r, a.afterSignIn(accountID, returnURL), http.StatusFound)
+}
+
+// sameOriginNavigation is whether a request was started by one of the
+// bridge's own pages: Sec-Fetch-Site where the browser sends it, else the
+// Referer (older Safari).
+func (a *Accounts) sameOriginNavigation(r *http.Request) bool {
+	if s := r.Header.Get("Sec-Fetch-Site"); s != "" {
+		return s == "same-origin"
+	}
+	ref, err := url.Parse(r.Header.Get("Referer"))
+	return err == nil && ref.Scheme == "https" && strings.EqualFold(ref.Host, a.tldHost())
 }
 
 // exchange turns the code into verified id_token claims.
