@@ -3,6 +3,8 @@
 package websocket
 
 import (
+	"database/sql"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -128,4 +130,61 @@ func TestRegistrationEvictsAReplacedIdentitysRelays(t *testing.T) {
 	}
 	c.Close()
 	waitForPool(t, mg, host, func(p *bridgePool) bool { return p.liveCount == 0 })
+}
+
+// The sweep closes what a lost cluster drop left behind: the relays of a
+// domain gone from the database, and a replaced identity's; the current
+// identity's stay.
+func TestSweepClosesUnregisteredAndReplacedRelays(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `domain`, `owner_uuid` from `devices` where `domain` in \\(\\?, \\?\\)").
+		WillReturnRows(sqlmock.NewRows([]string{"domain", "owner_uuid"}).AddRow("kept.otc", "new-owner"))
+	mock.ExpectQuery("select `owner_uuid` from `devices` where `domain` = \\?").
+		WithArgs("gone.otc").
+		WillReturnError(sql.ErrNoRows)
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	defer stopOfflineTimer(mg, "gone.otc")
+	_, goneDied := pooledRelay(t, mg, "gone.otc", "owner", true)
+	_, oldDied := pooledRelay(t, mg, "kept.otc", "old-owner", false)
+	_, currentDied := pooledRelay(t, mg, "kept.otc", "new-owner", true)
+
+	mg.sweepStale()
+	waitDead(t, goneDied, "the unregistered domain's relay")
+	waitDead(t, oldDied, "the replaced identity's relay")
+	select {
+	case <-currentDied:
+		t.Fatal("the current identity's relay was closed")
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A database failure must never read as "nothing is registered": that
+// would disconnect every device on the node.
+func TestSweepClosesNothingOnADatabaseError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `domain`, `owner_uuid` from `devices`").WillReturnError(errors.New("connection refused"))
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	_, died := pooledRelay(t, mg, "pit.otc", "owner", true)
+	mg.sweepStale()
+	select {
+	case <-died:
+		t.Fatal("a database error closed a relay")
+	case <-time.After(100 * time.Millisecond):
+	}
+	if n := mg.liveCount("pit.otc"); n != 1 {
+		t.Errorf("liveCount = %d, want 1", n)
+	}
 }

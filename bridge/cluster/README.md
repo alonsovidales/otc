@@ -96,6 +96,13 @@ host = 10.10.0.2                 ; the primary, from every node
 - "Online" (admin panel, account page, the setup wizard's check) is any
   node holding the device; the offline alert is skipped while another node
   holds it.
+- A domain released, deleted with its account or given a new identity
+  stops relaying on every node: the node that handled it publishes the
+  domain on the `otc:drop` channel and each node closes its connections,
+  paired ones included. Every 20 s each node also checks the devices it
+  holds against MySQL and closes those no longer registered, or registered
+  by another owner uuid - what a message missed while Redis was away, or
+  the admin panel's delete (which publishes nothing), leaves behind.
 
 ## Log retention (issue #176)
 

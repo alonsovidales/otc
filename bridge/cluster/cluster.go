@@ -38,6 +38,7 @@ const (
 
 	keyNodes    = "otc:nodes" // node id -> internal address
 	keyDevice   = "otc:dev:"  // + domain: node id -> claim expiry (unix)
+	keyDrop     = "otc:drop"  // pub/sub: domains whose connections every node closes
 	cRedisTimer = 2 * time.Second
 )
 
@@ -212,4 +213,37 @@ func (c *Cluster) Locate(domain string) (string, bool) {
 		return "", false
 	}
 	return addr, true
+}
+
+// PublishDrop tells every node, this one included, to close its
+// connections to domains: released, deleted, or given a new identity.
+// A node on a release without SubscribeDrops ignores it.
+func (c *Cluster) PublishDrop(domains ...string) error {
+	if c == nil || len(domains) == 0 {
+		return nil
+	}
+	ctx, cancel := c.ctx()
+	defer cancel()
+	pipe := c.rdb.Pipeline()
+	for _, d := range domains {
+		pipe.Publish(ctx, keyDrop, d)
+	}
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// SubscribeDrops calls drop with every domain PublishDrop names, from any
+// node, for as long as the process runs. go-redis resubscribes after a
+// lost connection; what was published meanwhile is lost, which each
+// node's periodic check of its devices against the database makes up for.
+func (c *Cluster) SubscribeDrops(drop func(domain string)) {
+	if c == nil {
+		return
+	}
+	ps := c.rdb.Subscribe(context.Background(), keyDrop)
+	go func() {
+		for m := range ps.Channel() {
+			drop(m.Payload)
+		}
+	}()
 }

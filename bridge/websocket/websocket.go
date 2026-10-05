@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -582,6 +583,8 @@ func (mg *Manager) SetCluster(c *cluster.Cluster) {
 	mg.cluster = c
 	mg.dirty = make(chan string, 4096)
 	go mg.clusterSync()
+	// Outside clusterSync: closing relays must never hold up the claims.
+	c.SubscribeDrops(mg.dropPool)
 }
 
 // markDirty asks clusterSync to bring domain's claim up to date. Never
@@ -684,8 +687,62 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 		},
 		bridges: make(map[string]*bridgePool),
 	}
+	if dao != nil {
+		go mg.sweepLoop()
+	}
 
 	return
+}
+
+// cSweepEvery is how often sweepStale runs.
+var cSweepEvery = cluster.Refresh
+
+func (mg *Manager) sweepLoop() {
+	t := time.NewTicker(cSweepEvery)
+	defer t.Stop()
+	for range t.C {
+		mg.sweepStale()
+	}
+}
+
+// sweepStale closes this node's relays for domains no longer registered,
+// and those registered by an owner uuid the domain no longer has: what a
+// drop published while this node was cut off from Redis, a node on an
+// older release, or a deletion that drops nothing (the admin panel's)
+// leaves relaying. Its own goroutine, not clusterSync's: a slow query
+// must not hold up the claims. A database error closes nothing.
+func (mg *Manager) sweepStale() {
+	held := mg.heldDomains()
+	if len(held) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	owners, err := mg.dao.DeviceOwners(ctx, held)
+	if err != nil {
+		log.Error("could not check the held domains against the database:", err)
+		return
+	}
+	for _, d := range held {
+		owner, ok := owners[d]
+		if !ok {
+			// Not stored under exactly this name: ask the way the
+			// registration was checked before calling it gone.
+			var registered bool
+			if owner, registered, err = mg.dao.DeviceOwner(ctx, d); err != nil {
+				log.Error("could not check", d, "against the database:", err)
+				return
+			}
+			if !registered {
+				log.Info("closing the connections of a domain no longer registered:", d)
+				mg.dropPool(d)
+				continue
+			}
+		}
+		if n := mg.dropRelays(d, func(r *deviceRelay) bool { return r.owner != owner }); n > 0 {
+			log.Info("closed", n, "connections of a replaced identity for", d)
+		}
+	}
 }
 
 // domainPushStorage adapts *dao.Dao's per-domain push-registration methods
@@ -1042,13 +1099,21 @@ func (mg *Manager) evictOtherOwners(domain string, pool *bridgePool, owner strin
 }
 
 // DropDomains is dropPool for each domain (an account's, when it is
-// deleted; one whose identity was replaced).
+// deleted; one whose identity was replaced) - on every node of the
+// cluster, which holds connections from the same device too.
 func (mg *Manager) DropDomains(domains []string) {
 	if mg == nil {
 		return
 	}
 	for _, d := range domains {
 		mg.dropPool(d)
+	}
+	if mg.cluster.Enabled() && len(domains) > 0 {
+		go func() {
+			if err := mg.cluster.PublishDrop(domains...); err != nil {
+				log.Error("cluster: could not tell the other nodes to drop", domains, ":", err)
+			}
+		}()
 	}
 }
 
@@ -1556,7 +1621,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.ErrorMessage = "Invalid Secret"
 				default:
 					log.Info("device released its domain:", req.Domain)
-					mg.dropPool(req.Domain)
+					mg.DropDomains([]string{req.Domain})
 					resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 				}
 				respBin, _ := proto.Marshal(resp)

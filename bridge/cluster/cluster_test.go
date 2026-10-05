@@ -81,3 +81,39 @@ func TestNilCluster(t *testing.T) {
 		t.Fatal("a nil cluster located a node")
 	}
 }
+
+// A drop published by one node reaches every node, itself included.
+func TestDropReachesEveryNode(t *testing.T) {
+	a, b, mr := twoNodes(t)
+	got := make(chan string, 4)
+	for _, c := range []*Cluster{a, b} {
+		node := c.Node()
+		c.SubscribeDrops(func(d string) { got <- node + " " + d })
+	}
+	for i := 0; mr.PubSubNumSub(keyDrop)[keyDrop] < 2; i++ {
+		if i == 100 {
+			t.Fatal("the nodes never subscribed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := a.PublishDrop("cala.off-the.cloud"); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for len(seen) < 2 {
+		select {
+		case m := <-got:
+			seen[m] = true
+		case <-time.After(2 * time.Second):
+			t.Fatalf("drops delivered: %v", seen)
+		}
+	}
+	if !seen["bridge1 cala.off-the.cloud"] || !seen["bridge2 cala.off-the.cloud"] {
+		t.Fatalf("drops delivered: %v", seen)
+	}
+	var none *Cluster
+	if err := none.PublishDrop("x"); err != nil {
+		t.Fatal(err)
+	}
+	none.SubscribeDrops(func(string) { t.Fatal("a nil cluster delivered a drop") })
+}
