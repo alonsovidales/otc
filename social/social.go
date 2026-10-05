@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -996,8 +997,12 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 
 // storeFriendFile writes one file of a friend's post to dir: its thumbnail
 // and then, unless it is already here, its media. ok is false for a file
-// that can't be stored here at all; err is a failed thumbnail write.
-func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string) (ok bool, err error) {
+// that can't be stored here at all; wrote is whether anything was written
+// for it; err is a failed thumbnail write. file.Size becomes what the file
+// takes on this disk, thumbnail included: the size the friend states is
+// only its word, and the storage limit for friends' posts (issue #153)
+// adds these up.
+func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string) (ok, wrote bool, err error) {
 	// Issue #107: the friend's own hash is kept, not replaced with a hash
 	// of the thumbnail bytes as this used to do. That hash is how the
 	// friend addresses the file, so overwriting it left no way to ask them
@@ -1015,7 +1020,7 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 	// owner's own files. Every release sends a SHA-256 in hex.
 	if !dao.IsContentHash(file.Hash) {
 		log.Error("ignoring a file with an invalid hash in publication", pubUuid, "from", fr.data.OriginProfile.Domain)
-		return false, nil
+		return false, false, nil
 	}
 
 	unencPathThumb := filepath.Join(dir, file.Hash+"_thumbnail")
@@ -1024,8 +1029,13 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 	if _, statErr := os.Stat(unencPathThumb); statErr != nil || !fr.socialHashInUse(file.Hash) {
 		log.Debug("Storing file thumbnail in path:", unencPathThumb)
 		if err := writeFileAtomic(unencPathThumb, file.Content); err != nil {
-			return false, err
+			return false, false, err
 		}
+		wrote = true
+	}
+	var stored int64
+	if info, statErr := os.Stat(unencPathThumb); statErr == nil {
+		stored = info.Size()
 	}
 
 	// Then the full media, so the post is playable/viewable later whether
@@ -1034,19 +1044,30 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 	// renders and only full-size playback is missing - better than
 	// dropping the publication entirely over one large file.
 	unencPath := filepath.Join(dir, file.Hash)
-	if _, statErr := os.Stat(unencPath); statErr == nil {
-		return true, nil // already have it (a re-sync, or shared with another post)
+	if info, statErr := os.Stat(unencPath); statErr == nil {
+		file.Size = storedSize(stored + info.Size())
+		return true, wrote, nil // already have it (a re-sync, or shared with another post)
 	}
 	media, mediaErr := fr.getPublicationMedia(pubUuid, file.Hash)
 	if mediaErr != nil {
 		log.Error("could not fetch media", file.Hash, "for publication", pubUuid, "from",
 			fr.data.OriginProfile.Domain, ":", mediaErr)
-		return true, nil
-	}
-	if err := writeFileAtomic(unencPath, media); err != nil {
+	} else if err := writeFileAtomic(unencPath, media); err != nil {
 		log.Error("error storing friend publication media:", err)
+	} else {
+		stored += int64(len(media))
+		wrote = true
 	}
-	return true, nil
+	file.Size = storedSize(stored)
+	return true, wrote, nil
+}
+
+// storedSize is n as a file row's size, which is an int32.
+func storedSize(n int64) int32 {
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(n)
 }
 
 // socialHashInUse is whether a post here has a file with hash; when that
@@ -1180,6 +1201,12 @@ event_loop:
 			var pubData Publication
 			json.Unmarshal([]byte(event.Content), &pubData)
 
+			// Already here (a re-delivery, or a uuid another post has):
+			// nothing to fetch, and nothing of it to overwrite.
+			if _, _, found, _ := fr.dao.PublicationOwner(pubData.Uuid); found {
+				break
+			}
+
 			files, err := fr.getPublicationFiles(pubData.Uuid)
 			if err != nil {
 				log.Error("Error getting publication:", err)
@@ -1198,11 +1225,16 @@ event_loop:
 			// stored here at all is left out of the post.
 			unencDir := cfg.GetStr("otc", "unenc-storage-path")
 			kept := make([]*pb.File, 0, len(files))
+			var written []string
 			for _, file := range files {
-				ok, err := fr.storeFriendFile(pubData.Uuid, file, unencDir)
+				ok, wrote, err := fr.storeFriendFile(pubData.Uuid, file, unencDir)
+				if wrote {
+					written = append(written, file.Hash)
+				}
 				if err != nil {
 					// This disk, not the post: tried again next sync.
 					log.Error("Error trying to write file from an external event:", err)
+					fr.sc.removeUnusedMedia(unencDir, written)
 					fr.stopPage(newPosts)
 					return err
 				}
@@ -1214,6 +1246,9 @@ event_loop:
 			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, kept, eventTime(pubData.Dt, event))
 			if err != nil {
 				log.Error("Error creating social publication for friend:", err)
+				// No post refers to what was just written: it would take
+				// space no storage limit counts, for good.
+				fr.sc.removeUnusedMedia(unencDir, written)
 				continue
 			}
 			newPosts = true

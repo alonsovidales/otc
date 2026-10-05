@@ -66,6 +66,34 @@ func postThenComment() []*pb.Event {
 	}
 }
 
+func notStoredYet(mock sqlmock.Sqlmock) {
+	mock.ExpectQuery("select `friend_domain`, `own_publication` from `social_publications`").WithArgs("p1").
+		WillReturnRows(sqlmock.NewRows([]string{"friend_domain", "own_publication"}))
+}
+
+// A post already here (a re-delivery) isn't fetched or written again; the
+// cursor moves past it.
+func TestFriendSyncSkipsAPostAlreadyHere(t *testing.T) {
+	fr, mock := friendFrom(t, "x.off-the.cloud")
+	fr.data.NotificationsStarted = true
+	fr.sc = &Social{}
+	fr.conn = fakeFriendDevice(t, func(req *pb.ReqEnvelope) *pb.RespEnvelope {
+		if _, ok := req.Payload.(*pb.ReqEnvelope_ReqGetEvents); ok {
+			return &pb.RespEnvelope{Payload: &pb.RespEnvelope_RespEvents{RespEvents: &pb.Events{Events: postThenComment()[:1]}}}
+		}
+		t.Errorf("asked the friend for %T of a post already here", req.Payload)
+		return nil
+	})
+	pubRow(mock, "x.off-the.cloud", false)
+	mock.ExpectExec("update `social_friendship` set `latest_sync` = \\?").WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := fr.updateFriendEvents(); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
 // The connection failing while a post is fetched stops the page there:
 // the comment after it must not move the cursor past the post, or the
 // post is never asked for again.
@@ -79,6 +107,7 @@ func TestFriendSyncStopsAtAPostTheConnectionLost(t *testing.T) {
 		}
 		return nil // the connection drops
 	})
+	notStoredYet(mock)
 
 	if err := fr.updateFriendEvents(); !errors.Is(err, errFriendTransport) {
 		t.Fatalf("got %v, want the page stopped on the connection failure", err)
@@ -100,6 +129,7 @@ func TestFriendSyncSkipsAPostTheFriendNoLongerHas(t *testing.T) {
 		}
 		return &pb.RespEnvelope{Error: true, ErrorMessage: "no such publication"}
 	})
+	notStoredYet(mock)
 	mock.ExpectExec("insert into `social_publications_comments`").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("select `own_publication` from `social_publications`").
 		WillReturnRows(sqlmock.NewRows([]string{"own_publication"}).AddRow(false))

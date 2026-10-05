@@ -36,8 +36,8 @@ func unencDir(t *testing.T) (dir, outside string) {
 func TestStoreFriendFileRefusesAHashThatIsAPath(t *testing.T) {
 	dir, outside := unencDir(t)
 	fr, mock := friendFrom(t, "x.off-the.cloud")
-	ok, err := fr.storeFriendFile("p1", &pb.File{Hash: "../x", Content: []byte("junk")}, dir)
-	if err != nil || ok {
+	ok, wrote, err := fr.storeFriendFile("p1", &pb.File{Hash: "../x", Content: []byte("junk")}, dir)
+	if err != nil || ok || wrote {
 		t.Fatalf("got %v, %v; want the file left out", ok, err)
 	}
 	if _, err := os.Stat(outside + "_thumbnail"); err == nil {
@@ -60,18 +60,24 @@ func TestStoreFriendFileKeepsAThumbnailInUse(t *testing.T) {
 		t.Fatal(err)
 	}
 	fr, mock := friendFrom(t, "x.off-the.cloud")
-	ok, err := fr.storeFriendFile("p1", &pb.File{Hash: validHash, Content: []byte("thumb")}, dir)
-	if err != nil || !ok {
-		t.Fatalf("got %v, %v", ok, err)
+	// The friend's word for the size is not what gets counted: the
+	// thumbnail and the media as they are on this disk are.
+	file := &pb.File{Hash: validHash, Content: []byte("thumb"), Size: 1}
+	ok, wrote, err := fr.storeFriendFile("p1", file, dir)
+	if err != nil || !ok || !wrote {
+		t.Fatalf("got %v, %v, %v", ok, wrote, err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, validHash+"_thumbnail")); string(b) != "thumb" {
 		t.Fatalf("thumbnail not stored: %q", b)
 	}
+	if file.Size != int32(len("thumb")+len("media")) {
+		t.Fatalf("size %d, want what is on disk", file.Size)
+	}
 
 	mock.ExpectQuery("select count\\(\\*\\) from `social_publications_files` where `hash` = \\?").WithArgs(validHash).
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
-	if ok, err := fr.storeFriendFile("p2", &pb.File{Hash: validHash, Content: []byte("other")}, dir); err != nil || !ok {
-		t.Fatalf("got %v, %v", ok, err)
+	if ok, wrote, err := fr.storeFriendFile("p2", &pb.File{Hash: validHash, Content: []byte("other")}, dir); err != nil || !ok || wrote {
+		t.Fatalf("got %v, %v, %v", ok, wrote, err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, validHash+"_thumbnail")); string(b) != "thumb" {
 		t.Fatalf("a thumbnail in use was replaced: %q", b)
