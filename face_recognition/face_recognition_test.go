@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	"math"
+	"math/rand"
 	"testing"
 
 	"gocv.io/x/gocv"
@@ -414,5 +415,48 @@ func TestMedoidAndCohesionEmptyIsZero(t *testing.T) {
 	id, cohesion := MedoidAndCohesion(nil)
 	if id != "" || cohesion != 0 {
 		t.Errorf("MedoidAndCohesion(nil) = (%q, %v), want (\"\", 0)", id, cohesion)
+	}
+}
+
+// imageToBGRMat hands the models exactly the bytes gocv.ImageToMatRGB
+// does, for every image type a photo decodes to.
+func TestImageToBGRMatMatchesGocv(t *testing.T) {
+	rnd := rand.New(rand.NewSource(1))
+	ycbcr := func(rect image.Rectangle, ratio image.YCbCrSubsampleRatio) *image.YCbCr {
+		img := image.NewYCbCr(rect, ratio)
+		rnd.Read(img.Y)
+		rnd.Read(img.Cb)
+		rnd.Read(img.Cr)
+		return img
+	}
+	nrgba := image.NewNRGBA(image.Rect(0, 0, 9, 7))
+	rnd.Read(nrgba.Pix) // alpha too: premultiplied the same way
+	rgba := image.NewRGBA(image.Rect(0, 0, 6, 4))
+	rnd.Read(rgba.Pix)
+	gray := image.NewGray(image.Rect(0, 0, 5, 3))
+	rnd.Read(gray.Pix)
+	for name, img := range map[string]image.Image{
+		"ycbcr 4:2:0":     ycbcr(image.Rect(0, 0, 9, 7), image.YCbCrSubsampleRatio420),
+		"ycbcr 4:2:2":     ycbcr(image.Rect(0, 0, 9, 7), image.YCbCrSubsampleRatio422),
+		"ycbcr 4:4:4":     ycbcr(image.Rect(0, 0, 9, 7), image.YCbCrSubsampleRatio444),
+		"ycbcr sub-image": ycbcr(image.Rect(0, 0, 13, 11), image.YCbCrSubsampleRatio420).SubImage(image.Rect(3, 2, 12, 9)),
+		"nrgba":           nrgba,
+		"nrgba sub-image": nrgba.SubImage(image.Rect(2, 1, 8, 6)),
+		"rgba":            rgba,
+		"gray":            gray,
+	} {
+		want, err := gocv.ImageToMatRGB(img)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := imageToBGRMat(img)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got.Rows() != want.Rows() || got.Cols() != want.Cols() || got.Type() != want.Type() || !bytes.Equal(got.ToBytes(), want.ToBytes()) {
+			t.Errorf("%s: not the bytes gocv gives", name)
+		}
+		got.Close()
+		want.Close()
 	}
 }
