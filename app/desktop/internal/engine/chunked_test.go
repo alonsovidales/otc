@@ -40,6 +40,10 @@ type fakeDevice struct {
 	deletes []string               // DelFile paths
 	onRead  func()                 // runs on each ReadFile, as if the user did something meanwhile
 	modTime *timestamppb.Timestamp // the files' date, when set
+	onHas   func()                 // runs on each HasFile (the start of an upload)
+	// SetUploadOnly requests answered, and whether they are refused.
+	uploadOnly       int
+	refuseUploadOnly bool
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -52,6 +56,9 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 	case *pb.ReqEnvelope_ReqAuth:
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqHasFile:
+		if d.onHas != nil {
+			d.onHas()
+		}
 		resp.Payload = &pb.RespEnvelope_RespFileExists{RespFileExists: &pb.FileExists{Exists: false}}
 	case *pb.ReqEnvelope_ReqBeginUpload:
 		id := "u1"
@@ -78,6 +85,13 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
 	case *pb.ReqEnvelope_ReqListFiles:
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: d.list}}
+	case *pb.ReqEnvelope_ReqSetUploadOnly:
+		d.uploadOnly++
+		if d.refuseUploadOnly {
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "unknown_payload", "unknown request"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqDelFile:
 		d.deletes = append(d.deletes, p.ReqDelFile.Path)
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
