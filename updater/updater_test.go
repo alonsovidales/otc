@@ -69,17 +69,40 @@ func TestReconcileStatus(t *testing.T) {
 	running := Status{State: "running", Message: "Building", Version: "91", Updated: "2026-10-05T10:00:00Z"}
 	gone := func() bool { return true }
 	alive := func() bool { return false }
+	// reads hands out one status per read of the file, then the last for
+	// good.
+	reads := func(statuses ...Status) func() Status {
+		return func() Status {
+			s := statuses[0]
+			if len(statuses) > 1 {
+				statuses = statuses[1:]
+			}
+			return s
+		}
+	}
 
-	got := reconcileStatus(running, gone)
+	got := reconcileStatus(reads(running), gone)
 	if got.State != "failed" || got.Message != cInterrupted || got.Version != "91" || got.Updated != running.Updated {
 		t.Errorf("an interrupted run read as %+v", got)
 	}
-	if got := reconcileStatus(running, alive); got != running {
+	if got := reconcileStatus(reads(running), alive); got != running {
 		t.Errorf("a live run read as %+v", got)
 	}
 	done := Status{State: "done", Message: "Updated to version 92"}
-	if got := reconcileStatus(done, func() bool { t.Fatal("asked systemd about a finished run"); return true }); got != done {
+	if got := reconcileStatus(reads(done), func() bool { t.Fatal("asked systemd about a finished run"); return true }); got != done {
 		t.Errorf("a finished run read as %+v", got)
+	}
+
+	// The run failed (and its unit stopped) while systemd was being asked:
+	// its own reason stands, not "interrupted".
+	failed := Status{State: "failed", Message: "the build failed - see /var/log/otc-update.log", Version: "91", Updated: "2026-10-05T10:00:05Z"}
+	if got := reconcileStatus(reads(running, failed), gone); got != failed {
+		t.Errorf("a run that failed during the check read as %+v", got)
+	}
+	// A new run started once the old one had stopped: it is running.
+	next := Status{State: "running", Message: "Checking the release signature", Version: "91", Updated: "2026-10-05T10:00:07Z"}
+	if got := reconcileStatus(reads(running, next), gone); got != next {
+		t.Errorf("a run started during the check read as %+v", got)
 	}
 }
 

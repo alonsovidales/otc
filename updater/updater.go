@@ -165,6 +165,11 @@ func InstalledVersion() int {
 // CurrentStatus reports on the last (or running) update. A missing file
 // simply means no update has ever been started here.
 func CurrentStatus() Status {
+	return reconcileStatus(readStatus, updateUnitGone)
+}
+
+// readStatus reads the status file as the root scripts wrote it.
+func readStatus() Status {
 	raw, err := os.ReadFile(cStatusFile)
 	if err != nil {
 		return Status{State: "idle"}
@@ -174,7 +179,7 @@ func CurrentStatus() Status {
 		return Status{State: "idle"}
 	}
 
-	return reconcileStatus(status, updateUnitGone)
+	return status
 }
 
 // reconcileStatus reports a "running" status whose unit has stopped as
@@ -182,9 +187,17 @@ func CurrentStatus() Status {
 // left the file "running" for good, and Apply refuses while it says so -
 // the Update button locked forever. Only reported, never written: the next
 // run overwrites the file anyway, and it is root's.
-func reconcileStatus(status Status, unitGone func() bool) Status {
+func reconcileStatus(read func() Status, unitGone func() bool) Status {
+	status := read()
 	if status.State != "running" || !unitGone() {
 		return status
+	}
+	// systemd answered after that read. A run that ended in between has
+	// written its own failed (with the real reason) or done, and one
+	// started since its own "running": only a file unchanged from before
+	// the unit was seen stopped belongs to a run that was cut off.
+	if now := read(); now != status {
+		return now
 	}
 
 	return Status{State: "failed", Message: cInterrupted, Version: status.Version, Updated: status.Updated}
