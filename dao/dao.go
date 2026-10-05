@@ -926,12 +926,47 @@ const cMaxEventsPage int32 = 500
 // served: every broadcast one, and those meant for it alone (issue #174 -
 // a "forget me" goes to that ex-friend only, and no other friend learns of
 // it).
+//
+// events.dt has whole seconds and the requester asks next for what is after
+// the last event it got (dt > since), so a page has to hold whole seconds
+// that can no longer change, or an event sharing a second with the
+// requester's cursor is never delivered (a post never shown, a deletion
+// never applied). The second still running is never served - plus one
+// more, for an insert stamped just before a second ended and committed
+// after it - and a full page gets the rest of its last second's events.
+// Every dt is stamped by this database's now(), in the session's UTC.
 func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (events []*pb.Event, err error) {
 	log.Debug("Get Events")
 	if total > cMaxEventsPage {
 		total = cMaxEventsPage
 	}
-	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and (`target` is null or `target` = ?) order by `dt` asc limit ?", since, requester, total)
+	events, err = dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and `dt` < now() - interval 1 second and (`target` is null or `target` = ?) order by `dt` asc, `uuid` asc limit ?", since, requester, total)
+	if err != nil || total <= 0 || len(events) < int(total) {
+		return events, err
+	}
+
+	// A longer page reads as "more may follow" to the requester (issue
+	// #92's catch-up check), which it may.
+	rest, err := dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` = ? and (`target` is null or `target` = ?) order by `uuid` asc", events[len(events)-1].Dt.AsTime(), requester)
+	if err != nil {
+		return nil, err
+	}
+	have := make(map[string]bool, len(events))
+	for _, e := range events {
+		have[e.Uuid] = true
+	}
+	for _, e := range rest {
+		if !have[e.Uuid] {
+			events = append(events, e)
+		}
+	}
+
+	return events, nil
+}
+
+// queryEvents runs an events query; never a nil slice without an error.
+func (dao *Dao) queryEvents(query string, args ...any) (events []*pb.Event, err error) {
+	rows, err := dao.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -951,7 +986,7 @@ func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (event
 		return nil, err
 	}
 
-	return
+	return events, nil
 }
 
 func (dao *Dao) NewLikePublicationComment(uuid, commentUuid string, friendDomain string, dt time.Time) (err error) {
