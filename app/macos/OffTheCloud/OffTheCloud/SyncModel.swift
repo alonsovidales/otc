@@ -175,6 +175,10 @@ final class SyncModel: ObservableObject {
     private var remoteFolderWatchers: [UUID: FolderWatcher] = [:]
     private var remoteFolderDebounce: [UUID: Task<Void, Never>] = [:]
     private var remoteFoldersBusy: Set<UUID> = []
+    // The same for backups (reconcile()), and for a backup's first pass
+    // (setupFolder), whose watcher only starts once that pass is over.
+    private var foldersBusy: Set<UUID> = []
+    private var foldersSettingUp: Set<UUID> = []
 
     // Local content hashes remembered per folder, keyed by full path and
     // validated by size + modification date: a two-way folder is
@@ -654,7 +658,12 @@ final class SyncModel: ObservableObject {
     /// whatever's already on the device, then start watching for changes.
     /// Everything after this is event-driven, not scan-driven.
     private func setupFolder(_ folder: TrackedFolder) async {
-        guard folderWatchers[folder.id] == nil else { return }
+        // Retry, a settings change and the startSync tasks queued while
+        // offline all get here: one first pass per folder, and its watcher
+        // only once that pass is done, as before.
+        guard folderWatchers[folder.id] == nil, !foldersSettingUp.contains(folder.id) else { return }
+        foldersSettingUp.insert(folder.id)
+        defer { foldersSettingUp.remove(folder.id) }
         await markUploadOnly(folder)
         await reconcile(folder)
         startWatcher(for: folder)
@@ -745,6 +754,14 @@ final class SyncModel: ObservableObject {
         // folder is removed or the app moves to another device (Disconnect,
         // a new device set up) must stop, not carry on there.
         let domainAtStart = settings?.domain
+        // One pass per folder at a time, as reconcileRemoteFolder: the
+        // 10-minute loop used to start a second pass of a folder whose
+        // first one was still uploading, and both sent the same files.
+        // Before the retry cancel, so a skipped call leaves the running
+        // pass's retry alone.
+        guard !foldersBusy.contains(folder.id) else { return }
+        foldersBusy.insert(folder.id)
+        defer { foldersBusy.remove(folder.id) }
 
         // Reconciling now anyway (whatever triggered this call), so any
         // still-pending short retry from a previous failure would just be
