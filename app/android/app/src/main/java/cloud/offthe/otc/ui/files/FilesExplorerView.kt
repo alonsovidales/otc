@@ -77,6 +77,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -170,6 +172,10 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         private const val THUMB_BATCH = 24
         private val prefs get() = OTCApp.instance.getSharedPreferences("otc_settings", Context.MODE_PRIVATE)
     }
+
+    // Picked files upload two at a time: each one hashes and holds a chunk
+    // while it waits for ChunkedUpload's send permits.
+    private val uploadSlots = Semaphore(2)
 
     // Thumbnails asked for and not answered yet, or that the device said it
     // has none of - neither is asked again this session.
@@ -373,7 +379,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
      * Issue #165: [open] is read twice as a stream (hash, then chunked upload),
      * never loaded whole.
      */
-    suspend fun upload(open: () -> InputStream, filename: String) {
+    suspend fun upload(open: () -> InputStream, filename: String) = uploadSlots.withPermit {
         val target = joinPath(path, filename)
         try {
             val digest = ChunkedUpload.digest(open)
