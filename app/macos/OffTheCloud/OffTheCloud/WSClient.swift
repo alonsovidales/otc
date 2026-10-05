@@ -72,13 +72,22 @@ final class WSClient {
     // MARK: Configure
     /// domain: "your.domain.tld" (no scheme, no path); if you pass a full URL, it will be used as-is.
     func configure(domain: String, key: String, secure: Bool = true) {
+        let newURL: URL?
         if domain.contains("://") {
-            self.url = URL(string: domain) // full URL provided
+            newURL = URL(string: domain) // full URL provided
         } else {
             let scheme = secure ? "wss" : "ws"
-            self.url = URL(string: "\(scheme)://\(domain)/ws")
+            newURL = URL(string: "\(scheme)://\(domain)/ws")
         }
-        self.key = key
+        // On the queue that reads them, both at once: a backoff reconnect
+        // firing meanwhile read them mid-write, or got the new address
+        // with the old password. Async, and queued ahead of the connect()
+        // that callers make next.
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.url = newURL
+            self.key = key
+        }
     }
 
     func enableAutoReconnect(_ enabled: Bool = true) {
