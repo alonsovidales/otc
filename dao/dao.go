@@ -2085,10 +2085,17 @@ func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
 // SamePersonThreshold. See face_recognition.MedoidAndCohesion for the
 // full mechanics.
 func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err error) {
+	// One statement: the cover thumbnail used to be one more query per
+	// person, and every unmatched stranger in a crowd is a person. A cover
+	// face that is gone reads NULL (no thumbnail), as its lookup did.
 	rows, err := dao.db.Query(
-		"select `p`.`id`, `p`.`name`, count(`f`.`id`) as `face_count`, `p`.`cover_face_id` "+
-			"from `people` as `p` left join `faces` as `f` on `f`.`person_id` = `p`.`id` "+
-			"group by `p`.`id`, `p`.`name`, `p`.`cover_face_id`, `p`.`cohesion` "+
+		"select `p`.`id`, `p`.`name`, "+
+			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id`) as `face_count`, "+
+			"case when `p`.`cover_face_id` is not null and `p`.`cover_face_id` <> '' "+
+			"then (select `c`.`thumbnail` from `faces` as `c` where `c`.`id` = `p`.`cover_face_id`) "+
+			"else (select `o`.`thumbnail` from `faces` as `o` where `o`.`person_id` = `p`.`id` order by `o`.`created` asc limit 1) "+
+			"end as `cover_thumbnail` "+
+			"from `people` as `p` "+
 			"order by (`p`.`cohesion` is null or `p`.`cohesion` >= ?) desc, `face_count` desc, `p`.`created` desc",
 		cohesionThreshold)
 	if err != nil {
@@ -2096,34 +2103,17 @@ func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err 
 	}
 	defer rows.Close()
 
-	// coverFaceIDs[i] pairs with people[i] - kept alongside rather than on
-	// pb.Person itself, since cover_face_id is server-side bookkeeping a
-	// client never needs to see.
-	var coverFaceIDs []sql.NullString
 	for rows.Next() {
 		p := new(pb.Person)
-		var coverFaceID sql.NullString
-		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount, &coverFaceID); err != nil {
-			return nil, err
-		}
-		people = append(people, p)
-		coverFaceIDs = append(coverFaceIDs, coverFaceID)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	for i, p := range people {
 		var thumb []byte
-		if coverFaceIDs[i].Valid && coverFaceIDs[i].String != "" {
-			err = dao.db.QueryRow("select `thumbnail` from `faces` where `id` = ?", coverFaceIDs[i].String).Scan(&thumb)
-		} else {
-			err = dao.db.QueryRow("select `thumbnail` from `faces` where `person_id` = ? order by `created` asc limit 1", p.Id).Scan(&thumb)
-		}
-		if err != nil && err != sql.ErrNoRows {
+		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount, &thumb); err != nil {
 			return nil, err
 		}
 		p.CoverThumbnail = thumb
+		people = append(people, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return people, nil

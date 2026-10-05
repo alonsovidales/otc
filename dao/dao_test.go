@@ -277,18 +277,14 @@ func TestListPeopleOrdersByFaceCountDesc(t *testing.T) {
 	// here (or anywhere else in dao) since face_recognition pulls in
 	// CGO/OpenCV, which this package is deliberately free of.
 	const cohesionThreshold = 0.363
+	// One query: the cover thumbnail (here each person's oldest face, as
+	// neither has a cover_face_id yet - see
+	// TestListPeoplePrefersMedoidCoverFace) comes with the row.
 	mock.ExpectQuery("select .* from `people`.*order by \\(`p`\\.`cohesion`.*`face_count` desc, `p`\\.`created` desc").
 		WithArgs(cohesionThreshold).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count", "cover_face_id"}).
-			AddRow("alice-id", "Alice", 5, nil).
-			AddRow("bob-id", "Bob", 1, nil))
-	// No cover_face_id yet for either - ListPeople falls back to each
-	// person's oldest face (see TestListPeoplePrefersMedoidCoverFace for
-	// the case where one's already been computed).
-	mock.ExpectQuery("select `thumbnail` from `faces` where `person_id` = \\?").WithArgs("alice-id").
-		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-a")))
-	mock.ExpectQuery("select `thumbnail` from `faces` where `person_id` = \\?").WithArgs("bob-id").
-		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-b")))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count", "cover_thumbnail"}).
+			AddRow("alice-id", "Alice", 5, []byte("thumb-a")).
+			AddRow("bob-id", "Bob", 1, []byte("thumb-b")))
 
 	d := NewWithDB(db)
 	people, err := d.ListPeople(cohesionThreshold)
@@ -315,20 +311,24 @@ func TestListPeoplePrefersMedoidCoverFace(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select .* from `people`.*order by \\(`p`\\.`cohesion`.*`face_count` desc, `p`\\.`created` desc").
+	// The choice between the medoid and the oldest face is made in SQL now:
+	// pin that the statement carries both branches.
+	mock.ExpectQuery("select .* case when `p`\\.`cover_face_id` is not null and `p`\\.`cover_face_id` <> '' " +
+		"then \\(select `c`\\.`thumbnail` from `faces` as `c` where `c`\\.`id` = `p`\\.`cover_face_id`\\) " +
+		"else \\(select `o`\\.`thumbnail` from `faces` as `o` where `o`\\.`person_id` = `p`\\.`id` order by `o`\\.`created` asc limit 1\\) " +
+		"end .*from `people`.*order by \\(`p`\\.`cohesion`.*`face_count` desc, `p`\\.`created` desc").
 		WithArgs(0.363).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count", "cover_face_id"}).
-			AddRow("alice-id", "Alice", 5, "face-42"))
-	mock.ExpectQuery("select `thumbnail` from `faces` where `id` = \\?").WithArgs("face-42").
-		WillReturnRows(sqlmock.NewRows([]string{"thumbnail"}).AddRow([]byte("thumb-medoid")))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "face_count", "cover_thumbnail"}).
+			AddRow("alice-id", "Alice", 5, []byte("thumb-medoid")).
+			AddRow("gone-id", "", 0, nil))
 
 	d := NewWithDB(db)
 	people, err := d.ListPeople(0.363)
 	if err != nil {
 		t.Fatalf("ListPeople: %v", err)
 	}
-	if len(people) != 1 || string(people[0].CoverThumbnail) != "thumb-medoid" {
-		t.Fatalf("ListPeople() = %+v, want the medoid face's thumbnail", people)
+	if len(people) != 2 || string(people[0].CoverThumbnail) != "thumb-medoid" || people[1].CoverThumbnail != nil {
+		t.Fatalf("ListPeople() = %+v, want the medoid face's thumbnail, and none for a person without faces", people)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran (should look up by face id, not fall back to oldest-face): %v", err)
