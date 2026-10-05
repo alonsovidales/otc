@@ -606,6 +606,11 @@ enum AppLogOut {
                     group.cancelAll()
                 }
             }
+            // Again, with no await before the wipe: a sync that started
+            // during the wait above (a Photos change) still had the
+            // signed-in secrets, and would write its watermark and asset
+            // cache after it.
+            PhotoSync.shared.cancel()
             NotificationsModel.shared.reset()
             UpdateAlertModel.shared.reset()
             UploadModel.shared.reset()
