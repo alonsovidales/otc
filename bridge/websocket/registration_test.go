@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -189,4 +190,64 @@ func waitForPool(t *testing.T, mg *Manager, domain string, cond func(*bridgePool
 	}
 	t.Fatalf("pool for %s never reached the expected state", domain)
 	return nil
+}
+
+// The device decodes with proto.Unmarshal, where a repeated id's last
+// value wins; the bridge must wait on that same id.
+func TestEnvelopeIDTakesTheLastIDLikeProtobuf(t *testing.T) {
+	payload, _ := proto.Marshal(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Key: []byte("k")}}})
+	twice := append([]byte{0x08, 0x05, 0x08, 0x07}, payload...)
+	if id, err := envelopeID(twice); err != nil || id != 7 {
+		t.Errorf("envelopeID = %d, %v; want 7 (the last id)", id, err)
+	}
+	var env pb.ReqEnvelope
+	if err := proto.Unmarshal(twice, &env); err != nil || env.Id != 7 {
+		t.Fatalf("proto.Unmarshal disagrees: %d, %v", env.Id, err)
+	}
+	// One id and a malformed tail: still that id, as before.
+	if id, err := envelopeID([]byte{0x08, 0x05, 0xff, 0xff}); err != nil || id != 5 {
+		t.Errorf("envelopeID = %d, %v; want 5", id, err)
+	}
+}
+
+// A client's first request may spend at most cPairMaxAttempts of the
+// device's connections, then gets the unreachable answer.
+func TestPairingCannotDrainThePool(t *testing.T) {
+	restore := cForwardTimeout
+	cForwardTimeout = 50 * time.Millisecond
+	defer func() { cForwardTimeout = restore }()
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(false))
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	dial, host := newTestBridge(t, mg)
+	const poolSize = 6
+	pool := &bridgePool{lock: new(sync.Mutex)}
+	for i := 0; i < poolSize; i++ {
+		srv, wsURL := newEchoDeviceServer(t, func(int32) time.Duration { return time.Hour })
+		t.Cleanup(srv.Close)
+		pool.availableConns = append(pool.availableConns, dialRelay(t, wsURL))
+	}
+	mg.bridges[host] = pool
+
+	c := dial()
+	if err := c.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, 1)); err != nil {
+		t.Fatal(err)
+	}
+	resp := readResp(t, c)
+	if ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck); !ok || ack.RespAck.Code != cCodeDeviceUnreachable {
+		t.Fatalf("got %T, want the unreachable RespAck", resp.Payload)
+	}
+	pool.lock.Lock()
+	left := len(pool.availableConns)
+	pool.lock.Unlock()
+	if left != poolSize-cPairMaxAttempts {
+		t.Errorf("pool has %d connections left, want %d", left, poolSize-cPairMaxAttempts)
+	}
 }

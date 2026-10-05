@@ -351,28 +351,43 @@ func clientAddr(r *http.Request, conn *gorilla.Conn) string {
 // the rest (issue #163): relaying a frame never needs its payload, and a
 // full proto.Unmarshal of a large file chunk just to correlate it cost a
 // second copy of it.
+//
+// The last id wins, as in proto.Unmarshal on the device: taking the first
+// one let a frame carrying two ids be waited on under one while the device
+// answered the other, and every relay it was tried on timed out. A
+// malformed tail after an id still answers that id, as before.
 func envelopeID(frame []byte) (int32, error) {
+	var id int32
+	found := false
+	fail := func(n int) (int32, error) {
+		if found {
+			return id, nil
+		}
+		return 0, protowire.ParseError(n)
+	}
 	b := frame
 	for len(b) > 0 {
 		num, typ, n := protowire.ConsumeTag(b)
 		if n < 0 {
-			return 0, protowire.ParseError(n)
+			return fail(n)
 		}
 		b = b[n:]
 		if num == 1 && typ == protowire.VarintType {
 			v, m := protowire.ConsumeVarint(b)
 			if m < 0 {
-				return 0, protowire.ParseError(m)
+				return fail(m)
 			}
-			return int32(v), nil
+			id, found = int32(v), true
+			b = b[m:]
+			continue
 		}
 		m := protowire.ConsumeFieldValue(num, typ, b)
 		if m < 0 {
-			return 0, protowire.ParseError(m)
+			return fail(m)
 		}
 		b = b[m:]
 	}
-	return 0, nil // no id field: proto3's default, 0
+	return id, nil // no id field: proto3's default, 0
 }
 
 func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
@@ -790,6 +805,12 @@ var cOneOffForwardTimeout = 45 * time.Second
 // until it refilled. Three is enough to step past a couple of genuinely
 // stale entries without ever being able to drain the pool.
 const cOneOffMaxAttempts = 3
+
+// cPairMaxAttempts caps the pool connections a client's first request may
+// spend before it is told the device is unreachable, for the same reason
+// (see TestForwardOneOffCannotDrainThePool): each failed attempt closes
+// the connection it tried.
+const cPairMaxAttempts = cOneOffMaxAttempts
 
 // cOneOffConcurrent caps the one-off requests (static assets, /media)
 // in flight per device (issue #163). Each spends a pool connection, and
@@ -1590,7 +1611,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				pool, ok := mg.bridges[r.Host]
 				mg.bridgesMu.RUnlock()
 				if ok {
-					for picked == nil {
+					for attempt := 0; picked == nil && attempt < cPairMaxAttempts; attempt++ {
 						// pool.lock is held only long enough to pop a
 						// candidate - never across the round trips to the
 						// device below, and never across Close(). Close()
