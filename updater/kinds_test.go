@@ -87,3 +87,31 @@ func TestCommittedManifestsAreSigned(t *testing.T) {
 		}
 	}
 }
+
+// A check that failed, or couldn't verify the kinds, keeps the alert
+// already known while its release is still pending; a verified one decides.
+func TestNextAlert(t *testing.T) {
+	prev := &Alert{Level: KindCritical, Version: "2.0", Target: 86, Summary: "Fixes the bridge"}
+	pending := []Release{{Version: 86, Kind: KindMinor}}
+
+	if a, ok := nextAlert(prev, nil, errors.New("offline")); a != prev || ok {
+		t.Errorf("a failed check: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(prev, &Info{CurrentVersion: 85, Pending: pending}, nil); a != prev || ok {
+		t.Errorf("unverified kinds: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(prev, &Info{CurrentVersion: 86}, nil); a != nil || ok {
+		t.Errorf("unverified kinds, the alert's release installed: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(nil, &Info{CurrentVersion: 85, Pending: pending}, nil); a != nil || ok {
+		t.Errorf("unverified kinds, nothing known: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(prev, &Info{CurrentVersion: 85, KindsVerified: true, Pending: pending}, nil); a != nil || !ok {
+		t.Errorf("verified, only minor pending: %+v, %v", a, ok)
+	}
+	info := &Info{CurrentVersion: 85, LatestVersion: 87, LatestLabel: "3.0", KindsVerified: true,
+		Pending: []Release{{Version: 86, Kind: KindMinor}, {Version: 87, Kind: KindCritical, Description: "Urgent"}}}
+	if a, ok := nextAlert(prev, info, nil); a == nil || !ok || a.Target != 87 || a.Summary != "Urgent" {
+		t.Errorf("verified, a critical pending: %+v, %v", a, ok)
+	}
+}

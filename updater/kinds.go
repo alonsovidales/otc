@@ -218,30 +218,61 @@ func CurrentAlert() *Alert {
 	return alert
 }
 
-// cWatchEvery is how often a device checks for updates by itself.
-var cWatchEvery = 6 * time.Hour
+// cWatchEvery is how often a device checks for updates by itself, and
+// cWatchRetry how soon it tries again after a check that failed or could
+// not verify the kinds (doubling up to cWatchEvery).
+var (
+	cWatchEvery = 6 * time.Hour
+	cWatchRetry = 5 * time.Minute
+)
+
+// nextAlert decides the alert after a check, and whether the check settled
+// it (ok) or should be retried soon. A failed check, or kinds that couldn't
+// be verified (a brief RELEASES outage, the CDN serving it out of step with
+// its signature), says nothing about what is pending: the alert already
+// known stays - while its release is still pending - instead of a passing
+// glitch clearing a critical banner for hours.
+func nextAlert(prev *Alert, info *Info, err error) (*Alert, bool) {
+	if err != nil {
+		return prev, false
+	}
+	if !info.KindsVerified {
+		if prev != nil && prev.Target > info.CurrentVersion && len(info.Pending) > 0 {
+			return prev, false
+		}
+		return nil, false
+	}
+	return alertFor(info), true
+}
 
 // Watch checks for updates a minute after start and then every
 // cWatchEvery, keeping CurrentAlert up to date and calling notify once for
 // each major or critical update found - so an owner who never opens
-// Settings still hears about it.
+// Settings still hears about it. A check that didn't settle it (no network
+// yet after a power cut, say) is retried within minutes, not hours.
 func Watch(notify func(*Alert)) {
 	time.Sleep(time.Minute)
 	notified := map[int]bool{}
+	retry := cWatchRetry
 	for {
 		info, err := Check()
 		if err != nil {
 			log.Debug("background update check failed:", err)
-		} else {
-			a := alertFor(info)
-			alertMu.Lock()
-			alert = a
-			alertMu.Unlock()
-			if a != nil && !notified[a.Target] && notify != nil {
-				notified[a.Target] = true
-				notify(a)
-			}
 		}
-		time.Sleep(cWatchEvery)
+		a, ok := nextAlert(CurrentAlert(), info, err)
+		alertMu.Lock()
+		alert = a
+		alertMu.Unlock()
+		if ok && a != nil && !notified[a.Target] && notify != nil {
+			notified[a.Target] = true
+			notify(a)
+		}
+		if ok {
+			retry = cWatchRetry
+			time.Sleep(cWatchEvery)
+			continue
+		}
+		time.Sleep(retry)
+		retry = min(retry*2, cWatchEvery)
 	}
 }

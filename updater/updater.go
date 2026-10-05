@@ -140,6 +140,10 @@ type Info struct {
 	// Issue #183: the labels of the installed and the newest release.
 	CurrentLabel string
 	LatestLabel  string
+	// KindsVerified: the kinds came from a signed RELEASES. Without it
+	// every release reads as minor, which says nothing about whether a
+	// major or critical one is pending (see nextAlert).
+	KindsVerified bool
 }
 
 // InstalledVersion reads the release this device is on. A missing or
@@ -241,6 +245,7 @@ func Check() (*Info, error) {
 	if err != nil {
 		log.Debug("release kinds unavailable:", err)
 	}
+	info.KindsVerified = err == nil
 	for _, release := range releases {
 		if m, ok := kinds[release.Version]; ok {
 			release.Kind, release.Label = m.kind, m.label
