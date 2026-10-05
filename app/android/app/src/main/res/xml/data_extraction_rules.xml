@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: what Auto Backup (Google Drive) and a phone-to-phone
+     transfer may copy. Only the sync toggles: the encrypted secrets can't be
+     decrypted on another phone (their Keystore key never leaves this one),
+     and the FCM token, BLE setup key, sync watermark and the photo-hash
+     cache (MediaStore ids) all belong to this install. An include list
+     leaves out everything else, including files added later. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="otc_settings.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="otc_settings.xml" />
+    </device-transfer>
+</data-extraction-rules>
