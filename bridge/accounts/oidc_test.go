@@ -115,7 +115,7 @@ var accountCols = []string{"id", "email", "name", "surname", "country", "passwor
 func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	a, mock := testAccounts(t)
 	newFakeIdP(t, a)
-	state := strings.Repeat("ab", 24)
+	state := strings.Repeat("ab", 32)
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WithArgs("a@b.c").WillReturnRows(sqlmock.NewRows(accountCols).
@@ -146,7 +146,7 @@ func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 func TestProviderLinkStopsWhenThePasswordStays(t *testing.T) {
 	a, mock := testAccounts(t)
 	newFakeIdP(t, a)
-	state := strings.Repeat("cd", 24)
+	state := strings.Repeat("cd", 32)
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
@@ -264,12 +264,13 @@ func TestOAuthStateBelongsToTheBrowser(t *testing.T) {
 	}
 
 	// Refused without this browser's cookie: the state stays unconsumed.
-	other := strings.Repeat("ef", 24)
+	other := strings.Repeat("ef", 32)
 	for _, r := range []*http.Request{
 		callbackRequest(state, "code"),
 		withStateCookie(callbackRequest(state, "code"), other, false),
 		withStateCookie(callbackRequest(other, "code"), state, false),
-		withStateCookie(callbackRequest(state[:47], "code"), state[:47], false),
+		withStateCookie(callbackRequest(state[:63], "code"), state[:63], false),
+		callbackRequest(strings.Repeat("zz", 24), "code"), // an older node's length, not its shape
 	} {
 		a, mock := testAccounts(t)
 		newFakeIdP(t, a)
@@ -310,6 +311,29 @@ func TestOAuthStateBelongsToTheBrowser(t *testing.T) {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+// A node still on the release before the state cookie (the cluster is
+// deployed one node at a time) stores a 48-character state and sets no
+// cookie. Its sign-in can come back to a node on this release, which lets
+// it through as before; this release never makes that shape (stateCapture).
+func TestOAuthStateFromAnOlderNode(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	state := strings.Repeat("12", 24)
+	expectStateConsumed(mock, state, "")
+	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now()))
+	epochRow(mock, 0)
+	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+	w := httptest.NewRecorder()
+	a.OAuthCallback(w, callbackRequest(state, "code"))
+	if w.Code != http.StatusFound || w.Header().Get("Location") != "/account" || !strings.HasPrefix(sessionCookie(w), "acc1|0|") {
+		t.Errorf("a sign-in an older node started: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }
 

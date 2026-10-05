@@ -138,7 +138,7 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many sign-in attempts from this address, try again in a minute", http.StatusTooManyRequests)
 		return
 	}
-	buf := make([]byte, 24)
+	buf := make([]byte, cOAuthStateBytes)
 	if _, err := rand.Read(buf); err != nil {
 		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)
 		return
@@ -170,6 +170,11 @@ const (
 	cOAuthCookie = "__Host-otc_oauth_"
 	// cOAuthStateTTL is as long as ConsumeOAuthState takes a state.
 	cOAuthStateTTL = 15 * time.Minute
+	// cOAuthStateBytes is a state's randomness, 64 hex characters: that
+	// length is what tells it from one made before the cookie, which had
+	// 24 bytes (isPreCookieState).
+	cOAuthStateBytes   = 32
+	cPreCookieStateLen = 48
 )
 
 // oauthCookieNames are the two cookies that carry a state; the names carry
@@ -183,7 +188,19 @@ func oauthCookieNames(state string) (string, string) {
 // isOAuthState is whether s has the shape of a state OAuthStart makes.
 func isOAuthState(s string) bool {
 	_, err := hex.DecodeString(s)
-	return len(s) == 48 && err == nil
+	return len(s) == 2*cOAuthStateBytes && err == nil
+}
+
+// isPreCookieState is whether s has the shape of a state made by a release
+// from before the state cookie, which set none. The cluster is deployed one
+// node at a time, so a sign-in can start on a node still on that release
+// and come back to one on this (or start before a restart and finish
+// after): such a state goes through without a cookie, as it did there.
+// Only those releases store that shape, so once no node runs one, the last
+// of them is gone within cOAuthStateTTL and every sign-in needs its cookie.
+func isPreCookieState(s string) bool {
+	_, err := hex.DecodeString(s)
+	return len(s) == cPreCookieStateLen && err == nil
 }
 
 // setOAuthCookies sets (maxAge > 0) or clears (< 0) a state's cookies. One
@@ -238,8 +255,10 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Checked before the state is consumed: a planted link can neither use
-	// it nor burn it.
-	if !oauthStartedHere(r, state) {
+	// it nor burn it. A state from a node on an older release never had a
+	// cookie (isPreCookieState).
+	startedHere := oauthStartedHere(r, state)
+	if !startedHere && !isPreCookieState(state) {
 		http.Redirect(w, r, "/account?error="+url.QueryEscape("that sign-in has expired, please try again"), http.StatusFound)
 		return
 	}
@@ -247,6 +266,9 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil || !found {
 		http.Redirect(w, r, "/account?error="+url.QueryEscape("that sign-in has expired, please try again"), http.StatusFound)
 		return
+	}
+	if !startedHere {
+		log.Info("a sign-in started on a node without the state cookie was let through")
 	}
 
 	claims, err := a.exchange(p, code)
