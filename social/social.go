@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -77,6 +78,11 @@ type Social struct {
 	settings     *settings.Settings
 	profile      *profile.Profile
 	push         *push.Push
+
+	// stuck is, per friend's domain, the post of theirs that the last
+	// syncs stopped at and how many did (see cPostTries).
+	stuckMu sync.Mutex
+	stuck   map[string]stuckPost
 }
 
 type LikePublicationComment struct {
@@ -1148,6 +1154,51 @@ func (fr *friendship) notifyIfOwnComment(commentUuid, action string, notifType p
 // queued behind it.
 const cEventsSyncPageSize = 20
 
+// cPostTries is how many syncs in a row may stop at the same post of a
+// friend's that the connection or this disk failed, so it is asked for
+// again, before it is given up like a post the friend no longer has. One
+// that always fails (an answer that always outlasts the read deadline, a
+// full disk) would otherwise hold back every later event of that friend's,
+// deletions included, for good.
+const cPostTries = 3
+
+type stuckPost struct {
+	pub   string
+	stops int
+}
+
+// retryPost counts one more sync stopping at domain's post pubUuid, and
+// reports whether it may stop there again: false once that makes
+// cPostTries, and the post is to be given up.
+func (sc *Social) retryPost(domain, pubUuid string) bool {
+	sc.stuckMu.Lock()
+	defer sc.stuckMu.Unlock()
+	s := sc.stuck[domain]
+	if s.pub != pubUuid {
+		s = stuckPost{pub: pubUuid}
+	}
+	s.stops++
+	if s.stops >= cPostTries {
+		delete(sc.stuck, domain)
+		return false
+	}
+	if sc.stuck == nil {
+		sc.stuck = make(map[string]stuckPost)
+	}
+	sc.stuck[domain] = s
+	return true
+}
+
+// postPassed forgets the syncs that stopped at domain's post pubUuid, once
+// one has got past it.
+func (sc *Social) postPassed(domain, pubUuid string) {
+	sc.stuckMu.Lock()
+	defer sc.stuckMu.Unlock()
+	if sc.stuck[domain].pub == pubUuid {
+		delete(sc.stuck, domain)
+	}
+}
+
 func (fr *friendship) updateFriendEvents() (err error) {
 	log.Debug("Updating events")
 	// Issue #92: "accepting an invite while doing the first sync" floods
@@ -1197,6 +1248,8 @@ func (fr *friendship) updateFriendEvents() (err error) {
 		return err
 	}
 	log.Debug("Events to update", len(resp.RespEvents.Events))
+	// at is the second this page last moved the cursor to (see stopAtPost).
+	var at *timestamppb.Timestamp
 event_loop:
 	for _, event := range resp.RespEvents.Events {
 		switch event.Type {
@@ -1213,40 +1266,39 @@ event_loop:
 			files, err := fr.getPublicationFiles(pubData.Uuid)
 			if err != nil {
 				log.Error("Error getting publication:", err)
-				if errors.Is(err, errFriendTransport) {
-					// The connection failed, not the post: stop here, so
-					// the next sync asks again from this event instead of
-					// the events after it moving the cursor past it for
-					// good. An answer about the post (deleted since) skips it.
+				if !errors.Is(err, errFriendTransport) {
+					// An answer about the post (deleted since): skipped.
+					fr.sc.postPassed(fr.data.OriginProfile.Domain, pubData.Uuid)
+					continue event_loop
+				}
+				// The connection failed, not the post: stop here, so the
+				// next sync asks for it again instead of the events after
+				// it moving the cursor past it for good.
+				if fr.stopAtPost(pubData.Uuid, event, at) {
 					fr.stopPage(newPosts)
 					return err
 				}
-				continue event_loop
+				break // given up: the cursor moves past it
 			}
 
 			// Store the files in the local drive first. A file that can't be
 			// stored here at all is left out of the post.
 			unencDir := cfg.GetStr("otc", "unenc-storage-path")
-			kept := make([]*pb.File, 0, len(files))
-			var written []string
-			for _, file := range files {
-				ok, wrote, err := fr.storeFriendFile(pubData.Uuid, file, unencDir)
-				if wrote {
-					written = append(written, file.Hash)
-				}
-				if err != nil {
-					// This disk, not the post: tried again next sync.
-					log.Error("Error trying to write file from an external event:", err)
-					fr.sc.removeUnusedMedia(unencDir, written)
+			kept, written, err := fr.storeFriendFiles(pubData.Uuid, files, unencDir)
+			if err != nil {
+				// This disk, not the post: what was written for it goes,
+				// and it is asked for again next sync.
+				log.Error("Error trying to write file from an external event:", err)
+				fr.sc.removeUnusedMedia(unencDir, written)
+				if fr.stopAtPost(pubData.Uuid, event, at) {
 					fr.stopPage(newPosts)
 					return err
 				}
-				if ok {
-					kept = append(kept, file)
-				}
+				break // given up: the cursor moves past it
 			}
 
 			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, kept, eventTime(pubData.Dt, event))
+			fr.sc.postPassed(fr.data.OriginProfile.Domain, pubData.Uuid)
 			if err != nil {
 				log.Error("Error creating social publication for friend:", err)
 				// No post refers to what was just written: it would take
@@ -1256,9 +1308,9 @@ event_loop:
 			}
 			newPosts = true
 
-			// Issue #43: fr.data.LatestSync (advanced below, per event) means
-			// ReqGetEvents{Since: LatestSync} never returns an
-			// already-processed event again - every PublicationEvent
+			// Issue #43: a post already here, served again (a second sent
+			// again by stopAtPost, or a re-delivery), stops at the
+			// PublicationOwner check above - every PublicationEvent
 			// reaching this point is a genuinely new post, exactly once.
 			// Issue #92: except during the one-time backlog catch-up,
 			// where "genuinely new to us" still means "years old to the
@@ -1320,7 +1372,9 @@ event_loop:
 			return nil
 		}
 
-		err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt)
+		if err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt); err == nil {
+			at = event.Dt
+		}
 	}
 
 	// Issue #92: a page shorter than what we asked for means there's
@@ -1346,6 +1400,53 @@ func (fr *friendship) stopPage(newPosts bool) {
 	if newPosts {
 		fr.sc.EnforceStorageLimit()
 	}
+}
+
+// stopAtPost is for a post of the friend's that the connection or this
+// disk failed, not the post itself. It reports whether the page stops
+// there, so the next sync asks for the post again; once syncs have
+// stopped at it cPostTries times in a row it is given up instead, and the
+// friend's later events go on.
+//
+// at is the second this page last moved the cursor to. The next sync asks
+// for events after the cursor, so if an earlier event of the post's own
+// second moved it there, it goes back a second and the whole second is
+// served again, this post with it (a friend serves whole seconds). What
+// of that second is already here is skipped then: the post (found by
+// PublicationOwner), a like (stored once per domain), a comment (its uuid
+// is unique); a deletion finds nothing left to delete.
+func (fr *friendship) stopAtPost(pubUuid string, event *pb.Event, at *timestamppb.Timestamp) bool {
+	domain := fr.data.OriginProfile.Domain
+	if !fr.sc.retryPost(domain, pubUuid) {
+		log.Error("giving up on publication", pubUuid, "from", domain, "after", cPostTries, "syncs stopped at it")
+		return false
+	}
+	if at != nil && at.GetSeconds() == event.GetDt().GetSeconds() {
+		if err := fr.dao.UpdateLatestSync(domain, timestamppb.New(time.Unix(at.GetSeconds()-1, 0))); err != nil {
+			log.Error("could not move the event cursor of", domain, "back to publication", pubUuid, ":", err)
+		}
+	}
+	return true
+}
+
+// storeFriendFiles stores each file of a friend's post (storeFriendFile),
+// leaving out those that can't be stored here at all. written is the
+// hashes something was written for; err is a failed write, which ends it.
+func (fr *friendship) storeFriendFiles(pubUuid string, files []*pb.File, dir string) (kept []*pb.File, written []string, err error) {
+	kept = make([]*pb.File, 0, len(files))
+	for _, file := range files {
+		ok, wrote, err := fr.storeFriendFile(pubUuid, file, dir)
+		if wrote {
+			written = append(written, file.Hash)
+		}
+		if err != nil {
+			return nil, written, err
+		}
+		if ok {
+			kept = append(kept, file)
+		}
+	}
+	return kept, written, nil
 }
 
 // applyLike stores a friend's like of a post, or removes it: an unlike is

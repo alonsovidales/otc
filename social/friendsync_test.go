@@ -142,3 +142,121 @@ func TestFriendSyncSkipsAPostTheFriendNoLongerHas(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// eventsThenDrop is a friend's device answering every events request with
+// events and dropping the connection on anything else.
+func eventsThenDrop(t *testing.T, events []*pb.Event) *wsframe.Client {
+	return fakeFriendDevice(t, func(req *pb.ReqEnvelope) *pb.RespEnvelope {
+		if _, ok := req.Payload.(*pb.ReqEnvelope_ReqGetEvents); ok {
+			return &pb.RespEnvelope{Payload: &pb.RespEnvelope_RespEvents{RespEvents: &pb.Events{Events: events}}}
+		}
+		return nil
+	})
+}
+
+func cursorTo(mock sqlmock.Sqlmock, at time.Time) {
+	mock.ExpectExec("update `social_friendship` set `latest_sync` = \\?").WithArgs(at, "x.off-the.cloud").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+}
+
+// A like and a comment, then a post the connection lost, all in one
+// second: the like and the comment moved the cursor to that second, and
+// the next sync asks for what comes after it, so the cursor goes back a
+// second for the post to be served again.
+func TestFriendSyncStopsAtAPostLaterInItsSecond(t *testing.T) {
+	sec := time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)
+	dt := timestamppb.New(sec)
+	fr, mock := friendFrom(t, "x.off-the.cloud")
+	fr.data.NotificationsStarted = true
+	fr.sc = &Social{}
+	fr.conn = eventsThenDrop(t, []*pb.Event{
+		{Uuid: "e0", Dt: dt, Type: LikeEvent, Content: `{"uuid":"l1","pub_uuid":"p0"}`},
+		{Uuid: "e1", Dt: dt, Type: CommentEvent, Content: `{"uuid":"c1","pub_uuid":"p0","comment":"hi"}`},
+		{Uuid: "e2", Dt: dt, Type: PublicationEvent, Content: `{"uuid":"p1","action":"create"}`},
+	})
+	notOwn := func() {
+		mock.ExpectQuery("select `own_publication` from `social_publications`").
+			WillReturnRows(sqlmock.NewRows([]string{"own_publication"}).AddRow(false))
+	}
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `social_publication_likes`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `social_publications` set `likes` = `likes` \\+ 1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	notOwn()
+	cursorTo(mock, sec)
+	mock.ExpectExec("insert into `social_publications_comments`").WillReturnResult(sqlmock.NewResult(0, 1))
+	notOwn()
+	cursorTo(mock, sec)
+	notStoredYet(mock)
+	cursorTo(mock, sec.Add(-time.Second))
+
+	if err := fr.updateFriendEvents(); !errors.Is(err, errFriendTransport) {
+		t.Fatalf("got %v, want the page stopped on the connection failure", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A post that fails every sync is asked for cPostTries times, then given
+// up like one the friend no longer has: the friend's later events go on.
+func TestFriendSyncGivesUpOnAPostThatAlwaysFails(t *testing.T) {
+	sec := time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)
+	events := []*pb.Event{
+		{Uuid: "e1", Dt: timestamppb.New(sec), Type: PublicationEvent, Content: `{"uuid":"p1","action":"create"}`},
+		{Uuid: "e2", Dt: timestamppb.New(sec.Add(time.Second)), Type: DelCommentEvent, Content: `{"comment_uuid":"c9"}`},
+	}
+	fr, mock := friendFrom(t, "x.off-the.cloud")
+	fr.data.NotificationsStarted = true
+	fr.sc = &Social{}
+
+	for try := 1; try < cPostTries; try++ {
+		fr.conn = eventsThenDrop(t, events)
+		notStoredYet(mock)
+		if err := fr.updateFriendEvents(); !errors.Is(err, errFriendTransport) {
+			t.Fatalf("try %d: got %v, want the page stopped at the post", try, err)
+		}
+	}
+
+	fr.conn = eventsThenDrop(t, events)
+	notStoredYet(mock)
+	cursorTo(mock, sec)
+	mock.ExpectQuery("select `pub_uuid`, `author_domain`, `own_comment` from `social_publications_comments`").
+		WillReturnRows(sqlmock.NewRows([]string{"pub_uuid", "author_domain", "own_comment"}))
+	cursorTo(mock, sec.Add(time.Second))
+	if err := fr.updateFriendEvents(); err != nil {
+		t.Fatalf("try %d: %v, want the post given up and the page carried on", cPostTries, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// The tries are counted per friend, for syncs in a row stopping at the
+// same post: another post, or getting past it, starts them again.
+func TestRetryPostCountsStopsInARowAtOnePost(t *testing.T) {
+	sc := &Social{}
+	for i := 1; i < cPostTries; i++ {
+		if !sc.retryPost("x", "p1") {
+			t.Fatalf("stop %d at p1: given up early", i)
+		}
+	}
+	if !sc.retryPost("y", "p1") {
+		t.Fatal("another friend's stops counted as x's")
+	}
+	if !sc.retryPost("x", "p2") || !sc.retryPost("x", "p1") {
+		t.Fatal("stops at another post in between didn't start p1's again")
+	}
+	sc.postPassed("x", "p1")
+	for i := 1; i < cPostTries; i++ {
+		if !sc.retryPost("x", "p1") {
+			t.Fatalf("stop %d after getting past p1: given up early", i)
+		}
+	}
+	if sc.retryPost("x", "p1") {
+		t.Fatalf("stop %d in a row at p1: not given up", cPostTries)
+	}
+	if !sc.retryPost("x", "p1") {
+		t.Fatal("a post given up and served again isn't tried again")
+	}
+}
