@@ -802,7 +802,15 @@ SQL
 # it.
 if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; then
     for user_db in $(mysql otc -N -B -e 'SELECT db_name FROM users' 2>/dev/null); do
-        if mysql -N -B -e "SHOW DATABASES LIKE '$user_db'" 2>/dev/null | grep -q "$user_db"; then
+        # The otc service writes this table, and the name reaches SQL, grep
+        # and mysql's command line here as root: only the shape the device
+        # itself generates (dao's checkGenerated), so nothing can pass as
+        # an option or break out of the quotes. Not echoed: untrusted text.
+        if ! [[ "$user_db" =~ ^otc_[0-9a-f]{32}$ ]]; then
+            log "  WARNING: skipping a users row whose db_name this device didn't generate"
+            continue
+        fi
+        if mysql -N -B -e "SHOW DATABASES LIKE '$user_db'" 2>/dev/null | grep -qxF -- "$user_db"; then
             log "  migrating additional user database $user_db"
             apply_schema_migrations "$user_db"
         else
