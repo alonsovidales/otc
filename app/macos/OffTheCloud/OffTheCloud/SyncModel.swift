@@ -629,6 +629,7 @@ final class SyncModel: ObservableObject {
     /// Everything after this is event-driven, not scan-driven.
     private func setupFolder(_ folder: TrackedFolder) async {
         guard folderWatchers[folder.id] == nil else { return }
+        await markUploadOnly(folder)
         await reconcile(folder)
         startWatcher(for: folder)
     }
@@ -704,16 +705,10 @@ final class SyncModel: ObservableObject {
             } catch {
                 print("Error uploading \(path): \(error)")
             }
-        } else if remoteHashesByFolder[folderId]?[remotePath] != nil {
-            // It was synced before and is gone now — a real deletion, not
-            // just a path we never uploaded in the first place.
-            do {
-                try await delete(remotePath)
-                remoteHashesByFolder[folderId]?.removeValue(forKey: remotePath)
-            } catch {
-                print("Error deleting \(path): \(error)")
-            }
         }
+        // Gone here: nothing to do. A backup is upload only - what this Mac
+        // deletes stays on the device (which refuses the delete anyway, see
+        // markUploadOnly). As otc-sync.
     }
 
     // MARK: - Reconcile (baseline + periodic safety net)
@@ -845,31 +840,8 @@ final class SyncModel: ObservableObject {
                 }
             }
 
-            // Anything the device still has under this folder's prefix
-            // that no longer exists locally gets removed to match —
-            // mirrors OneDrive's "delete propagates" behavior (issue #37).
-            let staleRemotePaths = remoteMap.keys.filter { !localRemotePaths.contains($0) }
-            // Mass-deletion guard, the other way round from two-way
-            // folders': a folder that suddenly looks empty here (a drive
-            // not plugged in, a folder being moved) would empty its backup
-            // on the device. Past 20 files and a quarter of the backup,
-            // nothing is deleted there and the folder says why.
-            if staleRemotePaths.count > Self.massDeleteMin && staleRemotePaths.count * 4 > max(remoteMap.count, 1) {
-                syncLog.error("backup \(root.path, privacy: .public): \(staleRemotePaths.count) files gone here at once - not deleting them on the device")
-                remoteHashesByFolder[folder.id] = remoteMap
-                updateState(folder.id, .error("\(staleRemotePaths.count) files are gone from this folder - kept on the device. Delete them there if that was meant."))
-                saveHashCache(folder.id)
-                return
-            }
-            for remotePath in staleRemotePaths {
-                do {
-                    try await delete(remotePath)
-                    remoteMap.removeValue(forKey: remotePath)
-                } catch {
-                    print("Error deleting stale \(remotePath): \(error)")
-                }
-            }
-
+            // A backup is upload only: what is no longer here stays on
+            // the device.
             remoteHashesByFolder[folder.id] = remoteMap
             updateState(folder.id, .watching)
         } catch {
@@ -1554,6 +1526,26 @@ final class SyncModel: ObservableObject {
     private static func throwIfRejected(_ resp: Resp) throws {
         if resp.error {
             throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "upload rejected" : resp.errorMessage])
+        }
+    }
+
+    /// Makes a backup's folder on the device upload only (issue #132): the
+    /// device then refuses deletes there and keeps the older version of a
+    /// file when it changes. Sent at every start, so backups added before
+    /// this get it too; harmless when already set. As otc-sync's
+    /// markUploadOnly.
+    private func markUploadOnly(_ folder: TrackedFolder) async {
+        let path = remotePathFor(folder.url.path) + "/"
+        do {
+            let resp = try await ws.request { req in
+                var u = Msg_SetUploadOnly()
+                u.path = path
+                u.uploadOnly = true
+                req.payload = .reqSetUploadOnly(u)
+            }
+            if resp.error { syncLog.error("backup \(folder.url.path, privacy: .public): upload only refused: \(resp.errorMessage, privacy: .public)") }
+        } catch {
+            syncLog.error("backup \(folder.url.path, privacy: .public): could not make it upload only: \(error.localizedDescription, privacy: .public)")
         }
     }
 

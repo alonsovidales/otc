@@ -222,7 +222,7 @@ struct FolderRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(folder.url.lastPathComponent)
                     .lineLimit(1)
-                Text("Backup · this Mac → device")
+                Text("Backup · this Mac → device, upload only")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -597,8 +597,8 @@ struct AddFolderChooser: View {
             }
             option(0, icon: "arrow.up.circle.fill", tint: .orange,
                    title: "Back up a folder from this Mac",
-                   subtitle: "One way: this Mac → device",
-                   info: "This Mac is the original. New and changed files are copied to the device, and files you delete here are deleted there too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
+                   subtitle: "One way: this Mac → device (upload only, no deletes)",
+                   info: "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
                    action: onBackup)
             option(1, icon: "arrow.triangle.2.circlepath.circle.fill", tint: .blue,
                    title: "Sync a folder from this Mac",

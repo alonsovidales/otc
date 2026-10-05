@@ -150,7 +150,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// The macOS app's three kinds of folder (AddFolderChooser); a tray menu
 	// has no (i) buttons, so each has a tooltip and "What do these do?"
 	// explains all three.
-	u.addBackup = systray.AddMenuItem("Back Up a Folder from This Computer…", "One way: this computer is the original, nothing on the device ever changes it")
+	u.addBackup = systray.AddMenuItem("Back Up a Folder from This Computer…", "One way: this computer → device (upload only, no deletes)")
 	u.addLocal = systray.AddMenuItem("Sync a Folder from This Computer…", "Two ways: kept the same here and on the device, changes and deletions included")
 	u.addRem = systray.AddMenuItem("Sync a Folder from the Device…", "Two ways, starting from a folder already on the device")
 	u.explain = systray.AddMenuItem("What Do These Do?", "The difference between backing up and syncing")
@@ -353,8 +353,8 @@ func (u *ui) addBackup_() {
 
 // explainKinds is the tray's (i): the macOS chooser's three explanations.
 func (u *ui) explainKinds() {
-	_ = zenity.Info(`Back up a folder from this computer - one way
-This computer is the original. New and changed files are copied to the device, and files you delete here are deleted there too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here.
+	_ = zenity.Info(`Back up a folder from this computer - one way: this computer → device (upload only, no deletes)
+New and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here.
 
 Sync a folder from this computer - two ways
 The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes.

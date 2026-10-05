@@ -636,6 +636,7 @@ func (e *Engine) startSync() {
 }
 
 func (e *Engine) setupFolder(f config.Folder) {
+	e.markUploadOnly(f)
 	e.reconcile(f)
 	e.startWatcher(f)
 }
@@ -746,17 +747,10 @@ func (e *Engine) processChangedPath(path string, f config.Folder) {
 		}
 		e.remoteHashes[f.ID][remotePath] = h
 		e.mu.Unlock()
-	} else if known != "" {
-		// Synced before and gone now: a real deletion.
-		if err := e.deleteRemote(remotePath); err != nil {
-			log.Printf("error deleting %s: %v", remotePath, err)
-
-			return
-		}
-		e.mu.Lock()
-		delete(e.remoteHashes[f.ID], remotePath)
-		e.mu.Unlock()
 	}
+	// Gone here: nothing to do. A backup is upload only - what this
+	// computer deletes stays on the device (and the device refuses the
+	// delete anyway, see markUploadOnly).
 }
 
 // ---- reconcile: local -> remote ----------------------------------------
@@ -897,37 +891,7 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 	}
 
-	// Mass-deletion guard for backups (as SyncModel.reconcile): a folder
-	// that suddenly looks empty here - a drive not plugged in, a folder
-	// being moved - would empty its backup on the device. Past 20 files and
-	// a quarter of the backup, nothing is deleted there.
-	stale := 0
-	for rp := range remoteMap {
-		if !localRemote[rp] {
-			stale++
-		}
-	}
-	if stale > massDeleteMin && stale*4 > max(len(remoteMap), 1) {
-		log.Printf("backup %s: %d files gone here at once - not deleting them on the device", f.Path, stale)
-		e.mu.Lock()
-		e.remoteHashes[f.ID] = remoteMap
-		e.mu.Unlock()
-		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d files are gone from this folder - kept on the device. Delete them there if that was meant.", stale)})
-
-		return
-	}
-	for rp := range remoteMap {
-		if localRemote[rp] {
-			continue
-		}
-		if err := e.deleteRemote(rp); err != nil {
-			log.Printf("error deleting stale %s: %v", rp, err)
-
-			continue
-		}
-		delete(remoteMap, rp)
-	}
-
+	// A backup is upload only: what is no longer here stays on the device.
 	e.mu.Lock()
 	e.remoteHashes[f.ID] = remoteMap
 	e.mu.Unlock()
@@ -1608,6 +1572,22 @@ func (e *Engine) download(remotePath, dest, expectedHash string) error {
 	}
 
 	return nil
+}
+
+// markUploadOnly makes a backup's folder on the device upload only (issue
+// #132): the device then refuses deletes there and keeps the older version
+// of a file when it changes. Sent at every start, so backups added before
+// this get it too; harmless when already set. As SyncModel.markUploadOnly.
+func (e *Engine) markUploadOnly(f config.Folder) {
+	resp, err := e.request(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqSetUploadOnly{ReqSetUploadOnly: &pb.SetUploadOnly{Path: e.remotePathFor(f.Path) + "/", UploadOnly: true}}
+	})
+	if err == nil {
+		err = wsclient.RespError(resp, "upload only refused")
+	}
+	if err != nil {
+		log.Printf("could not make backup %s upload only on the device: %v", f.Path, err)
+	}
 }
 
 func (e *Engine) deleteRemote(remotePath string) error {

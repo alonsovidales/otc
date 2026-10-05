@@ -214,9 +214,9 @@ func usage() {
   otc-sync settings --name cala [--password-stdin | --password-prompt]
   otc-sync settings --address ws://192.168.1.10:8080/ws
   otc-sync folders              the folders being synced
-  otc-sync backup <dir>         back up a local folder to the device, one way: new, changed
-                                and deleted files here reach the device; nothing done on the
-                                device ever changes this folder
+  otc-sync backup <dir>         back up a local folder to the device, one way and upload only:
+                                new and changed files go up, nothing is ever deleted there,
+                                and nothing done on the device ever changes this folder
   otc-sync add <dir>            keep a local folder in two-way sync with the device: changes and
                                 deletions on either side reach the other (first pass only adds)
   otc-sync add-remote <remote-path> <dir>

@@ -606,8 +606,10 @@ never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`
 Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
 iOS/Android. There are three kinds of folder, each explained in the app (the Mac's
 `AddFolderChooser` with an (i) per option; the tray's tooltips and "What Do These Do?"):
-**backup** (one way, `TrackedFolder` / `config.Folder{OneWay: true}`, `otc-sync backup`: new,
-changed and deleted files go up; nothing on the device ever changes the folder), and two
+**backup** (one way and upload only, `TrackedFolder` / `config.Folder{OneWay: true}`, `otc-sync
+backup`: new and changed files go up, nothing is ever deleted on the device, and nothing on the
+device ever changes the folder. Its device folder is made upload only at every start,
+`markUploadOnly`, so the device keeps older versions and refuses deletes), and two
 **two-way** kinds - from the computer or from the device - which only differ in their first pass
 (what is only on one side is copied to the other; with no sync record yet nothing is ever
 deleted). Both directions have a mass-deletion guard (more than 20 files and a quarter of the
