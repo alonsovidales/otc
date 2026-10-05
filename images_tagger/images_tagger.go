@@ -120,20 +120,41 @@ func (r *RAMTagger) Close() { _ = r.sess.Destroy() }
 
 // Tags runs inference and returns tag strings (sorted by score desc).
 func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) ([]RAMTag, error) {
-	if opt.ImageSize == 0 {
-		opt.ImageSize = r.imgSize
-	}
-	if opt.Threshold == 0 {
-		opt.Threshold = 0.40
-	}
+	opt = r.defaults(opt)
 	// Issue #165: ctx was ignored, so the callers' timeouts did nothing.
 	// The model run itself is native and can't be interrupted, but a call
 	// whose time is already up - it waited for its turn - doesn't start.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	return r.TagsResized(ctx, Resize(img, opt.ImageSize), opt)
+}
 
-	input := r.preprocess(img, opt.ImageSize)
+func (r *RAMTagger) defaults(opt RAMOptions) RAMOptions {
+	if opt.ImageSize == 0 {
+		opt.ImageSize = r.imgSize
+	}
+	if opt.Threshold == 0 {
+		opt.Threshold = 0.40
+	}
+	return opt
+}
+
+// TagsResized is Tags for an image already through Resize to
+// opt.ImageSize (the model's input size), which is all the model sees of
+// a photo: a supervised instance resizes its own photos and sends the
+// primary that (see modelserver), not the full image. The results are
+// those Tags gives for the original.
+func (r *RAMTagger) TagsResized(ctx context.Context, img *image.RGBA, opt RAMOptions) ([]RAMTag, error) {
+	opt = r.defaults(opt)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if img.Rect != image.Rect(0, 0, opt.ImageSize, opt.ImageSize) {
+		return nil, fmt.Errorf("the image is %v, not the model's %dx%d", img.Rect, opt.ImageSize, opt.ImageSize)
+	}
+
+	input := r.normalize(img, opt.ImageSize)
 
 	// tensor [1,3,H,W]
 	x, err := ort.NewTensor[float32](ort.NewShape(1, 3, int64(opt.ImageSize), int64(opt.ImageSize)), input)
@@ -213,11 +234,21 @@ func scoresToTags(prob []float32, tagNames []string, perTag []float32, flatThres
 // ---------- helpers ----------
 
 func (r *RAMTagger) preprocess(src image.Image, size int) []float32 {
+	return r.normalize(Resize(src, size), size)
+}
+
+// Resize is the model's view of src: size x size, scaled as preprocessing
+// always has.
+func Resize(src image.Image, size int) *image.RGBA {
 	dst := image.NewRGBA(image.Rect(0, 0, size, size))
 	// RAM typically uses a resize+center-crop to a square. For simplicity we letterbox-scale.
 	// If your model card specifies center-crop, swap to that; RAM is fairly tolerant.
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+	return dst
+}
 
+// normalize is the model's input tensor for a Resize'd image.
+func (r *RAMTagger) normalize(dst *image.RGBA, size int) []float32 {
 	out := make([]float32, 3*size*size)
 	i := 0
 	for c := 0; c < 3; c++ {

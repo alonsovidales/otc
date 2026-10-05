@@ -768,11 +768,13 @@ func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
 	return
 }
 
-// GetSharedLinkCreated returns the creation time of a shared link, so
-// callers can decide whether it has expired. Returns sql.ErrNoRows if the
-// link doesn't exist (already expired and swept, or never existed).
-func (dao *Dao) GetSharedLinkCreated(pathUuid string) (created time.Time, err error) {
-	err = dao.db.QueryRow("select `created` from `shared_links` where `uuid` = ?", pathUuid).Scan(&created)
+// GetArchiveLinkExpiry is an archive share link's creation and its own
+// expiry (unset: the device's default), so callers can decide whether it
+// has expired. Returns sql.ErrNoRows if there is no such archive (already
+// expired and swept, never existed, or a gallery: those aren't served as
+// archives).
+func (dao *Dao) GetArchiveLinkExpiry(pathUuid string) (created time.Time, expires sql.NullTime, err error) {
+	err = dao.db.QueryRow("select `created`, `expires` from `shared_links` where `uuid` = ? and `kind` = 'archive'", pathUuid).Scan(&created, &expires)
 
 	return
 }
@@ -2203,10 +2205,13 @@ type RawFace struct {
 	Thumbnail []byte
 }
 
-// ListRawFaces returns every stored face's id/embedding/thumbnail, opaque
-// to this layer - see RawFace.
-func (dao *Dao) ListRawFaces() (faces []RawFace, err error) {
-	rows, err := dao.db.Query("select `id`, `embedding`, `thumbnail` from `faces`")
+// ListRawFacesAfter returns up to limit stored faces' id/embedding/
+// thumbnail, opaque to this layer - see RawFace - in id order, after
+// afterID ("" for the first page). Paged by the primary key, so the
+// migration holds one page in memory, never the whole table with every
+// face crop, and its UPDATEs (which don't change ids) can't skip a row.
+func (dao *Dao) ListRawFacesAfter(afterID string, limit int) (faces []RawFace, err error) {
+	rows, err := dao.db.Query("select `id`, `embedding`, `thumbnail` from `faces` where `id` > ? order by `id` limit ?", afterID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -2252,7 +2257,18 @@ type FaceEmbedding struct {
 // expressions are better matched against their nearest individual face
 // than an average of all of them).
 func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
-	rows, err := dao.db.Query("select `id`, `person_id`, `embedding` from `faces`")
+	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces`")
+}
+
+// ListPersonFaceEmbeddings is ListFaceEmbeddings for one person's faces:
+// what files_manager rebuilds a person's matching references from after
+// a delete took one of them, instead of reading every person's.
+func (dao *Dao) ListPersonFaceEmbeddings(personID string) (faces []FaceEmbedding, err error) {
+	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` = ?", personID)
+}
+
+func (dao *Dao) faceEmbeddings(query string, args ...any) (faces []FaceEmbedding, err error) {
+	rows, err := dao.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

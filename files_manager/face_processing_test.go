@@ -4,12 +4,14 @@ package filesmanager
 
 import (
 	"fmt"
+	"image"
 	"math"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
+	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 )
 
@@ -297,22 +299,29 @@ func TestUpdatePersonCoverFaceNoRefsIsNoOp(t *testing.T) {
 	}
 }
 
-// Issue #173: the stored embeddings are read and decrypted once, then
-// served from memory until InvalidateFaceRefs, which makes the next call
-// read the database again.
-func TestLoadFaceRefsCachesUntilInvalidated(t *testing.T) {
+// faceTestSession is a real session (its vault in a mocked database), to
+// encrypt and decrypt stored embeddings with.
+func faceTestSession(t *testing.T) *session.Session {
+	t.Helper()
 	sesDB, sesMock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
 	}
-	defer sesDB.Close()
+	t.Cleanup(func() { sesDB.Close() })
 	sesMock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 	sesMock.ExpectExec("insert into `vault`").WillReturnResult(sqlmock.NewResult(1, 1))
 	ses, err := session.New("owner-uuid", "test-password", true, dao.NewWithDB(sesDB))
 	if err != nil {
 		t.Fatalf("session.New: %v", err)
 	}
+	return ses
+}
 
+// Issue #173: the stored embeddings are read and decrypted once, then
+// served from memory until InvalidateFaceRefs, which makes the next call
+// read the database again.
+func TestLoadFaceRefsCachesUntilInvalidated(t *testing.T) {
+	ses := faceTestSession(t)
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("sqlmock.New: %v", err)
@@ -351,5 +360,144 @@ func TestLoadFaceRefsCachesUntilInvalidated(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("expected exactly one reload after InvalidateFaceRefs: %v", err)
+	}
+}
+
+// Deleted content's faces leave the matching set without it being read
+// again whole: a person who lost a reference is rebuilt from their own
+// faces before the next match, one who went is left out, and a face that
+// wasn't a reference changes nothing. Content with no faces changes
+// nothing at all.
+func TestDropFacesOfHashUpdatesTheMatchingSetInPlace(t *testing.T) {
+	ses := faceTestSession(t)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	// The people are rebuilt one by one, in map order.
+	mock.MatchExpectationsInOrder(false)
+	// bob has a face that isn't one of his references (bob-7).
+	mg := &Manager{dao: dao.NewWithDB(db), faceRefs: refsOf(map[string][][]float32{
+		"alice": {{1, 0}, {0.9, 0.1}},
+		"bob":   {{0, 1}},
+		"carol": {{0.7, 0.7}},
+	})}
+
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("nofaces").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}))
+	mg.dropFacesOfHash("nofaces")
+	if mg.faceRefs == nil || len(mg.faceRefsStale) != 0 {
+		t.Fatal("content with no faces changed the matching set")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("withfaces").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}).
+			AddRow("alice-1", "alice").AddRow("bob-7", "bob").AddRow("carol-1", "carol"))
+	mock.ExpectBegin()
+	mock.ExpectExec("update `people` set `cover_face_id` = null").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `faces` where `hash` = \\?").WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectExec("delete from `people` where `id` in").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	mg.dropFacesOfHash("withfaces")
+	if mg.faceRefs == nil {
+		t.Fatal("the whole matching set was dropped")
+	}
+	if !mg.faceRefsStale["alice"] || !mg.faceRefsStale["carol"] || mg.faceRefsStale["bob"] {
+		t.Errorf("stale people %v, want alice and carol", mg.faceRefsStale)
+	}
+
+	// alice has a face that wasn't a reference (alice-3), carol none.
+	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` = \\?").WithArgs("alice").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id", "embedding"}).
+			AddRow("alice-2", "alice", ses.Encrypt(facerecognition.EncodeEmbedding([]float32{0.9, 0.1}))).
+			AddRow("alice-3", "alice", ses.Encrypt(facerecognition.EncodeEmbedding([]float32{0.8, 0.2}))))
+	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` = \\?").WithArgs("carol").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id", "embedding"}))
+	mg.faceRefsMu.Lock()
+	refs, err := mg.loadFaceRefsLocked(ses)
+	if err == nil {
+		_, err = mg.loadFaceRefsLocked(ses) // nothing stale: no query
+	}
+	mg.faceRefsMu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err) // and no read of every face
+	}
+	ids := func(person string) []string {
+		var out []string
+		if p := refs[person]; p != nil {
+			for _, r := range p.refs {
+				out = append(out, r.id)
+			}
+		}
+		return out
+	}
+	if got := ids("alice"); fmt.Sprint(got) != "[alice-2 alice-3]" {
+		t.Errorf("alice's references %v, want [alice-2 alice-3]", got)
+	}
+	if got := ids("bob"); fmt.Sprint(got) != "[bob-1]" {
+		t.Errorf("bob's references %v, want [bob-1]", got)
+	}
+	if _, ok := refs["carol"]; ok {
+		t.Error("carol, who has no face left, is still matched against")
+	}
+
+	// A delete that failed may or may not have happened: the set is
+	// built again from what is stored.
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("broken").
+		WillReturnError(fmt.Errorf("database gone"))
+	mg.dropFacesOfHash("broken")
+	if mg.faceRefs != nil {
+		t.Error("the matching set was kept after a failed delete")
+	}
+}
+
+type countingDetector struct{ calls int }
+
+func (d *countingDetector) DetectFaces(image.Image) ([]facerecognition.FaceDetection, error) {
+	d.calls++
+	return nil, nil
+}
+
+// Content whose faces were already found isn't run through the model
+// again - that stored a second set of rows for the same faces - while new
+// content still is.
+func TestProcessFacesSkipsContentWithFacesAlready(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	det := &countingDetector{}
+	mg := &Manager{dao: dao.NewWithDB(db), faceRecognizer: det}
+	enabled := func() {
+		mock.ExpectQuery("select `face_recognition_enabled` from `settings`").
+			WillReturnRows(sqlmock.NewRows([]string{"face_recognition_enabled"}).AddRow(true))
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+
+	enabled()
+	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? limit 1").WithArgs("seen").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+	mg.processFaces(nil, &pb.File{Hash: "seen"}, img)
+	if det.calls != 0 {
+		t.Error("content with faces already was run through the model again")
+	}
+
+	enabled()
+	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? limit 1").WithArgs("new").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mg.processFaces(nil, &pb.File{Hash: "new"}, img)
+	if det.calls != 1 {
+		t.Errorf("new content: %d model passes, want 1", det.calls)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

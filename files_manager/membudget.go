@@ -4,6 +4,7 @@ package filesmanager
 
 import (
 	"bufio"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -149,13 +150,14 @@ func (mg *Manager) ReserveForDownload(path, versionHash string) func() {
 	if err != nil || file == nil {
 		return func() {}
 	}
-	need := int64(file.Size) * cDownloadCopies
+	sz := budgetSize(file)
+	need := sz * cDownloadCopies
 	// Issue #168: a HEIC is served converted to JPEG, and the decode is what
 	// costs memory, not the file: ~1.3 bits a pixel, so a 2 MB iPhone photo
 	// is 12 MP - ~48 MB as RGBA, plus the decoder's YCbCr and the JPEG being
 	// built. The sync clients read originals with ReadFile, never this.
 	if isHeicFile(file.Path, file.Mime) {
-		need += int64(file.Size) * cHeicDecodeFactor
+		need += sz * cHeicDecodeFactor
 	}
 	if need > mg.contentBudget.max/2 {
 		log.Debug("download of", path, "waits for", need>>20, "MB of the", mg.contentBudget.max>>20, "MB content budget")
@@ -167,7 +169,7 @@ func (mg *Manager) ReserveForDownload(path, versionHash string) func() {
 // of its parts is worth a share of the content budget. A cheap lookup only:
 // the download itself still checks expiry and the secret.
 func (mg *Manager) SharedLinkKnown(uuid string) bool {
-	_, err := mg.dao.GetSharedLinkCreated(uuid)
+	_, _, err := mg.dao.GetArchiveLinkExpiry(uuid)
 	return err == nil
 }
 
@@ -178,4 +180,18 @@ func (mg *Manager) SharedGalleryKnown(id, secret string) bool {
 	}
 	_, _, err := mg.dao.GetSharedLinkExpiry(id)
 	return err == nil
+}
+
+// budgetSize is how many bytes of content f holds, for the budget. The
+// files row keeps the size as int32, so it wraps for content of 2 GiB or
+// more: negative at 2-4 GiB (which reserved nothing at all), a small
+// positive number above that. The blob on disk is the content plus 16
+// bytes a MiB (segcrypt), so its size is used when the column can't hold
+// it; anything smaller reserves exactly what the row says, as before.
+func budgetSize(f *pb.File) int64 {
+	n := int64(f.Size)
+	if fi, err := os.Stat(blobPath(f.Hash)); err == nil && fi.Size() > math.MaxInt32 {
+		n = fi.Size()
+	}
+	return n
 }

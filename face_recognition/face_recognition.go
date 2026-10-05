@@ -137,11 +137,20 @@ type Recognizer struct {
 // operator hasn't downloaded these two (small: ~230KB + ~10MB) models yet,
 // must still start up and serve everything else normally.
 func NewRecognizer(detectorModelPath, recognizerModelPath string) (*Recognizer, error) {
-	if _, err := os.Stat(detectorModelPath); err != nil {
+	if fi, err := os.Stat(detectorModelPath); err != nil {
 		return nil, fmt.Errorf("face detector model: %w", err)
+	} else if fi.Size() == 0 {
+		return nil, fmt.Errorf("face detector model: %s is empty", detectorModelPath)
 	}
-	if _, err := os.Stat(recognizerModelPath); err != nil {
+	if fi, err := os.Stat(recognizerModelPath); err != nil {
 		return nil, fmt.Errorf("face recognizer model: %w", err)
+	} else if fi.Size() == 0 {
+		return nil, fmt.Errorf("face recognizer model: %s is empty", recognizerModelPath)
+	}
+	// A file OpenCV can't read must leave faces off, not abort the
+	// process (see probeModels).
+	if err := probeModels(detectorModelPath, recognizerModelPath); err != nil {
+		return nil, fmt.Errorf("loading face models: %w", err)
 	}
 
 	detector := gocv.NewFaceDetectorYNWithParams(
@@ -183,7 +192,7 @@ func (r *Recognizer) DetectFaces(img image.Image) ([]FaceDetection, error) {
 	// BGR assumption was violated), and detection itself being degraded
 	// (a CNN trained on BGR seeing channel-swapped input). Do not
 	// reintroduce that conversion.
-	bgr, err := gocv.ImageToMatRGB(img)
+	bgr, err := imageToBGRMat(img)
 	if err != nil {
 		return nil, fmt.Errorf("converting image for face detection: %w", err)
 	}
@@ -240,6 +249,42 @@ func (r *Recognizer) DetectFaces(img image.Image) ([]FaceDetection, error) {
 		detections = append(detections, det)
 	}
 	return detections, nil
+}
+
+// imageToBGRMat is gocv.ImageToMatRGB - B,G,R bytes, see DetectFaces -
+// for what a photo decodes to. gocv has a fast path for *image.RGBA only:
+// anything else went through img.At per pixel, boxing a color on the heap
+// each time (12M allocations and ~76 MB of garbage for a 12 MP photo, all
+// while every other face request on the device waited for mu). A JPEG or
+// HEIC (*image.YCbCr) and an oriented or PNG photo (*image.NRGBA) are read
+// through their concrete type here, in gocv's own order and with the same
+// RGBA() conversion - NRGBA's premultiplies, as gocv's does - so the bytes
+// are identical. Anything else is left to gocv.
+func imageToBGRMat(img image.Image) (gocv.Mat, error) {
+	b := img.Bounds()
+	var data []byte
+	switch p := img.(type) {
+	case *image.YCbCr:
+		data = make([]byte, 0, b.Dx()*b.Dy()*3)
+		for j := b.Min.Y; j < b.Max.Y; j++ {
+			for i := b.Min.X; i < b.Max.X; i++ {
+				r, g, bl, _ := p.YCbCrAt(i, j).RGBA()
+				data = append(data, byte(bl>>8), byte(g>>8), byte(r>>8))
+			}
+		}
+	case *image.NRGBA:
+		data = make([]byte, 0, b.Dx()*b.Dy()*3)
+		for j := b.Min.Y; j < b.Max.Y; j++ {
+			for i := b.Min.X; i < b.Max.X; i++ {
+				r, g, bl, _ := p.NRGBAAt(i, j).RGBA()
+				data = append(data, byte(bl>>8), byte(g>>8), byte(r>>8))
+			}
+		}
+	default:
+		return gocv.ImageToMatRGB(img)
+	}
+	// The constructor gocv's own conversion ends with.
+	return gocv.NewMatFromBytes(b.Dy(), b.Dx(), gocv.MatTypeCV8UC3, data)
 }
 
 // isFaceLargeEnough is the pure predicate behind cMinFaceSizeFraction's

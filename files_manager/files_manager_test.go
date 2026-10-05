@@ -11,7 +11,6 @@ import (
 	"math"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -127,31 +126,22 @@ func TestIsSharedLinkExpired(t *testing.T) {
 }
 
 func TestCollectExpiredTokensRemovesOnlyExpiredEntries(t *testing.T) {
-	mg := &Manager{
-		searchTokens:   new(sync.Map),
-		tokensToExpire: new(sync.Map),
-	}
-
+	mg := &Manager{searchTokens: newSearchTokenCache(1000)}
 	now := time.Now()
-	mg.searchTokens.Store("fresh", "fresh-value")
-	mg.tokensToExpire.Store("fresh", now)
-
-	mg.searchTokens.Store("stale", "stale-value")
-	mg.tokensToExpire.Store("stale", now.Add(-cToeknsTTL-time.Minute))
+	rows := &searchCursor{all: []*pb.File{{Path: "/a"}}}
+	mg.searchTokens.store("fresh", rows, now)
+	mg.searchTokens.store("stale", rows, now.Add(-cToeknsTTL-time.Minute))
 
 	mg.collectExpiredTokens()
 
-	if _, ok := mg.searchTokens.Load("fresh"); !ok {
-		t.Error("expected the fresh token to survive collection")
+	if _, ok := mg.searchTokens.load("fresh"); !ok {
+		t.Error("fresh token should still be present")
 	}
-	if _, ok := mg.tokensToExpire.Load("fresh"); !ok {
-		t.Error("expected the fresh token's expiry entry to survive collection")
+	if _, ok := mg.searchTokens.load("stale"); ok {
+		t.Error("stale token should have been removed")
 	}
-	if _, ok := mg.searchTokens.Load("stale"); ok {
-		t.Error("expected the stale token to be removed")
-	}
-	if _, ok := mg.tokensToExpire.Load("stale"); ok {
-		t.Error("expected the stale token's expiry entry to be removed")
+	if mg.searchTokens.rows != 1 {
+		t.Errorf("%d rows counted after the sweep, want 1", mg.searchTokens.rows)
 	}
 }
 
@@ -604,12 +594,7 @@ func TestWaitForTaggerBlocksUntilTheModelIsReady(t *testing.T) {
 // The correct answer is the one the code already intended: treat it as no
 // token at all and search again from the start.
 func TestUnknownSearchTokenIsNotFoundInsteadOfPanicking(t *testing.T) {
-	mg := &Manager{searchTokens: &sync.Map{}}
-
-	// Exactly what sync.Map.Load hands back for a token that isn't there.
-	if _, ok := mg.searchTokens.Load("never-issued"); ok {
-		t.Fatal("a token that was never issued was found")
-	}
+	mg := &Manager{searchTokens: newSearchTokenCache(10)}
 
 	// The lookup ImageSearch performs, in isolation: it must not panic
 	// and must not claim to have found anything.
@@ -618,13 +603,7 @@ func TestUnknownSearchTokenIsNotFoundInsteadOfPanicking(t *testing.T) {
 			t.Fatalf("looking up an unknown token panicked: %v", r)
 		}
 	}()
-	found := false
-	if cached, ok := mg.searchTokens.Load("never-issued"); ok {
-		if _, isFiles := cached.([]*pb.File); isFiles {
-			found = true
-		}
-	}
-	if found {
+	if _, ok := mg.searchTokens.load("never-issued"); ok {
 		t.Error("an unknown token reported a cached page")
 	}
 }

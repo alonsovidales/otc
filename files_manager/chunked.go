@@ -45,8 +45,10 @@ var (
 )
 
 type chunkedUpload struct {
-	mu        sync.Mutex
-	ses       *session.Session
+	mu  sync.Mutex
+	ses *session.Session
+	// owner is the connection that began the upload (see AbortUploadsOf).
+	owner     any
 	path      string
 	size      int64
 	created   *timestamppb.Timestamp
@@ -76,25 +78,46 @@ func init() {
 }
 
 func (u *uploads) sweep() {
+	u.drop(func(up *chunkedUpload) bool { return time.Since(up.lastTouch) > cUploadIdle })
+}
+
+// drop aborts and forgets every upload match picks (called with the
+// upload's lock held).
+func (u *uploads) drop(match func(up *chunkedUpload) bool) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	for id, up := range u.by {
 		up.mu.Lock()
-		idle := time.Since(up.lastTouch) > cUploadIdle
-		if idle {
+		gone := match(up)
+		if gone {
 			up.w.Abort()
 		}
 		up.mu.Unlock()
-		if idle {
+		if gone {
 			delete(u.by, id)
 		}
 	}
 }
 
+// AbortUploadsOf drops the uploads owner (the connection given to
+// BeginUpload) left unfinished, once it has closed: no client resumes an
+// upload on another connection - they all begin again from the start - so
+// each dropped connection used to leave an open file, a segment buffer and
+// a partial temp file (GBs, for a video) for cUploadIdle. Call it after the
+// connection's requests have all returned, so a FinishUpload already
+// running still commits.
+func (mg *Manager) AbortUploadsOf(owner any) {
+	if owner == nil {
+		return
+	}
+	pendingUploads.drop(func(up *chunkedUpload) bool { return up.owner == owner })
+}
+
 // BeginUpload starts a chunked upload of size bytes to path and returns
 // its id; the content then comes with UploadChunk, in order, and
-// FinishUpload makes it the file.
-func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (string, error) {
+// FinishUpload makes it the file. owner (comparable: the websocket layer
+// passes its connection) is what AbortUploadsOf matches.
+func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string, owner any) (string, error) {
 	if size < 0 {
 		return "", errors.New("bad size")
 	}
@@ -113,7 +136,7 @@ func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, fo
 	id := hex.EncodeToString(raw)
 	pendingUploads.mu.Lock()
 	pendingUploads.by[id] = &chunkedUpload{
-		ses: ses, path: path, size: size, created: created, modified: modified,
+		ses: ses, owner: owner, path: path, size: size, created: created, modified: modified,
 		force: forceOverride, cloudID: cloudID, w: w, hasher: sha256.New(), lastTouch: time.Now(),
 	}
 	pendingUploads.mu.Unlock()
@@ -198,6 +221,7 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		mg.alert("could not be saved to disk", up.path, err)
 		return nil, err
 	}
+	known := mg.contentKnown(hash)
 	file, write, err := mg.registerUpload(ses, up.path, hash, mimetype.Detect(up.head).String(), up.size, up.force, up.created, up.modified, up.cloudID)
 	if err != nil {
 		mg.removeBlobIfUnused(hash)
@@ -211,6 +235,10 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		err = errors.New("the upload's content was removed before it was recorded - send it again")
 		mg.alert("could not be saved to disk", file.Path, err)
 		return nil, err
+	}
+	// As UploadFile: content already processed isn't processed again.
+	if known && mg.hasThumbnail(hash) {
+		return file, nil
 	}
 
 	mg.enqueueMedia(ses, file, target)

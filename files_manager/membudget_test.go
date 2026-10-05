@@ -4,12 +4,14 @@ package filesmanager
 
 import (
 	"database/sql"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
+	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
 func TestMemBudgetMakesDownloadsWait(t *testing.T) {
@@ -71,9 +73,9 @@ func TestSharedLinkAndGalleryKnown(t *testing.T) {
 	defer db.Close()
 	mg := &Manager{dao: dao.NewWithDB(db)}
 
-	mock.ExpectQuery("select `created` from `shared_links` where `uuid` = \\?").WithArgs("real").
-		WillReturnRows(sqlmock.NewRows([]string{"created"}).AddRow(time.Now()))
-	mock.ExpectQuery("select `created` from `shared_links` where `uuid` = \\?").WithArgs("made-up").
+	mock.ExpectQuery("select `created`, `expires` from `shared_links` where `uuid` = \\? and `kind` = 'archive'").WithArgs("real").
+		WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now(), nil))
+	mock.ExpectQuery("select `created`, `expires` from `shared_links` where `uuid` = \\? and `kind` = 'archive'").WithArgs("made-up").
 		WillReturnError(sql.ErrNoRows)
 	if !mg.SharedLinkKnown("real") || mg.SharedLinkKnown("made-up") {
 		t.Fatal("SharedLinkKnown must follow the shared_links row")
@@ -109,5 +111,33 @@ func TestSharedLinkAndGalleryKnown(t *testing.T) {
 	}
 	if mock2.ExpectationsWereMet() == nil {
 		t.Error("a malformed gallery link was looked up in the database")
+	}
+}
+
+// A file of 2 GiB or more has a wrapped size in its row; the budget goes
+// by its blob instead. Anything smaller reserves what the row says.
+func TestBudgetSizeSurvivesTheInt32Size(t *testing.T) {
+	galleryTestEnv(t)
+	big, small := strings.Repeat("7", 64), strings.Repeat("8", 64)
+	content := int64(3) << 30
+	if err := os.WriteFile(blobPath(big), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(blobPath(big))
+	if err := os.Truncate(blobPath(big), content); err != nil { // sparse
+		t.Fatal(err)
+	}
+	if got := budgetSize(&pb.File{Hash: big, Size: int32(content)}); got != content {
+		t.Errorf("a 3 GiB file reserves %d bytes, want %d", got, content)
+	}
+	if err := os.WriteFile(blobPath(small), make([]byte, 100), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(blobPath(small))
+	if got := budgetSize(&pb.File{Hash: small, Size: 50}); got != 50 {
+		t.Errorf("a small file reserves %d, want the row's 50", got)
+	}
+	if got := budgetSize(&pb.File{Hash: strings.Repeat("9", 64), Size: 70}); got != 70 {
+		t.Errorf("a missing blob reserves %d, want the row's 70", got)
 	}
 }

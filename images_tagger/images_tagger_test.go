@@ -3,6 +3,7 @@
 package imagestagger
 
 import (
+	"context"
 	"image"
 	"image/color"
 	"os"
@@ -227,5 +228,16 @@ func assertStringSlice(t *testing.T, got, want []string) {
 		if got[i] != want[i] {
 			t.Fatalf("got %v, want %v", got, want)
 		}
+	}
+}
+
+// An image that isn't the model's input size is refused, never run.
+func TestTagsResizedRefusesAnotherSize(t *testing.T) {
+	r := &RAMTagger{imgSize: 384}
+	if _, err := r.TagsResized(context.Background(), image.NewRGBA(image.Rect(0, 0, 100, 384)), RAMOptions{}); err == nil {
+		t.Error("a 100x384 image was taken as the model's input")
+	}
+	if _, err := r.TagsResized(context.Background(), image.NewRGBA(image.Rect(1, 1, 385, 385)), RAMOptions{}); err == nil {
+		t.Error("an image not at 0,0 was taken as the model's input")
 	}
 }

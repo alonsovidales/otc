@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -49,6 +50,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -84,11 +86,14 @@ type Manager struct {
 	// seconds of a boot dereferences a nil.
 	// Issue #167: the local RAM++ model on the primary instance, the
 	// primary's shared one (modelserver.Client) on a supervised child.
-	tagger         modelserver.Tagger
-	taggerReady    chan struct{}
-	searchTokens   *sync.Map
-	tokensToExpire *sync.Map
-	sharedLinkTTL  time.Duration
+	tagger        modelserver.Tagger
+	taggerReady   chan struct{}
+	searchTokens  *searchTokenCache
+	sharedLinkTTL time.Duration
+	// galleryCache holds shared galleries' decrypted manifests (see
+	// openGallery), made on first use under galleryMu.
+	galleryMu    sync.Mutex
+	galleryCache map[string]*galleryCacheEntry
 	// faceRecognizer is nil until/unless [faces] is configured with both
 	// model paths (issue #52) - every call site below treats a nil
 	// recognizer as "the feature isn't set up on this device yet", not an
@@ -105,6 +110,14 @@ type Manager struct {
 	// both create a new person for the same face.
 	faceRefsMu sync.Mutex
 	faceRefs   faceRefs
+	// faceRefsStale is the people in faceRefs who lost a reference to a
+	// delete (dropFacesOfHash): loadFaceRefsLocked rebuilds each from
+	// their own stored faces before the next match.
+	faceRefsStale map[string]bool
+	// MigrateLegacyFaceEncryption's once-per-process guard: faceMigMu is
+	// held by the pass running, faceMigDone set once one succeeded.
+	faceMigMu   sync.Mutex
+	faceMigDone atomic.Bool
 
 	// reprocessing guards issue #73's full-library reprocess job - true
 	// only while a goroutine started by *this process* is actively working
@@ -134,12 +147,11 @@ func (mg *Manager) waitForTagger() modelserver.Tagger {
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
-		searchTokens:   new(sync.Map),
-		tokensToExpire: new(sync.Map),
-		baseUrl:        baseUrl,
-		dao:            dao,
-		contentBudget:  newMemBudget(contentBudgetBytes()),
-		sharedLinkTTL:  sharedLinkTTLFromCfg(),
+		searchTokens:  newSearchTokenCache(cSearchTokensMaxRows),
+		baseUrl:       baseUrl,
+		dao:           dao,
+		contentBudget: newMemBudget(contentBudgetBytes()),
+		sharedLinkTTL: sharedLinkTTLFromCfg(),
 	}
 
 	// Issue #105 follow-up: loading the RAM++ model is ~870MB of work and
@@ -253,6 +265,11 @@ func (mg *Manager) initRest() *Manager {
 		log.Error("error clearing a stale reprocess status at startup:", err)
 	}
 
+	// Before anything of this process writes to storage: bin/otc.go starts
+	// the websocket and the API only after Init returns.
+	mg.sweepOrphanedStorage()
+	go mg.sweepOrphanFaces()
+
 	return mg
 }
 
@@ -290,16 +307,9 @@ func (mg *Manager) tokenCollector() {
 }
 
 func (mg *Manager) collectExpiredTokens() {
-	t := time.Now()
-	mg.tokensToExpire.Range(func(token, expire any) bool {
-		if t.Sub(expire.(time.Time)) > cToeknsTTL {
-			mg.tokensToExpire.Delete(token.(string))
-			mg.searchTokens.Delete(token.(string))
-			log.Debug("Expired token:", token)
-		}
-
-		return true
-	})
+	for _, token := range mg.searchTokens.expire(time.Now(), cToeknsTTL) {
+		log.Debug("Expired token:", token)
+	}
 }
 
 // isSharedLinkExpired reports whether a shared link created at "created"
@@ -339,6 +349,7 @@ func (mg *Manager) expireSharedLinks() {
 // around so the sweep retries next time, rather than losing track of
 // content still sitting on disk.
 func (mg *Manager) deleteSharedLink(pathUuid string) {
+	mg.forgetGallery(pathUuid)
 	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
 		log.Error("error removing expired shared link content:", pathUuid, err)
@@ -553,16 +564,11 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	// prefix stripped below is the directory itself when one folder was
 	// shared, so its contents land at the archive root with their own
 	// subfolders intact).
-	entries, err := mg.resolvePaths(paths)
+	// resolvePaths' rows are already whole (the same columns
+	// GetFileByPath reads): no second query per file.
+	files, err := mg.resolvePaths(paths)
 	if err != nil {
 		return "", err
-	}
-	files := make([]*pb.File, len(entries))
-	for i, entry := range entries {
-		files[i], err = mg.dao.GetFileByPath(entry.Path)
-		if err != nil {
-			return "", err
-		}
 	}
 
 	// Stripping the directory common to every file in this share keeps
@@ -588,7 +594,30 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 		return "", err
 	}
 	zw := zip.NewWriter(out)
+	// Every entry is deflated, so each marks its own end: Go always puts a
+	// file's CRC and sizes after its data, and a reader that streams the
+	// archive (java.util.zip.ZipInputStream, funzip) only
+	// accepts that for deflated entries, not stored ones. Media that is
+	// already compressed goes in at flate.NoCompression - stored deflate
+	// blocks, nearly as fast as zip.Store - and the rest at the level
+	// archive/zip uses itself. One writer per level is reset per entry:
+	// zip closes an entry's writer before it asks for the next one.
+	level := zipDeflateLevel
+	deflaters := map[int]*flate.Writer{}
+	zw.RegisterCompressor(zip.Deflate, func(w io.Writer) (io.WriteCloser, error) {
+		if fw := deflaters[level]; fw != nil {
+			fw.Reset(w)
+			return fw, nil
+		}
+		fw, err := flate.NewWriter(w, level)
+		if err != nil {
+			return nil, err
+		}
+		deflaters[level] = fw
+		return fw, nil
+	})
 	for _, file := range files {
+		level = zipLevelFor(file.Mime)
 		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zip.Deflate}
 		h.SetModTime(file.Modified.AsTime())
 		h.SetMode(0644)
@@ -622,10 +651,37 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 		size = int(info.Size())
 	}
 
-	link = "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret
-	err = mg.dao.InsertSharedLink(pathUuid, size)
+	if err = mg.dao.InsertSharedLink(pathUuid, size); err != nil {
+		// Without its row the archive can never be opened nor expired.
+		os.Remove(targetPath)
+		return "", err
+	}
 
-	return
+	return "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret, nil
+}
+
+// zipDeflateLevel is the level archive/zip deflates at by default.
+const zipDeflateLevel = 5
+
+// zipLevelFor is how hard a file is deflated in a share archive: not at
+// all (flate.NoCompression) when its format is already compressed (photos,
+// videos, most audio, archives) - deflating those took most of the time a
+// share of photos or videos took on a Pi, for about 1% - and at
+// zipDeflateLevel otherwise, and whenever the type is unknown.
+func zipLevelFor(mime string) int {
+	m := strings.ToLower(strings.TrimSpace(strings.SplitN(mime, ";", 2)[0]))
+	switch {
+	case strings.HasPrefix(m, "video/"):
+		return flate.NoCompression
+	case strings.HasPrefix(m, "audio/") && m != "audio/wav" && m != "audio/x-wav" && m != "audio/vnd.wave" && m != "audio/aiff" && m != "audio/x-aiff":
+		return flate.NoCompression
+	}
+	switch m {
+	case "image/jpeg", "image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence", "image/png", "image/gif", "image/webp", "image/avif", "image/jxl",
+		"application/zip", "application/gzip", "application/x-gzip", "application/x-7z-compressed", "application/x-rar-compressed", "application/vnd.rar", "application/x-xz", "application/x-bzip2", "application/zstd":
+		return flate.NoCompression
+	}
+	return zipDeflateLevel
 }
 
 // linkKeys opens a share link's archive with the key from its secret.
@@ -642,11 +698,18 @@ func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err erro
 // offset (length < 0: all of it), and the archive's size. A range decrypts
 // only the segments it covers.
 func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length int) ([]byte, int64, error) {
-	created, err := mg.dao.GetSharedLinkCreated(uuid)
+	// Asked before signing in, so only an archive's own id gets this far:
+	// a gallery's row (its own, longer expiry) or an id in another case
+	// (the column's collation matches it, the folder name doesn't) could
+	// otherwise be deleted below by anyone holding its link, secret or not.
+	if !galleryUUID.MatchString(uuid) {
+		return nil, 0, sql.ErrNoRows // the same answer as an unknown id
+	}
+	created, expires, err := mg.dao.GetArchiveLinkExpiry(uuid)
 	if err != nil {
 		return nil, 0, err
 	}
-	if isSharedLinkExpired(created, time.Now(), mg.sharedLinkTTL) {
+	if sharedLinkExpired(created, expires, time.Now(), mg.sharedLinkTTL) {
 		// Don't wait for the next sweep: drop the content and row now
 		// that we know it's expired, and refuse the download.
 		mg.deleteSharedLink(uuid)
@@ -754,6 +817,9 @@ func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byt
 func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	tokenFound := false
+	// files is all[off:]: what the token (or the new search) has left.
+	var all []*pb.File
+	off := 0
 	if oldToken != "" && before == nil {
 		// Both halves of this have to be checked before the value is
 		// used. A token the device no longer holds - expired after
@@ -768,12 +834,11 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		// !tokenFound below is already the intended answer for an
 		// unknown token - start the search again from the beginning -
 		// it just never got the chance to run.
-		if cached, ok := mg.searchTokens.Load(oldToken); ok {
-			if cachedFiles, isFiles := cached.([]*pb.File); isFiles {
-				files = cachedFiles
-				token = oldToken
-				tokenFound = true
-			}
+		if cur, ok := mg.searchTokens.load(oldToken); ok {
+			all, off = cur.all, cur.off
+			files = all[off:]
+			token = oldToken
+			tokenFound = true
 		}
 	}
 	if !tokenFound {
@@ -803,6 +868,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 			}
 			log.Debug("Resumed a search with an unknown token, skipped:", have)
 		}
+		all, off = files, 0
 		token = uuid.New().String()
 		log.Debug("New Token:", token)
 	}
@@ -835,12 +901,12 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		page = append(page, file)
 	}
 	if next < len(files) {
-		// A copy of what's left, not files[next:]: that slice shares the
-		// whole result's backing array, so every file already served - its
-		// thumbnail included - stayed reachable for as long as the token
-		// lived (issue #173). The rows kept have no content yet.
-		mg.searchTokens.Store(token, append([]*pb.File(nil), files[next:]...))
-		mg.tokensToExpire.Store(token, time.Now())
+		// The rows already served stay in the token only until they
+		// outnumber those left (nextCursor). Issue #173 copied what was
+		// left at every page, because served rows used to carry their
+		// thumbnails; since #171 Content is only ever set on the page's
+		// clones, never on these rows, so keeping them costs only the rows.
+		mg.searchTokens.store(token, nextCursor(all, off, next), time.Now())
 	} else {
 		log.Debug("End for token:", token)
 		token = "" // We reached the end
@@ -1000,7 +1066,7 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		done()
 	} else {
 		// Issue #166: read whole for its metadata, within the budget.
-		release := mg.ReserveBytes(int64(file.Size))
+		release := mg.ReserveBytes(budgetSize(file))
 		var content []byte
 		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
 		if err == nil {
@@ -1178,6 +1244,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		wrote = true
 	}
 
+	known := mg.contentKnown(hash)
 	file, write, err := mg.registerUpload(session, path, hash, mimeType.String(), int64(len(content)), forceOverride, created, modified, cloudID)
 	if err != nil {
 		if wrote {
@@ -1200,6 +1267,12 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 	}
 
+	// Content the device already had and processed needs none of it redone
+	// (see LinkFile): a photo the phone synced, dropped again in Files.
+	if known && mg.hasThumbnail(hash) {
+		return file, nil
+	}
+
 	// Processing happens in the background, from what is now on the disk
 	// (issue #165): the thumbnail in the fast lane, tags and faces in the
 	// slow one (lanes.go). The upload's memory is free as soon as this
@@ -1207,6 +1280,25 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	mg.enqueueMedia(session, file, targetPath)
 
 	return
+}
+
+// contentKnown is whether a file or kept version already uses hash, asked
+// before an upload's row is stored. Its thumbnail, tags and faces are
+// keyed by hash, so once its thumbnail exists - processing writes that
+// first, and analysis is queued in pending_analysis before it - the
+// upload of another path, or of a restore, has nothing to process: it ran
+// the whole pipeline again, and stored the photo's faces a second time.
+// Without a thumbnail (never processed, or undecodable) it's processed as
+// before. false when it can't be answered.
+func (mg *Manager) contentKnown(hash string) bool {
+	known, err := mg.dao.HashReferenced(hash)
+	return err == nil && known
+}
+
+// hasThumbnail is whether processing has written hash's thumbnail.
+func (mg *Manager) hasThumbnail(hash string) bool {
+	_, err := os.Stat(blobPath(hash) + "_thumbnail")
+	return err == nil
 }
 
 // registerUpload records the row for an upload of path with content hash
@@ -1278,9 +1370,18 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 				return nil, false, err
 			}
 		case forceOverride:
-			mg.DelFile(session, path)
-			if _, err = mg.dao.StoreNewFile(file, cloudID); err != nil {
+			// In place, not a delete and a new row: the path's kept
+			// versions stay (see dao.OverrideFile).
+			oldHash, err := mg.dao.OverrideFile(file, cloudID)
+			if err != nil {
 				return nil, false, err
+			}
+			if oldHash != "" && oldHash != hash {
+				// The new row is committed: the old content is only
+				// cleaned up.
+				if err := mg.removeBlobIfUnused(oldHash); err != nil {
+					log.Error("could not remove overridden content", oldHash, ":", err)
+				}
 			}
 		default:
 			return nil, false, errors.New("Duplicated file")
@@ -1375,11 +1476,11 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		}
 
 		startClass := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 
 		img, err := decodeImage(content)
-		if err != nil && checkImageSize(content) == nil {
+		// Not what is too large to decode: ffmpeg's own HEIC grid reading
+		// would take the memory goheif was kept from taking.
+		if err != nil && !errors.Is(err, errImageTooLarge) && checkImageSize(content) == nil {
 			// What Go can't read - JPEG 2000, Photoshop, camera RAW
 			// (DNG), a JPEG cut short or with a damaged marker - ffmpeg
 			// usually can: it is already here for videos.
@@ -1445,7 +1546,14 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		if stages&stageAnalysis != 0 {
 			var tags []imagestagger.RAMTag
 			if mg.imageTaggingEnabled() {
-				tags, err = mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
+				// The deadline starts once the model is there: started before
+				// the decode and the wait for a model still loading (~15s
+				// after every start), it had often passed already, and the
+				// file was left untagged for good.
+				tagger := mg.waitForTagger()
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				tags, err = tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
+				cancel()
 				if err != nil {
 					mg.alert("could not be tagged", file.Path, err)
 				}
@@ -1465,8 +1573,6 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		// rows keyed by hash — just against a handful of frames
 		// sampled across the video instead of the one still image.
 		startClass := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
 
 		// A stored video (content nil) is read by ffmpeg through the
 		// device's own loopback stream - seeking to the frames it samples,
@@ -1512,7 +1618,12 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		if stages&stageAnalysis != 0 {
 			var tags []imagestagger.RAMTag
 			if mg.imageTaggingEnabled() {
-				tags = tagVideoFrames(ctx, mg.waitForTagger(), frames)
+				// As for a photo: the clock starts after the frames are out
+				// and the model is loaded.
+				tagger := mg.waitForTagger()
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				tags = tagVideoFrames(ctx, tagger, frames)
+				cancel()
 			}
 			tags = append(tags, locationTags(exif)...)
 			log.Debug("Tags:", tags)
@@ -1634,8 +1745,8 @@ func (mg *Manager) withBlob(hash string, fn func() error) error {
 	return fn()
 }
 
-// removeBlobIfUnused deletes hash's blob and thumbnail once no file or
-// kept version uses it any more.
+// removeBlobIfUnused deletes hash's blob, thumbnail and faces once no file
+// or kept version uses it any more.
 func (mg *Manager) removeBlobIfUnused(hash string) error {
 	unlock := lockBlob(hash)
 	defer unlock()
@@ -1643,6 +1754,7 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	if err != nil || referenced {
 		return err
 	}
+	mg.dropFacesOfHash(hash)
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return err
@@ -1687,7 +1799,7 @@ func blobPath(hash string) string {
 }
 
 // dropIfOrphaned removes what processing left for hash - content,
-// thumbnail, tags - when no file or kept version uses it any more: the
+// thumbnail, tags, faces - when no file or kept version uses it any more: the
 // file was deleted while it was being processed (issue #171). Under the
 // hash's lock, like every other decision to remove a blob, so an upload of
 // the same content can't slip in between the check and the removal.
@@ -1705,6 +1817,7 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	if err := mg.dao.DelTagsByHash(hash); err != nil {
 		log.Error("could not remove the tags of deleted content", hash, ":", err)
 	}
+	mg.dropFacesOfHash(hash)
 	full := blobPath(hash)
 	os.Remove(full)
 	os.Remove(full + "_thumbnail")
@@ -1789,13 +1902,20 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		if !forceOverride {
 			return nil, errors.New("Duplicated file")
 		}
-		// Not under the lock: DelFile takes the locks of the hashes it
-		// may remove, and one of them could share this hash's stripe.
-		if err := mg.DelFile(session, path); err != nil {
+		// In place, keeping the path's versions, as UploadFile's override.
+		var oldHash string
+		if err := mg.withBlob(hash, func() (err error) {
+			oldHash, err = mg.dao.OverrideFile(file, cloudID)
+			return err
+		}); err != nil {
 			return nil, err
 		}
-		if err := mg.withBlob(hash, func() error { _, err := mg.dao.StoreNewFile(file, cloudID); return err }); err != nil {
-			return nil, err
+		// Not under the lock: removeBlobIfUnused takes the old hash's,
+		// which could share this hash's stripe.
+		if oldHash != "" && oldHash != hash {
+			if err := mg.removeBlobIfUnused(oldHash); err != nil {
+				log.Error("could not remove overridden content", oldHash, ":", err)
+			}
 		}
 	}
 
@@ -1854,24 +1974,25 @@ func applyHeicOrientation(heicData []byte, img image.Image, fallbackOrientation 
 	if rotations == 0 && !hasMirror {
 		return applyOrientation(img, fallbackOrientation)
 	}
+	return applyOrientation(img, heifOrientation(rotations, hasMirror, mirrorAxis))
+}
 
-	if hasMirror {
-		if mirrorAxis == 1 {
-			img = applyOrientation(img, 4) // mirror about a horizontal axis: flip vertical
-		} else {
-			img = applyOrientation(img, 2) // mirror about a vertical axis: flip horizontal
-		}
+// heifOrientation is the EXIF orientation doing what a HEIF irot/imir
+// pair does: per the HEIF spec the mirror first, then rotations turns of
+// 90 degrees counter-clockwise (EXIF 8 is one, the direction
+// heif.Item.Rotations() counts in). One pass over the pixels instead of
+// up to four - a portrait iPhone photo (3 turns) took three full-size
+// ones - with the same result (TestHeifOrientationIsTheComposedPasses).
+func heifOrientation(rotations int, hasMirror bool, mirrorAxis int) int {
+	r := ((rotations % 4) + 4) % 4
+	switch {
+	case !hasMirror:
+		return [4]int{1, 8, 3, 6}[r]
+	case mirrorAxis == 1: // about a horizontal axis: flip vertical (4)
+		return [4]int{4, 7, 2, 5}[r]
+	default: // about a vertical axis: flip horizontal (2)
+		return [4]int{2, 5, 4, 7}[r]
 	}
-	// Per the HEIF spec, mirroring (above) is applied before rotation.
-	// orientation 8 is a single 90-degree counter-clockwise turn — the
-	// same direction heif.Item.Rotations() counts in — so composing
-	// `rotations` of them reproduces however many turns this file calls
-	// for, reusing the already-verified rotation math instead of
-	// duplicating it.
-	for i := 0; i < rotations; i++ {
-		img = applyOrientation(img, 8)
-	}
-	return img
 }
 
 // heifTransform reads the primary item's irot/imir transformative
@@ -1925,6 +2046,13 @@ func thumbnailSource(img image.Image, maxWidth int) image.Image {
 // returning a new image when a rotation/flip is needed (orientation outside
 // 2-8 is returned unchanged as a no-op). See the EXIF/TIFF spec's Orientation
 // tag (0x0112) for the 8 defined values.
+//
+// It runs on every photo processed, every HEIC view and gallery preview, so
+// the common source types - YCbCr (JPEG, HEIC), NRGBA, Gray - are written
+// straight into the destination's bytes, converted exactly as
+// color.NRGBAModel would: through At and Set every pixel was boxed in an
+// interface (48M allocations for three passes over 12 MP). Anything else
+// still goes through them.
 func applyOrientation(img image.Image, orientation int) image.Image {
 	if orientation <= 1 || orientation > 8 {
 		return img
@@ -1938,27 +2066,63 @@ func applyOrientation(img image.Image, orientation int) image.Image {
 	}
 	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
 
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			c := img.At(b.Min.X+x, b.Min.Y+y)
-			var dx, dy int
-			switch orientation {
-			case 2: // mirror horizontal
-				dx, dy = w-1-x, y
-			case 3: // rotate 180
-				dx, dy = w-1-x, h-1-y
-			case 4: // mirror vertical
-				dx, dy = x, h-1-y
-			case 5: // transpose (mirror horizontal + rotate 270 CW)
-				dx, dy = y, x
-			case 6: // rotate 90 CW
-				dx, dy = h-1-y, x
-			case 7: // transverse (mirror horizontal + rotate 90 CW)
-				dx, dy = h-1-y, w-1-x
-			case 8: // rotate 270 CW
-				dx, dy = y, w-1-x
+	// Where source pixel (x, y) lands, as dx = ax*x + bx*y + cx and
+	// dy = ay*x + by*y + cy, worked out once per image.
+	var ax, bx, cx, ay, by, cy int
+	switch orientation {
+	case 2: // mirror horizontal: (w-1-x, y)
+		ax, cx, by = -1, w-1, 1
+	case 3: // rotate 180: (w-1-x, h-1-y)
+		ax, cx, by, cy = -1, w-1, -1, h-1
+	case 4: // mirror vertical: (x, h-1-y)
+		ax, by, cy = 1, -1, h-1
+	case 5: // transpose (mirror horizontal + rotate 270 CW): (y, x)
+		bx, ay = 1, 1
+	case 6: // rotate 90 CW: (h-1-y, x)
+		bx, cx, ay = -1, h-1, 1
+	case 7: // transverse (mirror horizontal + rotate 90 CW): (h-1-y, w-1-x)
+		bx, cx, ay, cy = -1, h-1, -1, w-1
+	case 8: // rotate 270 CW: (y, w-1-x)
+		bx, ay, cy = 1, -1, w-1
+	}
+	// The same as an offset into dst.Pix (its Rect starts at 0,0).
+	stepX := ay*dst.Stride + ax*4
+	stepY := by*dst.Stride + bx*4
+	base := cy*dst.Stride + cx*4
+
+	switch src := img.(type) {
+	case *image.YCbCr:
+		for y := 0; y < h; y++ {
+			row := base + y*stepY
+			for x := 0; x < w; x++ {
+				r, g, bl, _ := src.YCbCrAt(b.Min.X+x, b.Min.Y+y).RGBA()
+				p := dst.Pix[row+x*stepX : row+x*stepX+4 : row+x*stepX+4]
+				p[0], p[1], p[2], p[3] = uint8(r>>8), uint8(g>>8), uint8(bl>>8), 0xff
 			}
-			dst.Set(dx, dy, c)
+		}
+	case *image.NRGBA:
+		for y := 0; y < h; y++ {
+			row := base + y*stepY
+			s := src.Pix[src.PixOffset(b.Min.X, b.Min.Y+y):]
+			for x := 0; x < w; x++ {
+				copy(dst.Pix[row+x*stepX:row+x*stepX+4], s[x*4:x*4+4])
+			}
+		}
+	case *image.Gray:
+		for y := 0; y < h; y++ {
+			row := base + y*stepY
+			s := src.Pix[src.PixOffset(b.Min.X, b.Min.Y+y):]
+			for x := 0; x < w; x++ {
+				v := s[x]
+				p := dst.Pix[row+x*stepX : row+x*stepX+4 : row+x*stepX+4]
+				p[0], p[1], p[2], p[3] = v, v, v, 0xff
+			}
+		}
+	default:
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				dst.Set(ax*x+bx*y+cx, ay*x+by*y+cy, img.At(b.Min.X+x, b.Min.Y+y))
+			}
 		}
 	}
 	return dst

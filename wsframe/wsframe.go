@@ -88,15 +88,22 @@ func Read(conn *gorilla.Conn, limit int64, b *Budget) (int, []byte, func(), erro
 	if err != nil {
 		return 0, nil, noop, err
 	}
-	var buf bytes.Buffer
+	var head bytes.Buffer
 	var held int64
 	release := func() { b.release(held); held = 0 }
-	if _, err := io.CopyN(&buf, r, cFree); err != nil {
+	if _, err := io.CopyN(&head, r, cFree); err != nil {
 		if err == io.EOF {
-			return typ, buf.Bytes(), noop, nil
+			return typ, head.Bytes(), noop, nil
 		}
 		return 0, nil, noop, err
 	}
+	// Past cFree the message is read in chunks of cStep, each reserved
+	// before it's read, and joined once at the end. A bytes.Buffer doubled
+	// its capacity as it grew: a 600 MiB message ended in a 1 GiB array,
+	// with the 512 MiB one before it still live at the last grow - far
+	// past what the budget held for it.
+	var chunks [][]byte
+	total := head.Len()
 	for {
 		if b != nil {
 			if err := b.acquire(cStep); err != nil {
@@ -105,13 +112,42 @@ func Read(conn *gorilla.Conn, limit int64, b *Budget) (int, []byte, func(), erro
 			}
 			held += cStep
 		}
-		if _, err := io.CopyN(&buf, r, cStep); err != nil {
+		// One byte first: a message that ended exactly at the last
+		// chunk's end allocates no empty chunk to find that out.
+		var first [1]byte
+		if _, err := io.ReadFull(r, first[:]); err != nil {
 			if err == io.EOF {
-				var once sync.Once
-				return typ, buf.Bytes(), func() { once.Do(release) }, nil
+				break // the end of the message
 			}
 			release()
 			return 0, nil, noop, err
 		}
+		c := make([]byte, cStep)
+		c[0] = first[0]
+		n, err := io.ReadFull(r, c[1:])
+		chunks = append(chunks, c[:1+n])
+		total += 1 + n
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			break // the end of the message
+		}
+		if err != nil {
+			release()
+			return 0, nil, noop, err
+		}
 	}
+	var once sync.Once
+	if len(chunks) == 0 {
+		return typ, head.Bytes(), func() { once.Do(release) }, nil
+	}
+	// The join holds the message twice for a moment, and only the chunks
+	// are reserved: reserving the copy too would halve the largest
+	// message the budget admits (a 600 MB upload against a 4 GB Pi's
+	// ~800 MB budget would fail with ErrNoRoom where it works now).
+	out := make([]byte, total)
+	k := copy(out, head.Bytes())
+	for i := range chunks {
+		k += copy(out[k:], chunks[i])
+		chunks[i] = nil
+	}
+	return typ, out, func() { once.Do(release) }, nil
 }

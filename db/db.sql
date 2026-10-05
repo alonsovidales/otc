@@ -472,7 +472,9 @@ create table people
 -- a person's detail view never needs to re-fetch and re-crop the original
 -- photo just to show a face. Deleting a person (issue #52: "just click on
 -- delete the individual") deletes every face row here that pointed to
--- them, not just the `people` row - see dao.DeletePerson.
+-- them, not just the `people` row - see dao.DeletePerson. Keyed by `hash`
+-- like tags and thumbnails, a photo's faces go with its last file or kept
+-- version (dao.DelFacesByHash).
 create table faces
 (
   `id` varchar(36) not null,
