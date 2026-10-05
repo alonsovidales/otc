@@ -171,10 +171,14 @@ final class AppendLog {
     }
 
     /// The well-formed lines. A kill mid-append leaves a last line without
-    /// its newline: it is dropped, and anything appended after it merges
-    /// into one line with too many fields, which is skipped as well.
+    /// its newline: it is dropped, and cut off the file, or the next
+    /// append would run on from it and be lost with it.
     func read() -> [(String, String)] {
         guard let data = try? Data(contentsOf: url) else { return [] }
+        if let last = data.last, last != UInt8(ascii: "\n") {
+            let kept = data.lastIndex(of: UInt8(ascii: "\n")).map { data.distance(from: data.startIndex, to: $0) + 1 } ?? 0
+            truncate(to: UInt64(kept))
+        }
         var parts = String(decoding: data, as: UTF8.self).split(separator: "\n", omittingEmptySubsequences: false)
         parts.removeLast() // "" when the file ends with a newline, else the torn line
         lines = parts.count
@@ -186,6 +190,7 @@ final class AppendLog {
     }
 
     func append(_ a: String, _ b: String) {
+        var start: UInt64?
         do {
             if handle == nil {
                 if !FileManager.default.fileExists(atPath: url.path) {
@@ -195,12 +200,21 @@ final class AppendLog {
                 try h.seekToEnd()
                 handle = h
             }
+            start = try handle?.offset()
             try handle?.write(contentsOf: Data("\(a)\t\(b)\n".utf8))
             lines += 1
         } catch {
             try? handle?.close()
             handle = nil
+            // A write that failed part way: the same torn line as a kill.
+            if let start { truncate(to: start) }
         }
+    }
+
+    private func truncate(to offset: UInt64) {
+        guard let h = try? FileHandle(forWritingTo: url) else { return }
+        try? h.truncate(atOffset: offset)
+        try? h.close()
     }
 
     func replace(with entries: [(String, String)]) {

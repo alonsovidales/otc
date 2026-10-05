@@ -46,12 +46,36 @@ struct AssetSyncCacheTests {
         let c = AssetSyncCache(directory: dir)
         #expect(c.hash(for: "A/L0/001") == "aa")
         #expect(c.hash(for: "B/L0/001") == nil)
-        // An append after the torn line merges with it: skipped, never a
-        // wrong hash.
+        // The torn line is cut off: what is appended after it is kept.
         c.record(localIdentifier: "C/L0/001", hash: "cc")
         let d = AssetSyncCache(directory: dir)
         #expect(d.hash(for: "B/L0/001") == nil)
         #expect(d.hash(for: "A/L0/001") == "aa")
+        #expect(d.hash(for: "C/L0/001") == "cc")
+    }
+
+    @Test func aRetryAfterATornLineIsKept() throws {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = dir.appendingPathComponent("asset_sync_pending.log")
+        try Data("r\tA\nr\tX".utf8).write(to: log)
+
+        let c = AssetSyncCache(directory: dir)
+        #expect(c.pending(includeICloud: false) == ["A"])
+        c.markPending(["Y"], iCloud: false)
+        #expect(Set(AssetSyncCache(directory: dir).pending(includeICloud: false)) == ["A", "Y"])
+    }
+
+    @Test func aTornFirstLineLeavesAnEmptyLog() throws {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = dir.appendingPathComponent("asset_sync_cache.log")
+        try Data("A/L0/0".utf8).write(to: log)
+
+        let c = AssetSyncCache(directory: dir)
+        #expect(c.hash(for: "A/L0/0") == nil)
+        c.record(localIdentifier: "B/L0/001", hash: "bb")
+        #expect(try String(contentsOf: log, encoding: .utf8) == "B/L0/001\tbb\n")
     }
 
     @Test func flushCompactsALongJournal() {
