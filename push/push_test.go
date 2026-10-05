@@ -6,10 +6,13 @@ import (
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // fakeStorage is an in-memory push.Storage for tests - a real *dao.Dao
@@ -170,5 +173,87 @@ func TestTargetData(t *testing.T) {
 	d = Target{Kind: TargetFriends}.data()
 	if _, ok := d["pub_uuid"]; ok || d["kind"] != "friends" {
 		t.Errorf("friends target data = %v", d)
+	}
+}
+
+// Started on the device: notifications are delivered by one worker in the
+// order they came, and once its queue is full the caller sends inline -
+// slower, never dropped.
+func TestNotifyQueueKeepsOrderAndSendsInlineWhenFull(t *testing.T) {
+	p, err := Init(&fakeStorage{vapidPub: "pub", vapidPriv: "priv", tokens: []string{"phone"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var got []string
+	started, release := make(chan struct{}), make(chan struct{})
+	p.RelayMobile = func(title, body string, t Target) bool {
+		if title == "first" {
+			close(started)
+			<-release
+		}
+		mu.Lock()
+		got = append(got, title)
+		mu.Unlock()
+		return true
+	}
+	p.StartAsync(1)
+
+	p.Notify("first", "b", Target{}) // the worker takes it and blocks
+	<-started
+	p.Notify("second", "b", Target{}) // waits in the queue
+	p.Notify("third", "b", Target{})  // queue full: sent before Notify returns
+	mu.Lock()
+	if len(got) != 1 || got[0] != "third" {
+		t.Fatalf("a full queue should send inline, delivered so far: %v", got)
+	}
+	mu.Unlock()
+
+	close(release)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		mu.Lock()
+		n := len(got)
+		mu.Unlock()
+		if n == 3 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 3 || got[1] != "first" || got[2] != "second" {
+		t.Fatalf("queued notifications out of order or lost: %v", got)
+	}
+}
+
+type noFcmTable struct{ *fakeStorage }
+
+func (noFcmTable) ListFcmTokens() ([]string, error) { return nil, errors.New("no such table") }
+
+// A device with no phone registered doesn't dial the bridge to deliver
+// nothing; one whose token list can't be read still relays.
+func TestSendMobileSkipsTheRelayWithoutPhones(t *testing.T) {
+	relayed := 0
+	relay := func(title, body string, t Target) bool { relayed++; return true }
+
+	p, err := Init(&fakeStorage{vapidPub: "pub", vapidPriv: "priv"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.RelayMobile = relay
+	p.Notify("t", "b", Target{})
+	if relayed != 0 {
+		t.Fatalf("relayed %d times with no phone registered", relayed)
+	}
+
+	p, err = Init(noFcmTable{&fakeStorage{vapidPub: "pub", vapidPriv: "priv"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.RelayMobile = relay
+	p.Notify("t", "b", Target{})
+	if relayed != 1 {
+		t.Fatalf("an unreadable token list should still relay, relayed %d", relayed)
 	}
 }

@@ -63,7 +63,9 @@ const cKeepRotated = 5
 func SetLogger(newLevel int, filePath string, maxSizeMB int64) {
 	level = newLevel
 	maxSize = maxSizeMB * 1024000
+	mutex.Lock()
 	setLogFile(filePath)
+	mutex.Unlock()
 }
 
 // Debug Adds a new log line to the logs file in case of being in a DEBUG level
@@ -105,11 +107,23 @@ func Fatal(v ...interface{}) {
 	os.Exit(1)
 }
 
+// die is Fatal for code that already holds mutex: Fatal would take it
+// again and hang the process (and every goroutine that logs) instead of
+// exiting. The log file can't be trusted any more, so the line goes to
+// stderr (journald).
+func die(v ...interface{}) {
+	_, f, line, _ := runtime.Caller(1)
+	logger.SetOutput(os.Stderr)
+	logger.Print(fmt.Sprintf("FATAL: <%s:%d> ", filepath.Base(f), line), strings.TrimRight(fmt.Sprintln(v...), "\n"), "\n")
+	os.Exit(1)
+}
+
 // setLogFile Sets the specified path as new log file, in case of have defined
-// a previous log file, rotates this
+// a previous log file, rotates this. Called with mutex held.
 func setLogFile(filePath string) {
 	if file != nil {
 		file.Close()
+		file = nil
 		os.Rename(path, fmt.Sprintf("%s_%d.old", path, int32(time.Now().Unix())))
 		pruneRotated(path)
 	}
@@ -122,7 +136,7 @@ func setLogFile(filePath string) {
 		file = outFile
 		logger.SetOutput(file)
 	} else {
-		Fatal("Can't open the log file:", filePath)
+		die("Can't open the log file:", filePath)
 	}
 }
 
@@ -143,19 +157,19 @@ func pruneRotated(path string) {
 // newLog Adds a new log line to the logger file with the specified level at
 // the begging
 func newLog(l string, v ...interface{}) {
+	mutex.Lock()
 	if file != nil {
-		mutex.Lock()
 		fStat, err := file.Stat()
 		if err != nil {
-			Fatal("Can't stat logger file")
+			die("Can't stat logger file")
 		}
 		if fStat.Size() > maxSize {
 			fmt.Println("ROTATE", fStat.Size(), maxSize)
 			logger.Print("Rotating log file")
 			setLogFile(path)
 		}
-		mutex.Unlock()
 	}
+	mutex.Unlock()
 	// One entry, one line (issue #162): a value from a request - a domain,
 	// an owner id - carrying a newline could otherwise write a line that
 	// looks like the device's own.

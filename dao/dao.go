@@ -4,9 +4,13 @@ package dao
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/alonsovidales/otc/cfg"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
@@ -20,6 +24,8 @@ import (
 
 type Dao struct {
 	db *sql.DB
+	// errNotifMu serialises AddErrorNotification (see there).
+	errNotifMu sync.Mutex
 }
 
 // NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
@@ -39,7 +45,9 @@ func Init() (dao *Dao) {
 		// the system one otherwise - Europe/London on the Pi image - while
 		// parseTime reads every DATETIME back as UTC, so whatever SQL
 		// stamped came out an hour ahead ("in 49 min" on a new alert).
-		"%s:%s@tcp(127.0.0.1:%d)/%s?parseTime=true&charset=utf8mb4,utf8&time_zone=%%27%%2B00%%3A00%%27",
+		// interpolateParams: a query with arguments is one round trip
+		// (COM_QUERY), not a prepare, execute and close each time.
+		"%s:%s@tcp(127.0.0.1:%d)/%s?parseTime=true&charset=utf8mb4,utf8&interpolateParams=true&time_zone=%%27%%2B00%%3A00%%27",
 		cfg.GetStr("mysql", "user"),
 		cfg.GetStr("mysql", "pass"),
 		cfg.GetInt("mysql", "port"),
@@ -185,6 +193,7 @@ func (dao *Dao) ListWebPushSubscriptions() (subs []*push.WebPushSubscription, er
 		}
 		subs = append(subs, sub)
 	}
+	err = rows.Err()
 	return
 }
 
@@ -216,6 +225,7 @@ func (dao *Dao) ListApnsTokens() (tokens []string, err error) {
 		}
 		tokens = append(tokens, token)
 	}
+	err = rows.Err()
 	return
 }
 
@@ -250,6 +260,7 @@ func (dao *Dao) ListFcmTokens() (tokens []string, err error) {
 		}
 		tokens = append(tokens, token)
 	}
+	err = rows.Err()
 	return
 }
 
@@ -383,6 +394,9 @@ func (dao *Dao) GetTags() (tags []string, err error) {
 			return nil, err
 		}
 		tags = append(tags, tag)
+	}
+	if err := rowsTags.Err(); err != nil {
+		return nil, err
 	}
 
 	return
@@ -604,6 +618,11 @@ func (dao *Dao) DelFileVersions(path string) (hashes []string, err error) {
 		hashes = append(hashes, h)
 	}
 	rows.Close()
+	// A list cut short must not delete every version row while handing
+	// back only some of the hashes: their blobs would never be removed.
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	if len(hashes) == 0 {
 		return nil, nil
 	}
@@ -672,6 +691,9 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 				continue
 			}
 			files = append(files, file)
+		}
+		if err := rowsDirs.Err(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -829,11 +851,33 @@ func (dao *Dao) MarkNotificationsStarted(domain string) (err error) {
 	return
 }
 
+// contentHash is what every content hash on this device is: a SHA-256, in
+// lowercase hex.
+var contentHash = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// IsContentHash reports whether h is a content hash. A post's file hash
+// names its files on disk (<unenc-storage-path>/<hash>, and _thumbnail),
+// and a friend's device supplies it: anything else ("../x") is a path.
+func IsContentHash(h string) bool { return contentHash.MatchString(h) }
+
 // dt is when the post was published - now for the owner's own, the
 // author's original time for one synced in from a friend (issue #149).
+// The post and its files are stored together or not at all.
 func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPublication bool, files []*pb.File, dt time.Time) (err error) {
 	log.Debug("Creating SocialPublication")
-	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, ?, ?, ?, ?)", pubUuid, dt, text, ownPublication, originDomain)
+	for _, file := range files {
+		if !IsContentHash(file.Hash) {
+			return fmt.Errorf("publication %s: %q is not a content hash", pubUuid, file.Hash)
+		}
+	}
+
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, ?, ?, ?, ?)", pubUuid, dt, text, ownPublication, originDomain)
 	if err != nil {
 		log.Debug("Error trying to create a new social publicaton", err)
 		return
@@ -841,7 +885,7 @@ func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPubl
 
 	for i, file := range files {
 		log.Debug("Inserting file in publication", file.Hash)
-		_, err = dao.db.Exec(
+		_, err = tx.Exec(
 			"insert into `social_publications_files` (`pos`, `uuid`, `hash`, `mime`, `created`, `modified`, `size`) values (?, ?, ?, ?, ?, ?, ?)",
 			i, pubUuid, file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Size)
 		if err != nil {
@@ -849,18 +893,83 @@ func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPubl
 		}
 	}
 
-	return
+	return tx.Commit()
 }
 
-func (dao *Dao) NewLikePublication(uuid, pubUuid string, friendDomain string, dt time.Time) (err error) {
+// NewLikePublication stores friendDomain's like of pubUuid and counts it,
+// once: inserted is false, and nothing changes, when that domain already
+// likes the post or the like is already stored (a replayed event). The
+// guard works on a database that doesn't have like_once yet (release 92).
+func (dao *Dao) NewLikePublication(uuid, pubUuid string, friendDomain string, dt time.Time) (inserted bool, err error) {
 	log.Debug("Creating New LikePublication:", uuid, "PubUUID:", pubUuid, friendDomain)
-	_, err = dao.db.Exec("insert into `social_publication_likes` (`uuid`, `pub_uuid`, `dt`, `friend_domain`) values (?, ?, ?, ?)", uuid, pubUuid, dt, friendDomain)
-	if err != nil {
-		log.Error("Error trying to create a new like publication", err)
-		return
+	return dao.insertLikeOnce(
+		"insert into `social_publication_likes` (`uuid`, `pub_uuid`, `dt`, `friend_domain`) select ?, ?, ?, ? from dual "+
+			"where not exists (select 1 from `social_publication_likes` where `pub_uuid` = ? and `friend_domain` = ?)",
+		"update `social_publications` set `likes` = `likes` + 1 where `uuid` = ?",
+		uuid, pubUuid, dt, friendDomain)
+}
+
+// cLikeTries is how many times a like's transaction runs while InnoDB
+// ends it as a deadlock's victim. Under REPEATABLE READ the guard's read
+// takes a shared lock on the gap the new row goes in, so two likes of one
+// post or comment by different domains at once (the owner's tap and a
+// friend's like synced in) can each wait for the other's insert: one gets
+// 1213, and that like was lost. Run again, it finds the other committed.
+const cLikeTries = 3
+
+// insertLikeOnce runs a like's guarded insert and, only when it added a
+// row, its counter update, in one transaction (see NewLikePublication).
+func (dao *Dao) insertLikeOnce(insert, count, uuid, target string, dt time.Time, friendDomain string) (inserted bool, err error) {
+	for try := 1; ; try++ {
+		inserted, err = dao.insertLikeOnceTx(insert, count, uuid, target, dt, friendDomain)
+		if !isDeadlock(err) || try == cLikeTries {
+			break
+		}
 	}
-	_, err = dao.db.Exec("update `social_publications` set `likes` = `likes` + 1 where `uuid` = ?", pubUuid)
-	return
+	if err != nil {
+		log.Error("Error trying to create a new like", err)
+	}
+	return inserted, err
+}
+
+func (dao *Dao) insertLikeOnceTx(insert, count, uuid, target string, dt time.Time, friendDomain string) (inserted bool, err error) {
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(insert, uuid, target, dt, friendDomain, target, friendDomain)
+	if isDuplicateKey(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return false, nil
+	}
+	if _, err = tx.Exec(count, target); err != nil {
+		return false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// isDuplicateKey is MySQL's 1062: a unique key already holds the value.
+func isDuplicateKey(err error) bool {
+	var me *mysql.MySQLError
+	return errors.As(err, &me) && me.Number == 1062
+}
+
+// isDeadlock is MySQL's 1213: InnoDB rolled the transaction back to break
+// a deadlock, and it can be run again.
+func isDeadlock(err error) bool {
+	var me *mysql.MySQLError
+	return errors.As(err, &me) && me.Number == 1213
 }
 
 // HasLikedPublication reports whether likerDomain has already liked pubUuid.
@@ -885,21 +994,74 @@ func (dao *Dao) DeleteLikePublication(pubUuid, likerDomain string) (err error) {
 	if err != nil {
 		return err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	n, _ := res.RowsAffected()
+	if n == 0 {
 		return nil
 	}
 
-	_, err = dao.db.Exec("update `social_publications` set `likes` = `likes` - 1 where `uuid` = ? and `likes` > 0", pubUuid)
+	// By as many as were removed: a domain liking twice (before like_once)
+	// was counted twice.
+	_, err = dao.db.Exec("update `social_publications` set `likes` = greatest(`likes` - ?, 0) where `uuid` = ?", n, pubUuid)
 	return
 }
+
+// MaxFriendFeedPage caps a feed page served to a friend's device, whose
+// requested total was otherwise the page size - every post's thumbnails
+// read into memory. No friend device asks for the feed today (friends sync
+// through events), and the apps' pages are 4 posts.
+const MaxFriendFeedPage int32 = 20
+
+// cMaxEventsPage caps a page of events; friends ask for 20.
+const cMaxEventsPage int32 = 500
 
 // GetEvents is the page of events after since that requester's device is
 // served: every broadcast one, and those meant for it alone (issue #174 -
 // a "forget me" goes to that ex-friend only, and no other friend learns of
 // it).
+//
+// events.dt has whole seconds and the requester asks next for what is after
+// the last event it got (dt > since), so a page has to hold whole seconds
+// that can no longer change, or an event sharing a second with the
+// requester's cursor is never delivered (a post never shown, a deletion
+// never applied). The second still running is never served - plus one
+// more, for an insert stamped just before a second ended and committed
+// after it - and a full page gets the rest of its last second's events.
+// Every dt is stamped by this database's now(), in the session's UTC.
+// Events of one second come in the dt index's order, which is the order
+// they were written (the table has no key of its own), so a post comes
+// before a comment on it and a like before its unlike: no tie-break.
 func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (events []*pb.Event, err error) {
 	log.Debug("Get Events")
-	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and (`target` is null or `target` = ?) order by `dt` asc limit ?", since, requester, total)
+	if total > cMaxEventsPage {
+		total = cMaxEventsPage
+	}
+	events, err = dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and `dt` < now() - interval 1 second and (`target` is null or `target` = ?) order by `dt` asc limit ?", since, requester, total)
+	if err != nil || total <= 0 || len(events) < int(total) {
+		return events, err
+	}
+
+	// A longer page reads as "more may follow" to the requester (issue
+	// #92's catch-up check), which it may.
+	rest, err := dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` = ? and (`target` is null or `target` = ?)", events[len(events)-1].Dt.AsTime(), requester)
+	if err != nil {
+		return nil, err
+	}
+	have := make(map[string]bool, len(events))
+	for _, e := range events {
+		have[e.Uuid] = true
+	}
+	for _, e := range rest {
+		if !have[e.Uuid] {
+			events = append(events, e)
+		}
+	}
+
+	return events, nil
+}
+
+// queryEvents runs an events query; never a nil slice without an error.
+func (dao *Dao) queryEvents(query string, args ...any) (events []*pb.Event, err error) {
+	rows, err := dao.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -915,19 +1077,21 @@ func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (event
 		event.Dt = timestamppb.New(dt)
 		events = append(events, event)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-	return
+	return events, nil
 }
 
-func (dao *Dao) NewLikePublicationComment(uuid, commentUuid string, friendDomain string, dt time.Time) (err error) {
+// NewLikePublicationComment is NewLikePublication for a comment.
+func (dao *Dao) NewLikePublicationComment(uuid, commentUuid string, friendDomain string, dt time.Time) (inserted bool, err error) {
 	log.Debug("Creating New PublicationComment Like", uuid, commentUuid, friendDomain)
-	_, err = dao.db.Exec("insert into `social_publication_comment_likes` (`uuid`, `comment_uuid`, `dt`, `friend_domain`) values (?, ?, ?, ?)", uuid, commentUuid, dt, friendDomain)
-	if err != nil {
-		log.Error("Error trying to create a new like publication", err)
-		return
-	}
-	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = `likes` + 1 where `uuid` = ?", commentUuid)
-	return
+	return dao.insertLikeOnce(
+		"insert into `social_publication_comment_likes` (`uuid`, `comment_uuid`, `dt`, `friend_domain`) select ?, ?, ?, ? from dual "+
+			"where not exists (select 1 from `social_publication_comment_likes` where `comment_uuid` = ? and `friend_domain` = ?)",
+		"update `social_publications_comments` set `likes` = `likes` + 1 where `uuid` = ?",
+		uuid, commentUuid, dt, friendDomain)
 }
 
 // HasLikedComment reports whether likerDomain has already liked commentUuid.
@@ -952,11 +1116,12 @@ func (dao *Dao) DeleteLikePublicationComment(commentUuid, likerDomain string) (e
 	if err != nil {
 		return err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	n, _ := res.RowsAffected()
+	if n == 0 {
 		return nil
 	}
 
-	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = `likes` - 1 where `uuid` = ? and `likes` > 0", commentUuid)
+	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = greatest(`likes` - ?, 0) where `uuid` = ?", n, commentUuid)
 	return
 }
 
@@ -978,6 +1143,9 @@ func (dao *Dao) GetPublicationLikerDomains(pubUuid string) (domains []string, er
 		}
 		domains = append(domains, domain)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return
 }
 
@@ -998,34 +1166,80 @@ func (dao *Dao) GetCommentLikerDomains(commentUuid string) (domains []string, er
 		}
 		domains = append(domains, domain)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return
 }
 
+// GetSocialPublicationComments lists a post's comments, newest first, each
+// with whether viewerDomain liked it.
 func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comments []*pb.Comment, err error) {
 	log.Debug("Get SocialPublication Comments")
-	rowComms, err := dao.db.Query("select `uuid`, `dt`, `comment`, `publisher_name`, `likes`, `own_comment` from `social_publications_comments` where `pub_uuid` = ? order by `dt` desc", pubUuid)
+	comments, err = dao.queryComments("c.`pub_uuid` = ?", viewerDomain, pubUuid)
 	if err != nil {
 		return nil, err
 	}
-	defer rowComms.Close()
-	comments = []*pb.Comment{}
-	for rowComms.Next() {
-		comment := &pb.Comment{
-			PubUuid: pubUuid,
-		}
-		var dt time.Time
-		if err := rowComms.Scan(&comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes, &comment.Own); err != nil {
-			return nil, err
-		}
-
-		comment.DateTime = timestamppb.New(dt)
-		if comment.Liked, err = dao.HasLikedComment(comment.CommentUuid, viewerDomain); err != nil {
-			return nil, err
-		}
-		comments = append(comments, comment)
+	for _, c := range comments {
+		c.PubUuid = pubUuid
 	}
 
-	return
+	return comments, nil
+}
+
+// GetSocialPublicationsComments is GetSocialPublicationComments for a
+// whole feed page in one query: the feed ran one query per post. Comments
+// come back grouped by publication uuid, each group newest first; a
+// publication with no comments has no entry.
+func (dao *Dao) GetSocialPublicationsComments(pubUuids []string, viewerDomain string) (comments map[string][]*pb.Comment, err error) {
+	comments = map[string][]*pb.Comment{}
+	if len(pubUuids) == 0 {
+		return comments, nil
+	}
+	ph, args := inPlaceholders(pubUuids)
+	all, err := dao.queryComments("c.`pub_uuid` in ("+ph+")", viewerDomain, args...)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range all {
+		comments[c.PubUuid] = append(comments[c.PubUuid], c)
+	}
+
+	return comments, nil
+}
+
+// queryComments is the comments query both of the above share. The liked
+// flag is part of it: it used to be one more query per comment, run while
+// the comments were still open - two pooled connections per request, and
+// enough concurrent feed requests each held one while waiting for a second
+// that none was ever freed and every query on the device hung.
+func (dao *Dao) queryComments(where, viewerDomain string, args ...any) (comments []*pb.Comment, err error) {
+	rows, err := dao.db.Query(
+		"select c.`pub_uuid`, c.`uuid`, c.`dt`, c.`comment`, c.`publisher_name`, c.`likes`, c.`own_comment`, "+
+			"exists(select 1 from `social_publication_comment_likes` l where l.`comment_uuid` = c.`uuid` and l.`friend_domain` = ?) "+
+			"from `social_publications_comments` c where "+where+" order by c.`dt` desc",
+		append([]any{viewerDomain}, args...)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	comments = []*pb.Comment{}
+	for rows.Next() {
+		comment := new(pb.Comment)
+		var dt time.Time
+		var liked int
+		if err := rows.Scan(&comment.PubUuid, &comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes, &comment.Own, &liked); err != nil {
+			return nil, err
+		}
+		comment.DateTime = timestamppb.New(dt)
+		comment.Liked = liked != 0
+		comments = append(comments, comment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return comments, nil
 }
 
 // PublicationFileMime looks up one file of a publication by hash,
@@ -1065,6 +1279,9 @@ func (dao *Dao) GetSocialPublicationFiles(uuid string) (files []*pb.File, err er
 		spFile.Created = timestamppb.New(created)
 		spFile.Modified = timestamppb.New(modified)
 		files = append(files, spFile)
+	}
+	if err := rowFiles.Err(); err != nil {
+		return nil, err
 	}
 
 	return
@@ -1163,6 +1380,11 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 	for i := 0; i < len(exclude); i++ {
 		args[i] = exclude[i]
 	}
+	// The owner's apps re-ask for every post they have loaded, so only a
+	// friend's page is capped.
+	if ownOnly && total > MaxFriendFeedPage {
+		total = MaxFriendFeedPage
+	}
 	args[len(exclude)] = total
 	ownClaus := ""
 	if ownOnly {
@@ -1186,6 +1408,9 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 		page = append(page, r)
 	}
 	rowPubs.Close()
+	if err := rowPubs.Err(); err != nil {
+		return nil, err
+	}
 
 	// Issue #173: everything below used to be three queries per post (the
 	// friend's profile - image bytes and all - its files and its liked
@@ -1441,6 +1666,9 @@ func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 		friendship.Status = dao.statusToPb(status)
 
 		friendships = append(friendships, friendship)
+	}
+	if err := rowFriendships.Err(); err != nil {
+		return nil, err
 	}
 
 	return
@@ -1745,6 +1973,11 @@ func (dao *Dao) AddUpdateNotification(title, detail string) error {
 // it rather than adding a row of its own.
 const errorNotificationWindow = "5 minute"
 
+// errorNotificationDetailsCap is how much of an error group's details are
+// kept, in bytes: the column is a TEXT (65,535), and a group that outgrew
+// it failed every later error of its window. Past it, errors still count.
+const errorNotificationDetailsCap = 60000
+
 // AddErrorNotification (issue #64) records a device-side error - a photo
 // that could not be processed, a file that never made it to disk - as an
 // Error notification. Grouped so the list is never flooded: if an Error
@@ -1752,6 +1985,13 @@ const errorNotificationWindow = "5 minute"
 // appended to details, occurrences goes up, and the row is unread again);
 // otherwise a new row starts with title as its one-liner.
 func (dao *Dao) AddErrorNotification(title, detail string) error {
+	// One otc process owns each database (issue #82), so this is enough to
+	// stop two first errors from each taking the gap lock of the select
+	// below and then deadlocking (InnoDB 1213) on their inserts - one of
+	// them lost.
+	dao.errNotifMu.Lock()
+	defer dao.errNotifMu.Unlock()
+
 	tx, err := dao.db.Begin()
 	if err != nil {
 		return err
@@ -1763,19 +2003,33 @@ func (dao *Dao) AddErrorNotification(title, detail string) error {
 		line += ": " + detail
 	}
 	var id string
-	err = tx.QueryRow("select `uuid` from `notifications` where `type` = 'Error' and `dt` >= now() - interval " + errorNotificationWindow + " order by `dt` desc limit 1 for update").Scan(&id)
+	var size int
+	err = tx.QueryRow("select `uuid`, coalesce(length(`details`), 0) from `notifications` where `type` = 'Error' and `dt` >= now() - interval "+errorNotificationWindow+" order by `dt` desc limit 1 for update").Scan(&id, &size)
 	switch {
-	case err == nil:
+	case err == nil && size+1+len(line) <= errorNotificationDetailsCap:
 		_, err = tx.Exec("update `notifications` set `details` = concat(coalesce(`details`, ''), '\n', ?), `occurrences` = `occurrences` + 1, `acknowledged` = 0 where `uuid` = ?", line, id)
+	case err == nil:
+		_, err = tx.Exec("update `notifications` set `occurrences` = `occurrences` + 1, `acknowledged` = 0 where `uuid` = ?", id)
 	case err == sql.ErrNoRows:
 		_, err = tx.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Error', 'This device', '', ?, ?, 1)",
-			uuid.New(), title, line)
+			uuid.New(), title, truncateUTF8(line, errorNotificationDetailsCap))
 	}
 	if err != nil {
 		return err
 	}
 
 	return tx.Commit()
+}
+
+// truncateUTF8 cuts s to at most n bytes, at a character boundary.
+func truncateUTF8(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
 }
 
 // NewNotification (issue #78) records one row in the owner-facing
@@ -2018,10 +2272,17 @@ func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
 // SamePersonThreshold. See face_recognition.MedoidAndCohesion for the
 // full mechanics.
 func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err error) {
+	// One statement: the cover thumbnail used to be one more query per
+	// person, and every unmatched stranger in a crowd is a person. A cover
+	// face that is gone reads NULL (no thumbnail), as its lookup did.
 	rows, err := dao.db.Query(
-		"select `p`.`id`, `p`.`name`, count(`f`.`id`) as `face_count`, `p`.`cover_face_id` "+
-			"from `people` as `p` left join `faces` as `f` on `f`.`person_id` = `p`.`id` "+
-			"group by `p`.`id`, `p`.`name`, `p`.`cover_face_id`, `p`.`cohesion` "+
+		"select `p`.`id`, `p`.`name`, "+
+			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id`) as `face_count`, "+
+			"case when `p`.`cover_face_id` is not null and `p`.`cover_face_id` <> '' "+
+			"then (select `c`.`thumbnail` from `faces` as `c` where `c`.`id` = `p`.`cover_face_id`) "+
+			"else (select `o`.`thumbnail` from `faces` as `o` where `o`.`person_id` = `p`.`id` order by `o`.`created` asc limit 1) "+
+			"end as `cover_thumbnail` "+
+			"from `people` as `p` "+
 			"order by (`p`.`cohesion` is null or `p`.`cohesion` >= ?) desc, `face_count` desc, `p`.`created` desc",
 		cohesionThreshold)
 	if err != nil {
@@ -2029,34 +2290,17 @@ func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err 
 	}
 	defer rows.Close()
 
-	// coverFaceIDs[i] pairs with people[i] - kept alongside rather than on
-	// pb.Person itself, since cover_face_id is server-side bookkeeping a
-	// client never needs to see.
-	var coverFaceIDs []sql.NullString
 	for rows.Next() {
 		p := new(pb.Person)
-		var coverFaceID sql.NullString
-		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount, &coverFaceID); err != nil {
-			return nil, err
-		}
-		people = append(people, p)
-		coverFaceIDs = append(coverFaceIDs, coverFaceID)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	for i, p := range people {
 		var thumb []byte
-		if coverFaceIDs[i].Valid && coverFaceIDs[i].String != "" {
-			err = dao.db.QueryRow("select `thumbnail` from `faces` where `id` = ?", coverFaceIDs[i].String).Scan(&thumb)
-		} else {
-			err = dao.db.QueryRow("select `thumbnail` from `faces` where `person_id` = ? order by `created` asc limit 1", p.Id).Scan(&thumb)
-		}
-		if err != nil && err != sql.ErrNoRows {
+		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount, &thumb); err != nil {
 			return nil, err
 		}
 		p.CoverThumbnail = thumb
+		people = append(people, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return people, nil

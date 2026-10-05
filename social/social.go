@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -76,6 +78,11 @@ type Social struct {
 	settings     *settings.Settings
 	profile      *profile.Profile
 	push         *push.Push
+
+	// stuck is, per friend's domain, the post of theirs that the last
+	// syncs stopped at and how many did (see cPostTries).
+	stuckMu sync.Mutex
+	stuck   map[string]stuckPost
 }
 
 type LikePublicationComment struct {
@@ -163,15 +170,24 @@ func (sc *Social) removePublication(pubUuid string) error {
 	if !cfg.HasSection("otc") {
 		return nil
 	}
-	dir := cfg.GetStr("otc", "unenc-storage-path")
+	sc.removeUnusedMedia(cfg.GetStr("otc", "unenc-storage-path"), hashes)
+	return nil
+}
+
+// removeUnusedMedia removes from dir the media and thumbnails of hashes
+// that no post uses any more. A stored hash that isn't one (rows from
+// before they were checked) is never made into a path.
+func (sc *Social) removeUnusedMedia(dir string, hashes []string) {
 	for _, h := range hashes {
+		if !dao.IsContentHash(h) {
+			continue
+		}
 		if inUse, err := sc.dao.SocialHashInUse(h); err != nil || inUse {
 			continue
 		}
-		os.Remove(fmt.Sprintf("%s/%s", dir, h))
-		os.Remove(fmt.Sprintf("%s/%s_thumbnail", dir, h))
+		os.Remove(filepath.Join(dir, h))
+		os.Remove(filepath.Join(dir, h+"_thumbnail"))
 	}
-	return nil
 }
 
 // storageMu keeps two friends' syncs from trimming at the same time.
@@ -241,6 +257,58 @@ func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.S
 		settings:     settings,
 		profile:      profile,
 		push:         push,
+	}
+}
+
+// writeFileAtomic writes a post's media or thumbnail under its final name
+// only once it is whole and on disk. Written in place, a full disk, a
+// power cut or a kill mid-write left a truncated file that was then served
+// as the post's (and, from a friend's sync, never fetched again), and a
+// reader of the same hash could see it half-written. A reader with the old
+// file open keeps it whole.
+func writeFileAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".pub-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // a no-op once renamed
+	if _, err = tmp.Write(data); err == nil {
+		err = tmp.Sync()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o600) // perms: rw------- (issue #157)
+	}
+	if err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
+}
+
+// RemovePartialWrites removes the temp files writeFileAtomic left in dir
+// (unenc-storage-path) when the process died mid-write, a power cut or an
+// OOM kill: nothing renames or removes them later, no storage limit counts
+// them, and a friend's video can be about 1 GB. Run at startup, before
+// this process writes any; no other process writes to this instance's
+// directory.
+func RemovePartialWrites(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Error("could not look for partly written post files in", dir, ":", err)
+		return
+	}
+	for _, e := range entries {
+		if !e.Type().IsRegular() || !strings.HasPrefix(e.Name(), ".pub-") {
+			continue
+		}
+		switch err := os.Remove(filepath.Join(dir, e.Name())); {
+		case err == nil:
+			log.Info("removed a partly written post file:", e.Name())
+		case !os.IsNotExist(err):
+			log.Error("could not remove a partly written post file:", err)
+		}
 	}
 }
 
@@ -325,7 +393,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			}
 		}
 		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", unencDir, file.Hash)
-		err = os.WriteFile(unencPathThumb, unEncThumb, 0o600) // perms: rw------- (issue #157)
+		err = writeFileAtomic(unencPathThumb, unEncThumb)
 		if err != nil {
 			return "", err
 		}
@@ -370,7 +438,7 @@ func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoT
 		log.Error("Error loading file:", err)
 		return nil, false, fmt.Errorf("error loading file %q: %w", path, err)
 	}
-	if err := os.WriteFile(filepath.Join(unencDir, file.Hash), file.Content, 0o600); err != nil { // perms: rw------- (issue #157)
+	if err := writeFileAtomic(filepath.Join(unencDir, file.Hash), file.Content); err != nil {
 		return nil, false, err
 	}
 	file.Content = nil
@@ -412,6 +480,9 @@ func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32, r
 // hash when the post is created (see NewPublication), which is what makes
 // this possible without a path - publication files have none.
 func (sc *Social) GetPublicationMedia(pubUuid, hash string) (content []byte, mime string, err error) {
+	if !dao.IsContentHash(hash) {
+		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid)
+	}
 	mime, found, err := sc.dao.PublicationFileMime(pubUuid, hash)
 	if err != nil {
 		return nil, "", err
@@ -435,6 +506,9 @@ func (sc *Social) GetPublicationFiles(uuid string) (files []*pb.File, err error)
 
 	files = make([]*pb.File, 0, len(all))
 	for _, file := range all {
+		if !dao.IsContentHash(file.Hash) {
+			continue // never a path (see storeFriendFile)
+		}
 		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
 		if readErr != nil {
 			// A single missing/corrupted thumbnail used to fail this
@@ -459,6 +533,16 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 		return
 	}
 
+	// The page's comments in one query (they were one query per post).
+	uuids := make([]string, 0, len(publications.Publications))
+	for _, pub := range publications.Publications {
+		uuids = append(uuids, pub.Uuid)
+	}
+	comments, err := sc.dao.GetSocialPublicationsComments(uuids, pr.Domain())
+	if err != nil {
+		return nil, err
+	}
+
 	// Populate the files content. A missing/corrupted thumbnail is skipped
 	// rather than failing the whole feed - see GetPublicationFiles' doc
 	// comment for why this used to be much worse than "this one photo is
@@ -466,6 +550,9 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 	for _, pub := range publications.Publications {
 		goodFiles := make([]*pb.File, 0, len(pub.Files))
 		for _, file := range pub.Files {
+			if !dao.IsContentHash(file.Hash) {
+				continue
+			}
 			content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
 			if readErr != nil {
 				log.Error("skipping missing/corrupted thumbnail in feed for publication", pub.Uuid, "hash", file.Hash, ":", readErr)
@@ -476,9 +563,9 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 		}
 		pub.Files = goodFiles
 
-		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain())
-		if err != nil {
-			return nil, err
+		pub.Comments = comments[pub.Uuid]
+		if pub.Comments == nil {
+			pub.Comments = []*pb.Comment{}
 		}
 	}
 
@@ -497,6 +584,9 @@ func (sc *Social) GetPublication(pr *profile.Profile, pubUuid string) (pub *pb.S
 
 	goodFiles := make([]*pb.File, 0, len(pub.Files))
 	for _, file := range pub.Files {
+		if !dao.IsContentHash(file.Hash) {
+			continue
+		}
 		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
 		if readErr != nil {
 			log.Error("skipping missing/corrupted thumbnail for publication", pub.Uuid, "hash", file.Hash, ":", readErr)
@@ -530,7 +620,7 @@ func (sc *Social) ListNotifications(limit int) ([]*pb.Notification, error) {
 	}
 	for _, n := range notifications {
 		hash, ok := thumbHashes[n.Uuid]
-		if !ok || hash == "" {
+		if !ok || !dao.IsContentHash(hash) {
 			continue
 		}
 		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), hash))
@@ -895,6 +985,10 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 	return rf.RespFile.Content, nil
 }
 
+// errFriendTransport marks a failure of the connection to a friend's
+// device, as opposed to an answer about one post.
+var errFriendTransport = errors.New("friend connection failed")
+
 func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err error) {
 	msg := &pb.ReqEnvelope{
 		Id: 1,
@@ -907,13 +1001,13 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 	b, _ := proto.Marshal(msg)
 	if err = fr.conn.WriteMessage(gorilla.BinaryMessage, b); err != nil {
 		log.Error("write error trying to get publication files from friend:", fr.data.OriginProfile.Domain, err)
-		return
+		return nil, fmt.Errorf("%w: %v", errFriendTransport, err)
 	}
 
 	_, data, err := fr.conn.ReadMessage()
 	if err != nil {
 		log.Error("read error trying to get publication files from friend:", fr.data.OriginProfile.Domain, err)
-		return
+		return nil, fmt.Errorf("%w: %v", errFriendTransport, err)
 	}
 
 	log.Debug("Getting response for publication files:", fr.data.OriginProfile.Domain)
@@ -930,6 +1024,91 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 		return nil, err
 	}
 	return filesResp.RespSocialPublicationFiles.Files, nil
+}
+
+// storeFriendFile writes one file of a friend's post to dir: its thumbnail
+// and then, unless it is already here, its media. ok is false for a file
+// that can't be stored here at all; wrote is whether anything was written
+// for it; err is a failed thumbnail write. file.Size becomes what the file
+// takes on this disk, thumbnail included: the size the friend states is
+// only its word, and the storage limit for friends' posts (issue #153)
+// adds these up.
+func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string) (ok, wrote bool, err error) {
+	// Issue #107: the friend's own hash is kept, not replaced with a hash
+	// of the thumbnail bytes as this used to do. That hash is how the
+	// friend addresses the file, so overwriting it left no way to ask them
+	// for the actual media - and it's also what our own rows store, so the
+	// two now agree and GetPublicationMedia can find what it serves.
+	if file.Hash == "" {
+		// Defensive: a friend on an older build might not send one.
+		// Falling back to the old behaviour keeps the thumbnail working;
+		// only the media is lost.
+		sum := sha256.Sum256(file.Content)
+		file.Hash = hex.EncodeToString(sum[:])
+	}
+	// The hash names this file on disk, and a friend's device chose it:
+	// "../<hash>" wrote (and, once the post was deleted, removed) the
+	// owner's own files. Every release sends a SHA-256 in hex.
+	if !dao.IsContentHash(file.Hash) {
+		log.Error("ignoring a file with an invalid hash in publication", pubUuid, "from", fr.data.OriginProfile.Domain)
+		return false, false, nil
+	}
+
+	unencPathThumb := filepath.Join(dir, file.Hash+"_thumbnail")
+	// A thumbnail a post here already uses stays as it is: naming the hash
+	// of someone else's photo doesn't replace what everyone is shown.
+	if _, statErr := os.Stat(unencPathThumb); statErr != nil || !fr.socialHashInUse(file.Hash) {
+		log.Debug("Storing file thumbnail in path:", unencPathThumb)
+		if err := writeFileAtomic(unencPathThumb, file.Content); err != nil {
+			return false, false, err
+		}
+		wrote = true
+	}
+	var stored int64
+	if info, statErr := os.Stat(unencPathThumb); statErr == nil {
+		stored = info.Size()
+	}
+
+	// Then the full media, so the post is playable/viewable later whether
+	// or not its author is reachable. Failing here is not fatal to the
+	// post: the thumbnail above is already stored, so the timeline still
+	// renders and only full-size playback is missing - better than
+	// dropping the publication entirely over one large file.
+	unencPath := filepath.Join(dir, file.Hash)
+	if info, statErr := os.Stat(unencPath); statErr == nil {
+		file.Size = storedSize(stored + info.Size())
+		return true, wrote, nil // already have it (a re-sync, or shared with another post)
+	}
+	// Held until the file is written: it is read whole, then copied.
+	release := fr.sc.filesmanager.ReserveFriendMedia(int64(file.Size))
+	media, mediaErr := fr.getPublicationMedia(pubUuid, file.Hash)
+	if mediaErr != nil {
+		log.Error("could not fetch media", file.Hash, "for publication", pubUuid, "from",
+			fr.data.OriginProfile.Domain, ":", mediaErr)
+	} else if err := writeFileAtomic(unencPath, media); err != nil {
+		log.Error("error storing friend publication media:", err)
+	} else {
+		stored += int64(len(media))
+		wrote = true
+	}
+	release()
+	file.Size = storedSize(stored)
+	return true, wrote, nil
+}
+
+// storedSize is n as a file row's size, which is an int32.
+func storedSize(n int64) int32 {
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(n)
+}
+
+// socialHashInUse is whether a post here has a file with hash; when that
+// can't be told, it is taken to be.
+func (fr *friendship) socialHashInUse(hash string) bool {
+	inUse, err := fr.dao.SocialHashInUse(hash)
+	return err != nil || inUse
 }
 
 // notifyIfOwnPublication notifies about a like/comment only when pubUuid is
@@ -1000,6 +1179,51 @@ func (fr *friendship) notifyIfOwnComment(commentUuid, action string, notifType p
 // queued behind it.
 const cEventsSyncPageSize = 20
 
+// cPostTries is how many syncs in a row may stop at the same post of a
+// friend's that the connection or this disk failed, so it is asked for
+// again, before it is given up like a post the friend no longer has. One
+// that always fails (an answer that always outlasts the read deadline, a
+// full disk) would otherwise hold back every later event of that friend's,
+// deletions included, for good.
+const cPostTries = 3
+
+type stuckPost struct {
+	pub   string
+	stops int
+}
+
+// retryPost counts one more sync stopping at domain's post pubUuid, and
+// reports whether it may stop there again: false once that makes
+// cPostTries, and the post is to be given up.
+func (sc *Social) retryPost(domain, pubUuid string) bool {
+	sc.stuckMu.Lock()
+	defer sc.stuckMu.Unlock()
+	s := sc.stuck[domain]
+	if s.pub != pubUuid {
+		s = stuckPost{pub: pubUuid}
+	}
+	s.stops++
+	if s.stops >= cPostTries {
+		delete(sc.stuck, domain)
+		return false
+	}
+	if sc.stuck == nil {
+		sc.stuck = make(map[string]stuckPost)
+	}
+	sc.stuck[domain] = s
+	return true
+}
+
+// postPassed forgets the syncs that stopped at domain's post pubUuid, once
+// one has got past it.
+func (sc *Social) postPassed(domain, pubUuid string) {
+	sc.stuckMu.Lock()
+	defer sc.stuckMu.Unlock()
+	if sc.stuck[domain].pub == pubUuid {
+		delete(sc.stuck, domain)
+	}
+}
+
 func (fr *friendship) updateFriendEvents() (err error) {
 	log.Debug("Updating events")
 	// Issue #92: "accepting an invite while doing the first sync" floods
@@ -1049,6 +1273,8 @@ func (fr *friendship) updateFriendEvents() (err error) {
 		return err
 	}
 	log.Debug("Events to update", len(resp.RespEvents.Events))
+	// at is the second this page last moved the cursor to (see stopAtPost).
+	var at *timestamppb.Timestamp
 event_loop:
 	for _, event := range resp.RespEvents.Events {
 		switch event.Type {
@@ -1056,68 +1282,60 @@ event_loop:
 			var pubData Publication
 			json.Unmarshal([]byte(event.Content), &pubData)
 
+			// Already here (a re-delivery, or a uuid another post has):
+			// nothing to fetch, and nothing of it to overwrite.
+			if _, _, found, _ := fr.dao.PublicationOwner(pubData.Uuid); found {
+				break
+			}
+
 			files, err := fr.getPublicationFiles(pubData.Uuid)
 			if err != nil {
 				log.Error("Error getting publication:", err)
-				continue event_loop
-			}
-
-			// Store the files in the local drive first
-			for _, file := range files {
-				// Issue #107: the friend's own hash is kept, not replaced
-				// with a hash of the thumbnail bytes as this used to do.
-				// That hash is how the friend addresses the file, so
-				// overwriting it left no way to ask them for the actual
-				// media - and it's also what our own rows store, so the
-				// two now agree and GetPublicationMedia can find what it
-				// serves.
-				if file.Hash == "" {
-					// Defensive: a friend on an older build might not send
-					// one. Falling back to the old behaviour keeps the
-					// thumbnail working; only the media is lost.
-					sum := sha256.Sum256(file.Content)
-					file.Hash = hex.EncodeToString(sum[:])
-				}
-
-				unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-				log.Debug("Storing file thumbnail in path:", unencPathThumb)
-				err = os.WriteFile(unencPathThumb, file.Content, 0o600) // perms: rw------- (issue #157)
-				if err != nil {
-					log.Error("Error trying to write file from an external event")
+				if !errors.Is(err, errFriendTransport) {
+					// An answer about the post (deleted since): skipped.
+					fr.sc.postPassed(fr.data.OriginProfile.Domain, pubData.Uuid)
 					continue event_loop
 				}
-
-				// Then the full media, so the post is playable/viewable
-				// later whether or not its author is reachable. Failing
-				// here is not fatal to the post: the thumbnail above is
-				// already stored, so the timeline still renders and only
-				// full-size playback is missing - better than dropping
-				// the publication entirely over one large file.
-				unencPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-				if _, statErr := os.Stat(unencPath); statErr == nil {
-					continue // already have it (a re-sync, or shared with another post)
+				// The connection failed, not the post: stop here, so the
+				// next sync asks for it again instead of the events after
+				// it moving the cursor past it for good.
+				if fr.stopAtPost(pubData.Uuid, event, at) {
+					fr.stopPage(newPosts)
+					return err
 				}
-				media, mediaErr := fr.getPublicationMedia(pubData.Uuid, file.Hash)
-				if mediaErr != nil {
-					log.Error("could not fetch media", file.Hash, "for publication", pubData.Uuid, "from",
-						fr.data.OriginProfile.Domain, ":", mediaErr)
-					continue
-				}
-				if err := os.WriteFile(unencPath, media, 0o600); err != nil { // perms: rw------- (issue #157)
-					log.Error("error storing friend publication media:", err)
-				}
+				break // given up: the cursor moves past it
 			}
 
-			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, files, eventTime(pubData.Dt, event))
+			// Store the files in the local drive first. A file that can't be
+			// stored here at all is left out of the post.
+			unencDir := cfg.GetStr("otc", "unenc-storage-path")
+			kept, written, err := fr.storeFriendFiles(pubData.Uuid, files, unencDir)
+			if err != nil {
+				// This disk, not the post: what was written for it goes,
+				// and it is asked for again next sync.
+				log.Error("Error trying to write file from an external event:", err)
+				fr.sc.removeUnusedMedia(unencDir, written)
+				if fr.stopAtPost(pubData.Uuid, event, at) {
+					fr.stopPage(newPosts)
+					return err
+				}
+				break // given up: the cursor moves past it
+			}
+
+			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, kept, eventTime(pubData.Dt, event))
+			fr.sc.postPassed(fr.data.OriginProfile.Domain, pubData.Uuid)
 			if err != nil {
 				log.Error("Error creating social publication for friend:", err)
+				// No post refers to what was just written: it would take
+				// space no storage limit counts, for good.
+				fr.sc.removeUnusedMedia(unencDir, written)
 				continue
 			}
 			newPosts = true
 
-			// Issue #43: fr.data.LatestSync (advanced below, per event) means
-			// ReqGetEvents{Since: LatestSync} never returns an
-			// already-processed event again - every PublicationEvent
+			// Issue #43: a post already here, served again (a second sent
+			// again by stopAtPost, or a re-delivery), stops at the
+			// PublicationOwner check above - every PublicationEvent
 			// reaching this point is a genuinely new post, exactly once.
 			// Issue #92: except during the one-time backlog catch-up,
 			// where "genuinely new to us" still means "years old to the
@@ -1131,18 +1349,10 @@ event_loop:
 			}
 
 		case LikeEvent:
-			var like LikePublication
-			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && !catchingUp {
-				fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
-			}
+			fr.applyLike(event, catchingUp)
 
 		case LikeCommentEvent:
-			var like LikePublicationComment
-			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && !catchingUp {
-				fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
-			}
+			fr.applyCommentLike(event, catchingUp)
 
 		case CommentEvent:
 			var comment Comment
@@ -1187,7 +1397,9 @@ event_loop:
 			return nil
 		}
 
-		err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt)
+		if err = fr.dao.UpdateLatestSync(fr.data.OriginProfile.Domain, event.Dt); err == nil {
+			at = event.Dt
+		}
 	}
 
 	// Issue #92: a page shorter than what we asked for means there's
@@ -1203,10 +1415,98 @@ event_loop:
 		}
 	}
 
+	fr.stopPage(newPosts)
+	return
+}
+
+// stopPage is what ends a page of a friend's events, however it ends: if
+// it stored new posts, friends' posts may now be over the storage limit.
+func (fr *friendship) stopPage(newPosts bool) {
 	if newPosts {
 		fr.sc.EnforceStorageLimit()
 	}
-	return
+}
+
+// stopAtPost is for a post of the friend's that the connection or this
+// disk failed, not the post itself. It reports whether the page stops
+// there, so the next sync asks for the post again; once syncs have
+// stopped at it cPostTries times in a row it is given up instead, and the
+// friend's later events go on.
+//
+// at is the second this page last moved the cursor to. The next sync asks
+// for events after the cursor, so if an earlier event of the post's own
+// second moved it there, it goes back a second and the whole second is
+// served again, this post with it (a friend serves whole seconds). What
+// of that second is already here is skipped then: the post (found by
+// PublicationOwner), a like (stored once per domain), a comment (its uuid
+// is unique); a deletion finds nothing left to delete.
+func (fr *friendship) stopAtPost(pubUuid string, event *pb.Event, at *timestamppb.Timestamp) bool {
+	domain := fr.data.OriginProfile.Domain
+	if !fr.sc.retryPost(domain, pubUuid) {
+		log.Error("giving up on publication", pubUuid, "from", domain, "after", cPostTries, "syncs stopped at it")
+		return false
+	}
+	if at != nil && at.GetSeconds() == event.GetDt().GetSeconds() {
+		if err := fr.dao.UpdateLatestSync(domain, timestamppb.New(time.Unix(at.GetSeconds()-1, 0))); err != nil {
+			log.Error("could not move the event cursor of", domain, "back to publication", pubUuid, ":", err)
+		}
+	}
+	return true
+}
+
+// storeFriendFiles stores each file of a friend's post (storeFriendFile),
+// leaving out those that can't be stored here at all. written is the
+// hashes something was written for; err is a failed write, which ends it.
+func (fr *friendship) storeFriendFiles(pubUuid string, files []*pb.File, dir string) (kept []*pb.File, written []string, err error) {
+	kept = make([]*pb.File, 0, len(files))
+	for _, file := range files {
+		ok, wrote, err := fr.storeFriendFile(pubUuid, file, dir)
+		if wrote {
+			written = append(written, file.Hash)
+		}
+		if err != nil {
+			return nil, written, err
+		}
+		if ok {
+			kept = append(kept, file)
+		}
+	}
+	return kept, written, nil
+}
+
+// applyLike stores a friend's like of a post, or removes it: an unlike is
+// an event of its own (with a new uuid), and used to be stored as one more
+// like - counted, listed and notified again. Only the friend's own like
+// goes, whatever the payload says: the domain is always the device the
+// event came from. Any other action, "" from older releases included, is a
+// like, and only a like not already stored is notified.
+func (fr *friendship) applyLike(event *pb.Event, catchingUp bool) {
+	var like LikePublication
+	json.Unmarshal([]byte(event.Content), &like)
+	if like.Action == ActionDelete {
+		if err := fr.dao.DeleteLikePublication(like.PubUUID, fr.data.OriginProfile.Domain); err != nil {
+			log.Error("error removing a friend's like:", err)
+		}
+		return
+	}
+	if inserted, err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && inserted && !catchingUp {
+		fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
+	}
+}
+
+// applyCommentLike is applyLike for a like of a comment.
+func (fr *friendship) applyCommentLike(event *pb.Event, catchingUp bool) {
+	var like LikePublicationComment
+	json.Unmarshal([]byte(event.Content), &like)
+	if like.Action == ActionDelete {
+		if err := fr.dao.DeleteLikePublicationComment(like.CommentUUID, fr.data.OriginProfile.Domain); err != nil {
+			log.Error("error removing a friend's comment like:", err)
+		}
+		return
+	}
+	if inserted, err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && inserted && !catchingUp {
+		fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
+	}
 }
 
 func (sc *Social) GetRemoteProfile(domain string, conn *wsframe.Client) (name, text string, image []byte, err error) {
@@ -1363,11 +1663,11 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 	log.Debug("Got an internal friendship req, checking foreign domain:", extDomain)
 	// Check if the request came from the other side
 	conn, err := sc.connectToDevice(extDomain)
-	defer conn.Close()
 	if err != nil {
 		log.Error("Error connecting to external device:", err)
 		return err
 	}
+	defer conn.Close()
 
 	// Check if the other device sent the request
 	msg := &pb.ReqEnvelope{
@@ -1556,7 +1856,8 @@ func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid str
 	if alreadyLiked {
 		return false, sc.dao.DeleteLikePublicationComment(commentUuid, pr.Domain())
 	}
-	return true, sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain(), time.Now())
+	_, err = sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain(), time.Now())
+	return true, err
 }
 
 // NewLikePublication toggles pr's like of pubUuid: if pr hasn't liked it
@@ -1594,7 +1895,8 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked
 	if alreadyLiked {
 		return false, sc.dao.DeleteLikePublication(pubUuid, pr.Domain())
 	}
-	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain(), time.Now())
+	_, err = sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain(), time.Now())
+	return true, err
 }
 
 // resolveLikerProfiles turns a list of liker domains (self or friends) into

@@ -68,3 +68,27 @@ func TestNewFcmSenderReadsServiceAccount(t *testing.T) {
 		t.Error("a client config must be refused")
 	}
 }
+
+// The bridge calls Init for every notification it relays: the phone
+// senders loaded once are reused, not rebuilt (and reconnected) per push.
+func TestInitReusesTheLoadedMobileSenders(t *testing.T) {
+	shared := &fcmSender{projectID: "p"}
+	mobileMu.Lock()
+	fcmShared, apnsShared = shared, &apnsSenders{topic: "cloud.off-the.test"}
+	mobileMu.Unlock()
+	t.Cleanup(func() {
+		mobileMu.Lock()
+		fcmShared, apnsShared = nil, nil
+		mobileMu.Unlock()
+	})
+
+	for i := 0; i < 2; i++ {
+		p, err := Init(&fakeStorage{vapidPub: "pub", vapidPriv: "priv"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.fcm != shared || p.apnsTopic != "cloud.off-the.test" {
+			t.Fatalf("Init %d built its own senders: %+v", i, p)
+		}
+	}
+}

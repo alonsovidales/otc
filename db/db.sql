@@ -128,6 +128,9 @@ create table social_publication_likes
   key (`uuid`),
   unique (`uuid`),
   key (`pub_uuid`),
+  -- Release 92: one like per domain (an unlike synced as a like, or a
+  -- double tap, counted twice).
+  unique key like_once (`pub_uuid`, `friend_domain`),
 
   foreign key (pub_uuid) references social_publications(uuid)
 ) engine=InnoDB;
@@ -169,6 +172,8 @@ create table social_publication_comment_likes
   key (`uuid`),
   unique (`uuid`),
   key (`comment_uuid`),
+  -- Release 92: one like per domain, as on posts.
+  unique key comment_like_once (`comment_uuid`, `friend_domain`),
 
   foreign key (comment_uuid) references social_publications_comments(uuid)
 ) engine=InnoDB;

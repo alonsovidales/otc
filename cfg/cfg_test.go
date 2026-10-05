@@ -3,7 +3,10 @@
 package cfg
 
 import (
+	"sync"
 	"testing"
+
+	"github.com/alyu/configparser"
 )
 
 func TestDebugLevel(t *testing.T) {
@@ -55,4 +58,31 @@ func TestGetUint64(t *testing.T) {
 	if got := GetUint64("section1", "val_uint"); got != 456 {
 		t.Errorf("Expected value for section \"section1\" and \"val_uint\" field was 456, got %v", got)
 	}
+}
+
+// Sections are cached on first use from whatever goroutine asks first;
+// run with -race to see the cache stay consistent.
+func TestConcurrentSectionReads(t *testing.T) {
+	if err := Init("config", "dev"); err != nil {
+		t.Fatal("Test config file can't be loaded")
+	}
+	sectionsMu.Lock()
+	sections = make(map[string]*configparser.Section)
+	sectionsMu.Unlock()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if i%2 == 0 {
+				if GetStr("section1", "val_str") != "test" {
+					t.Error("section1 read wrong")
+				}
+			} else if !HasSection("section2") || HasSection("nope") {
+				t.Error("HasSection wrong")
+			}
+		}(i)
+	}
+	wg.Wait()
 }

@@ -7,12 +7,15 @@ package dao
 
 import (
 	"database/sql"
+	"math"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // A feed page of 3 posts from 2 friends reads each friend's profile once,
@@ -222,5 +225,133 @@ func TestDelFileByPathHash(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// A feed page's comments are one query, liked flag included (it was one
+// query per post plus one per comment, run with the comments still open):
+// grouped per post, newest first, a post with none has no entry.
+func TestGetSocialPublicationsCommentsOneQueryPerPage(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	now := time.Now()
+	mock.ExpectQuery("select c\\.`pub_uuid`, c\\.`uuid`, c\\.`dt`, c\\.`comment`, c\\.`publisher_name`, c\\.`likes`, c\\.`own_comment`, "+
+		"exists\\(select 1 from `social_publication_comment_likes` l where l\\.`comment_uuid` = c\\.`uuid` and l\\.`friend_domain` = \\?\\) "+
+		"from `social_publications_comments` c where c\\.`pub_uuid` in \\(\\?,\\?,\\?\\) order by c\\.`dt` desc").
+		WithArgs("me.off-the.cloud", "p1", "p2", "p3").
+		WillReturnRows(sqlmock.NewRows([]string{"pub_uuid", "uuid", "dt", "comment", "publisher_name", "likes", "own_comment", "liked"}).
+			AddRow("p3", "c3b", now, "newest on p3", "A", 2, false, 1).
+			AddRow("p1", "c1a", now.Add(-time.Minute), "on p1", "Me", 0, true, 0).
+			AddRow("p3", "c3a", now.Add(-2*time.Minute), "older on p3", "B", 0, false, 0))
+
+	comments, err := NewWithDB(db).GetSocialPublicationsComments([]string{"p1", "p2", "p3"}, "me.off-the.cloud")
+	if err != nil {
+		t.Fatalf("GetSocialPublicationsComments: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("not all expected queries ran: %v", err)
+	}
+	p1, p3 := comments["p1"], comments["p3"]
+	if len(p1) != 1 || len(p3) != 2 || comments["p2"] != nil {
+		t.Fatalf("not grouped per post: %v", comments)
+	}
+	if p3[0].CommentUuid != "c3b" || p3[1].CommentUuid != "c3a" || p3[0].PubUuid != "p3" {
+		t.Fatalf("p3's comments out of order: %+v", p3)
+	}
+	if !p3[0].Liked || p3[1].Liked || p1[0].Liked || !p1[0].Own || p3[0].Likes != 2 {
+		t.Fatalf("wrong fields: %+v %+v", p1, p3)
+	}
+
+	// An empty page asks nothing.
+	if got, err := NewWithDB(db).GetSocialPublicationsComments(nil, "me"); err != nil || len(got) != 0 {
+		t.Fatalf("empty page: %v, %v", got, err)
+	}
+}
+
+// The single-post form (a notification tap) is the same query for one
+// post, and still gives a post without comments an empty list.
+func TestGetSocialPublicationCommentsSinglePost(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("from `social_publications_comments` c where c\\.`pub_uuid` = \\? order by c\\.`dt` desc").
+		WithArgs("me", "p1").
+		WillReturnRows(sqlmock.NewRows([]string{"pub_uuid", "uuid", "dt", "comment", "publisher_name", "likes", "own_comment", "liked"}))
+	comments, err := NewWithDB(db).GetSocialPublicationComments("p1", "me")
+	if err != nil || comments == nil || len(comments) != 0 {
+		t.Fatalf("got %v, %v; want an empty list", comments, err)
+	}
+}
+
+// A friend's device chooses the page size it asks for: capped, so it
+// can't have every post's thumbnails read at once. The owner's apps
+// re-ask for everything they have loaded, so their pages aren't.
+func TestFeedAndEventPagesAreCappedForFriends(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	feedRows := func() *sqlmock.Rows {
+		return sqlmock.NewRows([]string{"friend_domain", "uuid", "dt", "text", "own_publication", "likes"})
+	}
+
+	mock.ExpectQuery("from `social_publications`").WithArgs("", MaxFriendFeedPage).WillReturnRows(feedRows())
+	if _, err := d.GetSocialPublications(time.Now(), math.MaxInt32, true, nil, "", "", nil, "f"); err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("from `social_publications`").WithArgs("", int32(400)).WillReturnRows(feedRows())
+	if _, err := d.GetSocialPublications(time.Now(), 400, false, nil, "", "", nil, "me"); err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("from `events`").WithArgs(sqlmock.AnyArg(), "f", cMaxEventsPage).
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "content"}))
+	if _, err := d.GetEvents(time.Unix(0, 0), math.MaxInt32, "f"); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A post whose file hash isn't a content hash is refused before anything
+// is stored; a valid one goes in with its files in one transaction.
+func TestNewSocialPublicationChecksHashes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	now := time.Now()
+	f := func(h string) *pb.File {
+		return &pb.File{Hash: h, Mime: "image/jpeg", Created: timestamppb.New(now), Modified: timestamppb.New(now)}
+	}
+	if err := d.NewSocialPublication("p1", "", "x", false, []*pb.File{f(strings.Repeat("a", 64)), f("../x")}, now); err == nil {
+		t.Fatal("a path was accepted as a hash")
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `social_publications` ").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("insert into `social_publications_files`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	if err := d.NewSocialPublication("p2", "", "x", false, []*pb.File{f(strings.Repeat("a", 64))}, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	for h, want := range map[string]bool{strings.Repeat("0f", 32): true, strings.Repeat("A", 64): false, "": false, strings.Repeat("a", 63): false} {
+		if IsContentHash(h) != want {
+			t.Errorf("IsContentHash(%q) = %v", h, !want)
+		}
 	}
 }

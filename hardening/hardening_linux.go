@@ -41,7 +41,7 @@ func LockMemory() {
 // longer run left behind (an OOM kill skips every deferred Remove).
 func SecureTempDir() {
 	var base string
-	for _, dir := range []string{os.TempDir(), "/tmp", "/dev/shm"} {
+	for _, dir := range []string{tempBaseCandidate(os.TempDir()), "/tmp", "/dev/shm"} {
 		var st unix.Statfs_t
 		if unix.Statfs(dir, &st) == nil && st.Type == unix.TMPFS_MAGIC {
 			base = dir

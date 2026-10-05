@@ -184,6 +184,12 @@ type Manager struct {
 	media *mediastream.Server
 	// Guards the one-shot thumbnail backfill (startBackfillOnce).
 	backfillOnce sync.Once
+	// pushSync runs syncPushRegistrationsToBridge one at a time (see
+	// requestPushSync).
+	pushSync struct {
+		mu             sync.Mutex
+		running, dirty bool
+	}
 }
 
 // startBackfillOnce kicks off the missing-thumbnail repair the first
@@ -223,6 +229,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	if err != nil {
 		log.Fatal("Error initializing push notifications", err)
 	}
+	// Before the friend sync and the API can write a post's files.
+	social.RemovePartialWrites(cfg.GetStr("otc", "unenc-storage-path"))
 	mg = &Manager{
 		baseUrl:      baseUrl,
 		dao:          dao,
@@ -250,8 +258,11 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// explicit register/unregister calls. Async: sendWebPush/sendApns run
 	// from the background friend-sync loop and shouldn't block on a
 	// bridge round-trip.
-	ps.OnChange = func() { go mg.syncPushRegistrationsToBridge() }
+	ps.OnChange = mg.requestPushSync
 	ps.RelayMobile = mg.relayMobileToBridge
+	// Pushes leave the friend sync's path: about one sync page of events
+	// across a few friends fits before Notify falls back to sending inline.
+	ps.StartAsync(256)
 
 	// Issue #103: a local-only user's instance has no bridge-addr at all
 	// (see supervisor.bridgeAddrFor), and dialing "wss:///ws" forever
@@ -268,7 +279,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// could otherwise stay stale forever after a bridge-side DB reset, or
 	// simply never exist at all for a device that registered tokens before
 	// this feature shipped.
-	go mg.syncPushRegistrationsToBridge()
+	mg.requestPushSync()
 
 	// Issue #183: check for updates by itself, on the main instance (the
 	// one that can install them), and tell the owner about a major or
@@ -659,7 +670,7 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 // connection, same pattern as regenerateBridgeSecret above, not a pooled
 // relay connection — this has nothing to do with client traffic.
 //
-// Fire-and-forget: called from a goroutine by every caller below, since a
+// Fire-and-forget: every caller goes through requestPushSync, since a
 // failed sync isn't worth slowing down (or failing) whatever
 // register/startup path triggered it, and there's nowhere better to
 // surface the error to — the next successful sync (the very next
@@ -727,6 +738,35 @@ func (mg *Manager) relayMobileToBridge(title, body string, t push.Target) bool {
 	}
 	ack, ok := resp.Payload.(*pb.RespEnvelope_RespBridgeNotifyAck)
 	return ok && ack.RespBridgeNotifyAck.Ok
+}
+
+// requestPushSync runs syncPushRegistrationsToBridge without blocking, one
+// at a time: the bridge replaces the whole set, so two syncs racing could
+// land an older snapshot last (a logged-out phone left registered).
+// Requests made during a run are merged into one more run, which reads the
+// DB after all of them.
+func (mg *Manager) requestPushSync() {
+	mg.pushSync.mu.Lock()
+	if mg.pushSync.running {
+		mg.pushSync.dirty = true
+		mg.pushSync.mu.Unlock()
+		return
+	}
+	mg.pushSync.running = true
+	mg.pushSync.mu.Unlock()
+	go func() {
+		for {
+			mg.syncPushRegistrationsToBridge()
+			mg.pushSync.mu.Lock()
+			if !mg.pushSync.dirty {
+				mg.pushSync.running = false
+				mg.pushSync.mu.Unlock()
+				return
+			}
+			mg.pushSync.dirty = false
+			mg.pushSync.mu.Unlock()
+		}
+	}()
 }
 
 func (mg *Manager) syncPushRegistrationsToBridge() {
@@ -875,6 +915,13 @@ func (ch *connHandler) readLimit() int64 {
 	return cPreAuthReadLimit
 }
 
+// A feed page reserves cFeedPostBytes a post (a few thumbnails at
+// max-thumbnail-width-px), for at most cFeedReserveMaxPosts posts.
+const (
+	cFeedPostBytes       = 256 << 10
+	cFeedReserveMaxPosts = 1000
+)
+
 // reserveMemory holds the content budget a request that answers with file
 // content needs (a file, a post's media, a share link's part), until its
 // reply is on the wire. Never nil.
@@ -898,6 +945,24 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 	case *pb.ReqEnvelope_ReqGetThumbnails:
 		// The Files grid: a batch of thumbnails, at most about 8 MB.
 		return fm.ReserveBytes(16 << 20)
+	case *pb.ReqEnvelope_ReqGetSocialPublications:
+		// A feed page's thumbnails are read whole, then marshalled again.
+		// Only a signed-in owner or a friend is served one.
+		friend := ch.getFriendProfile() != nil
+		if ch.getSession() == nil && !friend {
+			return func() {}
+		}
+		n := int64(p.ReqGetSocialPublications.Total)
+		if friend && n > int64(dao.MaxFriendFeedPage) {
+			n = int64(dao.MaxFriendFeedPage) // what dao serves a friend
+		}
+		if n <= 0 {
+			return func() {}
+		}
+		if n > cFeedReserveMaxPosts {
+			n = cFeedReserveMaxPosts // acquire clamps to the budget anyway
+		}
+		return fm.ReserveBytes(n * cFeedPostBytes * 2)
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
 		// Issue #166: reachable by anyone with a link - one part at a time.
 		n := int64(p.ReqDownloadSharedLink.Length)
@@ -1061,6 +1126,10 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 
 	switch {
 	case req.PubUuid != "" && req.Hash != "":
+		// The hash becomes a path below: only ever a content hash.
+		if !dao.IsContentHash(req.Hash) {
+			return "", 0, "", 0, fmt.Errorf("media not found")
+		}
 		// Authorized the same way ReqGetPublicationMedia is: the
 		// publication has to actually carry this hash. Without that
 		// check a token could be minted for any file on the device by
@@ -3091,7 +3160,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			// Issue #62: the bridge needs its own copy of this to be able
 			// to alert the owner if this device ever goes unreachable -
 			// see syncPushRegistrationsToBridge's own doc comment.
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	// Issue #131: Log Out / Sign Out forget the device, so the device (and
@@ -3104,7 +3173,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	case *pb.ReqEnvelope_ReqUnregisterWebPush:
@@ -3115,7 +3184,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	// Issue #125: the Android app's FCM token, handled like the APNs one.
@@ -3127,7 +3196,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	case *pb.ReqEnvelope_ReqUnregisterFcmToken:
@@ -3138,7 +3207,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	case *pb.ReqEnvelope_ReqRegisterApnsToken:
@@ -3150,7 +3219,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	default:

@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -138,6 +139,35 @@ type Push struct {
 	// for any other reason, and nil is a valid no-op value (the bridge's
 	// own Push instance has no further hop to sync to).
 	OnChange func()
+
+	// queue, once StartAsync has run, takes Notify's deliveries off the
+	// caller; nil means Notify sends inline.
+	queue     chan notifyJob
+	queueOnce sync.Once
+}
+
+type notifyJob struct {
+	title, body string
+	t           Target
+}
+
+// StartAsync makes Notify hand its deliveries to one background worker,
+// which keeps their order, instead of sending them on the caller. On the
+// device every caller is the friend sync (or a friend request waiting for
+// its answer), which used to wait on each push service and a bridge dial
+// per notification, holding up every friend after it. A full queue sends
+// inline, so nothing is dropped. The bridge never calls this: its Push
+// instances live for one request, and BridgeNotify answers after sending.
+func (p *Push) StartAsync(size int) {
+	p.queueOnce.Do(func() {
+		q := make(chan notifyJob, size)
+		go func() {
+			for j := range q {
+				p.deliver(j.title, j.body, j.t)
+			}
+		}()
+		p.queue = q
+	})
 }
 
 // Init loads (generating on first use - see loadOrGenerateVapidKeys) this
@@ -189,6 +219,23 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 	return nil
 }
 
+// The phone senders are built once per process and shared by every Push:
+// the bridge calls Init for each notification it relays, and used to open
+// a new APNs HTTP/2 connection (never closed) with a freshly signed JWT,
+// and fetch a new FCM access token, for every one of them. Only a
+// successful load is kept, so a missing or broken key is still retried
+// and logged on every push. Replacing a key on disk now takes a restart.
+var (
+	mobileMu   sync.Mutex
+	apnsShared *apnsSenders
+	fcmShared  *fcmSender
+)
+
+type apnsSenders struct {
+	client, fallback *apns2.Client
+	topic            string
+}
+
 // loadApns wires up the APNs client from the [apns] config section, only if
 // present - see the package doc for why this can't be generated on our own
 // the way the VAPID keypair above is.
@@ -200,6 +247,12 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 //	bundle-id=cloud.off-the.OffTheCloud
 //	production=1
 func (p *Push) loadApns() {
+	mobileMu.Lock()
+	defer mobileMu.Unlock()
+	if apnsShared != nil {
+		p.apnsClient, p.apnsFallback, p.apnsTopic = apnsShared.client, apnsShared.fallback, apnsShared.topic
+		return
+	}
 	if !cfg.HasSection("apns") {
 		// Expected on a device: iOS pushes go through the bridge (see
 		// RelayMobile). Only the bridge itself carries an [apns] section.
@@ -234,6 +287,7 @@ func (p *Push) loadApns() {
 		fallback = fallback.Production()
 	}
 
+	apnsShared = &apnsSenders{client: client, fallback: fallback, topic: bundleID}
 	p.apnsClient = client
 	p.apnsFallback = fallback
 	p.apnsTopic = bundleID
@@ -281,6 +335,18 @@ func (p *Push) NotifyFriendshipAccepted(friendName string) {
 // (social.SyncWithFriends), which has nowhere useful to surface a
 // push-delivery failure to.
 func (p *Push) Notify(title, body string, t Target) {
+	if p.queue != nil {
+		select {
+		case p.queue <- notifyJob{title: title, body: body, t: t}:
+			return
+		default:
+			log.Error("push queue full, sending inline")
+		}
+	}
+	p.deliver(title, body, t)
+}
+
+func (p *Push) deliver(title, body string, t Target) {
 	p.sendWebPush(title, body, t)
 	p.sendMobile(title, body, t)
 }
@@ -345,8 +411,18 @@ var webPushClient = &http.Client{Timeout: 15 * time.Second}
 func (p *Push) NotifyMobile(title, body string, t Target) { p.sendMobile(title, body, t) }
 
 func (p *Push) sendMobile(title, body string, t Target) {
-	if p.RelayMobile != nil && p.RelayMobile(title, body, t) {
-		return
+	if p.RelayMobile != nil {
+		// No phone registered here: the bridge only has the tokens this
+		// device gave it, so relaying would dial it to deliver nothing. An
+		// error (an older schema without fcm_tokens) still relays.
+		apns, errA := p.storage.ListApnsTokens()
+		fcm, errF := p.storage.ListFcmTokens()
+		if errA == nil && errF == nil && len(apns) == 0 && len(fcm) == 0 {
+			return
+		}
+		if p.RelayMobile(title, body, t) {
+			return
+		}
 	}
 	p.sendApns(title, body, t)
 	p.sendFcm(title, body, t)
