@@ -13,9 +13,12 @@ import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 /**
  * Issue #125: push notifications through Firebase Cloud Messaging - the
@@ -106,19 +109,37 @@ object FCMPush {
     }
 
     /**
-     * Log Out (issue #131's counterpart): tell the device to forget this
-     * phone, best effort and within 5 seconds, then forget the token here.
+     * Log Out (issue #131's counterpart) and leaving a device: tell the
+     * device to forget this phone, best effort and within 5 seconds
+     * ([tellDevice] false when it can't be reached), then forget the token
+     * here. The token itself is deleted at FCM meanwhile: the device keeps
+     * it and reports it to the bridge, and only that stops a device left
+     * behind from pushing here once it is back. The next sign-in registers
+     * a fresh one; the bridge prunes the dead one on its next send.
      */
-    suspend fun unregister(context: Context) {
+    suspend fun unregister(context: Context, tellDevice: Boolean = true) = coroutineScope {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val token = prefs.getString(TOKEN_KEY, null)
-        if (!token.isNullOrEmpty()) {
+        val told = if (tellDevice && !token.isNullOrEmpty()) launch {
             withTimeoutOrNull(5_000) {
                 try {
                     OTCConnection.request { it.setReqUnregisterFcmToken(UnregisterFcmToken.newBuilder().setToken(token)) }
                 } catch (_: Exception) {}
             }
+        } else null
+        if (available(context)) {
+            // Waited for, so a sign-in right after can't be handed the old
+            // token from FCM's cache. Leaving a device was instant: kept short.
+            withTimeoutOrNull(if (tellDevice) 5_000L else 2_000L) {
+                suspendCancellableCoroutine<Unit> { c ->
+                    FirebaseMessaging.getInstance().deleteToken().addOnCompleteListener { t ->
+                        if (!t.isSuccessful) Log.w(TAG, "could not delete the FCM token: ${t.exception?.message}")
+                        if (c.isActive) c.resume(Unit)
+                    }
+                }
+            } ?: Log.w(TAG, "deleting the FCM token is taking long, not waiting")
         }
+        told?.join()
         prefs.edit().remove(TOKEN_KEY).apply()
     }
 

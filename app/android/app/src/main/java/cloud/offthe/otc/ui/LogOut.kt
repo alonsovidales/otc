@@ -41,9 +41,9 @@ fun logOut(
     PhotoSync.cancel() // a sync in progress must not outlive the session
     MainScope().launch {
         // Issue #125 (#131 on iOS): tell the device to stop pushing to this
-        // phone first, best effort and within seconds. Skipped when the
-        // device can't be reached anyway.
-        if (unregisterPush) FCMPush.unregister(context.applicationContext)
+        // phone first, best effort and within seconds - not when it can't be
+        // reached anyway - and retire the push token either way.
+        FCMPush.unregister(context.applicationContext, tellDevice = unregisterPush)
         NotificationsModel.reset()
         UploadModel.reset()
         SocialFeedViewModel.reset()
