@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/alonsovidales/otc/cfg"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
@@ -1785,6 +1786,11 @@ func (dao *Dao) AddUpdateNotification(title, detail string) error {
 // it rather than adding a row of its own.
 const errorNotificationWindow = "5 minute"
 
+// errorNotificationDetailsCap is how much of an error group's details are
+// kept, in bytes: the column is a TEXT (65,535), and a group that outgrew
+// it failed every later error of its window. Past it, errors still count.
+const errorNotificationDetailsCap = 60000
+
 // AddErrorNotification (issue #64) records a device-side error - a photo
 // that could not be processed, a file that never made it to disk - as an
 // Error notification. Grouped so the list is never flooded: if an Error
@@ -1810,19 +1816,33 @@ func (dao *Dao) AddErrorNotification(title, detail string) error {
 		line += ": " + detail
 	}
 	var id string
-	err = tx.QueryRow("select `uuid` from `notifications` where `type` = 'Error' and `dt` >= now() - interval " + errorNotificationWindow + " order by `dt` desc limit 1 for update").Scan(&id)
+	var size int
+	err = tx.QueryRow("select `uuid`, coalesce(length(`details`), 0) from `notifications` where `type` = 'Error' and `dt` >= now() - interval "+errorNotificationWindow+" order by `dt` desc limit 1 for update").Scan(&id, &size)
 	switch {
-	case err == nil:
+	case err == nil && size+1+len(line) <= errorNotificationDetailsCap:
 		_, err = tx.Exec("update `notifications` set `details` = concat(coalesce(`details`, ''), '\n', ?), `occurrences` = `occurrences` + 1, `acknowledged` = 0 where `uuid` = ?", line, id)
+	case err == nil:
+		_, err = tx.Exec("update `notifications` set `occurrences` = `occurrences` + 1, `acknowledged` = 0 where `uuid` = ?", id)
 	case err == sql.ErrNoRows:
 		_, err = tx.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Error', 'This device', '', ?, ?, 1)",
-			uuid.New(), title, line)
+			uuid.New(), title, truncateUTF8(line, errorNotificationDetailsCap))
 	}
 	if err != nil {
 		return err
 	}
 
 	return tx.Commit()
+}
+
+// truncateUTF8 cuts s to at most n bytes, at a character boundary.
+func truncateUTF8(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
 }
 
 // NewNotification (issue #78) records one row in the owner-facing
