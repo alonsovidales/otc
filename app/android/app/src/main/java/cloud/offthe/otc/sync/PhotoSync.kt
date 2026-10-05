@@ -17,6 +17,7 @@ import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.HasFile
 import cloud.offthe.otc.proto.LinkFile
+import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.ListFiles
 import cloud.offthe.otc.proto.RespEnvelope
 import com.google.protobuf.Timestamp
@@ -33,6 +34,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import java.io.InputStream
+import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
 // Port of PhotoSync.swift: uploads new camera-roll photos/videos to
@@ -42,7 +44,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 object PhotoSync {
     // dateAddedMs is DATE_TAKEN when there is one (the upload's created
     // time); addedSec is DATE_ADDED, the column the watermark is compared to.
-    data class Asset(val id: Long, val uri: Uri, val name: String, val mime: String, val dateAddedMs: Long, val isVideo: Boolean, val addedSec: Long = 0)
+    // size is MediaStore's SIZE, 0 when unknown.
+    data class Asset(val id: Long, val uri: Uri, val name: String, val mime: String, val dateAddedMs: Long, val isVideo: Boolean, val addedSec: Long = 0, val size: Long = 0)
 
     private const val maxConcurrentUploads = 3
     private val syncing = AtomicBoolean(false)
@@ -83,7 +86,8 @@ object PhotoSync {
     fun fetchNewAssets(includeVideos: Boolean, sinceMs: Long, limit: Int = 0, newestFirst: Boolean = false): List<Asset> {
         val cr = OTCApp.instance.contentResolver
         val proj = arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.DISPLAY_NAME, MediaStore.Files.FileColumns.MIME_TYPE,
-            MediaStore.Files.FileColumns.DATE_ADDED, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_TAKEN)
+            MediaStore.Files.FileColumns.DATE_ADDED, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_TAKEN,
+            MediaStore.Files.FileColumns.SIZE)
         val types = if (includeVideos) "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE},${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})" else "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE})"
         val sel = "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN $types" + if (sinceMs > 0) " AND ${MediaStore.Files.FileColumns.DATE_ADDED} > ${sinceMs / 1000}" else ""
         val order = "${MediaStore.Files.FileColumns.DATE_ADDED} ${if (newestFirst) "DESC" else "ASC"}" + if (limit > 0) " LIMIT $limit" else ""
@@ -94,7 +98,7 @@ object PhotoSync {
                 val isVideo = type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
                 val base = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
                 val taken = c.getLong(5).takeIf { it > 0 } ?: c.getLong(3) * 1000
-                out += Asset(id, ContentUris.withAppendedId(base, id), c.getString(1) ?: "file", c.getString(2) ?: "application/octet-stream", taken, isVideo, addedSec = c.getLong(3))
+                out += Asset(id, ContentUris.withAppendedId(base, id), c.getString(1) ?: "file", c.getString(2) ?: "application/octet-stream", taken, isVideo, addedSec = c.getLong(3), size = c.getLong(6))
             }
         }
         return out
@@ -125,31 +129,87 @@ object PhotoSync {
 
     private fun timestamp(ms: Long): Timestamp = Timestamp.newBuilder().setSeconds(ms / 1000).setNanos(((ms % 1000) * 1_000_000).toInt()).build()
 
-    /** Uploads (or links) one asset; returns the server path. Shared with the composer. */
-    suspend fun uploadIfNeeded(asset: Asset, targetDir: String, knownPaths: Set<String> = emptySet()): String {
+    /**
+     * Where an asset goes when a different file already has its name
+     * (DISPLAY_NAME repeats across DCIM, Download, WhatsApp...): the name
+     * with "_" and 8 hex of the SHA-256 of its MediaStore id before the
+     * extension - the same asset always lands on the same path. The iOS
+     * app tags its own the same way.
+     */
+    private fun altPath(targetDir: String, cleanName: String, id: Long): String {
+        val tag = MessageDigest.getInstance("SHA-256").digest(id.toString().toByteArray())
+            .take(4).joinToString("") { "%02x".format(it) }
+        val dot = cleanName.lastIndexOf('.')
+        return if (dot > 0 && dot < cleanName.length - 1) "$targetDir${cleanName.substring(0, dot)}_$tag${cleanName.substring(dot)}"
+        else "$targetDir${cleanName}_$tag"
+    }
+
+    // The device's answer when another file has the path (LinkFile and
+    // FinishUpload, every release, no error code of its own).
+    private fun isPathTaken(message: String?) = message?.contains("Duplicated file") == true
+
+    /**
+     * Uploads (or links) one asset; returns the server path. Shared with the
+     * composer, which has no listing ([known] empty). [known]: the target
+     * folder's files by path.
+     */
+    suspend fun uploadIfNeeded(asset: Asset, targetDir: String, known: Map<String, PbFile> = emptyMap()): String {
         val cleanName = asset.name.replace("/", "_")
         val path = "$targetDir$cleanName"
-        if (path in knownPaths) return path
+        val alt = altPath(targetDir, cleanName, asset.id)
         val created = timestamp(asset.dateAddedMs)
         val cacheKey = asset.id.toString()
+
+        // Issue #165: hashed as a stream (4 MiB at a time), never read whole.
+        var digest: ChunkedUpload.Digest? = null
+
+        // The plain name is this asset's unless the file there is another
+        // one: it used to count as synced on the name alone.
+        var target = path
+        known[path]?.let { there ->
+            if (alt in known) return alt
+            val cached = AssetSyncCache.hash(cacheKey)
+            val mine = when {
+                cached != null -> cached == there.hash
+                // Size before reading anything; toInt() wraps like the device's int32.
+                asset.size == 0L || asset.size.toInt() == there.size -> true
+                else -> digestOf(asset).also { digest = it }.sha256 == there.hash // a stale SIZE?
+            }
+            if (mine) { digest?.let { AssetSyncCache.record(cacheKey, it.sha256) }; return path }
+            target = alt
+        }
 
         suspend fun hasFile(h: String): Boolean {
             val r = OTCConnection.request { it.setReqHasFile(HasFile.newBuilder().setHash(h)) }
             return r.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_EXISTS && r.respFileExists.exists
         }
 
-        // Issue #165: hashed as a stream (4 MiB at a time), never read whole.
-        var digest: ChunkedUpload.Digest? = null
-        var hash = AssetSyncCache.hash(cacheKey) ?: digestOf(asset).also { digest = it }.sha256
+        var hash = digest?.sha256 ?: AssetSyncCache.hash(cacheKey) ?: digestOf(asset).also { digest = it }.sha256
         var already = hasFile(hash)
         if (!already && digest == null) { digest = digestOf(asset); hash = digest!!.sha256; already = hasFile(hash) }
 
-        val resp = if (already) {
-            OTCConnection.request { it.setReqLinkFile(LinkFile.newBuilder().setHash(hash).setPath(path).setForceOverride(false).setCreated(created)) }
+        suspend fun send(to: String): RespEnvelope = if (already) {
+            OTCConnection.request { it.setReqLinkFile(LinkFile.newBuilder().setHash(hash).setPath(to).setForceOverride(false).setCreated(created)) }
         } else {
-            ChunkedUpload.upload(path, digest!!.size, { openData(asset.uri) }, forceOverride = false, created = created, sha256 = hash)
+            ChunkedUpload.upload(to, digest!!.size, { openData(asset.uri) }, forceOverride = false, created = created, sha256 = hash)
         }
-        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) { AssetSyncCache.record(cacheKey, hash); return path }
+
+        // null: another file took the plain name since the listing (two
+        // same-named assets in one run), or the composer met one.
+        suspend fun sendUnlessTaken(to: String): RespEnvelope? = try {
+            send(to).takeUnless { to != alt && it.payloadCase != RespEnvelope.PayloadCase.RESP_FILE && isPathTaken(it.errorMessage) }
+        } catch (e: OTCConnection.RequestError) {
+            if (to == alt || !isPathTaken(e.message)) throw e
+            null
+        }
+
+        val resp = sendUnlessTaken(target) ?: run {
+            target = alt
+            // A refused FinishUpload drops its content again.
+            if (!already) already = hasFile(hash)
+            send(alt)
+        }
+        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) { AssetSyncCache.record(cacheKey, hash); return target }
         throw IllegalStateException(resp.errorMessage.ifEmpty { "Upload failed" })
     }
 
@@ -177,10 +237,10 @@ object PhotoSync {
             val targetDir = "/android/${secrets.deviceId.value}/"
             // Nothing new (most resumes and background runs): no listing of a
             // folder that holds every photo this phone ever synced.
-            val known = if (assets.isEmpty()) emptySet() else try {
+            val known: Map<String, PbFile> = if (assets.isEmpty()) emptyMap() else try {
                 val resp = OTCConnection.request { it.setReqListFiles(ListFiles.newBuilder().setPath(targetDir)) }
-                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) resp.respListOfFiles.filesList.map { it.path }.toSet() else emptySet()
-            } catch (e: CancellationException) { throw e } catch (e: Exception) { emptySet() }
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) resp.respListOfFiles.filesList.associateBy { it.path } else emptyMap()
+            } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyMap() }
 
             var idx = 0
             // Set by the first failed upload: the watermark stays just before
