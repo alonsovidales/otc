@@ -7,6 +7,7 @@ package dao
 
 import (
 	"database/sql"
+	"math"
 	"testing"
 	"time"
 
@@ -284,5 +285,37 @@ func TestGetSocialPublicationCommentsSinglePost(t *testing.T) {
 	comments, err := NewWithDB(db).GetSocialPublicationComments("p1", "me")
 	if err != nil || comments == nil || len(comments) != 0 {
 		t.Fatalf("got %v, %v; want an empty list", comments, err)
+	}
+}
+
+// A friend's device chooses the page size it asks for: capped, so it
+// can't have every post's thumbnails read at once. The owner's apps
+// re-ask for everything they have loaded, so their pages aren't.
+func TestFeedAndEventPagesAreCappedForFriends(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	feedRows := func() *sqlmock.Rows {
+		return sqlmock.NewRows([]string{"friend_domain", "uuid", "dt", "text", "own_publication", "likes"})
+	}
+
+	mock.ExpectQuery("from `social_publications`").WithArgs("", MaxFriendFeedPage).WillReturnRows(feedRows())
+	if _, err := d.GetSocialPublications(time.Now(), math.MaxInt32, true, nil, "", "", nil, "f"); err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("from `social_publications`").WithArgs("", int32(400)).WillReturnRows(feedRows())
+	if _, err := d.GetSocialPublications(time.Now(), 400, false, nil, "", "", nil, "me"); err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectQuery("from `events`").WithArgs(sqlmock.AnyArg(), "f", cMaxEventsPage).
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "content"}))
+	if _, err := d.GetEvents(time.Unix(0, 0), math.MaxInt32, "f"); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

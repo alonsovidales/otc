@@ -913,6 +913,13 @@ func (ch *connHandler) readLimit() int64 {
 	return cPreAuthReadLimit
 }
 
+// A feed page reserves cFeedPostBytes a post (a few thumbnails at
+// max-thumbnail-width-px), for at most cFeedReserveMaxPosts posts.
+const (
+	cFeedPostBytes       = 256 << 10
+	cFeedReserveMaxPosts = 1000
+)
+
 // reserveMemory holds the content budget a request that answers with file
 // content needs (a file, a post's media, a share link's part), until its
 // reply is on the wire. Never nil.
@@ -936,6 +943,24 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 	case *pb.ReqEnvelope_ReqGetThumbnails:
 		// The Files grid: a batch of thumbnails, at most about 8 MB.
 		return fm.ReserveBytes(16 << 20)
+	case *pb.ReqEnvelope_ReqGetSocialPublications:
+		// A feed page's thumbnails are read whole, then marshalled again.
+		// Only a signed-in owner or a friend is served one.
+		friend := ch.getFriendProfile() != nil
+		if ch.getSession() == nil && !friend {
+			return func() {}
+		}
+		n := int64(p.ReqGetSocialPublications.Total)
+		if friend && n > int64(dao.MaxFriendFeedPage) {
+			n = int64(dao.MaxFriendFeedPage) // what dao serves a friend
+		}
+		if n <= 0 {
+			return func() {}
+		}
+		if n > cFeedReserveMaxPosts {
+			n = cFeedReserveMaxPosts // acquire clamps to the budget anyway
+		}
+		return fm.ReserveBytes(n * cFeedPostBytes * 2)
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
 		// Issue #166: reachable by anyone with a link - one part at a time.
 		n := int64(p.ReqDownloadSharedLink.Length)

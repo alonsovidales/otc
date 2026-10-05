@@ -913,12 +913,24 @@ func (dao *Dao) DeleteLikePublication(pubUuid, likerDomain string) (err error) {
 	return
 }
 
+// MaxFriendFeedPage caps a feed page served to a friend's device, whose
+// requested total was otherwise the page size - every post's thumbnails
+// read into memory. No friend device asks for the feed today (friends sync
+// through events), and the apps' pages are 4 posts.
+const MaxFriendFeedPage int32 = 20
+
+// cMaxEventsPage caps a page of events; friends ask for 20.
+const cMaxEventsPage int32 = 500
+
 // GetEvents is the page of events after since that requester's device is
 // served: every broadcast one, and those meant for it alone (issue #174 -
 // a "forget me" goes to that ex-friend only, and no other friend learns of
 // it).
 func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (events []*pb.Event, err error) {
 	log.Debug("Get Events")
+	if total > cMaxEventsPage {
+		total = cMaxEventsPage
+	}
 	rows, err := dao.db.Query("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and (`target` is null or `target` = ?) order by `dt` asc limit ?", since, requester, total)
 	if err != nil {
 		return nil, err
@@ -1237,6 +1249,11 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 	args := make([]any, len(exclude)+1)
 	for i := 0; i < len(exclude); i++ {
 		args[i] = exclude[i]
+	}
+	// The owner's apps re-ask for every post they have loaded, so only a
+	// friend's page is capped.
+	if ownOnly && total > MaxFriendFeedPage {
+		total = MaxFriendFeedPage
 	}
 	args[len(exclude)] = total
 	ownClaus := ""
