@@ -193,7 +193,8 @@ final class SyncModel: ObservableObject {
     private var foldersSettingUp: Set<UUID> = []
     // Backups the device linked now has confirmed as upload only. One it
     // didn't (the link dropped, a device not updated yet) is asked again
-    // by its next pass, not only at the next launch. Each failure is
+    // by its next pass, not only at the next launch. Forgotten when the
+    // address or password changes, not on a reconnect. Each failure is
     // logged once, not every pass.
     private var uploadOnlyOK: Set<UUID> = []
     private var uploadOnlyErrors: [UUID: String] = [:]
@@ -471,9 +472,6 @@ final class SyncModel: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.overallStatus = "Connected"
-                // Possibly another device, or this one set up again: each
-                // backup's next pass makes it upload only there.
-                self.uploadOnlyOK.removeAll()
                 self.startRaidPolling()
                 // Folders left in an error while the link was down (their
                 // retry finds no connection and gives up) go again now,
@@ -543,6 +541,13 @@ final class SyncModel: ObservableObject {
                 guard let self else { return }
                 Task { @MainActor in
                     self.authRetryTask?.cancel()
+                    // Possibly another device: each backup's next pass
+                    // makes it upload only there. Not on a plain
+                    // reconnect - the owner may have cleared the lock
+                    // from the web app, and it is set again only at the
+                    // next launch, as otc-sync does.
+                    self.uploadOnlyOK.removeAll()
+                    self.uploadOnlyErrors.removeAll()
                     if settings.ready {
                         self.overallStatus = "Connecting…"
                         self.ws.configure(domain: domain, key: key)
