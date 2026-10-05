@@ -30,7 +30,11 @@ import (
 // the sync engine or is only a viewer next to the service.
 type Controller interface {
 	Snapshot() config.State
+	// Config is for display: empty when config.json can't be read.
 	Config() *config.Config
+	// LoadConfig is for an edit that is saved back: it fails rather than
+	// hand over an empty config to save over the real one.
+	LoadConfig() (*config.Config, error)
 	SaveConfig(*config.Config) error
 	Password() string
 	SetPassword(string) error
@@ -312,8 +316,24 @@ func folderTitle(f config.FolderStatus) string {
 	return fmt.Sprintf("%s %s — %s", arrow, name, state)
 }
 
+// editConfig is config.json for an edit, or nil - and the reason shown -
+// when it can't be read, so nothing is saved over it.
+func (u *ui) editConfig() *config.Config {
+	cfg, err := u.c.LoadConfig()
+	if err != nil {
+		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+
+		return nil
+	}
+
+	return cfg
+}
+
 func (u *ui) removeFolder(fi *folderItem) {
-	cfg := u.c.Config()
+	cfg := u.editConfig()
+	if cfg == nil {
+		return
+	}
 	if fi.remote {
 		kept := cfg.RemoteFolders[:0:0]
 		for _, f := range cfg.RemoteFolders {
@@ -343,7 +363,10 @@ func (u *ui) addBackup_() {
 	if err != nil || dir == "" {
 		return
 	}
-	cfg := u.c.Config()
+	cfg := u.editConfig()
+	if cfg == nil {
+		return
+	}
 	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir, OneWay: true})
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
@@ -369,7 +392,10 @@ func (u *ui) addLocal_() {
 	if err != nil || dir == "" {
 		return
 	}
-	cfg := u.c.Config()
+	cfg := u.editConfig()
+	if cfg == nil {
+		return
+	}
 	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir})
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
@@ -389,7 +415,10 @@ func (u *ui) addRemote() {
 	if err != nil || dir == "" {
 		return
 	}
-	cfg := u.c.Config()
+	cfg := u.editConfig()
+	if cfg == nil {
+		return
+	}
 	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
@@ -419,7 +448,11 @@ func parentPath(p string) string {
 // settings is SettingsInlineView: the device by name (issue #121) or any
 // address, then the password.
 func (u *ui) settingsDialog() {
-	cfg := u.c.Config()
+	// Before the password is asked for: it is saved only with this config.
+	cfg := u.editConfig()
+	if cfg == nil {
+		return
+	}
 	current := config.BridgeName(cfg.Domain)
 	hint := "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)."
 	if current == "" {
@@ -483,7 +516,11 @@ func (u *ui) settingsTitle() string {
 // start syncing with, or deleting on, a different device. Same as the
 // Mac's Settings > Disconnect.
 func (u *ui) disconnectDialog() {
-	cfg := u.c.Config()
+	// Folders and device go, but the client id and autostart stay.
+	cfg := u.editConfig()
+	if cfg == nil {
+		return
+	}
 	if zenity.Question("All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. "+
 		"The files themselves stay on this computer and on the device. You can add the folders again after connecting.",
 		zenity.Title("Disconnect from "+deviceLabel(cfg.Domain)+"?"), zenity.OKLabel("Disconnect"), zenity.WarningIcon) != nil {

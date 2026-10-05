@@ -437,6 +437,21 @@ func (a *app) Config() *config.Config {
 	return cfg
 }
 
+// LoadConfig is config.json for an edit about to be saved: a file that
+// can't be read is an error here, never the empty config Config shows -
+// saving that over the real file dropped every folder (and their sync
+// records) and the device. A read that races another process's
+// rename-over (Windows) is tried again.
+func (a *app) LoadConfig() (*config.Config, error) {
+	cfg, err := config.Load()
+	for try := 1; err != nil && try < 3; try++ {
+		time.Sleep(50 * time.Millisecond)
+		cfg, err = config.Load()
+	}
+
+	return cfg, err
+}
+
 func (a *app) SaveConfig(cfg *config.Config) error {
 	if err := cfg.Save(); err != nil {
 		return err
@@ -483,7 +498,11 @@ func (a *app) AutostartEnabled() bool {
 }
 
 func (a *app) SetAutostart(on bool) error {
-	cfg := a.Config()
+	// Before the login item changes: a failed read leaves both as they are.
+	cfg, err := a.LoadConfig()
+	if err != nil {
+		return err
+	}
 	v := on
 	cfg.Autostart = &v
 	if err := cfg.Save(); err != nil {
