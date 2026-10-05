@@ -21,8 +21,10 @@ package updater
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,6 +32,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -326,18 +329,40 @@ func Apply() error {
 	return nil
 }
 
+// The last manifest that verified, for the few minutes after a release
+// when the CDN may serve the new VERSIONS next to the old VERSIONS.sig.
+var (
+	verifiedMu       sync.Mutex
+	verifiedReleases []Release
+)
+
+// fetchManifest reads VERSIONS only when it carries the release key's
+// signature, as the root runner does: unsigned, anyone able to change the
+// branch could put any text into a real critical banner (its summary comes
+// from here) or list made-up releases - and the body was read unbounded.
 func fetchManifest() ([]Release, error) {
-	client := &http.Client{Timeout: cManifestTimeout}
-	resp, err := client.Get(manifestURL())
+	body, err := fetchSigned(manifestURL())
 	if err != nil {
+		if errors.Is(err, errNotSigned) {
+			verifiedMu.Lock()
+			cached := verifiedReleases
+			verifiedMu.Unlock()
+			if cached != nil {
+				log.Debug("release manifest not verified, showing the last one that was:", err)
+				return cached, nil
+			}
+		}
 		return nil, fmt.Errorf("fetching the release manifest: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetching the release manifest: %s", resp.Status)
+	releases, err := parseManifest(bytes.NewReader(body))
+	if err != nil {
+		return nil, err
 	}
+	verifiedMu.Lock()
+	verifiedReleases = releases
+	verifiedMu.Unlock()
 
-	return parseManifest(resp.Body)
+	return releases, nil
 }
 
 // parseManifest reads the tab-separated release list. Anything it can't

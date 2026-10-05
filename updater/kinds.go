@@ -4,6 +4,7 @@ package updater
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/base64"
@@ -50,6 +51,10 @@ func releaseKey() (ed25519.PublicKey, error) {
 	if err != nil {
 		raw = []byte(cEmbeddedReleaseKey)
 	}
+	return parseReleaseKey(raw)
+}
+
+func parseReleaseKey(raw []byte) (ed25519.PublicKey, error) {
 	block, _ := pem.Decode(raw)
 	if block == nil {
 		return nil, errors.New("no PEM key")
@@ -65,6 +70,9 @@ func releaseKey() (ed25519.PublicKey, error) {
 	return pub, nil
 }
 
+// cMaxBody bounds what a fetch reads: the signed files are a few KB.
+const cMaxBody = 4 << 20
+
 func fetchBody(url string) ([]byte, error) {
 	client := &http.Client{Timeout: cManifestTimeout}
 	resp, err := client.Get(url)
@@ -75,33 +83,64 @@ func fetchBody(url string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: %s", url, resp.Status)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, cMaxBody+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > cMaxBody {
+		return nil, fmt.Errorf("%s: larger than %d bytes", url, cMaxBody)
+	}
+	return body, nil
+}
+
+// errNotSigned: the file came, but not with a valid release-key signature
+// (an altered file - or, for a few minutes after a release, the CDN serving
+// a new file next to its old signature).
+var errNotSigned = errors.New("not signed with the release key")
+
+// verifySigned checks body against a base64 Ed25519 signature.
+func verifySigned(pub ed25519.PublicKey, body, sigB64 []byte) error {
+	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sigB64)))
+	if err != nil {
+		return fmt.Errorf("%w (malformed signature: %v)", errNotSigned, err)
+	}
+	if !ed25519.Verify(pub, body, sig) {
+		return errNotSigned
+	}
+	return nil
+}
+
+// fetchSigned fetches url and url.sig, and returns the body only when it
+// carries the release key's signature - the rule the root runner and the
+// installers apply to everything they read from the repository.
+func fetchSigned(url string) ([]byte, error) {
+	body, err := fetchBody(url)
+	if err != nil {
+		return nil, err
+	}
+	sigB64, err := fetchBody(url + ".sig")
+	if err != nil {
+		return nil, err
+	}
+	pub, err := releaseKey()
+	if err != nil {
+		return nil, err
+	}
+	if err := verifySigned(pub, body, sigB64); err != nil {
+		return nil, fmt.Errorf("%s: %w", url, err)
+	}
+	return body, nil
 }
 
 // fetchKinds reads RELEASES and checks its signature: an unsigned or
 // altered file could raise a fake "critical update" banner in every app,
 // so it is trusted only signed.
 func fetchKinds() (map[int]releaseMeta, error) {
-	body, err := fetchBody(kindsURL())
+	body, err := fetchSigned(kindsURL())
 	if err != nil {
 		return nil, err
 	}
-	sigB64, err := fetchBody(kindsURL() + ".sig")
-	if err != nil {
-		return nil, err
-	}
-	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sigB64)))
-	if err != nil {
-		return nil, fmt.Errorf("the release kinds' signature is malformed: %w", err)
-	}
-	pub, err := releaseKey()
-	if err != nil {
-		return nil, err
-	}
-	if !ed25519.Verify(pub, body, sig) {
-		return nil, errors.New("the release kinds are not signed with the release key")
-	}
-	return parseKinds(strings.NewReader(string(body))), nil
+	return parseKinds(bytes.NewReader(body)), nil
 }
 
 func parseKinds(r io.Reader) map[int]releaseMeta {

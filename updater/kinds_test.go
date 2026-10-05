@@ -4,6 +4,9 @@ package updater
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
+	"errors"
+	"os"
 	"strings"
 	"testing"
 )
@@ -43,5 +46,44 @@ func TestKindsSignature(t *testing.T) {
 	}
 	if _, err := releaseKey(); err != nil {
 		t.Fatalf("the embedded release key doesn't parse: %v", err)
+	}
+}
+
+// The manifest and the release kinds are trusted only signed: a valid
+// signature passes, an altered body or a malformed signature doesn't.
+func TestVerifySigned(t *testing.T) {
+	pub, priv, _ := ed25519.GenerateKey(nil)
+	body := []byte("92\t-\tabc\tA release\tdef\n")
+	sig := []byte(base64.StdEncoding.EncodeToString(ed25519.Sign(priv, body)) + "\n")
+	if err := verifySigned(pub, body, sig); err != nil {
+		t.Fatalf("a signed body was refused: %v", err)
+	}
+	if err := verifySigned(pub, []byte("92\t-\tabc\tPhishing text\tdef\n"), sig); !errors.Is(err, errNotSigned) {
+		t.Fatalf("an altered body: %v", err)
+	}
+	if err := verifySigned(pub, body, []byte("not base64!")); !errors.Is(err, errNotSigned) {
+		t.Fatalf("a malformed signature: %v", err)
+	}
+}
+
+// What is committed verifies with the key devices embed - the same check
+// Check now makes against main.
+func TestCommittedManifestsAreSigned(t *testing.T) {
+	pub, err := parseReleaseKey([]byte(cEmbeddedReleaseKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"VERSIONS", "RELEASES"} {
+		body, err := os.ReadFile("../scripts/updates/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sig, err := os.ReadFile("../scripts/updates/" + name + ".sig")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := verifySigned(pub, body, sig); err != nil {
+			t.Errorf("scripts/updates/%s: %v", name, err)
+		}
 	}
 }
