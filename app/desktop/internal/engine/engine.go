@@ -736,7 +736,7 @@ func (e *Engine) processChangedPath(path string, f config.Folder) {
 		if notSynced(filepath.ToSlash(rel)) {
 			return // as the reconcile: not part of the backup
 		}
-		h, err := e.cachedHash(f.ID, path)
+		h, err := e.cachedHashInfo(f.ID, path, fi)
 		if err != nil || h == known {
 			return
 		}
@@ -850,7 +850,7 @@ func (e *Engine) reconcile(f config.Folder) {
 		h := ""
 		if _, onDevice := remoteMap[rp]; onDevice {
 			var err error
-			h, err = e.cachedHash(f.ID, p)
+			h, err = e.cachedHashInfo(f.ID, p, fi)
 			if err != nil || remoteMap[rp] == h {
 				continue
 			}
@@ -1041,6 +1041,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	localByRel := map[string]string{}
 	localHashes := map[string]string{}
+	// The stat each hash was taken with: sizes for the progress bar, and
+	// what the file must still look like before a planned action
+	// overwrites or deletes it.
+	localInfo := map[string]os.FileInfo{}
 	// Only here, not on the device and never synced: an upload whatever
 	// its content, hashed when it is sent (see reconcile()).
 	newLocal := map[string]bool{}
@@ -1068,8 +1072,14 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				continue
 			}
 		}
-		if h, err := e.cachedHash(f.ID, p); err == nil {
+		fi, err := os.Stat(p)
+		var h string
+		if err == nil {
+			h, err = e.cachedHashInfo(f.ID, p, fi)
+		}
+		if err == nil {
 			localHashes[rel] = h
+			localInfo[rel] = fi
 		} else {
 			unreadable[rel] = true
 			if len(unreadable) <= 5 {
@@ -1219,35 +1229,51 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 
 	// Of the whole folder, as SyncModel.reconcileRemoteFolder: every path
-	// on either side counts and what already agrees is done.
+	// on either side counts and what already agrees is done. Only worked
+	// out when there is something to do - a folder at rest is the usual
+	// pass, and summing it stat'ed every file again every minute.
+	sizes := map[string]int64{}
 	bytesOf := func(rel string) int64 {
-		if p, ok := localByRel[rel]; ok {
-			if fi, err := os.Stat(p); err == nil {
-				return fi.Size()
+		if n, ok := sizes[rel]; ok {
+			return n
+		}
+		fi, ok := localInfo[rel]
+		if p, here := localByRel[rel]; !ok && here {
+			// Not hashed this pass (new here): stat it now.
+			var err error
+			if fi, err = os.Stat(p); err == nil {
+				ok = true
 			}
 		}
-		if rf := remoteByRel[rel]; rf != nil {
-			return int64(rf.Size)
+		var n int64
+		if ok {
+			n = fi.Size()
+		} else if rf := remoteByRel[rel]; rf != nil {
+			n = int64(rf.Size)
 		}
-		return 0
+		sizes[rel] = n
+		return n
 	}
-	folderPaths := map[string]bool{}
-	for k := range localByRel {
-		folderPaths[k] = true
-	}
-	for k := range remoteByRel {
-		folderPaths[k] = true
-	}
-	folderCount := max(len(folderPaths), len(actions))
-	alreadyAgree := folderCount - len(actions)
-	var totalBytes int64
-	for k := range folderPaths {
-		totalBytes += bytesOf(k)
-	}
-	totalBytes = max(totalBytes, 1)
-	bytesDone := totalBytes
-	for _, a := range actions {
-		bytesDone -= bytesOf(a.relative)
+	var folderCount, alreadyAgree int
+	var totalBytes, bytesDone int64
+	if len(actions) > 0 {
+		folderPaths := map[string]bool{}
+		for k := range localByRel {
+			folderPaths[k] = true
+		}
+		for k := range remoteByRel {
+			folderPaths[k] = true
+		}
+		folderCount = max(len(folderPaths), len(actions))
+		alreadyAgree = folderCount - len(actions)
+		for k := range folderPaths {
+			totalBytes += bytesOf(k)
+		}
+		totalBytes = max(totalBytes, 1)
+		bytesDone = totalBytes
+		for _, a := range actions {
+			bytesDone -= bytesOf(a.relative)
+		}
 	}
 
 	for i, a := range actions {
@@ -1763,6 +1789,16 @@ func (e *Engine) cachedHash(folderID, p string) (string, error) {
 	fi, err := os.Stat(p)
 	if err != nil {
 		return "", err
+	}
+
+	return e.cachedHashInfo(folderID, p, fi)
+}
+
+// cachedHashInfo is cachedHash with the file's stat already taken by the
+// caller, moments before.
+func (e *Engine) cachedHashInfo(folderID, p string, fi os.FileInfo) (string, error) {
+	if fi == nil {
+		return "", fmt.Errorf("cannot read %s", filepath.Base(p))
 	}
 	e.mu.Lock()
 	e.loadHashCacheLocked(folderID)
