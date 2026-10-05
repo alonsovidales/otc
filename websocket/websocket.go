@@ -905,18 +905,32 @@ func (ch *connHandler) readLimit() int64 {
 
 // reserveMemory holds the content budget a request that answers with file
 // content needs (a file, a post's media, a share link's part), until its
-// reply is on the wire. Never nil.
-func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
+// reply is on the wire. Never nil. owner and friend say who this
+// connection is: a request its caller may not make is answered with an
+// error and holds nothing - an anonymous peer's GetThumbnails, or a part
+// of a share link that doesn't exist, used to take the budget the owner's
+// downloads wait on.
+func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope, owner, friend bool) func() {
 	fm := ch.mg.filesManager
 	if fm == nil {
 		return func() {}
 	}
+	none := func() {}
 	switch p := env.Payload.(type) {
 	case *pb.ReqEnvelope_ReqGetFile:
+		if !owner {
+			return none
+		}
 		return fm.ReserveForDownload(p.ReqGetFile.Path, p.ReqGetFile.Hash)
 	case *pb.ReqEnvelope_ReqGetPublicationMedia:
+		if !owner && !friend {
+			return none
+		}
 		return fm.ReservePublicationMedia(p.ReqGetPublicationMedia.Hash)
 	case *pb.ReqEnvelope_ReqGetSharedGalleryItem:
+		if !fm.SharedGalleryKnown(p.ReqGetSharedGalleryItem.Uuid, p.ReqGetSharedGalleryItem.Secret) {
+			return none
+		}
 		// Issue #180: like a share link's parts.
 		n := int64(p.ReqGetSharedGalleryItem.Length)
 		if n <= 0 || n > filesmanager.MaxChunk {
@@ -924,9 +938,15 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 		}
 		return fm.ReserveBytes(n * 2)
 	case *pb.ReqEnvelope_ReqGetThumbnails:
+		if !owner {
+			return none
+		}
 		// The Files grid: a batch of thumbnails, at most about 8 MB.
 		return fm.ReserveBytes(16 << 20)
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
+		if !fm.SharedLinkKnown(p.ReqDownloadSharedLink.Uuid) {
+			return none
+		}
 		// Issue #166: reachable by anyone with a link - one part at a time.
 		n := int64(p.ReqDownloadSharedLink.Length)
 		if n <= 0 || n > filesmanager.MaxChunk {
@@ -934,7 +954,7 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 		}
 		return fm.ReserveBytes(n * 2)
 	}
-	return func() {}
+	return none
 }
 
 // tooManyAttemptsAck refuses a password attempt while its address (or the
@@ -3720,8 +3740,11 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 
 			// A download waits here for room in the device's memory
 			// budget, and holds it until its reply is on the wire (see
-			// filesmanager.ReserveForDownload).
-			defer ch.reserveMemory(env)()
+			// filesmanager.ReserveForDownload). Only for a caller who may
+			// make it: a session or friend is never cleared once set, so
+			// at worst one racing its own sign-in skips the budget.
+			ses, friend := ch.getSession(), ch.getFriendProfile()
+			defer ch.reserveMemory(env, ses != nil, friend != nil)()
 
 			resp, doClose := ch.processMessage(env)
 
