@@ -16,6 +16,10 @@ import "./SharedGalleryView.css";
 
 const CHUNK = 4 << 20;
 type Part = typeof GetSharedGalleryItem_Part[keyof typeof GetSharedGalleryItem_Part];
+type FetchPart = (index: number, part: Part, onBytes?: (n: number, total: number) => void, shouldStop?: () => boolean) => Promise<Blob>;
+// How many steps either side of the open item the viewer keeps already
+// loaded photos and clips for, so stepping back shows them at once.
+const cViewerKeep = 2;
 
 function parseLink(): { uuid: string; secret: string } | null {
   const frag = window.location.hash.replace(/^#/, "");
@@ -39,13 +43,20 @@ export default function SharedGalleryView() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dl, setDl] = useState<{ done: number; total: number; bytes: number } | null>(null);
   const urls = useRef<string[]>([]);
+  // The viewer's loaded photos and clips by item index (blob URLs only,
+  // never a stream URL, which expires) - see Viewer.
+  const viewCache = useRef(new Map<number, string>());
 
-  // One part of an item, assembled from 4 MB pieces.
-  const fetchPart = useCallback(async (index: number, part: Part, onBytes?: (n: number, total: number) => void): Promise<Blob> => {
+  // One part of an item, assembled from 4 MB pieces. shouldStop ends it
+  // between pieces: an item the viewer has moved past, or a closed page,
+  // no longer has its whole file read and sent (each piece of a public
+  // link holds 8 MB of the device's budget).
+  const fetchPart: FetchPart = useCallback(async (index, part, onBytes, shouldStop) => {
     if (!link) throw new Error("no link");
     const pieces: Uint8Array[] = [];
     let offset = 0, total = -1, mime = "application/octet-stream";
     while (total < 0 || offset < total) {
+      if (shouldStop?.()) throw new Error("cancelled");
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = {
           $case: "reqGetSharedGalleryItem",
@@ -69,11 +80,32 @@ export default function SharedGalleryView() {
     urls.current.push(u);
     return u;
   }, []);
-  useEffect(() => () => urls.current.forEach(u => URL.revokeObjectURL(u)), []);
+  useEffect(() => () => {
+    urls.current.forEach(u => URL.revokeObjectURL(u));
+    viewCache.current.forEach(u => URL.revokeObjectURL(u));
+  }, []);
 
   useEffect(() => {
     if (!link) return;
     let cancelled = false;
+    const stop = () => cancelled;
+    // Thumbnails reach the grid in batches: one setThumbs per thumbnail
+    // copied the map and re-rendered every tile each time, which grows
+    // with the square of the gallery's size.
+    let pending: Record<number, string> = {};
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => {
+      if (flushTimer != null) clearTimeout(flushTimer);
+      flushTimer = null;
+      const batch = pending;
+      pending = {};
+      if (!cancelled && Object.keys(batch).length) setThumbs(t => ({ ...t, ...batch }));
+    };
+    const addThumb = (i: number, url: string) => {
+      pending[i] = url;
+      // A timer, not requestAnimationFrame, which stalls in a background tab.
+      if (flushTimer == null) flushTimer = setTimeout(flush, 100);
+    };
     (async () => {
       try {
         const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -93,27 +125,31 @@ export default function SharedGalleryView() {
           while (!cancelled && next < g.items.length) {
             const i = next++;
             try {
-              const b = await fetchPart(i, GetSharedGalleryItem_Part.THUMBNAIL);
-              if (!cancelled) setThumbs(t => ({ ...t, [i]: objectURL(b) }));
+              const b = await fetchPart(i, GetSharedGalleryItem_Part.THUMBNAIL, undefined, stop);
+              if (!cancelled) addThumb(i, objectURL(b));
             } catch {
               // A gallery made before its files had thumbnails: the
               // screen-sized preview stands in; without one either, the
               // tile shows the file's name.
               if (g.items[i].hasPreview) {
                 try {
-                  const b = await fetchPart(i, GetSharedGalleryItem_Part.PREVIEW);
-                  if (!cancelled) setThumbs(t => ({ ...t, [i]: objectURL(b) }));
+                  const b = await fetchPart(i, GetSharedGalleryItem_Part.PREVIEW, undefined, stop);
+                  if (!cancelled) addThumb(i, objectURL(b));
                 } catch { /* the name, then */ }
               }
             }
           }
         };
         await Promise.all([worker(), worker(), worker(), worker()]);
+        flush();
       } catch (err: any) {
         if (!cancelled) setError(err?.message || "Could not open this gallery.");
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (flushTimer != null) clearTimeout(flushTimer);
+    };
   }, [link, fetchPart, objectURL]);
 
   const download = async (indexes: number[]) => {
@@ -206,7 +242,7 @@ export default function SharedGalleryView() {
       </div>
       {open !== null && (
         <Viewer item={items[open]} count={items.length} index={open} thumb={thumbs[open]}
-          fetchPart={fetchPart} objectURL={objectURL} link={link!}
+          fetchPart={fetchPart} cache={viewCache.current} link={link!}
           onClose={() => setOpen(null)} onMove={d => setOpen(i => (i === null ? null : (i + d + items.length) % items.length))}
           onDownload={() => void download([open])} />
       )}
@@ -216,10 +252,10 @@ export default function SharedGalleryView() {
 
 function Viewer(props: {
   item: SharedGalleryItem; index: number; count: number; thumb?: string; link: { uuid: string; secret: string };
-  fetchPart: (i: number, part: Part, onBytes?: (n: number, total: number) => void) => Promise<Blob>; objectURL: (b: Blob) => string;
+  fetchPart: FetchPart; cache: Map<number, string>;
   onClose: () => void; onMove: (d: number) => void; onDownload: () => void;
 }) {
-  const { item, index, count, thumb, link, fetchPart, objectURL, onClose, onMove, onDownload } = props;
+  const { item, index, count, thumb, link, fetchPart, cache, onClose, onMove, onDownload } = props;
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState<{ n: number; total: number }>({ n: 0, total: 0 });
@@ -230,10 +266,33 @@ function Viewer(props: {
     setFailed(false);
     setLoaded({ n: 0, total: 0 });
     const progress = (n: number, total: number) => { if (!cancelled) setLoaded(l => ({ n: l.n + n, total })); };
+    // Every photo and whole clip opened used to stay in memory until the
+    // page closed, and a revisit downloaded it again. Now one is kept per
+    // item while the viewer is within cViewerKeep steps of it, and freed
+    // once it is further - never the item on screen or its neighbours.
+    const show = (u: string) => {
+      setSrc(u);
+      cache.forEach((url, k) => {
+        const d = Math.abs(k - index);
+        if (Math.min(d, count - d) <= cViewerKeep) return;
+        URL.revokeObjectURL(url);
+        cache.delete(k);
+      });
+    };
+    const load = async (part: Part) => {
+      const hit = cache.get(index);
+      if (hit) { show(hit); return; }
+      const b = await fetchPart(index, part, progress, () => cancelled);
+      if (cancelled) return;
+      const u = URL.createObjectURL(b);
+      cache.set(index, u);
+      show(u);
+    };
     (async () => {
       try {
         if (isVideo(item)) {
           // Streamed by range when it's worth it; small clips come whole.
+          // A stream URL expires, so it is asked for afresh every time.
           const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
             (e as any).payload = { $case: "reqGetSharedGalleryStream", reqGetSharedGalleryStream: { uuid: link.uuid, secret: link.secret, index } };
           });
@@ -241,18 +300,17 @@ function Viewer(props: {
             if (!cancelled) setSrc(resp.payload.respMediaUrl.url);
             return;
           }
-          const b = await fetchPart(index, GetSharedGalleryItem_Part.ORIGINAL, progress);
-          if (!cancelled) setSrc(objectURL(b));
+          if (cancelled) return;
+          await load(GetSharedGalleryItem_Part.ORIGINAL);
           return;
         }
-        const b = await fetchPart(index, GetSharedGalleryItem_Part.PREVIEW, progress);
-        if (!cancelled) setSrc(objectURL(b));
+        await load(GetSharedGalleryItem_Part.PREVIEW);
       } catch {
         if (!cancelled) setFailed(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [item, index, link, fetchPart, objectURL]);
+  }, [item, index, count, link, fetchPart, cache]);
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
