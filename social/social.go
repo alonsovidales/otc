@@ -1400,11 +1400,11 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 	log.Debug("Got an internal friendship req, checking foreign domain:", extDomain)
 	// Check if the request came from the other side
 	conn, err := sc.connectToDevice(extDomain)
-	defer conn.Close()
 	if err != nil {
 		log.Error("Error connecting to external device:", err)
 		return err
 	}
+	defer conn.Close()
 
 	// Check if the other device sent the request
 	msg := &pb.ReqEnvelope{

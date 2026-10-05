@@ -168,3 +168,13 @@ func TestRelinkAfterSilenceNeedsAcceptingAgain(t *testing.T) {
 		t.Errorf("seen 6 days ago: got %q, want accepted", s)
 	}
 }
+
+// A friend request whose sender can't be dialled back (a domain outside
+// the friend TLD, a device offline) answers with the reason, rather than
+// panicking on the connection that never opened.
+func TestExternalFriendshipRequestUnreachableSender(t *testing.T) {
+	sc := &Social{}
+	if err := sc.ExternalFriendshipRequest("evil.example.com", "s", "n", "", nil); err == nil {
+		t.Fatal("a sender outside the friend TLD was accepted")
+	}
+}
