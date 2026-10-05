@@ -1945,14 +1945,7 @@ final class SyncModel: ObservableObject {
         }
     }
 
-    // `static`/`nonisolated` and self-contained (no access to `self`) on
-    // purpose: walking a whole folder tree can take a while for a large
-    // library, and calling this straight from @MainActor `reconcile()`
-    // used to do that walk (and every file's hash below) right on the main
-    // thread — freezing the popover UI, which is what made the folder list
-    // look "stuck"/unopenable rather than just slow. Being a plain
-    // self-free static function makes it safe to hop off-actor via
-    // `Task.detached` at the call site.
+    /// What enumerateFilesRecursively found.
     private struct LocalScan {
         var urls: [URL] = []
         /// What could not be read (a directory without permission): what
@@ -1965,6 +1958,14 @@ final class SyncModel: ObservableObject {
         var complete: Bool { rootReadable && failed.isEmpty }
     }
 
+    // `static`/`nonisolated` and self-contained (no access to `self`) on
+    // purpose: walking a whole folder tree can take a while for a large
+    // library, and calling this straight from @MainActor `reconcile()`
+    // used to do that walk (and every file's hash below) right on the main
+    // thread — freezing the popover UI, which is what made the folder list
+    // look "stuck"/unopenable rather than just slow. Being a plain
+    // self-free static function makes it safe to hop off-actor via
+    // `Task.detached` at the call site.
     private nonisolated static func enumerateFilesRecursively(at root: URL) -> LocalScan {
         var scan = LocalScan()
         // The enumerator skipped what it couldn't read without a word, and
