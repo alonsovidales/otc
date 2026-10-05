@@ -58,8 +58,10 @@ object ChunkedDownload {
                 it.setReqReadFile(ReadFile.newBuilder().setPath(path).setHash(hash).setOffset(at).setLength(ChunkedUpload.chunkSize))
             }
             if (resp.error) {
-                // A device from before ReadFile: the whole file at once, as before.
-                if (at == 0L && resp.errorCode == "unknown_payload") return wholeFile(path, hash, out)
+                // A device from before ReadFile (v40): the whole file at once,
+                // as before. Builds before v9 answer with no error code, only
+                // the bare message.
+                if (at == 0L && (resp.errorCode == "unknown_payload" || resp.errorMessage == "unknown payload")) return wholeFile(path, hash, out)
                 throw Refused(resp.errorMessage)
             }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE_CHUNK) throw Refused("")
