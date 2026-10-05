@@ -29,6 +29,7 @@ import re
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -75,13 +76,19 @@ def safe_write(path, text=""):
     """Root writes into /var/lib/otc, which belongs to the otc user once
     installed: a temp file renamed into place replaces a symlink planted
     there instead of following it (a plain write or touch as root would
-    overwrite whatever file it pointed at)."""
+    overwrite whatever file it pointed at). mkstemp's random name, not a
+    predictable one the otc user could create first to make every write
+    fail (setup-done, and with it the hotspot teardown)."""
     path = Path(path)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
-    with os.fdopen(fd, "w") as f:
-        f.write(text)
-    os.replace(tmp, path)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        os.fchmod(fd, 0o644)
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 def run(cmd, timeout=None):
     try:
