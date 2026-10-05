@@ -1021,7 +1021,7 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		done()
 	} else {
 		// Issue #166: read whole for its metadata, within the budget.
-		release := mg.ReserveBytes(int64(file.Size))
+		release := mg.ReserveBytes(budgetSize(file))
 		var content []byte
 		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
 		if err == nil {

@@ -430,7 +430,7 @@ func fileSize(p string) int64 {
 // long side and turned the way the photo is meant to be seen (its EXIF
 // orientation, as thumbnails do) - HEIC the way the library shows it.
 func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, image.Image, error) {
-	release := mg.ReserveBytes(int64(f.Size) * cDownloadCopies)
+	release := mg.ReserveBytes(budgetSize(f) * cDownloadCopies)
 	defer release()
 	content, err := blobstore.ReadAll(blobPath(f.Hash), ses)
 	if err != nil {
