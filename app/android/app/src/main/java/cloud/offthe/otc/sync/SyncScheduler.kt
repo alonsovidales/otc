@@ -10,6 +10,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import cloud.offthe.otc.OTCApp
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 // Port of SyncScheduler.swift: the background sync, via WorkManager (the
@@ -43,6 +44,8 @@ object SyncScheduler {
 
     class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
         override suspend fun doWork(): Result =
-            try { PhotoSync.runForeground(); Result.success() } catch (e: Exception) { Result.retry() }
+            try { PhotoSync.runForeground(); Result.success() }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { Result.retry() }
     }
 }

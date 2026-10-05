@@ -20,6 +20,7 @@ import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.ListFiles
 import cloud.offthe.otc.proto.RespEnvelope
 import com.google.protobuf.Timestamp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -27,6 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -60,15 +62,21 @@ object PhotoSync {
     }
 
     // The sync in progress, so Log Out can stop it (as PhotoSync.swift's
-    // cancel()): every network call in it is a suspension point.
-    private var currentSync: Job? = null
+    // cancel()): every network call in it is a suspension point. Set by the
+    // run that owns the sync, so a call that found one already running
+    // (every resume during a long sync) can't swap it for a finished no-op;
+    // the WorkManager run is covered too.
+    @Volatile private var currentSync: Job? = null
+    // Bumped by cancel(): a run from before Log Out writes no sync state
+    // into the store it just wiped.
+    @Volatile private var generation = 0
 
     fun runForegroundAsync() {
-        currentSync = scope.launch { try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") } }
+        scope.launch { try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") } }
     }
 
     /** Log Out: stop the sync in progress. */
-    fun cancel() { currentSync?.cancel() }
+    fun cancel() { generation++; currentSync?.cancel() }
 
     fun fetchNewAssets(includeVideos: Boolean, sinceMs: Long, limit: Int = 0, newestFirst: Boolean = false): List<Asset> {
         val cr = OTCApp.instance.contentResolver
@@ -140,6 +148,9 @@ object PhotoSync {
 
     suspend fun runForeground() {
         if (!syncing.compareAndSet(false, true)) { Log.i(tag, "sync already running"); return }
+        val job = currentCoroutineContext()[Job]
+        currentSync = job
+        val gen = generation
         try {
             if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return }
             val secrets = SecretsStore.loadOrCreate()
@@ -164,17 +175,21 @@ object PhotoSync {
                             try {
                                 UploadModel.step(asset.name, position - 1, assets.size)
                                 uploadIfNeeded(asset, targetDir, known)
+                            } catch (e: CancellationException) {
+                                throw e // Log Out: no watermark past what was cut short
                             } catch (e: Exception) { Log.w(tag, "upload failed for ${asset.name}: ${e.message}") }
                         }
                     }.awaitAll()
                 }
-                chunk.maxOfOrNull { it.dateAddedMs }?.let { lastSyncMs = it }
+                if (gen == generation) chunk.maxOfOrNull { it.dateAddedMs }?.let { lastSyncMs = it }
             }
-            AssetSyncCache.flush()
+            if (gen == generation) AssetSyncCache.flush()
             UploadModel.complete()
-            lastSyncMs = System.currentTimeMillis()
+            if (gen == generation) lastSyncMs = System.currentTimeMillis()
             Log.i(tag, "sync done")
         } finally {
+            // Before releasing the flag, so the next run's handle isn't wiped.
+            if (currentSync === job) currentSync = null
             syncing.set(false)
         }
     }
