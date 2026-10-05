@@ -121,4 +121,9 @@ object FCMPush {
         }
         prefs.edit().remove(TOKEN_KEY).apply()
     }
+
+    /** Drops the stored token without telling anyone (SecretsStore's restore recovery). */
+    fun forgetToken(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(TOKEN_KEY).apply()
+    }
 }

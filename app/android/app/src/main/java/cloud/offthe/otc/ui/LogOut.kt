@@ -15,8 +15,10 @@ import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Log Out, shared by Settings and the "device isn't available" card (whose
@@ -44,9 +46,12 @@ fun logOut(context: Context, secrets: SecretsStore, unregisterPush: Boolean = tr
         OTCConnection.reset()
         MediaStream.reset()
         SyncScheduler.cancel()
-        AssetSyncCache.clear()
-        secrets.logOut()
-        if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()
+        // Off the main thread: the wipe deletes the whole cache and files dirs.
+        withContext(Dispatchers.IO) {
+            AssetSyncCache.clear()
+            secrets.logOut()
+            if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()
+        }
         val activity = context as? Activity ?: return@launch
         activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         activity.finish()

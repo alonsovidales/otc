@@ -3,12 +3,16 @@ package cloud.offthe.otc.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.push.FCMPush
+import cloud.offthe.otc.sync.AssetSyncCache
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.net.URI
+import java.security.KeyStore
 import java.util.UUID
 
 // Port of SecretsStore.swift. The endpoint, password and device id live in
@@ -86,6 +90,7 @@ class SecretsStore private constructor(
 
     companion object {
         const val bridgeDomain = "off-the.cloud"
+        private const val TAG = "OTC/SecretsStore"
 
         @Volatile private var shared: SecretsStore? = null
 
@@ -133,8 +138,8 @@ class SecretsStore private constructor(
             secure().edit().remove("last_endpoint").remove("last_password").apply()
         }
 
-        /** One instance per process, loaded on first use (a Keystore round
-         *  trip, so call it off the main thread the first time). */
+        /** One instance per process, loaded on first use (the process's one
+         *  Keystore round trip: RootView makes it, before the first frame). */
         fun loadOrCreate(): SecretsStore = shared ?: synchronized(this) {
             shared ?: load().also { shared = it }
         }
@@ -155,14 +160,58 @@ class SecretsStore private constructor(
             )
         }
 
-        private fun secure(): SharedPreferences {
-            val ctx = OTCApp.instance
+        // One instance per process: each create() unwraps the Tink keysets
+        // through the Keystore (tens of ms), and persist() alone used to
+        // need three of them, on the main thread.
+        @Volatile private var securePrefs: SharedPreferences? = null
+
+        private fun secure(): SharedPreferences =
+            securePrefs ?: synchronized(this) { securePrefs ?: openSecure().also { securePrefs = it } }
+
+        private fun createSecure(ctx: Context): SharedPreferences {
             val key = MasterKey.Builder(ctx).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
             return EncryptedSharedPreferences.create(
                 ctx, "otc_secrets", key,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
             )
+        }
+
+        /**
+         * otc_secrets restored from a backup or moved from another phone
+         * (releases before the backup rules) arrives without the Keystore
+         * key its keyset is wrapped in, and create() throws on every launch.
+         * Retried once first, so a passing Keystore error on the phone that
+         * wrote it wipes nothing; after that the file is dropped and the app
+         * starts as a fresh install, as iOS does (its Keychain items are
+         * ThisDeviceOnly).
+         */
+        private fun openSecure(): SharedPreferences {
+            val ctx = OTCApp.instance
+            try { return createSecure(ctx) } catch (e: Exception) { Log.w(TAG, "secrets unreadable, retrying: $e") }
+            try { return createSecure(ctx) } catch (e: Exception) { Log.w(TAG, "secrets still unreadable, starting over: $e") }
+            ctx.deleteSharedPreferences("otc_secrets") // the keyset lives in the same file
+            forgetRestoredState(ctx)
+            return try {
+                createSecure(ctx)
+            } catch (e: Exception) {
+                // The master key itself is broken. Only otc_secrets uses it,
+                // and that is already gone.
+                Log.w(TAG, "secrets: recreating the master key: $e")
+                KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                createSecure(ctx)
+            }
+        }
+
+        // What came back from the old phone with the secrets: its sync
+        // watermark (would hide every photo here taken before it), its
+        // MediaStore id -> hash map (ids are small integers, so they'd point
+        // this phone's photos at other photos' hashes) and its FCM token.
+        // Not logOut(): that calls secure() again.
+        private fun forgetRestoredState(ctx: Context) {
+            ctx.getSharedPreferences("otc_sync", Context.MODE_PRIVATE).edit().clear().apply()
+            AssetSyncCache.clear()
+            FCMPush.forgetToken(ctx)
         }
 
         private fun plain(): SharedPreferences =
