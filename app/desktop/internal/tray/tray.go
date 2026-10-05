@@ -75,6 +75,13 @@ type ui struct {
 	lastIcon  string
 	refresh   chan struct{}
 	stopLoop  chan struct{}
+	// What each item was last set to (u.mu): apply runs every 2 s and on
+	// every engine change, and on Linux every write is D-Bus signals plus
+	// a re-fetch of the whole menu by the desktop shell, so a write that
+	// changes nothing is skipped. Emptied with the menu (build).
+	titles, tips            map[*systray.MenuItem]string
+	shown, checked, enabled map[*systray.MenuItem]bool
+	lastTrayTip             string
 }
 
 // Run blocks until the tray quits.
@@ -104,15 +111,88 @@ func (u *ui) onReady() {
 		go u.settingsDialog()
 	}
 	go func() {
+		var last time.Time
 		for {
 			select {
 			case <-refreshCh:
-				u.apply()
+				// At most four a second: a pass changes something per
+				// file. Changes meanwhile wait in refreshCh, and the apply
+				// after the pause shows the latest.
+				if d := 250*time.Millisecond - time.Since(last); d > 0 {
+					time.Sleep(d)
+				}
 			case <-time.After(2 * time.Second):
-				u.apply()
 			}
+			u.apply()
+			last = time.Now()
 		}
 	}()
+}
+
+// setTitle, setTip, setShown, setChecked and setEnabled write an item only
+// when the value changed since the last write (u.mu held).
+func (u *ui) setTitle(mi *systray.MenuItem, s string) {
+	if v, ok := u.titles[mi]; ok && v == s {
+		return
+	}
+	u.titles[mi] = s
+	mi.SetTitle(s)
+}
+
+func (u *ui) setTip(mi *systray.MenuItem, s string) {
+	if v, ok := u.tips[mi]; ok && v == s {
+		return
+	}
+	u.tips[mi] = s
+	mi.SetTooltip(s)
+}
+
+func (u *ui) setShown(mi *systray.MenuItem, on bool) {
+	if v, ok := u.shown[mi]; ok && v == on {
+		return
+	}
+	u.shown[mi] = on
+	if on {
+		mi.Show()
+	} else {
+		mi.Hide()
+	}
+}
+
+func (u *ui) setChecked(mi *systray.MenuItem, on bool) {
+	if v, ok := u.checked[mi]; ok && v == on {
+		return
+	}
+	u.checked[mi] = on
+	if on {
+		mi.Check()
+	} else {
+		mi.Uncheck()
+	}
+}
+
+func (u *ui) setEnabled(mi *systray.MenuItem, on bool) {
+	if v, ok := u.enabled[mi]; ok && v == on {
+		return
+	}
+	u.enabled[mi] = on
+	if on {
+		mi.Enable()
+	} else {
+		mi.Disable()
+	}
+}
+
+// forget makes the next write of mi happen whatever it was last set to -
+// for writes that went around the helpers.
+func (u *ui) forget(mi *systray.MenuItem) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	delete(u.titles, mi)
+	delete(u.tips, mi)
+	delete(u.shown, mi)
+	delete(u.checked, mi)
+	delete(u.enabled, mi)
 }
 
 // build lays the whole menu out in the macOS popover's order - status,
@@ -123,6 +203,9 @@ func (u *ui) build(folders []config.FolderStatus) {
 		close(u.stopLoop)
 	}
 	systray.ResetMenu()
+	// Every item is new: the first apply writes them all, as before.
+	u.titles, u.tips = map[*systray.MenuItem]string{}, map[*systray.MenuItem]string{}
+	u.shown, u.checked, u.enabled = map[*systray.MenuItem]bool{}, map[*systray.MenuItem]bool{}, map[*systray.MenuItem]bool{}
 	title := systray.AddMenuItem("Off The Cloud — Sync", "")
 	u.appUpdate = systray.AddMenuItem("", "")
 	u.appUpdate.Hide()
@@ -242,37 +325,42 @@ func (u *ui) apply() {
 	if !same {
 		u.build(want)
 	}
-	u.status.SetTitle(statusDot(st.Status) + " " + st.Status)
-	u.settings.SetTitle(u.settingsTitle())
+	u.setTitle(u.status, statusDot(st.Status)+" "+st.Status)
+	// config.json read once per apply (it used to be twice), and never
+	// cached: in viewer mode reading it is how the menu sees a device the
+	// service or the CLI changed.
+	cfg := u.c.Config()
+	u.setTitle(u.settings, settingsTitleFor(cfg, cfg.Domain != "" && u.c.Password() != ""))
 	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
-		u.raid.SetTitle(storageTitle(st))
-		u.cpu.SetTitle(fmt.Sprintf("CPU: %.0f%%", st.CPUPercent))
-		u.mem.SetTitle(memoryTitle(st))
-		u.raid.SetTooltip(fmt.Sprintf("CPU: %.0f%% · %s", st.CPUPercent, memoryTitle(st)))
-		u.raid.Show()
+		u.setTitle(u.raid, storageTitle(st))
+		u.setTitle(u.cpu, fmt.Sprintf("CPU: %.0f%%", st.CPUPercent))
+		u.setTitle(u.mem, memoryTitle(st))
+		u.setTip(u.raid, fmt.Sprintf("CPU: %.0f%% · %s", st.CPUPercent, memoryTitle(st)))
+		u.setShown(u.raid, true)
 	} else {
-		u.raid.Hide()
+		u.setShown(u.raid, false)
 	}
 	if title, tip := updateTitle(st.UpdateAlert); title != "" {
-		u.update.SetTitle(title)
-		u.update.SetTooltip(tip)
-		u.update.Show()
+		u.setTitle(u.update, title)
+		u.setTip(u.update, tip)
+		u.setShown(u.update, true)
 	} else {
-		u.update.Hide()
+		u.setShown(u.update, false)
 	}
 	if st.Raid != u.lastIcon {
 		systray.SetIcon(icons.For(st.Raid))
 		u.lastIcon = st.Raid
 	}
-	systray.SetTooltip("Off The Cloud — " + st.Status)
+	if t := "Off The Cloud — " + st.Status; t != u.lastTrayTip {
+		systray.SetTooltip(t)
+		u.lastTrayTip = t
+	}
 	for i, f := range want {
-		u.folders[i].item.SetTitle(folderTitle(f))
+		u.setTitle(u.folders[i].item, folderTitle(f))
 	}
-	if u.c.AutostartEnabled() {
-		u.autost.Check()
-	} else {
-		u.autost.Uncheck()
-	}
+	// Read every time (a stat, or a registry read), so an entry removed
+	// outside the app shows; only the write is skipped.
+	u.setChecked(u.autost, u.c.AutostartEnabled())
 }
 
 func statusDot(s string) string {
@@ -508,8 +596,14 @@ func deviceLabel(domain string) string {
 }
 
 func (u *ui) settingsTitle() string {
-	if u.configured() {
-		return "Disconnect from " + deviceLabel(u.c.Config().Domain) + "…"
+	cfg := u.c.Config()
+
+	return settingsTitleFor(cfg, cfg.Domain != "" && u.c.Password() != "")
+}
+
+func settingsTitleFor(cfg *config.Config, configured bool) string {
+	if configured {
+		return "Disconnect from " + deviceLabel(cfg.Domain) + "…"
 	}
 	return "Connect to a Device…"
 }
@@ -628,13 +722,13 @@ func (u *ui) showUpdate() {
 	up := pending
 	pendingMu.Unlock()
 	if up == nil {
-		u.appUpdate.Hide()
+		u.setShown(u.appUpdate, false)
 		return
 	}
-	u.appUpdate.SetTitle("⬆ Update otc-sync to " + up.Version)
-	u.appUpdate.SetTooltip(up.Notes)
-	u.appUpdate.Enable()
-	u.appUpdate.Show()
+	u.setTitle(u.appUpdate, "⬆ Update otc-sync to "+up.Version)
+	u.setTip(u.appUpdate, up.Notes)
+	u.setEnabled(u.appUpdate, true)
+	u.setShown(u.appUpdate, true)
 }
 
 // installUpdate is the one click: download, check it against the signed
@@ -649,9 +743,11 @@ func (u *ui) installUpdate() {
 	}
 	u.appUpdate.SetTitle("Updating to " + up.Version + "…")
 	u.appUpdate.Disable()
+	u.forget(u.appUpdate) // written directly: the next apply writes it again, as it always did
 	if err := selfupdate.Apply(up); err != nil {
 		u.appUpdate.SetTitle("⬆ Update otc-sync to " + up.Version)
 		u.appUpdate.Enable()
+		u.forget(u.appUpdate)
 		_ = zenity.Error("The update could not be installed:\n\n"+err.Error(), zenity.Title("Off The Cloud"))
 		return
 	}
