@@ -58,8 +58,9 @@ h mem_avail_mb "$(awk "/MemAvailable/{print int(\$2/1024)}" /proc/meminfo)"
 h uptime_days "$(awk "{print int(\$1/86400)}" /proc/uptime)"
 if grep -q "^md" /proc/mdstat 2>/dev/null; then h raid "$(grep -c "\[UU\]" /proc/mdstat)/$(grep -c "^md" /proc/mdstat) in sync"; fi
 for d in $(lsblk -dn -o NAME | grep -E "^(nvme|sd)"); do
-  smart=$(smartctl -H -A /dev/$d 2>/dev/null)
-  h "smart:$d" "$(echo "$smart" | grep -q PASSED && echo PASSED || echo FAILED)"
+  # Each command that can hang gets its own limit, and says so when it hits it.
+  smart=$(timeout 30 smartctl -H -A /dev/$d 2>/dev/null); src=$?
+  if [ $src -eq 124 ]; then h "smart:$d" TIMEOUT; else h "smart:$d" "$(echo "$smart" | grep -q PASSED && echo PASSED || echo FAILED)"; fi
   w=$(echo "$smart" | awk -F: "/Percentage Used/{gsub(/[ %]/,\"\",\$2); print \$2}")
   [ -n "$w" ] && h "wear_pct:$d" "$w"
 done
@@ -68,15 +69,18 @@ for p in $(wg show wg0 peers 2>/dev/null); do
   h "wg_handshake_age_s" "$(( $(date +%s) - ${last:-0} ))"
 done
 if systemctl is-active -q mysql 2>/dev/null; then
-  rs=$(mysql -e "SHOW REPLICA STATUS\G" 2>/dev/null)
-  if [ -n "$rs" ]; then
+  rs=$(timeout 10 mysql --connect-timeout=5 -e "SHOW REPLICA STATUS\G" 2>/dev/null); mrc=$?
+  # Empty is normal on the primary; only a timeout is news.
+  if [ $mrc -eq 124 ]; then h replica_io timeout
+  elif [ -n "$rs" ]; then
     h replica_io "$(echo "$rs" | awk "/Replica_IO_Running:/{print \$2}")"
     h replica_sql "$(echo "$rs" | awk "/Replica_SQL_Running:/{print \$2}")"
     h replica_lag_s "$(echo "$rs" | awk "/Seconds_Behind_Source:/{print \$2}")"
   fi
 fi
 if systemctl is-active -q redis-server 2>/dev/null; then
-  h redis_ping "$(REDISCLI_AUTH=$(cat /root/otc-cluster/redis.pass) redis-cli -h 127.0.0.1 ping 2>&1)"
+  r=$(REDISCLI_AUTH=$(cat /root/otc-cluster/redis.pass) timeout 5 redis-cli -h 127.0.0.1 ping 2>&1); [ $? -eq 124 ] && r="no answer in 5 s"
+  h redis_ping "$r"
 fi
 if [ -d /etc/letsencrypt/live/off-the.cloud ]; then
   end=$(openssl x509 -enddate -noout -in /etc/letsencrypt/live/off-the.cloud/cert.pem | cut -d= -f2)
@@ -104,11 +108,14 @@ h modified_system_files "$(dpkg -V 2>/dev/null | grep -vE "^..5......  c " | gre
 fp listening "$(ss -lntuH | awk "{print \$1, \$5}" | sed -E "s/%[a-z0-9]+//" | grep -vE " (127\.[0-9.]+|\[::1\]|\[::ffff:127\.[0-9.]+\]):[0-9]+$" | sort -u | tr "\n" ";")"
 fp uid0_users "$(awk -F: "\$3==0{print \$1}" /etc/passwd | tr "\n" " ")"
 fp login_users "$(awk -F: "\$7 !~ /(nologin|false)$/{print \$1}" /etc/passwd | sort | tr "\n" " ")"
-for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys /var/lib/*/.ssh/authorized_keys; do [ -f "$f" ] && fp "authorized_keys:$f" "$(sha256sum < "$f" | cut -c1-16)"; done
+# Both names sshd reads by default, in every home (nologin users too: their keys still open tunnels).
+for f in $( { awk -F: "{print \$6}" /etc/passwd; echo /root; ls -d /home/* /var/lib/* 2>/dev/null; } | sort -u | sed -e "s|/*\$|/.ssh/authorized_keys|" -e p -e "s|\$|2|" | sort -u ); do [ -f "$f" ] && fp "authorized_keys:$f" "$(sha256sum < "$f" | cut -c1-16)"; done
 fp sudoers "$(cat /etc/sudoers /etc/sudoers.d/* 2>/dev/null | sha256sum | cut -c1-16)"
 fp sshd_config "$(sshd -T 2>/dev/null | sort | sha256sum | cut -c1-16)"
 fp crontabs "$(cat /etc/crontab /etc/cron.d/* /var/spool/cron/crontabs/* 2>/dev/null | sha256sum | cut -c1-16)"
 fp systemd_units "$(ls /etc/systemd/system/*.service /etc/systemd/system/*.timer /etc/systemd/system/*.path 2>/dev/null | sort | tr "\n" " ")"
+# Their content, drop-ins and enable links too, one line each so a diff names the unit (not *.mount: snapd rewrites those).
+for u in $(find /etc/systemd/system /etc/systemd/user /usr/local/lib/systemd -mindepth 1 \( -type f -o -type l \) \( -name "*.service" -o -name "*.timer" -o -name "*.path" -o -name "*.socket" -o -name "*.conf" \) 2>/dev/null | sort); do if [ -L "$u" ]; then fp "unit_link:$u" "$(readlink "$u")"; else fp "unit:$u" "$(sha256sum < "$u" | cut -c1-16)"; fi; done
 fp ufw_rules "$(ufw status 2>/dev/null | sort | sha256sum | cut -c1-16)"
 for b in /usr/bin/otc_bridge /usr/local/sbin/* /usr/local/bin/*; do [ -f "$b" ] && fp "binary:$b" "$(sha256sum < "$b" | cut -c1-16)"; done
 # Not the module list - the kernel loads modules on demand (firewall,
@@ -140,10 +147,24 @@ h untrusted_modules "$bad_mods"
 '
 
 check_host() {
-  local host=$1 out
+  local host=$1 out rc tmp pid dog timed_out=0
   say ""; say "== $host"
-  out=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "$host" "sudo SERVICES='$(services_for "$host")' bash -s" <<< "$remote_script" 2>&1)
-  if [ $? -ne 0 ] || [ -z "$out" ]; then bad "$host: unreachable over SSH (${out:0:120})"; return; fi
+  # At most 240 s on the server (timeout there), and 300 s here: a command
+  # stuck in I/O can keep the session open past the remote limit, and macOS
+  # has no timeout(1). Otherwise one hung command stopped the check for good
+  # (launchd starts no new run while one is still going).
+  tmp=$(mktemp)
+  ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 "$host" \
+    "sudo SERVICES='$(services_for "$host")' timeout -k 15 240 bash -s" <<< "$remote_script" > "$tmp" 2>&1 &
+  pid=$!
+  ( sleep 300 && kill $pid ) >/dev/null 2>&1 &
+  dog=$!
+  wait $pid; rc=$?
+  pkill -P $dog sleep 2>/dev/null
+  out=$(cat "$tmp"); rm -f "$tmp"
+  # 124/137: the remote limit; 143: the watchdog here.
+  case $rc in 124|137|143) timed_out=1 ;; esac
+  if [ $timed_out -eq 0 ] && { [ $rc -ne 0 ] || [ -z "$out" ]; }; then bad "$host: unreachable over SSH (${out:0:120})"; return; fi
 
   # Health.
   while IFS=$'\t' read -r kind key val; do
@@ -167,6 +188,13 @@ check_host() {
       modified_system_files) [ -z "${val// /}" ] || bad "$host: system files differ from their packages: $val" ;;
     esac
   done <<< "$out"
+
+  # The fingerprint lines come last: from a cut-short run they would raise
+  # a false alarm, or (--accept, a first run) save a truncated baseline.
+  if [ $timed_out -eq 1 ]; then
+    bad "$host: check did not finish within 240 s (a command hung on the server); security fingerprint not compared"
+    return
+  fi
 
   # Security fingerprint against the baseline.
   local cur="$DIR/baseline/$host.current" base="$DIR/baseline/$host"
@@ -195,7 +223,14 @@ for u in https://off-the.cloud/ https://cala.off-the.cloud/ https://pit.off-the.
 done
 for ip in 37.187.141.41 149.202.83.7; do
   code=$(curl -s -o /dev/null -m 20 -w "%{http_code}" --resolve off-the.cloud:443:$ip https://off-the.cloud/); say "  node $ip: $code"
-  [ "$code" = 200 ] || bad "node $ip answers $code"
+  if [ "$code" != 200 ]; then bad "node $ip answers $code"; continue; fi
+  # The certificate the node serves, not redis's certbot copy: a failed push
+  # by the deploy hook, or a pair certReloader couldn't load, shows only here.
+  # Only after a 200, so s_client (no timeout of its own) has a live node.
+  pem=$(openssl s_client -connect "$ip:443" -servername off-the.cloud </dev/null 2>/dev/null | openssl x509 2>/dev/null)
+  if [ -z "$pem" ]; then bad "node $ip: could not read its certificate"; continue; fi
+  say "  node $ip certificate until: $(openssl x509 -noout -enddate <<< "$pem" | cut -d= -f2)"
+  openssl x509 -noout -checkend $((20*86400)) <<< "$pem" >/dev/null || bad "node $ip serves a certificate that expires within 20 days (deploy hook push failed, or certReloader could not load the new pair?)"
 done
 dns=$(dig +short off-the.cloud @dns10.ovh.net | sort | tr "\n" " ")
 say "  DNS off-the.cloud: $dns"
@@ -211,7 +246,9 @@ else
   say "RESULT: ${#PROBLEMS[@]} problem(s)"
   printf '  - %s\n' "${PROBLEMS[@]}" >> "$REPORT"
   msg=$(printf '%s; ' "${PROBLEMS[@]}" | cut -c1-220)
-  osascript -e "display notification \"${msg//\"/\'}\" with title \"OTC servers: ${#PROBLEMS[@]} problem(s)\" subtitle \"Report: $STAMP\" sound name \"Basso\"" 2>/dev/null
+  # As arguments, not in the AppleScript source: a quote or backslash in a
+  # problem (read from the servers) made it a syntax error, and no alert.
+  osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title (item 2 of argv) subtitle (item 3 of argv) sound name "Basso"' -e 'end run' -- "$msg" "OTC servers: ${#PROBLEMS[@]} problem(s)" "Report: $STAMP" 2>/dev/null
 fi
 cp "$REPORT" "$LOGDIR/latest.txt"
 

@@ -130,17 +130,24 @@ servers: a compromised server could tamper with a check that runs on it.
 Read-only over SSH:
 
 - health: services, disk, memory, RAID, SMART health and NVMe wear,
-  WireGuard handshakes, MySQL replication, Redis, certificate days left;
+  WireGuard handshakes, MySQL replication, Redis, certificate days left
+  (redis's certbot copy, and the one each node actually serves);
 - intrusion signs: system files that differ from their packages
   (`dpkg -V`), processes running from executables that no longer exist,
   SSH logins (and from where) and failed attempts, and a security
   fingerprint compared with a baseline kept on the Mac - listening ports,
-  uid 0 and login users, every `authorized_keys`, sudoers, sshd config,
-  crontabs, systemd units, ufw rules, our binaries; and kernel modules that
-  taint the kernel while unsigned or from no package (a rootkit - not ZFS,
-  which Ubuntu ships signed);
+  uid 0 and login users, every `authorized_keys`/`authorized_keys2` of any
+  home, sudoers, sshd config, crontabs, systemd unit files, drop-ins and
+  enable links (content, not just names), ufw rules, our binaries; and
+  kernel modules that taint the kernel while unsigned or from no package
+  (a rootkit - not ZFS, which Ubuntu ships signed);
 - from outside: the sites and both nodes answer, DNS, and MySQL, Redis and
   the internal port are closed to the internet.
+
+Each host's check is limited to 240 s on the server (smartctl, mysql and
+redis-cli have shorter limits of their own, reported when they run out),
+with a 300 s watchdog on the Mac; a check that runs out is reported as a
+problem, and its security fingerprint is not compared that time.
 
 Reports: `~/Library/Logs/otc-servercheck/` (`latest.txt`, a month kept); a
 macOS notification on any problem; each report emailed through Gmail when
