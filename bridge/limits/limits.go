@@ -32,6 +32,32 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, v any, limit int64) erro
 	return json.NewDecoder(http.MaxBytesReader(w, r.Body, limit)).Decode(v)
 }
 
+// WriteIdleTimeout is how long a proxied response may wait on a client
+// that has stopped reading. The servers have no WriteTimeout either (it
+// would cut the websockets), so without one a client that never reads
+// holds the response, and the buffer behind it, forever.
+const WriteIdleTimeout = 30 * time.Second
+
+// writeChunk is how much WriteAll writes under one write deadline.
+const writeChunk = 32 << 10
+
+// WriteAll writes b to w a chunk at a time, renewing the write deadline
+// before each: a slow client that keeps reading is never cut, one that
+// stops for stall is. Where w has no deadlines (a test recorder) it just
+// writes.
+func WriteAll(w http.ResponseWriter, b []byte, stall time.Duration) error {
+	rc := http.NewResponseController(w)
+	for len(b) > 0 {
+		n := min(len(b), writeChunk)
+		_ = rc.SetWriteDeadline(time.Now().Add(stall))
+		if _, err := w.Write(b[:n]); err != nil {
+			return err
+		}
+		b = b[n:]
+	}
+	return nil
+}
+
 // cSweepKeys is the map size that sweeps a Rate before its time-based
 // sweep is due. Past it the trigger is twice what the last sweep left, so
 // a map that keeps growing is scanned in O(1) per Allow (amortised), not
@@ -43,32 +69,6 @@ const cSweepKeys = 100000
 // a flood of distinct addresses; refusing, rather than evicting someone,
 // never hands a key a fresh bucket. A var for the tests.
 var maxKeys = 1 << 20
-
-// WriteIdleTimeout is how long a proxied response may wait on a client
-// that has stopped reading. The servers have no WriteTimeout either (it
-// would cut the websockets), so without one a client that never reads
-// holds the response, and the buffer behind it, forever.
-const WriteIdleTimeout = 30 * time.Second
-
-// WriteChunk is how much is written under one write deadline.
-const WriteChunk = 32 << 10
-
-// WriteAll writes b to w a chunk at a time, renewing the write deadline
-// before each: a slow client that keeps reading is never cut, one that
-// stops for stall is. Where w has no deadlines (a test recorder) it just
-// writes.
-func WriteAll(w http.ResponseWriter, b []byte, stall time.Duration) error {
-	rc := http.NewResponseController(w)
-	for len(b) > 0 {
-		n := min(len(b), WriteChunk)
-		_ = rc.SetWriteDeadline(time.Now().Add(stall))
-		if _, err := w.Write(b[:n]); err != nil {
-			return err
-		}
-		b = b[n:]
-	}
-	return nil
-}
 
 // Rate is a token bucket per key (an address, a domain): burst requests
 // at once, refilled at perSecond. Keys idle long enough to be full again

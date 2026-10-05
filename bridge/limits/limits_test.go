@@ -86,7 +86,7 @@ func TestRateRefusesNewKeysWhenFull(t *testing.T) {
 // A client that stops reading is cut after the stall; a writer without
 // deadlines still gets everything.
 func TestWriteAll(t *testing.T) {
-	body := make([]byte, 3*WriteChunk+5)
+	body := make([]byte, 3*writeChunk+5)
 	rec := httptest.NewRecorder()
 	if err := WriteAll(rec, body, time.Second); err != nil || rec.Body.Len() != len(body) {
 		t.Fatalf("recorder: %v, %d bytes", err, rec.Body.Len())
