@@ -404,6 +404,36 @@ func TestFriendshipsListLeavesOutTheSecret(t *testing.T) {
 	}
 }
 
+// A new password that is too short comes back as an Ack every client shows,
+// not a bare error ("Unexpected response").
+func TestChangeKeyAcksAShortNewPassword(t *testing.T) {
+	ses := newTestAuthenticatedSession(t)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa.GenerateKey: %v", err)
+	}
+	ch := &connHandler{mg: &Manager{}, privKey: priv}
+	ch.setSession(ses)
+	enc := func(s string) []byte {
+		c, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &priv.PublicKey, []byte(s), nil)
+		if err != nil {
+			t.Fatalf("EncryptOAEP: %v", err)
+		}
+		return c
+	}
+	resp, _ := ch.processAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqChangeKey{ReqChangeKey: &pb.ChangeKey{OldKey: enc("test-password"), NewKey: enc("short")}},
+	})
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
+	}
+	if ack.RespAck.Ok || ack.RespAck.Code != "password_too_short" || ack.RespAck.ErrorMsg == "" {
+		t.Errorf("expected Ok=false, Code=password_too_short and a message, got %+v", ack.RespAck)
+	}
+}
+
 // newTestAuthenticatedSession builds a real *session.Session the same way
 // a successful ReqAuth would (vault creation, Argon2id, the lot) via a
 // mocked "brand new device" vault, so issue #101's token handlers below

@@ -103,8 +103,9 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
     e.preventDefault();
     setError("");
 
-    if (setupPassword.length < 4) {
-      setError("Choose a password with at least 4 characters.");
+    // The same 8 the setup wizard asks for.
+    if (setupPassword.length < 8) {
+      setError("Choose a password with at least 8 characters.");
       return;
     }
     if (setupPassword !== confirmPassword) {

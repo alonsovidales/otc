@@ -247,12 +247,16 @@ export default function SettingsForm() {
   // ---------- Validation ----------
 
   const pwMismatch = newKey.length > 0 && confirmKey.length > 0 && newKey !== confirmKey;
+  // The same 8 the setup wizard and the device ask for: the password is
+  // the only credential for a device reachable through the bridge.
+  const pwTooShort = newKey.length > 0 && newKey.length < 8;
   const canSaveKey = useMemo(() => {
     if (!oldKey || !newKey || !confirmKey) return false;
+    if (pwTooShort) return false;
     if (pwMismatch) return false;
     if (oldKey === newKey) return false;
     return true;
-  }, [oldKey, newKey, confirmKey, pwMismatch]);
+  }, [oldKey, newKey, confirmKey, pwMismatch, pwTooShort]);
 
   // ---------- Actions ----------
 
@@ -352,6 +356,7 @@ export default function SettingsForm() {
             onChange={(e) => setConfirmKey(e.target.value)}
           />
         </div>
+        {pwTooShort && <div className="sf-note error">Use at least 8 characters.</div>}
         {pwMismatch && <div className="sf-note error">New passwords do not match.</div>}
 
         <button className="sf-btn" disabled={!canSaveKey || savingKey} onClick={() => void changePassword()}>

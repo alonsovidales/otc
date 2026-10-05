@@ -7,6 +7,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -133,5 +134,14 @@ func TestDeriveWrappingKeyIsBounded(t *testing.T) {
 	a := deriveWrappingKey("pw", []byte("salt-salt-salt-1"))
 	if a != deriveWrappingKey("pw", []byte("salt-salt-salt-1")) {
 		t.Error("the derivation must stay deterministic")
+	}
+}
+
+// A new password under MinPasswordLen is refused before the vault is
+// touched (no dao here: reaching it would panic).
+func TestChangeKeyRefusesAShortNewPassword(t *testing.T) {
+	ses := &Session{Uuid: "test-uuid"}
+	if err := ses.ChangeKey("old-password", "1234567"); !errors.Is(err, ErrPasswordTooShort) {
+		t.Fatalf("ChangeKey with a 7-byte password: got %v, want ErrPasswordTooShort", err)
 	}
 }

@@ -39,7 +39,7 @@ func initOwnerPassword(d *dao.Dao) int {
 		return 2
 	}
 	pw := strings.TrimRight(line, "\r\n")
-	if len(pw) < 8 {
+	if len(pw) < session.MinPasswordLen {
 		fmt.Fprintln(os.Stderr, "init-owner-password: the password must have 8 characters or more")
 		return 2
 	}

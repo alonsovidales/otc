@@ -32,6 +32,15 @@ const (
 	cArgonKeyLen  = 32
 )
 
+// MinPasswordLen is the shortest a new password may be, in bytes. The
+// password wraps the vault secret and is the only credential for a device
+// reachable through the bridge. A password already set is never checked
+// against it, so every existing login keeps working.
+const MinPasswordLen = 8
+
+// ErrPasswordTooShort is a new password shorter than MinPasswordLen.
+var ErrPasswordTooShort = errors.New("the password must have 8 characters or more")
+
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
 type Session struct {
@@ -209,6 +218,9 @@ func (ses *Session) migrateToSaltedVault(password string, secretValidator []byte
 // against — so this is also a way for a legacy vault to reach the salted
 // scheme even before its next login does.
 func (ses *Session) ChangeKey(oldKey, newKey string) (err error) {
+	if len(newKey) < MinPasswordLen {
+		return ErrPasswordTooShort
+	}
 	salt, err := ses.dao.GetSalt()
 	if err != nil {
 		return err

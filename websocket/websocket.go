@@ -2418,7 +2418,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
-		if err != nil {
+		if errors.Is(err, session.ErrPasswordTooShort) {
+			// An Ack, so every client shows the reason: for a bare error
+			// they only say "Unexpected response".
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, Code: "password_too_short", ErrorMsg: err.Error()},
+			}
+		} else if err != nil {
 			log.Error("error trying to change secret key:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()
