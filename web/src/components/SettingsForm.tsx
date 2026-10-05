@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection, clearPersistedToken } from "../net/pwCrypto";
+import { clearPrivateUiState } from "../net/uiState";
 import { pushSupported, isPushSubscribed, enablePush, disablePush, unregisterPushOnSignOut } from "../net/webPush";
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
@@ -540,6 +541,7 @@ export default function SettingsForm() {
               console.error("Could not revoke session tokens on sign out:", err);
             }
             clearPersistedToken();
+            clearPrivateUiState();
             window.location.reload();
           }}
         >

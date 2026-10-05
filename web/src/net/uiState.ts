@@ -71,3 +71,18 @@ export function loadPhotoSearchTags(): string[] {
     return [];
   }
 }
+
+// Sign Out: forget what this browser was looking at, since that view
+// (folder names, the names of people found by face recognition) is the
+// signed-in user's private data. Not on a session that just expired: the
+// user would lose their place for signing in again. otc_last_tab stays:
+// it is only a tab name, and keeping it keeps what a signed-out reload
+// shows unchanged.
+export function clearPrivateUiState() {
+  try {
+    localStorage.removeItem(cFilesPathStorageKey);
+    localStorage.removeItem(cPhotoSearchStorageKey);
+  } catch {
+    // Storage unavailable: nothing was persisted there anyway.
+  }
+}
