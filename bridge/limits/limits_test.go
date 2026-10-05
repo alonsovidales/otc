@@ -5,6 +5,7 @@ package limits
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,50 @@ func TestRateBurstThenRefill(t *testing.T) {
 	l.Allow("c")
 	if _, ok := l.buckets["a"]; ok {
 		t.Fatal("an idle key was kept")
+	}
+}
+
+// A flood of distinct keys within one refill window can't be swept (none
+// is idle yet): the map is scanned each time it doubles, not on every call.
+func TestRateSweepIsAmortised(t *testing.T) {
+	now := time.Unix(1000, 0)
+	l := NewRate(5.0/3600, 5)
+	l.now = func() time.Time { return now }
+	for i := 0; i < 3*cSweepKeys; i++ {
+		l.Allow(strconv.Itoa(i))
+	}
+	// The first call (time-based), then at 100k and 200k keys.
+	if l.sweeps > 4 {
+		t.Fatalf("%d sweeps for %d keys", l.sweeps, 3*cSweepKeys)
+	}
+	now = now.Add(2 * time.Hour)
+	l.Allow("late")
+	if len(l.buckets) != 1 {
+		t.Fatalf("%d keys kept after the window, want 1", len(l.buckets))
+	}
+}
+
+// A full map refuses new keys and still decides known ones.
+func TestRateRefusesNewKeysWhenFull(t *testing.T) {
+	defer func(n int) { maxKeys = n }(maxKeys)
+	maxKeys = 3
+	now := time.Unix(1000, 0)
+	l := NewRate(1, 2)
+	l.now = func() time.Time { return now }
+	for _, k := range []string{"a", "b", "c"} {
+		if !l.Allow(k) {
+			t.Fatalf("%s refused below the cap", k)
+		}
+	}
+	if l.Allow("d") {
+		t.Fatal("a new key was let in past the cap")
+	}
+	if !l.Allow("a") || l.Allow("a") {
+		t.Fatal("a known key was not decided by its own bucket")
+	}
+	now = now.Add(time.Minute)
+	if !l.Allow("d") {
+		t.Fatal("no room after the idle keys were swept")
 	}
 }
 
