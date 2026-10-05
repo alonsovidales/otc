@@ -836,6 +836,26 @@ func (dao *Dao) SetAccountPassword(id, passwordHash string) error {
 	return err
 }
 
+// SetAccountPasswordEndingSessions sets the password and, in the same
+// statement, ends every session issued so far (issue #164); it returns the
+// new epoch. LAST_INSERT_ID(expr) hands the epoch back in the statement's
+// own reply: no second write or read that could fail once the password has
+// changed, leaving the old sessions alive or the new cookie unsigned.
+func (dao *Dao) SetAccountPasswordEndingSessions(id, passwordHash string) (int, error) {
+	res, err := dao.db.Exec("update `accounts` set `password_hash` = ?, `session_epoch` = LAST_INSERT_ID(`session_epoch` + 1) where `id` = ?", passwordHash, id)
+	if err != nil {
+		return 0, err
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		if err == nil {
+			err = sql.ErrNoRows
+		}
+		return 0, err
+	}
+	epoch, err := res.LastInsertId()
+	return int(epoch), err
+}
+
 // TouchAccount records activity (the terms release an account after six
 // months without any).
 func (dao *Dao) TouchAccount(id string) error {

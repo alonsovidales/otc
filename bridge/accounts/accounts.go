@@ -233,11 +233,17 @@ func (a *Accounts) session(token string, now time.Time) (accountID string, issue
 // authentication (a password, a provider, a reset link): the cookie's age
 // is what the cFreshSignIn checks in SetPassword and ConfirmOwner trust.
 func (a *Accounts) setSession(w http.ResponseWriter, r *http.Request, accountID string) {
-	now := time.Now()
 	epoch, _, err := a.dao.AccountSessionEpoch(accountID)
 	if err != nil {
 		log.Error("error reading an account's session epoch:", err)
 	}
+	a.setSessionAt(w, accountID, epoch)
+}
+
+// setSessionAt is setSession for a caller that already has the account's
+// epoch (a password change, which moved it); the same rule applies.
+func (a *Accounts) setSessionAt(w http.ResponseWriter, accountID string, epoch int) {
+	now := time.Now()
 	http.SetCookie(w, &http.Cookie{
 		Name: cSessionCookie, Value: a.sessionToken(accountID, epoch, now), Path: "/",
 		Expires: now.Add(cSessionTTL), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
@@ -733,14 +739,14 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return
 	}
-	if err := a.dao.SetAccountPassword(accountID, string(hash)); err != nil {
+	// One statement: never a new password with the old sessions still on.
+	epoch, err := a.dao.SetAccountPasswordEndingSessions(accountID, string(hash))
+	if err != nil {
+		log.Error("error setting a password:", err)
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return
 	}
-	if _, err := a.dao.BumpAccountSessionEpoch(accountID); err != nil {
-		log.Error("error ending an account's other sessions:", err)
-	}
-	a.setSession(w, r, accountID)
+	a.setSessionAt(w, accountID, epoch)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -1156,15 +1162,16 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not reset it right now")
 		return
 	}
-	if err := a.dao.SetAccountPassword(id, string(hash)); err != nil {
+	// One statement: a reset (often for a stolen session) never leaves
+	// the old sessions on.
+	epoch, err := a.dao.SetAccountPasswordEndingSessions(id, string(hash))
+	if err != nil {
+		log.Error("error resetting a password:", err)
 		writeError(w, http.StatusInternalServerError, "could not reset it right now")
 		return
 	}
 	_ = a.dao.SetEmailVerified(id)
-	if _, err := a.dao.BumpAccountSessionEpoch(id); err != nil {
-		log.Error("error ending an account's other sessions:", err)
-	}
-	a.setSession(w, r, id)
+	a.setSessionAt(w, id, epoch)
 	log.Info("password reset for account", id)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

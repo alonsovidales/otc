@@ -158,11 +158,10 @@ func TestChangingThePasswordNeedsTheCurrentOne(t *testing.T) {
 		t.Fatalf("wrong current password: %d, want 401", w.Code)
 	}
 
+	// The password and the epoch move in one statement, which also hands
+	// back the new epoch (LAST_INSERT_ID).
 	accountRow(mock, string(hash))
-	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("update `accounts` set `session_epoch` = `session_epoch` \\+ 1").WillReturnResult(sqlmock.NewResult(0, 1))
-	epochRow(mock, 1) // read back by the bump
-	epochRow(mock, 1) // the new cookie for this session
+	mock.ExpectExec(cSetPasswordEndingSessions).WillReturnResult(sqlmock.NewResult(1, 1))
 	w = httptest.NewRecorder()
 	a.SetPassword(w, httptest.NewRequest("PUT", "/api/account/password", strings.NewReader(`{"password":"new-password","current":"old-password"}`)), "acc1")
 	if w.Code != http.StatusOK {
@@ -170,6 +169,54 @@ func TestChangingThePasswordNeedsTheCurrentOne(t *testing.T) {
 	}
 	if !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=acc1|1|") {
 		t.Errorf("this session didn't get a cookie for the new epoch: %q", w.Header().Get("Set-Cookie"))
+	}
+
+	// That write failing changed nothing: an honest 500, no cookie.
+	accountRow(mock, string(hash))
+	mock.ExpectExec(cSetPasswordEndingSessions).WillReturnError(errDBDown)
+	w = httptest.NewRecorder()
+	a.SetPassword(w, httptest.NewRequest("PUT", "/api/account/password", strings.NewReader(`{"password":"new-password","current":"old-password"}`)), "acc1")
+	if w.Code != http.StatusInternalServerError || w.Header().Get("Set-Cookie") != "" {
+		t.Errorf("a failed change: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+const cSetPasswordEndingSessions = "update `accounts` set `password_hash` = \\?, `session_epoch` = LAST_INSERT_ID\\(`session_epoch` \\+ 1\\)"
+
+// A reset sets the password, proves the email and ends every other
+// session; this browser's new cookie carries the new epoch. When the write
+// fails it says so, instead of an ok that leaves the old sessions alive.
+func TestResetEndsTheOtherSessions(t *testing.T) {
+	expectToken := func(mock sqlmock.Sqlmock) {
+		mock.ExpectBegin()
+		mock.ExpectQuery("from `account_email_tokens`").WithArgs(hashEmailToken("tok"), cPurposeReset, sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+		mock.ExpectExec("delete from `account_email_tokens`").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+	}
+	reset := func(a *Accounts) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		a.Reset(w, httptest.NewRequest("POST", "/api/account/reset", strings.NewReader(`{"token":"tok","password":"new-password"}`)))
+		return w
+	}
+
+	a, mock := testAccounts(t)
+	expectToken(mock)
+	mock.ExpectExec(cSetPasswordEndingSessions).WithArgs(sqlmock.AnyArg(), "acc1").WillReturnResult(sqlmock.NewResult(5, 1))
+	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	w := reset(a)
+	if w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=acc1|5|") {
+		t.Errorf("reset: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
+	}
+
+	expectToken(mock)
+	mock.ExpectExec(cSetPasswordEndingSessions).WillReturnError(errDBDown)
+	w = reset(a)
+	if w.Code != http.StatusInternalServerError || w.Header().Get("Set-Cookie") != "" {
+		t.Errorf("a failed reset: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
