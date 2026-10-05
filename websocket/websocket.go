@@ -1141,6 +1141,7 @@ func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
 // trip before a single byte moved.
 func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size int64, mime string, expiresAtMs int64, err error) {
 	res := mediastream.Resource{}
+	reuseKey := ""
 
 	switch {
 	case req.PubUuid != "" && req.Hash != "":
@@ -1167,6 +1168,8 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 			Mime:    pubMime,
 			Size:    info.Size(),
 		}
+		// The same unencrypted bytes for the owner and every friend.
+		reuseKey = "pub:" + req.PubUuid + "/" + req.Hash
 
 	case req.Path != "":
 		// A library path is the owner's own file - a friend reading the
@@ -1193,12 +1196,14 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		return "", 0, "", 0, fmt.Errorf("nothing to stream")
 	}
 
-	return ch.streamURL(res)
+	return ch.streamURL(reuseKey, res)
 }
 
 // streamURL mints a stream for res - or answers "fetch it the usual way"
-// (an empty url) for a file not worth streaming.
-func (ch *connHandler) streamURL(res mediastream.Resource) (url string, size int64, mime string, expiresAtMs int64, err error) {
+// (an empty url) for a file not worth streaming. A non-empty reuseKey
+// names res exactly, for every caller allowed it: asking again within
+// mediastream.ReuseWindow gets the same token rather than a new one.
+func (ch *connHandler) streamURL(reuseKey string, res mediastream.Resource) (url string, size int64, mime string, expiresAtMs int64, err error) {
 	// Both of these answer "don't stream this, fetch it the usual way",
 	// which every client already handles - an empty url is a normal
 	// reply, not an error.
@@ -1209,7 +1214,7 @@ func (ch *connHandler) streamURL(res mediastream.Resource) (url string, size int
 		return "", res.Size, res.Mime, 0, nil
 	}
 
-	token, expiresAt, tErr := ch.mg.media.Store().Issue(res)
+	token, expiresAt, tErr := ch.mg.media.Store().IssueShared(reuseKey, res)
 	if tErr != nil {
 		log.Error("error issuing a media token:", tErr)
 		return "", 0, "", 0, fmt.Errorf("could not prepare the stream")
@@ -1688,7 +1693,8 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
 			break
 		}
-		url, size, mime, exp, err := ch.streamURL(res)
+		// The uuid and secret were checked above; a gallery has one secret.
+		url, size, mime, exp, err := ch.streamURL(fmt.Sprintf("gallery:%s/%d", r.Uuid, r.Index), res)
 		if err != nil {
 			resp.Error, resp.ErrorMessage = true, err.Error()
 			break

@@ -219,3 +219,52 @@ func TestOnlyVideoIsStreamable(t *testing.T) {
 		}
 	}
 }
+
+// Anyone with a gallery link can ask for a video's stream over and over;
+// each ask used to mint a new token, growing the store without bound and
+// lengthening the sweep every /media request waits behind. The same
+// resource gets the same token for ReuseWindow, then a fresh one, while
+// the old one keeps working until it expires.
+func TestIssueSharedReusesWithinTheWindow(t *testing.T) {
+	store := NewStore()
+	res := Resource{Kind: KindPublicationMedia, Hash: "abc", Mime: "video/mp4"}
+
+	a, expA, err := store.IssueShared("pub:x/abc", res)
+	if err != nil {
+		t.Fatalf("IssueShared: %v", err)
+	}
+	b, expB, _ := store.IssueShared("pub:x/abc", res)
+	if a != b || !expA.Equal(expB) {
+		t.Fatal("the same resource within the window must get the same token")
+	}
+	if c, _, _ := store.IssueShared("pub:x/other", res); c == a {
+		t.Fatal("another key must get its own token")
+	}
+	if d, _, _ := store.Issue(res); d == a {
+		t.Fatal("Issue must always mint a new token")
+	}
+
+	store.mutex.Lock()
+	store.tokens[a].expiresAt = time.Now().Add(TTL - ReuseWindow - time.Second)
+	store.mutex.Unlock()
+	fresh, _, _ := store.IssueShared("pub:x/abc", res)
+	if fresh == a {
+		t.Fatal("past the reuse window a new token must be minted")
+	}
+	if _, ok := store.Resolve(a); !ok {
+		t.Fatal("the older token must keep working until it expires")
+	}
+
+	// Gone from the reuse index once revoked or expired.
+	store.Revoke(fresh)
+	store.mutex.Lock()
+	_, indexed := store.byKey["pub:x/abc"]
+	store.tokens[a].expiresAt = time.Now().Add(-time.Second)
+	store.mutex.Unlock()
+	if indexed {
+		t.Fatal("a revoked token must leave the reuse index")
+	}
+	if again, _, _ := store.IssueShared("pub:x/abc", res); again == a || again == fresh {
+		t.Fatal("a revoked or expired token must never be handed out again")
+	}
+}
