@@ -69,6 +69,10 @@ const (
 // leading/trailing hyphen - the same shape scripts/install.sh accepts.
 var cNamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
+// cHashedAssetPath is a Vite build file: /assets/<name>-<8-character
+// content hash>.<ext>.
+var cHashedAssetPath = regexp.MustCompile(`^/assets/[^/]+-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$`)
+
 // cReservedNames can never be device names: they are (or may one day be)
 // the bridge's own hosts.
 var cReservedNames = map[string]bool{
@@ -99,6 +103,17 @@ type API struct {
 	// oneOffPerAddr limits the device GETs (static assets, /media) one
 	// address can make (issue #163): each spends a device connection.
 	oneOffPerAddr *limits.Rate
+	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
+	// fake device); nil in production.
+	forwardOneOff func(domain string, frame []byte) ([]byte, error)
+}
+
+// oneOff sends one request frame to domain's device (ForwardOneOff).
+func (api *API) oneOff(domain string, frame []byte) ([]byte, error) {
+	if api.forwardOneOff != nil {
+		return api.forwardOneOff(domain, frame)
+	}
+	return api.websocket.ForwardOneOff(domain, frame)
 }
 
 // cOneOffPerSecond/cOneOffBurst: a page load fetches a few dozen assets at
@@ -390,7 +405,7 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respFrame, err := api.websocket.ForwardOneOff(r.Host, frame)
+	respFrame, err := api.oneOff(r.Host, frame)
 	if err != nil {
 		// Issue #97: a device that's switched off, offline, or still
 		// booting used to surface as a bare 502 with an empty body -
@@ -426,8 +441,16 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if asset.RespStaticAsset.ContentType != "" {
-		w.Header().Set("Content-Type", asset.RespStaticAsset.ContentType)
+	ct := asset.RespStaticAsset.ContentType
+	if ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	// Vite's content-hashed build output: a name never changes content, so
+	// the browser keeps it instead of fetching it through the device's
+	// uplink on every visit. Never for HTML: the device answers a missing
+	// file with index.html, which must not get stuck under an asset URL.
+	if cHashedAssetPath.MatchString(r.URL.Path) && !strings.HasPrefix(ct, "text/html") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	}
 	// Under a write deadline: the whole asset is in memory by now, and the
 	// device slot is already free, so a client that never reads would

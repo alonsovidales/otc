@@ -13,6 +13,8 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/websocket"
+	pb "github.com/alonsovidales/otc/proto/generated"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestHealthcheck(t *testing.T) {
@@ -154,6 +156,50 @@ func TestUnreachableDeviceSendsNoHTMLBodyForNonPageRequests(t *testing.T) {
 	}
 	if rec.Body.Len() != 0 {
 		t.Errorf("body = %q, want it empty for a non-page request", rec.Body.String())
+	}
+}
+
+// fakeStaticDevice answers ReqGetStaticAsset like a device: "x" with the
+// content type types[path] gives (text/html for a missing file, which the
+// device answers with index.html).
+func fakeStaticDevice(types map[string]string) func(string, []byte) ([]byte, error) {
+	return func(_ string, frame []byte) ([]byte, error) {
+		var req pb.ReqEnvelope
+		if err := proto.Unmarshal(frame, &req); err != nil {
+			return nil, err
+		}
+		return proto.Marshal(&pb.RespEnvelope{Id: req.Id, Payload: &pb.RespEnvelope_RespStaticAsset{
+			RespStaticAsset: &pb.RespStaticAsset{Content: []byte("x"), ContentType: types[req.GetReqGetStaticAsset().GetPath()]},
+		}})
+	}
+}
+
+// Vite's hashed build files are kept by the browser for good; nothing
+// else is - least of all index.html answering for a missing asset.
+func TestOnlyHashedAssetsAreCachedForGood(t *testing.T) {
+	types := map[string]string{
+		"/assets/index-CaKPC84J.js":     "text/javascript; charset=utf-8",
+		"/assets/index-Bgzu-j_J.css":    "text/css; charset=utf-8",
+		"/assets/index-ZZZZZZZZ.js":     "text/html; charset=utf-8",
+		"/":                             "text/html; charset=utf-8",
+		"/sw.js":                        "text/javascript; charset=utf-8",
+		"/favicon-32x32.png":            "image/png",
+		"/shared/assets/x-CaKPC84J.png": "image/png",
+	}
+	api := &API{forwardOneOff: fakeStaticDevice(types)}
+	for path, ct := range types {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Host = "pit.off-the.cloud"
+		rec := httptest.NewRecorder()
+		api.proxyStaticAsset(rec, req)
+		cached := rec.Header().Get("Cache-Control") == "public, max-age=31536000, immutable"
+		want := strings.HasPrefix(path, "/assets/") && !strings.HasPrefix(ct, "text/html")
+		if rec.Code != http.StatusOK || rec.Body.String() != "x" || rec.Header().Get("Content-Type") != ct {
+			t.Errorf("%s: %d %q %q", path, rec.Code, rec.Body.String(), rec.Header().Get("Content-Type"))
+		}
+		if cached != want {
+			t.Errorf("%s: cached for good %v, want %v", path, cached, want)
+		}
 	}
 }
 

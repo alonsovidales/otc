@@ -183,7 +183,7 @@ func (api *API) fetchMediaRange(w http.ResponseWriter, r *http.Request, token st
 	if !api.allowOneOff(w, r) {
 		return nil, 0, "", false
 	}
-	respFrame, err := api.websocket.ForwardOneOff(r.Host, frame)
+	respFrame, err := api.oneOff(r.Host, frame)
 	if err != nil {
 		// Same reasoning as proxyStaticAsset's own unreachable case: the
 		// device is temporarily absent, not broken. A player gets a
