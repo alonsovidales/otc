@@ -59,6 +59,14 @@ type fcmSender struct {
 //	credentials-path=/etc/otc/fcm-service-account.json
 //	project-id=off-the-cloud-ad49f   ; optional, the file's own by default
 func (p *Push) loadFcm() {
+	// Shared like the APNs clients (see mobileMu): its access token is
+	// then fetched about once an hour, not once per push.
+	mobileMu.Lock()
+	defer mobileMu.Unlock()
+	if fcmShared != nil {
+		p.fcm = fcmShared
+		return
+	}
 	if !cfg.HasSection("fcm") {
 		log.Info("No [fcm] config section - Android pushes will be relayed through the bridge if one is configured")
 		return
@@ -73,6 +81,7 @@ func (p *Push) loadFcm() {
 		log.Error("could not load the FCM service account from", path, ":", err)
 		return
 	}
+	fcmShared = sender
 	p.fcm = sender
 	log.Info("FCM configured (project", sender.projectID, ") - Android push notifications are live")
 }
@@ -148,6 +157,7 @@ func (f *fcmSender) token() (string, error) {
 		Error       string `json:"error_description"`
 	}
 	_ = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out)
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16)) // so the connection is reused
 	if resp.StatusCode != http.StatusOK || out.AccessToken == "" {
 		return "", fmt.Errorf("google token endpoint: %d %s", resp.StatusCode, out.Error)
 	}
@@ -192,6 +202,8 @@ func (f *fcmSender) send(deviceToken, title, body string, t Target) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
+		// Read to the end, or the connection can't be reused.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
 		return nil
 	}
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))

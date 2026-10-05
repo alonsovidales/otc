@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -189,6 +190,23 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 	return nil
 }
 
+// The phone senders are built once per process and shared by every Push:
+// the bridge calls Init for each notification it relays, and used to open
+// a new APNs HTTP/2 connection (never closed) with a freshly signed JWT,
+// and fetch a new FCM access token, for every one of them. Only a
+// successful load is kept, so a missing or broken key is still retried
+// and logged on every push. Replacing a key on disk now takes a restart.
+var (
+	mobileMu   sync.Mutex
+	apnsShared *apnsSenders
+	fcmShared  *fcmSender
+)
+
+type apnsSenders struct {
+	client, fallback *apns2.Client
+	topic            string
+}
+
 // loadApns wires up the APNs client from the [apns] config section, only if
 // present - see the package doc for why this can't be generated on our own
 // the way the VAPID keypair above is.
@@ -200,6 +218,12 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 //	bundle-id=cloud.off-the.OffTheCloud
 //	production=1
 func (p *Push) loadApns() {
+	mobileMu.Lock()
+	defer mobileMu.Unlock()
+	if apnsShared != nil {
+		p.apnsClient, p.apnsFallback, p.apnsTopic = apnsShared.client, apnsShared.fallback, apnsShared.topic
+		return
+	}
 	if !cfg.HasSection("apns") {
 		// Expected on a device: iOS pushes go through the bridge (see
 		// RelayMobile). Only the bridge itself carries an [apns] section.
@@ -234,6 +258,7 @@ func (p *Push) loadApns() {
 		fallback = fallback.Production()
 	}
 
+	apnsShared = &apnsSenders{client: client, fallback: fallback, topic: bundleID}
 	p.apnsClient = client
 	p.apnsFallback = fallback
 	p.apnsTopic = bundleID
