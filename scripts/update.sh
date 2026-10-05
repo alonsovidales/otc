@@ -70,6 +70,22 @@ fail() {
     exit 1
 }
 
+# install_atomic <mode> <src> <dst>: written beside the destination,
+# flushed, and renamed over it. `install` unlinks and rewrites in place, so
+# a power cut before writeback could leave an empty /usr/bin/otc - a
+# service that never starts again, on a device whose only way to update is
+# that very service.
+install_atomic() {
+    local n="$3.new.$$"
+    install -m "$1" "$2" "$n" && { sync "$n" 2>/dev/null || sync; } && mv -Tf "$n" "$3" || { rm -f "$n"; return 1; }
+}
+
+# write_atomic <file> <value>: same, for the version files (an empty one
+# reads as version 0, the whole history again).
+write_atomic() {
+    printf '%s\n' "$2" > "$1.tmp.$$" && mv -Tf "$1.tmp.$$" "$1"
+}
+
 exec >>"$LOG_FILE" 2>&1
 echo "=== update run $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
@@ -176,7 +192,7 @@ for entry in "${pending[@]}"; do
     # Most releases change no schema and carry no script at all.
     if [ "$sha" = "-" ]; then
         echo "release $version has no migration"
-        echo "$version" > "$MIGRATED_FILE"
+        write_atomic "$MIGRATED_FILE" "$version"
         continue
     fi
 
@@ -194,7 +210,7 @@ for entry in "${pending[@]}"; do
 
     # Written per release: an interrupted run then resumes after the last
     # script that actually completed.
-    echo "$version" > "$MIGRATED_FILE"
+    write_atomic "$MIGRATED_FILE" "$version"
     echo "release $version applied"
 done
 
@@ -257,52 +273,15 @@ export CGO_LDFLAGS="-L/opt/onnxruntime/lib -lonnxruntime"
 # the one the service needs to start again.
 go build -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
 
-status running "Restarting"
-install -m 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary"
-
-# The other root-side scripts, which only install.sh used to put in place -
-# so fixes to them (the symlink-safe status writes, the disk checks before a
-# format) reach devices installed earlier. The update runner has already
-# exec'd into this script, so replacing its file is safe.
-install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
-# The update unit itself, which marks a run cut off part-way as failed
-# rather than leaving it "running" (and the Update button locked) for good.
-# Only install.sh put the unit in place before. The helper goes first: the
-# unit names it.
-if [ -f "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" ]; then
-    install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" /usr/local/bin/otc-update-stopped \
-        && install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service \
-        && systemctl daemon-reload
-fi
-# Issue #160: the key every later update's manifest must be signed with.
-install -m 0644 "$SRC_DIR/scripts/release-signing.pub" /etc/otc/release-signing.pub
-if [ -f "$SRC_DIR/scripts/raid_watch.py" ] && [ -f /usr/local/bin/raid_watch.py ]; then
-    install -m 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
-    systemctl try-restart raid-watch.service >/dev/null 2>&1 || true
-fi
-
-# Issue #145: the root side of switching the bridge on from Settings, for
-# devices installed before it existed (install.sh sets it up on new ones).
-# From the staged release, so it is only installed by a release that has it.
-if [ -f "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" ]; then
-    install -m 0755 "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" /usr/local/bin/otc-bridge-runner
-    install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.service" /etc/systemd/system/otc-bridge.service
-    install -m 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.path" /etc/systemd/system/otc-bridge.path
-    systemctl daemon-reload
-    systemctl enable --now otc-bridge.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-bridge.path"
-fi
-if [ -f "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" ]; then
-    install -m 0755 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" /usr/local/bin/otc-tailscale-runner
-    install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.service" /etc/systemd/system/otc-tailscale.service
-    install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.path" /etc/systemd/system/otc-tailscale.path
-    systemctl daemon-reload
-    systemctl enable --now otc-tailscale.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-tailscale.path"
-fi
-
 # The web app ships prebuilt, attached to the release. Devices have no
 # Node - the bundle is built once, by whoever cuts the release, rather
 # than on every Raspberry Pi in existence. The binary is still built here,
 # which is what keeps any architecture supported without a cross-build.
+# Downloaded, checked and unpacked before anything is installed: a failure
+# here leaves the binary, the runners and the units exactly as they were,
+# rather than a new binary that the next restart would run against the
+# old web app and the old recorded version.
+web_staged=""
 if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
     status running "Installing the web app"
     # Retried for a while: GitHub answers 500 now and then (release 88 on
@@ -317,12 +296,7 @@ if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
         # archive can never be what the device is serving.
         rm -rf "$tmp/web-dist" && mkdir -p "$tmp/web-dist"
         tar -xzf "$tmp/web-dist.tar.gz" -C "$tmp/web-dist" || fail "could not unpack the web assets"
-        rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets"
-        # This runs as root, so the files land root-owned; hand them to the
-        # service user, or a development `make web` (scp as otc) is refused
-        # by the very files the previous release installed.
-        chown -R otc:otc /var/www 2>/dev/null || true
-        echo "web assets installed"
+        web_staged=1
     else
         # The release has a web app (its hash is in the signed manifest),
         # it just couldn't be downloaded: fail, so the version stays where
@@ -334,10 +308,64 @@ else
     echo "release $target ships no web assets, keeping the installed web app"
 fi
 
+status running "Restarting"
+install_atomic 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary"
+
+# The other root-side scripts, which only install.sh used to put in place -
+# so fixes to them (the symlink-safe status writes, the disk checks before a
+# format) reach devices installed earlier. The update runner has already
+# exec'd into this script, so replacing its file is safe.
+install_atomic 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
+# The update unit itself, which marks a run cut off part-way as failed
+# rather than leaving it "running" (and the Update button locked) for good.
+# Only install.sh put the unit in place before. The helper goes first: the
+# unit names it.
+if [ -f "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" ]; then
+    install_atomic 0755 "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" /usr/local/bin/otc-update-stopped \
+        && install_atomic 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service \
+        && systemctl daemon-reload
+fi
+# Issue #160: the key every later update's manifest must be signed with.
+install_atomic 0644 "$SRC_DIR/scripts/release-signing.pub" /etc/otc/release-signing.pub
+if [ -f "$SRC_DIR/scripts/raid_watch.py" ] && [ -f /usr/local/bin/raid_watch.py ]; then
+    install_atomic 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
+    systemctl try-restart raid-watch.service >/dev/null 2>&1 || true
+fi
+
+# Issue #145: the root side of switching the bridge on from Settings, for
+# devices installed before it existed (install.sh sets it up on new ones).
+# From the staged release, so it is only installed by a release that has it.
+if [ -f "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" ]; then
+    install_atomic 0755 "$SRC_DIR/scripts/bridge-runner/otc-bridge-runner.sh" /usr/local/bin/otc-bridge-runner
+    install_atomic 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.service" /etc/systemd/system/otc-bridge.service
+    install_atomic 0644 "$SRC_DIR/scripts/bridge-runner/otc-bridge.path" /etc/systemd/system/otc-bridge.path
+    systemctl daemon-reload
+    systemctl enable --now otc-bridge.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-bridge.path"
+fi
+if [ -f "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" ]; then
+    install_atomic 0755 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" /usr/local/bin/otc-tailscale-runner
+    install_atomic 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.service" /etc/systemd/system/otc-tailscale.service
+    install_atomic 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.path" /etc/systemd/system/otc-tailscale.path
+    systemctl daemon-reload
+    systemctl enable --now otc-tailscale.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-tailscale.path"
+fi
+
+if [ -n "$web_staged" ]; then
+    rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets"
+    # This runs as root, so the files land root-owned; hand them to the
+    # service user, or a development `make web` (scp as otc) is refused
+    # by the very files the previous release installed.
+    chown -R otc:otc /var/www 2>/dev/null || true
+    echo "web assets installed"
+fi
+
 # Everything worked: only now is this the version the device is on.
-echo "$target" > "$VERSION_FILE"
+write_atomic "$VERSION_FILE" "$target"
 status done "Updated to version $(cat "$VERSION_FILE")"
 echo "=== update complete, restarting service ==="
+# On disk before the restart: the binary, the web app, the units and the
+# version files, so a power cut right after can't undo half of them.
+sync
 
 # Last, and detached: this kills the process tree this script was started
 # from, so nothing may follow it.
