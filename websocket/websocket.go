@@ -1917,6 +1917,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = fmt.Sprintf("Error reading friendships: %s", err)
 		} else {
 			log.Debug("Sending back list of frnedships", len(friendships))
+			// The secret is the credential AuthAsFriend accepts, for this
+			// device and the friend's alike: it never goes to a client (no
+			// client reads it). Cloned, so a cached row would keep its own.
+			for i, f := range friendships {
+				c := proto.Clone(f).(*pb.Friendship)
+				c.Secret = ""
+				friendships[i] = c
+			}
 			resp.Payload = &pb.RespEnvelope_RespFriendships{
 				RespFriendships: &pb.Friendships{
 					Friendships: friendships,

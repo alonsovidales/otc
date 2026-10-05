@@ -369,6 +369,41 @@ func TestDidSendFriendshipReqAcceptsWhenFriendshipRecordExists(t *testing.T) {
 	}
 }
 
+// The friendship secret is what AuthAsFriend accepts: the list a client
+// reads must not carry it.
+func TestFriendshipsListLeavesOutTheSecret(t *testing.T) {
+	ses := newTestAuthenticatedSession(t)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("from `social_friendship`").WillReturnRows(
+		sqlmock.NewRows([]string{"status", "name", "image", "text", "sent", "domain", "secret", "latest_sync", "notifications_started", "leaving"}).
+			AddRow("accepted", "Ana", []byte{}, "", false, "ana.otc", "s3cret", nil, false, false))
+
+	ch := &connHandler{mg: &Manager{social: social.Init(dao.NewWithDB(db), nil, nil, nil, nil)}}
+	ch.setSession(ses)
+	resp, _ := ch.processAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqFriendshipsList{ReqFriendshipsList: &pb.FriendshipsList{}},
+	})
+	list, ok := resp.Payload.(*pb.RespEnvelope_RespFriendships)
+	if !ok {
+		t.Fatalf("expected a RespFriendships payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
+	}
+	if len(list.RespFriendships.Friendships) != 1 {
+		t.Fatalf("expected 1 friendship, got %d", len(list.RespFriendships.Friendships))
+	}
+	f := list.RespFriendships.Friendships[0]
+	if f.Secret != "" {
+		t.Error("expected the secret to be blanked")
+	}
+	if f.OriginProfile.GetDomain() != "ana.otc" {
+		t.Errorf("expected the rest of the row to be kept, got domain %q", f.OriginProfile.GetDomain())
+	}
+}
+
 // newTestAuthenticatedSession builds a real *session.Session the same way
 // a successful ReqAuth would (vault creation, Argon2id, the lot) via a
 // mocked "brand new device" vault, so issue #101's token handlers below

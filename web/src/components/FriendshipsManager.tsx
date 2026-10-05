@@ -200,7 +200,8 @@ export default function FriendshipsManager() {
   };
 
   const changeStatus = async (f: MsgFriendship, status: FriendShipStatus) => {
-    console.log('Change firendship', f);
+    // Not the whole Friendship: from an older device it carries the friend-auth secret.
+    console.log('Change friendship', f.originProfile?.domain, status);
     try {
       const resp = await useWS.request((e) => {
         (e as any).payload = {
