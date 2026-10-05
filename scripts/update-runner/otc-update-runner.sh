@@ -33,14 +33,17 @@ rm -f "$REQUEST"
 # Written to a fresh temp file and moved into place: the directory is the
 # otc user's, and a plain "> $STATUS_FILE" as root followed a symlink it
 # could have put there - to overwrite (or chmod) any file on the system.
-# mv replaces a symlink rather than following it.
+# dd's conv=excl creates the temp file with O_CREAT|O_EXCL, which refuses
+# any name already there (a planted symlink included), and umask 022 gives
+# it its final mode, so there is no chmod for a symlink swapped in later
+# to redirect. mv replaces a symlink rather than following it.
 status() {
-    local tmp
-    tmp="$(mktemp "$STATUS_FILE.XXXXXX")" || return 1
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
     printf '{"state":%s,"message":%s,"version":%s,"updated":%s}\n' \
         "\"$1\"" "\"${2//\"/\\\"}\"" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
-        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" > "$tmp"
-    chmod 644 "$tmp" && mv -Tf "$tmp" "$STATUS_FILE"
+        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
+        | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
+    mv -Tf "$tmp" "$STATUS_FILE"
 }
 
 # The service's own config decides the repository, the same way the

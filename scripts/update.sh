@@ -46,12 +46,17 @@ mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$LOG_FILE")" /etc/otc
 # status <state> <message> - what the Settings screen reads back. Written
 # to a file, not held in memory, because the service is restarted partway
 # through and has to be able to report on an update it did not start.
+# The directory is the otc user's, so root never opens or chmods a name
+# it could have planted: dd's conv=excl creates the temp file with
+# O_CREAT|O_EXCL (refusing a symlink already there), umask 022 gives it
+# its final mode, and mv replaces a symlink rather than following it.
 status() {
-    local state="$1" message="$2"
+    local state="$1" message="$2" tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
     printf '{"state":%s,"message":%s,"version":%s,"updated":%s}\n' \
         "\"$state\"" "\"${message//\"/\\\"}\"" "\"$(cat "$VERSION_FILE" 2>/dev/null || echo unknown)\"" \
-        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" > "$STATUS_FILE.tmp.$$" \
-        && chmod 644 "$STATUS_FILE.tmp.$$" && mv -Tf "$STATUS_FILE.tmp.$$" "$STATUS_FILE"
+        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
+        | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
+    mv -Tf "$tmp" "$STATUS_FILE"
 }
 
 fail() {
