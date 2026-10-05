@@ -423,3 +423,81 @@ func TestGetSharedLinkStoresMediaAndDeflatesTheRest(t *testing.T) {
 	}
 	os.Remove(filepath.Join(storage, id))
 }
+
+// The manifest is decrypted once for a page's many requests, but every
+// request still checks the link (a wrong secret, an expiry), and a
+// deleted gallery leaves nothing behind in memory.
+func TestSharedGalleryManifestIsCachedButStillChecked(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	img := image.NewRGBA(image.Rect(0, 0, 40, 30))
+	var pngBuf bytes.Buffer
+	png.Encode(&pngBuf, img)
+	files := []*pb.File{libraryFile(t, ses, "cached.png", "image/png", pngBuf.Bytes())}
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
+	link, err := mg.buildSharedGallery(ses, files, "cache", time.Hour, "cala.off-the.cloud", false, &galleryJob{state: &pb.SharedGalleryJob{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, secret, _ := strings.Cut(strings.TrimPrefix(link, "https://cala.off-the.cloud/shared#"), ".")
+	alive := func() {
+		mock.ExpectQuery("select `created`, `expires` from `shared_links`").
+			WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now(), time.Now().Add(time.Hour)))
+	}
+
+	alive()
+	first, _, _, err := mg.ReadSharedGalleryItem(id, secret, 0, pb.GetSharedGalleryItem_ORIGINAL, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mg.galleryCache[id] == nil {
+		t.Fatal("the manifest wasn't kept")
+	}
+	alive()
+	again, _, _, err := mg.ReadSharedGalleryItem(id, secret, 0, pb.GetSharedGalleryItem_ORIGINAL, 0, 0)
+	if err != nil || !bytes.Equal(first, again) {
+		t.Fatalf("a cached read differs: %v", err)
+	}
+	alive()
+	if _, _, _, err := mg.ReadSharedGalleryItem(id, strings.Repeat("0", 64), 0, pb.GetSharedGalleryItem_ORIGINAL, 0, 0); err != ErrNoSuchGallery {
+		t.Errorf("a wrong secret after a cached read: %v", err)
+	}
+	// Expired: deleted on this request, cache included.
+	mock.ExpectQuery("select `created`, `expires` from `shared_links`").
+		WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now().Add(-2*time.Hour), time.Now().Add(-time.Hour)))
+	mock.ExpectExec("delete from `shared_links`").WillReturnResult(sqlmock.NewResult(0, 1))
+	if _, _, _, err := mg.ReadSharedGalleryItem(id, secret, 0, pb.GetSharedGalleryItem_ORIGINAL, 0, 0); err != ErrNoSuchGallery {
+		t.Errorf("an expired gallery: %v", err)
+	}
+	if mg.galleryCache[id] != nil {
+		t.Error("a deleted gallery's manifest stayed in memory")
+	}
+	if _, err := os.Stat(galleryDir(id)); !os.IsNotExist(err) {
+		t.Errorf("the expired gallery is still on disk: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// At most cGalleryCacheMax manifests are kept, the least recently used
+// going first.
+func TestGalleryCacheIsBounded(t *testing.T) {
+	mg := &Manager{}
+	fi, err := os.Stat(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < cGalleryCacheMax+3; i++ {
+		mg.cacheGallery(strings.Repeat(string(rune('a'+i)), 4), galleryCacheTag("s"), fi, &galleryManifest{}, linkKeys{})
+		time.Sleep(time.Millisecond)
+	}
+	if len(mg.galleryCache) != cGalleryCacheMax {
+		t.Fatalf("%d manifests kept, want %d", len(mg.galleryCache), cGalleryCacheMax)
+	}
+	if mg.galleryCache["aaaa"] != nil || mg.galleryCache[strings.Repeat(string(rune('a'+cGalleryCacheMax+2)), 4)] == nil {
+		t.Error("evicted the wrong manifest")
+	}
+}

@@ -89,6 +89,10 @@ type Manager struct {
 	searchTokens   *sync.Map
 	tokensToExpire *sync.Map
 	sharedLinkTTL  time.Duration
+	// galleryCache holds shared galleries' decrypted manifests (see
+	// openGallery), made on first use under galleryMu.
+	galleryMu    sync.Mutex
+	galleryCache map[string]*galleryCacheEntry
 	// faceRecognizer is nil until/unless [faces] is configured with both
 	// model paths (issue #52) - every call site below treats a nil
 	// recognizer as "the feature isn't set up on this device yet", not an
@@ -343,6 +347,7 @@ func (mg *Manager) expireSharedLinks() {
 // around so the sweep retries next time, rather than losing track of
 // content still sitting on disk.
 func (mg *Manager) deleteSharedLink(pathUuid string) {
+	mg.forgetGallery(pathUuid)
 	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
 		log.Error("error removing expired shared link content:", pathUuid, err)

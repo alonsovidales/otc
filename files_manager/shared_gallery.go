@@ -4,6 +4,8 @@ package filesmanager
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -524,8 +526,17 @@ func (mg *Manager) openGallery(id, secret string) (*galleryManifest, linkKeys, e
 		mg.deleteSharedLink(id)
 		return nil, linkKeys{}, ErrNoSuchGallery
 	}
+	manifest := filepath.Join(galleryDir(id), "manifest")
+	fi, err := os.Stat(manifest)
+	if err != nil {
+		return nil, linkKeys{}, ErrNoSuchGallery
+	}
+	tag := galleryCacheTag(secret)
+	if man, keys, ok := mg.cachedGallery(id, tag, fi); ok {
+		return man, keys, nil
+	}
 	keys := linkKeys{getCipher(secret)}
-	raw, err := blobstore.ReadAll(filepath.Join(galleryDir(id), "manifest"), keys)
+	raw, err := blobstore.ReadAll(manifest, keys)
 	if err != nil {
 		// A wrong secret fails to decrypt, the same as no gallery at all.
 		return nil, linkKeys{}, ErrNoSuchGallery
@@ -534,7 +545,78 @@ func (mg *Manager) openGallery(id, secret string) (*galleryManifest, linkKeys, e
 	if err := json.Unmarshal(raw, &man); err != nil {
 		return nil, linkKeys{}, ErrNoSuchGallery
 	}
+	mg.cacheGallery(id, tag, fi, &man, keys)
 	return &man, keys, nil
+}
+
+// A visitor's page asks for every thumbnail, preview and 4 MiB part of an
+// original separately, and each request decrypted and parsed the whole
+// manifest again: a gallery of 10,000 photos parsed about 11 GB of JSON
+// per page load. Only the manifest is kept - the link's row is still
+// read on every request, so expiry and deletion apply at once - and only
+// after the secret opened it; a wrong secret still costs a full decrypt
+// and gets the same answer.
+const (
+	cGalleryCacheIdle = 5 * time.Minute
+	cGalleryCacheMax  = 8
+)
+
+// galleryCacheEntry: man is shared by every request, read only.
+type galleryCacheEntry struct {
+	tag   [32]byte
+	size  int64
+	mtime time.Time
+	man   *galleryManifest
+	keys  linkKeys
+	used  time.Time
+}
+
+// galleryCacheTag identifies the secret that opened a manifest. Not plain
+// sha256(secret): that is the link's AES key (getCipher).
+func galleryCacheTag(secret string) [32]byte {
+	return sha256.Sum256([]byte("otc-gallery-cache\x00" + secret))
+}
+
+func (mg *Manager) cachedGallery(id string, tag [32]byte, fi os.FileInfo) (*galleryManifest, linkKeys, bool) {
+	mg.galleryMu.Lock()
+	defer mg.galleryMu.Unlock()
+	e := mg.galleryCache[id]
+	if e == nil || subtle.ConstantTimeCompare(e.tag[:], tag[:]) != 1 || e.size != fi.Size() || !e.mtime.Equal(fi.ModTime()) {
+		return nil, linkKeys{}, false
+	}
+	e.used = time.Now()
+	return e.man, e.keys, true
+}
+
+func (mg *Manager) cacheGallery(id string, tag [32]byte, fi os.FileInfo, man *galleryManifest, keys linkKeys) {
+	now := time.Now()
+	mg.galleryMu.Lock()
+	defer mg.galleryMu.Unlock()
+	if mg.galleryCache == nil {
+		mg.galleryCache = map[string]*galleryCacheEntry{}
+	}
+	mg.galleryCache[id] = &galleryCacheEntry{tag: tag, size: fi.Size(), mtime: fi.ModTime(), man: man, keys: keys, used: now}
+	for k, e := range mg.galleryCache {
+		if now.Sub(e.used) > cGalleryCacheIdle {
+			delete(mg.galleryCache, k)
+		}
+	}
+	for len(mg.galleryCache) > cGalleryCacheMax {
+		oldest := ""
+		for k, e := range mg.galleryCache {
+			if k != id && (oldest == "" || e.used.Before(mg.galleryCache[oldest].used)) {
+				oldest = k
+			}
+		}
+		delete(mg.galleryCache, oldest)
+	}
+}
+
+// forgetGallery drops a deleted gallery's manifest.
+func (mg *Manager) forgetGallery(id string) {
+	mg.galleryMu.Lock()
+	delete(mg.galleryCache, id)
+	mg.galleryMu.Unlock()
 }
 
 // sharedLinkExpired: past its own expiry, or the device's default when it
