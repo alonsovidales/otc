@@ -2053,11 +2053,12 @@ func enumerateFiles(root string) (out, failed []string, err error) {
 				return err
 			}
 			// Below the root only a directory's ReadDir reports here.
-			rel, _ := filepath.Rel(root, p)
-			if len(failed) < 5 {
-				log.Printf("cannot read directory %s: %v", rel, err)
+			if rel, ok := unreadableDir(root, p, err); ok {
+				if len(failed) < 5 {
+					log.Printf("cannot read directory %s: %v", rel, err)
+				}
+				failed = append(failed, rel)
 			}
-			failed = append(failed, filepath.ToSlash(rel))
 
 			return nil
 		}
@@ -2076,6 +2077,19 @@ func enumerateFiles(root string) (out, failed []string, err error) {
 	})
 
 	return out, failed, err
+}
+
+// unreadableDir: the directory below root whose read failed with err, as
+// enumerateFiles lists it, and whether it counts as one that could not be
+// read. One deleted or renamed since its parent was listed does not: it is
+// gone, and what was under it is handled as any delete.
+func unreadableDir(root, p string, err error) (string, bool) {
+	if errors.Is(err, os.ErrNotExist) {
+		return "", false
+	}
+	rel, _ := filepath.Rel(root, p)
+
+	return filepath.ToSlash(rel), true
 }
 
 type hashEntry struct {

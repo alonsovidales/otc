@@ -4,6 +4,7 @@ package engine
 
 import (
 	"bytes"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -179,6 +180,20 @@ func TestTwoWayUnreadableDirectoryDeletesNothing(t *testing.T) {
 	}
 	if st.Kind != StateError || !strings.Contains(st.Message, "could not be read") {
 		t.Errorf("state %+v, want an error saying what could not be read", st)
+	}
+}
+
+// A directory deleted or renamed between its parent's listing and its own
+// read is gone, not unreadable: no "could not be read" for it, and what
+// was under it is handled as any delete. Other errors still count.
+func TestUnreadableDir(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "a", "b")
+	if _, ok := unreadableDir(root, p, &fs.PathError{Op: "open", Path: p, Err: fs.ErrNotExist}); ok {
+		t.Error("a directory that vanished counted as unreadable")
+	}
+	if rel, ok := unreadableDir(root, p, &fs.PathError{Op: "open", Path: p, Err: fs.ErrPermission}); !ok || rel != "a/b" {
+		t.Errorf("a directory without permission: %q %v, want \"a/b\" true", rel, ok)
 	}
 }
 
