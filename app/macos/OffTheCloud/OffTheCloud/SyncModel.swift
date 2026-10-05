@@ -583,11 +583,16 @@ final class SyncModel: ObservableObject {
         guard let resp = try? await ws.request({ req in
             req.payload = .reqGetStatus(Msg_GetStatus())
         }), case .respStatus(let status) = resp.payload else { return }
-        raidHealth = RaidHealth(status: status)
+        // Published only when they change: each assignment redraws what
+        // watches SyncModel, every 10 seconds for nothing. deviceStatus
+        // carries CPU and memory, which do change on every poll.
+        let health = RaidHealth(status: status)
+        if raidHealth != health { raidHealth = health }
         deviceStatus = status
         let level = status.updateAlert.level
-        updateAlert = status.hasUpdateAlert && (level == "major" || level == "critical")
+        let alert: Msg_UpdateAlert? = status.hasUpdateAlert && (level == "major" || level == "critical")
             ? status.updateAlert : nil
+        if updateAlert != alert { updateAlert = alert }
     }
 
     /// A one-way backup of a folder on this Mac: new and changed files go
