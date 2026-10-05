@@ -280,7 +280,8 @@ export default function SettingsForm() {
         // stashing the new password the way this used to, just rotate a
         // fresh token in, which is what the old savePersistedKey(newKey)
         // was really trying to achieve: don't leave the next reload
-        // holding something stale.
+        // holding something stale. Nor the next reconnect.
+        useWS.passwordChanged(newKey);
         await useWS.refreshSessionToken();
         setOldKey(""); setNewKey(""); setConfirmKey("");
         setStatus({ kind: "success", text: "Password changed." });

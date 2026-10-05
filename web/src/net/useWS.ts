@@ -82,7 +82,19 @@ export function UseWS() {
     if (!wsClient || !wsClient.connected) {
       await connect();
       if (wsClient.connected && lastAuthRef !== '' && !authPromise) {
-        void sendAuth(lastAuthRef);
+        // A replay the device rejects (the password was changed on
+        // another device) is tried once, not on every click: sendAuth
+        // forgets the password, and this tab signs out the way a dead
+        // token session does (#105). Each retry used to count as a failed
+        // attempt for this address - through the bridge, the household's
+        // public IP - until it was locked out.
+        sendAuth(lastAuthRef).then((ok) => {
+          if (!ok && lastAuthRef === '' && setAuth) void setAuth(false);
+        }, () => {
+          // too_many_attempts or a dropped socket: the password is kept
+          // (a blocked address is refused before anything is counted),
+          // and the await below hands the error to this request's caller.
+        });
       }
     }
     // Whether this call is the one that just kicked off sendAuth above, or
@@ -115,8 +127,10 @@ export function UseWS() {
     }
   };
 
+  // The password is remembered for request()'s reconnect replay only once
+  // the device has accepted it: a typo, or a password that is no longer
+  // the current one, is never replayed.
   const sendAuth = (key: string): Promise<boolean> => {
-    lastAuthRef = key;
     if (authPromise) return authPromise;
 
     authPromise = (async () => {
@@ -130,6 +144,7 @@ export function UseWS() {
           (e as any).payload = { $case: "reqAuth", reqAuth: { key: encryptedKey, create: true } };
         });
         if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+          lastAuthRef = key;
           // Issue #46/#101: keep the browser signed in across reloads —
           // with a token the device issues for this session, never the
           // password that was just used to establish it.
@@ -150,8 +165,10 @@ export function UseWS() {
 
         // Wrong/stale password (e.g. it was changed elsewhere, or a
         // leftover key from a previous device) — don't keep retrying it on
-        // every future reload.
+        // every future reload, nor on every reconnect. Only this key is
+        // forgotten: a typo never wipes a password that did work.
         clearPersistedToken();
+        if (lastAuthRef === key) lastAuthRef = '';
 
         if (window.__OTC_CONFIG!) {
           // Open the settings on error when we are in the mobile app
@@ -221,7 +238,14 @@ export function UseWS() {
     return wsClient.connected;
   };
 
-  return { connected, request, sendAuth, authWithToken, refreshSessionToken, init, ws: wsClient };
+  // After Change Password: a reconnect replays the new password, not the
+  // old one the device now refuses. A session restored from a token holds
+  // no password (#101) and keeps holding none.
+  const passwordChanged = (newKey: string) => {
+    if (lastAuthRef !== '') lastAuthRef = newKey;
+  };
+
+  return { connected, request, sendAuth, authWithToken, refreshSessionToken, passwordChanged, init, ws: wsClient };
 }
 
 export const useWS = UseWS();
