@@ -26,8 +26,9 @@
 #      source sha - and signs the whole manifest with the release key
 #      (Ed25519; ~/.otc/otc-release-signing.pem, its passphrase in the
 #      Keychain item otc-release-signing) into scripts/updates/VERSIONS.sig;
-#   4. commits and pushes the manifest, then publishes the GitHub release
-#      with both archives and checks what was published.
+#   4. publishes the GitHub release with both archives, checks what was
+#      published, and only then commits and pushes the manifest (a failure
+#      before that takes the release, the tag and the manifest lines back).
 # A device verifies the signature with the public key it pins
 # (/etc/otc/release-signing.pub, = scripts/release-signing.pub) before it
 # runs anything (otc-update-runner.sh).
@@ -122,16 +123,35 @@ base64 -d < "$SIG" > "$work/check.sig"
 base64 -d < "$KINDS_SIG" > "$work/check2.sig"
 "$OPENSSL" pkeyutl -verify -pubin -inkey scripts/release-signing.pub -rawin -in "$KINDS" -sigfile "$work/check2.sig" >/dev/null
 
-git push -q origin "v$N"
-git add "$MANIFEST" "$SIG" "$KINDS" "$KINDS_SIG"
-git commit -q -m "Release $N ($LABEL, $KIND): $SUMMARY"
-git push -q origin main
+# undo_release WHY: until the manifest is committed, a failure takes back
+# the GitHub release, the tag (on GitHub and here) and the manifest lines -
+# all four files are tracked and only modified so far.
+undo_release() {
+    gh release delete "v$N" --yes --cleanup-tag >/dev/null 2>&1 \
+        || git push -q origin ":refs/tags/v$N" 2>/dev/null || true
+    git tag -d "v$N" >/dev/null 2>&1 || true
+    git checkout -- "$MANIFEST" "$SIG" "$KINDS" "$KINDS_SIG"
+    echo "$1 - the release, the tag and the manifest lines were undone"; exit 1
+}
 
-gh release create "v$N" "$work/web-dist.tar.gz" "$work/src.tar.gz" --title "$LABEL (v$N)" --notes "$SUMMARY" >/dev/null
-repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+# Archives first, the manifest last (as desktop-release.sh does): every
+# device acts on the newest line of the manifest on main, so one pushed
+# before its archives were up - or when the upload then failed - made every
+# update and every new install fail on a 404.
+git push -q origin "v$N" || undo_release "pushing the tag failed"
+gh release create "v$N" "$work/web-dist.tar.gz" "$work/src.tar.gz" --title "$LABEL (v$N)" --notes "$SUMMARY" >/dev/null \
+    || undo_release "publishing the GitHub release failed"
+repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)" || undo_release "gh repo view failed"
 for f in web-dist.tar.gz src.tar.gz; do
     want="$(shasum -a 256 "$work/$f" | awk '{print $1}')"
-    got="$(curl -fsSL "https://github.com/$repo/releases/download/v$N/$f" | shasum -a 256 | awk '{print $1}')"
-    [ "$want" = "$got" ] || { echo "published $f does not match ($got, expected $want)"; exit 1; }
+    # || got="": a failed download must reach the undo, not stop set -e.
+    got="$(curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors "https://github.com/$repo/releases/download/v$N/$f" | shasum -a 256 | awk '{print $1}')" || got=""
+    [ "$want" = "$got" ] || undo_release "published $f does not match (${got:-download failed}, expected $want)"
 done
+git add "$MANIFEST" "$SIG" "$KINDS" "$KINDS_SIG"
+git commit -q -m "Release $N ($LABEL, $KIND): $SUMMARY"
+# Not undone past here: a published release no manifest names is invisible
+# to every device, and the local commit only needs pushing.
+git push -q origin main \
+    || { echo "release v$N is published but main was not pushed (moved meanwhile?): pull --rebase and push main by hand - until then devices simply don't see v$N"; exit 1; }
 echo "release $N (version $LABEL, $KIND) published and signed: web $WEB_SHA, source $SRC_SHA"
