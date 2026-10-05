@@ -160,7 +160,7 @@ def mdadm_detail(raid_dev):
     Keys in 'members' are the RAID DEVICE SLOTS (RaidDevice), not mdadm 'Number'.
     """
     out = run([CONFIG["paths"]["mdadm"], "--detail", raid_dev]).stdout
-    info = {"state": "", "members": {}}
+    info = {"state": "", "members": {}, "other_devices": set()}
 
     m = re.search(r"State\s*:\s*(.+)", out)
     if m:
@@ -183,6 +183,14 @@ def mdadm_detail(raid_dev):
             continue
         slot = int(raiddev)
         info["members"][slot] = {"device": dev.strip(), "state": state.strip().lower()}
+
+    # Rows with no slot (RaidDevice "-"): a disk md marked faulty but that
+    # is still attached, or a spare. Not members (the LEDs and the
+    # degraded check go by slots), but still md's: never a candidate to
+    # add, which only ever failed with "busy", every poll.
+    other_re = re.compile(r"^\s*(?:\d+|-)\s+\d+\s+\d+\s+-\s+(.+?)\s+(/dev/\S+)\s*$", re.M)
+    for _state, dev in other_re.findall(out):
+        info["other_devices"].add(dev.strip())
 
     return info
 
@@ -260,6 +268,8 @@ def member_base_disks(detail) -> set[str]:
     bases = set()
     for m in detail.get("members", {}).values():
         bases.add(base_disk(m["device"]))
+    for d in detail.get("other_devices", ()):
+        bases.add(base_disk(d))
     return bases
 
 def root_base_disk() -> str | None:
@@ -274,10 +284,14 @@ def root_base_disk() -> str | None:
         return base_disk(src)
     return None
 
-def pick_candidate_disk(existing_member_size, detail):
-    """Pick a disk not in md array, large enough, and not the root disk."""
+def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=None):
+    """Pick a disk not in md array, large enough, and not the root disk.
+    `skip` holds (disk, size) pairs whose last add failed and are waiting
+    out their backoff - filtered here, so one of those can't hide another,
+    valid disk. `disks` is list_block_disks() when the caller has it."""
     # Disks present
-    disks = list_block_disks()  # list of ("/dev/sdX", size)
+    if disks is None:
+        disks = list_block_disks()  # list of ("/dev/sdX", size)
     # Disks to exclude: any base disk already present in array
     in_array_bases = member_base_disks(detail)
     # Also exclude the root disk (if it’s an sdX device)
@@ -292,6 +306,10 @@ def pick_candidate_disk(existing_member_size, detail):
         # as a "candidate" every single poll and mdadm --add just fails on
         # them forever, spamming the log for no benefit.
         if sz == 0:
+            continue
+
+        # A failed add being backed off (see main).
+        if (d, sz) in skip:
             continue
 
         # Exclude any disk that is already a member (whole disk or parent of a partition member)
@@ -410,10 +428,11 @@ def perform_pending_storage_setup():
     isn't there, or the array/mount already exists, this is a no-op. Stops
     (leaving the request file in place for inspection/retry) at the first
     failed step rather than pushing on into further destructive commands
-    against a disk that's now in an unknown state."""
+    against a disk that's now in an unknown state. Returns False only then,
+    so the caller can back off before retrying."""
     req_path = Path(CONFIG["setup_request_file"])
     if not req_path.exists():
-        return
+        return True
 
     mount_point = CONFIG["mount_point"]
     unenc_path = os.path.join(mount_point, CONFIG["unenc_subdir"])
@@ -429,12 +448,12 @@ def perform_pending_storage_setup():
     except Exception as e:
         _fail_bootstrap(f"could not parse {req_path}: {e}")
         req_path.unlink(missing_ok=True)
-        return
+        return True
 
     if os.path.ismount(mount_point):
         print(f"[raid-watch] {mount_point} is already mounted — treating storage setup as already done.")
         req_path.unlink(missing_ok=True)
-        return
+        return True
 
     print(f"[raid-watch] Applying storage setup request: {device_paths}")
 
@@ -445,14 +464,14 @@ def perform_pending_storage_setup():
     elif len(device_paths) == 1:
         dev = device_paths[0]
         if not _safe_to_wipe(dev):
-            return
+            return False
         if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", dev]):
-            return
+            return False
         if not _run_step(["mkfs.ext4", "-F", dev]):
-            return
+            return False
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", dev, mount_point]):
-            return
+            return False
         os.makedirs(unenc_path, exist_ok=True)
         _append_fstab(dev, mount_point)
         print(f"[raid-watch] {dev} formatted and mounted at {mount_point} (no RAID, single disk).")
@@ -460,19 +479,19 @@ def perform_pending_storage_setup():
     elif len(device_paths) == 2:
         d1, d2 = device_paths
         if not _safe_to_wipe(d1) or not _safe_to_wipe(d2):
-            return
+            return False
         if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", d1]):
-            return
+            return False
         if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", d2]):
-            return
+            return False
         if not _run_step([CONFIG["paths"]["mdadm"], "--create", "--verbose", "--run", raid_dev,
                            "--level=1", "--raid-devices=2", d1, d2]):
-            return
+            return False
         if not _run_step(["mkfs.ext4", "-F", raid_dev]):
-            return
+            return False
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", raid_dev, mount_point]):
-            return
+            return False
         os.makedirs(unenc_path, exist_ok=True)
         scan = run([CONFIG["paths"]["mdadm"], "--detail", "--scan"])
         with open("/etc/mdadm/mdadm.conf", "a") as f:
@@ -483,12 +502,33 @@ def perform_pending_storage_setup():
 
     else:
         _fail_bootstrap(f"expected 0, 1, or 2 device paths, got {len(device_paths)}")
-        return
+        return False
 
     req_path.unlink(missing_ok=True)
+    return True
 
 def raid_name_from_dev(raid_dev):
     return Path(raid_dev).name  # e.g., md0
+
+def array_in_mdstat(mdstat_text, raid_name):
+    """Whether the kernel has the array at all, active or inactive. mdstat
+    leaves out an md device with no disks, which opening /dev/md0 (as
+    mdadm --detail does) can create - so a sysfs or /dev check would not
+    do."""
+    return re.search(rf"^{re.escape(raid_name)}\s*:", mdstat_text, re.M) is not None
+
+def request_key(path):
+    """What identifies one storage-setup request: a re-submit from the
+    wizard rewrites the file, which changes this."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_mtime_ns, st.st_size)
+
+def next_delay(prev, cap):
+    """Backoff after a failure: 5 s, doubling, up to `cap`."""
+    return min(max(5, 2 * prev), cap) if prev else 5
 
 def now():
     return time.time()
@@ -499,17 +539,14 @@ def now():
 class BlinkState:
     def __init__(self, period):
         self.period = max(0.2, float(period))
-        print(f"Blink state: {self.period}")
         self.next_toggle = now()
         self.on = False
 
     def step(self):
-        print("Blink step")
         t = now()
         if t >= self.next_toggle:
             self.on = not self.on
             self.next_toggle = t + self.period / 2.0
-            print(f"Next toggle: {self.next_toggle}")
 
         return self.on
 
@@ -565,11 +602,32 @@ def main():
         if changed[0]:
             print(*args)
 
+    # Failures are retried with a backoff rather than on every poll: a
+    # setup step or an `mdadm --add` that fails (a replacement card a
+    # little too small, a faulty disk md still holds) used to fork and log
+    # twice a second for as long as the state lasted.
+    # (disk, size) -> {"next_try": monotonic, "delay": s, "err": stderr}
+    failed_adds = {}
+    setup_retry = {"key": None, "next_try": 0.0, "delay": 0}
+
     try:
         while True:
-            perform_pending_storage_setup()
+            key = request_key(CONFIG["setup_request_file"])
+            if key is not None and not (key == setup_retry["key"] and time.monotonic() < setup_retry["next_try"]):
+                if perform_pending_storage_setup():
+                    setup_retry.update(key=None, delay=0)
+                else:
+                    delay = next_delay(setup_retry["delay"] if key == setup_retry["key"] else 0, 3600)
+                    setup_retry.update(key=key, next_try=time.monotonic() + delay, delay=delay)
 
-            detail = mdadm_detail(raid_dev)
+            # Read first: no array at all (OTC_SKIP_RAID, a single disk, the
+            # SD card only) means no mdadm fork every poll, and nothing to
+            # repair - `mdadm --add` to a missing md0 can only fail. Read
+            # after the setup above, so an array it just created counts.
+            mdst = mdstat()
+            array_present = array_in_mdstat(mdst, raid_name)
+            # The fallback is what a failed `mdadm --detail` parses to.
+            detail = mdadm_detail(raid_dev) if array_present else {"state": "", "members": {}, "other_devices": set()}
             state = (detail.get("state") or "").lower()
             members = detail.get("members", {})
             # Log only when the picture changes: this runs every poll_s,
@@ -587,8 +645,7 @@ def main():
             # Slots that exist in array definition
             present_slots = sorted(members.keys())
 
-            # Detect resync/recovery via /proc/mdstat
-            mdst = mdstat()
+            # Detect resync/recovery via /proc/mdstat (read above)
             rebuilding = array_is_resyncing(mdst, raid_name)
 
             # Identify source vs target during rebuild:
@@ -656,7 +713,7 @@ def main():
             led.apply()
 
             # Auto-repair path
-            if CONFIG["auto_repair_enable"]:
+            if CONFIG["auto_repair_enable"] and array_present:
                 log("Auto repair enabled")
                 # If degraded and exactly one member present, try to find a candidate
                 if ("degraded" in state) or (len(members) < 2):
@@ -666,18 +723,39 @@ def main():
                     for m in members.values():
                         sizes.append(size_of(m["device"]))
                     existing_size = max(sizes) if sizes else 0
-                    candidate = pick_candidate_disk(existing_size, detail)
+                    disks = list_block_disks()
+                    # A disk that was pulled (gone, or size 0) ends its
+                    # backoff: put back, it is tried at once.
+                    present = {(d, sz) for d, sz in disks if sz}
+                    for k in [k for k in failed_adds if k not in present]:
+                        del failed_adds[k]
+                    mono = time.monotonic()
+                    waiting = {k for k, v in failed_adds.items() if mono < v["next_try"]}
+                    candidate = pick_candidate_disk(existing_size, detail, skip=waiting, disks=disks)
                     if candidate:
-                        print(f"[raid-watch] Candidate new disk detected: {candidate}")
+                        add_key = (candidate, dict(disks).get(candidate, 0))
+                        retrying = add_key in failed_adds
+                        if not retrying:
+                            print(f"[raid-watch] Candidate new disk detected: {candidate}")
                         to_add = candidate
                         if CONFIG["auto_add_mode"] == "partition":
                             to_add = prepare_disk_for_raid(candidate)
-                        print(f"[raid-watch] Adding {to_add} to {raid_dev} ...")
+                        if not retrying:
+                            print(f"[raid-watch] Adding {to_add} to {raid_dev} ...")
                         r = add_member(raid_dev, to_add)
                         if r.returncode != 0:
-                            print(f"[raid-watch] mdadm --add failed: {r.stderr}")
+                            prev = failed_adds.get(add_key)
+                            delay = next_delay(prev["delay"] if prev else 0, 600)
+                            if prev is None or prev["err"] != r.stderr:
+                                print(f"[raid-watch] mdadm --add failed: {(r.stderr or '').strip()} (will retry in {delay}s)")
+                            failed_adds[add_key] = {"next_try": time.monotonic() + delay, "delay": delay, "err": r.stderr}
                         else:
+                            failed_adds.pop(add_key, None)
                             print("[raid-watch] Member added, rebuild should start automatically.")
+                else:
+                    failed_adds.clear()
+            else:
+                failed_adds.clear()
 
             time.sleep(CONFIG["poll_s"])
 
