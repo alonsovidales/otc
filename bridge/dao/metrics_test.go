@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-sql-driver/mysql"
 )
 
 // Issue #144: many relayed messages become one write per device and hour,
@@ -40,8 +41,9 @@ func TestMetricsAreBatched(t *testing.T) {
 }
 
 // A primary that stops answering costs a flush its time limit and one
-// write's, not a hang (Stop waits for the last flush): the counts it
-// couldn't write, and the ones it never got to, are kept for the next one.
+// write's, not a hang (Stop waits for the last flush). The write that got
+// no answer may have been applied, so its counts are dropped; the ones the
+// flush never got to are kept for the next one.
 func TestMetricsFlushIsBounded(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -62,13 +64,42 @@ func TestMetricsFlushIsBounded(t *testing.T) {
 	}
 	d.metricsMu.Lock()
 	defer d.metricsMu.Unlock()
-	if len(d.metrics) != 2 {
-		t.Fatalf("%d of 2 counts kept", len(d.metrics))
+	if len(d.metrics) != 1 {
+		t.Fatalf("%d counts kept, want only the one never written", len(d.metrics))
 	}
 	for k, c := range d.metrics {
 		if c.requests != 1 || c.in+c.out == 0 {
 			t.Errorf("%s: %+v", k.domain, *c)
 		}
+	}
+}
+
+// A write that may have been applied (the connection lost waiting for the
+// answer) is not retried: its counts would be added twice. One MySQL
+// refused (a lock wait timeout) was not applied, and is.
+func TestMetricsWriteMaybeAppliedIsNotRetried(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	mock.ExpectExec("update `devices` set `last_client_at`").WillReturnResult(sqlmock.NewResult(0, 1))
+	insert := "insert into `device_metrics`"
+
+	d.RecordDeviceActivity("a.off-the.cloud", 1, 2)
+	mock.ExpectExec(insert).WillReturnError(mysql.ErrInvalidConn)
+	d.flushMetrics(time.Minute, time.Minute)
+	d.FlushMetrics() // nothing kept: no write
+
+	d.RecordDeviceActivity("a.off-the.cloud", 1, 2)
+	mock.ExpectExec(insert).WillReturnError(&mysql.MySQLError{Number: 1205, Message: "Lock wait timeout exceeded; try restarting transaction"})
+	d.flushMetrics(time.Minute, time.Minute)
+	mock.ExpectExec(insert).WithArgs("a.off-the.cloud", sqlmock.AnyArg(), 1, 1, 2).WillReturnResult(sqlmock.NewResult(0, 1))
+	d.FlushMetrics()
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 

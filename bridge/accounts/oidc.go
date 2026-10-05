@@ -132,6 +132,10 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if !pageNavigation(r) {
+		http.Error(w, "a sign-in starts from a link, not from within another page", http.StatusBadRequest)
+		return
+	}
 	// Counted only for a start that writes a state: a bad provider or
 	// return address costs nothing.
 	if a.oauthStarts != nil && !a.oauthStarts.Allow(clientIP(r)) {
@@ -176,6 +180,24 @@ const (
 	cOAuthStateBytes   = 32
 	cPreCookieStateLen = 48
 )
+
+// pageNavigation is whether the browser is opening r as a page, as every
+// real sign-in start is: a link, a location change, an app's sign-in
+// sheet or Custom Tab. Not an image, frame or fetch that another site's
+// page could fire at the start over and over: each start sets a state
+// cookie of its own name, and a browser that takes cookies from such
+// requests would fill up and drop the bridge's others, the sessions among
+// them. Browsers that send no Sec-Fetch headers (older Safari) go through
+// as before.
+func pageNavigation(r *http.Request) bool {
+	if m := r.Header.Get("Sec-Fetch-Mode"); m != "" && m != "navigate" {
+		return false
+	}
+	if d := r.Header.Get("Sec-Fetch-Dest"); d != "" && d != "document" {
+		return false
+	}
+	return true
+}
 
 // oauthCookieNames are the two cookies that carry a state; the names carry
 // part of it, so two sign-ins at once (two tabs, an app's sheet and the

@@ -4,7 +4,10 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 
 	"github.com/alonsovidales/otc/log"
 )
@@ -47,16 +50,26 @@ func (dao *Dao) RecordDeviceActivity(domain string, bytesIn, bytesOut int64) err
 }
 
 // FlushMetrics writes what RecordDeviceActivity counted since the last
-// flush. What fails to write is kept for the next one. A pass starts no
-// write after cMetricsFlush, and each write gives up after cRelayDBTimeout:
-// with the primary away the rest waits for the next pass rather than
-// hanging - Stop waits for the last pass.
-func (dao *Dao) FlushMetrics() { dao.flushMetrics(cMetricsFlush, cRelayDBTimeout) }
+// flush. What surely failed to write is kept for the next one. A pass
+// starts no write after cMetricsFlush, and each write gives up after
+// cMetricsWriteTimeout: with the primary away the rest waits for the next
+// pass rather than hanging - Stop waits for the last pass.
+func (dao *Dao) FlushMetrics() { dao.flushMetrics(cMetricsFlush, cMetricsWriteTimeout) }
 
-// flushMetrics bounds the pass and each write apart. A write cut short may
-// already be applied, and its counts, kept, would then be added twice: so
-// one under way is never cut short because the pass ran out of time - only
-// a primary that doesn't answer it within writeTimeout cuts it short.
+// cMetricsWriteTimeout is above InnoDB's lock wait (innodb_lock_wait_timeout,
+// 50 s by default) and below the DSN's readTimeout. A write held behind a
+// lock - PruneOldLogs' daily delete locks every row it scans - then ends as
+// it always has: applied, or refused by MySQL and not applied. Only a
+// primary that doesn't answer at all cuts a write short.
+const cMetricsWriteTimeout = 55 * time.Second
+
+// flushMetrics bounds the pass and each write apart: one under way is
+// never cut short because the pass ran out of time. A write that is cut
+// short, or loses its connection waiting for the answer, may have been
+// applied all the same (the server goes on with a statement it already
+// has: behind a metadata lock, a stalled disk), so its counts are dropped
+// - a late or lost hour of metrics rather than one counted twice. Counts
+// from a write that surely wasn't applied are kept.
 func (dao *Dao) flushMetrics(budget, writeTimeout time.Duration) {
 	dao.metricsMu.Lock()
 	pending := dao.metrics
@@ -70,7 +83,9 @@ func (dao *Dao) flushMetrics(budget, writeTimeout time.Duration) {
 			kept++
 			continue
 		}
-		if err := dao.writeMetric(k, c, writeTimeout); err != nil {
+		if unsure, err := dao.writeMetric(k, c, writeTimeout); unsure {
+			log.Error("device activity for", k.domain, "may not be recorded,", c.requests, "requests dropped rather than risk counting them twice:", err)
+		} else if err != nil {
 			log.Error("error recording device activity for", k.domain, ":", err)
 			dao.keepMetric(k, c)
 		}
@@ -80,15 +95,17 @@ func (dao *Dao) flushMetrics(budget, writeTimeout time.Duration) {
 	}
 }
 
-// writeMetric adds one device and hour's counts to device_metrics.
-func (dao *Dao) writeMetric(k metricKey, c *metricCounts, timeout time.Duration) error {
+// writeMetric adds one device and hour's counts to device_metrics. unsure
+// is a failed write that may have been applied: no answer within timeout,
+// or the connection lost waiting for one.
+func (dao *Dao) writeMetric(k metricKey, c *metricCounts, timeout time.Duration) (unsure bool, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	_, err := dao.db.ExecContext(ctx,
+	_, err = dao.db.ExecContext(ctx,
 		"insert into `device_metrics` (`domain`, `hour_bucket`, `requests`, `bytes_in`, `bytes_out`) values (?, ?, ?, ?, ?) "+
 			"on duplicate key update `requests` = `requests` + values(`requests`), `bytes_in` = `bytes_in` + values(`bytes_in`), `bytes_out` = `bytes_out` + values(`bytes_out`)",
 		k.domain, k.hour, c.requests, c.in, c.out)
-	return err
+	return err != nil && (ctx.Err() != nil || errors.Is(err, mysql.ErrInvalidConn)), err
 }
 
 // keepMetric puts counts that weren't written back, for the next flush.

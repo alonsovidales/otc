@@ -379,3 +379,51 @@ func TestOAuthStartIsRateLimited(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// A sign-in start is a page the browser opens. An image, frame or fetch
+// another site fires at it is refused before it writes a state, sets a
+// cookie or uses up the address's starts; with no Sec-Fetch headers
+// (older Safari) it goes through.
+func TestOAuthStartOnlyAsAPage(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	a.oauthStarts = limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute)
+	start := func(h map[string]string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("GET", "/account/auth/google/start", nil)
+		r.RemoteAddr = "203.0.113.7:4444"
+		r.SetPathValue("provider", "google")
+		for k, v := range h {
+			r.Header.Set(k, v)
+		}
+		w := httptest.NewRecorder()
+		a.OAuthStart(w, r)
+		return w
+	}
+	for _, h := range []map[string]string{
+		{"Sec-Fetch-Mode": "no-cors", "Sec-Fetch-Dest": "image", "Sec-Fetch-Site": "cross-site"},
+		{"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "iframe", "Sec-Fetch-Site": "cross-site"},
+		{"Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty"},
+		{"Sec-Fetch-Mode": "no-cors"},
+		{"Sec-Fetch-Dest": "script"},
+	} {
+		for i := 0; i <= cOAuthStartsPerMinute; i++ {
+			if w := start(h); w.Code != http.StatusBadRequest || len(w.Header().Values("Set-Cookie")) != 0 {
+				t.Fatalf("%v: %d, cookies %q", h, w.Code, w.Header().Values("Set-Cookie"))
+			}
+		}
+	}
+	for _, h := range []map[string]string{
+		{"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document", "Sec-Fetch-Site": "same-origin"},
+		{"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document", "Sec-Fetch-Site": "cross-site"}, // a device's page, an app's sheet
+		{"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document", "Sec-Fetch-Site": "none"},
+		nil,
+	} {
+		mock.ExpectExec("insert into `oauth_states`").WillReturnResult(sqlmock.NewResult(1, 1))
+		if w := start(h); w.Code != http.StatusFound || len(w.Header().Values("Set-Cookie")) != 2 {
+			t.Errorf("%v: %d, cookies %q", h, w.Code, w.Header().Values("Set-Cookie"))
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

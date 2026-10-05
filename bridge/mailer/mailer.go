@@ -25,6 +25,7 @@ import (
 	"mime"
 	"net"
 	"net/smtp"
+	"net/textproto"
 	"os"
 	"strings"
 	"time"
@@ -33,6 +34,36 @@ import (
 )
 
 var ErrNotConfigured = errors.New("email is not configured on this bridge ([smtp])")
+
+// RecipientError is a send that failed at the recipient (RCPT TO); its
+// text is the underlying error's.
+type RecipientError struct{ Err error }
+
+func (e *RecipientError) Error() string { return e.Err.Error() }
+func (e *RecipientError) Unwrap() error { return e.Err }
+
+// badRecipient are the RFC 3463 (and 7505) statuses that say the
+// recipient's address itself is refused for good: no such mailbox, no
+// such domain, a malformed address, a mailbox that moved, a domain that
+// takes no mail.
+var badRecipient = map[string]bool{"5.1.1": true, "5.1.2": true, "5.1.3": true, "5.1.6": true, "5.1.10": true}
+
+// AddressRefused is whether err is the SMTP server refusing the recipient's
+// address for good: a 5xx reply to RCPT TO whose enhanced status code is
+// one of badRecipient. Sending to that address again fails the same way.
+// Anything else may clear up, or isn't about the address: no reply, a
+// 4xx, a refused login or sender (some servers refuse a sender only at
+// RCPT TO), a sending limit (5.7.X), or a 5xx without a status code to
+// tell which.
+func AddressRefused(err error) bool {
+	var re *RecipientError
+	var te *textproto.Error
+	if !errors.As(err, &re) || !errors.As(re.Err, &te) || te.Code < 500 || te.Code > 599 {
+		return false
+	}
+	f := strings.Fields(te.Msg)
+	return len(f) > 0 && badRecipient[f[0]]
+}
 
 type Mailer struct {
 	host, port, user, pass, from, fromName string
@@ -120,7 +151,7 @@ func (m *Mailer) SendWith(to, replyTo, subject, body string, att *Attachment) er
 		return err
 	}
 	if err := c.Rcpt(to); err != nil {
-		return err
+		return &RecipientError{err}
 	}
 	w, err := c.Data()
 	if err != nil {
