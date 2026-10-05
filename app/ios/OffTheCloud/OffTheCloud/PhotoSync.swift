@@ -147,6 +147,27 @@ final class PhotoSync: NSObject {
         return res?.originalFilename
     }
 
+    /// The name an asset is stored under on the device. Camera names
+    /// repeat - IMG_0001..IMG_9999 wraps, and an iPhone and an iPad share
+    /// one iCloud library - so a different asset whose name is already
+    /// taken goes to `alt`: the name plus 8 hex of its localIdentifier's
+    /// SHA-256, before the extension. Deterministic, so later runs (and
+    /// the post composer) find it there again.
+    static func remoteName(_ cleanName: String, localIdentifier: String, alt: Bool) -> String {
+        guard alt else { return cleanName }
+        let suffix = SHA256.hash(data: Data(localIdentifier.utf8)).prefix(4).map { String(format: "%02x", $0) }.joined()
+        let ext = (cleanName as NSString).pathExtension
+        guard !ext.isEmpty else { return "\(cleanName)_\(suffix)" }
+        return "\((cleanName as NSString).deletingPathExtension)_\(suffix).\(ext)"
+    }
+
+    /// The device's answer when a path already holds different content
+    /// (LinkFile and FinishUpload, every release; same content returns the
+    /// existing row instead).
+    static func isDuplicatedFile(_ message: String) -> Bool {
+        message.hasSuffix("Duplicated file")
+    }
+
     func exportAssetToTempFile(_ asset: PHAsset,
                                allowNetwork: Bool) throws -> (url: URL, filename: String, mime: String) {
         // Pick a sensible resource (photo/video full size if available)
@@ -289,6 +310,31 @@ final class PhotoSync: NSObject {
         let underlying: Error
     }
 
+    /// Remote paths taken during one run, so a second asset with the same
+    /// name goes straight to its alternate name instead of a wasted
+    /// transfer (or, in an upload-only folder, replacing the first).
+    private final class PathClaims: @unchecked Sendable {
+        private let lock = NSLock()
+        private var owners: [String: String] = [:]
+
+        /// True when `path` is free or already `id`'s.
+        func claim(_ path: String, by id: String) -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            if let owner = owners[path] { return owner == id }
+            owners[path] = id
+            return true
+        }
+    }
+
+    /// Whether a listed file's creation time is the asset's: it then is
+    /// that asset, synced before, as the bare path check always assumed.
+    /// Stored as the client sent it, in whole seconds (MySQL DATETIME).
+    private static func sameCreation(_ listed: Date?, _ asset: Date?) -> Bool {
+        guard let listed, let asset else { return true }
+        return abs(listed.timeIntervalSince(asset)) <= 1
+    }
+
     // 25MB was never revisited after this only had to handle photos - any
     // video (this app syncs videos too, per the "Include videos" setting)
     // over that size always threw AssetTooLargeForMemory, including from
@@ -397,7 +443,9 @@ final class PhotoSync: NSObject {
         // every return to the foreground starts a run, almost always with
         // nothing new, and the listing holds every photo this phone ever
         // synced (tens of MB through the bridge for a big library).
-        var knownPaths = Set<String>()
+        // With each file's hash and creation time: a path alone can't tell
+        // this asset from another one that had the same name.
+        var knownFiles: [String: (hash: String, created: Date?)] = [:]
         if !assets.isEmpty {
             let resp = try await ws.request { env in
                 var list = Msg_ListFiles()
@@ -406,7 +454,7 @@ final class PhotoSync: NSObject {
             }
             if case .respListOfFiles = resp.payload {
                 resp.respListOfFiles.files.forEach {
-                    knownPaths.insert($0.path)
+                    knownFiles[$0.path] = ($0.hash, $0.hasCreated ? $0.created.date : nil)
                 }
             } else if resp.error {
                 print("Upload listing the files:", resp.errorMessage)
@@ -437,6 +485,7 @@ final class PhotoSync: NSObject {
         let knownCloud = knownCloudHashes
         print("[dedup] \(knownCloud.count) of \(cloudIDs.count) assets already on the device by cloud id")
 
+        let claims = PathClaims()
         var idx = 0
         // Cancelled: the run throws, so a BG task reports it unfinished.
         var stopped = false
@@ -471,16 +520,22 @@ final class PhotoSync: NSObject {
                         do {
                             // Cheap: local Photos metadata only, no
                             // download - lets path (and therefore
-                            // knownPaths/the asset cache below) be checked
+                            // knownFiles/the asset cache below) be checked
                             // before ever touching the expensive part.
                             guard let rawName = self.resourceFilename(for: asset) else {
                                 throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"])
                             }
                             let cleanName = rawName.replacingOccurrences(of: "/", with: "_")
-                            let path = "\(targetPath)\(cleanName)"
+                            let basePath = "\(targetPath)\(cleanName)"
+                            let altPath = "\(targetPath)\(Self.remoteName(cleanName, localIdentifier: id, alt: true))"
+                            var path = basePath
 
-                            if knownPaths.contains(path) {
-                                print("File already in server: \(path)")
+                            if let listed = knownFiles[basePath], Self.sameCreation(listed.created, asset.creationDate) {
+                                print("File already in server: \(basePath)")
+                                return .done(id)
+                            }
+                            if knownFiles[altPath] != nil {
+                                print("File already in server: \(altPath)")
                                 return .done(id)
                             }
 
@@ -494,7 +549,7 @@ final class PhotoSync: NSObject {
                             // just to (most likely) rediscover the same
                             // thing. Most valuable after a reinstall: the
                             // device ID (and therefore every remote path)
-                            // is fresh then, so the knownPaths check above
+                            // is fresh then, so the knownFiles check above
                             // can never match even though the content is
                             // identical to what synced before.
                             var data: Data? = nil
@@ -529,6 +584,21 @@ final class PhotoSync: NSObject {
                                 let hashStart = Date()
                                 hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
                                 print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                            }
+
+                            // The name is taken by a file created at another
+                            // time: the same photo only if the content is.
+                            if let listed = knownFiles[basePath] {
+                                if listed.hash == hash {
+                                    print("File already in server: \(basePath) (same content)")
+                                    self.ifLive(gen) { AssetSyncCache.shared.record(localIdentifier: id, hash: hash) }
+                                    return .done(id)
+                                }
+                                print("[dedup] \(cleanName): \(basePath) holds another file, using \(altPath)")
+                                path = altPath
+                            } else if !claims.claim(basePath, by: id) {
+                                print("[dedup] \(cleanName): name taken in this run, using \(altPath)")
+                                path = altPath
                             }
 
                             // Issue #58: storage is deduplicated by hash on
@@ -589,30 +659,52 @@ final class PhotoSync: NSObject {
                             }
                             print("[dedup] \(cleanName): already on device = \(alreadyOnDevice)")
 
-                            let sendStart = Date()
-                            let resp: Msg_RespEnvelope
-                            if alreadyOnDevice {
-                                resp = try await ws.request { env in
-                                    var lf = Msg_LinkFile()
-                                    lf.hash = hash
-                                    lf.path = path
-                                    lf.forceOverride = false
-                                    lf.created = created
-                                    lf.cloudID = cloudID
-                                    env.payload = .reqLinkFile(lf)
+                            func send(to target: String) async throws -> Msg_RespEnvelope {
+                                if alreadyOnDevice {
+                                    let h = hash
+                                    return try await ws.request { env in
+                                        var lf = Msg_LinkFile()
+                                        lf.hash = h
+                                        lf.path = target
+                                        lf.forceOverride = false
+                                        lf.created = created
+                                        lf.cloudID = cloudID
+                                        env.payload = .reqLinkFile(lf)
+                                    }
                                 }
-                            } else {
                                 guard let data else {
                                     throw NSError(domain: "PhotoExport", code: -13, userInfo: [NSLocalizedDescriptionKey: "No data to upload"])
                                 }
                                 // Issue #165: chunked, never the whole
                                 // file in one message; reuses the hash
                                 // already computed for HasFile.
-                                resp = try await ws.uploadChunked(path: path, source: .data(data),
+                                return try await ws.uploadChunked(path: target, source: .data(data),
                                                                   forceOverride: false, created: created,
                                                                   cloudID: cloudID, sha256: hash)
                             }
+
+                            let sendStart = Date()
+                            var resp: Msg_RespEnvelope
+                            do {
+                                resp = try await send(to: path)
+                            } catch let error where path != altPath && Self.isDuplicatedFile(error.localizedDescription) {
+                                resp = Msg_RespEnvelope.with { $0.error = true; $0.errorMessage = error.localizedDescription }
+                            }
                             print("[dedup] \(cleanName): \(alreadyOnDevice ? "LinkFile" : "chunked upload") round trip in \(String(format: "%.3f", Date().timeIntervalSince(sendStart)))s")
+                            // Another file got the name first (in this run,
+                            // or from the post composer): once more under
+                            // the asset's own alternate name. The device
+                            // says this only for different content, so it
+                            // can never store the same photo twice.
+                            if resp.error && path != altPath && Self.isDuplicatedFile(resp.errorMessage) {
+                                print("[dedup] \(cleanName): \(path) holds another file, using \(altPath)")
+                                path = altPath
+                                guard self.ifLive(gen) else { return .retry(id) }
+                                // A refused upload's content is dropped
+                                // with it; it may be there from elsewhere.
+                                if !alreadyOnDevice { alreadyOnDevice = try await checkHasFile() }
+                                resp = try await send(to: path)
+                            }
 
                             // A successful UploadFile/LinkFile answers with
                             // RespFile (the stored file's metadata), not

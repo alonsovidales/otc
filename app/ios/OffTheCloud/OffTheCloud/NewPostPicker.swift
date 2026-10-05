@@ -503,7 +503,8 @@ final class NewPostPickerVM: ObservableObject {
     /// Uploads (or, per issue #58, links) a Source.phone asset the user
     /// picked, returning the server path it ends up at. Uses the exact
     /// same target-path convention PhotoSync itself uses
-    /// ("/ios/<deviceId>/<filename>") so a photo posted here and later
+    /// ("/ios/<deviceId>/<filename>", or its alternate name when another
+    /// photo already has that name) so a photo posted here and later
     /// reached by PhotoSync's own background sync are recognized as the
     /// same file rather than uploaded twice.
     private static func uploadIfNeeded(_ asset: PHAsset) async throws -> String {
@@ -518,7 +519,25 @@ final class NewPostPickerVM: ObservableObject {
         }
         let cleanName = rawName.replacingOccurrences(of: "/", with: "_")
         let path = "/ios/\(deviceId)/\(cleanName)"
+        let altPath = "/ios/\(deviceId)/\(PhotoSync.remoteName(cleanName, localIdentifier: asset.localIdentifier, alt: true))"
         let created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
+
+        func link(_ hash: String, at target: String) async throws -> Msg_RespEnvelope {
+            try await ws.request { e in
+                var lf = Msg_LinkFile()
+                lf.hash = hash
+                lf.path = target
+                lf.forceOverride = false
+                lf.created = created
+                e.payload = .reqLinkFile(lf)
+            }
+        }
+        // The name holds another photo (camera names repeat): this one
+        // goes under its alternate name, as PhotoSync does. The device
+        // says this only for different content.
+        func isDuplicated(_ resp: Msg_RespEnvelope) -> Bool {
+            resp.error && PhotoSync.isDuplicatedFile(resp.errorMessage)
+        }
 
         // Cache hit (already synced under some other path before, e.g. a
         // prior install) - skip the download+hash entirely, same as
@@ -530,15 +549,13 @@ final class NewPostPickerVM: ObservableObject {
                 e.payload = .reqHasFile(hf)
             }
             if case .respFileExists(let fe) = hasResp.payload, fe.exists {
-                let resp = try await ws.request { e in
-                    var lf = Msg_LinkFile()
-                    lf.hash = cachedHash
-                    lf.path = path
-                    lf.forceOverride = false
-                    lf.created = created
-                    e.payload = .reqLinkFile(lf)
+                var target = path
+                var resp = try await link(cachedHash, at: target)
+                if isDuplicated(resp) {
+                    target = altPath
+                    resp = try await link(cachedHash, at: target)
                 }
-                if case .respFile = resp.payload { return path }
+                if case .respFile = resp.payload { return target }
                 if resp.error { throw NSError(domain: "NewPostPicker", code: -2, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage]) }
             }
         }
@@ -556,33 +573,40 @@ final class NewPostPickerVM: ObservableObject {
             return (data, hash)
         }.value
 
-        let hasResp = try await ws.request { e in
-            var hf = Msg_HasFile()
-            hf.hash = hash
-            e.payload = .reqHasFile(hf)
-        }
-        let alreadyOnDevice: Bool
-        if case .respFileExists(let fe) = hasResp.payload { alreadyOnDevice = fe.exists } else { alreadyOnDevice = false }
-
-        let resp: Msg_RespEnvelope
-        if alreadyOnDevice {
-            resp = try await ws.request { e in
-                var lf = Msg_LinkFile()
-                lf.hash = hash
-                lf.path = path
-                lf.forceOverride = false
-                lf.created = created
-                e.payload = .reqLinkFile(lf)
+        func hasFile() async throws -> Bool {
+            let hasResp = try await ws.request { e in
+                var hf = Msg_HasFile()
+                hf.hash = hash
+                e.payload = .reqHasFile(hf)
             }
-        } else {
+            if case .respFileExists(let fe) = hasResp.payload { return fe.exists }
+            return false
+        }
+        var alreadyOnDevice = try await hasFile()
+
+        func send(to target: String) async throws -> Msg_RespEnvelope {
+            if alreadyOnDevice { return try await link(hash, at: target) }
             // Issue #165: chunked, never the whole file in one message.
-            resp = try await ws.uploadChunked(path: path, source: .data(data),
+            return try await ws.uploadChunked(path: target, source: .data(data),
                                               forceOverride: false, created: created,
                                               sha256: hash)
         }
+        var target = path
+        var resp: Msg_RespEnvelope
+        do {
+            resp = try await send(to: target)
+        } catch let error where PhotoSync.isDuplicatedFile(error.localizedDescription) {
+            resp = Msg_RespEnvelope.with { $0.error = true; $0.errorMessage = error.localizedDescription }
+        }
+        if isDuplicated(resp) {
+            target = altPath
+            // A refused upload's content is dropped with it.
+            if !alreadyOnDevice { alreadyOnDevice = try await hasFile() }
+            resp = try await send(to: target)
+        }
         if case .respFile = resp.payload {
             AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash)
-            return path
+            return target
         }
         throw NSError(domain: "NewPostPicker", code: -3, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "Upload failed" : resp.errorMessage])
     }
