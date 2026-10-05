@@ -44,6 +44,32 @@ const cSweepKeys = 100000
 // never hands a key a fresh bucket. A var for the tests.
 var maxKeys = 1 << 20
 
+// WriteIdleTimeout is how long a proxied response may wait on a client
+// that has stopped reading. The servers have no WriteTimeout either (it
+// would cut the websockets), so without one a client that never reads
+// holds the response, and the buffer behind it, forever.
+const WriteIdleTimeout = 30 * time.Second
+
+// WriteChunk is how much is written under one write deadline.
+const WriteChunk = 32 << 10
+
+// WriteAll writes b to w a chunk at a time, renewing the write deadline
+// before each: a slow client that keeps reading is never cut, one that
+// stops for stall is. Where w has no deadlines (a test recorder) it just
+// writes.
+func WriteAll(w http.ResponseWriter, b []byte, stall time.Duration) error {
+	rc := http.NewResponseController(w)
+	for len(b) > 0 {
+		n := min(len(b), WriteChunk)
+		_ = rc.SetWriteDeadline(time.Now().Add(stall))
+		if _, err := w.Write(b[:n]); err != nil {
+			return err
+		}
+		b = b[n:]
+	}
+	return nil
+}
+
 // Rate is a token bucket per key (an address, a domain): burst requests
 // at once, refilled at perSecond. Keys idle long enough to be full again
 // are dropped, so the map only holds recent keys.

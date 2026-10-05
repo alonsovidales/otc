@@ -3,6 +3,8 @@
 package limits
 
 import (
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -78,6 +80,37 @@ func TestRateRefusesNewKeysWhenFull(t *testing.T) {
 	now = now.Add(time.Minute)
 	if !l.Allow("d") {
 		t.Fatal("no room after the idle keys were swept")
+	}
+}
+
+// A client that stops reading is cut after the stall; a writer without
+// deadlines still gets everything.
+func TestWriteAll(t *testing.T) {
+	body := make([]byte, 3*WriteChunk+5)
+	rec := httptest.NewRecorder()
+	if err := WriteAll(rec, body, time.Second); err != nil || rec.Body.Len() != len(body) {
+		t.Fatalf("recorder: %v, %d bytes", err, rec.Body.Len())
+	}
+
+	done := make(chan error, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Far more than the socket buffers hold.
+		done <- WriteAll(w, make([]byte, 32<<20), 200*time.Millisecond)
+	}))
+	defer srv.Close()
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: x\r\n\r\n") // and never read
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("a stalled client took the whole body")
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("the write to a stalled client never ended")
 	}
 }
 

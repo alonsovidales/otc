@@ -429,7 +429,10 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 	if asset.RespStaticAsset.ContentType != "" {
 		w.Header().Set("Content-Type", asset.RespStaticAsset.ContentType)
 	}
-	w.Write(asset.RespStaticAsset.Content)
+	// Under a write deadline: the whole asset is in memory by now, and the
+	// device slot is already free, so a client that never reads would
+	// otherwise hold it here for good.
+	_ = limits.WriteAll(w, asset.RespStaticAsset.Content, limits.WriteIdleTimeout)
 }
 
 // submitContact handles the public landing page's contact form (issue

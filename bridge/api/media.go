@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"google.golang.org/protobuf/proto"
@@ -18,6 +20,14 @@ import (
 // won't return more than this anyway. Asking for more would just mean
 // answering with less than was promised.
 const maxProxiedRange int64 = 4 << 20
+
+// cMediaWriteStall is how long a media response may wait on a client that
+// has stopped reading before it is cut (limits.WriteAll). Players stop
+// reading on purpose, paused or with a full buffer, and ask for a new
+// range when they resume, so it is far longer than limits.WriteIdleTimeout:
+// it only ends the stall that never ends. It also outlasts the longest
+// device fetch between two spans, which runs under the same deadline.
+const cMediaWriteStall = 5 * time.Minute
 
 // proxyMedia is the bridge half of issue #110: a browser or app talks
 // ordinary HTTP to <device>.off-the.cloud/media/<token>, and this turns
@@ -125,7 +135,7 @@ func (api *API) writeWholeFile(w http.ResponseWriter, r *http.Request, token str
 // stops answering, ends it.
 func (api *API) writeSpan(w http.ResponseWriter, r *http.Request, token string, offset int64, first []byte, last int64) {
 	flusher, _ := w.(http.Flusher)
-	if _, err := w.Write(first); err != nil {
+	if err := limits.WriteAll(w, first, cMediaWriteStall); err != nil {
 		return
 	}
 	if flusher != nil {
@@ -139,7 +149,7 @@ func (api *API) writeSpan(w http.ResponseWriter, r *http.Request, token string, 
 		if int64(len(content)) > last-pos+1 {
 			content = content[:last-pos+1]
 		}
-		if _, err := w.Write(content); err != nil {
+		if err := limits.WriteAll(w, content, cMediaWriteStall); err != nil {
 			return
 		}
 		if flusher != nil {
