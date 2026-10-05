@@ -433,8 +433,14 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
      * Issue #165: [open] is read twice as a stream (hash, then chunked upload),
      * never loaded whole.
      */
-    suspend fun upload(open: () -> InputStream, filename: String) = uploadSlots.withPermit {
+    suspend fun upload(open: () -> InputStream, filename: String) {
+        // The folder it was picked into, read before waiting for a slot:
+        // the owner may have opened another one by then.
         val target = joinPath(path, filename)
+        uploadSlots.withPermit { uploadTo(target, open) }
+    }
+
+    private suspend fun uploadTo(target: String, open: () -> InputStream) {
         try {
             val digest = ChunkedUpload.digest(open)
             val hash = digest.sha256
