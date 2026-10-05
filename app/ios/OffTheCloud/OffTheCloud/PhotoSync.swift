@@ -47,19 +47,76 @@ final class PhotoSync: NSObject {
     // even today, and becomes an outright error under Swift 6.
     private let syncLock = NSLock()
     private var isSyncing = false
+    /// Bumped by cancel() (Log Out). A run only writes state - the
+    /// watermark, the asset cache, the upload bar - and only sends
+    /// requests while the generation it started with is current: Log Out
+    /// doesn't wait for the run to stop, and a run finishing its chunk
+    /// after the wipe used to write lastSyncDate=now into the fresh
+    /// defaults, so the next device never got the existing library.
+    private var generation = 0
+    /// Bumped by syncFromNow(). A run's watermark and retry-list writes
+    /// land only while the value it started with is current: after the
+    /// press, its per-chunk watermark is older than the press and its
+    /// failures are what Sync From Now skips. Its uploads carry on.
+    private var fromNowEpoch = 0
+    /// The sync in progress, so Log Out can stop it (`cancel()`). Under
+    /// syncLock: written from the cooperative pool, read on main.
+    private var currentSync: Task<Void, Error>?
 
-    private func beginSyncIfNotAlreadyRunning() -> Bool {
+    /// The generation this run belongs to, or nil if one is running.
+    private func beginSyncIfNotAlreadyRunning() -> Int? {
         syncLock.lock()
         defer { syncLock.unlock() }
-        if isSyncing { return false }
+        if isSyncing { return nil }
         isSyncing = true
-        return true
+        return generation
     }
 
     private func endSync() {
         syncLock.lock()
         defer { syncLock.unlock() }
         isSyncing = false
+    }
+
+    private func setCurrentSync(_ task: Task<Void, Error>?, gen: Int) {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        currentSync = task
+        // Log Out landed between begin and here.
+        if let task, generation != gen { task.cancel() }
+    }
+
+    /// Runs `body` only if the run's generation is still current, under
+    /// the same lock cancel() takes: a write lands before Log Out (whose
+    /// wipe then erases it) or not at all. With `epoch`, likewise only
+    /// before a Sync From Now press (see `fromNowEpoch`).
+    @discardableResult
+    private func ifLive(_ gen: Int, epoch: Int? = nil, _ body: () -> Void = {}) -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        guard generation == gen, epoch == nil || epoch == fromNowEpoch else { return false }
+        body()
+        return true
+    }
+
+    /// Where a run starts: the watermark, and the Sync From Now epoch its
+    /// writes belong to, read together.
+    private func startingPoint() -> (last: Date?, epoch: Int) {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        return (UserDefaults.standard.object(forKey: "lastSyncDate") as? Date, fromNowEpoch)
+    }
+
+    /// Sync From Now: skip everything already in the library, what earlier
+    /// runs couldn't finish included. A run in progress still uploads
+    /// what it fetched, as it always did, but no longer moves the
+    /// watermark back before now or puts its failures back on the list.
+    func syncFromNow() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        fromNowEpoch &+= 1
+        UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+        AssetSyncCache.shared.clearPending()
     }
 
     // How many assets to read from disk + upload at the same time (issue
@@ -114,6 +171,27 @@ final class PhotoSync: NSObject {
         let resources = PHAssetResource.assetResources(for: asset)
         let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
         return res?.originalFilename
+    }
+
+    /// The name an asset is stored under on the device. Camera names
+    /// repeat - IMG_0001..IMG_9999 wraps, and an iPhone and an iPad share
+    /// one iCloud library - so a different asset whose name is already
+    /// taken goes to `alt`: the name plus 8 hex of its localIdentifier's
+    /// SHA-256, before the extension. Deterministic, so later runs (and
+    /// the post composer) find it there again.
+    static func remoteName(_ cleanName: String, localIdentifier: String, alt: Bool) -> String {
+        guard alt else { return cleanName }
+        let suffix = SHA256.hash(data: Data(localIdentifier.utf8)).prefix(4).map { String(format: "%02x", $0) }.joined()
+        let ext = (cleanName as NSString).pathExtension
+        guard !ext.isEmpty else { return "\(cleanName)_\(suffix)" }
+        return "\((cleanName as NSString).deletingPathExtension)_\(suffix).\(ext)"
+    }
+
+    /// The device's answer when a path already holds different content
+    /// (LinkFile and FinishUpload, every release; same content returns the
+    /// existing row instead).
+    static func isDuplicatedFile(_ message: String) -> Bool {
+        message.hasSuffix("Duplicated file")
     }
 
     func exportAssetToTempFile(_ asset: PHAsset,
@@ -228,6 +306,65 @@ final class PhotoSync: NSObject {
         return out
     }
 
+    /// The retry list's assets that still exist, whatever their type: a
+    /// video kept for later while "Include videos" is off stays on the list.
+    private func fetchAssets(localIdentifiers ids: [String]) -> [PHAsset] {
+        guard !ids.isEmpty else { return [] }
+        var out: [PHAsset] = []
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { a, _, _ in out.append(a) }
+        return out
+    }
+
+    /// What became of one asset in a run.
+    private enum Outcome {
+        /// On the device (or found there).
+        case done(String)
+        /// Failed for what may be a passing reason (the connection, the
+        /// device, an iCloud download): tried again next run.
+        case retry(String)
+        /// Couldn't be read with "Sync from iCloud" off: tried again once
+        /// it is on.
+        case retryWhenICloud(String)
+        /// Can never work (no resource, over the 1 GB ceiling): given up
+        /// on, as before. Retrying would export the whole file each run.
+        case skip(String)
+    }
+
+    /// Reading the asset from Photos failed, as opposed to talking to the
+    /// device.
+    private struct ReadFailure: Error {
+        let underlying: Error
+    }
+
+    /// Remote paths taken during one run, with the content each was taken
+    /// for, so a second asset with the same name and other content goes
+    /// straight to its alternate name instead of a wasted transfer (or, in
+    /// an upload-only folder, replacing the first). The same content keeps
+    /// the name - a photo duplicated in Photos keeps its filename - and the
+    /// device answers it with the existing row: one file, as always.
+    final class PathClaims: @unchecked Sendable {
+        private let lock = NSLock()
+        private var owners: [String: (id: String, hash: String)] = [:]
+
+        /// True when `path` is free, already `id`'s, or taken for the same
+        /// content.
+        func claim(_ path: String, by id: String, hash: String) -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            if let owner = owners[path] { return owner.id == id || owner.hash == hash }
+            owners[path] = (id, hash)
+            return true
+        }
+    }
+
+    /// Whether a listed file's creation time is the asset's: it then is
+    /// that asset, synced before, as the bare path check always assumed.
+    /// Stored as the client sent it, in whole seconds (MySQL DATETIME).
+    private static func sameCreation(_ listed: Date?, _ asset: Date?) -> Bool {
+        guard let listed, let asset else { return true }
+        return abs(listed.timeIntervalSince(asset)) <= 1
+    }
+
     // 25MB was never revisited after this only had to handle photos - any
     // video (this app syncs videos too, per the "Include videos" setting)
     // over that size always threw AssetTooLargeForMemory, including from
@@ -240,6 +377,10 @@ final class PhotoSync: NSObject {
                   maxBytes: Int64 = 1024 * 1024 * 1024) throws -> (data: Data, filename: String, mime: String) {
 
         let (url, filename, mime) = try exportAssetToTempFile(asset, allowNetwork: allowNetwork)
+        // On every exit, the too-large throw included: a rejected 1 GB+
+        // video used to leave its whole copy behind in tmp. The mapping
+        // below stays valid after the unlink.
+        defer { try? FileManager.default.removeItem(at: url) }
 
         // Check size before loading
         let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
@@ -255,44 +396,43 @@ final class PhotoSync: NSObject {
         // Map into memory (still allocates a buffer ~size)
         let data = try Data(contentsOf: url, options: .mappedIfSafe)
 
-        // Clean up temp file if you don’t need it anymore
-        try? FileManager.default.removeItem(at: url)
-
         return (data, filename, mime)
     }
     
-    /// The sync in progress, so Log Out can stop it (`cancel()`): the
-    /// callers' own Tasks are theirs, this child is ours, and the
-    /// Task.isCancelled checks between chunks below see either.
-    private var currentSync: Task<Void, Error>?
-
-    /// Log Out: stop the sync in progress at the next chunk boundary.
+    /// Log Out: stop the sync in progress, and make sure nothing it still
+    /// does afterwards writes anything (see `generation`).
     func cancel() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        generation &+= 1
         currentSync?.cancel()
     }
 
+    /// The sync runs in its own Task so Log Out can cancel it. Awaiting a
+    /// Task's value doesn't pass the caller's cancellation on, so the
+    /// handler below does: that is how a BGProcessingTask's expiration
+    /// (SyncScheduler cancels the Task calling this) reaches the loop.
     func runForeground() async throws {
-        guard beginSyncIfNotAlreadyRunning() else {
+        guard let gen = beginSyncIfNotAlreadyRunning() else {
             print("Sync already running, skipping overlapping request")
             return
         }
         defer { endSync() }
-        let sync = Task { try await self.syncOnce() }
-        currentSync = sync
-        defer { currentSync = nil }
-        try await sync.value
+        let sync = Task { try await self.syncOnce(gen: gen) }
+        setCurrentSync(sync, gen: gen)
+        defer { setCurrentSync(nil, gen: gen) }
+        try await withTaskCancellationHandler {
+            try await sync.value
+        } onCancel: {
+            sync.cancel()
+        }
     }
 
-    private func syncOnce() async throws {
+    private func syncOnce(gen: Int) async throws {
         try await ensureAuth()
         let secrets = SecretsStore.loadOrCreate()
         let ws = OTCConnection.shared
         try await ws.ensureConnected()
-
-        let last = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
-        print("Sync photos from: \(last)")
-        let assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
-        UploadModel.shared.begin(total: assets.count)
 
         // This was never actually wired up before — the "Sync from iCloud"
         // toggle changed a setting nothing read, so turning it off had no
@@ -301,20 +441,54 @@ final class PhotoSync: NSObject {
         // tasks below.
         let allowICloudDownloads = secrets.downloadFromiCloud
 
-        let targetPath = "/ios/\(secrets.deviceId)/"
-        // Get a list of all the files for the target path
-        let resp = try await ws.request { env in
-            var list = Msg_ListFiles()
-            list.path = targetPath
-            env.payload = .reqListFiles(list)
-        }
-        var knownPaths = Set<String>()
-        if case .respListOfFiles(let files) = resp.payload {
-            resp.respListOfFiles.files.forEach {
-                knownPaths.insert($0.path)
+        // The watermark never goes past this: a photo with a future date
+        // (a wrong camera clock) can't push it ahead of what was fetched.
+        let runStart = Date()
+        let (last, epoch) = startingPoint()
+        print("Sync photos from: \(String(describing: last))")
+        var assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
+
+        // Assets earlier runs couldn't finish, which the watermark has
+        // already moved past: first, unless the new fetch has them anyway.
+        let pendingIDs = AssetSyncCache.shared.pending(includeICloud: allowICloudDownloads)
+        var retriedIDs = Set<String>()
+        if !pendingIDs.isEmpty {
+            let found = fetchAssets(localIdentifiers: pendingIDs)
+            let foundIDs = Set(found.map(\.localIdentifier))
+            let gone = pendingIDs.filter { !foundIDs.contains($0) }
+            ifLive(gen) { AssetSyncCache.shared.resolve(gone) }
+            let fresh = Set(assets.map(\.localIdentifier))
+            let retried = found.filter {
+                !fresh.contains($0.localIdentifier) && (secrets.includeVideos || $0.mediaType == .image)
             }
-        } else if resp.error {
-            print("Upload listing the files:", resp.errorMessage)
+            retriedIDs = Set(retried.map(\.localIdentifier))
+            assets = retried + assets
+            print("Retrying \(retried.count) assets from earlier runs")
+        }
+        ifLive(gen) { UploadModel.shared.begin(total: assets.count) }
+
+        let targetPath = "/ios/\(secrets.deviceId)/"
+        // Get a list of all the files for the target path - only when
+        // there is something to check against it. Every library change and
+        // every return to the foreground starts a run, almost always with
+        // nothing new, and the listing holds every photo this phone ever
+        // synced (tens of MB through the bridge for a big library).
+        // With each file's hash and creation time: a path alone can't tell
+        // this asset from another one that had the same name.
+        var knownFiles: [String: (hash: String, created: Date?)] = [:]
+        if !assets.isEmpty {
+            let resp = try await ws.request { env in
+                var list = Msg_ListFiles()
+                list.path = targetPath
+                env.payload = .reqListFiles(list)
+            }
+            if case .respListOfFiles = resp.payload {
+                resp.respListOfFiles.files.forEach {
+                    knownFiles[$0.path] = ($0.hash, $0.hasCreated ? $0.created.date : nil)
+                }
+            } else if resp.error {
+                print("Upload listing the files:", resp.errorMessage)
+            }
         }
 
         // Release 7: ask the device which of these assets it already holds
@@ -341,45 +515,61 @@ final class PhotoSync: NSObject {
         let knownCloud = knownCloudHashes
         print("[dedup] \(knownCloud.count) of \(cloudIDs.count) assets already on the device by cloud id")
 
+        let claims = PathClaims()
         var idx = 0
+        // Cancelled: the run throws, so a BG task reports it unfinished.
+        var stopped = false
         for chunk in assets.chunked(into: Self.cMaxConcurrentUploads) {
-            // Issue #70: a BGProcessingTask's expirationHandler cancels the
-            // Task running this loop when iOS runs out of patience with it
-            // - checked between chunks (same granularity as the pause
-            // check right below) rather than per-asset, so whatever's
-            // already uploading in the current chunk finishes cleanly
-            // instead of being torn down mid-request.
-            if Task.isCancelled { break }
+            // Issue #70: a BGProcessingTask's expiration and Log Out cancel
+            // this run. Checked between chunks; uploads already in flight
+            // stop at their next 4 MiB chunk (uploadChunked's
+            // checkCancellation).
+            if Task.isCancelled { stopped = true; break }
 
             // Issue #30: pause/resume from the upload bar. Checked between
             // chunks rather than cancelling in-flight requests — whatever's
             // already uploading finishes, nothing new starts until resumed.
-            while UploadModel.shared.isPaused {
+            // Not while cancelled: the sleep then throws at once and this
+            // spun at full CPU.
+            while UploadModel.shared.isPaused && !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
+            if Task.isCancelled { stopped = true; break }
 
-            await withTaskGroup(of: Void.self) { group in
+            let outcomes = await withTaskGroup(of: Outcome.self, returning: [Outcome].self) { group in
                 for asset in chunk {
                     idx += 1
                     let position = idx
                     group.addTask {
+                        let id = asset.localIdentifier
+                        // Reads the asset's bytes, failures marked as such.
+                        func read() throws -> Data {
+                            do { return try self.readData(for: asset, allowNetwork: allowICloudDownloads).data }
+                            catch { throw ReadFailure(underlying: error) }
+                        }
                         do {
                             // Cheap: local Photos metadata only, no
                             // download - lets path (and therefore
-                            // knownPaths/the asset cache below) be checked
+                            // knownFiles/the asset cache below) be checked
                             // before ever touching the expensive part.
                             guard let rawName = self.resourceFilename(for: asset) else {
                                 throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"])
                             }
                             let cleanName = rawName.replacingOccurrences(of: "/", with: "_")
-                            let path = "\(targetPath)\(cleanName)"
+                            let basePath = "\(targetPath)\(cleanName)"
+                            let altPath = "\(targetPath)\(Self.remoteName(cleanName, localIdentifier: id, alt: true))"
+                            var path = basePath
 
-                            if knownPaths.contains(path) {
-                                print("File already in server: \(path)")
-                                return
+                            if let listed = knownFiles[basePath], Self.sameCreation(listed.created, asset.creationDate) {
+                                print("File already in server: \(basePath)")
+                                return .done(id)
+                            }
+                            if knownFiles[altPath] != nil {
+                                print("File already in server: \(altPath)")
+                                return .done(id)
                             }
 
-                            UploadModel.shared.step(file: cleanName, index: position - 1, total: assets.count)
+                            self.ifLive(gen) { UploadModel.shared.step(file: cleanName, index: position - 1, total: assets.count) }
                             let created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
 
                             // Issue #58 follow-up: a previous successful
@@ -389,7 +579,7 @@ final class PhotoSync: NSObject {
                             // just to (most likely) rediscover the same
                             // thing. Most valuable after a reinstall: the
                             // device ID (and therefore every remote path)
-                            // is fresh then, so the knownPaths check above
+                            // is fresh then, so the knownFiles check above
                             // can never match even though the content is
                             // identical to what synced before.
                             var data: Data? = nil
@@ -417,13 +607,28 @@ final class PhotoSync: NSObject {
                                 // between [dedup] lines is this or
                                 // something else.
                                 let readStart = Date()
-                                let (readBytes, _, _) = try self.readData(for: asset, allowNetwork: allowICloudDownloads)
+                                let readBytes = try read()
                                 print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
                                 data = readBytes
 
                                 let hashStart = Date()
                                 hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
                                 print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                            }
+
+                            // The name is taken by a file created at another
+                            // time: the same photo only if the content is.
+                            if let listed = knownFiles[basePath] {
+                                if listed.hash == hash {
+                                    print("File already in server: \(basePath) (same content)")
+                                    self.ifLive(gen) { AssetSyncCache.shared.record(localIdentifier: id, hash: hash) }
+                                    return .done(id)
+                                }
+                                print("[dedup] \(cleanName): \(basePath) holds another file, using \(altPath)")
+                                path = altPath
+                            } else if !claims.claim(basePath, by: id, hash: hash) {
+                                print("[dedup] \(cleanName): name taken in this run by other content, using \(altPath)")
+                                path = altPath
                             }
 
                             // Issue #58: storage is deduplicated by hash on
@@ -456,6 +661,10 @@ final class PhotoSync: NSObject {
                                 return false
                             }
 
+                            // Log Out since this asset started (an iCloud
+                            // download can take long): nothing more goes to
+                            // the device under the old session's path.
+                            guard self.ifLive(gen) else { return .retry(id) }
                             var alreadyOnDevice = cloudHash != nil
                             if !alreadyOnDevice {
                                 alreadyOnDevice = try await checkHasFile()
@@ -468,41 +677,64 @@ final class PhotoSync: NSObject {
                             if !alreadyOnDevice && data == nil {
                                 print("[dedup] \(cleanName): cached hash not confirmed on device, downloading now")
                                 let readStart = Date()
-                                let (readBytes, _, _) = try self.readData(for: asset, allowNetwork: allowICloudDownloads)
+                                let readBytes = try read()
                                 print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
                                 data = readBytes
 
                                 let hashStart = Date()
                                 hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
                                 print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                                guard self.ifLive(gen) else { return .retry(id) }
                                 alreadyOnDevice = try await checkHasFile()
                             }
                             print("[dedup] \(cleanName): already on device = \(alreadyOnDevice)")
 
-                            let sendStart = Date()
-                            let resp: Msg_RespEnvelope
-                            if alreadyOnDevice {
-                                resp = try await ws.request { env in
-                                    var lf = Msg_LinkFile()
-                                    lf.hash = hash
-                                    lf.path = path
-                                    lf.forceOverride = false
-                                    lf.created = created
-                                    lf.cloudID = cloudID
-                                    env.payload = .reqLinkFile(lf)
+                            func send(to target: String) async throws -> Msg_RespEnvelope {
+                                if alreadyOnDevice {
+                                    let h = hash
+                                    return try await ws.request { env in
+                                        var lf = Msg_LinkFile()
+                                        lf.hash = h
+                                        lf.path = target
+                                        lf.forceOverride = false
+                                        lf.created = created
+                                        lf.cloudID = cloudID
+                                        env.payload = .reqLinkFile(lf)
+                                    }
                                 }
-                            } else {
                                 guard let data else {
                                     throw NSError(domain: "PhotoExport", code: -13, userInfo: [NSLocalizedDescriptionKey: "No data to upload"])
                                 }
                                 // Issue #165: chunked, never the whole
                                 // file in one message; reuses the hash
                                 // already computed for HasFile.
-                                resp = try await ws.uploadChunked(path: path, source: .data(data),
+                                return try await ws.uploadChunked(path: target, source: .data(data),
                                                                   forceOverride: false, created: created,
                                                                   cloudID: cloudID, sha256: hash)
                             }
+
+                            let sendStart = Date()
+                            var resp: Msg_RespEnvelope
+                            do {
+                                resp = try await send(to: path)
+                            } catch let error where path != altPath && Self.isDuplicatedFile(error.localizedDescription) {
+                                resp = Msg_RespEnvelope.with { $0.error = true; $0.errorMessage = error.localizedDescription }
+                            }
                             print("[dedup] \(cleanName): \(alreadyOnDevice ? "LinkFile" : "chunked upload") round trip in \(String(format: "%.3f", Date().timeIntervalSince(sendStart)))s")
+                            // Another file got the name first (in this run,
+                            // or from the post composer): once more under
+                            // the asset's own alternate name. The device
+                            // says this only for different content, so it
+                            // can never store the same photo twice.
+                            if resp.error && path != altPath && Self.isDuplicatedFile(resp.errorMessage) {
+                                print("[dedup] \(cleanName): \(path) holds another file, using \(altPath)")
+                                path = altPath
+                                guard self.ifLive(gen) else { return .retry(id) }
+                                // A refused upload's content is dropped
+                                // with it; it may be there from elsewhere.
+                                if !alreadyOnDevice { alreadyOnDevice = try await checkHasFile() }
+                                resp = try await send(to: path)
+                            }
 
                             // A successful UploadFile/LinkFile answers with
                             // RespFile (the stored file's metadata), not
@@ -510,12 +742,19 @@ final class PhotoSync: NSObject {
                             // used to mean a real success matched neither
                             // branch and was silently unobserved.
                             if case .respFile = resp.payload {
-                                AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash)
-                            } else if resp.error {
-                                print("Upload failed:", resp.errorMessage)
+                                self.ifLive(gen) { AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash) }
+                                return .done(id)
                             }
+                            print("Upload failed:", resp.errorMessage)
+                            return .retry(id)
                         } catch {
-                            if !allowICloudDownloads {
+                            let cause = (error as? ReadFailure)?.underlying ?? error
+                            let ns = cause as NSError
+                            if ns.domain == "PhotoExport" && (ns.code == -10 || ns.code == -20) {
+                                print("Skipping:", cause)
+                                return .skip(id)
+                            }
+                            if error is ReadFailure && !allowICloudDownloads {
                                 // The likely cause when "Sync from iCloud"
                                 // is off and this asset isn't cached
                                 // locally: PHAssetResourceManager can't
@@ -523,32 +762,78 @@ final class PhotoSync: NSObject {
                                 // throws instead of silently skipping.
                                 // That's the correct behavior for the
                                 // toggle (only sync what's already on the
-                                // device) - just worth a clearer log than
-                                // a bare error would give.
-                                print("Skipping (iCloud sync disabled, not cached locally):", error)
-                            } else {
-                                print("Upload error:", error)
+                                // device); it is picked up once the toggle
+                                // is on.
+                                print("Skipping (iCloud sync disabled, not cached locally):", cause)
+                                return .retryWhenICloud(id)
                             }
+                            print("Upload error:", cause)
+                            return .retry(id)
                         }
                     }
                 }
+                var out: [Outcome] = []
+                for await outcome in group { out.append(outcome) }
+                return out
             }
-            // The whole chunk has been attempted (success or failure per
-            // asset) by the time the group above returns, so it's safe to
-            // advance the watermark past every date in it.
-            if let latest = chunk.compactMap(\.creationDate).max() {
-                UserDefaults.standard.set(latest, forKey: "lastSyncDate")
-                print("Latest date:", latest)
+
+            var finished: [String] = [], failed: [String] = [], failedICloud: [String] = []
+            for outcome in outcomes {
+                switch outcome {
+                case .done(let id), .skip(let id): finished.append(id)
+                case .retry(let id): failed.append(id)
+                case .retryWhenICloud(let id): failedICloud.append(id)
+                }
+            }
+            // The retry list before the watermark: no asset is ever behind
+            // the watermark without being on the device or on the list.
+            // Failures used to be logged and then skipped for good.
+            ifLive(gen, epoch: epoch) {
+                AssetSyncCache.shared.resolve(finished)
+                AssetSyncCache.shared.markPending(failed, iCloud: false)
+                AssetSyncCache.shared.markPending(failedICloud, iCloud: true)
+            }
+
+            // Cancelled while the chunk ran: its uploads were cut short,
+            // so the watermark stays before it.
+            if Task.isCancelled { stopped = true; break }
+
+            // The whole chunk has been attempted by the time the group
+            // above returns, so the watermark can move past the newly
+            // fetched dates in it (retried assets are older).
+            if let latest = chunk.filter({ !retriedIDs.contains($0.localIdentifier) }).compactMap(\.creationDate).max() {
+                let mark = min(latest, runStart)
+                ifLive(gen, epoch: epoch) { UserDefaults.standard.set(mark, forKey: "lastSyncDate") }
+                print("Latest date:", mark)
+            }
+
+            // A failure may mean the device is gone (restarting, the
+            // bridge answering device_unreachable). Then every later asset
+            // fails too, most after a full iCloud download; the next
+            // trigger carries on from the watermark instead.
+            if !failed.isEmpty {
+                do {
+                    try await ws.ensureConnected()
+                } catch {
+                    print("Device not reachable, stopping this run:", error)
+                    break
+                }
             }
         }
 
-        // Flush any records not yet written by AssetSyncCache's own batch
-        // threshold — otherwise a run that ends (or gets interrupted)
-        // between batches loses the last few entries.
-        AssetSyncCache.shared.flush()
-
-        UploadModel.shared.complete()
-        UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+        // Fold the records journal into its snapshot when it got long, and
+        // take the upload bar down - also when the run stopped early.
+        ifLive(gen) {
+            AssetSyncCache.shared.flush()
+            UploadModel.shared.complete()
+        }
+        if stopped {
+            // SyncScheduler reports the BG task as not completed.
+            throw CancellationError()
+        }
+        // No final "lastSyncDate = now" any more: the per-chunk watermark
+        // already stands at the newest asset handled, and now would skip
+        // whatever arrived during the run with an older date.
     }
 }
 

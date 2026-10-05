@@ -66,16 +66,28 @@ enum MediaStream {
     /// thread, and the keychain is slow the first time a process wakes it
     /// up. That put a stall in front of the *first* video played and none
     /// in front of any later one.
-    private static var cachedBase: URLComponents?
+    ///
+    /// Main-actor isolated: the gallery and the feed resolve URLs at the
+    /// same time, and a plain static raced between them.
+    @MainActor private static var cachedBase: URLComponents?
+    /// Bumped by reset(), so a lookup that started before the endpoint
+    /// changed can't store the old address after it.
+    @MainActor private static var generation = 0
 
-    /// Log Out: the next device has another address.
-    static func reset() { cachedBase = nil }
+    /// Any endpoint change (OTCConnection.invalidate: Save Connection,
+    /// Save & Retry, leaving the bridge, Log Out). Without it every media
+    /// token went on to the previous address, possibly over plain HTTP.
+    @MainActor static func reset() {
+        cachedBase = nil
+        generation &+= 1
+    }
 
-    static func absolute(_ path: String) async -> URL? {
+    @MainActor static func absolute(_ path: String) async -> URL? {
         var components: URLComponents
         if let cachedBase {
             components = cachedBase
         } else {
+            let gen = generation
             let endpoint = await Task.detached(priority: .userInitiated) {
                 SecretsStore.loadOrCreate().endpointURLString // normalized: scheme + /ws filled in
             }.value
@@ -83,7 +95,7 @@ enum MediaStream {
             resolved.scheme = resolved.scheme == "ws" ? "http" : "https"
             resolved.query = nil
             resolved.fragment = nil
-            cachedBase = resolved
+            if gen == generation { cachedBase = resolved }
             components = resolved
         }
         components.path = path

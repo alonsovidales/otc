@@ -94,26 +94,35 @@ final class SecretsStore: ObservableObject {
         self.downloadFromiCloud = downloadFromiCloud
     }
 
+    /// Several threads call loadOrCreate at once (RootView, the
+    /// connection, the photo sync, media URLs). Serializes the one-time
+    /// migration and the device id's create-if-missing, so two callers
+    /// can't both find it missing and each make one.
+    private static let keychainLock = NSLock()
+
     static func loadOrCreate() -> SecretsStore {
-        // Items saved before they were made readable after the first
-        // unlock: rewritten once, while the phone is unlocked, so a
-        // background launch with the phone locked (the photo sync) still
-        // reads them - it used to read nothing and show the connection
-        // screen as if the device had been forgotten.
-        if !UserDefaults.standard.bool(forKey: "keychainAfterFirstUnlock"), Keychain.readable {
-            for key in ["endpoint", "password", "device_id", "setup_endpoint", "setup_password", "last_endpoint", "last_password"] {
-                if let v = Keychain.loadString(key: key) { Keychain.saveString(key: key, value: v) }
+        let deviceId: String = keychainLock.withLock {
+            // Items saved before they were made readable after the first
+            // unlock: updated once, while the phone is unlocked, so a
+            // background launch with the phone locked (the photo sync)
+            // still reads them - it used to read nothing and show the
+            // connection screen as if the device had been forgotten.
+            if !UserDefaults.standard.bool(forKey: "keychainAfterFirstUnlock"), Keychain.readable {
+                for key in ["endpoint", "password", "device_id", "setup_endpoint", "setup_password", "last_endpoint", "last_password"] {
+                    Keychain.makeReadableAfterFirstUnlock(key: key)
+                }
+                UserDefaults.standard.set(true, forKey: "keychainAfterFirstUnlock")
             }
-            UserDefaults.standard.set(true, forKey: "keychainAfterFirstUnlock")
+            return Keychain.loadString(key: "device_id") ?? {
+                let id = UUID().uuidString
+                // Never replace the stored id because it couldn't be read.
+                if Keychain.readable { Keychain.saveString(key: "device_id", value: id) }
+                return id
+            }()
         }
+        // Writes update in place, so these are never briefly missing.
         let endpoint = Keychain.loadString(key: "endpoint") ?? ""
         let password = Keychain.loadString(key: "password") ?? ""
-        let deviceId = Keychain.loadString(key: "device_id") ?? {
-            let id = UUID().uuidString
-            // Never replace the stored id because it couldn't be read.
-            if Keychain.readable { Keychain.saveString(key: "device_id", value: id) }
-            return id
-        }()
 
         let wifiOnly = UserDefaults.standard.bool(forKey: "wifiOnly")
         let includeVideos = UserDefaults.standard.object(forKey: "includeVideos") as? Bool ?? true
@@ -131,7 +140,8 @@ final class SecretsStore: ObservableObject {
     func logOut() {
         Keychain.delete(key: "endpoint")
         Keychain.delete(key: "password")
-        Keychain.delete(key: "device_id")
+        // device_id is replaced in place below, never deleted: a reader
+        // landing in between would make (and save) an id of its own.
         Self.clearPendingSetup()
         if let domain = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: domain)
@@ -201,7 +211,9 @@ final class SecretsStore: ObservableObject {
         }
         Keychain.saveString(key: "endpoint", value: endpoint)
         Keychain.saveString(key: "password", value: password)
-        Keychain.saveString(key: "device_id", value: deviceId)
+        // Not device_id: only loadOrCreate and logOut set it, and both save
+        // it. A store built while the Keychain was locked holds a
+        // throwaway id that must not replace the real one here.
         UserDefaults.standard.set(wifiOnly, forKey: "wifiOnly")
         UserDefaults.standard.set(includeVideos, forKey: "includeVideos")
         UserDefaults.standard.set(downloadFromiCloud, forKey: "downloadFromiCloud")
@@ -224,22 +236,45 @@ enum Keychain {
         return SecItemCopyMatching(query as CFDictionary, &item) != errSecInteractionNotAllowed
     }
 
+    /// Updates in place, adding only when the item doesn't exist. It used
+    /// to delete and re-add: a concurrent reader could find the item
+    /// missing (and loadOrCreate then made a new device id), and a save
+    /// while the Keychain was locked deleted the item and failed to add
+    /// it back.
     static func saveString(key: String, value: String) {
-        let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
             kSecAttrService as String: "OffTheCloud",
         ]
-        let delStatus = SecItemDelete(query as CFDictionary)
-        var item = query
-        item[kSecValueData as String] = data
-        // Readable after the first unlock (until a restart), not only while
-        // unlocked: the background photo sync runs with the phone locked.
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let addStatus = SecItemAdd(item as CFDictionary, nil)
+        let attrs: [String: Any] = [
+            kSecValueData as String: Data(value.utf8),
+            // Readable after the first unlock (until a restart), not only
+            // while unlocked: the background photo sync runs with the
+            // phone locked.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        var status = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+        if status == errSecItemNotFound {
+            status = SecItemAdd(query.merging(attrs) { $1 } as CFDictionary, nil)
+        }
         // Never log `value` here — this is also used for the account password.
-        print("Keychain save key=\(key) deleteStatus=\(delStatus) addStatus=\(addStatus)")
+        print("Keychain save key=\(key) status=\(status)")
+    }
+
+    /// The accessibility change alone, for the one-time migration; no
+    /// secret is read into memory for it.
+    static func makeReadableAfterFirstUnlock(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecAttrService as String: "OffTheCloud",
+        ]
+        let attrs: [String: Any] = [
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let status = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+        print("Keychain migrate key=\(key) status=\(status)")
     }
 
     static func delete(key: String) {

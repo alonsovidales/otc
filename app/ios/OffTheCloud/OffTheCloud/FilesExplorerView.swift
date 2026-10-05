@@ -10,11 +10,29 @@
 //  Images section's own viewer for photos and videos.
 
 import SwiftUI
-import CryptoKit
 import UniformTypeIdentifiers
 import QuickLook
 
 private func isDirFile(_ f: Msg_File) -> Bool { f.mime == "inode/directory" }
+
+/// A grid tile's image with the device's thumbnail bytes it was decoded
+/// from, kept together: the viewer's placeholder and its Save/Share
+/// fallback use the bytes, at the device's full 1000 px, whenever the
+/// tile is there.
+final class FileThumb {
+    let image: UIImage
+    let data: Data
+
+    init(image: UIImage, data: Data) {
+        self.image = image
+        self.data = data
+    }
+
+    /// The decoded bitmap and the bytes, for the cache's budget.
+    var cost: Int {
+        Int(image.size.width * image.scale * image.size.height * image.scale) * 4 + data.count
+    }
+}
 private func isImgFile(_ f: Msg_File) -> Bool { f.mime.hasPrefix("image/") }
 private func isVideoFile(_ f: Msg_File) -> Bool { f.mime.hasPrefix("video/") }
 /// The grid asks the device for a thumbnail only for these - photos and
@@ -89,10 +107,34 @@ final class FilesExplorerViewModel: ObservableObject {
     // versions the device listed (newest first).
     @Published var versionsOf: (row: FileRow, versions: [Msg_File])?
     @Published var versionsLoading = false
-    // The grid's thumbnails for this app session, by full path + hash so a
-    // replaced file gets a fresh one. noThumb remembers the paths the
-    // device answered without one, so they aren't asked for again.
-    @Published var thumbs: [String: UIImage] = [:]
+    // The grid's thumbnails, by full path + hash so a replaced file gets a
+    // fresh one. noThumb remembers the paths the device answered without
+    // one, so they aren't asked for again.
+    //
+    // `thumbs` holds only the tiles on screen, so none of them can be
+    // evicted; a tile scrolling away moves its image to thumbCache, which
+    // is bounded and gives memory back under pressure. Every tile ever
+    // drawn used to stay decoded for the session - ~5 MB each at the
+    // device's 1000 px, so a few hundred tiles of a big photo folder got
+    // the app killed. Not @Published: a tile leaving needs no redraw, and
+    // additions send the change themselves.
+    private(set) var thumbs: [String: FileThumb] = [:]
+    private var visibleThumbs: Set<String> = []
+    private let thumbCache: NSCache<NSString, FileThumb> = {
+        let cache = NSCache<NSString, FileThumb>()
+        cache.totalCostLimit = 96 << 20
+        return cache
+    }()
+    // The device's own thumbnail bytes, for the viewer: its placeholder
+    // and its save/share fallback stay at the full 1000 px (the Images
+    // section feeds it the same way), while tiles are decoded smaller.
+    // Each tile keeps its own (FileThumb); this keeps them a while
+    // longer, for photos whose tile was given back.
+    private let thumbBytes: NSCache<NSString, NSData> = {
+        let cache = NSCache<NSString, NSData>()
+        cache.totalCostLimit = 32 << 20
+        return cache
+    }()
     private var noThumb: Set<String> = []
     // Paths the grid wants (cells that appeared), drained 24 at a time by
     // one task at a time; inFlight keeps a cell scrolling back into view
@@ -154,12 +196,39 @@ final class FilesExplorerViewModel: ObservableObject {
     func wantThumbnail(for row: FileRow) {
         guard isMedia(row) else { return }
         let key = thumbKey(for: row)
+        visibleThumbs.insert(key)
+        if thumbs[key] == nil, let cached = thumbCache.object(forKey: key as NSString) {
+            objectWillChange.send()
+            thumbs[key] = cached
+            return
+        }
         guard thumbs[key] == nil, !noThumb.contains(key), !thumbInFlight.contains(key) else { return }
         thumbInFlight.insert(key)
         thumbQueue.append((key, fullPath(for: row), path))
         guard !thumbPumping else { return }
         thumbPumping = true
         Task { await pumpThumbnails() }
+    }
+
+    /// Called as a grid cell disappears: its image moves to the bounded
+    /// cache. Evicted there, it is asked for again when the cell returns.
+    func thumbGone(for row: FileRow) {
+        guard isMedia(row) else { return }
+        let key = thumbKey(for: row)
+        visibleThumbs.remove(key)
+        if let thumb = thumbs.removeValue(forKey: key) {
+            thumbCache.setObject(thumb, forKey: key as NSString, cost: thumb.cost)
+        }
+    }
+
+    /// A tile is at most ~200 pt and scaledToFill only needs the short
+    /// side to cover it: decoded with that side at 600 px (3x), never
+    /// above the device's own size - a fraction of the 1000 px original's
+    /// memory for a photo, all of it for a wide one, whose short side is
+    /// already smaller. Decoded here, off the main thread, not lazily when
+    /// first drawn.
+    nonisolated static func decodeTile(_ data: Data) -> UIImage? {
+        GridThumbCache.decode(data: data, localURL: nil, maxPt: 200)
     }
 
     /// Sends the queue to the device in batches of 24 (it takes at most 48
@@ -186,12 +255,29 @@ final class FilesExplorerViewModel: ObservableObject {
             guard let resp, case .respListOfFiles(let lof) = resp.payload else { continue }
             var got: [String: Data] = [:]
             for f in lof.files { got[f.path] = f.content }
-            for item in batch {
-                if let data = got[item.path], let img = UIImage(data: data) {
-                    thumbs[item.key] = img
-                } else {
-                    noThumb.insert(item.key)
+            let wanted = batch.map { (key: $0.key, data: got[$0.path]) }
+            let decoded = await Task.detached(priority: .userInitiated) {
+                wanted.map { ($0.key, $0.data, $0.data.flatMap(Self.decodeTile)) }
+            }.value
+            var fresh: [String: FileThumb] = [:]
+            for (key, data, img) in decoded {
+                guard let data, let img else {
+                    noThumb.insert(key)
+                    continue
                 }
+                thumbBytes.setObject(data as NSData, forKey: key as NSString, cost: data.count)
+                let thumb = FileThumb(image: img, data: data)
+                // A cell that scrolled away meanwhile: straight to the cache.
+                if visibleThumbs.contains(key) {
+                    fresh[key] = thumb
+                } else {
+                    thumbCache.setObject(thumb, forKey: key as NSString, cost: thumb.cost)
+                }
+            }
+            // One change for the batch, not one redraw per tile.
+            if !fresh.isEmpty {
+                objectWillChange.send()
+                thumbs.merge(fresh) { $1 }
             }
         }
     }
@@ -207,19 +293,22 @@ final class FilesExplorerViewModel: ObservableObject {
 
     /// The folder's photos and videos as the viewer's items, in the order
     /// the list and grid show them, each with the grid's thumbnail if it
-    /// has one (the viewer fetches the full-size image either way).
+    /// has one (the viewer fetches the full-size image either way): the
+    /// device's bytes, which every tile keeps with it.
     func viewerItems() -> [PhotoGalleryVM.Item] {
         rows.filter(isMedia).map { row in
             let full = fullPath(for: row)
+            let key = thumbKey(for: row) as NSString
+            let thumb = thumbs[key as String] ?? thumbCache.object(forKey: key)
             return PhotoGalleryVM.Item(
                 id: "\(full)#\(row.raw.hash)#\(row.size)",
                 path: full,
                 mime: row.raw.mime,
                 size: Int(row.size),
-                thumbData: nil,
+                thumbData: thumb?.data ?? thumbBytes.object(forKey: key) as Data?,
                 localURL: nil,
                 isLocalOnly: false,
-                thumbImage: thumbs[thumbKey(for: row)]
+                thumbImage: thumb?.image
             )
         }
     }
@@ -245,14 +334,7 @@ final class FilesExplorerViewModel: ObservableObject {
         defer { openingPath = nil }
 
         let full = fullPath(for: row)
-        var req = Msg_GetFile()
-        req.path = full
         do {
-            let resp = try await ws.request { $0.payload = .reqGetFile(req) }
-            guard case .respFile(let f) = resp.payload else {
-                showToast("Could not fetch file")
-                return
-            }
             // Issue #72: QuickLook (the same previewer Mail/Files use for
             // attachments) natively renders PDFs, Office docs, text, audio
             // and video, not just images - writing to a temp file first
@@ -261,9 +343,12 @@ final class FilesExplorerViewModel: ObservableObject {
             // Files app download. Its own toolbar already has a share
             // button, so this replaces the separate share-sheet fallback
             // for non-images too, not just adds preview alongside it.
+            // In 4 MiB pieces straight to the file, never whole in memory.
             let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try f.content.write(to: tmp)
+            try await FileDownload.download(path: full, mime: row.raw.mime, to: tmp)
             previewURL = tmp
+        } catch is FileDownload.Refused {
+            showToast("Could not fetch file")
         } catch {
             showToast("Download failed: \(error.localizedDescription)")
         }
@@ -314,19 +399,13 @@ final class FilesExplorerViewModel: ObservableObject {
     /// A version opens in the same Quick Look preview a file does; an empty
     /// hash is the current one.
     func openVersion(_ row: FileRow, hash: String) async {
-        var req = Msg_GetFile()
-        req.path = fullPath(for: row)
-        req.hash = hash
         do {
-            let resp = try await ws.request { $0.payload = .reqGetFile(req) }
-            guard case .respFile(let f) = resp.payload else {
-                showToast("Could not fetch that version")
-                return
-            }
             let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try f.content.write(to: tmp)
+            try await FileDownload.download(path: fullPath(for: row), hash: hash, mime: row.raw.mime, to: tmp)
             versionsOf = nil
             previewURL = tmp
+        } catch is FileDownload.Refused {
+            showToast("Could not fetch that version")
         } catch {
             showToast("Download failed: \(error.localizedDescription)")
         }
@@ -363,13 +442,23 @@ final class FilesExplorerViewModel: ObservableObject {
         return link.link
     }
 
-    func upload(data: Data, filename: String) async {
+    /// Streams the file: hashed off the main actor in 4 MiB pieces, then
+    /// sent chunk by chunk. Reading it whole (and hashing it here) put
+    /// every picked file in memory at once and froze the UI - a few large
+    /// videos and iOS killed the app.
+    func upload(fileAt url: URL, filename: String) async {
         let path = joinPath(path, filename)
+        // Unreadable (or a folder): skipped without a word, as before.
+        let hash: String
+        do {
+            hash = try await Task.detached(priority: .userInitiated) { try OTCConnection.sha256Hex(of: url) }.value
+        } catch {
+            return
+        }
         do {
             // Issue #58: skip re-sending content the device already has
             // under some other path — see PhotoSync.swift's identical
             // check for the full reasoning.
-            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
             let hasResp = try await ws.request { e in
                 var hf = Msg_HasFile()
                 hf.hash = hash
@@ -387,7 +476,7 @@ final class FilesExplorerViewModel: ObservableObject {
                 }
             } else {
                 // Issue #165: chunked, never the whole file in one message.
-                resp = try await ws.uploadChunked(path: path, source: .data(data),
+                resp = try await ws.uploadChunked(path: path, source: .file(url),
                                                   forceOverride: false, sha256: hash)
             }
             if resp.error { showToast("Upload failed: \(resp.errorMessage)") }
@@ -593,9 +682,11 @@ struct FilesExplorerView: View {
             guard case .success(let urls) = result else { return }
             for url in urls {
                 guard url.startAccessingSecurityScopedResource() else { continue }
-                defer { url.stopAccessingSecurityScopedResource() }
-                if let data = try? Data(contentsOf: url) {
-                    Task { await vm.upload(data: data, filename: url.lastPathComponent) }
+                // Kept open until this file's upload is done: it is read
+                // as it is sent now.
+                Task {
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    await vm.upload(fileAt: url, filename: url.lastPathComponent)
                 }
             }
         }
@@ -669,8 +760,14 @@ struct FilesExplorerView: View {
         )) {
             ImageModal(
                 vm: viewer,
-                save: { viewer.saveToPhotos(viewer.hiResImage ?? viewerThumb()) },
-                share: { viewer.shareCurrentPhoto(viewer.hiResImage ?? viewerThumb()) },
+                save: {
+                    let fallback = viewerThumb()
+                    Task { viewer.saveToPhotos(await viewer.fullImageForOpen() ?? fallback) }
+                },
+                share: {
+                    let fallback = viewerThumb()
+                    Task { viewer.shareCurrentPhoto(await viewer.fullImageForOpen() ?? fallback) }
+                },
                 delete: { viewer.deleteCurrentPhoto() }
             )
         }
@@ -680,7 +777,7 @@ struct FilesExplorerView: View {
     /// the full-size image arrives (as the Images section does).
     private func viewerThumb() -> UIImage? {
         guard let i = viewer.openIndex, viewer.items.indices.contains(i) else { return nil }
-        return viewer.items[i].thumbImage
+        return viewer.items[i].thumbData.flatMap(UIImage.init(data:)) ?? viewer.items[i].thumbImage
     }
 
     /// What a tap on a row (or a grid tile) does: open the folder or file.
@@ -769,6 +866,7 @@ struct FilesExplorerView: View {
                     // Lazily: only tiles that scroll into view ask the
                     // device for their thumbnail.
                     .onAppear { vm.wantThumbnail(for: row) }
+                    .onDisappear { vm.thumbGone(for: row) }
                 }
             }
             .padding()
@@ -781,7 +879,7 @@ struct FilesExplorerView: View {
     /// video's thumbnail, or a FileTypeIcon, with the list row's selection
     /// circle, lock and versions count as small badges on its corners.
     private func tile(_ row: FileRow) -> some View {
-        let thumb = vm.isMedia(row) ? vm.thumbs[vm.thumbKey(for: row)] : nil
+        let thumb = vm.isMedia(row) ? vm.thumbs[vm.thumbKey(for: row)]?.image : nil
         return RoundedRectangle(cornerRadius: 10)
             .fill(Color(.secondarySystemBackground))
             .aspectRatio(1, contentMode: .fit)
