@@ -97,9 +97,11 @@ const (
 // connections — not the bridge's, which is separate, server-side state.
 // available is how many of the connections this device has open right now
 // are just sitting idle in the bridge's pool, not yet consumed for a
-// relay; pending is how many dial+auth attempts are currently in flight
-// (counted toward the target too, so a slow dial doesn't cause a second,
-// redundant refill to fire before the first one even finishes).
+// relay; pending is how many dial+auth attempts are in flight or waiting
+// out a retry backoff (counted toward the target too, so a slow dial or a
+// sleeping retry doesn't cause a second, redundant refill - during an
+// outage those used to pile up into hundreds of retry loops, and the pool
+// grew to the bridge's per-device cap once it came back).
 type bridgeConnPool struct {
 	mu        sync.Mutex
 	available int
@@ -108,6 +110,10 @@ type bridgeConnPool struct {
 	// by every successful registration, so a device that is simply
 	// reconnecting after a blip pays no penalty.
 	consecutiveFailures int
+	// wake is closed by the next successful registration, ending every
+	// retry's backoff at once: the bridge is reachable again, and the
+	// slots those retries hold should be filled now, not minutes later.
+	wake chan struct{}
 }
 
 // Retry backoff for failed bridge dials/registrations (see
@@ -530,6 +536,10 @@ func (mg *Manager) openBridgeConn() {
 	// failure starts from a one-second retry again rather than inheriting
 	// whatever penalty an earlier outage built up.
 	mg.bridgePool.consecutiveFailures = 0
+	if mg.bridgePool.wake != nil {
+		close(mg.bridgePool.wake)
+		mg.bridgePool.wake = nil
+	}
 	mg.bridgePool.mu.Unlock()
 
 	// Blocks for this connection's entire lifetime in the pool - returns
@@ -564,20 +574,21 @@ func (mg *Manager) openBridgeConn() {
 }
 
 // failedBridgeDial accounts for one attempt that never became available
-// (a dial error, a rejected registration, ...) and schedules its
-// replacement after a random 0-3s backoff — keeping a persistent failure
+// (a dial error, a rejected registration, ...) and retries it after a
+// jittered backoff (bridgeRetryDelay) — keeping a persistent failure
 // (e.g. a stale secret) from turning into a tight retry loop hammering the
-// bridge, the same spirit as the jitter the old fixed-pool loop already
-// had. This intentionally does NOT call ensureBridgePool: the retry below
-// already re-adds exactly the one pending slot this attempt is giving up,
-// so the pool's total stays correct without a second, competing refill
-// decision.
+// bridge. The attempt keeps its pending slot while it waits, so
+// ensureBridgePool sees it and doesn't open a replacement of its own; a
+// successful registration elsewhere ends the wait early (see wake).
 func (mg *Manager) failedBridgeDial() {
 	mg.bridgePool.mu.Lock()
-	mg.bridgePool.pending--
 	mg.bridgePool.consecutiveFailures++
 	delay := bridgeRetryDelay(mg.bridgePool.consecutiveFailures)
 	failures := mg.bridgePool.consecutiveFailures
+	if mg.bridgePool.wake == nil {
+		mg.bridgePool.wake = make(chan struct{})
+	}
+	wake := mg.bridgePool.wake
 	mg.bridgePool.mu.Unlock()
 
 	if failures == 1 || failures%20 == 0 {
@@ -585,12 +596,29 @@ func (mg *Manager) failedBridgeDial() {
 	}
 
 	go func() {
-		time.Sleep(delay)
-		mg.bridgePool.mu.Lock()
-		mg.bridgePool.pending++
-		mg.bridgePool.mu.Unlock()
+		t := time.NewTimer(delay)
+		select {
+		case <-t.C:
+		case <-wake:
+			t.Stop()
+		}
+		if mg.dropSurplusBridgeRetry() {
+			return
+		}
 		mg.openBridgeConn()
 	}()
+}
+
+// dropSurplusBridgeRetry gives up a waiting retry's slot when the pool is
+// already over its target (a target lowered meanwhile), instead of dialing.
+func (mg *Manager) dropSurplusBridgeRetry() bool {
+	mg.bridgePool.mu.Lock()
+	defer mg.bridgePool.mu.Unlock()
+	if mg.bridgePool.available+mg.bridgePool.pending > bridgePoolTarget() {
+		mg.bridgePool.pending--
+		return true
+	}
+	return false
 }
 
 // regenerateBridgeSecret backs the Settings page's self-service

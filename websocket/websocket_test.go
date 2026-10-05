@@ -692,3 +692,55 @@ func TestBridgeRetryDelayGrowsWithConsecutiveFailures(t *testing.T) {
 		t.Errorf("average delay after a long streak = %s, want tens of seconds at least", late)
 	}
 }
+
+// During a bridge outage each dropped pool connection used to open fresh
+// dials while earlier attempts slept in backoff uncounted - hundreds of
+// retry loops, and a pool at the bridge's per-device cap once it came
+// back. A waiting retry keeps its slot, a success ends every backoff, and
+// a retry the pool no longer needs gives its slot up instead of dialing.
+func TestBridgeRetriesStayCountedInThePool(t *testing.T) {
+	// Backoffs no test outlives: only the wake below ends them, so no
+	// retry ever dials (cfg has no bridge here).
+	origBase, origMax := cBridgeRetryBase, cBridgeRetryMax
+	cBridgeRetryBase, cBridgeRetryMax = 1000*time.Hour, 1000*time.Hour
+	defer func() { cBridgeRetryBase, cBridgeRetryMax = origBase, origMax }()
+
+	mg := &Manager{}
+	target := bridgePoolTarget()
+	total := func() (int, int) {
+		mg.bridgePool.mu.Lock()
+		defer mg.bridgePool.mu.Unlock()
+		return mg.bridgePool.available, mg.bridgePool.pending
+	}
+
+	// The whole pool fails: every attempt waits to retry.
+	mg.bridgePool.pending = target
+	for i := 0; i < target; i++ {
+		mg.failedBridgeDial()
+	}
+	for i := 0; i < 10; i++ {
+		mg.ensureBridgePool() // connections dropping meanwhile
+	}
+	if a, p := total(); a+p != target {
+		t.Fatalf("available %d + pending %d, want the target %d", a, p, target)
+	}
+
+	// The pool refilled meanwhile and a registration succeeds: every
+	// waiting retry wakes, finds the pool full, and gives its slot up.
+	mg.bridgePool.mu.Lock()
+	mg.bridgePool.available = target
+	close(mg.bridgePool.wake)
+	mg.bridgePool.wake = nil
+	mg.bridgePool.mu.Unlock()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		a, p := total()
+		if a == target && p == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("retries not released: available %d, pending %d", a, p)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
