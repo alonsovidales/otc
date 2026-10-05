@@ -184,6 +184,12 @@ type Manager struct {
 	media *mediastream.Server
 	// Guards the one-shot thumbnail backfill (startBackfillOnce).
 	backfillOnce sync.Once
+	// pushSync runs syncPushRegistrationsToBridge one at a time (see
+	// requestPushSync).
+	pushSync struct {
+		mu             sync.Mutex
+		running, dirty bool
+	}
 }
 
 // startBackfillOnce kicks off the missing-thumbnail repair the first
@@ -250,7 +256,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// explicit register/unregister calls. Async: sendWebPush/sendApns run
 	// from the background friend-sync loop and shouldn't block on a
 	// bridge round-trip.
-	ps.OnChange = func() { go mg.syncPushRegistrationsToBridge() }
+	ps.OnChange = mg.requestPushSync
 	ps.RelayMobile = mg.relayMobileToBridge
 	// Pushes leave the friend sync's path: about one sync page of events
 	// across a few friends fits before Notify falls back to sending inline.
@@ -271,7 +277,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// could otherwise stay stale forever after a bridge-side DB reset, or
 	// simply never exist at all for a device that registered tokens before
 	// this feature shipped.
-	go mg.syncPushRegistrationsToBridge()
+	mg.requestPushSync()
 
 	// Issue #183: check for updates by itself, on the main instance (the
 	// one that can install them), and tell the owner about a major or
@@ -662,7 +668,7 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 // connection, same pattern as regenerateBridgeSecret above, not a pooled
 // relay connection — this has nothing to do with client traffic.
 //
-// Fire-and-forget: called from a goroutine by every caller below, since a
+// Fire-and-forget: every caller goes through requestPushSync, since a
 // failed sync isn't worth slowing down (or failing) whatever
 // register/startup path triggered it, and there's nowhere better to
 // surface the error to — the next successful sync (the very next
@@ -730,6 +736,35 @@ func (mg *Manager) relayMobileToBridge(title, body string, t push.Target) bool {
 	}
 	ack, ok := resp.Payload.(*pb.RespEnvelope_RespBridgeNotifyAck)
 	return ok && ack.RespBridgeNotifyAck.Ok
+}
+
+// requestPushSync runs syncPushRegistrationsToBridge without blocking, one
+// at a time: the bridge replaces the whole set, so two syncs racing could
+// land an older snapshot last (a logged-out phone left registered).
+// Requests made during a run are merged into one more run, which reads the
+// DB after all of them.
+func (mg *Manager) requestPushSync() {
+	mg.pushSync.mu.Lock()
+	if mg.pushSync.running {
+		mg.pushSync.dirty = true
+		mg.pushSync.mu.Unlock()
+		return
+	}
+	mg.pushSync.running = true
+	mg.pushSync.mu.Unlock()
+	go func() {
+		for {
+			mg.syncPushRegistrationsToBridge()
+			mg.pushSync.mu.Lock()
+			if !mg.pushSync.dirty {
+				mg.pushSync.running = false
+				mg.pushSync.mu.Unlock()
+				return
+			}
+			mg.pushSync.dirty = false
+			mg.pushSync.mu.Unlock()
+		}
+	}()
 }
 
 func (mg *Manager) syncPushRegistrationsToBridge() {
@@ -3094,7 +3129,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			// Issue #62: the bridge needs its own copy of this to be able
 			// to alert the owner if this device ever goes unreachable -
 			// see syncPushRegistrationsToBridge's own doc comment.
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	// Issue #131: Log Out / Sign Out forget the device, so the device (and
@@ -3107,7 +3142,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	case *pb.ReqEnvelope_ReqUnregisterWebPush:
@@ -3118,7 +3153,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	// Issue #125: the Android app's FCM token, handled like the APNs one.
@@ -3130,7 +3165,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	case *pb.ReqEnvelope_ReqUnregisterFcmToken:
@@ -3141,7 +3176,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	case *pb.ReqEnvelope_ReqRegisterApnsToken:
@@ -3153,7 +3188,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
-			go ch.mg.syncPushRegistrationsToBridge()
+			ch.mg.requestPushSync()
 		}
 
 	default:
