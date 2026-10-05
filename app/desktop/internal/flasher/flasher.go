@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -254,7 +255,9 @@ func (p Progress) Percent() int {
 }
 
 // WriteElevated writes image to disk through an elevated copy of this
-// program, calling onProgress as it goes.
+// program, calling onProgress as it goes. The disk's confirmed size and
+// name go along with its ID, for the writer to check it still is that
+// disk (see Write).
 func WriteElevated(image string, disk Disk, onProgress func(Progress)) error {
 	exe, err := selfupdate.Executable()
 	if err != nil {
@@ -269,7 +272,8 @@ func WriteElevated(image string, disk Disk, onProgress func(Progress)) error {
 	if err := os.WriteFile(status, nil, 0o600); err != nil {
 		return err
 	}
-	wait, err := elevate(exe, []string{"flash-device", "--image", image, "--disk", disk.ID, "--status", status})
+	wait, err := elevate(exe, []string{"flash-device", "--image", image, "--disk", disk.ID,
+		"--size", strconv.FormatInt(disk.Size, 10), "--name", disk.Name, "--status", status})
 	if err != nil {
 		return err
 	}
@@ -328,6 +332,9 @@ func HelperMain(args []string) error {
 	fs := flag.NewFlagSet("flash-device", flag.ContinueOnError)
 	image := fs.String("image", "", "")
 	diskID := fs.String("disk", "", "")
+	// The disk as confirmed; a tray older than these flags sends neither.
+	size := fs.Int64("size", 0, "")
+	name := fs.String("name", "", "")
 	status := fs.String("status", "", "")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -343,7 +350,7 @@ func HelperMain(args []string) error {
 	} else {
 		rep.w = os.Stdout
 	}
-	err := Write(*image, *diskID, rep.report)
+	err := Write(*image, Disk{ID: *diskID, Name: *name, Size: *size}, rep.report)
 	if err != nil {
 		rep.final(Progress{Phase: "error", Error: err.Error()})
 		return err
@@ -371,20 +378,12 @@ func (r *reporter) final(p Progress) {
 	_, _ = r.w.Write(append(b, '\n'))
 }
 
-// Write puts the image on the disk; it must run as administrator.
-func Write(image, diskID string, report func(Progress)) error {
-	disks, err := ListDisks()
+// Write puts the image on the disk; it must run as administrator. chosen
+// is the disk as the person confirmed it (see sameDisk).
+func Write(image string, chosen Disk, report func(Progress)) error {
+	disk, err := sameDisk(chosen)
 	if err != nil {
 		return err
-	}
-	var disk *Disk
-	for i := range disks {
-		if disks[i].ID == diskID {
-			disk = &disks[i]
-		}
-	}
-	if disk == nil {
-		return fmt.Errorf("%s is not a removable disk (or is no longer connected)", diskID)
 	}
 	if disk.Size < MinCardSize {
 		return fmt.Errorf("the card is too small (%s) - it needs 8 GB or more", HumanSize(disk.Size))
@@ -414,6 +413,11 @@ func Write(image, diskID string, report func(Progress)) error {
 		return errors.New("the image does not match its signed checksum - download it again")
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	// Checking the image took a while: still the same disk, just before
+	// anything on it is touched.
+	if disk, err = sameDisk(chosen); err != nil {
 		return err
 	}
 
@@ -502,6 +506,34 @@ func Write(image, diskID string, report func(Progress)) error {
 	dev.Close()
 	eject(*disk)
 	return nil
+}
+
+// sameDisk is want among the removable disks now. Device names and disk
+// numbers are reused as soon as a disk goes, so the ID alone could be
+// another disk by now - a card pulled during the administrator prompt and
+// a USB backup drive plugged in. With the size it was confirmed with
+// (older trays send only the ID), the disk must also still have that size
+// and name, or nothing is written.
+func sameDisk(want Disk) (*Disk, error) {
+	disks, err := ListDisks()
+	if err != nil {
+		return nil, err
+	}
+	return matchDisk(disks, want)
+}
+
+func matchDisk(disks []Disk, want Disk) (*Disk, error) {
+	for i := range disks {
+		d := &disks[i]
+		if d.ID != want.ID {
+			continue
+		}
+		if want.Size != 0 && (d.Size != want.Size || strings.TrimSpace(d.Name) != strings.TrimSpace(want.Name)) {
+			return nil, fmt.Errorf("the disk %s changed after it was chosen (now %s) - nothing was written; choose the card again", want.ShortID(), d.Label())
+		}
+		return d, nil
+	}
+	return nil, fmt.Errorf("%s is not a removable disk (or is no longer connected)", want.ID)
 }
 
 func equalHash(a, b interface{ Sum([]byte) []byte }) bool {
