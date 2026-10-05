@@ -857,9 +857,10 @@ final class SyncModel: ObservableObject {
                 remoteMap = Dictionary(uniqueKeysWithValues: lof.files.map { ($0.path, $0.hash) })
             }
 
+            // Upload only: what couldn't be read is simply not sent.
             let localFiles = await Task.detached(priority: .utility) {
                 Self.enumerateFilesRecursively(at: root)
-            }.value
+            }.value.urls
 
             // Pass 1: figure out what actually needs uploading. This is
             // pure verification — on a folder that's already in sync (the
@@ -1130,12 +1131,18 @@ final class SyncModel: ObservableObject {
                 }
             }
 
-            let localFiles = await Task.detached(priority: .utility) {
+            let scan = await Task.detached(priority: .utility) {
                 Self.enumerateFilesRecursively(at: folder.localURL)
             }.value
+            // A folder that can't be listed (permission, the volume going)
+            // looks empty: every synced file would have been deleted from
+            // the device.
+            guard scan.rootReadable else {
+                throw NSError(domain: "sync.scan", code: 1, userInfo: [NSLocalizedDescriptionKey: "Can't read the folder on this Mac"])
+            }
             let localRoot = folder.localURL.standardizedFileURL.path
             var localByRelative: [String: URL] = [:]
-            for url in localFiles {
+            for url in scan.urls {
                 let full = url.standardizedFileURL.path
                 guard full.hasPrefix(localRoot) else { continue }
                 var relative = String(full.dropFirst(localRoot.count))
@@ -1190,6 +1197,20 @@ final class SyncModel: ObservableObject {
             syncLog.info("two-way \(folder.remotePath, privacy: .public): remote=\(remoteByRelative.count) local=\(localByRelative.count) hashed=\(localHashes.count) new=\(newLocal.count) unreadable=\(unreadable.count) baseline=\(self.lastSyncedByRemoteFolder[folder.id]?.count ?? 0)")
 
             let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
+            // Under a directory that couldn't be read: unknown here, not
+            // deleted - left alone, as an unreadable file is.
+            let failedRelatives = scan.failed.compactMap { url -> String? in
+                let full = url.standardizedFileURL.path
+                return full.hasPrefix(localRoot + "/") ? String(full.dropFirst(localRoot.count + 1)) : nil
+            }
+            if !failedRelatives.isEmpty {
+                for dir in failedRelatives.prefix(5) {
+                    syncLog.error("two-way \(folder.remotePath, privacy: .public): cannot read \(dir, privacy: .public) - left as it is")
+                }
+                for relative in allRelativePaths where failedRelatives.contains(where: { relative == $0 || relative.hasPrefix($0 + "/") }) {
+                    unreadable.insert(relative)
+                }
+            }
 
             // Conflicts (both sides changed the same file): the losing
             // version is kept as a "(conflict …)" copy next to it, which
@@ -1766,11 +1787,28 @@ final class SyncModel: ObservableObject {
     // look "stuck"/unopenable rather than just slow. Being a plain
     // self-free static function makes it safe to hop off-actor via
     // `Task.detached` at the call site.
-    private nonisolated static func enumerateFilesRecursively(at root: URL) -> [URL] {
+    private struct LocalScan {
         var urls: [URL] = []
+        /// What could not be read (a directory without permission): what
+        /// is under it is not "gone", it is unknown.
+        var failed: [URL] = []
+        /// false when the folder itself could not be listed - an empty
+        /// list then says nothing about what it holds.
+        var rootReadable = true
+        /// Every file of the folder is in `urls`.
+        var complete: Bool { rootReadable && failed.isEmpty }
+    }
+
+    private nonisolated static func enumerateFilesRecursively(at root: URL) -> LocalScan {
+        var scan = LocalScan()
+        // The enumerator skipped what it couldn't read without a word, and
+        // a two-way pass took those files for deleted here.
+        final class Failures: @unchecked Sendable { var urls: [URL] = [] }
+        let failures = Failures()
         if let e = FileManager.default.enumerator(at: root,
                                                   includingPropertiesForKeys: [.isRegularFileKey],
-                                                  options: [.skipsHiddenFiles]) {
+                                                  options: [.skipsHiddenFiles],
+                                                  errorHandler: { url, _ in failures.urls.append(url); return true }) {
             for case let file as URL in e {
                 // A download in progress (download() writes to a
                 // ".otc-part" file first) is not a file of the folder: it
@@ -1778,11 +1816,16 @@ final class SyncModel: ObservableObject {
                 // otc-sync's scan.
                 if file.lastPathComponent.hasSuffix(".otc-part") { continue }
                 if (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
-                    urls.append(file)
+                    scan.urls.append(file)
                 }
             }
+        } else {
+            scan.rootReadable = false
         }
-        return urls
+        let rootPath = root.standardizedFileURL.path
+        if failures.urls.contains(where: { $0.standardizedFileURL.path == rootPath }) { scan.rootReadable = false }
+        scan.failed = failures.urls
+        return scan
     }
 
     // You can refine this to use relative paths per folder root.
