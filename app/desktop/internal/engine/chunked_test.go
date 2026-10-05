@@ -37,6 +37,7 @@ type fakeDevice struct {
 	list    []*pb.File // what ListFiles answers
 	reads   int        // ReadFile/GetFile requests
 	deletes []string   // DelFile paths
+	onRead  func()     // runs on each ReadFile, as if the user did something meanwhile
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -83,6 +84,9 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		resp.Error, resp.ErrorMessage = true, "the content is missing on this device"
 	case *pb.ReqEnvelope_ReqReadFile:
 		d.reads++
+		if d.onRead != nil {
+			d.onRead()
+		}
 		data, ok := d.files[p.ReqReadFile.Path]
 		if !ok {
 			resp.Error, resp.ErrorMessage = true, "no such file"

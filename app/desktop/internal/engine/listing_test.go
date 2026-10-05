@@ -179,3 +179,87 @@ func TestTwoWayUnreadableDirectoryDeletesNothing(t *testing.T) {
 		t.Errorf("state %+v, want an error saying what could not be read", st)
 	}
 }
+
+// A file edited here while the device's newer version was downloading is
+// not overwritten: the pass leaves it, and the next one sees both sides
+// changed and keeps both.
+func TestTwoWayDownloadKeepsAnEditMadeDuringIt(t *testing.T) {
+	withConfigDir(t)
+	local := t.TempDir()
+	p := filepath.Join(local, "doc.txt")
+	base, theirs, mine := []byte("base"), []byte("edited elsewhere"), []byte("edited here meanwhile")
+	if err := os.WriteFile(p, base, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d := twoWayDevice(map[string][]byte{"/r/doc.txt": theirs})
+	d.onRead = func() {
+		if err := os.WriteFile(p, mine, 0o644); err != nil {
+			t.Error(err)
+		}
+	}
+	conn := connectedEngine(t, d)
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/r", LocalPath: local}
+	e := New(&config.Config{RemoteFolders: []config.RemoteFolder{f}}, "", nil)
+	e.ws = conn.ws
+	e.saveSynced(f.ID, map[string]string{"doc.txt": sha(base)})
+
+	e.reconcileRemoteFolder(f)
+	if got, _ := os.ReadFile(p); !bytes.Equal(got, mine) {
+		t.Fatalf("the edit made during the download was overwritten: %q", got)
+	}
+	e.mu.Lock()
+	rec := e.lastSynced[f.ID]["doc.txt"]
+	e.mu.Unlock()
+	if rec != sha(base) {
+		t.Fatalf("record moved on for a download that was not written: %s", rec)
+	}
+
+	d.mu.Lock()
+	d.onRead = nil
+	d.mu.Unlock()
+	e.reconcileRemoteFolder(f) // both changed now: a conflict, both kept
+	if got, _ := os.ReadFile(p); !bytes.Equal(got, mine) {
+		t.Fatalf("after the next pass doc.txt is %q", got)
+	}
+	copies := conflictFiles(t, local)
+	if len(copies) != 1 {
+		t.Fatalf("want one conflict copy, got %v", copies)
+	}
+	if kept, _ := os.ReadFile(filepath.Join(local, copies[0])); !bytes.Equal(kept, theirs) {
+		t.Fatalf("the conflict copy holds %q", kept)
+	}
+}
+
+// A file renamed elsewhere only in case ("a.txt" -> "A.txt") is not lost
+// on a disk that ignores case: the delete of the old name goes first.
+func TestTwoWayCaseOnlyRename(t *testing.T) {
+	local := t.TempDir()
+	probe := filepath.Join(local, "probe")
+	_ = os.WriteFile(probe, nil, 0o644)
+	if _, err := os.Stat(filepath.Join(local, "PROBE")); err != nil {
+		t.Skip("this disk tells case apart")
+	}
+	_ = os.Remove(probe)
+	withConfigDir(t)
+	content := []byte("same content")
+	if err := os.WriteFile(filepath.Join(local, "a.txt"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d := twoWayDevice(map[string][]byte{"/r/A.txt": content})
+	conn := connectedEngine(t, d)
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/r", LocalPath: local}
+	e := New(&config.Config{RemoteFolders: []config.RemoteFolder{f}}, "", nil)
+	e.ws = conn.ws
+	e.saveSynced(f.ID, map[string]string{"a.txt": sha(content)})
+
+	for pass := 0; pass < 2; pass++ {
+		e.reconcileRemoteFolder(f)
+		entries, _ := os.ReadDir(local)
+		if len(entries) != 1 || entries[0].Name() != "A.txt" {
+			t.Fatalf("pass %d: folder holds %v, want only A.txt", pass+1, entries)
+		}
+	}
+	if len(d.deletes) != 0 {
+		t.Fatalf("deleted from the device: %v", d.deletes)
+	}
+}

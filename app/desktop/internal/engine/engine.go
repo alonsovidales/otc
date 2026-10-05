@@ -1228,6 +1228,53 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		guardNote = fmt.Sprintf("%d files had disappeared from the device - restored them from this computer instead of deleting them here", localDeletes)
 	}
 
+	// Local deletes first: on a disk that ignores case (Windows, macOS) a
+	// file renamed only in case elsewhere is a download of "A.txt" and a
+	// delete of "a.txt" here - the same file. Downloading first, the delete
+	// then removed what had just been written.
+	sort.SliceStable(actions, func(i, j int) bool {
+		return actions[i].kind == actDeleteLocal && actions[j].kind != actDeleteLocal
+	})
+
+	// stillAsScanned: the local file is as the plan saw it - same size and
+	// modification time, or still absent. Checked at the last moment before
+	// it is overwritten or deleted: a pass can run for hours, and an edit
+	// (or a new file) made here meanwhile must not be lost. The next pass
+	// sees it as a change, and a conflict keeps both versions.
+	stillAsScanned := func(rel, p string) error {
+		fi, err := os.Lstat(p)
+		seen, had := localInfo[rel]
+		if !had {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			return errChangedHere
+		}
+		if err != nil {
+			return err
+		}
+		if fi.Size() != seen.Size() || !fi.ModTime().Equal(seen.ModTime()) {
+			return errChangedHere
+		}
+
+		return nil
+	}
+	absent := func(p string) func() error {
+		return func() error {
+			if _, err := os.Lstat(p); err == nil {
+				return errChangedHere
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+
+			return nil
+		}
+	}
+
 	// Of the whole folder, as SyncModel.reconcileRemoteFolder: every path
 	// on either side counts and what already agrees is done. Only worked
 	// out when there is something to do - a folder at rest is the usual
@@ -1328,19 +1375,21 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				}
 			}
 		case actDownload:
-			err = e.download(remotePath, localPath, a.hash)
+			err = e.downloadIf(remotePath, localPath, a.hash, func() error { return stillAsScanned(a.relative, localPath) })
 		case actDownloadKeepLocal:
 			// The local version first, under its conflict name; only then
-			// the device's version over the original name.
+			// the device's version over the original name. The rename takes
+			// whatever is there now, edits included; only a file created
+			// at the name during the download could still be overwritten.
 			copyPath := conflictPath(localPath, hostLabel(), time.Now())
 			if err = os.Rename(localPath, copyPath); err == nil {
 				log.Printf("conflict on %s: this computer's version kept as %s", a.relative, filepath.Base(copyPath))
-				err = e.download(remotePath, localPath, a.hash)
+				err = e.downloadIf(remotePath, localPath, a.hash, absent(localPath))
 			}
 		case actUploadKeepRemote:
 			localHash, remoteHash, _ := strings.Cut(a.hash, "\x00")
 			copyPath := conflictPath(localPath, "", time.Now())
-			if err = e.download(remotePath, copyPath, remoteHash); err == nil {
+			if err = e.downloadIf(remotePath, copyPath, remoteHash, absent(copyPath)); err == nil {
 				log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
 				var fi os.FileInfo
 				if fi, err = os.Stat(localPath); err == nil {
@@ -1350,7 +1399,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		case actDeleteRemote:
 			err = e.deleteRemote(remotePath)
 		case actDeleteLocal:
-			err = os.Remove(localPath)
+			if err = stillAsScanned(a.relative, localPath); err == nil {
+				err = os.Remove(localPath)
+			}
 		}
 		if err != nil {
 			// Back to the baseline for this path so a transient failure is
@@ -1360,7 +1411,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			} else {
 				delete(newSynced, a.relative)
 			}
-			log.Printf("error syncing %s: %v", a.relative, err)
+			if errors.Is(err, errChangedHere) {
+				log.Printf("%s %v", a.relative, err)
+			} else {
+				log.Printf("error syncing %s: %v", a.relative, err)
+			}
 		}
 	}
 
@@ -1384,6 +1439,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
 }
+
+// errChangedHere: a planned overwrite or delete found the local file no
+// longer as the pass saw it (see stillAsScanned).
+var errChangedHere = errors.New("changed on this computer during the pass - left for the next pass")
 
 // massDeleteMin: two-way folders - more local deletions than this in one
 // pass (and a quarter of the folder) mean the device lost the files.
@@ -1572,6 +1631,13 @@ func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified 
 // with empty content and no error, and the 0-byte file that made went
 // back up over the device's row on the next pass).
 func (e *Engine) download(remotePath, dest, expectedHash string) error {
+	return e.downloadIf(remotePath, dest, expectedHash, nil)
+}
+
+// downloadIf is download with a last check: ready, when given, runs once
+// the content is here and verified, just before it takes dest's place,
+// and an error from it leaves dest as it is.
+func (e *Engine) downloadIf(remotePath, dest, expectedHash string, ready func() error) error {
 	// Issue #168: ReadFile, in pieces, and the file's original bytes -
 	// GetFile turns a HEIC into a JPEG for viewers, so what came back never
 	// matched the listed hash: never written, fetched again every pass,
@@ -1633,6 +1699,11 @@ func (e *Engine) download(remotePath, dest, expectedHash string) error {
 	}
 	if err := out.Close(); err != nil {
 		return err
+	}
+	if ready != nil {
+		if err := ready(); err != nil {
+			return err
+		}
 	}
 	if err := os.Rename(tmp, dest); err != nil {
 		return err
