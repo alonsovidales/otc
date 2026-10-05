@@ -134,3 +134,31 @@ func TestWriteFileAtomic(t *testing.T) {
 		t.Errorf("temporary files left behind: %v", entries)
 	}
 }
+
+// A write cut off by the process dying leaves a temp file that nothing
+// else removes or counts: startup removes it, and only it.
+func TestRemovePartialWrites(t *testing.T) {
+	dir := t.TempDir()
+	keep := []string{validHash, validHash + "_thumbnail", ".post-1", ".upload-2"}
+	for _, name := range append([]string{".pub-123", ".pub-456"}, keep...) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(dir, ".pub-dir"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	RemovePartialWrites(dir)
+
+	entries, _ := os.ReadDir(dir)
+	var left []string
+	for _, e := range entries {
+		left = append(left, e.Name())
+	}
+	want := append([]string{".post-1", ".pub-dir", ".upload-2"}, validHash, validHash+"_thumbnail")
+	if strings.Join(left, ",") != strings.Join(want, ",") {
+		t.Errorf("left %v, want %v", left, want)
+	}
+	RemovePartialWrites(filepath.Join(dir, "missing")) // only logged
+}

@@ -229,6 +229,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	if err != nil {
 		log.Fatal("Error initializing push notifications", err)
 	}
+	// Before the friend sync and the API can write a post's files.
+	social.RemovePartialWrites(cfg.GetStr("otc", "unenc-storage-path"))
 	mg = &Manager{
 		baseUrl:      baseUrl,
 		dao:          dao,

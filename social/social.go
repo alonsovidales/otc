@@ -287,6 +287,31 @@ func writeFileAtomic(path string, data []byte) error {
 	return os.Rename(tmp.Name(), path)
 }
 
+// RemovePartialWrites removes the temp files writeFileAtomic left in dir
+// (unenc-storage-path) when the process died mid-write, a power cut or an
+// OOM kill: nothing renames or removes them later, no storage limit counts
+// them, and a friend's video can be about 1 GB. Run at startup, before
+// this process writes any; no other process writes to this instance's
+// directory.
+func RemovePartialWrites(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Error("could not look for partly written post files in", dir, ":", err)
+		return
+	}
+	for _, e := range entries {
+		if !e.Type().IsRegular() || !strings.HasPrefix(e.Name(), ".pub-") {
+			continue
+		}
+		switch err := os.Remove(filepath.Join(dir, e.Name())); {
+		case err == nil:
+			log.Info("removed a partly written post file:", e.Name())
+		case !os.IsNotExist(err):
+			log.Error("could not remove a partly written post file:", err)
+		}
+	}
+}
+
 // shouldCompressForSocial reports whether a file attached to a new post
 // should be compressed down before publishing (issue #60) - scoped to
 // exactly what the issue asked for: a video over cSocialVideoSizeLimit.
