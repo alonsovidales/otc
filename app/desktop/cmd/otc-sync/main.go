@@ -477,18 +477,65 @@ func (a *app) SetPassword(pw string) error {
 	return nil
 }
 
-func (a *app) ListRemote(path string) ([]engine.RemoteEntry, error) {
+// RemoteBrowser is the remote folder picker's listing for one showing of
+// it, and what to call once it closes. This process's engine link when it
+// runs the engine. In viewer mode, one connection of its own for the
+// whole browse - it used to sign in afresh for every folder opened, each
+// time an Argon2id check on the device. A connection that stopped working
+// is replaced, and a listing that fails on a reused one is tried once on a
+// fresh one, so every listing still works, or fails, as a fresh one would.
+func (a *app) RemoteBrowser() (func(string) ([]engine.RemoteEntry, error), func()) {
 	if a.eng != nil {
-		return a.eng.ListRemoteDirectory(path)
+		return a.eng.ListRemoteDirectory, func() {}
 	}
-	// Viewer mode: a short-lived connection of its own.
-	ws, err := connectOnce(a.Config(), a.Password())
-	if err != nil {
-		return nil, err
-	}
-	defer ws.Disconnect()
+	var mu sync.Mutex
+	var ws *wsclient.Client
+	connect := func() error {
+		c, err := connectOnce(a.Config(), a.Password())
+		ws = c
 
-	return engine.ListRemoteDirectory(ws, path)
+		return err
+	}
+	drop := func() {
+		if ws != nil {
+			ws.Disconnect()
+			ws = nil
+		}
+	}
+	list := func(path string) ([]engine.RemoteEntry, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if ws != nil && !ws.IsConnected() {
+			// The client is reconnecting on its own, and a request would
+			// fail at once until it has: start over instead.
+			drop()
+		}
+		reused := ws != nil
+		if !reused {
+			if err := connect(); err != nil {
+				return nil, err
+			}
+		}
+		entries, err := engine.ListRemoteDirectory(ws, path)
+		if err != nil && reused {
+			// The device restarted, or the link dropped, while a dialog
+			// was open: what a fresh connection gets past.
+			drop()
+			if err := connect(); err != nil {
+				return nil, err
+			}
+			entries, err = engine.ListRemoteDirectory(ws, path)
+		}
+
+		return entries, err
+	}
+	done := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		drop()
+	}
+
+	return list, done
 }
 
 func (a *app) AutostartEnabled() bool {

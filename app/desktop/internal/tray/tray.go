@@ -38,7 +38,9 @@ type Controller interface {
 	SaveConfig(*config.Config) error
 	Password() string
 	SetPassword(string) error
-	ListRemote(path string) ([]engine.RemoteEntry, error)
+	// RemoteBrowser lists device folders for one use of the remote folder
+	// picker; done is called once it closes.
+	RemoteBrowser() (list func(path string) ([]engine.RemoteEntry, error), done func())
 	AutostartEnabled() bool
 	SetAutostart(bool) error
 	Quit()
@@ -407,7 +409,9 @@ func (u *ui) addLocal_() {
 // window on Windows, the desktop's list dialog on Linux - see picker_*.go),
 // then the local destination in the folder chooser.
 func (u *ui) addRemote() {
-	remote, ok := pickRemoteFolder(u.c.ListRemote)
+	list, done := u.c.RemoteBrowser()
+	remote, ok := pickRemoteFolder(list)
+	done() // not held open while the folder chooser is up
 	if !ok {
 		return
 	}
