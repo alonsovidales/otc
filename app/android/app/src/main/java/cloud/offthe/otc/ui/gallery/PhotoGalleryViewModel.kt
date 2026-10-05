@@ -446,7 +446,9 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             evicted += p
             total -= images[p]?.allocationByteCount?.toLong() ?: 0
         }
-        _state.update { it.copy(hiResImages = (it.hiResImages - evicted) + (path to bmp)) }
+        // The new one may be evicted too (far from the open photo, budget
+        // spent): then it isn't kept untracked by hiResOrder either.
+        _state.update { it.copy(hiResImages = (it.hiResImages + (path to bmp)) - evicted) }
     }
 
     // Swiped back to: the newest again, so it isn't the next one evicted while shown.
