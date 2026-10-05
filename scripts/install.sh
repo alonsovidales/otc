@@ -695,15 +695,26 @@ apply_schema_migrations() {
       PRIMARY KEY (`token`)
     ) ENGINE=InnoDB;
 SQL
-    # Release 92: one like per domain on a post or comment. Duplicates (the
-    # earliest is kept) go first, and the counters are recounted from the
-    # rows. Idempotent, like everything here.
+    # Release 92: one like per domain on a post or comment. A friend's rows
+    # that are even in number end in an unlike (see updates/92.sh) and all
+    # go, then duplicates (the earliest is kept), and the counters are
+    # recounted from the rows. Idempotent, like everything here.
     mysql "$db" <<'SQL'
+    DELETE l FROM social_publication_likes l JOIN (
+      SELECT pub_uuid, friend_domain FROM social_publication_likes
+      WHERE friend_domain IN (SELECT domain FROM social_friendship)
+      GROUP BY pub_uuid, friend_domain HAVING COUNT(*) % 2 = 0
+    ) d USING (pub_uuid, friend_domain);
     DELETE l1 FROM social_publication_likes l1 JOIN social_publication_likes l2
       ON l1.pub_uuid = l2.pub_uuid AND l1.friend_domain = l2.friend_domain
       AND (l1.dt > l2.dt OR (l1.dt = l2.dt AND l1.uuid > l2.uuid));
     ALTER TABLE social_publication_likes ADD UNIQUE INDEX IF NOT EXISTS like_once (pub_uuid, friend_domain);
     UPDATE social_publications p SET likes = (SELECT COUNT(*) FROM social_publication_likes l WHERE l.pub_uuid = p.uuid);
+    DELETE l FROM social_publication_comment_likes l JOIN (
+      SELECT comment_uuid, friend_domain FROM social_publication_comment_likes
+      WHERE friend_domain IN (SELECT domain FROM social_friendship)
+      GROUP BY comment_uuid, friend_domain HAVING COUNT(*) % 2 = 0
+    ) d USING (comment_uuid, friend_domain);
     DELETE l1 FROM social_publication_comment_likes l1 JOIN social_publication_comment_likes l2
       ON l1.comment_uuid = l2.comment_uuid AND l1.friend_domain = l2.friend_domain
       AND (l1.dt > l2.dt OR (l1.dt = l2.dt AND l1.uuid > l2.uuid));
