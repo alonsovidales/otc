@@ -381,6 +381,10 @@ final class SyncModel: ObservableObject {
     // launch a file deleted while the app was closed came back from the
     // device. Saved per folder next to the hash cache (synced/<id>.json).
     private var syncedLoaded: Set<UUID> = []
+    // Records whose last write failed: the next pass writes them again
+    // even when nothing changed, or a relaunch would start from the
+    // stale one on disk.
+    private var syncedUnsaved: Set<UUID> = []
 
     private static func syncedURL(_ folderId: UUID) -> URL? {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
@@ -406,15 +410,26 @@ final class SyncModel: ObservableObject {
 
     private func saveSynced(_ folderId: UUID, _ synced: [String: String]) {
         guard remoteFolders.contains(where: { $0.id == folderId }), let url = Self.syncedURL(folderId) else { return }
+        syncedUnsaved.remove(folderId)
         Task.detached(priority: .utility) {
-            guard let data = try? JSONEncoder().encode(synced) else { return }
-            try? data.write(to: url, options: [.atomic, .completeFileProtection])
+            do {
+                let data = try JSONEncoder().encode(synced)
+                try data.write(to: url, options: [.atomic, .completeFileProtection])
+            } catch {
+                syncLog.error("could not save the sync record of \(folderId.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                await self.noteSyncedUnsaved(folderId)
+            }
         }
+    }
+
+    private func noteSyncedUnsaved(_ folderId: UUID) {
+        syncedUnsaved.insert(folderId)
     }
 
     private func dropSynced(_ folderId: UUID) {
         lastSyncedByRemoteFolder.removeValue(forKey: folderId)
         syncedLoaded.remove(folderId)
+        syncedUnsaved.remove(folderId)
         if let url = Self.syncedURL(folderId) { try? FileManager.default.removeItem(at: url) }
     }
 
@@ -1501,7 +1516,7 @@ final class SyncModel: ObservableObject {
                         for rest in actions[i...] {
                             if let prior = lastSynced[rest.relative] { newSynced[rest.relative] = prior } else { newSynced.removeValue(forKey: rest.relative) }
                         }
-                        if newSynced != storedSynced { saveSynced(folder.id, newSynced) }
+                        if newSynced != storedSynced || syncedUnsaved.contains(folder.id) { saveSynced(folder.id, newSynced) }
                         lastSyncedByRemoteFolder[folder.id] = newSynced
                         updateRemoteState(folder.id, .error("Device offline - will resume"))
                         saveHashCache(folder.id)
@@ -1577,7 +1592,7 @@ final class SyncModel: ObservableObject {
                 }
             }
 
-            if newSynced != storedSynced { saveSynced(folder.id, newSynced) }
+            if newSynced != storedSynced || syncedUnsaved.contains(folder.id) { saveSynced(folder.id, newSynced) }
             lastSyncedByRemoteFolder[folder.id] = newSynced
             // The guard's note stays on the folder until the next pass, so
             // the owner learns the device had lost those files.
