@@ -52,6 +52,7 @@ import (
 	gorilla "github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v4/disk"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
@@ -3604,6 +3605,54 @@ func notAuthenticatedResponse(id int32) *pb.RespEnvelope {
 	}
 }
 
+// marshalReply encodes resp. A string that isn't valid UTF-8 (a camera's
+// EXIF make, say) still encodes, with an error that used to be ignored:
+// the web client shows such a reply, but the native apps reject it and
+// their request waits forever. A copy with those strings cleaned is sent
+// instead - the same text the web client already shows.
+func marshalReply(id int32, resp *pb.RespEnvelope) []byte {
+	b, err := proto.Marshal(resp)
+	if err == nil {
+		return b
+	}
+	log.Error("marshalling reply", id, fmt.Sprintf("%T", resp.Payload), ":", err)
+	clean := proto.Clone(resp).(*pb.RespEnvelope)
+	sanitizeUTF8(clean.ProtoReflect())
+	if b, err = proto.Marshal(clean); err != nil {
+		// Same shape as processMessage's panic reply.
+		b, _ = proto.Marshal(&pb.RespEnvelope{Id: id, Error: true, ErrorMessage: "internal error"})
+	}
+	return b
+}
+
+// sanitizeUTF8 replaces invalid UTF-8 in every string field of m, however
+// deep, with U+FFFD.
+func sanitizeUTF8(m protoreflect.Message) {
+	clean := func(s string) protoreflect.Value {
+		return protoreflect.ValueOfString(strings.ToValidUTF8(s, "\uFFFD"))
+	}
+	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		switch {
+		case fd.IsMap():
+			// None in messages.proto.
+		case fd.IsList():
+			l := v.List()
+			for i := 0; i < l.Len(); i++ {
+				if fd.Kind() == protoreflect.StringKind {
+					l.Set(i, clean(l.Get(i).String()))
+				} else if fd.Message() != nil {
+					sanitizeUTF8(l.Get(i).Message())
+				}
+			}
+		case fd.Kind() == protoreflect.StringKind:
+			m.Set(fd, clean(v.String()))
+		case fd.Message() != nil:
+			sanitizeUTF8(v.Message())
+		}
+		return true
+	})
+}
+
 func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -3791,7 +3840,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 				resp = notAuthenticatedResponse(env.Id)
 			}
 
-			respBin, _ := proto.Marshal(resp)
+			respBin := marshalReply(env.Id, resp)
 
 			writeMu.Lock()
 			writeErr := writeReply(conn, respBin)

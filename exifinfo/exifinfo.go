@@ -76,11 +76,15 @@ func fromExif(x *exif.Exif) *Info {
 			info.Orientation = i
 		}
 	}
+	// Raw bytes from the file: not always UTF-8, which a reply's string
+	// field must be.
 	if v, err := x.Get(exif.Make); err == nil {
-		info.CameraMake, _ = v.StringVal()
+		s, _ := v.StringVal()
+		info.CameraMake = strings.ToValidUTF8(s, "\uFFFD")
 	}
 	if v, err := x.Get(exif.Model); err == nil {
-		info.CameraModel, _ = v.StringVal()
+		s, _ := v.StringVal()
+		info.CameraModel = strings.ToValidUTF8(s, "\uFFFD")
 	}
 	if dt, err := x.DateTime(); err == nil {
 		info.TakenAt = dt

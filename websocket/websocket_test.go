@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -20,6 +21,7 @@ import (
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/social"
 	"github.com/alonsovidales/otc/supervisor"
+	"google.golang.org/protobuf/proto"
 )
 
 // handleConnection dispatches every incoming envelope through up to three
@@ -767,5 +769,31 @@ func TestPureDownloadExcludesRequestsWithEffects(t *testing.T) {
 		if pureDownload(env) {
 			t.Errorf("%T must never be dropped", env.Payload)
 		}
+	}
+}
+
+// A reply carrying a string that isn't valid UTF-8 (a camera's EXIF make)
+// was sent as encoded, error ignored, and the native apps' strict decoders
+// rejected it - the request then waited forever. It goes out cleaned.
+func TestMarshalReplyCleansInvalidUTF8(t *testing.T) {
+	ok := &pb.RespEnvelope{Id: 3, Payload: &pb.RespEnvelope_RespFileInfo{RespFileInfo: &pb.FileExifInfo{CameraMake: "Canon"}}}
+	want, _ := proto.Marshal(ok)
+	if got := marshalReply(3, ok); !bytes.Equal(got, want) {
+		t.Fatal("a valid reply must be sent exactly as before")
+	}
+
+	bad := &pb.RespEnvelope{Id: 4, Payload: &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{
+		Files: []*pb.File{{Path: "/ok"}, {Path: "/caf\xe9.jpg"}},
+	}}}
+	var out pb.RespEnvelope
+	if err := proto.Unmarshal(marshalReply(4, bad), &out); err != nil {
+		t.Fatalf("the reply must decode strictly: %v", err)
+	}
+	files := out.GetRespListOfFiles().GetFiles()
+	if out.Id != 4 || len(files) != 2 || files[0].Path != "/ok" || files[1].Path != "/caf�.jpg" {
+		t.Fatalf("got %v", &out)
+	}
+	if bad.GetRespListOfFiles().Files[1].Path != "/caf\xe9.jpg" {
+		t.Error("the handler's own reply object must not be changed in place")
 	}
 }
