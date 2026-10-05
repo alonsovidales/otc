@@ -65,8 +65,23 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 	}
 	api.registerAPIs()
 	log.Info("Starting API server on port:", httpPort)
-	go newServer(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer).ListenAndServe()
-	go newServer(fmt.Sprintf(":%d", httpsPort), api.muxHTTPServer).ListenAndServeTLS(cert, key)
+	// Logged, not fatal: a port another process still holds left this
+	// instance running with no listener and nothing in the log, while it
+	// can still serve through the bridge.
+	go func() {
+		if err := newServer(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer).ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("could not listen on API port", httpPort, "(LAN clients and video processing will fail):", err)
+		}
+	}()
+	// Without a certificate there is nothing to serve TLS with (it failed
+	// straight away on opening the empty path).
+	if cert != "" && key != "" {
+		go func() {
+			if err := newServer(fmt.Sprintf(":%d", httpsPort), api.muxHTTPServer).ListenAndServeTLS(cert, key); err != nil && err != http.ErrServerClosed {
+				log.Error("could not listen on TLS port", httpsPort, ":", err)
+			}
+		}()
+	}
 
 	// Issue #38: also listen on plain port 80, best-effort. iOS/Android/
 	// Windows all probe a well-known URL over port 80 to detect a captive
