@@ -43,9 +43,11 @@ enum SyncScheduler {
         // Issue #70: this used to be an empty closure - iOS calling it
         // means the task's time budget is up, and doing nothing here left
         // the sync running right past its allotted window instead of
-        // winding down. Cancelling `work` is checked between chunks inside
-        // runForeground (Task.isCancelled), so whatever chunk is already
-        // uploading finishes cleanly rather than being killed mid-request.
+        // winding down. runForeground's cancellation handler passes this
+        // on to the sync's own Task: it stops between chunks, uploads in
+        // flight stop at their next 4 MiB chunk, the watermark stays
+        // before what wasn't finished, and the run throws, so `work`
+        // reports the task as not completed.
         task.expirationHandler = {
             work.cancel()
         }

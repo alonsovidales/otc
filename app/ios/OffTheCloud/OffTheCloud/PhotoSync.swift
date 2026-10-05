@@ -47,19 +47,50 @@ final class PhotoSync: NSObject {
     // even today, and becomes an outright error under Swift 6.
     private let syncLock = NSLock()
     private var isSyncing = false
+    /// Bumped by cancel() (Log Out). A run only writes state - the
+    /// watermark, the asset cache, the upload bar - and only sends
+    /// requests while the generation it started with is current: Log Out
+    /// doesn't wait for the run to stop, and a run finishing its chunk
+    /// after the wipe used to write lastSyncDate=now into the fresh
+    /// defaults, so the next device never got the existing library.
+    private var generation = 0
+    /// The sync in progress, so Log Out can stop it (`cancel()`). Under
+    /// syncLock: written from the cooperative pool, read on main.
+    private var currentSync: Task<Void, Error>?
 
-    private func beginSyncIfNotAlreadyRunning() -> Bool {
+    /// The generation this run belongs to, or nil if one is running.
+    private func beginSyncIfNotAlreadyRunning() -> Int? {
         syncLock.lock()
         defer { syncLock.unlock() }
-        if isSyncing { return false }
+        if isSyncing { return nil }
         isSyncing = true
-        return true
+        return generation
     }
 
     private func endSync() {
         syncLock.lock()
         defer { syncLock.unlock() }
         isSyncing = false
+    }
+
+    private func setCurrentSync(_ task: Task<Void, Error>?, gen: Int) {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        currentSync = task
+        // Log Out landed between begin and here.
+        if let task, generation != gen { task.cancel() }
+    }
+
+    /// Runs `body` only if the run's generation is still current, under
+    /// the same lock cancel() takes: a write lands before Log Out (whose
+    /// wipe then erases it) or not at all.
+    @discardableResult
+    private func ifLive(_ gen: Int, _ body: () -> Void = {}) -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        guard generation == gen else { return false }
+        body()
+        return true
     }
 
     // How many assets to read from disk + upload at the same time (issue
@@ -262,38 +293,45 @@ final class PhotoSync: NSObject {
         return (data, filename, mime)
     }
     
-    /// The sync in progress, so Log Out can stop it (`cancel()`): the
-    /// callers' own Tasks are theirs, this child is ours, and the
-    /// Task.isCancelled checks between chunks below see either.
-    private var currentSync: Task<Void, Error>?
-
-    /// Log Out: stop the sync in progress at the next chunk boundary.
+    /// Log Out: stop the sync in progress, and make sure nothing it still
+    /// does afterwards writes anything (see `generation`).
     func cancel() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        generation &+= 1
         currentSync?.cancel()
     }
 
+    /// The sync runs in its own Task so Log Out can cancel it. Awaiting a
+    /// Task's value doesn't pass the caller's cancellation on, so the
+    /// handler below does: that is how a BGProcessingTask's expiration
+    /// (SyncScheduler cancels the Task calling this) reaches the loop.
     func runForeground() async throws {
-        guard beginSyncIfNotAlreadyRunning() else {
+        guard let gen = beginSyncIfNotAlreadyRunning() else {
             print("Sync already running, skipping overlapping request")
             return
         }
         defer { endSync() }
-        let sync = Task { try await self.syncOnce() }
-        currentSync = sync
-        defer { currentSync = nil }
-        try await sync.value
+        let sync = Task { try await self.syncOnce(gen: gen) }
+        setCurrentSync(sync, gen: gen)
+        defer { setCurrentSync(nil, gen: gen) }
+        try await withTaskCancellationHandler {
+            try await sync.value
+        } onCancel: {
+            sync.cancel()
+        }
     }
 
-    private func syncOnce() async throws {
+    private func syncOnce(gen: Int) async throws {
         try await ensureAuth()
         let secrets = SecretsStore.loadOrCreate()
         let ws = OTCConnection.shared
         try await ws.ensureConnected()
 
         let last = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
-        print("Sync photos from: \(last)")
+        print("Sync photos from: \(String(describing: last))")
         let assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
-        UploadModel.shared.begin(total: assets.count)
+        ifLive(gen) { UploadModel.shared.begin(total: assets.count) }
 
         // This was never actually wired up before — the "Sync from iCloud"
         // toggle changed a setting nothing read, so turning it off had no
@@ -343,21 +381,25 @@ final class PhotoSync: NSObject {
         print("[dedup] \(knownCloud.count) of \(cloudIDs.count) assets already on the device by cloud id")
 
         var idx = 0
+        // Left early (cancelled): the rest of the library hasn't been
+        // looked at, so the watermark must not jump to now.
+        var stopped = false
         for chunk in assets.chunked(into: Self.cMaxConcurrentUploads) {
-            // Issue #70: a BGProcessingTask's expirationHandler cancels the
-            // Task running this loop when iOS runs out of patience with it
-            // - checked between chunks (same granularity as the pause
-            // check right below) rather than per-asset, so whatever's
-            // already uploading in the current chunk finishes cleanly
-            // instead of being torn down mid-request.
-            if Task.isCancelled { break }
+            // Issue #70: a BGProcessingTask's expiration and Log Out cancel
+            // this run. Checked between chunks; uploads already in flight
+            // stop at their next 4 MiB chunk (uploadChunked's
+            // checkCancellation).
+            if Task.isCancelled { stopped = true; break }
 
             // Issue #30: pause/resume from the upload bar. Checked between
             // chunks rather than cancelling in-flight requests — whatever's
             // already uploading finishes, nothing new starts until resumed.
-            while UploadModel.shared.isPaused {
+            // Not while cancelled: the sleep then throws at once and this
+            // spun at full CPU.
+            while UploadModel.shared.isPaused && !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
+            if Task.isCancelled { stopped = true; break }
 
             await withTaskGroup(of: Void.self) { group in
                 for asset in chunk {
@@ -380,7 +422,7 @@ final class PhotoSync: NSObject {
                                 return
                             }
 
-                            UploadModel.shared.step(file: cleanName, index: position - 1, total: assets.count)
+                            self.ifLive(gen) { UploadModel.shared.step(file: cleanName, index: position - 1, total: assets.count) }
                             let created = Google_Protobuf_Timestamp(date: asset.creationDate ?? Date())
 
                             // Issue #58 follow-up: a previous successful
@@ -457,6 +499,10 @@ final class PhotoSync: NSObject {
                                 return false
                             }
 
+                            // Log Out since this asset started (an iCloud
+                            // download can take long): nothing more goes to
+                            // the device under the old session's path.
+                            guard self.ifLive(gen) else { return }
                             var alreadyOnDevice = cloudHash != nil
                             if !alreadyOnDevice {
                                 alreadyOnDevice = try await checkHasFile()
@@ -476,6 +522,7 @@ final class PhotoSync: NSObject {
                                 let hashStart = Date()
                                 hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
                                 print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                                guard self.ifLive(gen) else { return }
                                 alreadyOnDevice = try await checkHasFile()
                             }
                             print("[dedup] \(cleanName): already on device = \(alreadyOnDevice)")
@@ -511,7 +558,7 @@ final class PhotoSync: NSObject {
                             // used to mean a real success matched neither
                             // branch and was silently unobserved.
                             if case .respFile = resp.payload {
-                                AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash)
+                                self.ifLive(gen) { AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash) }
                             } else if resp.error {
                                 print("Upload failed:", resp.errorMessage)
                             }
@@ -534,22 +581,30 @@ final class PhotoSync: NSObject {
                     }
                 }
             }
+            // Cancelled while the chunk ran: its uploads were cut short,
+            // so the watermark stays before it.
+            if Task.isCancelled { stopped = true; break }
+
             // The whole chunk has been attempted (success or failure per
             // asset) by the time the group above returns, so it's safe to
             // advance the watermark past every date in it.
             if let latest = chunk.compactMap(\.creationDate).max() {
-                UserDefaults.standard.set(latest, forKey: "lastSyncDate")
+                ifLive(gen) { UserDefaults.standard.set(latest, forKey: "lastSyncDate") }
                 print("Latest date:", latest)
             }
         }
 
-        // Flush any records not yet written by AssetSyncCache's own batch
-        // threshold — otherwise a run that ends (or gets interrupted)
-        // between batches loses the last few entries.
-        AssetSyncCache.shared.flush()
-
-        UploadModel.shared.complete()
-        UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+        // Fold the records journal into its snapshot when it got long, and
+        // take the upload bar down - also when the run stopped early.
+        ifLive(gen) {
+            AssetSyncCache.shared.flush()
+            UploadModel.shared.complete()
+        }
+        if stopped {
+            // SyncScheduler reports the BG task as not completed.
+            throw CancellationError()
+        }
+        ifLive(gen) { UserDefaults.standard.set(Date(), forKey: "lastSyncDate") }
     }
 }
 
