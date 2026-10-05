@@ -49,11 +49,14 @@ object PhotoSync {
         get() = prefs.getLong("lastSyncMs", 0)
         set(v) { prefs.edit().putLong("lastSyncMs", v).apply() }
 
+    // Checks what mediaPermissions() (NewPostPickerView.kt) asks for on this
+    // API level: READ_MEDIA_IMAGES doesn't exist before 33, so on Android
+    // 10-12 it was always denied and nothing ever synced.
     fun hasPermission(context: Context = OTCApp.instance): Boolean {
-        val imgs = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-        val partial = android.os.Build.VERSION.SDK_INT >= 34 &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == PackageManager.PERMISSION_GRANTED
-        return imgs || partial
+        fun granted(p: String) = ContextCompat.checkSelfPermission(context, p) == PackageManager.PERMISSION_GRANTED
+        if (Build.VERSION.SDK_INT < 33) return granted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        return granted(Manifest.permission.READ_MEDIA_IMAGES) ||
+            (Build.VERSION.SDK_INT >= 34 && granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED))
     }
 
     // The sync in progress, so Log Out can stop it (as PhotoSync.swift's
