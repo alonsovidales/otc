@@ -6,12 +6,12 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
@@ -117,12 +117,10 @@ func (mg *Manager) ReserveBytes(n int64) func() {
 	return mg.contentBudget.acquire(n)
 }
 
-var postMediaName = regexp.MustCompile(`^[0-9a-f]{64}$`)
-
 // ReservePublicationMedia holds the content budget for serving a post's
 // media file (issue #166: read whole, for the owner's feed and friends).
 func (mg *Manager) ReservePublicationMedia(hash string) func() {
-	if !postMediaName.MatchString(hash) {
+	if !dao.IsContentHash(hash) {
 		return func() {}
 	}
 	info, err := os.Stat(filepath.Join(cfg.GetStr("otc", "unenc-storage-path"), hash))

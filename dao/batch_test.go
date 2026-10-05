@@ -8,12 +8,14 @@ package dao
 import (
 	"database/sql"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // A feed page of 3 posts from 2 friends reads each friend's profile once,
@@ -317,5 +319,39 @@ func TestFeedAndEventPagesAreCappedForFriends(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+// A post whose file hash isn't a content hash is refused before anything
+// is stored; a valid one goes in with its files in one transaction.
+func TestNewSocialPublicationChecksHashes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	now := time.Now()
+	f := func(h string) *pb.File {
+		return &pb.File{Hash: h, Mime: "image/jpeg", Created: timestamppb.New(now), Modified: timestamppb.New(now)}
+	}
+	if err := d.NewSocialPublication("p1", "", "x", false, []*pb.File{f(strings.Repeat("a", 64)), f("../x")}, now); err == nil {
+		t.Fatal("a path was accepted as a hash")
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `social_publications` ").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("insert into `social_publications_files`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	if err := d.NewSocialPublication("p2", "", "x", false, []*pb.File{f(strings.Repeat("a", 64))}, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	for h, want := range map[string]bool{strings.Repeat("0f", 32): true, strings.Repeat("A", 64): false, "": false, strings.Repeat("a", 63): false} {
+		if IsContentHash(h) != want {
+			t.Errorf("IsContentHash(%q) = %v", h, !want)
+		}
 	}
 }

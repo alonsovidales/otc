@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -850,11 +851,33 @@ func (dao *Dao) MarkNotificationsStarted(domain string) (err error) {
 	return
 }
 
+// contentHash is what every content hash on this device is: a SHA-256, in
+// lowercase hex.
+var contentHash = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// IsContentHash reports whether h is a content hash. A post's file hash
+// names its files on disk (<unenc-storage-path>/<hash>, and _thumbnail),
+// and a friend's device supplies it: anything else ("../x") is a path.
+func IsContentHash(h string) bool { return contentHash.MatchString(h) }
+
 // dt is when the post was published - now for the owner's own, the
 // author's original time for one synced in from a friend (issue #149).
+// The post and its files are stored together or not at all.
 func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPublication bool, files []*pb.File, dt time.Time) (err error) {
 	log.Debug("Creating SocialPublication")
-	_, err = dao.db.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, ?, ?, ?, ?)", pubUuid, dt, text, ownPublication, originDomain)
+	for _, file := range files {
+		if !IsContentHash(file.Hash) {
+			return fmt.Errorf("publication %s: %q is not a content hash", pubUuid, file.Hash)
+		}
+	}
+
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec("insert into `social_publications` (`uuid`, `dt`, `text`, `own_publication`, `friend_domain`) values (?, ?, ?, ?, ?)", pubUuid, dt, text, ownPublication, originDomain)
 	if err != nil {
 		log.Debug("Error trying to create a new social publicaton", err)
 		return
@@ -862,7 +885,7 @@ func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPubl
 
 	for i, file := range files {
 		log.Debug("Inserting file in publication", file.Hash)
-		_, err = dao.db.Exec(
+		_, err = tx.Exec(
 			"insert into `social_publications_files` (`pos`, `uuid`, `hash`, `mime`, `created`, `modified`, `size`) values (?, ?, ?, ?, ?, ?, ?)",
 			i, pubUuid, file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Size)
 		if err != nil {
@@ -870,7 +893,7 @@ func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPubl
 		}
 	}
 
-	return
+	return tx.Commit()
 }
 
 // NewLikePublication stores friendDomain's like of pubUuid and counts it,

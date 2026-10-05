@@ -163,15 +163,24 @@ func (sc *Social) removePublication(pubUuid string) error {
 	if !cfg.HasSection("otc") {
 		return nil
 	}
-	dir := cfg.GetStr("otc", "unenc-storage-path")
+	sc.removeUnusedMedia(cfg.GetStr("otc", "unenc-storage-path"), hashes)
+	return nil
+}
+
+// removeUnusedMedia removes from dir the media and thumbnails of hashes
+// that no post uses any more. A stored hash that isn't one (rows from
+// before they were checked) is never made into a path.
+func (sc *Social) removeUnusedMedia(dir string, hashes []string) {
 	for _, h := range hashes {
+		if !dao.IsContentHash(h) {
+			continue
+		}
 		if inUse, err := sc.dao.SocialHashInUse(h); err != nil || inUse {
 			continue
 		}
-		os.Remove(fmt.Sprintf("%s/%s", dir, h))
-		os.Remove(fmt.Sprintf("%s/%s_thumbnail", dir, h))
+		os.Remove(filepath.Join(dir, h))
+		os.Remove(filepath.Join(dir, h+"_thumbnail"))
 	}
-	return nil
 }
 
 // storageMu keeps two friends' syncs from trimming at the same time.
@@ -412,6 +421,9 @@ func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32, r
 // hash when the post is created (see NewPublication), which is what makes
 // this possible without a path - publication files have none.
 func (sc *Social) GetPublicationMedia(pubUuid, hash string) (content []byte, mime string, err error) {
+	if !dao.IsContentHash(hash) {
+		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid)
+	}
 	mime, found, err := sc.dao.PublicationFileMime(pubUuid, hash)
 	if err != nil {
 		return nil, "", err
@@ -435,6 +447,9 @@ func (sc *Social) GetPublicationFiles(uuid string) (files []*pb.File, err error)
 
 	files = make([]*pb.File, 0, len(all))
 	for _, file := range all {
+		if !dao.IsContentHash(file.Hash) {
+			continue // never a path (see storeFriendFile)
+		}
 		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
 		if readErr != nil {
 			// A single missing/corrupted thumbnail used to fail this
@@ -476,6 +491,9 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 	for _, pub := range publications.Publications {
 		goodFiles := make([]*pb.File, 0, len(pub.Files))
 		for _, file := range pub.Files {
+			if !dao.IsContentHash(file.Hash) {
+				continue
+			}
 			content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
 			if readErr != nil {
 				log.Error("skipping missing/corrupted thumbnail in feed for publication", pub.Uuid, "hash", file.Hash, ":", readErr)
@@ -507,6 +525,9 @@ func (sc *Social) GetPublication(pr *profile.Profile, pubUuid string) (pub *pb.S
 
 	goodFiles := make([]*pb.File, 0, len(pub.Files))
 	for _, file := range pub.Files {
+		if !dao.IsContentHash(file.Hash) {
+			continue
+		}
 		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash))
 		if readErr != nil {
 			log.Error("skipping missing/corrupted thumbnail for publication", pub.Uuid, "hash", file.Hash, ":", readErr)
@@ -540,7 +561,7 @@ func (sc *Social) ListNotifications(limit int) ([]*pb.Notification, error) {
 	}
 	for _, n := range notifications {
 		hash, ok := thumbHashes[n.Uuid]
-		if !ok || hash == "" {
+		if !ok || !dao.IsContentHash(hash) {
 			continue
 		}
 		content, readErr := os.ReadFile(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), hash))
@@ -942,6 +963,68 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 	return filesResp.RespSocialPublicationFiles.Files, nil
 }
 
+// storeFriendFile writes one file of a friend's post to dir: its thumbnail
+// and then, unless it is already here, its media. ok is false for a file
+// that can't be stored here at all; err is a failed thumbnail write.
+func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string) (ok bool, err error) {
+	// Issue #107: the friend's own hash is kept, not replaced with a hash
+	// of the thumbnail bytes as this used to do. That hash is how the
+	// friend addresses the file, so overwriting it left no way to ask them
+	// for the actual media - and it's also what our own rows store, so the
+	// two now agree and GetPublicationMedia can find what it serves.
+	if file.Hash == "" {
+		// Defensive: a friend on an older build might not send one.
+		// Falling back to the old behaviour keeps the thumbnail working;
+		// only the media is lost.
+		sum := sha256.Sum256(file.Content)
+		file.Hash = hex.EncodeToString(sum[:])
+	}
+	// The hash names this file on disk, and a friend's device chose it:
+	// "../<hash>" wrote (and, once the post was deleted, removed) the
+	// owner's own files. Every release sends a SHA-256 in hex.
+	if !dao.IsContentHash(file.Hash) {
+		log.Error("ignoring a file with an invalid hash in publication", pubUuid, "from", fr.data.OriginProfile.Domain)
+		return false, nil
+	}
+
+	unencPathThumb := filepath.Join(dir, file.Hash+"_thumbnail")
+	// A thumbnail a post here already uses stays as it is: naming the hash
+	// of someone else's photo doesn't replace what everyone is shown.
+	if _, statErr := os.Stat(unencPathThumb); statErr != nil || !fr.socialHashInUse(file.Hash) {
+		log.Debug("Storing file thumbnail in path:", unencPathThumb)
+		if err := os.WriteFile(unencPathThumb, file.Content, 0o600); err != nil { // perms: rw------- (issue #157)
+			return false, err
+		}
+	}
+
+	// Then the full media, so the post is playable/viewable later whether
+	// or not its author is reachable. Failing here is not fatal to the
+	// post: the thumbnail above is already stored, so the timeline still
+	// renders and only full-size playback is missing - better than
+	// dropping the publication entirely over one large file.
+	unencPath := filepath.Join(dir, file.Hash)
+	if _, statErr := os.Stat(unencPath); statErr == nil {
+		return true, nil // already have it (a re-sync, or shared with another post)
+	}
+	media, mediaErr := fr.getPublicationMedia(pubUuid, file.Hash)
+	if mediaErr != nil {
+		log.Error("could not fetch media", file.Hash, "for publication", pubUuid, "from",
+			fr.data.OriginProfile.Domain, ":", mediaErr)
+		return true, nil
+	}
+	if err := os.WriteFile(unencPath, media, 0o600); err != nil { // perms: rw------- (issue #157)
+		log.Error("error storing friend publication media:", err)
+	}
+	return true, nil
+}
+
+// socialHashInUse is whether a post here has a file with hash; when that
+// can't be told, it is taken to be.
+func (fr *friendship) socialHashInUse(hash string) bool {
+	inUse, err := fr.dao.SocialHashInUse(hash)
+	return err != nil || inUse
+}
+
 // notifyIfOwnPublication notifies about a like/comment only when pubUuid is
 // one of the device owner's own posts - like/comment events arriving here
 // can just as easily be about some other friend's post this device also
@@ -1072,53 +1155,22 @@ event_loop:
 				continue event_loop
 			}
 
-			// Store the files in the local drive first
+			// Store the files in the local drive first. A file that can't be
+			// stored here at all is left out of the post.
+			unencDir := cfg.GetStr("otc", "unenc-storage-path")
+			kept := make([]*pb.File, 0, len(files))
 			for _, file := range files {
-				// Issue #107: the friend's own hash is kept, not replaced
-				// with a hash of the thumbnail bytes as this used to do.
-				// That hash is how the friend addresses the file, so
-				// overwriting it left no way to ask them for the actual
-				// media - and it's also what our own rows store, so the
-				// two now agree and GetPublicationMedia can find what it
-				// serves.
-				if file.Hash == "" {
-					// Defensive: a friend on an older build might not send
-					// one. Falling back to the old behaviour keeps the
-					// thumbnail working; only the media is lost.
-					sum := sha256.Sum256(file.Content)
-					file.Hash = hex.EncodeToString(sum[:])
-				}
-
-				unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-				log.Debug("Storing file thumbnail in path:", unencPathThumb)
-				err = os.WriteFile(unencPathThumb, file.Content, 0o600) // perms: rw------- (issue #157)
+				ok, err := fr.storeFriendFile(pubData.Uuid, file, unencDir)
 				if err != nil {
-					log.Error("Error trying to write file from an external event")
+					log.Error("Error trying to write file from an external event:", err)
 					continue event_loop
 				}
-
-				// Then the full media, so the post is playable/viewable
-				// later whether or not its author is reachable. Failing
-				// here is not fatal to the post: the thumbnail above is
-				// already stored, so the timeline still renders and only
-				// full-size playback is missing - better than dropping
-				// the publication entirely over one large file.
-				unencPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), file.Hash)
-				if _, statErr := os.Stat(unencPath); statErr == nil {
-					continue // already have it (a re-sync, or shared with another post)
-				}
-				media, mediaErr := fr.getPublicationMedia(pubData.Uuid, file.Hash)
-				if mediaErr != nil {
-					log.Error("could not fetch media", file.Hash, "for publication", pubData.Uuid, "from",
-						fr.data.OriginProfile.Domain, ":", mediaErr)
-					continue
-				}
-				if err := os.WriteFile(unencPath, media, 0o600); err != nil { // perms: rw------- (issue #157)
-					log.Error("error storing friend publication media:", err)
+				if ok {
+					kept = append(kept, file)
 				}
 			}
 
-			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, files, eventTime(pubData.Dt, event))
+			err = fr.dao.NewSocialPublication(pubData.Uuid, pubData.Text, fr.data.OriginProfile.Domain, false, kept, eventTime(pubData.Dt, event))
 			if err != nil {
 				log.Error("Error creating social publication for friend:", err)
 				continue

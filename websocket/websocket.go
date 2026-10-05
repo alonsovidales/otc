@@ -1124,6 +1124,10 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 
 	switch {
 	case req.PubUuid != "" && req.Hash != "":
+		// The hash becomes a path below: only ever a content hash.
+		if !dao.IsContentHash(req.Hash) {
+			return "", 0, "", 0, fmt.Errorf("media not found")
+		}
 		// Authorized the same way ReqGetPublicationMedia is: the
 		// publication has to actually carry this hash. Without that
 		// check a token could be minted for any file on the device by
