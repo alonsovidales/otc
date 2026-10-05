@@ -353,3 +353,36 @@ func TestLoadFaceRefsCachesUntilInvalidated(t *testing.T) {
 		t.Errorf("expected exactly one reload after InvalidateFaceRefs: %v", err)
 	}
 }
+
+// The matching set is dropped when deleted content took faces with it,
+// and kept when it had none.
+func TestDropFacesOfHashInvalidatesTheMatchingSetOnlyWhenFacesWent(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db), faceRefs: refsOf(map[string][][]float32{"alice": {{1, 0}}})}
+
+	mock.ExpectQuery("select distinct `person_id` from `faces` where `hash` = \\?").WithArgs("nofaces").
+		WillReturnRows(sqlmock.NewRows([]string{"person_id"}))
+	mg.dropFacesOfHash("nofaces")
+	if mg.faceRefs == nil {
+		t.Error("content with no faces dropped the matching set")
+	}
+
+	mock.ExpectQuery("select distinct `person_id` from `faces` where `hash` = \\?").WithArgs("withfaces").
+		WillReturnRows(sqlmock.NewRows([]string{"person_id"}).AddRow("alice"))
+	mock.ExpectBegin()
+	mock.ExpectExec("update `people` set `cover_face_id` = null").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `faces` where `hash` = \\?").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `people` where `id` in").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+	mg.dropFacesOfHash("withfaces")
+	if mg.faceRefs != nil {
+		t.Error("the matching set kept a deleted face")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

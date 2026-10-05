@@ -265,6 +265,7 @@ func (mg *Manager) initRest() *Manager {
 	// Before anything of this process writes to storage: bin/otc.go starts
 	// the websocket and the API only after Init returns.
 	mg.sweepOrphanedStorage()
+	go mg.sweepOrphanFaces()
 
 	return mg
 }
@@ -1668,8 +1669,8 @@ func (mg *Manager) withBlob(hash string, fn func() error) error {
 	return fn()
 }
 
-// removeBlobIfUnused deletes hash's blob and thumbnail once no file or
-// kept version uses it any more.
+// removeBlobIfUnused deletes hash's blob, thumbnail and faces once no file
+// or kept version uses it any more.
 func (mg *Manager) removeBlobIfUnused(hash string) error {
 	unlock := lockBlob(hash)
 	defer unlock()
@@ -1677,6 +1678,7 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	if err != nil || referenced {
 		return err
 	}
+	mg.dropFacesOfHash(hash)
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return err
@@ -1721,7 +1723,7 @@ func blobPath(hash string) string {
 }
 
 // dropIfOrphaned removes what processing left for hash - content,
-// thumbnail, tags - when no file or kept version uses it any more: the
+// thumbnail, tags, faces - when no file or kept version uses it any more: the
 // file was deleted while it was being processed (issue #171). Under the
 // hash's lock, like every other decision to remove a blob, so an upload of
 // the same content can't slip in between the check and the removal.
@@ -1739,6 +1741,7 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	if err := mg.dao.DelTagsByHash(hash); err != nil {
 		log.Error("could not remove the tags of deleted content", hash, ":", err)
 	}
+	mg.dropFacesOfHash(hash)
 	full := blobPath(hash)
 	os.Remove(full)
 	os.Remove(full + "_thumbnail")

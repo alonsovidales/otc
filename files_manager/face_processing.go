@@ -147,6 +147,49 @@ func (mg *Manager) InvalidateFaceRefs() {
 	mg.faceRefsMu.Unlock()
 }
 
+// dropFacesOfHash removes the faces found in content nothing uses any
+// more (its last file or version is gone), with what goes with them - see
+// dao.DelFacesByHash - and drops the matching set when any went. Under
+// faceRefsMu, which processFaces holds from matching to storing, so it
+// can't add a face to a person deleted here, or have one of its faces
+// deleted mid-way. Callers hold the hash's lock (the order is always the
+// hash's lock, then faceRefsMu: processFaces takes no hash lock). A
+// failure is only logged: the delete that got here has already happened.
+func (mg *Manager) dropFacesOfHash(hash string) {
+	mg.faceRefsMu.Lock()
+	defer mg.faceRefsMu.Unlock()
+	n, err := mg.dao.DelFacesByHash(hash)
+	if err != nil {
+		log.Error("could not remove the faces of deleted content", hash, ":", err)
+		return
+	}
+	if n > 0 {
+		mg.faceRefs = nil
+		log.Debug("removed", n, "face(s) of deleted content", hash)
+	}
+}
+
+// sweepOrphanFaces removes, once per start, the faces of content deleted
+// before they went with it (or whose removal failed), each under its
+// hash's lock and only if nothing uses the content now.
+func (mg *Manager) sweepOrphanFaces() {
+	hashes, err := mg.dao.OrphanFaceHashes()
+	if err != nil {
+		log.Error("could not look for the faces of deleted content:", err)
+		return
+	}
+	for _, h := range hashes {
+		unlock := lockBlob(h)
+		if referenced, err := mg.dao.HashReferenced(h); err == nil && !referenced {
+			mg.dropFacesOfHash(h)
+		}
+		unlock()
+	}
+	if len(hashes) > 0 {
+		log.Info("removed the faces of", len(hashes), "deleted photo(s)")
+	}
+}
+
 // updatePersonCoverFace recomputes and persists a person's medoid cover
 // face (face_recognition.MedoidFaceID's own doc comment has the full
 // reasoning) over that person's references only - at most
