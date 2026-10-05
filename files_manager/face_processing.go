@@ -124,8 +124,25 @@ func (mg *Manager) hasFaces(hash string) bool {
 // once per process (or once after InvalidateFaceRefs) instead of once per
 // photo, and each person's references are picked with the same rule
 // processFaces applies incrementally (personFaceRefs.add), offering faces
-// in the database's row order. The caller must hold faceRefsMu.
+// in the database's row order. A person a delete took a reference from
+// (faceRefsStale) is rebuilt the same way from their own faces only. The
+// caller must hold faceRefsMu.
 func (mg *Manager) loadFaceRefsLocked(ses *session.Session) (faceRefs, error) {
+	if mg.faceRefs != nil {
+		for personID := range mg.faceRefsStale {
+			faces, err := mg.dao.ListPersonFaceEmbeddings(personID)
+			if err != nil {
+				log.Error("error listing a person's face embeddings, reading everyone's:", err)
+				mg.faceRefs = nil
+				break
+			}
+			// Built afresh: with no face left (the person went too, or
+			// kept only a name) they stay out, as a full build leaves them.
+			delete(mg.faceRefs, personID)
+			mg.faceRefs.addStored(ses, faces)
+		}
+		mg.faceRefsStale = nil
+	}
 	if mg.faceRefs != nil {
 		return mg.faceRefs, nil
 	}
@@ -134,7 +151,14 @@ func (mg *Manager) loadFaceRefsLocked(ses *session.Session) (faceRefs, error) {
 		return nil, err
 	}
 	refs := faceRefs{}
-	for _, e := range existing {
+	refs.addStored(ses, existing)
+	mg.faceRefs, mg.faceRefsStale = refs, nil
+	return refs, nil
+}
+
+// addStored offers stored faces to their people's references, in order.
+func (fr faceRefs) addStored(ses *session.Session, faces []dao.FaceEmbedding) {
+	for _, e := range faces {
 		// Everything under faces.* is derived straight from the owner's
 		// own photos - a face crop is as much "file content" as the photo
 		// it was cut from, and an embedding is a biometric fingerprint of
@@ -147,10 +171,8 @@ func (mg *Manager) loadFaceRefsLocked(ses *session.Session) (faceRefs, error) {
 			log.Error("error decrypting a stored face embedding, skipping it:", err)
 			continue
 		}
-		refs.add(e.PersonID, e.ID, facerecognition.DecodeEmbedding(plain))
+		fr.add(e.PersonID, e.ID, facerecognition.DecodeEmbedding(plain))
 	}
-	mg.faceRefs = refs
-	return refs, nil
 }
 
 // InvalidateFaceRefs drops the cached matching set (issue #173) so the
@@ -172,7 +194,7 @@ func (mg *Manager) InvalidateFaceRefs() {
 
 // dropFacesOfHash removes the faces found in content nothing uses any
 // more (its last file or version is gone), with what goes with them - see
-// dao.DelFacesByHash - and drops the matching set when any went. Under
+// dao.DelFacesByHash - and takes them out of the matching set. Under
 // faceRefsMu, which processFaces holds from matching to storing, so it
 // can't add a face to a person deleted here, or have one of its faces
 // deleted mid-way. Callers hold the hash's lock (the order is always the
@@ -181,14 +203,50 @@ func (mg *Manager) InvalidateFaceRefs() {
 func (mg *Manager) dropFacesOfHash(hash string) {
 	mg.faceRefsMu.Lock()
 	defer mg.faceRefsMu.Unlock()
-	n, err := mg.dao.DelFacesByHash(hash)
+	gone, err := mg.dao.DelFacesByHash(hash)
 	if err != nil {
+		// Whether the faces went is unknown: build the set again from
+		// what is stored.
+		mg.faceRefs = nil
 		log.Error("could not remove the faces of deleted content", hash, ":", err)
 		return
 	}
-	if n > 0 {
-		mg.faceRefs = nil
-		log.Debug("removed", n, "face(s) of deleted content", hash)
+	if len(gone) > 0 {
+		mg.forgetFacesLocked(gone)
+		log.Debug("removed", len(gone), "face(s) of deleted content", hash)
+	}
+}
+
+// forgetFacesLocked takes deleted faces out of the matching set. Dropping
+// the whole set instead made the next photo with faces read and decrypt
+// every stored embedding again - issue #173's per-photo cost, once per
+// deleted photo while a folder went and photos were being analysed, all
+// under faceRefsMu, which removeBlobIfUnused waits for holding a blob
+// lock. A person who lost one of their references is marked stale and
+// rebuilt from their own faces before the next match, as a full build
+// would have done: that refills their set from the faces they have left,
+// and leaves them out when there are none. A face that wasn't a reference
+// changes nothing. Faces are added only under faceRefsMu, held here, so
+// gone is every face that went. The caller holds faceRefsMu.
+func (mg *Manager) forgetFacesLocked(gone []dao.DeletedFace) {
+	if mg.faceRefs == nil {
+		return // built when next needed, from what is left
+	}
+	for _, f := range gone {
+		p := mg.faceRefs[f.PersonID]
+		if p == nil {
+			continue
+		}
+		for i, r := range p.refs {
+			if r.id == f.ID {
+				p.remove(i)
+				if mg.faceRefsStale == nil {
+					mg.faceRefsStale = map[string]bool{}
+				}
+				mg.faceRefsStale[f.PersonID] = true
+				break
+			}
+		}
 	}
 }
 

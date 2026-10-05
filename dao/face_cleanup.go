@@ -14,33 +14,44 @@ import (
 // for good, still counted and shown as covers in People, and still
 // matched against new photos.
 
+// DeletedFace is a face DelFacesByHash removed, and the person it was
+// matched to.
+type DeletedFace struct {
+	ID       string
+	PersonID string
+}
+
 // DelFacesByHash removes every face found in the content hash, in one
-// transaction, and returns how many went. A person whose cover was one of
-// them gets none (ListPeople then shows their oldest remaining face); an
+// transaction, and returns them. A person whose cover was one of them
+// gets none (ListPeople then shows their oldest remaining face); an
 // unnamed person left with no face at all goes too. A named one stays:
 // the name is the owner's, and the person can still be deleted by hand.
 // Content with no faces - nearly always - costs one indexed query.
-func (dao *Dao) DelFacesByHash(hash string) (n int64, err error) {
-	people, err := dao.facePeople(hash)
-	if err != nil || len(people) == 0 {
-		return 0, err
+func (dao *Dao) DelFacesByHash(hash string) (faces []DeletedFace, err error) {
+	faces, err = dao.hashFaces(hash)
+	if err != nil || len(faces) == 0 {
+		return nil, err
+	}
+	var people []string
+	seen := map[string]bool{}
+	for _, f := range faces {
+		if !seen[f.PersonID] {
+			seen[f.PersonID] = true
+			people = append(people, f.PersonID)
+		}
 	}
 
 	tx, err := dao.db.Begin()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	if _, err = tx.Exec("update `people` set `cover_face_id` = null where `cover_face_id` in (select `id` from `faces` where `hash` = ?)", hash); err != nil {
-		return 0, fmt.Errorf("clearing covers: %w", err)
+		return nil, fmt.Errorf("clearing covers: %w", err)
 	}
-	res, err := tx.Exec("delete from `faces` where `hash` = ?", hash)
-	if err != nil {
-		return 0, fmt.Errorf("deleting faces: %w", err)
-	}
-	if n, err = res.RowsAffected(); err != nil {
-		return 0, err
+	if _, err = tx.Exec("delete from `faces` where `hash` = ?", hash); err != nil {
+		return nil, fmt.Errorf("deleting faces: %w", err)
 	}
 	ph := strings.TrimSuffix(strings.Repeat("?,", len(people)), ",")
 	args := make([]any, len(people))
@@ -48,29 +59,29 @@ func (dao *Dao) DelFacesByHash(hash string) (n int64, err error) {
 		args[i] = id
 	}
 	if _, err = tx.Exec("delete from `people` where `id` in ("+ph+") and `name` = '' and not exists (select 1 from `faces` where `faces`.`person_id` = `people`.`id`)", args...); err != nil {
-		return 0, fmt.Errorf("deleting people left with no face: %w", err)
+		return nil, fmt.Errorf("deleting people left with no face: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
-		return 0, err
+		return nil, err
 	}
-	return n, nil
+	return faces, nil
 }
 
-// facePeople is the people with a face in the content hash.
-func (dao *Dao) facePeople(hash string) (ids []string, err error) {
-	rows, err := dao.db.Query("select distinct `person_id` from `faces` where `hash` = ?", hash)
+// hashFaces is the faces found in the content hash, with their people.
+func (dao *Dao) hashFaces(hash string) (faces []DeletedFace, err error) {
+	rows, err := dao.db.Query("select `id`, `person_id` from `faces` where `hash` = ?", hash)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var f DeletedFace
+		if err := rows.Scan(&f.ID, &f.PersonID); err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		faces = append(faces, f)
 	}
-	return ids, rows.Err()
+	return faces, rows.Err()
 }
 
 // OrphanFaceHashes is the content hashes that have faces but no file or

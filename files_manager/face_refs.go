@@ -38,7 +38,7 @@ type personFaceRefs struct {
 
 // faceRefs is the whole library's matching set, person id -> references.
 // Built once per process from the database (see Manager.loadFaceRefs) and
-// then kept up to date incrementally by processFaces.
+// then kept up to date incrementally by processFaces and dropFacesOfHash.
 type faceRefs map[string]*personFaceRefs
 
 // add offers a face to this person's references and reports whether it

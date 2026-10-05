@@ -110,6 +110,10 @@ type Manager struct {
 	// both create a new person for the same face.
 	faceRefsMu sync.Mutex
 	faceRefs   faceRefs
+	// faceRefsStale is the people in faceRefs who lost a reference to a
+	// delete (dropFacesOfHash): loadFaceRefsLocked rebuilds each from
+	// their own stored faces before the next match.
+	faceRefsStale map[string]bool
 	// MigrateLegacyFaceEncryption's once-per-process guard: faceMigMu is
 	// held by the pass running, faceMigDone set once one succeeded.
 	faceMigMu   sync.Mutex

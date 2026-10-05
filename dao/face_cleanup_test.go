@@ -3,6 +3,7 @@
 package dao
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -15,27 +16,28 @@ func TestDelFacesByHashWithNoFaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery("select distinct `person_id` from `faces` where `hash` = \\?").WithArgs("h1").
-		WillReturnRows(sqlmock.NewRows([]string{"person_id"}))
-	n, err := NewWithDB(db).DelFacesByHash("h1")
-	if err != nil || n != 0 {
-		t.Errorf("DelFacesByHash = %d, %v", n, err)
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("h1").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}))
+	gone, err := NewWithDB(db).DelFacesByHash("h1")
+	if err != nil || len(gone) != 0 {
+		t.Errorf("DelFacesByHash = %v, %v", gone, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
 	}
 }
 
-// The faces go, covers pointing at them are cleared, and only the
-// unnamed people they touched who have no face left are deleted.
+// The faces go, covers pointing at them are cleared, only the unnamed
+// people they touched who have no face left are deleted, and the faces
+// that went come back with their people.
 func TestDelFacesByHashClearsCoversAndEmptyUnnamedPeople(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectQuery("select distinct `person_id` from `faces` where `hash` = \\?").WithArgs("h1").
-		WillReturnRows(sqlmock.NewRows([]string{"person_id"}).AddRow("p1").AddRow("p2"))
+	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("h1").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}).AddRow("f1", "p1").AddRow("f2", "p2").AddRow("f3", "p1"))
 	mock.ExpectBegin()
 	mock.ExpectExec("update `people` set `cover_face_id` = null where `cover_face_id` in \\(select `id` from `faces` where `hash` = \\?\\)").
 		WithArgs("h1").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -44,9 +46,10 @@ func TestDelFacesByHashClearsCoversAndEmptyUnnamedPeople(t *testing.T) {
 	mock.ExpectExec("delete from `people` where `id` in \\(\\?,\\?\\) and `name` = '' and not exists \\(select 1 from `faces` where `faces`.`person_id` = `people`.`id`\\)").
 		WithArgs("p1", "p2").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	n, err := NewWithDB(db).DelFacesByHash("h1")
-	if err != nil || n != 3 {
-		t.Errorf("DelFacesByHash = %d, %v, want 3 faces", n, err)
+	gone, err := NewWithDB(db).DelFacesByHash("h1")
+	want := []DeletedFace{{"f1", "p1"}, {"f2", "p2"}, {"f3", "p1"}}
+	if err != nil || !reflect.DeepEqual(gone, want) {
+		t.Errorf("DelFacesByHash = %v, %v, want %v", gone, err, want)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

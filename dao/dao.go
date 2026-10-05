@@ -1983,7 +1983,18 @@ type FaceEmbedding struct {
 // expressions are better matched against their nearest individual face
 // than an average of all of them).
 func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
-	rows, err := dao.db.Query("select `id`, `person_id`, `embedding` from `faces`")
+	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces`")
+}
+
+// ListPersonFaceEmbeddings is ListFaceEmbeddings for one person's faces:
+// what files_manager rebuilds a person's matching references from after
+// a delete took one of them, instead of reading every person's.
+func (dao *Dao) ListPersonFaceEmbeddings(personID string) (faces []FaceEmbedding, err error) {
+	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` = ?", personID)
+}
+
+func (dao *Dao) faceEmbeddings(query string, args ...any) (faces []FaceEmbedding, err error) {
+	rows, err := dao.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
