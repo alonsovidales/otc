@@ -62,6 +62,15 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 	if spec.suffixLen > 0 {
 		length = min(length, spec.suffixLen)
 	}
+	// HEAD needs the size and type, not the bytes: net/http eats a HEAD
+	// response's body writes without an error, so the walk below would
+	// otherwise pull the whole file through the device's uplink, even
+	// after the client hung up. One byte at the same offset keeps every
+	// status (404 past the end, 416 at it) what GET would get.
+	head := r.Method == http.MethodHead
+	if head {
+		length = 1
+	}
 	if spec.suffixLen > 0 {
 		// A suffix range ("bytes=-1024", the last 1024 bytes) can only
 		// be turned into an offset once the total size is known, and the
@@ -95,6 +104,9 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 		// the length.
 		w.Header().Set("Content-Length", strconv.FormatInt(total, 10))
 		w.WriteHeader(http.StatusOK)
+		if head {
+			return
+		}
 		api.writeWholeFile(w, r, token, content, total)
 		return
 	}
@@ -121,6 +133,9 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", offset, last, total))
 	w.Header().Set("Content-Length", strconv.FormatInt(last-offset+1, 10))
 	w.WriteHeader(http.StatusPartialContent)
+	if head {
+		return
+	}
 	api.writeSpan(w, r, token, offset, content, last)
 }
 
@@ -142,6 +157,9 @@ func (api *API) writeSpan(w http.ResponseWriter, r *http.Request, token string, 
 		flusher.Flush()
 	}
 	for pos := offset + int64(len(first)); pos <= last; {
+		if r.Context().Err() != nil {
+			return // the client is gone: don't fetch another span for it
+		}
 		content, _, _, ok := api.fetchMediaRange(nil, r, token, pos, min(maxProxiedRange, last-pos+1))
 		if !ok || len(content) == 0 {
 			return
