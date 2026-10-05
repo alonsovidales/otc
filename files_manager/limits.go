@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"os/exec"
@@ -29,16 +30,25 @@ const (
 	cTranscodeTimeout = 30 * time.Minute
 )
 
+// errImageTooLarge is checkImageSize's refusal.
+var errImageTooLarge = errors.New("too large to process")
+
 // checkImageSize refuses an image whose header says it's too large to
 // decode. A header Go can't read is let through: the decoder then fails on
-// its own, or ffmpeg is tried (and its output is checked here too).
+// its own, or ffmpeg is tried (and its output is checked here too). A HEIC
+// grid is checked by what it decodes to (checkHeifGrid), which its header
+// doesn't bound - "????ftyp" is the signature goheif registers, so the
+// file's name doesn't matter.
 func checkImageSize(b []byte) error {
 	c, _, err := image.DecodeConfig(bytes.NewReader(b))
 	if err != nil {
 		return nil
 	}
 	if int64(c.Width)*int64(c.Height) > cMaxImagePixels {
-		return fmt.Errorf("the image is %dx%d, too large to process (over %d megapixels)", c.Width, c.Height, cMaxImagePixels/1_000_000)
+		return fmt.Errorf("the image is %dx%d, %w (over %d megapixels)", c.Width, c.Height, errImageTooLarge, cMaxImagePixels/1_000_000)
+	}
+	if len(b) >= 8 && string(b[4:8]) == "ftyp" {
+		return checkHeifGrid(b)
 	}
 	return nil
 }

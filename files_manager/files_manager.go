@@ -1439,7 +1439,9 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		startClass := time.Now()
 
 		img, err := decodeImage(content)
-		if err != nil && checkImageSize(content) == nil {
+		// Not what is too large to decode: ffmpeg's own HEIC grid reading
+		// would take the memory goheif was kept from taking.
+		if err != nil && !errors.Is(err, errImageTooLarge) && checkImageSize(content) == nil {
 			// What Go can't read - JPEG 2000, Photoshop, camera RAW
 			// (DNG), a JPEG cut short or with a damaged marker - ffmpeg
 			// usually can: it is already here for videos.
