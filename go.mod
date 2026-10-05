@@ -21,11 +21,13 @@ require (
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/shirou/gopsutil/v4 v4.25.8
 	github.com/sideshow/apns2 v0.25.0
+	github.com/ulikunitz/xz v0.5.17
 	github.com/yalue/onnxruntime_go v1.21.0
 	github.com/zalando/go-keyring v0.2.8
 	gocv.io/x/gocv v0.40.0
 	golang.org/x/crypto v0.55.0
 	golang.org/x/image v0.44.0
+	golang.org/x/net v0.57.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
 	google.golang.org/protobuf v1.36.8
@@ -47,10 +49,8 @@ require (
 	github.com/randall77/makefat v0.0.0-20260406194835-1b91746796b7 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
-	github.com/ulikunitz/xz v0.5.17 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )
