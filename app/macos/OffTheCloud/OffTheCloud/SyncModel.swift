@@ -286,6 +286,20 @@ final class SyncModel: ObservableObject {
         }
     }
 
+    /// Forgets the cached hashes of files no longer in the folder (deleted,
+    /// renamed, or under the folder's old path after it moved), which
+    /// were kept, and rewritten with the cache, for good. `present` is
+    /// the folder's files by cache key, from a scan that saw all of them:
+    /// a partial one would drop hashes still needed.
+    private func pruneHashCache(_ folderId: UUID, keeping present: Set<String>) {
+        // First: a load after the prune would bring the stale entries back.
+        loadHashCacheIfNeeded(folderId)
+        let stale = localHashCache[folderId]?.keys.filter { !present.contains($0) } ?? []
+        guard !stale.isEmpty else { return }
+        for key in stale { localHashCache[folderId]?.removeValue(forKey: key) }
+        hashCacheDirty.insert(folderId)
+    }
+
     private func dropHashCache(_ folderId: UUID) {
         localHashCache.removeValue(forKey: folderId)
         hashCacheLoaded.remove(folderId)
@@ -858,9 +872,14 @@ final class SyncModel: ObservableObject {
             }
 
             // Upload only: what couldn't be read is simply not sent.
-            let localFiles = await Task.detached(priority: .utility) {
-                Self.enumerateFilesRecursively(at: root)
-            }.value.urls
+            let (scan, present) = await Task.detached(priority: .utility) { () -> (LocalScan, Set<String>) in
+                let scan = Self.enumerateFilesRecursively(at: root)
+                return (scan, Set(scan.urls.map { $0.standardizedFileURL.path }))
+            }.value
+            let localFiles = scan.urls
+            // Right after the scan, so what the watcher caches during a
+            // long pass stays.
+            if scan.complete { pruneHashCache(folder.id, keeping: present) }
 
             // Pass 1: figure out what actually needs uploading. This is
             // pure verification — on a folder that's already in sync (the
@@ -1131,8 +1150,22 @@ final class SyncModel: ObservableObject {
                 }
             }
 
-            let scan = await Task.detached(priority: .utility) {
-                Self.enumerateFilesRecursively(at: folder.localURL)
+            let localRoot = folder.localURL.standardizedFileURL.path
+            // Paths worked out off the main actor too: a large tree took
+            // seconds of it.
+            let (scan, localByRelative, present) = await Task.detached(priority: .utility) { () -> (LocalScan, [String: URL], Set<String>) in
+                let scan = Self.enumerateFilesRecursively(at: folder.localURL)
+                var byRelative: [String: URL] = [:]
+                var present = Set<String>()
+                for url in scan.urls {
+                    let full = url.standardizedFileURL.path
+                    present.insert(full)
+                    guard full.hasPrefix(localRoot) else { continue }
+                    var relative = String(full.dropFirst(localRoot.count))
+                    if relative.hasPrefix("/") { relative.removeFirst() }
+                    byRelative[relative] = url
+                }
+                return (scan, byRelative, present)
             }.value
             // A folder that can't be listed (permission, the volume going)
             // looks empty: every synced file would have been deleted from
@@ -1140,15 +1173,7 @@ final class SyncModel: ObservableObject {
             guard scan.rootReadable else {
                 throw NSError(domain: "sync.scan", code: 1, userInfo: [NSLocalizedDescriptionKey: "Can't read the folder on this Mac"])
             }
-            let localRoot = folder.localURL.standardizedFileURL.path
-            var localByRelative: [String: URL] = [:]
-            for url in scan.urls {
-                let full = url.standardizedFileURL.path
-                guard full.hasPrefix(localRoot) else { continue }
-                var relative = String(full.dropFirst(localRoot.count))
-                if relative.hasPrefix("/") { relative.removeFirst() }
-                localByRelative[relative] = url
-            }
+            if scan.complete { pruneHashCache(folder.id, keeping: present) }
 
             // Hashing is the slow part, so only do it for what's actually
             // on disk right now — remote's hash comes for free from the
