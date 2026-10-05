@@ -122,7 +122,10 @@ type Accounts struct {
 	// signups limits account creation per address (issue #163): each is
 	// a bcrypt, and each answer says whether an email has an account.
 	signups *limits.Rate
-	jwks    jwksCache
+	// oauthStarts limits sign-in starts per address: each one inserts an
+	// oauth_states row.
+	oauthStarts *limits.Rate
+	jwks        jwksCache
 }
 
 // Init reads [accounts] from the config: open-registration, and the
@@ -148,6 +151,7 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		failures:         map[string][]time.Time{},
 		signups:          limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour),
 		emailsPerAddr:    limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour),
+		oauthStarts:      limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute),
 	}
 	a.loadProviders()
 	go a.pruneLoop()
@@ -542,6 +546,10 @@ var dummyHash = func() string {
 
 // cSignupsPerHour bounds account creation per address.
 const cSignupsPerHour = 5
+
+// cOAuthStartsPerMinute bounds Google/Apple sign-in starts per address: a
+// person starts one per attempt, a NAT or an office a few more.
+const cOAuthStartsPerMinute = 30
 
 // Login checks an email and password. POST /api/account/login.
 func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {

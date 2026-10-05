@@ -132,6 +132,12 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// Counted only for a start that writes a state: a bad provider or
+	// return address costs nothing.
+	if a.oauthStarts != nil && !a.oauthStarts.Allow(clientIP(r)) {
+		http.Error(w, "too many sign-in attempts from this address, try again in a minute", http.StatusTooManyRequests)
+		return
+	}
 	buf := make([]byte, 24)
 	if _, err := rand.Read(buf); err != nil {
 		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)

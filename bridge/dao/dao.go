@@ -871,7 +871,9 @@ func (dao *Dao) PruneAccountTokens() error {
 	if _, err := dao.db.Exec("delete from `account_tokens` where `expires` < ?", time.Now()); err != nil {
 		return err
 	}
-	if _, err := dao.db.Exec("delete from `oauth_states` where `created` < ?", time.Now().Add(-time.Hour)); err != nil {
+	// ConsumeOAuthState takes a state for 15 minutes; a few more cover the
+	// two nodes' clocks.
+	if _, err := dao.db.Exec("delete from `oauth_states` where `created` < ?", time.Now().Add(-20*time.Minute)); err != nil {
 		return err
 	}
 	return dao.PruneEmailTokens()

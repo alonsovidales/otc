@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -319,4 +320,38 @@ func (s stateCapture) Match(v driver.Value) bool {
 	str, ok := v.(string)
 	*s.to = str
 	return ok && isOAuthState(str)
+}
+
+// Each sign-in start writes a row: one address gets cOAuthStartsPerMinute
+// at once, then 429 - while a start refused for its return address costs
+// nothing.
+func TestOAuthStartIsRateLimited(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	a.oauthStarts = limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute)
+	start := func(ret string) int {
+		r := httptest.NewRequest("GET", "/account/auth/google/start?return="+url.QueryEscape(ret), nil)
+		r.RemoteAddr = "203.0.113.7:4444"
+		r.SetPathValue("provider", "google")
+		w := httptest.NewRecorder()
+		a.OAuthStart(w, r)
+		return w.Code
+	}
+	for i := 0; i < 5; i++ {
+		if code := start("https://evil.com/"); code != http.StatusBadRequest {
+			t.Fatalf("a bad return address: %d", code)
+		}
+	}
+	for i := 0; i < cOAuthStartsPerMinute; i++ {
+		mock.ExpectExec("insert into `oauth_states`").WillReturnResult(sqlmock.NewResult(1, 1))
+		if code := start(""); code != http.StatusFound {
+			t.Fatalf("start %d: %d", i+1, code)
+		}
+	}
+	if code := start(""); code != http.StatusTooManyRequests {
+		t.Fatalf("start %d: %d, want 429", cOAuthStartsPerMinute+1, code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
 }
