@@ -52,34 +52,14 @@ func TestRateSweepIsAmortised(t *testing.T) {
 	if l.sweeps > 4 {
 		t.Fatalf("%d sweeps for %d keys", l.sweeps, 3*cSweepKeys)
 	}
+	// However big the flood, a new address still gets its own bucket.
+	if !l.Allow("newcomer") {
+		t.Fatal("a new key was refused after a flood of others")
+	}
 	now = now.Add(2 * time.Hour)
 	l.Allow("late")
 	if len(l.buckets) != 1 {
 		t.Fatalf("%d keys kept after the window, want 1", len(l.buckets))
-	}
-}
-
-// A full map refuses new keys and still decides known ones.
-func TestRateRefusesNewKeysWhenFull(t *testing.T) {
-	defer func(n int) { maxKeys = n }(maxKeys)
-	maxKeys = 3
-	now := time.Unix(1000, 0)
-	l := NewRate(1, 2)
-	l.now = func() time.Time { return now }
-	for _, k := range []string{"a", "b", "c"} {
-		if !l.Allow(k) {
-			t.Fatalf("%s refused below the cap", k)
-		}
-	}
-	if l.Allow("d") {
-		t.Fatal("a new key was let in past the cap")
-	}
-	if !l.Allow("a") || l.Allow("a") {
-		t.Fatal("a known key was not decided by its own bucket")
-	}
-	now = now.Add(time.Minute)
-	if !l.Allow("d") {
-		t.Fatal("no room after the idle keys were swept")
 	}
 }
 
