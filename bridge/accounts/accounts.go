@@ -872,7 +872,17 @@ func validReturnURL(raw string) (string, bool) {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", false
 	}
-	host := strings.ToLower(u.Hostname())
+	// One trailing dot is the same name, fully qualified ("pit.otc."):
+	// classify what is left, or "evil.com." passes as an unknown TLD.
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	// net.ParseIP only takes canonical addresses, which a browser reads the
+	// same way: the address checked is the one it connects to.
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsPrivate() || ip.IsLoopback() {
+			return raw, true
+		}
+		return "", false
+	}
 	if host == "otc" || host == "otc.local" || strings.HasSuffix(host, ".local") ||
 		strings.HasSuffix(host, ".home.arpa") || strings.HasSuffix(host, ".internal") {
 		return raw, true
@@ -882,15 +892,41 @@ func validReturnURL(raw string) (string, bool) {
 	// answers for it, so no one else can be behind it - as safe as .local.
 	// A private suffix in the public list (github.io) has a dot, and an
 	// ICANN one is a real TLD: neither counts.
-	if suffix, icann := publicsuffix.PublicSuffix(host); !icann && !strings.Contains(suffix, ".") && net.ParseIP(host) == nil {
-		return raw, true
+	if !plainLocalName(host) {
+		return "", false
 	}
-	ip := net.ParseIP(host)
-	if ip != nil && (ip.IsPrivate() || ip.IsLoopback()) {
+	if suffix, icann := publicsuffix.PublicSuffix(host); !icann && !strings.Contains(suffix, ".") {
 		return raw, true
 	}
 
 	return "", false
+}
+
+// plainLocalName is whether host is a plain ASCII name a browser takes as
+// it is. Anything else may become a public host in the browser: Unicode
+// that IDNA maps to one ("evil。com" is evil.com), or a number it reads as
+// an IPv4 address ("1572395042", "0x7f.1", "010.0.0.5").
+func plainLocalName(host string) bool {
+	if host == "" || len(host) > 253 {
+		return false
+	}
+	labels := strings.Split(host, ".")
+	for _, l := range labels {
+		if l == "" {
+			return false
+		}
+		for i := 0; i < len(l); i++ {
+			c := l[i]
+			if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+				return false
+			}
+		}
+	}
+	last := labels[len(labels)-1]
+	if strings.HasPrefix(last, "0x") || strings.Trim(last, "0123456789") == "" {
+		return false
+	}
+	return true
 }
 
 // ReturnAllowed answers whether a provider sign-in may come back to the
