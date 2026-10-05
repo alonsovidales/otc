@@ -17,7 +17,7 @@ func TestGetEventsServesTargetedEventsToTheirTargetOnly(t *testing.T) {
 	}
 	defer db.Close()
 	since := time.Unix(0, 0)
-	mock.ExpectQuery("from `events` where `dt` > \\? and `dt` < now\\(\\) - interval 1 second and \\(`target` is null or `target` = \\?\\) order by `dt` asc, `uuid` asc limit \\?").
+	mock.ExpectQuery("from `events` where `dt` > \\? and `dt` < now\\(\\) - interval 1 second and \\(`target` is null or `target` = \\?\\) order by `dt` asc limit \\?").
 		WithArgs(since, "x.off-the.cloud", int32(10)).
 		WillReturnRows(sqlmock.NewRows([]string{"uuid", "dt", "type", "content"}))
 	if _, err := NewWithDB(db).GetEvents(since, 10, "x.off-the.cloud"); err != nil {
@@ -42,7 +42,7 @@ func TestGetEventsCompletesThePageLastSecond(t *testing.T) {
 	cols := []string{"uuid", "dt", "type", "content"}
 	mock.ExpectQuery("from `events` where `dt` > \\?").WithArgs(t0.Add(-time.Hour), "x", int32(3)).
 		WillReturnRows(sqlmock.NewRows(cols).AddRow("a", t0, "comment", "{}").AddRow("b", t1, "like_event", "{}").AddRow("c", t1, "like_event", "{}"))
-	mock.ExpectQuery("from `events` where `dt` = \\? and \\(`target` is null or `target` = \\?\\) order by `uuid` asc").WithArgs(t1, "x").
+	mock.ExpectQuery("from `events` where `dt` = \\? and \\(`target` is null or `target` = \\?\\)$").WithArgs(t1, "x").
 		WillReturnRows(sqlmock.NewRows(cols).AddRow("b", t1, "like_event", "{}").AddRow("c", t1, "like_event", "{}").AddRow("d", t1, "like_event", "{}"))
 	events, err := NewWithDB(db).GetEvents(t0.Add(-time.Hour), 3, "x")
 	if err != nil {

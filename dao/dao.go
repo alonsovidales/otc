@@ -1000,19 +1000,22 @@ const cMaxEventsPage int32 = 500
 // more, for an insert stamped just before a second ended and committed
 // after it - and a full page gets the rest of its last second's events.
 // Every dt is stamped by this database's now(), in the session's UTC.
+// Events of one second come in the dt index's order, which is the order
+// they were written (the table has no key of its own), so a post comes
+// before a comment on it and a like before its unlike: no tie-break.
 func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (events []*pb.Event, err error) {
 	log.Debug("Get Events")
 	if total > cMaxEventsPage {
 		total = cMaxEventsPage
 	}
-	events, err = dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and `dt` < now() - interval 1 second and (`target` is null or `target` = ?) order by `dt` asc, `uuid` asc limit ?", since, requester, total)
+	events, err = dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` > ? and `dt` < now() - interval 1 second and (`target` is null or `target` = ?) order by `dt` asc limit ?", since, requester, total)
 	if err != nil || total <= 0 || len(events) < int(total) {
 		return events, err
 	}
 
 	// A longer page reads as "more may follow" to the requester (issue
 	// #92's catch-up check), which it may.
-	rest, err := dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` = ? and (`target` is null or `target` = ?) order by `uuid` asc", events[len(events)-1].Dt.AsTime(), requester)
+	rest, err := dao.queryEvents("select `uuid`, `dt`, `type`, `content` from `events` where `dt` = ? and (`target` is null or `target` = ?)", events[len(events)-1].Dt.AsTime(), requester)
 	if err != nil {
 		return nil, err
 	}
