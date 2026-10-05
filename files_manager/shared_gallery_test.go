@@ -274,3 +274,43 @@ func TestSharedGalleryLowRes(t *testing.T) {
 		return nil
 	})
 }
+
+// A file that crashes the copy ends the job with an error the owner's
+// dialog shows, instead of a job that never finishes, and the partial
+// copy doesn't stay on disk without a row to expire it.
+func TestSharedGalleryJobFinishesWhenTheCopyPanics(t *testing.T) {
+	storage, ses := galleryTestEnv(t)
+	f := libraryFile(t, ses, "crash.jpg", "image/jpeg", []byte("not really a jpeg"))
+	galleries := func() int {
+		entries, _ := os.ReadDir(filepath.Join(storage, "shared"))
+		return len(entries)
+	}
+	before := galleries()
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.MatchExpectationsInOrder(false)
+	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
+			AddRow(f.Hash, f.Mime, time.Now(), time.Now(), f.Path, f.Size))
+	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	// No session: reading the library blob panics, as a decoder would.
+	job, err := mg.StartSharedGallery(nil, &pb.SharedGallerySource{Paths: []string{f.Path}}, "", 1, "cala.off-the.cloud", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var state *pb.SharedGalleryJob
+	for i := 0; i < 500; i++ {
+		state, _ = SharedGalleryJobState(job.JobId)
+		if state.Finished {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !state.Finished || state.Error == "" || state.Link != "" {
+		t.Fatalf("job after a panic: %+v", state)
+	}
+	if got := galleries(); got != before {
+		t.Errorf("%d gallery folders after the crash, want %d: the partial copy was left", got, before)
+	}
+}

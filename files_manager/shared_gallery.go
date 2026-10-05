@@ -229,18 +229,26 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 	galleryJobs.Unlock()
 
 	go mg.safely("sharing a gallery of", fmt.Sprintf("%d files", len(files)), func() {
-		link, err := mg.buildSharedGallery(ses, files, description, ttl, domain, lowRes, job)
-		job.update(func(s *pb.SharedGalleryJob) {
-			s.Finished = true
-			if err != nil {
-				s.Error = err.Error()
-			} else {
-				s.Link = link
-			}
-		})
-		job.mu.Lock()
-		job.finished = time.Now()
-		job.mu.Unlock()
+		// Finished in a defer: a file that crashes the copy (a decoder
+		// panic, recovered by safely) left the job running forever, and the
+		// owner's share dialog polling it with no way out. err keeps this
+		// unless the build returns.
+		var link string
+		err := errors.New("the copy stopped: a file crashed the processing")
+		defer func() {
+			job.update(func(s *pb.SharedGalleryJob) {
+				s.Finished = true
+				if err != nil {
+					s.Error = err.Error()
+				} else {
+					s.Link = link
+				}
+			})
+			job.mu.Lock()
+			job.finished = time.Now()
+			job.mu.Unlock()
+		}()
+		link, err = mg.buildSharedGallery(ses, files, description, ttl, domain, lowRes, job)
 	})
 	return job.snapshot(), nil
 }
@@ -275,8 +283,12 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err
 	}
+	// Removed unless the gallery is recorded: on an error, and on a panic
+	// too (err is nil while one unwinds), or the copy stays on disk with
+	// no row that would ever expire it.
+	ok := false
 	defer func() {
-		if err != nil {
+		if !ok {
 			os.RemoveAll(dir)
 		}
 	}()
@@ -364,6 +376,7 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 	if err := mg.dao.InsertSharedGallery(id, stored, len(files), ses.Encrypt([]byte(description)), now.Add(ttl)); err != nil {
 		return "", err
 	}
+	ok = true
 	return "https://" + domain + "/shared#" + id + "." + secret, nil
 }
 
