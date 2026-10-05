@@ -11,6 +11,7 @@
 //  after a drop, and retries a request once if the socket died mid-flight.
 
 import Foundation
+import CryptoKit
 
 @MainActor
 final class OTCConnection: ObservableObject {
@@ -39,6 +40,25 @@ final class OTCConnection: ObservableObject {
     private var connectTask: Task<Void, Error>?
     private var backoffSeconds: TimeInterval = 1
     private let maxBackoffSeconds: TimeInterval = 30
+
+    /// The device turned the password down. Every poller (notifications,
+    /// the feed, Settings' status) and request()'s own retry used to send
+    /// the same rejected password again at once, which tripped the
+    /// device's lockout (5 failures a minute per address - the
+    /// household's public IP through the bridge) for every client behind
+    /// it. Until `notBefore`, an attempt with the same credentials fails
+    /// with the same error without dialling. Memory only; keyed on a hash
+    /// of the credentials, so saving new ones anywhere lifts it at once.
+    private struct AuthRejection {
+        let credKey: String
+        let error: Error
+        let notBefore: Date
+    }
+    private var authRejection: AuthRejection?
+    /// 5 s doubling: at most 4 failures in the first minute, under the
+    /// device's 5-per-minute lockout.
+    private var authBackoff: TimeInterval = 5
+    private let maxAuthBackoff: TimeInterval = 300
 
     private init() {
         let ws = ws
@@ -89,6 +109,9 @@ final class OTCConnection: ObservableObject {
         Task { await ws.close() }
         authenticated = false
         backoffSeconds = 1
+        // An explicit retry or new credentials: try at once.
+        authRejection = nil
+        authBackoff = 5
         // Media URLs are resolved against the endpoint; it may just have
         // changed.
         MediaStream.reset()
@@ -120,6 +143,10 @@ final class OTCConnection: ObservableObject {
             lastError = "The address \"\(secrets.endpoint)\" isn't valid."
             connectionFailed = true
             throw NSError(domain: "OTCConnection", code: 1, userInfo: [NSLocalizedDescriptionKey: lastError ?? "Bad endpoint"])
+        }
+        let credKey = Self.credentialsKey(secrets)
+        if let r = authRejection, r.credKey == credKey, Date() < r.notBefore {
+            throw r.error
         }
 
         do {
@@ -177,12 +204,26 @@ final class OTCConnection: ObservableObject {
             }
             guard case .respAck(let ack) = resp.payload, ack.ok else {
                 let msg: String
+                var rejectedFor: TimeInterval?
                 if case .respAck(let ack) = resp.payload {
                     msg = ack.errorMsg
                     statusCode = ack.code.isEmpty ? nil : ack.code
+                    // The device's own verdict on the password; the
+                    // bridge's (device_unreachable, account_disabled)
+                    // keeps today's retries.
+                    if ack.code.isEmpty {
+                        rejectedFor = authBackoff
+                    } else if ack.code == "too_many_attempts" {
+                        rejectedFor = max(TimeInterval(ack.retryAfterSeconds) + 1, authBackoff)
+                    }
                 } else { msg = "Authentication failed" }
                 lastError = msg
-                throw NSError(domain: "OTCConnection", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
+                let err = NSError(domain: "OTCConnection", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
+                if let rejectedFor {
+                    authRejection = AuthRejection(credKey: credKey, error: err, notBefore: Date() + rejectedFor)
+                    authBackoff = min(authBackoff * 2, maxAuthBackoff)
+                }
+                throw err
             }
         } catch {
             await ws.close()
@@ -199,6 +240,8 @@ final class OTCConnection: ObservableObject {
         statusCode = nil
         connectionFailed = false
         backoffSeconds = 1
+        authRejection = nil
+        authBackoff = 5
         authenticated = true
         registerPushToken()
     }
@@ -216,6 +259,13 @@ final class OTCConnection: ObservableObject {
                 req.payload = .reqRegisterApnsToken(reg)
             }
         }
+    }
+
+    /// What the auth gate compares: a hash, so no second plaintext copy of
+    /// the password is kept around.
+    private static func credentialsKey(_ s: SecretsStore) -> String {
+        let material = s.endpointURLString + "\u{0}" + s.deviceId + "\u{0}" + s.password
+        return SHA256.hash(data: Data(material.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Plain words for the errors URLSession hands back, which are not
