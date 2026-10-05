@@ -1085,6 +1085,14 @@ func (a *Accounts) emailLink(acc *dao.Account, purpose string, ttl time.Duration
 	if a.mailer == nil {
 		return mailer.ErrNotConfigured
 	}
+	return a.sendEmailLink(a.mailer.Send, acc, purpose, ttl, subject, body)
+}
+
+// sendEmailLink is emailLink with the sending passed in. The new link is
+// stored, sent, and only then replaces the older ones: when the send
+// fails, the link already in the inbox keeps working, and the throttle
+// doesn't answer the next "send it again" with an email that never left.
+func (a *Accounts) sendEmailLink(send func(to, subject, body string) error, acc *dao.Account, purpose string, ttl time.Duration, subject, body func(link string) string) error {
 	if last, err := a.dao.LastEmailTokenSent(acc.ID, purpose); err == nil && time.Since(last) < cEmailEvery {
 		return nil // one is on its way already
 	}
@@ -1093,11 +1101,23 @@ func (a *Accounts) emailLink(acc *dao.Account, purpose string, ttl time.Duration
 		return err
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw)
-	if err := a.dao.SaveEmailToken(hashEmailToken(token), acc.ID, purpose, ttl); err != nil {
+	h := hashEmailToken(token)
+	created, err := a.dao.AddEmailToken(h, acc.ID, purpose, ttl)
+	if err != nil {
 		return err
 	}
 	link := fmt.Sprintf("https://%s/account#%s=%s", a.tld, purpose, token)
-	return a.mailer.Send(acc.Email, subject(link), body(link))
+	if err := send(acc.Email, subject(link), body(link)); err != nil {
+		if derr := a.dao.DropEmailToken(h); derr != nil {
+			log.Error("could not drop an unsent email link for", acc.ID, ":", derr)
+		}
+		return err
+	}
+	// Only logged: the email is out, and the older links expire anyway.
+	if err := a.dao.KeepNewestEmailToken(h, acc.ID, purpose, created); err != nil {
+		log.Error("could not retire the older email links for", acc.ID, ":", err)
+	}
+	return nil
 }
 
 func greeting(acc *dao.Account) string {

@@ -3,6 +3,7 @@
 package accounts
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -338,3 +339,54 @@ func TestLoginLimiterKeepsOnlyRecentFailures(t *testing.T) {
 		t.Errorf("the cap dropped a lockout in force (%d entries left)", len(a.failures))
 	}
 }
+
+// An email link replaces the older ones only once it has been sent: a
+// failed send leaves the link already in the inbox working, and drops its
+// own, so "send it again" right after really sends.
+func TestEmailLinkReplacesOnlyOnceSent(t *testing.T) {
+	acc := &dao.Account{ID: "acc1", Email: "a@b.c"}
+	subject := func(string) string { return "s" }
+	body := func(link string) string { return link }
+	noneSent := func(mock sqlmock.Sqlmock) {
+		mock.ExpectQuery("select max\\(`created`\\) from `account_email_tokens`").WithArgs("acc1", cPurposeVerify).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(nil))
+	}
+	var stored string
+	a, mock := testAccounts(t)
+
+	noneSent(mock)
+	mock.ExpectExec("insert into `account_email_tokens`").WithArgs(hashCapture{&stored}, "acc1", cPurposeVerify, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `account_email_tokens` where `token_hash` = \\?").WithArgs(storedArg{&stored}).WillReturnResult(sqlmock.NewResult(0, 1))
+	fail := func(to, subject, body string) error { return errDBDown }
+	if err := a.sendEmailLink(fail, acc, cPurposeVerify, cVerifyTTL, subject, body); err == nil {
+		t.Fatal("a failed send reported success")
+	}
+
+	noneSent(mock)
+	mock.ExpectExec("insert into `account_email_tokens`").WithArgs(hashCapture{&stored}, "acc1", cPurposeVerify, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `account_email_tokens` where `account_id` = \\? and `purpose` = \\? and `token_hash` <> \\? and `created` < \\?").
+		WithArgs("acc1", cPurposeVerify, storedArg{&stored}, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	var sentLink string
+	ok := func(to, subject, body string) error { sentLink = body; return nil }
+	if err := a.sendEmailLink(ok, acc, cPurposeVerify, cVerifyTTL, subject, body); err != nil {
+		t.Fatal(err)
+	}
+	if _, tok, _ := strings.Cut(sentLink, "#verify="); hashEmailToken(tok) != stored {
+		t.Errorf("the link sent (%q) is not the one stored", sentLink)
+	}
+
+	// One sent a minute ago: nothing new.
+	mock.ExpectQuery("select max\\(`created`\\) from `account_email_tokens`").
+		WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(time.Now().Add(-time.Minute)))
+	if err := a.sendEmailLink(fail, acc, cPurposeVerify, cVerifyTTL, subject, body); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// storedArg matches the value a hashCapture recorded earlier.
+type storedArg struct{ v *string }
+
+func (s storedArg) Match(v driver.Value) bool { return v == *s.v }
