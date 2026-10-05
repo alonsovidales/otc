@@ -271,6 +271,13 @@ final class SyncModel: ObservableObject {
     /// Writes the folder's cache if this pass changed it; the end of
     /// every reconcile pass calls it.
     private func saveHashCache(_ folderId: UUID) {
+        // A pass that outlived its folder doesn't write back the file the
+        // removal deleted.
+        guard folders.contains(where: { $0.id == folderId }) || remoteFolders.contains(where: { $0.id == folderId }) else {
+            localHashCache.removeValue(forKey: folderId)
+            hashCacheDirty.remove(folderId)
+            return
+        }
         guard hashCacheDirty.remove(folderId) != nil, let url = Self.hashCacheURL(folderId),
               let entries = localHashCache[folderId] else { return }
         Task.detached(priority: .utility) {
@@ -309,7 +316,7 @@ final class SyncModel: ObservableObject {
     }
 
     private func saveSynced(_ folderId: UUID, _ synced: [String: String]) {
-        guard let url = Self.syncedURL(folderId) else { return }
+        guard remoteFolders.contains(where: { $0.id == folderId }), let url = Self.syncedURL(folderId) else { return }
         Task.detached(priority: .utility) {
             guard let data = try? JSONEncoder().encode(synced) else { return }
             try? data.write(to: url, options: [.atomic, .completeFileProtection])
@@ -701,7 +708,9 @@ final class SyncModel: ObservableObject {
     }
 
     private func startWatcher(for folder: TrackedFolder) {
-        guard folderWatchers[folder.id] == nil else { return }
+        // Removed while its first pass ran: no watcher that would go on
+        // uploading it for good.
+        guard folderWatchers[folder.id] == nil, folders.contains(where: { $0.id == folder.id }) else { return }
         let watcher = FolderWatcher { [weak self] events in
             guard let self else { return }
             Task { @MainActor in
@@ -768,6 +777,10 @@ final class SyncModel: ObservableObject {
         // FSEvents batch, if this exact path changes again) will catch it
         // up once we're back online.
         guard ws.isConnected() else { return }
+        // As reconcile(): a change of a folder since removed, or one that
+        // was hashing while the app moved to another device, is not sent.
+        let domainAtStart = settings?.domain
+        guard folders.contains(where: { $0.id == folderId }) else { return }
 
         let remotePath = remotePathFor(path)
         let fileURL = URL(fileURLWithPath: path)
@@ -777,6 +790,7 @@ final class SyncModel: ObservableObject {
         if exists, !isDir.boolValue {
             let localHash = try? await cachedHash(for: fileURL, folderId: folderId)
             guard let localHash else { return }
+            guard folders.contains(where: { $0.id == folderId }), settings?.domain == domainAtStart else { return }
             guard remoteHashesByFolder[folderId]?[remotePath] != localHash else { return }
             do {
                 try await upload(fileURL, to: remotePath, knownHash: localHash)
@@ -793,7 +807,8 @@ final class SyncModel: ObservableObject {
     // MARK: - Reconcile (baseline + periodic safety net)
 
     private func reconcile(_ folder: TrackedFolder) async {
-        guard ws.isConnected() else { return }
+        // A loop's or a retry's copy of a folder removed since: nothing to do.
+        guard ws.isConnected(), folders.contains(where: { $0.id == folder.id }) else { return }
         // The device this pass talks to: a pass still running when the
         // folder is removed or the app moves to another device (Disconnect,
         // a new device set up) must stop, not carry on there.
@@ -916,7 +931,17 @@ final class SyncModel: ObservableObject {
                     updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: "\(alreadyThere + k + 1)/\(localFiles.count) · \(item.url.lastPathComponent)"))
 
                     do {
-                        remoteMap[item.remotePath] = try await upload(item.url, to: item.remotePath, knownHash: item.hash, folderId: folder.id)
+                        // A new file is hashed here rather than inside
+                        // upload(), so the check after it covers the time a
+                        // large one takes: a device changed meanwhile must
+                        // not get it.
+                        let hash: String
+                        if let known = item.hash { hash = known } else { hash = try await cachedHash(for: item.url, folderId: folder.id) }
+                        guard folders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else {
+                            syncLog.info("backup \(remotePrefix, privacy: .public): folder removed or device changed - pass stopped")
+                            return
+                        }
+                        remoteMap[item.remotePath] = try await upload(item.url, to: item.remotePath, knownHash: hash, folderId: folder.id)
                     } catch {
                         // Logged and skipped, not fatal to the whole
                         // folder — the next reconcile pass (or another
@@ -1332,7 +1357,16 @@ final class SyncModel: ObservableObject {
                     let remotePath = remotePrefix + action.relative
                     do {
                         switch action.kind {
-                        case .upload: newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
+                        case .upload:
+                            // As reconcile(): a new file is hashed before the
+                            // check, not inside upload().
+                            let hash: String
+                            if let known = action.hash { hash = known } else { hash = try await cachedHash(for: localURL, folderId: folder.id) }
+                            guard remoteFolders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else {
+                                syncLog.info("two-way \(folder.remotePath, privacy: .public): folder removed or device changed - pass stopped")
+                                return
+                            }
+                            newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: hash, folderId: folder.id)
                         case .download:
                             // The plan saw nothing at this name, yet something
                             // is there: a name that differs only by case (APFS
