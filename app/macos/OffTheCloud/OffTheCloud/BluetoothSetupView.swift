@@ -221,11 +221,16 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            if chosen == nil { phase = .scanning }
+            // With a device chosen this is a reconnect, as after a drop.
+            phase = chosen == nil ? .scanning : .lost
             central.scanForPeripherals(withServices: [BLESetupUUID.service], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
-        case .unauthorized: phase = .unauthorized
-        case .poweredOff: phase = .off
-        default: phase = .starting
+        // Bluetooth turned off or reset (after sleep) reports no
+        // disconnect: the old link was kept, so the device was never
+        // found again once it came back, and requests waited out their
+        // 90 seconds. Forgotten here instead.
+        case .unauthorized: forgetLink(); phase = .unauthorized
+        case .poweredOff: forgetLink(); phase = .off
+        default: forgetLink(); phase = .starting
         }
     }
 
@@ -282,11 +287,18 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         dropAndRescan()
     }
 
-    private func dropAndRescan() {
+    /// The link is gone: nothing of it is kept, and what waited on it fails.
+    /// Not cancelPeripheralConnection - with Bluetooth off there is nothing
+    /// to cancel, and asking is an API misuse.
+    private func forgetLink() {
         peripheral = nil
         requestChrc = nil
         responseChrc = nil
         failAll(BLESetupError.notConnected)
+    }
+
+    private func dropAndRescan() {
+        forgetLink()
         phase = .lost
         if central.state == .poweredOn {
             if chosen == nil { phase = .scanning }
