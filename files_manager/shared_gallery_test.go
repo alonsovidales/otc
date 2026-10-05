@@ -3,12 +3,14 @@
 package filesmanager
 
 import (
+	"archive/zip"
 	"bytes"
 	"database/sql/driver"
 	"image"
 	"image/color"
 	_ "image/jpeg"
 	"image/png"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -360,4 +362,64 @@ func TestOpenSharedLinkRangeOnlyExpiresArchives(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
 	}
+}
+
+// A share archive stores photos as they are and deflates the rest, and
+// every file comes out of it byte for byte.
+func TestGetSharedLinkStoresMediaAndDeflatesTheRest(t *testing.T) {
+	storage, ses := galleryTestEnv(t)
+	photo := bytes.Repeat([]byte("JPEG"), 5000)
+	notes := bytes.Repeat([]byte("some notes "), 5000)
+	files := []*pb.File{
+		libraryFile(t, ses, "a.jpg", "image/jpeg", photo),
+		libraryFile(t, ses, "notes.txt", "text/plain; charset=utf-8", notes),
+	}
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	for _, f := range files {
+		mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = \\?").WithArgs(f.Path).
+			WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
+				AddRow(f.Hash, f.Mime, time.Now(), time.Now(), f.Path, f.Size))
+	}
+	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
+	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	link, err := mg.GetSharedLink(ses, []string{files[0].Path, files[1].Path}, "cala.off-the.cloud")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err) // one query per file, not two
+	}
+	id, secret, _ := strings.Cut(strings.TrimPrefix(link, "https://cala.off-the.cloud/"+CDownloadAttr), "_")
+	raw, err := blobstore.ReadAll(filepath.Join(storage, id), linkKeys{getCipher(secret)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		method  uint16
+		content []byte
+	}{"a.jpg": {zip.Store, photo}, "notes.txt": {zip.Deflate, notes}}
+	for _, zf := range zr.File {
+		w, ok := want[zf.Name]
+		if !ok {
+			t.Fatalf("unexpected entry %q", zf.Name)
+		}
+		if zf.Method != w.method {
+			t.Errorf("%s: method %d, want %d", zf.Name, zf.Method, w.method)
+		}
+		rc, err := zf.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil || !bytes.Equal(got, w.content) {
+			t.Errorf("%s: content changed (%v)", zf.Name, err)
+		}
+	}
+	os.Remove(filepath.Join(storage, id))
 }

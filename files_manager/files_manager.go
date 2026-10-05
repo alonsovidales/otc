@@ -557,16 +557,11 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	// prefix stripped below is the directory itself when one folder was
 	// shared, so its contents land at the archive root with their own
 	// subfolders intact).
-	entries, err := mg.resolvePaths(paths)
+	// resolvePaths' rows are already whole (the same columns
+	// GetFileByPath reads): no second query per file.
+	files, err := mg.resolvePaths(paths)
 	if err != nil {
 		return "", err
-	}
-	files := make([]*pb.File, len(entries))
-	for i, entry := range entries {
-		files[i], err = mg.dao.GetFileByPath(entry.Path)
-		if err != nil {
-			return "", err
-		}
 	}
 
 	// Stripping the directory common to every file in this share keeps
@@ -593,7 +588,7 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	}
 	zw := zip.NewWriter(out)
 	for _, file := range files {
-		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zip.Deflate}
+		h := &zip.FileHeader{Name: strings.TrimPrefix(file.Path, prefix), Method: zipMethodFor(file.Mime)}
 		h.SetModTime(file.Modified.AsTime())
 		h.SetMode(0644)
 		wr, err := zw.CreateHeader(h)
@@ -633,6 +628,27 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	}
 
 	return "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret, nil
+}
+
+// zipMethodFor is how a file goes into a share archive: stored as it is
+// when its format is already compressed (photos, videos, most audio,
+// archives) - deflating those took most of the time a share of photos or
+// videos took on a Pi, for about 1% - deflated otherwise, and whenever the
+// type is unknown.
+func zipMethodFor(mime string) uint16 {
+	m := strings.ToLower(strings.TrimSpace(strings.SplitN(mime, ";", 2)[0]))
+	switch {
+	case strings.HasPrefix(m, "video/"):
+		return zip.Store
+	case strings.HasPrefix(m, "audio/") && m != "audio/wav" && m != "audio/x-wav" && m != "audio/vnd.wave" && m != "audio/aiff" && m != "audio/x-aiff":
+		return zip.Store
+	}
+	switch m {
+	case "image/jpeg", "image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence", "image/png", "image/gif", "image/webp", "image/avif", "image/jxl",
+		"application/zip", "application/gzip", "application/x-gzip", "application/x-7z-compressed", "application/x-rar-compressed", "application/vnd.rar", "application/x-xz", "application/x-bzip2", "application/zstd":
+		return zip.Store
+	}
+	return zip.Deflate
 }
 
 // linkKeys opens a share link's archive with the key from its secret.
