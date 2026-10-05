@@ -212,10 +212,13 @@ export default function FilesExplorer({
       const f = files[i];
       setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "sending" } : u)));
       try {
-        const resp = await uploadFile(joinPath(path, f.name), f, false);
-        if (resp.error || resp.payload?.$case !== "respFile") {
-          throw new Error(resp.errorMessage || "the device did not store the file");
-        }
+        // As with the whole-file ReqUploadFile this replaced, any reply
+        // counts as "done", even an error one (such as "Duplicated file"
+        // for a name already in a normal folder); only an upload that
+        // throws (the socket closed, or the device stopped taking pieces)
+        // shows "failed". Reporting error replies as failed is a separate,
+        // visible change left for its own release.
+        await uploadFile(joinPath(path, f.name), f, false);
 
         setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "done" } : u)));
       } catch (err) {
