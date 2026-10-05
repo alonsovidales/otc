@@ -4,6 +4,7 @@ package dao
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -872,15 +873,53 @@ func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPubl
 	return
 }
 
-func (dao *Dao) NewLikePublication(uuid, pubUuid string, friendDomain string, dt time.Time) (err error) {
+// NewLikePublication stores friendDomain's like of pubUuid and counts it,
+// once: inserted is false, and nothing changes, when that domain already
+// likes the post or the like is already stored (a replayed event). The
+// guard works on a database that doesn't have like_once yet (release 92).
+func (dao *Dao) NewLikePublication(uuid, pubUuid string, friendDomain string, dt time.Time) (inserted bool, err error) {
 	log.Debug("Creating New LikePublication:", uuid, "PubUUID:", pubUuid, friendDomain)
-	_, err = dao.db.Exec("insert into `social_publication_likes` (`uuid`, `pub_uuid`, `dt`, `friend_domain`) values (?, ?, ?, ?)", uuid, pubUuid, dt, friendDomain)
+	return dao.insertLikeOnce(
+		"insert into `social_publication_likes` (`uuid`, `pub_uuid`, `dt`, `friend_domain`) select ?, ?, ?, ? from dual "+
+			"where not exists (select 1 from `social_publication_likes` where `pub_uuid` = ? and `friend_domain` = ?)",
+		"update `social_publications` set `likes` = `likes` + 1 where `uuid` = ?",
+		uuid, pubUuid, dt, friendDomain)
+}
+
+// insertLikeOnce runs a like's guarded insert and, only when it added a
+// row, its counter update, in one transaction (see NewLikePublication).
+func (dao *Dao) insertLikeOnce(insert, count, uuid, target string, dt time.Time, friendDomain string) (inserted bool, err error) {
+	tx, err := dao.db.Begin()
 	if err != nil {
-		log.Error("Error trying to create a new like publication", err)
-		return
+		return false, err
 	}
-	_, err = dao.db.Exec("update `social_publications` set `likes` = `likes` + 1 where `uuid` = ?", pubUuid)
-	return
+	defer tx.Rollback()
+
+	res, err := tx.Exec(insert, uuid, target, dt, friendDomain, target, friendDomain)
+	if isDuplicateKey(err) {
+		return false, nil
+	}
+	if err != nil {
+		log.Error("Error trying to create a new like", err)
+		return false, err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return false, nil
+	}
+	if _, err = tx.Exec(count, target); err != nil {
+		return false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// isDuplicateKey is MySQL's 1062: a unique key already holds the value.
+func isDuplicateKey(err error) bool {
+	var me *mysql.MySQLError
+	return errors.As(err, &me) && me.Number == 1062
 }
 
 // HasLikedPublication reports whether likerDomain has already liked pubUuid.
@@ -905,11 +944,14 @@ func (dao *Dao) DeleteLikePublication(pubUuid, likerDomain string) (err error) {
 	if err != nil {
 		return err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	n, _ := res.RowsAffected()
+	if n == 0 {
 		return nil
 	}
 
-	_, err = dao.db.Exec("update `social_publications` set `likes` = `likes` - 1 where `uuid` = ? and `likes` > 0", pubUuid)
+	// By as many as were removed: a domain liking twice (before like_once)
+	// was counted twice.
+	_, err = dao.db.Exec("update `social_publications` set `likes` = greatest(`likes` - ?, 0) where `uuid` = ?", n, pubUuid)
 	return
 }
 
@@ -989,15 +1031,14 @@ func (dao *Dao) queryEvents(query string, args ...any) (events []*pb.Event, err 
 	return events, nil
 }
 
-func (dao *Dao) NewLikePublicationComment(uuid, commentUuid string, friendDomain string, dt time.Time) (err error) {
+// NewLikePublicationComment is NewLikePublication for a comment.
+func (dao *Dao) NewLikePublicationComment(uuid, commentUuid string, friendDomain string, dt time.Time) (inserted bool, err error) {
 	log.Debug("Creating New PublicationComment Like", uuid, commentUuid, friendDomain)
-	_, err = dao.db.Exec("insert into `social_publication_comment_likes` (`uuid`, `comment_uuid`, `dt`, `friend_domain`) values (?, ?, ?, ?)", uuid, commentUuid, dt, friendDomain)
-	if err != nil {
-		log.Error("Error trying to create a new like publication", err)
-		return
-	}
-	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = `likes` + 1 where `uuid` = ?", commentUuid)
-	return
+	return dao.insertLikeOnce(
+		"insert into `social_publication_comment_likes` (`uuid`, `comment_uuid`, `dt`, `friend_domain`) select ?, ?, ?, ? from dual "+
+			"where not exists (select 1 from `social_publication_comment_likes` where `comment_uuid` = ? and `friend_domain` = ?)",
+		"update `social_publications_comments` set `likes` = `likes` + 1 where `uuid` = ?",
+		uuid, commentUuid, dt, friendDomain)
 }
 
 // HasLikedComment reports whether likerDomain has already liked commentUuid.
@@ -1022,11 +1063,12 @@ func (dao *Dao) DeleteLikePublicationComment(commentUuid, likerDomain string) (e
 	if err != nil {
 		return err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	n, _ := res.RowsAffected()
+	if n == 0 {
 		return nil
 	}
 
-	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = `likes` - 1 where `uuid` = ? and `likes` > 0", commentUuid)
+	_, err = dao.db.Exec("update `social_publications_comments` set `likes` = greatest(`likes` - ?, 0) where `uuid` = ?", n, commentUuid)
 	return
 }
 

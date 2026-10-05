@@ -1141,18 +1141,10 @@ event_loop:
 			}
 
 		case LikeEvent:
-			var like LikePublication
-			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && !catchingUp {
-				fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
-			}
+			fr.applyLike(event, catchingUp)
 
 		case LikeCommentEvent:
-			var like LikePublicationComment
-			json.Unmarshal([]byte(event.Content), &like)
-			if err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && !catchingUp {
-				fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
-			}
+			fr.applyCommentLike(event, catchingUp)
 
 		case CommentEvent:
 			var comment Comment
@@ -1217,6 +1209,41 @@ event_loop:
 		fr.sc.EnforceStorageLimit()
 	}
 	return
+}
+
+// applyLike stores a friend's like of a post, or removes it: an unlike is
+// an event of its own (with a new uuid), and used to be stored as one more
+// like - counted, listed and notified again. Only the friend's own like
+// goes, whatever the payload says: the domain is always the device the
+// event came from. Any other action, "" from older releases included, is a
+// like, and only a like not already stored is notified.
+func (fr *friendship) applyLike(event *pb.Event, catchingUp bool) {
+	var like LikePublication
+	json.Unmarshal([]byte(event.Content), &like)
+	if like.Action == ActionDelete {
+		if err := fr.dao.DeleteLikePublication(like.PubUUID, fr.data.OriginProfile.Domain); err != nil {
+			log.Error("error removing a friend's like:", err)
+		}
+		return
+	}
+	if inserted, err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && inserted && !catchingUp {
+		fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
+	}
+}
+
+// applyCommentLike is applyLike for a like of a comment.
+func (fr *friendship) applyCommentLike(event *pb.Event, catchingUp bool) {
+	var like LikePublicationComment
+	json.Unmarshal([]byte(event.Content), &like)
+	if like.Action == ActionDelete {
+		if err := fr.dao.DeleteLikePublicationComment(like.CommentUUID, fr.data.OriginProfile.Domain); err != nil {
+			log.Error("error removing a friend's comment like:", err)
+		}
+		return
+	}
+	if inserted, err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && inserted && !catchingUp {
+		fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
+	}
 }
 
 func (sc *Social) GetRemoteProfile(domain string, conn *wsframe.Client) (name, text string, image []byte, err error) {
@@ -1566,7 +1593,8 @@ func (sc *Social) NewLikePublicationComment(pr *profile.Profile, commentUuid str
 	if alreadyLiked {
 		return false, sc.dao.DeleteLikePublicationComment(commentUuid, pr.Domain())
 	}
-	return true, sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain(), time.Now())
+	_, err = sc.dao.NewLikePublicationComment(likeUuid, commentUuid, pr.Domain(), time.Now())
+	return true, err
 }
 
 // NewLikePublication toggles pr's like of pubUuid: if pr hasn't liked it
@@ -1604,7 +1632,8 @@ func (sc *Social) NewLikePublication(pr *profile.Profile, pubUuid string) (liked
 	if alreadyLiked {
 		return false, sc.dao.DeleteLikePublication(pubUuid, pr.Domain())
 	}
-	return true, sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain(), time.Now())
+	_, err = sc.dao.NewLikePublication(likeUuid, pubUuid, pr.Domain(), time.Now())
+	return true, err
 }
 
 // resolveLikerProfiles turns a list of liker domains (self or friends) into

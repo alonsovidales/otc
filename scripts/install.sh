@@ -695,6 +695,21 @@ apply_schema_migrations() {
       PRIMARY KEY (`token`)
     ) ENGINE=InnoDB;
 SQL
+    # Release 92: one like per domain on a post or comment. Duplicates (the
+    # earliest is kept) go first, and the counters are recounted from the
+    # rows. Idempotent, like everything here.
+    mysql "$db" <<'SQL'
+    DELETE l1 FROM social_publication_likes l1 JOIN social_publication_likes l2
+      ON l1.pub_uuid = l2.pub_uuid AND l1.friend_domain = l2.friend_domain
+      AND (l1.dt > l2.dt OR (l1.dt = l2.dt AND l1.uuid > l2.uuid));
+    ALTER TABLE social_publication_likes ADD UNIQUE INDEX IF NOT EXISTS like_once (pub_uuid, friend_domain);
+    UPDATE social_publications p SET likes = (SELECT COUNT(*) FROM social_publication_likes l WHERE l.pub_uuid = p.uuid);
+    DELETE l1 FROM social_publication_comment_likes l1 JOIN social_publication_comment_likes l2
+      ON l1.comment_uuid = l2.comment_uuid AND l1.friend_domain = l2.friend_domain
+      AND (l1.dt > l2.dt OR (l1.dt = l2.dt AND l1.uuid > l2.uuid));
+    ALTER TABLE social_publication_comment_likes ADD UNIQUE INDEX IF NOT EXISTS comment_like_once (comment_uuid, friend_domain);
+    UPDATE social_publications_comments c SET likes = (SELECT COUNT(*) FROM social_publication_comment_likes l WHERE l.comment_uuid = c.uuid);
+SQL
     # Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
     # the face recognition block above.
     mysql "$db" <<'SQL'
