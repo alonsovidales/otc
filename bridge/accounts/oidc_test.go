@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -81,6 +82,8 @@ func expectStateConsumed(mock sqlmock.Sqlmock, state, returnURL string) {
 	mock.ExpectCommit()
 }
 
+var errDBDown = errors.New("db down")
+
 var accountCols = []string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}
 
 // Someone signed up with the victim's email and kept the session; the
@@ -109,6 +112,28 @@ func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	}
 	if !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=acc1|1|") {
 		t.Errorf("the provider user's cookie is not on the new epoch: %q", w.Header().Get("Set-Cookie"))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// When the old password can't be cleared, the account is not linked: the
+// password would go on working on it.
+func TestProviderLinkStopsWhenThePasswordStays(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	state := strings.Repeat("cd", 24)
+	expectStateConsumed(mock, state, "")
+	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
+	mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$squatter", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now()))
+	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnError(errDBDown)
+
+	w := httptest.NewRecorder()
+	a.OAuthCallback(w, callbackRequest(state, "code"))
+	if w.Code != http.StatusInternalServerError || w.Header().Get("Set-Cookie") != "" {
+		t.Fatalf("a link that kept the password: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

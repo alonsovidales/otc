@@ -828,8 +828,10 @@ func (dao *Dao) UpdateAccountProfile(id, name, surname, country string) error {
 	return err
 }
 
+// SetAccountPassword sets the password hash; an empty one clears it, as
+// NULL like CreateAccount writes (the admin list reads NULL as none).
 func (dao *Dao) SetAccountPassword(id, passwordHash string) error {
-	_, err := dao.db.Exec("update `accounts` set `password_hash` = ? where `id` = ?", passwordHash, id)
+	_, err := dao.db.Exec("update `accounts` set `password_hash` = ? where `id` = ?", sql.NullString{String: passwordHash, Valid: passwordHash != ""}, id)
 
 	return err
 }
@@ -1228,7 +1230,8 @@ func (dao *Dao) ListAdminAccounts(id, q string, limit, offset int) (accounts []A
 		return nil, 0, err
 	}
 
-	query := "select a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash` is not null, " +
+	// '' too: a provider link used to clear a password to the empty string.
+	query := "select a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, coalesce(a.`password_hash`, '') <> '', " +
 		"a.`created`, a.`last_seen`, a.`free_until`, count(distinct d.`domain`), coalesce(group_concat(distinct l.`provider` order by l.`provider`), '') " +
 		"from `accounts` a left join `devices` d on d.`account_id` = a.`id` left join `account_logins` l on l.`account_id` = a.`id`" +
 		where +

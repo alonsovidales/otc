@@ -227,8 +227,13 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			// it may not be the person now proving they own the address.
 			// The provider sign-in wins - the password is cleared (a new
 			// one can be set from the account page).
+			// Not linked unless cleared: the old password would go on
+			// working on the linked account. Nothing is changed yet, so
+			// the user can simply try again.
 			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
 				log.Error("could not clear the password of an account being linked:", err)
+				http.Error(w, "could not sign in right now", http.StatusInternalServerError)
+				return
 			}
 			acc.PasswordHash = ""
 		}
