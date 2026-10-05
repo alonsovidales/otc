@@ -14,6 +14,25 @@ import UniformTypeIdentifiers
 import QuickLook
 
 private func isDirFile(_ f: Msg_File) -> Bool { f.mime == "inode/directory" }
+
+/// A grid tile's image with the device's thumbnail bytes it was decoded
+/// from, kept together: the viewer's placeholder and its Save/Share
+/// fallback use the bytes, at the device's full 1000 px, whenever the
+/// tile is there.
+final class FileThumb {
+    let image: UIImage
+    let data: Data
+
+    init(image: UIImage, data: Data) {
+        self.image = image
+        self.data = data
+    }
+
+    /// The decoded bitmap and the bytes, for the cache's budget.
+    var cost: Int {
+        Int(image.size.width * image.scale * image.size.height * image.scale) * 4 + data.count
+    }
+}
 private func isImgFile(_ f: Msg_File) -> Bool { f.mime.hasPrefix("image/") }
 private func isVideoFile(_ f: Msg_File) -> Bool { f.mime.hasPrefix("video/") }
 /// The grid asks the device for a thumbnail only for these - photos and
@@ -99,16 +118,18 @@ final class FilesExplorerViewModel: ObservableObject {
     // device's 1000 px, so a few hundred tiles of a big photo folder got
     // the app killed. Not @Published: a tile leaving needs no redraw, and
     // additions send the change themselves.
-    private(set) var thumbs: [String: UIImage] = [:]
+    private(set) var thumbs: [String: FileThumb] = [:]
     private var visibleThumbs: Set<String> = []
-    private let thumbCache: NSCache<NSString, UIImage> = {
-        let cache = NSCache<NSString, UIImage>()
+    private let thumbCache: NSCache<NSString, FileThumb> = {
+        let cache = NSCache<NSString, FileThumb>()
         cache.totalCostLimit = 96 << 20
         return cache
     }()
     // The device's own thumbnail bytes, for the viewer: its placeholder
     // and its save/share fallback stay at the full 1000 px (the Images
     // section feeds it the same way), while tiles are decoded smaller.
+    // Each tile keeps its own (FileThumb); this keeps them a while
+    // longer, for photos whose tile was given back.
     private let thumbBytes: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()
         cache.totalCostLimit = 32 << 20
@@ -195,13 +216,9 @@ final class FilesExplorerViewModel: ObservableObject {
         guard isMedia(row) else { return }
         let key = thumbKey(for: row)
         visibleThumbs.remove(key)
-        if let img = thumbs.removeValue(forKey: key) {
-            thumbCache.setObject(img, forKey: key as NSString, cost: Self.cost(of: img))
+        if let thumb = thumbs.removeValue(forKey: key) {
+            thumbCache.setObject(thumb, forKey: key as NSString, cost: thumb.cost)
         }
-    }
-
-    private static func cost(of image: UIImage) -> Int {
-        Int(image.size.width * image.scale * image.size.height * image.scale) * 4
     }
 
     /// A tile is at most ~200 pt and scaledToFill only needs the short
@@ -242,18 +259,19 @@ final class FilesExplorerViewModel: ObservableObject {
             let decoded = await Task.detached(priority: .userInitiated) {
                 wanted.map { ($0.key, $0.data, $0.data.flatMap(Self.decodeTile)) }
             }.value
-            var fresh: [String: UIImage] = [:]
+            var fresh: [String: FileThumb] = [:]
             for (key, data, img) in decoded {
                 guard let data, let img else {
                     noThumb.insert(key)
                     continue
                 }
                 thumbBytes.setObject(data as NSData, forKey: key as NSString, cost: data.count)
+                let thumb = FileThumb(image: img, data: data)
                 // A cell that scrolled away meanwhile: straight to the cache.
                 if visibleThumbs.contains(key) {
-                    fresh[key] = img
+                    fresh[key] = thumb
                 } else {
-                    thumbCache.setObject(img, forKey: key as NSString, cost: Self.cost(of: img))
+                    thumbCache.setObject(thumb, forKey: key as NSString, cost: thumb.cost)
                 }
             }
             // One change for the batch, not one redraw per tile.
@@ -276,20 +294,21 @@ final class FilesExplorerViewModel: ObservableObject {
     /// The folder's photos and videos as the viewer's items, in the order
     /// the list and grid show them, each with the grid's thumbnail if it
     /// has one (the viewer fetches the full-size image either way): the
-    /// device's bytes while cached, else the smaller tile image.
+    /// device's bytes, which every tile keeps with it.
     func viewerItems() -> [PhotoGalleryVM.Item] {
         rows.filter(isMedia).map { row in
             let full = fullPath(for: row)
             let key = thumbKey(for: row) as NSString
+            let thumb = thumbs[key as String] ?? thumbCache.object(forKey: key)
             return PhotoGalleryVM.Item(
                 id: "\(full)#\(row.raw.hash)#\(row.size)",
                 path: full,
                 mime: row.raw.mime,
                 size: Int(row.size),
-                thumbData: thumbBytes.object(forKey: key) as Data?,
+                thumbData: thumb?.data ?? thumbBytes.object(forKey: key) as Data?,
                 localURL: nil,
                 isLocalOnly: false,
-                thumbImage: thumbs[key as String] ?? thumbCache.object(forKey: key)
+                thumbImage: thumb?.image
             )
         }
     }
@@ -860,7 +879,7 @@ struct FilesExplorerView: View {
     /// video's thumbnail, or a FileTypeIcon, with the list row's selection
     /// circle, lock and versions count as small badges on its corners.
     private func tile(_ row: FileRow) -> some View {
-        let thumb = vm.isMedia(row) ? vm.thumbs[vm.thumbKey(for: row)] : nil
+        let thumb = vm.isMedia(row) ? vm.thumbs[vm.thumbKey(for: row)]?.image : nil
         return RoundedRectangle(cornerRadius: 10)
             .fill(Color(.secondarySystemBackground))
             .aspectRatio(1, contentMode: .fit)
