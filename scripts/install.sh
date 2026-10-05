@@ -1027,3 +1027,8 @@ fi
 
 touch /etc/otc/.install-complete
 echo "[otc-install] Done. Marker at /etc/otc/.install-complete (remove it if you want the next run to treat this as a fresh install)."
+
+# The verified release verified-install.sh staged (archive, tree and web
+# bundle): nothing reads it once installed, and a re-run downloads afresh.
+# Only that exact path, never whatever the variable might hold.
+case "${OTC_VERIFIED_SRC:-}" in /opt/otc-verified/src) rm -rf /opt/otc-verified ;; esac

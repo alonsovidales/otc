@@ -75,8 +75,21 @@ echo "=== update run $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
 status running "Checking for updates"
 
+# The verified release this run came from, staged by the runner in /run
+# (tmpfs, so RAM) or by the bootstrap below in /root: nothing reads it once
+# the run is over, and nothing else ever removed it. Only those two shapes
+# are removed, never whatever the variable might hold.
+cleanup_stage() {
+    case "${OTC_VERIFIED_SRC:-}" in
+        /run/otc-update/src) rm -rf /run/otc-update ;;
+        /root/otc-update.*/src) rm -rf "${OTC_VERIFIED_SRC%/src}" ;;
+    esac
+}
+
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+# ${stage:+...}: the bootstrap's own failures before it hands over (its
+# exec drops this trap; the update.sh it hands over to cleans up instead).
+trap 'rm -rf "$tmp" ${stage:+"$stage"}; cleanup_stage' EXIT
 
 # Issue #160: this runs only from a verified release. otc-update-runner
 # checks the manifest's signature and the release's source archive and

@@ -79,6 +79,9 @@ KEY=/etc/otc/release-signing.pub
 
 status running "Checking the release signature"
 rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR" && chmod 700 "$RUN_DIR"
+# /run is tmpfs (RAM): nothing staged here outlives the run. exec drops
+# this trap, and update.sh then cleans up after itself (cleanup_stage).
+trap 'rm -rf "$RUN_DIR"' EXIT
 # Connect and stall timeouts: a transfer that stopped mid-way otherwise
 # hangs the unit for good. Under 1 byte/s for two minutes has truly
 # stopped (exit 28, retried); a slow but live link is never cut off.
@@ -109,6 +112,9 @@ actual="$(sha256sum "$RUN_DIR/src.tar.gz" | awk '{print $1}')"
 [ "$actual" = "$src_sha" ] || { status failed "the source of release $target does not match its signed hash"; exit 1; }
 mkdir -p "$RUN_DIR/src" && tar -xzf "$RUN_DIR/src.tar.gz" -C "$RUN_DIR/src" --strip-components=1 \
     || { status failed "could not unpack release $target"; exit 1; }
+# Checked and unpacked: nothing reads it again, and it holds RAM through
+# the build.
+rm -f "$RUN_DIR/src.tar.gz"
 
 export OTC_VERIFIED_MANIFEST="$RUN_DIR/VERSIONS" OTC_VERIFIED_SRC="$RUN_DIR/src"
 exec /bin/bash "$RUN_DIR/src/scripts/update.sh"
