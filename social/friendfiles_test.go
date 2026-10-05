@@ -107,3 +107,24 @@ func TestRemoveUnusedMediaSkipsAHashThatIsAPath(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// A post's file appears under its name only once whole, private, and
+// replaces an older copy in one step.
+func TestWriteFileAtomic(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, validHash)
+	for _, content := range []string{"first", "second"} {
+		if err := writeFileAtomic(path, []byte(content)); err != nil {
+			t.Fatal(err)
+		}
+		if b, _ := os.ReadFile(path); string(b) != content {
+			t.Fatalf("got %q, want %q", b, content)
+		}
+	}
+	if info, _ := os.Stat(path); info.Mode().Perm() != 0o600 {
+		t.Errorf("mode %v, want 0600", info.Mode().Perm())
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Errorf("temporary files left behind: %v", entries)
+	}
+}

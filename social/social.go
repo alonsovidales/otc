@@ -253,6 +253,33 @@ func Init(dao *dao.Dao, filesmanager *filesmanager.Manager, settings *settings.S
 	}
 }
 
+// writeFileAtomic writes a post's media or thumbnail under its final name
+// only once it is whole and on disk. Written in place, a full disk, a
+// power cut or a kill mid-write left a truncated file that was then served
+// as the post's (and, from a friend's sync, never fetched again), and a
+// reader of the same hash could see it half-written. A reader with the old
+// file open keeps it whole.
+func writeFileAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".pub-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // a no-op once renamed
+	if _, err = tmp.Write(data); err == nil {
+		err = tmp.Sync()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o600) // perms: rw------- (issue #157)
+	}
+	if err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
+}
+
 // shouldCompressForSocial reports whether a file attached to a new post
 // should be compressed down before publishing (issue #60) - scoped to
 // exactly what the issue asked for: a video over cSocialVideoSizeLimit.
@@ -334,7 +361,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			}
 		}
 		unencPathThumb := fmt.Sprintf("%s/%s_thumbnail", unencDir, file.Hash)
-		err = os.WriteFile(unencPathThumb, unEncThumb, 0o600) // perms: rw------- (issue #157)
+		err = writeFileAtomic(unencPathThumb, unEncThumb)
 		if err != nil {
 			return "", err
 		}
@@ -379,7 +406,7 @@ func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoT
 		log.Error("Error loading file:", err)
 		return nil, false, fmt.Errorf("error loading file %q: %w", path, err)
 	}
-	if err := os.WriteFile(filepath.Join(unencDir, file.Hash), file.Content, 0o600); err != nil { // perms: rw------- (issue #157)
+	if err := writeFileAtomic(filepath.Join(unencDir, file.Hash), file.Content); err != nil {
 		return nil, false, err
 	}
 	file.Content = nil
@@ -992,7 +1019,7 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 	// of someone else's photo doesn't replace what everyone is shown.
 	if _, statErr := os.Stat(unencPathThumb); statErr != nil || !fr.socialHashInUse(file.Hash) {
 		log.Debug("Storing file thumbnail in path:", unencPathThumb)
-		if err := os.WriteFile(unencPathThumb, file.Content, 0o600); err != nil { // perms: rw------- (issue #157)
+		if err := writeFileAtomic(unencPathThumb, file.Content); err != nil {
 			return false, err
 		}
 	}
@@ -1012,7 +1039,7 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 			fr.data.OriginProfile.Domain, ":", mediaErr)
 		return true, nil
 	}
-	if err := os.WriteFile(unencPath, media, 0o600); err != nil { // perms: rw------- (issue #157)
+	if err := writeFileAtomic(unencPath, media); err != nil {
 		log.Error("error storing friend publication media:", err)
 	}
 	return true, nil
