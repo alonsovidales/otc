@@ -187,6 +187,7 @@ func (dao *Dao) ListWebPushSubscriptions() (subs []*push.WebPushSubscription, er
 		}
 		subs = append(subs, sub)
 	}
+	err = rows.Err()
 	return
 }
 
@@ -218,6 +219,7 @@ func (dao *Dao) ListApnsTokens() (tokens []string, err error) {
 		}
 		tokens = append(tokens, token)
 	}
+	err = rows.Err()
 	return
 }
 
@@ -252,6 +254,7 @@ func (dao *Dao) ListFcmTokens() (tokens []string, err error) {
 		}
 		tokens = append(tokens, token)
 	}
+	err = rows.Err()
 	return
 }
 
@@ -385,6 +388,9 @@ func (dao *Dao) GetTags() (tags []string, err error) {
 			return nil, err
 		}
 		tags = append(tags, tag)
+	}
+	if err := rowsTags.Err(); err != nil {
+		return nil, err
 	}
 
 	return
@@ -606,6 +612,11 @@ func (dao *Dao) DelFileVersions(path string) (hashes []string, err error) {
 		hashes = append(hashes, h)
 	}
 	rows.Close()
+	// A list cut short must not delete every version row while handing
+	// back only some of the hashes: their blobs would never be removed.
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	if len(hashes) == 0 {
 		return nil, nil
 	}
@@ -674,6 +685,9 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 				continue
 			}
 			files = append(files, file)
+		}
+		if err := rowsDirs.Err(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -917,6 +931,9 @@ func (dao *Dao) GetEvents(since time.Time, total int32, requester string) (event
 		event.Dt = timestamppb.New(dt)
 		events = append(events, event)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return
 }
@@ -980,6 +997,9 @@ func (dao *Dao) GetPublicationLikerDomains(pubUuid string) (domains []string, er
 		}
 		domains = append(domains, domain)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return
 }
 
@@ -999,6 +1019,9 @@ func (dao *Dao) GetCommentLikerDomains(commentUuid string) (domains []string, er
 			return nil, err
 		}
 		domains = append(domains, domain)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return
 }
@@ -1026,8 +1049,11 @@ func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comm
 		}
 		comments = append(comments, comment)
 	}
+	if err := rowComms.Err(); err != nil {
+		return nil, err
+	}
 
-	return
+	return comments, nil
 }
 
 // PublicationFileMime looks up one file of a publication by hash,
@@ -1067,6 +1093,9 @@ func (dao *Dao) GetSocialPublicationFiles(uuid string) (files []*pb.File, err er
 		spFile.Created = timestamppb.New(created)
 		spFile.Modified = timestamppb.New(modified)
 		files = append(files, spFile)
+	}
+	if err := rowFiles.Err(); err != nil {
+		return nil, err
 	}
 
 	return
@@ -1188,6 +1217,9 @@ func (dao *Dao) GetSocialPublications(since time.Time, total int32, ownOnly bool
 		page = append(page, r)
 	}
 	rowPubs.Close()
+	if err := rowPubs.Err(); err != nil {
+		return nil, err
+	}
 
 	// Issue #173: everything below used to be three queries per post (the
 	// friend's profile - image bytes and all - its files and its liked
@@ -1443,6 +1475,9 @@ func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 		friendship.Status = dao.statusToPb(status)
 
 		friendships = append(friendships, friendship)
+	}
+	if err := rowFriendships.Err(); err != nil {
+		return nil, err
 	}
 
 	return
