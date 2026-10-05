@@ -182,6 +182,42 @@ func TestTwoWayUnreadableDirectoryDeletesNothing(t *testing.T) {
 	}
 }
 
+// A directory that can't be read with nothing synced under it (lost+found
+// at a mount's root) is only logged: the folder is not held in an error
+// for good, as on the Mac.
+func TestTwoWayUnreadableEmptyDirectoryIsNoError(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs a directory this user can't read")
+	}
+	withConfigDir(t)
+	local := t.TempDir()
+	if err := os.WriteFile(filepath.Join(local, "c.txt"), []byte("c"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	locked := filepath.Join(local, "lost+found")
+	if err := os.Mkdir(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	d := twoWayDevice(map[string][]byte{"/r/c.txt": []byte("c")})
+	conn := connectedEngine(t, d)
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/r", LocalPath: local}
+	e := New(&config.Config{RemoteFolders: []config.RemoteFolder{f}}, "", nil)
+	e.ws = conn.ws
+
+	e.reconcileRemoteFolder(f)
+
+	e.mu.Lock()
+	st := e.remoteStates[f.ID]
+	e.mu.Unlock()
+	if st.Kind != StateWatching {
+		t.Errorf("state %+v, want watching", st)
+	}
+	if len(d.deletes) != 0 {
+		t.Errorf("deleted from the device: %v", d.deletes)
+	}
+}
+
 // A file edited here while the device's newer version was downloading is
 // not overwritten: the pass leaves it, and the next one sees both sides
 // changed and keeps both.

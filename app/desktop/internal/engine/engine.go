@@ -1251,7 +1251,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	// Under a directory that could not be read (permissions, a dead
 	// network mount) files look deleted here; they are left out like an
-	// unreadable file, or their device copies would be deleted.
+	// unreadable file, or their device copies would be deleted - and are
+	// counted in the folder's "could not be read" like one.
 	for rel := range all {
 		for _, d := range failedDirs {
 			if rel == d || strings.HasPrefix(rel, d+"/") {
@@ -1586,12 +1587,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
 	e.saveSynced(f.ID, newSynced)
-	if len(unreadable) > 0 || len(failedDirs) > 0 {
-		msg := fmt.Sprintf("%d file(s) could not be read", len(unreadable))
-		if len(unreadable) == 0 {
-			msg = fmt.Sprintf("%d folder(s) could not be read", len(failedDirs))
-		}
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: msg})
+	// Files under a directory that could not be read are in unreadable
+	// (see above) and counted here. Such a directory with nothing synced
+	// under it - lost+found at a mount's root, System Volume Information
+	// at a drive's - is only logged (enumerateFiles), as on the Mac: it
+	// would otherwise hold the folder in an error for good.
+	if len(unreadable) > 0 {
+		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d file(s) could not be read", len(unreadable))})
 
 		return
 	}
