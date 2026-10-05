@@ -253,6 +253,10 @@ func (mg *Manager) initRest() *Manager {
 		log.Error("error clearing a stale reprocess status at startup:", err)
 	}
 
+	// Before anything of this process writes to storage: bin/otc.go starts
+	// the websocket and the API only after Init returns.
+	mg.sweepOrphanedStorage()
+
 	return mg
 }
 
@@ -622,10 +626,13 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 		size = int(info.Size())
 	}
 
-	link = "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret
-	err = mg.dao.InsertSharedLink(pathUuid, size)
+	if err = mg.dao.InsertSharedLink(pathUuid, size); err != nil {
+		// Without its row the archive can never be opened nor expired.
+		os.Remove(targetPath)
+		return "", err
+	}
 
-	return
+	return "https://" + domain + "/" + CDownloadAttr + pathUuid + "_" + secret, nil
 }
 
 // linkKeys opens a share link's archive with the key from its secret.
