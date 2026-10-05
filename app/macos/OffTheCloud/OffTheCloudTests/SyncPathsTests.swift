@@ -21,6 +21,10 @@ struct SyncPathsTests {
         #expect(SyncPaths.safeRelative(prefix + "a/", under: prefix) == nil)
         #expect(SyncPaths.safeRelative(prefix + "/etc/x", under: prefix) == nil)
         #expect(SyncPaths.safeRelative(prefix + "a\0b", under: prefix) == nil)
+        // A combining mark after "/" makes it one Character with the
+        // slash, but the file system still splits there and sees "..".
+        #expect(SyncPaths.safeRelative(prefix + "../\u{301}etc/x", under: prefix) == nil)
+        #expect(SyncPaths.safeRelative(prefix + "a/..\u{301}/b", under: prefix) == "a/..\u{301}/b")
         #expect(SyncPaths.safeRelative(prefix, under: prefix) == nil)
         // Not under the prefix at all: never taken as a relative path.
         #expect(SyncPaths.safeRelative("/mac/Studio/Users/me/Other/a.jpg", under: prefix) == nil)
@@ -32,6 +36,10 @@ struct SyncPathsTests {
         #expect(!SyncPaths.isSafeRelative("../x"))
         #expect(!SyncPaths.isSafeRelative("a/.."))
         #expect(!SyncPaths.isSafeRelative(""))
+        #expect(!SyncPaths.isSafeRelative("."))
+        #expect(!SyncPaths.isSafeRelative("a/."))
+        #expect(SyncPaths.isSafeRelative("..."))
+        #expect(SyncPaths.isSafeRelative("a/.b/c"))
     }
 
     @Test func twoWayLeavesOutWhatTheLocalScanSkips() {

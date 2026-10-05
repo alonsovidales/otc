@@ -4,6 +4,11 @@ import Foundation
 
 /// Which paths a sync pass may act on. Free of SyncModel (and of anything
 /// else) so the rules can be tested on their own.
+///
+/// The checks read UTF-8 bytes, as the file system does: Character-wise,
+/// a "/" followed by a combining mark is one grapheme and not a separator,
+/// so "../\u{301}x" passed for one harmless name. They are also cheap (no
+/// array per path): a two-way pass runs them on every listed file.
 enum SyncPaths {
     /// A device path as a path inside the folder listed at `prefix`, or nil
     /// when it isn't one. The device stores paths as clients send them, so
@@ -15,11 +20,23 @@ enum SyncPaths {
         return isSafeRelative(relative) ? relative : nil
     }
 
-    /// Not empty, not absolute, and no empty, "." or ".." component.
+    /// Not empty, not absolute, no NUL, and no empty, "." or ".." component.
     static func isSafeRelative(_ relative: String) -> Bool {
-        guard !relative.isEmpty, !relative.hasPrefix("/"), !relative.contains("\0") else { return false }
-        return !relative.split(separator: "/", omittingEmptySubsequences: false)
-            .contains { $0.isEmpty || $0 == "." || $0 == ".." }
+        var length = 0, dots = 0   // the current component's bytes, and how many are "."
+        for byte in relative.utf8 {
+            switch byte {
+            case 0:
+                return false
+            case UInt8(ascii: "/"):
+                if length == 0 || (dots == length && dots <= 2) { return false }
+                length = 0
+                dots = 0
+            default:
+                length += 1
+                if byte == UInt8(ascii: ".") { dots += 1 }
+            }
+        }
+        return !(length == 0 || (dots == length && dots <= 2))
     }
 
     /// Left out of a two-way pass on both sides: what the local scan never
@@ -28,8 +45,7 @@ enum SyncPaths {
     /// down, look deleted here on the next pass, and be deleted there.
     /// As otc-sync's notSynced.
     static func isExcludedFromSync(_ relative: String) -> Bool {
-        if relative.hasSuffix(".otc-part") { return true }
-        return relative.split(separator: "/").contains { $0.hasPrefix(".") }
+        relative.hasSuffix(".otc-part") || hasHiddenComponent(relative)
     }
 
     /// A backup's watcher skips what its reconcile never sends: a hidden
@@ -38,14 +54,20 @@ enum SyncPaths {
     /// ~/.dotfiles is still watched.
     static func isSkippedBackupPath(_ path: String, root: String) -> Bool {
         if path.hasSuffix(".otc-part") { return true }
-        let relative: Substring
         if path.hasPrefix(root + "/") {
-            relative = path.dropFirst(root.count + 1)
-        } else {
-            // FSEvents spelled the path differently (/private/var vs
-            // /var): judge the file's own name only.
-            relative = Substring((path as NSString).lastPathComponent)
+            return hasHiddenComponent(String(path.dropFirst(root.count + 1)))
         }
-        return relative.split(separator: "/").contains { $0.hasPrefix(".") }
+        // FSEvents spelled the path differently (/private/var vs /var):
+        // judge the file's own name only.
+        return hasHiddenComponent((path as NSString).lastPathComponent)
+    }
+
+    private static func hasHiddenComponent(_ relative: String) -> Bool {
+        var atStart = true
+        for byte in relative.utf8 {
+            if atStart && byte == UInt8(ascii: ".") { return true }
+            atStart = byte == UInt8(ascii: "/")
+        }
+        return false
     }
 }
