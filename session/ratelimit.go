@@ -3,6 +3,7 @@
 package session
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -81,6 +82,11 @@ func (l *AuthLimiter) Attempt(addr string, try func() error) (retryAfter time.Du
 		return retryAfter, true, 0, nil
 	}
 	if err = try(); err != nil {
+		// A first password that is too short is a choice, not a guess:
+		// it doesn't count toward the lockout.
+		if errors.Is(err, ErrPasswordTooShort) {
+			return 0, false, 0, err
+		}
 		return 0, false, l.Fail(addr), err
 	}
 	l.Reset(addr)
