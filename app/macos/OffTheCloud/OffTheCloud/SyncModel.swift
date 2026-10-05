@@ -829,7 +829,9 @@ final class SyncModel: ObservableObject {
         errorRetryTasks[folder.id] = nil
 
         let root = folder.url
-        let remotePrefix = remotePathFor(root.path) + "/"
+        // The computer's name is looked up once per pass, not per file.
+        let deviceRoot = remoteDeviceRoot()
+        let remotePrefix = remotePathFor(root.path, root: deviceRoot) + "/"
 
         do {
             let resp = try await ws.request { req in
@@ -858,7 +860,6 @@ final class SyncModel: ObservableObject {
             let localFiles = await Task.detached(priority: .utility) {
                 Self.enumerateFilesRecursively(at: root)
             }.value
-            let localRemotePaths = Set(localFiles.map { remotePathFor($0.path) })
 
             // Pass 1: figure out what actually needs uploading. This is
             // pure verification — on a folder that's already in sync (the
@@ -883,7 +884,7 @@ final class SyncModel: ObservableObject {
                     lastShown = Date()
                     updateState(folder.id, .scanning(progress: 0, currentFile: "Checking \(i + 1)/\(localFiles.count) · \(fileURL.lastPathComponent)"))
                 }
-                let remotePath = remotePathFor(fileURL.path)
+                let remotePath = remotePathFor(fileURL.path, root: deviceRoot)
                 let size = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
                 folderBytes += size
                 if remoteMap[remotePath] == nil {
@@ -1785,12 +1786,20 @@ final class SyncModel: ObservableObject {
     }
 
     // You can refine this to use relative paths per folder root.
-    private func remotePathFor(_ path: String) -> String {
+    // `root` is a remoteDeviceRoot() the caller already has: a pass takes
+    // it once (not cached for good - renaming the Mac changes it, as
+    // before).
+    private func remotePathFor(_ path: String, root: String? = nil) -> String {
+        (root ?? remoteDeviceRoot()) + path
+    }
+
+    /// "/mac/<this Mac's name>", where this Mac's folders go on the device.
+    private func remoteDeviceRoot() -> String {
         let deviceName = Host.current().localizedName?
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
             .replacingOccurrences(of: " ", with: "_") ?? "Mac"
-        return "/mac/\(deviceName)\(path)"
+        return "/mac/\(deviceName)"
     }
 
     // See enumerateFilesRecursively's comment — same reasoning: this used to
