@@ -61,3 +61,35 @@ func TestCurrentStatusDefaultsToIdle(t *testing.T) {
 		t.Error("CurrentStatus() returned an empty state, want a usable default")
 	}
 }
+
+// A "running" status is reported as failed only once the update unit has
+// definitely stopped: a run cut off by a power cut would otherwise lock
+// the Update button for good.
+func TestReconcileStatus(t *testing.T) {
+	running := Status{State: "running", Message: "Building", Version: "91", Updated: "2026-10-05T10:00:00Z"}
+	gone := func() bool { return true }
+	alive := func() bool { return false }
+
+	got := reconcileStatus(running, gone)
+	if got.State != "failed" || got.Message != cInterrupted || got.Version != "91" || got.Updated != running.Updated {
+		t.Errorf("an interrupted run read as %+v", got)
+	}
+	if got := reconcileStatus(running, alive); got != running {
+		t.Errorf("a live run read as %+v", got)
+	}
+	done := Status{State: "done", Message: "Updated to version 92"}
+	if got := reconcileStatus(done, func() bool { t.Fatal("asked systemd about a finished run"); return true }); got != done {
+		t.Errorf("a finished run read as %+v", got)
+	}
+}
+
+func TestUnitStopped(t *testing.T) {
+	for state, want := range map[string]bool{
+		"inactive": true, "failed": true,
+		"activating": false, "active": false, "deactivating": false, "reloading": false, "": false,
+	} {
+		if got := unitStopped(state); got != want {
+			t.Errorf("unitStopped(%q) = %v, want %v", state, got, want)
+		}
+	}
+}

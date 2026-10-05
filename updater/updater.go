@@ -21,6 +21,7 @@ package updater
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -74,6 +75,12 @@ const (
 	// cManifestTimeout keeps a check from hanging the RPC it was called
 	// from when GitHub is slow or unreachable.
 	cManifestTimeout = 15 * time.Second
+
+	// cUpdateUnit runs every update cRootRunner starts.
+	cUpdateUnit = "otc-update.service"
+	// cInterrupted is what a run reads as once its unit is gone while the
+	// file still says "running" - the same words otc-update-stopped writes.
+	cInterrupted = "The update was interrupted - press Update to try again"
 )
 
 // repoRaw is the base every update artefact is fetched from.
@@ -160,7 +167,57 @@ func CurrentStatus() Status {
 		return Status{State: "idle"}
 	}
 
-	return status
+	return reconcileStatus(status, updateUnitGone)
+}
+
+// reconcileStatus reports a "running" status whose unit has stopped as
+// failed. A power cut mid-update (no unit hook sees that one) otherwise
+// left the file "running" for good, and Apply refuses while it says so -
+// the Update button locked forever. Only reported, never written: the next
+// run overwrites the file anyway, and it is root's.
+func reconcileStatus(status Status, unitGone func() bool) Status {
+	if status.State != "running" || !unitGone() {
+		return status
+	}
+
+	return Status{State: "failed", Message: cInterrupted, Version: status.Version, Updated: status.Updated}
+}
+
+// unitActiveState asks systemd for the update unit's ActiveState. `show`
+// rather than `is-active`, whose exit code is non-zero for "activating" -
+// what a running oneshot is. A variable so tests can stub it.
+var unitActiveState = func() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "systemctl", "show", "-p", "ActiveState", "--value", cUpdateUnit).Output()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(out)), nil
+}
+
+// updateUnitGone reports whether the update unit has definitely stopped.
+// Every "running" write happens inside it, so "running" with the unit
+// stopped is a run that was cut off. Any doubt (no runner - a legacy sudo
+// device -, systemctl missing or slow, an unexpected answer) is false,
+// which keeps the status as written.
+func updateUnitGone() bool {
+	if _, err := os.Stat(cRootRunner); err != nil {
+		return false
+	}
+	state, err := unitActiveState()
+	if err != nil {
+		return false
+	}
+
+	return unitStopped(state)
+}
+
+// unitStopped: activating, active, deactivating, reloading or "" are a
+// run still going (or unknown).
+func unitStopped(activeState string) bool {
+	return activeState == "inactive" || activeState == "failed"
 }
 
 // Check fetches the manifest and works out what, if anything, this device
