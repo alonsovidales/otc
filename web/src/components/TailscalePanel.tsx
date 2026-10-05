@@ -95,6 +95,8 @@ export default function TailscalePanel() {
     // once the device answers: a window.open after an await has lost the
     // user gesture a browser requires, and gets blocked.
     const authWindow = enable ? window.open("", "_blank") : null;
+    // The login page gets no handle back into the app (see FilesExplorer).
+    if (authWindow) authWindow.opener = null;
     let navigated = false;
     try {
       const resp: RespEnvelope = await useWS.request(e => {

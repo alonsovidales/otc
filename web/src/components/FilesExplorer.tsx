@@ -329,6 +329,10 @@ export default function FilesExplorer({
     // unconditionally, for every non-image type.
     const opensInline = !isImg(f) && canOpenInline(leafName(f.path));
     const preopenedTab = opensInline ? window.open("", "_blank") : null;
+    // No handle back into the app for whatever the file links to (a link
+    // in a PDF could otherwise point this tab at a fake sign-in page).
+    // Not "noopener": that returns null, and the tab is still needed here.
+    if (preopenedTab) preopenedTab.opener = null;
 
     try {
       const fullPath = f.path.includes("/") ? f.path : joinPath(path, f.path);
