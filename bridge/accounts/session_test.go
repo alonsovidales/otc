@@ -88,6 +88,49 @@ func TestSetupTokenNeedsAVerifiedEmail(t *testing.T) {
 	if _, err := a.IssueSetupToken("acc1"); err != nil {
 		t.Fatalf("a verified account got no setup code: %v", err)
 	}
+	// The database failing is not "confirm your email first".
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(errDBDown)
+	if _, err := a.IssueSetupToken("acc1"); err == nil || err == ErrEmailNotVerified {
+		t.Fatalf("a database error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A wizard checking a setup code while the database fails hears "try
+// again", not that the code is not valid.
+func TestSetupTokenInfoOnADatabaseError(t *testing.T) {
+	info := func(a *Accounts) int {
+		w := httptest.NewRecorder()
+		a.SetupTokenInfo(w, httptest.NewRequest("GET", "/api/account/setup-token-info?token=ABCD-EFGH", nil))
+		return w.Code
+	}
+	tokenRow := func(mock sqlmock.Sqlmock) {
+		mock.ExpectQuery("select `account_id` from `account_tokens`").WithArgs("ABCDEFGH", cPurposeSetup, sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	}
+	a, mock := testAccounts(t)
+	mock.ExpectQuery("select `account_id` from `account_tokens`").WillReturnError(errDBDown)
+	if code := info(a); code != http.StatusInternalServerError {
+		t.Errorf("token lookup failing: %d", code)
+	}
+	tokenRow(mock)
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(errDBDown)
+	if code := info(a); code != http.StatusInternalServerError {
+		t.Errorf("account lookup failing: %d", code)
+	}
+	tokenRow(mock)
+	verifiedRow(mock, "acc1", false)
+	if code := info(a); code != http.StatusNotFound {
+		t.Errorf("an unverified account's code: %d", code)
+	}
+	tokenRow(mock)
+	verifiedRow(mock, "acc1", true)
+	verifiedRow(mock, "acc1", true)
+	if code := info(a); code != http.StatusOK {
+		t.Errorf("a good code: %d", code)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
 	}

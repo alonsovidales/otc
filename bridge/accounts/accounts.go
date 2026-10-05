@@ -286,9 +286,14 @@ func (a *Accounts) RequireAuth(next func(w http.ResponseWriter, r *http.Request,
 // lookalikes) the account page shows and the wizard accepts typed by
 // hand, and that sign-in through the wizard hands over directly.
 func (a *Accounts) IssueSetupToken(accountID string) (string, error) {
-	// A device name is only ever registered for a proven email.
+	// A device name is only ever registered for a proven email. A database
+	// error is not "unverified": that sends a verified user looking for an
+	// email instead of trying again.
 	acc, err := a.dao.GetAccount(accountID)
-	if err != nil || acc == nil || !acc.EmailVerified {
+	if err != nil {
+		return "", err
+	}
+	if acc == nil || !acc.EmailVerified {
 		return "", ErrEmailNotVerified
 	}
 	// Issue #175: and only once the terms in force are accepted.
@@ -320,22 +325,39 @@ func NormalizeSetupToken(s string) string {
 	return s
 }
 
-// AccountForSetupToken is the account a live setup token belongs to.
+// AccountForSetupToken is the account a live setup token belongs to; a
+// database error counts as none (LookupSetupToken tells them apart).
 func (a *Accounts) AccountForSetupToken(token string) (accountID string, ok bool) {
+	id, ok, _ := a.LookupSetupToken(token)
+	return id, ok
+}
+
+// LookupSetupToken is the account a live setup token belongs to: ok is
+// false for an unknown or expired code, or an account that hasn't proven
+// its email; err is a database failure, worth "try again", not "sign in".
+func (a *Accounts) LookupSetupToken(token string) (accountID string, ok bool, err error) {
 	token = NormalizeSetupToken(token)
 	if len(token) != cSetupCodeLen {
-		return "", false
+		return "", false, nil
 	}
 	id, found, err := a.dao.AccountForToken(token, cPurposeSetup)
 	if err != nil {
 		log.Error("error looking up a setup token:", err)
-		return "", false
+		return "", false, err
 	}
-	if found && !a.Verified(id) {
-		return "", false
+	if !found {
+		return "", false, nil
+	}
+	verified, err := a.verified(id)
+	if err != nil {
+		log.Error("error looking up a setup token's account:", err)
+		return "", false, err
+	}
+	if !verified {
+		return "", false, nil
 	}
 
-	return id, found
+	return id, true, nil
 }
 
 // ---------------------------------------------------------------------
@@ -841,13 +863,21 @@ func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID 
 // SetupTokenInfo tells a wizard whose code it was handed. GET
 // /api/account/setup-token-info?token=. Public: the code is the secret.
 func (a *Accounts) SetupTokenInfo(w http.ResponseWriter, r *http.Request) {
-	id, ok := a.AccountForSetupToken(r.URL.Query().Get("token"))
+	id, ok, err := a.LookupSetupToken(r.URL.Query().Get("token"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not check that setup code right now")
+		return
+	}
 	if !ok {
 		writeError(w, http.StatusNotFound, "that setup code is not valid or has expired")
 		return
 	}
 	acc, err := a.dao.GetAccount(id)
-	if err != nil || acc == nil {
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not check that setup code right now")
+		return
+	}
+	if acc == nil {
 		writeError(w, http.StatusNotFound, "that setup code is not valid or has expired")
 		return
 	}
@@ -996,16 +1026,25 @@ const (
 // SetMailer gives the account emails a way out (main, after [smtp]).
 func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
 
-// Verified is whether accountID proved its email.
 // HasAcceptedTerms: the account accepted the terms of use in force.
 func (a *Accounts) HasAcceptedTerms(accountID string) bool {
 	acc, err := a.dao.GetAccount(accountID)
 	return err == nil && TermsAccepted(acc)
 }
 
+// Verified is whether accountID proved its email; false on a database
+// error too (verified tells them apart).
 func (a *Accounts) Verified(accountID string) bool {
+	v, _ := a.verified(accountID)
+	return v
+}
+
+func (a *Accounts) verified(accountID string) (bool, error) {
 	acc, err := a.dao.GetAccount(accountID)
-	return err == nil && acc != nil && acc.EmailVerified
+	if err != nil {
+		return false, err
+	}
+	return acc != nil && acc.EmailVerified, nil
 }
 
 func hashEmailToken(t string) string {
