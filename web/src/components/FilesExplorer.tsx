@@ -96,10 +96,25 @@ function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
 // about three times the file in memory while every other download waits
 // behind it, and past the bridge's message limit the download just fails.
 // Its original bytes and mime, or null if the device stopped answering.
+//
+// Each piece looks the path up again, so a file replaced while it is read
+// (a sync client overriding it, a new version in an upload-only folder)
+// would join the old content's start to the new one's end. A piece of
+// other content starts the read over once, for the new content, as the
+// whole-file GetFile always gave one version.
 const cReadChunk = 4 << 20;
+const cChanged = Symbol("changed");
 async function readAll(path: string, hash = ""): Promise<{ parts: Uint8Array[]; mime: string } | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const got = await readOnce(path, hash);
+    if (got !== cChanged) return got;
+  }
+  return null;
+}
+async function readOnce(path: string, hash: string): Promise<{ parts: Uint8Array[]; mime: string } | null | typeof cChanged> {
   const parts: Uint8Array[] = [];
   let mime = "";
+  let content = "";
   let offset = 0;
   let total = -1;
   while (total < 0 || offset < total) {
@@ -108,7 +123,12 @@ async function readAll(path: string, hash = ""): Promise<{ parts: Uint8Array[]; 
     });
     if (resp.payload?.$case !== "respFileChunk") return null;
     const chunk = resp.payload.respFileChunk;
-    if (total < 0) mime = chunk.mime;
+    if (total < 0) {
+      mime = chunk.mime;
+      content = chunk.hash;
+    } else if (chunk.hash !== content || Number(chunk.size) !== total) {
+      return cChanged;
+    }
     total = Number(chunk.size);
     if (chunk.data.length === 0 && offset < total) return null;
     parts.push(chunk.data);
