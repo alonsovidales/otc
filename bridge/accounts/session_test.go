@@ -189,3 +189,25 @@ func TestFirstPasswordNeedsAFreshSignIn(t *testing.T) {
 		t.Fatalf("an hour-old sign-in set a first password: %d", w.Code)
 	}
 }
+
+// Saving the profile is no sign-in: it must not give an old session a new
+// cookie, which would pass the 15-minute check for a first password or for
+// deleting the account.
+func TestSavingTheProfileKeepsTheSessionAge(t *testing.T) {
+	a, mock := testAccounts(t)
+	accountRow(mock, "")
+	mock.ExpectExec("update `accounts` set `name` = \\?").WillReturnResult(sqlmock.NewResult(0, 1))
+	accountRow(mock, "")
+	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+	w := httptest.NewRecorder()
+	a.UpdateProfile(w, httptest.NewRequest("PUT", "/api/account/me", strings.NewReader(`{"name":"A","surname":"B","country":"ES"}`)), "acc1")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"account"`) {
+		t.Fatalf("profile saved: %d %s", w.Code, w.Body)
+	}
+	if c := w.Header().Get("Set-Cookie"); c != "" {
+		t.Errorf("saving the profile issued a session cookie: %q", c)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

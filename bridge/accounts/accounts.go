@@ -229,6 +229,9 @@ func (a *Accounts) session(token string, now time.Time) (accountID string, issue
 	return id, issued, true
 }
 
+// setSession issues a new session cookie. Only ever right after a real
+// authentication (a password, a provider, a reset link): the cookie's age
+// is what the cFreshSignIn checks in SetPassword and ConfirmOwner trust.
 func (a *Accounts) setSession(w http.ResponseWriter, r *http.Request, accountID string) {
 	now := time.Now()
 	epoch, _, err := a.dao.AccountSessionEpoch(accountID)
@@ -427,10 +430,17 @@ func accountJSON(acc *dao.Account) map[string]any {
 	}
 }
 
-// signedIn answers a successful sign-up or sign-in: the account, and -
-// with ?for=setup, the wizard's way - a setup token to claim a name with.
+// signedIn answers a successful sign-up or sign-in: a session, the
+// account, and - with ?for=setup, the wizard's way - a setup token to
+// claim a name with.
 func (a *Accounts) signedIn(w http.ResponseWriter, r *http.Request, acc *dao.Account, status int) {
 	a.setSession(w, r, acc.ID)
+	a.answerAccount(w, r, acc, status)
+}
+
+// answerAccount is signedIn without a new session cookie, for a request
+// the current session already authenticated.
+func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *dao.Account, status int) {
 	_ = a.dao.TouchAccount(acc.ID)
 	out := map[string]any{"account": accountJSON(acc)}
 	if r.URL.Query().Get("for") == "setup" {
@@ -662,7 +672,9 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return
 	}
-	a.signedIn(w, r, acc, http.StatusOK)
+	// No new cookie: saving a profile is no sign-in, and a fresh cookie
+	// would make any old session pass the recent-sign-in checks.
+	a.answerAccount(w, r, acc, http.StatusOK)
 }
 
 // AcceptTerms records that the signed-in account accepts the terms of use
