@@ -1048,6 +1048,8 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 		file.Size = storedSize(stored + info.Size())
 		return true, wrote, nil // already have it (a re-sync, or shared with another post)
 	}
+	// Held until the file is written: it is read whole, then copied.
+	release := fr.sc.filesmanager.ReserveFriendMedia(int64(file.Size))
 	media, mediaErr := fr.getPublicationMedia(pubUuid, file.Hash)
 	if mediaErr != nil {
 		log.Error("could not fetch media", file.Hash, "for publication", pubUuid, "from",
@@ -1058,6 +1060,7 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 		stored += int64(len(media))
 		wrote = true
 	}
+	release()
 	file.Size = storedSize(stored)
 	return true, wrote, nil
 }
