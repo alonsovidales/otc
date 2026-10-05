@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.net
 
+import android.os.SystemClock
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.proto.Auth
 import cloud.offthe.otc.proto.GetPubKey
@@ -24,6 +25,7 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.security.MessageDigest
 import javax.net.ssl.SSLException
 
 // Port of OTCConnection.swift: the app-wide connection + auth state. Every
@@ -51,6 +53,20 @@ object OTCConnection {
     private val connectLock = Any()
     private var backoffMs = 1_000L
     private const val maxBackoffMs = 30_000L
+
+    // The device turned the password down. Every poller (notifications, the
+    // feed, MainView's retries) and request()'s own retry used to send the
+    // same rejected password again at once, which tripped the device's
+    // lockout (5 failures a minute per address - the household's public IP
+    // through the bridge) for every client behind it. Until notBeforeMs, an
+    // attempt with the same credentials fails with the same message without
+    // dialling. Memory only, keyed on a hash of the credentials, so saving
+    // new ones lifts it at once (as OTCConnection.swift does).
+    private class AuthRejection(val credKey: String, val message: String, val notBeforeMs: Long)
+    @Volatile private var authRejection: AuthRejection? = null
+    // 5 s doubling: at most 4 failures in the first minute, under the lockout.
+    @Volatile private var authBackoffMs = 5_000L
+    private const val maxAuthBackoffMs = 300_000L
 
     class RequestError(message: String) : IOException(message)
 
@@ -100,6 +116,9 @@ object OTCConnection {
         ws.close()
         _authenticated.value = false
         backoffMs = 1_000L
+        // An explicit retry or new credentials: try at once.
+        authRejection = null
+        authBackoffMs = 5_000L
         MediaStream.reset()
     }
 
@@ -123,6 +142,10 @@ object OTCConnection {
             _lastError.value = "The address \"${secrets.endpoint.value}\" isn't valid."
             _connectionFailed.value = true
             throw RequestError(_lastError.value!!)
+        }
+        val credKey = credentialsKey(url, deviceId, password)
+        authRejection?.let { r ->
+            if (r.credKey == credKey && SystemClock.elapsedRealtime() < r.notBeforeMs) throw RequestError(r.message)
         }
         try {
             ws.connect(url)
@@ -154,11 +177,21 @@ object OTCConnection {
             val resp = ws.request { it.setReqAuth(auth) }
             val ok = resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok
             if (!ok) {
+                var rejectedForMs: Long? = null
                 val msg = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) {
-                    _statusCode.value = resp.respAck.code.ifEmpty { null }
-                    resp.respAck.errorMsg
+                    val ack = resp.respAck
+                    _statusCode.value = ack.code.ifEmpty { null }
+                    // The device's own verdict on the password; the bridge's
+                    // (device_unreachable, account_disabled) keeps today's retries.
+                    if (ack.code.isEmpty()) rejectedForMs = authBackoffMs
+                    else if (ack.code == "too_many_attempts") rejectedForMs = maxOf((ack.retryAfterSeconds + 1) * 1_000L, authBackoffMs)
+                    ack.errorMsg
                 } else "Authentication failed"
                 _lastError.value = msg
+                if (rejectedForMs != null) {
+                    authRejection = AuthRejection(credKey, msg, SystemClock.elapsedRealtime() + rejectedForMs)
+                    authBackoffMs = minOf(authBackoffMs * 2, maxAuthBackoffMs)
+                }
                 throw RequestError(msg)
             }
         } catch (e: Exception) {
@@ -176,12 +209,19 @@ object OTCConnection {
         _statusCode.value = null
         _connectionFailed.value = false
         backoffMs = 1_000L
+        authRejection = null
+        authBackoffMs = 5_000L
         _authenticated.value = true
         // On every sign-in, not only when the main screen first shows: a
         // device set up (or reinstalled) while the app was running would
         // otherwise never learn this phone's token.
         cloud.offthe.otc.push.FCMPush.registerKnown(cloud.offthe.otc.OTCApp.instance)
     }
+
+    /** What the auth gate compares: a hash, so no second copy of the password is kept. */
+    private fun credentialsKey(url: String, deviceId: String, password: String): String =
+        MessageDigest.getInstance("SHA-256").digest("$url\u0000$deviceId\u0000$password".toByteArray())
+            .joinToString("") { "%02x".format(it) }
 
     /** Plain words for the errors the network stack hands back. */
     private fun describe(e: Throwable): String = when {
