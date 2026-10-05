@@ -240,6 +240,10 @@ final class PhotoSync: NSObject {
                   maxBytes: Int64 = 1024 * 1024 * 1024) throws -> (data: Data, filename: String, mime: String) {
 
         let (url, filename, mime) = try exportAssetToTempFile(asset, allowNetwork: allowNetwork)
+        // On every exit, the too-large throw included: a rejected 1 GB+
+        // video used to leave its whole copy behind in tmp. The mapping
+        // below stays valid after the unlink.
+        defer { try? FileManager.default.removeItem(at: url) }
 
         // Check size before loading
         let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
@@ -254,9 +258,6 @@ final class PhotoSync: NSObject {
 
         // Map into memory (still allocates a buffer ~size)
         let data = try Data(contentsOf: url, options: .mappedIfSafe)
-
-        // Clean up temp file if you don’t need it anymore
-        try? FileManager.default.removeItem(at: url)
 
         return (data, filename, mime)
     }
