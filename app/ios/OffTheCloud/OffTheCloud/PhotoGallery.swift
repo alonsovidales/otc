@@ -996,16 +996,16 @@ final class PhotoGalleryVM: ObservableObject {
         print("[video] no stream URL for \(it.path) - downloading the whole file")
 
         do {
-            let resp = try await ws.request { e in
-                var req = ReqEnvelope()
-                var gf  = GetFileMsg()
-                gf.path = it.path
-                req.payload = .reqGetFile(gf)
-                e = req
+            // In 4 MiB pieces straight to disk (FileDownload), not as one
+            // message held whole in memory; named once the mime is known.
+            let raw = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let (mime, size) = try await FileDownload.download(path: it.path, mime: it.mime, to: raw)
+            guard stillOpen() else {
+                try? FileManager.default.removeItem(at: raw)
+                return
             }
-            guard stillOpen(), case .respFile(let f) = resp.payload, f.hasContent else { return }
             let ext: String
-            switch f.mime.lowercased() {
+            switch mime.lowercased() {
             case "video/quicktime": ext = "mov"
             case "video/mp4", "video/x-m4v": ext = "mp4"
             case "video/x-matroska": ext = "mkv"
@@ -1014,11 +1014,9 @@ final class PhotoGalleryVM: ObservableObject {
                 let own = (it.path as NSString).pathExtension
                 ext = own.isEmpty ? "mp4" : own.lowercased()
             }
-            let tmp = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension(ext)
-            try f.content.write(to: tmp)
-            print("[video] downloaded \(it.path): \(f.content.count) bytes, \(f.mime), .\(ext)")
+            let tmp = raw.appendingPathExtension(ext)
+            try FileManager.default.moveItem(at: raw, to: tmp)
+            print("[video] downloaded \(it.path): \(size) bytes, \(mime), .\(ext)")
             guard stillOpen() else { return }
             let player = AVPlayer(url: tmp)
             Self.logFailure(of: player, what: "download")

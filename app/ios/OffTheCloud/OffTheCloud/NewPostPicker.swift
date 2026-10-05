@@ -417,21 +417,19 @@ final class NewPostPickerVM: ObservableObject {
     }
 
     private static func downloadForTrimming(path: String) async throws -> URL {
-        let resp = try await OTCConnection.shared.request { e in
-            var gf = Msg_GetFile()
-            gf.path = path
-            e.payload = .reqGetFile(gf)
-        }
-        guard case .respFile(let f) = resp.payload, !f.content.isEmpty else {
-            throw NSError(domain: "NewPostPicker", code: -4, userInfo: [NSLocalizedDescriptionKey: resp.error ? resp.errorMessage : "Empty response"])
-        }
         // AVURLAsset picks its demuxer from the extension, so a temp file
         // without one plays as nothing at all.
         let ext = (path as NSString).pathExtension.isEmpty ? "mp4" : (path as NSString).pathExtension
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("otc-trim-\(UUID().uuidString)")
             .appendingPathExtension(ext)
-        try f.content.write(to: url)
+        // In 4 MiB pieces straight to the file: a long video no longer
+        // has to fit in memory (twice) to be trimmed.
+        let size = try await FileDownload.download(path: path, to: url).size
+        guard size > 0 else {
+            try? FileManager.default.removeItem(at: url)
+            throw NSError(domain: "NewPostPicker", code: -4, userInfo: [NSLocalizedDescriptionKey: "Empty response"])
+        }
         return url
     }
 

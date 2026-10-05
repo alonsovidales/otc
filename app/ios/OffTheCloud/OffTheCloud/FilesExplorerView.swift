@@ -245,14 +245,7 @@ final class FilesExplorerViewModel: ObservableObject {
         defer { openingPath = nil }
 
         let full = fullPath(for: row)
-        var req = Msg_GetFile()
-        req.path = full
         do {
-            let resp = try await ws.request { $0.payload = .reqGetFile(req) }
-            guard case .respFile(let f) = resp.payload else {
-                showToast("Could not fetch file")
-                return
-            }
             // Issue #72: QuickLook (the same previewer Mail/Files use for
             // attachments) natively renders PDFs, Office docs, text, audio
             // and video, not just images - writing to a temp file first
@@ -261,9 +254,12 @@ final class FilesExplorerViewModel: ObservableObject {
             // Files app download. Its own toolbar already has a share
             // button, so this replaces the separate share-sheet fallback
             // for non-images too, not just adds preview alongside it.
+            // In 4 MiB pieces straight to the file, never whole in memory.
             let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try f.content.write(to: tmp)
+            try await FileDownload.download(path: full, mime: row.raw.mime, to: tmp)
             previewURL = tmp
+        } catch is FileDownload.Refused {
+            showToast("Could not fetch file")
         } catch {
             showToast("Download failed: \(error.localizedDescription)")
         }
@@ -314,19 +310,13 @@ final class FilesExplorerViewModel: ObservableObject {
     /// A version opens in the same Quick Look preview a file does; an empty
     /// hash is the current one.
     func openVersion(_ row: FileRow, hash: String) async {
-        var req = Msg_GetFile()
-        req.path = fullPath(for: row)
-        req.hash = hash
         do {
-            let resp = try await ws.request { $0.payload = .reqGetFile(req) }
-            guard case .respFile(let f) = resp.payload else {
-                showToast("Could not fetch that version")
-                return
-            }
             let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try f.content.write(to: tmp)
+            try await FileDownload.download(path: fullPath(for: row), hash: hash, mime: row.raw.mime, to: tmp)
             versionsOf = nil
             previewURL = tmp
+        } catch is FileDownload.Refused {
+            showToast("Could not fetch that version")
         } catch {
             showToast("Download failed: \(error.localizedDescription)")
         }
