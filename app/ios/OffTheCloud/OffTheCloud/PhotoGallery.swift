@@ -1137,8 +1137,11 @@ final class PhotoGalleryVM: ObservableObject {
                     // PhotoSync.swift's identical check for the full
                     // reasoning.
                     // Issue #165: hashed and uploaded straight from the
-                    // file in chunks, never loaded whole.
-                    let hash = try OTCConnection.sha256Hex(of: url)
+                    // file in chunks, never loaded whole - and hashed off
+                    // the main actor, which this view model is on.
+                    let hash = try await Task.detached(priority: .userInitiated) {
+                        try OTCConnection.sha256Hex(of: url)
+                    }.value
                     let hasResp = try await ws.request { e in
                         var req = ReqEnvelope()
                         var hf = Msg_HasFile()
