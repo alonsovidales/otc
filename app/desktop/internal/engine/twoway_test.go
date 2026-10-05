@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -79,5 +80,29 @@ func TestSyncedRecordPersists(t *testing.T) {
 	p, _ := syncedPath("r1")
 	if _, err := os.Stat(p); !os.IsNotExist(err) {
 		t.Fatalf("record still on disk after drop: %v", err)
+	}
+}
+
+// A first pass after a restart that leaves the folder empty replaces the
+// record on disk: the old one, read back after the next restart, took a
+// file put back later for one deleted on the other side.
+func TestSyncedRecordEmptiedAfterRestart(t *testing.T) {
+	withConfigDir(t)
+	New(&config.Config{}, "", nil).saveSynced("r1", map[string]string{"a.txt": "h1"})
+
+	e := New(&config.Config{}, "", nil)
+	e.mu.Lock()
+	e.loadSyncedLocked("r1")
+	e.mu.Unlock()
+	e.saveSynced("r1", map[string]string{})
+
+	p, _ := syncedPath("r1")
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]string
+	if err := json.Unmarshal(data, &got); err != nil || got == nil || len(got) != 0 {
+		t.Fatalf("record on disk is %s (%v), want an empty one", data, err)
 	}
 }

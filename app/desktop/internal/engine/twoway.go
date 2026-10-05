@@ -91,33 +91,53 @@ func (e *Engine) loadSyncedLocked(folderID string) {
 	var m map[string]string
 	if json.Unmarshal(data, &m) == nil && m != nil {
 		e.lastSynced[folderID] = m
+		// What is on disk now: a pass that changes nothing doesn't rewrite it.
+		e.savedSynced[folderID] = maps.Clone(m)
 	}
 }
 
 // saveSynced writes the folder's record after a pass that changed it.
+// "Unchanged" means equal to what this process last wrote or read - not
+// equal to nothing: a first pass that leaves the folder empty must still
+// replace a record that lists files. And a write that failed is tried
+// again next pass, never taken as done: a stale record left on disk takes
+// a file put back later for one deleted on the other side.
 func (e *Engine) saveSynced(folderID string, synced map[string]string) {
 	e.mu.Lock()
-	unchanged := maps.Equal(e.savedSynced[folderID], synced)
-	if !unchanged {
-		e.savedSynced[folderID] = maps.Clone(synced)
-	}
+	prev, ok := e.savedSynced[folderID]
+	unchanged := ok && maps.Equal(prev, synced)
 	e.mu.Unlock()
 	if unchanged {
 		return
 	}
 	p, err := syncedPath(folderID)
 	if err != nil {
+		log.Printf("could not save the sync record for %s: %v", folderID, err)
+
 		return
 	}
 	data, err := json.Marshal(synced)
 	if err != nil {
+		log.Printf("could not save the sync record for %s: %v", folderID, err)
+
 		return
 	}
 	tmp := p + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o600); err != nil { // perms: rw-------
+		_ = os.Remove(tmp)
+		log.Printf("could not save the sync record for %s: %v", folderID, err)
+
 		return
 	}
-	_ = os.Rename(tmp, p)
+	if err := os.Rename(tmp, p); err != nil {
+		_ = os.Remove(tmp)
+		log.Printf("could not save the sync record for %s: %v", folderID, err)
+
+		return
+	}
+	e.mu.Lock()
+	e.savedSynced[folderID] = maps.Clone(synced)
+	e.mu.Unlock()
 }
 
 // dropSyncedLocked forgets a removed folder's record, on disk too.
