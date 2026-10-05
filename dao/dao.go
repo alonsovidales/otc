@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -20,6 +21,8 @@ import (
 
 type Dao struct {
 	db *sql.DB
+	// errNotifMu serialises AddErrorNotification (see there).
+	errNotifMu sync.Mutex
 }
 
 // NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
@@ -1789,6 +1792,13 @@ const errorNotificationWindow = "5 minute"
 // appended to details, occurrences goes up, and the row is unread again);
 // otherwise a new row starts with title as its one-liner.
 func (dao *Dao) AddErrorNotification(title, detail string) error {
+	// One otc process owns each database (issue #82), so this is enough to
+	// stop two first errors from each taking the gap lock of the select
+	// below and then deadlocking (InnoDB 1213) on their inserts - one of
+	// them lost.
+	dao.errNotifMu.Lock()
+	defer dao.errNotifMu.Unlock()
+
 	tx, err := dao.db.Begin()
 	if err != nil {
 		return err
