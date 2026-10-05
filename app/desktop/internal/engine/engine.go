@@ -146,9 +146,13 @@ type Engine struct {
 	hashDirty  map[string]bool // folders whose cache changed since it was last saved
 	hashLoaded map[string]bool // folders whose cache file has been read
 	folderBusy map[string]bool
-	onChange   func()
-	hostname   string
-	stopped    bool
+	// Backups whose SetUploadOnly the device linked now acknowledged, and
+	// the last error logged for the others (see ensureUploadOnly).
+	uploadOnlyOK  map[string]bool
+	uploadOnlyErr map[string]string
+	onChange      func()
+	hostname      string
+	stopped       bool
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -159,30 +163,32 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		host = "PC"
 	}
 	e := &Engine{
-		ws:           wsclient.New(),
-		cfg:          cfg,
-		password:     password,
-		status:       "Not connected",
-		raid:         RaidUnknown,
-		folderStates: map[string]FolderState{},
-		remoteStates: map[string]FolderState{},
-		held:         map[string]FolderState{},
-		heldTimers:   map[string]*time.Timer{},
-		remoteHashes: map[string]map[string]string{},
-		lastSynced:   map[string]map[string]string{},
-		savedSynced:  map[string]map[string]string{},
-		watchers:     map[string]*Watcher{},
-		remoteWatch:  map[string]*Watcher{},
-		debounce:     map[string]*time.Timer{},
-		remoteDeb:    map[string]*time.Timer{},
-		errorRetry:   map[string]*time.Timer{},
-		remoteRetry:  map[string]*time.Timer{},
-		folderBusy:   map[string]bool{},
-		hashCache:    map[string]map[string]hashEntry{},
-		hashDirty:    map[string]bool{},
-		hashLoaded:   map[string]bool{},
-		onChange:     onChange,
-		hostname:     host,
+		ws:            wsclient.New(),
+		cfg:           cfg,
+		password:      password,
+		status:        "Not connected",
+		raid:          RaidUnknown,
+		folderStates:  map[string]FolderState{},
+		remoteStates:  map[string]FolderState{},
+		held:          map[string]FolderState{},
+		heldTimers:    map[string]*time.Timer{},
+		remoteHashes:  map[string]map[string]string{},
+		lastSynced:    map[string]map[string]string{},
+		savedSynced:   map[string]map[string]string{},
+		watchers:      map[string]*Watcher{},
+		remoteWatch:   map[string]*Watcher{},
+		debounce:      map[string]*time.Timer{},
+		remoteDeb:     map[string]*time.Timer{},
+		errorRetry:    map[string]*time.Timer{},
+		remoteRetry:   map[string]*time.Timer{},
+		folderBusy:    map[string]bool{},
+		uploadOnlyOK:  map[string]bool{},
+		uploadOnlyErr: map[string]string{},
+		hashCache:     map[string]map[string]hashEntry{},
+		hashDirty:     map[string]bool{},
+		hashLoaded:    map[string]bool{},
+		onChange:      onChange,
+		hostname:      host,
 	}
 	e.migrateFolders(cfg)
 	for _, f := range cfg.Folders {
@@ -292,6 +298,8 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 				delete(e.watchers, f.ID)
 			}
 			delete(e.folderStates, f.ID)
+			delete(e.uploadOnlyOK, f.ID)
+			delete(e.uploadOnlyErr, f.ID)
 			continue
 		}
 		if !keep[f.ID] {
@@ -307,6 +315,12 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 	if credsChanged && e.authRetry != nil {
 		e.authRetry.Stop()
 		e.authRetry = nil
+	}
+	if credsChanged {
+		// Possibly another device: every backup is marked there again on
+		// the reconnect (harmless on the same one).
+		e.uploadOnlyOK = map[string]bool{}
+		e.uploadOnlyErr = map[string]string{}
 	}
 	e.mu.Unlock()
 	e.notify()
@@ -325,6 +339,8 @@ func (e *Engine) dropFolderLocked(id string) {
 	}
 	delete(e.remoteHashes, id)
 	delete(e.folderStates, id)
+	delete(e.uploadOnlyOK, id)
+	delete(e.uploadOnlyErr, id)
 	e.dropHashCacheLocked(id)
 	if t := e.errorRetry[id]; t != nil {
 		t.Stop()
@@ -615,6 +631,8 @@ func (e *Engine) startSync() {
 			// Left in an error while the link was down (its retry finds
 			// no connection and gives up): again now, not in 10 minutes.
 			e.reconcile(f)
+		} else {
+			e.ensureUploadOnly(f)
 		}
 	}
 	for _, f := range remotes {
@@ -644,7 +662,7 @@ func (e *Engine) setupFolder(f config.Folder) {
 	if !configured {
 		return
 	}
-	e.markUploadOnly(f)
+	e.ensureUploadOnly(f)
 	e.reconcile(f)
 	e.startWatcher(f)
 }
@@ -823,6 +841,7 @@ func (e *Engine) reconcile(f config.Folder) {
 		delete(e.folderBusy, f.ID)
 		e.mu.Unlock()
 	}()
+	e.ensureUploadOnly(f)
 
 	remotePrefix := e.remotePathFor(f.Path) + "/"
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
@@ -1855,15 +1874,48 @@ func (e *Engine) cacheDownloadedHash(folderID, p string, size int64, modified ti
 // of a file when it changes. Sent at every start, so backups added before
 // this get it too; harmless when already set. As SyncModel.markUploadOnly.
 func (e *Engine) markUploadOnly(f config.Folder) {
+	e.mu.Lock()
+	domain := e.cfg.Domain
+	e.mu.Unlock()
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqSetUploadOnly{ReqSetUploadOnly: &pb.SetUploadOnly{Path: e.remotePathFor(f.Path) + "/", UploadOnly: true}}
 	})
 	if err == nil {
 		err = wsclient.RespError(resp, "upload only refused")
 	}
-	if err != nil {
+	e.mu.Lock()
+	logIt := false
+	if e.backupConfiguredLocked(f.ID) && e.cfg.Domain == domain {
+		if err == nil {
+			e.uploadOnlyOK[f.ID] = true
+			delete(e.uploadOnlyErr, f.ID)
+		} else if e.uploadOnlyErr[f.ID] != err.Error() {
+			// Once per error, not every pass: a device older than #132
+			// refuses every attempt the same way.
+			e.uploadOnlyErr[f.ID] = err.Error()
+			logIt = true
+		}
+	}
+	e.mu.Unlock()
+	if logIt {
 		log.Printf("could not make backup %s upload only on the device: %v", f.Path, err)
 	}
+}
+
+// ensureUploadOnly sends markUploadOnly until the device linked now has
+// acknowledged it. It used to be sent once, when the folder was set up: a
+// failure there (the link dropping right after connect, a device not yet
+// updated) left the backup unprotected - deletes from a phone accepted,
+// older versions overwritten - until otc-sync restarted. Now every pass
+// and reconnect tries again until it succeeds; after that, nothing more.
+func (e *Engine) ensureUploadOnly(f config.Folder) {
+	e.mu.Lock()
+	done := e.uploadOnlyOK[f.ID]
+	e.mu.Unlock()
+	if done || !e.ws.IsConnected() {
+		return
+	}
+	e.markUploadOnly(f)
 }
 
 func (e *Engine) deleteRemote(remotePath string) error {

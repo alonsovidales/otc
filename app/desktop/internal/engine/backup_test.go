@@ -112,3 +112,35 @@ func fileExists(p string) bool {
 	_, err := os.Stat(p)
 	return err == nil
 }
+
+// A backup the device did not make upload only (refused, or the link
+// dropped) is asked again on the next pass, and no more once it is.
+func TestUploadOnlyRetriedUntilAcknowledged(t *testing.T) {
+	e, d, f := backupFixture(t, 1)
+	sent := func() int {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		return d.uploadOnly
+	}
+	d.mu.Lock()
+	d.refuseUploadOnly = true
+	d.mu.Unlock()
+	e.setupFolder(f)
+	tries := sent()
+	if tries == 0 {
+		t.Fatal("never asked")
+	}
+
+	d.mu.Lock()
+	d.refuseUploadOnly = false
+	d.mu.Unlock()
+	e.reconcile(f)
+	if got := sent(); got != tries+1 {
+		t.Fatalf("asked %d more times on the next pass, want 1", got-tries)
+	}
+	e.reconcile(f)
+	e.startSync()
+	if got := sent(); got != tries+1 {
+		t.Fatalf("asked again once acknowledged (%d)", got-tries-1)
+	}
+}
