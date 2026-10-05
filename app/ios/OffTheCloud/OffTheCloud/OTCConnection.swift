@@ -89,6 +89,9 @@ final class OTCConnection: ObservableObject {
         Task { await ws.close() }
         authenticated = false
         backoffSeconds = 1
+        // Media URLs are resolved against the endpoint; it may just have
+        // changed.
+        MediaStream.reset()
     }
 
     /// Log Out: drop the connection and forget what went wrong with the
