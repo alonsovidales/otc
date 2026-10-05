@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -83,11 +84,16 @@ func (dao *Dao) Stop() {
 	dao.db.Close()
 }
 
+// IsSecretDefined counts rather than scanning into a bool: a vault left
+// with two rows by an earlier first-sign-in race made that scan fail
+// ("converting 2 to bool") and locked everyone out. Such a vault opens
+// from its first row, the one GetSalt and GetSecret read.
 func (dao *Dao) IsSecretDefined() (defined bool, err error) {
 	log.Debug("Is session defined")
-	err = dao.db.QueryRow("select count(*) from `vault`").Scan(&defined)
+	var n int64
+	err = dao.db.QueryRow("select count(*) from `vault`").Scan(&n)
 
-	return
+	return n > 0, err
 }
 
 func (dao *Dao) GetSecret() (encText []byte, err error) {
@@ -105,10 +111,25 @@ func (dao *Dao) GetSalt() (salt []byte, err error) {
 	return
 }
 
-func (dao *Dao) PersistSecret(encCheck []byte, salt []byte) (err error) {
+// vaultCreateMu serialises creating the vault in this process: two first
+// sign-ins at once (two tabs, a phone and a browser) both see no vault.
+var vaultCreateMu sync.Mutex
+
+// PersistSecretIfAbsent creates the vault unless it already exists;
+// created is false when another sign-in got there first. The conditional
+// insert also holds against another process (init-owner-password while
+// the service runs): InnoDB turns that race into a deadlock error on one
+// side, never a second row.
+func (dao *Dao) PersistSecretIfAbsent(encCheck []byte, salt []byte) (created bool, err error) {
 	log.Debug("Creating Auth session:")
-	_, err = dao.db.Exec("insert into `vault` (`secret`, `salt`) values (?, ?)", encCheck, salt)
-	return
+	vaultCreateMu.Lock()
+	defer vaultCreateMu.Unlock()
+	res, err := dao.db.Exec("insert into `vault` (`secret`, `salt`) select ?, ? from dual where not exists (select 1 from `vault`)", encCheck, salt)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n == 1, err
 }
 
 func (dao *Dao) GetSettings() (subDomain, deviceUuid, BridgeSecret string, err error) {

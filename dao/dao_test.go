@@ -1290,3 +1290,33 @@ func TestDeleteFriendshipWithSecretReportsWhetherARowMatched(t *testing.T) {
 		t.Errorf("not all expected queries ran: %v", err)
 	}
 }
+
+// Two first sign-ins at once used to leave two vault rows, and scanning
+// count(*) = 2 into a bool then failed every sign-in. Such a vault must
+// read as defined; creating one is conditional, and says whether it did.
+func TestVaultDefinedWithTwoRowsAndConditionalCreate(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(2))
+	mock.ExpectExec("insert into `vault` \\(`secret`, `salt`\\) select \\?, \\? from dual where not exists \\(select 1 from `vault`\\)").
+		WithArgs([]byte("enc"), []byte("salt")).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("insert into `vault`").WithArgs([]byte("enc2"), []byte("salt2")).WillReturnResult(sqlmock.NewResult(0, 0))
+
+	d := NewWithDB(db)
+	if defined, err := d.IsSecretDefined(); err != nil || !defined {
+		t.Fatalf("two vault rows: defined=%v err=%v, want true/nil", defined, err)
+	}
+	if created, err := d.PersistSecretIfAbsent([]byte("enc"), []byte("salt")); err != nil || !created {
+		t.Fatalf("empty vault: created=%v err=%v, want true/nil", created, err)
+	}
+	if created, err := d.PersistSecretIfAbsent([]byte("enc2"), []byte("salt2")); err != nil || created {
+		t.Fatalf("vault already there: created=%v err=%v, want false/nil", created, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}

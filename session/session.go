@@ -114,10 +114,18 @@ func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err err
 		// This is the firsrt time that the user it authenticating, from
 		// now on this will be the auth key
 		secretValidator = []byte(cValidatorText + RandomSecret())
-		if err = dao.PersistSecret(ses.Encrypt(secretValidator), salt); err != nil {
+		created, err := dao.PersistSecretIfAbsent(ses.Encrypt(secretValidator), salt)
+		if err != nil {
 			return nil, err
 		}
-	} else {
+		if !created {
+			// Another first sign-in stored its vault meanwhile: check this
+			// password against that one, like any later sign-in, rather
+			// than keep a data key nobody stored.
+			defined = true
+		}
+	}
+	if defined {
 		salt, err := dao.GetSalt()
 		if err != nil {
 			return nil, err
