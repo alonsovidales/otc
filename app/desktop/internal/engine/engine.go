@@ -636,13 +636,15 @@ func (e *Engine) startSync() {
 	for _, f := range folders {
 		e.mu.Lock()
 		_, watching := e.watchers[f.ID]
-		errored := e.folderStates[f.ID].Kind == StateError
+		atRest := e.folderStates[f.ID].Kind == StateWatching
 		e.mu.Unlock()
 		if !watching {
 			e.setupFolder(f)
-		} else if errored {
+		} else if !atRest {
 			// Left in an error while the link was down (its retry finds
-			// no connection and gives up): again now, not in 10 minutes.
+			// no connection and gives up), or a pass stopped when the
+			// device changed (backupPassOver): again now, not in 10
+			// minutes. A pass still running is left to finish (busy).
 			e.reconcile(f)
 		} else {
 			e.ensureUploadOnly(f)
@@ -1033,7 +1035,10 @@ func (e *Engine) reconcile(f config.Folder) {
 // computer is pointed at another device (disconnected, another device set
 // up) - what is left is not sent there, as stillSyncing does for two-way
 // passes. When only the device changed, the folder goes again shortly,
-// from the new device's own listing.
+// from the new device's own listing. No status of its own, as on the Mac:
+// the folder shows a plain scan (not the stopped pass's file and progress)
+// until that pass, which the retry or, if the new device is not connected
+// by then, startSync's resume of a folder not at rest starts.
 func (e *Engine) backupPassOver(f config.Folder, domain string) bool {
 	e.mu.Lock()
 	configured := e.backupConfiguredLocked(f.ID)
@@ -1044,7 +1049,7 @@ func (e *Engine) backupPassOver(f config.Folder, domain string) bool {
 	}
 	log.Printf("backup %s: folder removed or device changed - pass stopped", f.Path)
 	if configured {
-		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: "Device changed - will resume"})
+		e.setFolderState(f.ID, FolderState{Kind: StateScanning})
 		e.scheduleErrorRetry(f)
 	}
 

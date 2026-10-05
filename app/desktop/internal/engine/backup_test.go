@@ -74,7 +74,9 @@ func TestBackupRemovedDuringItsPass(t *testing.T) {
 }
 
 // Pointed at another device mid-pass: nothing more goes to it from this
-// pass (whose listing came from the old one); the folder is retried soon.
+// pass (whose listing came from the old one); the folder is retried soon,
+// with no status of its own (as on the Mac) - a plain scan, not the
+// stopped pass's file and progress.
 func TestBackupPassStopsWhenTheDeviceChanges(t *testing.T) {
 	e, d, f := backupFixture(t, 5)
 	switched := false
@@ -94,8 +96,44 @@ func TestBackupPassStopsWhenTheDeviceChanges(t *testing.T) {
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if st := e.folderStates[f.ID]; st.Kind != StateError || e.errorRetry[f.ID] == nil {
+	if st := e.folderStates[f.ID]; st != (FolderState{Kind: StateScanning}) || e.errorRetry[f.ID] == nil {
 		t.Errorf("state %+v, retry scheduled %v", st, e.errorRetry[f.ID] != nil)
+	}
+}
+
+// A watched backup whose pass stopped for a device change goes again when
+// the new device connects (startSync), not 10 minutes later: the retry may
+// have found no connection yet.
+func TestStoppedBackupPassResumesOnConnect(t *testing.T) {
+	e, d, f := backupFixture(t, 5)
+	e.startWatcher(f)
+	switched := false
+	d.onHas = func() {
+		if !switched {
+			switched = true
+			e.mu.Lock()
+			e.cfg.Domain = "dev-b"
+			e.mu.Unlock()
+		}
+	}
+	e.reconcile(f)
+	e.mu.Lock()
+	if tm := e.errorRetry[f.ID]; tm != nil {
+		tm.Stop() // as if it had fired while offline
+		delete(e.errorRetry, f.ID)
+	}
+	e.mu.Unlock()
+
+	e.startSync()
+
+	d.mu.Lock()
+	sent := len(d.files)
+	d.mu.Unlock()
+	e.mu.Lock()
+	st := e.folderStates[f.ID]
+	e.mu.Unlock()
+	if sent != 5 || st.Kind != StateWatching {
+		t.Errorf("%d of 5 files on the new device, state %+v", sent, st)
 	}
 }
 
