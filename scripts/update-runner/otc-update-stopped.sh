@@ -16,6 +16,16 @@ STATUS_FILE=/var/lib/otc/update-status.json
 dd if="$STATUS_FILE" iflag=nofollow,nonblock bs=4096 count=1 status=none 2>/dev/null \
     | grep -q '"state":"running"' || exit 0
 
+# Unless an update.sh is still alive: one started by hand runs outside
+# this unit and holds update.sh's lock (shared) while it lives, so that
+# "running" is real. Any doubt leaves the file alone; the device makes the
+# same check (updater.updateUnitGone) once nothing holds the lock. The -e
+# because flock creates a lock file that isn't there.
+RUN_LOCK=/run/otc-update.lock
+if [ -e "$RUN_LOCK" ] && ! flock -n -x "$RUN_LOCK" true 2>/dev/null; then
+    exit 0
+fi
+
 # Same write as otc-update-runner.sh's status(): O_EXCL temp file with its
 # final mode, renamed into place.
 status() {

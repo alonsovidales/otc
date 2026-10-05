@@ -81,6 +81,9 @@ const (
 
 	// cUpdateUnit runs every update cRootRunner starts.
 	cUpdateUnit = "otc-update.service"
+	// cRunLock is held, shared, by every scripts/update.sh for as long as
+	// it runs - inside cUpdateUnit or started by hand outside it.
+	cRunLock = "/run/otc-update.lock"
 	// cInterrupted is what a run reads as once its unit is gone while the
 	// file still says "running" - the same words otc-update-stopped writes.
 	cInterrupted = "The update was interrupted - press Update to try again"
@@ -182,20 +185,20 @@ func readStatus() Status {
 	return status
 }
 
-// reconcileStatus reports a "running" status whose unit has stopped as
-// failed. A power cut mid-update (no unit hook sees that one) otherwise
-// left the file "running" for good, and Apply refuses while it says so -
-// the Update button locked forever. Only reported, never written: the next
-// run overwrites the file anyway, and it is root's.
+// reconcileStatus reports a "running" status whose run has stopped (see
+// updateUnitGone) as failed. A power cut mid-update (no unit hook sees
+// that one) otherwise left the file "running" for good, and Apply refuses
+// while it says so - the Update button locked forever. Only reported,
+// never written: the next run overwrites the file anyway, and it is root's.
 func reconcileStatus(read func() Status, unitGone func() bool) Status {
 	status := read()
 	if status.State != "running" || !unitGone() {
 		return status
 	}
-	// systemd answered after that read. A run that ended in between has
-	// written its own failed (with the real reason) or done, and one
+	// The run was seen stopped after that read. One that ended in between
+	// has written its own failed (with the real reason) or done, and one
 	// started since its own "running": only a file unchanged from before
-	// the unit was seen stopped belongs to a run that was cut off.
+	// the run was seen stopped belongs to a run that was cut off.
 	if now := read(); now != status {
 		return now
 	}
@@ -205,8 +208,8 @@ func reconcileStatus(read func() Status, unitGone func() bool) Status {
 
 // unitActiveState asks systemd for the update unit's ActiveState. `show`
 // rather than `is-active`, whose exit code is non-zero for "activating" -
-// what a running oneshot is. A variable so tests can stub it.
-var unitActiveState = func() (string, error) {
+// what a running oneshot is.
+func unitActiveState() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "systemctl", "show", "-p", "ActiveState", "--value", cUpdateUnit).Output()
@@ -217,16 +220,29 @@ var unitActiveState = func() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// updateUnitGone reports whether the update unit has definitely stopped.
-// Every "running" write happens inside it, so "running" with the unit
-// stopped is a run that was cut off. Any doubt (no runner - a legacy sudo
-// device -, systemctl missing or slow, an unexpected answer) is false,
-// which keeps the status as written.
+// updateUnitGone reports whether the run behind a "running" status has
+// definitely stopped. The runner and the update.sh it starts write
+// "running" inside the update unit, but an update.sh started by hand (the
+// README's console line, the legacy sudo path in Apply, a shell on a dev
+// box) writes it from outside, with the unit inactive throughout. Any
+// doubt (no runner - a legacy sudo device -, systemctl missing or slow, an
+// unexpected answer, a lock that can't be tested) is false, which keeps
+// the status as written.
 func updateUnitGone() bool {
 	if _, err := os.Stat(cRootRunner); err != nil {
 		return false
 	}
-	state, err := unitActiveState()
+
+	return runStopped(func() bool { return runLockHeld(cRunLock) }, unitActiveState)
+}
+
+// runStopped: no update.sh holds cRunLock, and the unit reads as stopped.
+// The lock first: it costs no fork, and answers for most live runs.
+func runStopped(scriptRunning func() bool, activeState func() (string, error)) bool {
+	if scriptRunning() {
+		return false
+	}
+	state, err := activeState()
 	if err != nil {
 		return false
 	}
