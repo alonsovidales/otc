@@ -5,7 +5,7 @@
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41). The apps do the same with ImageModal.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
 import type { RespEnvelope, FileExifInfo } from "../proto/messages";
@@ -32,6 +32,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   onClose: () => void;
 }) {
   const [hiURL, setHiURL] = useState<string | null>(null);
+  // A full-size photo (or a small video fetched whole) is a blob of
+  // several MB: freed after the commit that took it off screen - the next
+  // item, or closing. A streamed /media URL owns nothing to free.
+  useEffect(() => () => { if (hiURL?.startsWith("blob:")) URL.revokeObjectURL(hiURL); }, [hiURL]);
   // Issue #106: why the opened video isn't playing, when it isn't. "codec"
   // means the browser said so (an HEVC recording some browsers can't
   // decode); "stalled" means nothing arrived for cVideoStallMs - a
@@ -53,6 +57,22 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   useEffect(() => () => { viewGenRef.current += 1; }, []);
 
   const item = items[index];
+
+  // A caller that passes no thumbURL gets one made here from the item's
+  // bytes: once per item, freed with it, rather than one per render (and
+  // every pinch or ctrl+wheel step of a zoom is a render). A layout effect,
+  // so no frame is painted without it. A caller's own thumbURL is the
+  // caller's to free.
+  const [ownThumb, setOwnThumb] = useState("");
+  const itemThumbURL = item?.thumbURL;
+  const itemContent = item?.content;
+  useLayoutEffect(() => {
+    if (itemThumbURL || !itemContent) { setOwnThumb(""); return; }
+    const u = bytesToURL(itemContent);
+    setOwnThumb(u);
+    return () => { if (u) URL.revokeObjectURL(u); };
+  }, [itemThumbURL, itemContent]);
+
   useEffect(() => {
     const gen = ++viewGenRef.current;
     const current = () => gen === viewGenRef.current;
@@ -182,7 +202,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
         >
           {(() => {
             const f = items[index];
-            const thumb = f.thumbURL || bytesToURL(f.content); // always a JPEG thumbnail
+            const thumb = f.thumbURL || ownThumb; // always a JPEG thumbnail
             // Issue #106: a video opens as something you can actually
             // play. Until the full file arrives (hiURL), its own
             // thumbnail stands in - the same still the grid shows -
