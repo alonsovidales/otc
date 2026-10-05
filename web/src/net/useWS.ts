@@ -6,8 +6,8 @@ import { encryptForConnection, savePersistedToken, loadPersistedToken, clearPers
 import { isDeviceStatusCode } from "./deviceStatus";
 
 // The device refused a password and refuses any more from this address
-// for a while (issue #117). Unlike a sign-in nobody answered, that is the
-// device's verdict on the password, so the password is not kept for it.
+// for a while (issue #117). Unlike a sign-in nobody answered, that is a
+// verdict, so a typed password that met it is not kept (see sendAuth).
 class LockedOut extends Error {}
 
 // The bridge's own reply when it could not hand a request to the device
