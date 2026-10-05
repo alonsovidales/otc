@@ -27,8 +27,10 @@ const (
 	maxBackoff     = 30 * time.Second
 	// A file upload is one message; the device accepts large ones.
 	maxMessageSize = 1000 * 1024 * 1024
-	handshakeTO    = 20 * time.Second
 )
+
+// handshakeTO is how long a dial may take (a var for the tests).
+var handshakeTO = 20 * time.Second
 
 // ErrNotConnected is what a request gets while the socket is down.
 var ErrNotConnected = errors.New("not connected")
@@ -132,13 +134,29 @@ func (c *Client) IsConnected() bool {
 	return c.open && c.signedIn
 }
 
+// current: the attempt gen (with its socket conn, once it has one) is still
+// this client's own. One that was superseded - Disconnect, or a reconfigure
+// and Connect while it was still dialing or signing in - reports nothing
+// and changes nothing: its late failure used to mark the newer, working
+// connection "Disconnected", stop its RAID polling, or tear it down.
+func (c *Client) current(gen int64, conn *websocket.Conn) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.currentLocked(gen, conn)
+}
+
+func (c *Client) currentLocked(gen int64, conn *websocket.Conn) bool {
+	return gen == c.gen && (conn == nil || c.conn == conn)
+}
+
 func (c *Client) dial(gen int64) {
 	c.mu.Lock()
 	u := c.url
 	c.mu.Unlock()
 	parsed, err := url.Parse(u)
 	if err != nil {
-		if c.OnDisconnect != nil {
+		if c.OnDisconnect != nil && c.current(gen, nil) {
 			c.OnDisconnect(fmt.Errorf("bad address %q: %w", u, err))
 		}
 
@@ -147,7 +165,7 @@ func (c *Client) dial(gen int64) {
 	dialer := websocket.Dialer{HandshakeTimeout: handshakeTO}
 	conn, _, err := dialer.Dial(parsed.String(), nil)
 	if err != nil {
-		if c.OnDisconnect != nil {
+		if c.OnDisconnect != nil && c.current(gen, nil) {
 			c.OnDisconnect(err)
 		}
 		c.scheduleReconnect(gen)
@@ -170,13 +188,13 @@ func (c *Client) dial(gen int64) {
 
 	go c.readLoop(conn, gen)
 
-	err = c.auth()
+	err = c.auth(gen, conn)
 	var ue *UnreachableError
 	if errors.As(err, &ue) {
 		// The bridge is up, the device isn't: say so and close - the read
 		// loop's error path reconnects with a growing delay (reset only
 		// after a sign-in succeeds, so this doesn't retry every second).
-		if c.OnUnreachable != nil {
+		if c.OnUnreachable != nil && c.current(gen, conn) {
 			c.OnUnreachable(ue.Message)
 		}
 		_ = conn.Close()
@@ -194,13 +212,17 @@ func (c *Client) dial(gen int64) {
 		return
 	}
 	if err != nil {
-		if c.OnAuthFailed != nil {
-			c.OnAuthFailed(err.Error(), ae.RetryAfter)
-		}
 		// A wrong password is not a reason to hammer the device: the
 		// socket stays down until the settings change and Connect is
-		// called again.
+		// called again. Checked and changed in one go: a superseded
+		// attempt's answer must not take down the connection after it.
 		c.mu.Lock()
+		if !c.currentLocked(gen, conn) {
+			c.mu.Unlock()
+			_ = conn.Close()
+
+			return
+		}
 		c.autoRecon = false
 		c.conn = nil
 		c.open = false
@@ -208,6 +230,9 @@ func (c *Client) dial(gen int64) {
 		c.failAllLocked(err)
 		c.mu.Unlock()
 		_ = conn.Close()
+		if c.OnAuthFailed != nil {
+			c.OnAuthFailed(err.Error(), ae.RetryAfter)
+		}
 		if c.OnDisconnect != nil {
 			c.OnDisconnect(err)
 		}
@@ -215,6 +240,14 @@ func (c *Client) dial(gen int64) {
 		return
 	}
 	c.mu.Lock()
+	if !c.currentLocked(gen, conn) {
+		// Superseded while signing in: not this client's connection any
+		// more - no sign-in to mark, no second OnConnect.
+		c.mu.Unlock()
+		_ = conn.Close()
+
+		return
+	}
 	c.backoff = initialBackoff
 	c.signedIn = true
 	c.mu.Unlock()
@@ -223,7 +256,10 @@ func (c *Client) dial(gen int64) {
 	}
 }
 
-func (c *Client) auth() error {
+// errSuperseded ends a sign-in whose attempt is no longer the client's.
+var errSuperseded = errors.New("connection replaced")
+
+func (c *Client) auth(gen int64, conn *websocket.Conn) error {
 	pk, err := c.Request(context.Background(), func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqGetPubKey{ReqGetPubKey: &pb.GetPubKey{}}
 	})
@@ -236,6 +272,12 @@ func (c *Client) auth() error {
 			return &UnreachableError{Message: ack.ErrorMsg}
 		}
 		return errors.New("unable to fetch the connection's public key")
+	}
+	// Requests go on whichever socket is current: a superseded attempt's
+	// Auth, encrypted for the old socket's key, would be rejected on the
+	// new one and counted against this address's attempts (issue #117).
+	if !c.current(gen, conn) {
+		return errSuperseded
 	}
 	c.mu.Lock()
 	pw, id := c.password, c.clientID
