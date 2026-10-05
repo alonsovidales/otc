@@ -89,6 +89,21 @@ write_atomic() {
 exec >>"$LOG_FILE" 2>&1
 echo "=== update run $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
+# Held (shared) on fd 9 for as long as this run lasts, kept across the
+# bootstrap's exec below. The device reads "running" with
+# otc-update.service stopped as a run that was cut off, and a run started
+# by hand (the README's console line, the legacy sudo path, a shell on a
+# dev box) runs outside that unit: this lock is how it tells such a live
+# run from a dead one (updater.updateUnitGone). The kernel drops it with
+# the run however that ends, and /run starts empty after a reboot. Shared,
+# so it never holds a run up; in root's /run, so nothing the otc user
+# planted is opened.
+RUN_LOCK=/run/otc-update.lock
+if ! [ /proc/self/fd/9 -ef "$RUN_LOCK" ]; then
+    (umask 022; : >> "$RUN_LOCK") 2>/dev/null && exec 9<"$RUN_LOCK"
+fi
+flock -s -w 10 9 2>/dev/null || true
+
 status running "Checking for updates"
 
 # The verified release this run came from, staged by the runner in /run

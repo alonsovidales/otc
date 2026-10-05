@@ -3,6 +3,7 @@
 package updater
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -113,6 +114,32 @@ func TestUnitStopped(t *testing.T) {
 	} {
 		if got := unitStopped(state); got != want {
 			t.Errorf("unitStopped(%q) = %v, want %v", state, got, want)
+		}
+	}
+}
+
+// An update.sh started by hand runs outside the unit, which stays
+// inactive: while it holds the run lock its "running" is real, and
+// systemd isn't even asked.
+func TestRunStopped(t *testing.T) {
+	never := func() (string, error) { t.Fatal("asked systemd about a run holding the lock"); return "", nil }
+	if runStopped(func() bool { return true }, never) {
+		t.Error("a run holding the lock read as stopped")
+	}
+	free := func() bool { return false }
+	for _, c := range []struct {
+		state string
+		err   error
+		want  bool
+	}{
+		{"inactive", nil, true},
+		{"failed", nil, true},
+		{"activating", nil, false},
+		{"", errors.New("systemctl timed out"), false},
+	} {
+		got := runStopped(free, func() (string, error) { return c.state, c.err })
+		if got != c.want {
+			t.Errorf("no lock, unit %q (err %v): stopped = %v, want %v", c.state, c.err, got, c.want)
 		}
 	}
 }
