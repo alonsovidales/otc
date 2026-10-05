@@ -52,22 +52,36 @@ actor WSClient {
         t.resume()
         connected = true
         print("Connected!!!")
-        listen()
+        listen(on: t)
     }
 
+    /// Fails what is still waiting here itself: the cancelled socket's
+    /// late receive failure is ignored now (see handleReceive), and it is
+    /// what used to fail them. No onDisconnect - the caller already deals
+    /// with the state.
     func close() {
         task?.cancel()
+        task = nil
         connected = false
+        let pending = waiters
+        waiters.removeAll()
+        for (_, cb) in pending { cb(.failure(URLError(.cancelled))) }
     }
 
-    private func listen() {
-        task?.receive { [weak self] result in
+    /// Tied to one socket: a callback from a socket that has since been
+    /// closed or replaced must not act on the current one.
+    private func listen(on t: URLSessionWebSocketTask) {
+        t.receive { [weak self] result in
             guard let self else { return }
-            Task { await self.handleReceive(result) }
+            Task { await self.handleReceive(result, from: t) }
         }
     }
 
-    private func handleReceive(_ result: Result<URLSessionWebSocketTask.Message, Error>) {
+    private func handleReceive(_ result: Result<URLSessionWebSocketTask.Message, Error>, from t: URLSessionWebSocketTask) {
+        // A cancelled socket's receive completes later with an error; on
+        // the current connection that tore down the new socket and failed
+        // its handshake.
+        guard t === task else { return }
         switch result {
         case .failure(let err):
             print("WS receive error:", err)
@@ -88,7 +102,7 @@ actor WSClient {
             default: break
             }
             // keep listening only while the socket is still healthy
-            listen()
+            listen(on: t)
         }
     }
 
