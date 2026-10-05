@@ -80,6 +80,7 @@ object OTCConnection {
         ws.close()
         _authenticated.value = false
         backoffMs = 1_000L
+        MediaStream.reset()
     }
 
     /** Log Out: drop the connection and forget what went wrong with the last one. */

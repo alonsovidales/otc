@@ -28,16 +28,27 @@ object MediaStream {
     }
 
     @Volatile private var cachedBase: URI? = null
+    // Bumped by reset(): a base worked out from the endpoint before it
+    // changed is used once but not cached over the new one.
+    private var generation = 0
+    private val lock = Any()
 
-    /** Log Out: the next device has another address. */
-    fun reset() { cachedBase = null }
+    /**
+     * Endpoint changed (OTCConnection.invalidate, which Log Out goes
+     * through too): the next device may have another address, and a token
+     * resolved against the old one would go there, maybe over plain HTTP.
+     */
+    fun reset() = synchronized(lock) { cachedBase = null; generation++ }
 
     /** The device answers with a path ("/media/<token>"); resolve it against the endpoint in use. */
     fun absolute(path: String): String? {
         val base = cachedBase ?: run {
+            val gen = synchronized(lock) { generation }
             val ep = try { URI(SecretsStore.loadOrCreate().endpointURLString) } catch (e: Exception) { return null }
             val scheme = if (ep.scheme == "ws") "http" else "https"
-            URI(scheme, null, ep.host, ep.port, "/", null, null).also { cachedBase = it }
+            URI(scheme, null, ep.host, ep.port, "/", null, null).also { b ->
+                synchronized(lock) { if (gen == generation) cachedBase = b }
+            }
         }
         return base.resolve(path).toString()
     }
