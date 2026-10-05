@@ -957,6 +957,19 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope, owner, friend bool) fu
 	return none
 }
 
+// pureDownload: a request that only reads content (and reserves the
+// budget for it), with no effect worth having once its reply can't be
+// delivered. Not ReqDownloadSharedLink: its first part counts an opening
+// of the link, which the owner sees.
+func pureDownload(env *pb.ReqEnvelope) bool {
+	switch env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqGetFile, *pb.ReqEnvelope_ReqGetPublicationMedia,
+		*pb.ReqEnvelope_ReqGetThumbnails, *pb.ReqEnvelope_ReqGetSharedGalleryItem:
+		return true
+	}
+	return false
+}
+
 // tooManyAttemptsAck refuses a password attempt while its address (or the
 // device) is locked out (issue #117), saying when to try again.
 func tooManyAttemptsAck(secs int32) *pb.Ack {
@@ -3680,10 +3693,16 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	var writeMu sync.Mutex
 	var wg sync.WaitGroup
 	var closeOnce sync.Once
+	// gone is closed once no further reply can reach the peer: it went
+	// away, or the connection was closed here.
+	gone := make(chan struct{})
+	var goneOnce sync.Once
+	markGone := func() { goneOnce.Do(func() { close(gone) }) }
 	closeConn := func() {
 		closeOnce.Do(func() {
 			conn.Close()
 		})
+		markGone()
 	}
 	// However this loop exits, wait for every goroutine it started before
 	// returning - handleConnection returning is what lets a caller's own
@@ -3707,6 +3726,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			// with one "error" every two minutes per friend.
 			if peerGone(err) {
 				log.Debug("connection closed:", err)
+				markGone()
 			} else {
 				log.Error("error processing message:", err)
 			}
@@ -3745,6 +3765,18 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			// at worst one racing its own sign-in skips the budget.
 			ses, friend := ch.getSession(), ch.getFriendProfile()
 			defer ch.reserveMemory(env, ses != nil, friend != nil)()
+
+			// A download that waited for the budget while its peer left
+			// (an app sent to the background mid-gallery) isn't worth
+			// reading and decoding for a reply nobody can receive.
+			if pureDownload(env) {
+				select {
+				case <-gone:
+					log.Debug("connection gone, dropping request", env.Id)
+					return
+				default:
+				}
+			}
 
 			resp, doClose := ch.processMessage(env)
 

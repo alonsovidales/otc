@@ -744,3 +744,28 @@ func TestBridgeRetriesStayCountedInThePool(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// Only downloads with no effect besides their reply are dropped once the
+// peer is gone; a share link's first part counts an opening the owner
+// sees, so it always runs.
+func TestPureDownloadExcludesRequestsWithEffects(t *testing.T) {
+	for _, env := range []*pb.ReqEnvelope{
+		{Payload: &pb.ReqEnvelope_ReqGetFile{ReqGetFile: &pb.GetFile{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetThumbnails{ReqGetThumbnails: &pb.GetThumbnails{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetPublicationMedia{ReqGetPublicationMedia: &pb.GetPublicationMedia{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetSharedGalleryItem{ReqGetSharedGalleryItem: &pb.GetSharedGalleryItem{}}},
+	} {
+		if !pureDownload(env) {
+			t.Errorf("%T should be droppable", env.Payload)
+		}
+	}
+	for _, env := range []*pb.ReqEnvelope{
+		{Payload: &pb.ReqEnvelope_ReqDownloadSharedLink{ReqDownloadSharedLink: &pb.DownloadSharedLink{}}},
+		{Payload: &pb.ReqEnvelope_ReqDelFile{ReqDelFile: &pb.DelFile{}}},
+		{Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{}}},
+	} {
+		if pureDownload(env) {
+			t.Errorf("%T must never be dropped", env.Payload)
+		}
+	}
+}
