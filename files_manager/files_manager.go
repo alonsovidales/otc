@@ -1933,24 +1933,25 @@ func applyHeicOrientation(heicData []byte, img image.Image, fallbackOrientation 
 	if rotations == 0 && !hasMirror {
 		return applyOrientation(img, fallbackOrientation)
 	}
+	return applyOrientation(img, heifOrientation(rotations, hasMirror, mirrorAxis))
+}
 
-	if hasMirror {
-		if mirrorAxis == 1 {
-			img = applyOrientation(img, 4) // mirror about a horizontal axis: flip vertical
-		} else {
-			img = applyOrientation(img, 2) // mirror about a vertical axis: flip horizontal
-		}
+// heifOrientation is the EXIF orientation doing what a HEIF irot/imir
+// pair does: per the HEIF spec the mirror first, then rotations turns of
+// 90 degrees counter-clockwise (EXIF 8 is one, the direction
+// heif.Item.Rotations() counts in). One pass over the pixels instead of
+// up to four - a portrait iPhone photo (3 turns) took three full-size
+// ones - with the same result (TestHeifOrientationIsTheComposedPasses).
+func heifOrientation(rotations int, hasMirror bool, mirrorAxis int) int {
+	r := ((rotations % 4) + 4) % 4
+	switch {
+	case !hasMirror:
+		return [4]int{1, 8, 3, 6}[r]
+	case mirrorAxis == 1: // about a horizontal axis: flip vertical (4)
+		return [4]int{4, 7, 2, 5}[r]
+	default: // about a vertical axis: flip horizontal (2)
+		return [4]int{2, 5, 4, 7}[r]
 	}
-	// Per the HEIF spec, mirroring (above) is applied before rotation.
-	// orientation 8 is a single 90-degree counter-clockwise turn — the
-	// same direction heif.Item.Rotations() counts in — so composing
-	// `rotations` of them reproduces however many turns this file calls
-	// for, reusing the already-verified rotation math instead of
-	// duplicating it.
-	for i := 0; i < rotations; i++ {
-		img = applyOrientation(img, 8)
-	}
-	return img
 }
 
 // heifTransform reads the primary item's irot/imir transformative
@@ -2004,6 +2005,13 @@ func thumbnailSource(img image.Image, maxWidth int) image.Image {
 // returning a new image when a rotation/flip is needed (orientation outside
 // 2-8 is returned unchanged as a no-op). See the EXIF/TIFF spec's Orientation
 // tag (0x0112) for the 8 defined values.
+//
+// It runs on every photo processed, every HEIC view and gallery preview, so
+// the common source types - YCbCr (JPEG, HEIC), NRGBA, Gray - are written
+// straight into the destination's bytes, converted exactly as
+// color.NRGBAModel would: through At and Set every pixel was boxed in an
+// interface (48M allocations for three passes over 12 MP). Anything else
+// still goes through them.
 func applyOrientation(img image.Image, orientation int) image.Image {
 	if orientation <= 1 || orientation > 8 {
 		return img
@@ -2017,27 +2025,63 @@ func applyOrientation(img image.Image, orientation int) image.Image {
 	}
 	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
 
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			c := img.At(b.Min.X+x, b.Min.Y+y)
-			var dx, dy int
-			switch orientation {
-			case 2: // mirror horizontal
-				dx, dy = w-1-x, y
-			case 3: // rotate 180
-				dx, dy = w-1-x, h-1-y
-			case 4: // mirror vertical
-				dx, dy = x, h-1-y
-			case 5: // transpose (mirror horizontal + rotate 270 CW)
-				dx, dy = y, x
-			case 6: // rotate 90 CW
-				dx, dy = h-1-y, x
-			case 7: // transverse (mirror horizontal + rotate 90 CW)
-				dx, dy = h-1-y, w-1-x
-			case 8: // rotate 270 CW
-				dx, dy = y, w-1-x
+	// Where source pixel (x, y) lands, as dx = ax*x + bx*y + cx and
+	// dy = ay*x + by*y + cy, worked out once per image.
+	var ax, bx, cx, ay, by, cy int
+	switch orientation {
+	case 2: // mirror horizontal: (w-1-x, y)
+		ax, cx, by = -1, w-1, 1
+	case 3: // rotate 180: (w-1-x, h-1-y)
+		ax, cx, by, cy = -1, w-1, -1, h-1
+	case 4: // mirror vertical: (x, h-1-y)
+		ax, by, cy = 1, -1, h-1
+	case 5: // transpose (mirror horizontal + rotate 270 CW): (y, x)
+		bx, ay = 1, 1
+	case 6: // rotate 90 CW: (h-1-y, x)
+		bx, cx, ay = -1, h-1, 1
+	case 7: // transverse (mirror horizontal + rotate 90 CW): (h-1-y, w-1-x)
+		bx, cx, ay, cy = -1, h-1, -1, w-1
+	case 8: // rotate 270 CW: (y, w-1-x)
+		bx, ay, cy = 1, -1, w-1
+	}
+	// The same as an offset into dst.Pix (its Rect starts at 0,0).
+	stepX := ay*dst.Stride + ax*4
+	stepY := by*dst.Stride + bx*4
+	base := cy*dst.Stride + cx*4
+
+	switch src := img.(type) {
+	case *image.YCbCr:
+		for y := 0; y < h; y++ {
+			row := base + y*stepY
+			for x := 0; x < w; x++ {
+				r, g, bl, _ := src.YCbCrAt(b.Min.X+x, b.Min.Y+y).RGBA()
+				p := dst.Pix[row+x*stepX : row+x*stepX+4 : row+x*stepX+4]
+				p[0], p[1], p[2], p[3] = uint8(r>>8), uint8(g>>8), uint8(bl>>8), 0xff
 			}
-			dst.Set(dx, dy, c)
+		}
+	case *image.NRGBA:
+		for y := 0; y < h; y++ {
+			row := base + y*stepY
+			s := src.Pix[src.PixOffset(b.Min.X, b.Min.Y+y):]
+			for x := 0; x < w; x++ {
+				copy(dst.Pix[row+x*stepX:row+x*stepX+4], s[x*4:x*4+4])
+			}
+		}
+	case *image.Gray:
+		for y := 0; y < h; y++ {
+			row := base + y*stepY
+			s := src.Pix[src.PixOffset(b.Min.X, b.Min.Y+y):]
+			for x := 0; x < w; x++ {
+				v := s[x]
+				p := dst.Pix[row+x*stepX : row+x*stepX+4 : row+x*stepX+4]
+				p[0], p[1], p[2], p[3] = v, v, v, 0xff
+			}
+		}
+	default:
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				dst.Set(ax*x+bx*y+cx, ay*x+by*y+cy, img.At(b.Min.X+x, b.Min.Y+y))
+			}
 		}
 	}
 	return dst
