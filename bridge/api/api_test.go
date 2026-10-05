@@ -20,6 +20,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/go-sql-driver/mysql"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -567,6 +568,39 @@ func TestRetryAfterAFailedStoreIsNotThrottled(t *testing.T) {
 	}
 	if got := claim("203.0.113.7:3333"); got != http.StatusTooManyRequests {
 		t.Errorf("after a claim: %d, want 429", got)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// Only a duplicate key means another claim took the name first; a
+// database failure must not tell the person a free name is taken.
+func TestClaimInsertFailureIsNotTaken(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastClaimByAddr: map[string]time.Time{}}
+	for i, c := range []struct {
+		err  error
+		want int
+	}{
+		{errors.New("driver: bad connection"), http.StatusInternalServerError},
+		{&mysql.MySQLError{Number: 1062, Message: "Duplicate entry 'newpi.off-the.cloud' for key 'domain'"}, http.StatusConflict},
+	} {
+		mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+		mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+		mock.ExpectExec("insert into `devices`").WillReturnError(c.err)
+		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
+			`{"name":"newpi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))
+		req.RemoteAddr = fmt.Sprintf("203.0.113.%d:1111", i+1)
+		rec := httptest.NewRecorder()
+		api.claimName(rec, req)
+		if rec.Code != c.want {
+			t.Errorf("insert error %v: %d %s, want %d", c.err, rec.Code, rec.Body.String(), c.want)
+		}
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unexpected DB activity: %v", err)

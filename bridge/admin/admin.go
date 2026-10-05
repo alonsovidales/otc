@@ -543,5 +543,5 @@ func (a *Admin) DeleteContactRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func isDuplicateKeyErr(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "Duplicate entry")
+	return dao.IsDuplicateKey(err)
 }

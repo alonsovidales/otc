@@ -720,9 +720,17 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		err = api.dao.RegistreDevice(body.OwnerUUID, domain, body.Secret)
 	}
 	if err != nil {
-		// Lost a race with another claim for the same name, most likely.
+		if dao.IsDuplicateKey(err) {
+			// Lost a race with another claim for the same name.
+			log.Info("lost a claim race for", domain)
+			writeJSONErr(w, http.StatusConflict, "that name is already taken")
+			return
+		}
+		// Anything else is the database failing: the name may well be
+		// free, so don't tell the person it's taken.
 		log.Error("error claiming name", domain, ":", err)
-		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 		return
 	}
 	log.Info("name claimed by the setup wizard:", domain) // no address (issue #162)
@@ -844,6 +852,7 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 	}
 	domain := api.deviceDomain(name)
 	if _, registered, err := api.dao.DomainAccount(domain); err != nil {
+		log.Error("error checking", domain, "before registering it:", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
 		return
 	} else if registered {
@@ -862,7 +871,12 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 	}
 	owner, secret := uuid.New().String(), newSecret()
 	if err := api.dao.RegisterAccountDevice(accountID, owner, domain, secret); err != nil {
-		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		if dao.IsDuplicateKey(err) {
+			writeJSONErr(w, http.StatusConflict, "that name is already taken")
+			return
+		}
+		log.Error("error registering", domain, "from the account page:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
 		return
 	}
 	log.Info("name registered from the account page:", domain)
@@ -879,6 +893,7 @@ func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accou
 	owner, secret := uuid.New().String(), newSecret()
 	ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, owner, secret)
 	if err != nil {
+		log.Error("error re-issuing", domain, ":", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not re-issue that domain right now")
 		return
 	}
@@ -897,6 +912,7 @@ func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, acc
 	domain := r.PathValue("domain")
 	ok, err := api.dao.DeleteAccountDomain(accountID, domain)
 	if err != nil {
+		log.Error("error releasing", domain, ":", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not release that domain right now")
 		return
 	}
