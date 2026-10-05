@@ -49,6 +49,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -109,6 +110,10 @@ type Manager struct {
 	// both create a new person for the same face.
 	faceRefsMu sync.Mutex
 	faceRefs   faceRefs
+	// MigrateLegacyFaceEncryption's once-per-process guard: faceMigMu is
+	// held by the pass running, faceMigDone set once one succeeded.
+	faceMigMu   sync.Mutex
+	faceMigDone atomic.Bool
 
 	// reprocessing guards issue #73's full-library reprocess job - true
 	// only while a goroutine started by *this process* is actively working

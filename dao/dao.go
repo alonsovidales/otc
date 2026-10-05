@@ -1931,10 +1931,13 @@ type RawFace struct {
 	Thumbnail []byte
 }
 
-// ListRawFaces returns every stored face's id/embedding/thumbnail, opaque
-// to this layer - see RawFace.
-func (dao *Dao) ListRawFaces() (faces []RawFace, err error) {
-	rows, err := dao.db.Query("select `id`, `embedding`, `thumbnail` from `faces`")
+// ListRawFacesAfter returns up to limit stored faces' id/embedding/
+// thumbnail, opaque to this layer - see RawFace - in id order, after
+// afterID ("" for the first page). Paged by the primary key, so the
+// migration holds one page in memory, never the whole table with every
+// face crop, and its UPDATEs (which don't change ids) can't skip a row.
+func (dao *Dao) ListRawFacesAfter(afterID string, limit int) (faces []RawFace, err error) {
+	rows, err := dao.db.Query("select `id`, `embedding`, `thumbnail` from `faces` where `id` > ? order by `id` limit ?", afterID, limit)
 	if err != nil {
 		return nil, err
 	}

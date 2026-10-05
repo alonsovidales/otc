@@ -211,7 +211,7 @@ func TestSearchMediaDateBucketsMultiplePeopleRequiresAllOfThem(t *testing.T) {
 	}
 }
 
-// ListRawFaces/UpdateFaceEncryption back files_manager.MigrateLegacyFace
+// ListRawFacesAfter/UpdateFaceEncryption back files_manager.MigrateLegacyFace
 // Encryption's one-off re-encryption sweep (issue #52 follow-up) - see
 // that function's doc comment for why it exists.
 func TestListRawFaces(t *testing.T) {
@@ -221,18 +221,19 @@ func TestListRawFaces(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select .* from `faces`").
+	mock.ExpectQuery("select .* from `faces` where `id` > \\? order by `id` limit \\?").
+		WithArgs("face-0", 256).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "embedding", "thumbnail"}).
 			AddRow("face-1", []byte("emb-1"), []byte("thumb-1")).
 			AddRow("face-2", []byte("emb-2"), []byte(nil)))
 
 	d := NewWithDB(db)
-	faces, err := d.ListRawFaces()
+	faces, err := d.ListRawFacesAfter("face-0", 256)
 	if err != nil {
-		t.Fatalf("ListRawFaces: %v", err)
+		t.Fatalf("ListRawFacesAfter: %v", err)
 	}
 	if len(faces) != 2 {
-		t.Fatalf("ListRawFaces returned %d rows, want 2", len(faces))
+		t.Fatalf("ListRawFacesAfter returned %d rows, want 2", len(faces))
 	}
 	if faces[0].ID != "face-1" || string(faces[0].Embedding) != "emb-1" || string(faces[0].Thumbnail) != "thumb-1" {
 		t.Errorf("faces[0] = %+v, want id=face-1 embedding=emb-1 thumbnail=thumb-1", faces[0])

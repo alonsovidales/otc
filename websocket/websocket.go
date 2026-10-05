@@ -1480,9 +1480,9 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 
 		// One-off self-healing sweep for any face row written before
 		// encryption-at-rest was added for it - see MigrateLegacyFace
-		// Encryption's doc comment. Backgrounded: it only touches leftover
-		// plaintext rows (a no-op most logins) and must never delay the
-		// auth response.
+		// Encryption's doc comment. Backgrounded, and a no-op after the
+		// first sign-in of the process whose pass succeeded: it must never
+		// delay the auth response.
 		go ch.mg.filesManager.MigrateLegacyFaceEncryption(ch.getSession())
 
 		resp.Payload = &pb.RespEnvelope_RespAck{
