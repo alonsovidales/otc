@@ -11,6 +11,14 @@ Wants=network-online.target
 Type=oneshot
 User=root
 ExecStart=/usr/local/bin/otc-update-runner
+# A oneshot has no start timeout by default: a hung download or module
+# fetch kept the unit "activating" for good. Far beyond any real run (the
+# CGO build on a Pi takes 10+ minutes).
+TimeoutStartSec=4h
+# However the run ended (killed, timed out, a reboot), a status still
+# reading "running" is stale once the unit has stopped: marks it failed,
+# so the Update button isn't locked for good. See otc-update-stopped.sh.
+ExecStopPost=-/usr/local/bin/otc-update-stopped
 # The update ends by restarting otc.service; this unit is separate from it
 # precisely so that restart doesn't take the updater down with it.
 KillMode=process

@@ -40,6 +40,11 @@ STATUS_FILE=/var/lib/otc/update-status.json
 # Root's own directory: /var/log/otc belongs to the otc user, and appending
 # there as root would follow a symlink it put in place of the log.
 LOG_FILE=/var/log/otc-update/update.log
+# curl has no connect or stall timeout of its own: a transfer that stopped
+# mid-way hung the update for good. Under 1 byte/s for two minutes is one
+# that has truly stopped (exit 28, which --retry retries); a slow but live
+# link is never cut off.
+CURL_STALL=(--connect-timeout 30 --speed-limit 1 --speed-time 120)
 
 mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$LOG_FILE")" /etc/otc
 
@@ -88,8 +93,8 @@ MCowBQYDK2VwAyEAtVgLIKBzcqMNM2nUnK9xfgpqWrLTuZsk8ylhyI0BK9g=
 if [ -z "${OTC_VERIFIED_SRC:-}" ] || [ -z "${OTC_VERIFIED_MANIFEST:-}" ]; then
     stage="$(mktemp -d /root/otc-update.XXXXXX)" || fail "no room to stage the update"
     printf '%s\n' "$RELEASE_KEY" > "$stage/key.pub"
-    curl -fsSL --retry 3 --retry-delay 2 -o "$stage/VERSIONS" "$REPO_RAW/scripts/updates/VERSIONS" \
-        && curl -fsSL --retry 3 --retry-delay 2 -o "$stage/VERSIONS.sig.b64" "$REPO_RAW/scripts/updates/VERSIONS.sig" \
+    curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS" "$REPO_RAW/scripts/updates/VERSIONS" \
+        && curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS.sig.b64" "$REPO_RAW/scripts/updates/VERSIONS.sig" \
         || fail "could not fetch the release manifest"
     base64 -d < "$stage/VERSIONS.sig.b64" > "$stage/VERSIONS.sig" 2>/dev/null \
         && openssl pkeyutl -verify -pubin -inkey "$stage/key.pub" -rawin -in "$stage/VERSIONS" -sigfile "$stage/VERSIONS.sig" >/dev/null 2>&1 \
@@ -100,7 +105,7 @@ if [ -z "${OTC_VERIFIED_SRC:-}" ] || [ -z "${OTC_VERIFIED_MANIFEST:-}" ]; then
         boot_target="$version"; boot_src="$src"
     done < "$stage/VERSIONS"
     case "$boot_src" in [0-9a-f]*) ;; *) fail "release $boot_target has no signed source archive" ;; esac
-    curl -fsSL --retry 3 --retry-delay 2 -o "$stage/src.tar.gz" "$REPO_GH/releases/download/v$boot_target/src.tar.gz" \
+    curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/src.tar.gz" "$REPO_GH/releases/download/v$boot_target/src.tar.gz" \
         || fail "could not download the source of release $boot_target"
     [ "$(sha256sum "$stage/src.tar.gz" | awk '{print $1}')" = "$boot_src" ] \
         || fail "the source of release $boot_target does not match its signed hash"
@@ -212,7 +217,7 @@ case "$PROTOC_ARCH" in
     x86_64)   PROTOC_SHA=3e866620c5be27664f3d2fa2d656b5f3e09b5152b42f1bedbf427b333e90021a ;;
 esac
 if ! command -v protoc >/dev/null 2>&1 || ! protoc --version | grep -q " ${PROTOC_VERSION}$"; then
-    curl -fsSL --retry 3 --retry-delay 2 -o "$tmp/protoc.zip" \
+    curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$tmp/protoc.zip" \
         "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
         || fail "could not download protoc ${PROTOC_VERSION}"
     [ "$(sha256sum "$tmp/protoc.zip" | awk '{print $1}')" = "$PROTOC_SHA" ] || fail "protoc ${PROTOC_VERSION} does not match its pinned hash"
@@ -247,6 +252,15 @@ install -m 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binar
 # format) reach devices installed earlier. The update runner has already
 # exec'd into this script, so replacing its file is safe.
 install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
+# The update unit itself, which marks a run cut off part-way as failed
+# rather than leaving it "running" (and the Update button locked) for good.
+# Only install.sh put the unit in place before. The helper goes first: the
+# unit names it.
+if [ -f "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" ]; then
+    install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" /usr/local/bin/otc-update-stopped \
+        && install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service \
+        && systemctl daemon-reload
+fi
 # Issue #160: the key every later update's manifest must be signed with.
 install -m 0644 "$SRC_DIR/scripts/release-signing.pub" /etc/otc/release-signing.pub
 if [ -f "$SRC_DIR/scripts/raid_watch.py" ] && [ -f /usr/local/bin/raid_watch.py ]; then
@@ -280,7 +294,7 @@ if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
     status running "Installing the web app"
     # Retried for a while: GitHub answers 500 now and then (release 88 on
     # Pit got four in a row).
-    if curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors -o "$tmp/web-dist.tar.gz" \
+    if curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors "${CURL_STALL[@]}" -o "$tmp/web-dist.tar.gz" \
         "$REPO_GH/releases/download/v$target/web-dist.tar.gz"; then
         actual="$(sha256sum "$tmp/web-dist.tar.gz" | awk '{print $1}')"
         if [ "$actual" != "$target_assets_sha" ]; then

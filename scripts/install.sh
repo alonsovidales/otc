@@ -938,6 +938,9 @@ EOF
 # runs the update as root - see scripts/update-runner/otc-update-runner.sh.
 log "Update trigger (otc-update.path)"
 install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
+# Named by otc-update.service (ExecStopPost): marks a run cut off part-way
+# as failed instead of leaving it "running".
+install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" /usr/local/bin/otc-update-stopped
 # Issue #160: the public key every update's manifest must be signed with.
 mkdir -p /etc/otc && install -m 0644 "$SRC_DIR/scripts/release-signing.pub" /etc/otc/release-signing.pub
 install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service

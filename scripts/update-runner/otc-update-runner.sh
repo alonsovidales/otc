@@ -79,7 +79,10 @@ KEY=/etc/otc/release-signing.pub
 
 status running "Checking the release signature"
 rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR" && chmod 700 "$RUN_DIR"
-fetch() { curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"; }
+# Connect and stall timeouts: a transfer that stopped mid-way otherwise
+# hangs the unit for good. Under 1 byte/s for two minutes has truly
+# stopped (exit 28, retried); a slow but live link is never cut off.
+fetch() { curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1"; }
 fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS" "$RUN_DIR/VERSIONS" \
     && fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS.sig" "$RUN_DIR/VERSIONS.sig.b64" \
     || { status failed "could not download the release manifest"; exit 1; }

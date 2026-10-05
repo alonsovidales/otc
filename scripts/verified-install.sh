@@ -33,7 +33,9 @@ if [ -f /etc/otc/release-signing.pub ]; then
 else
     printf '%s\n' "$RELEASE_KEY" > "$STAGE/key.pub"
 fi
-fetch() { curl -fsSL --retry 5 --retry-delay 2 -o "$2" "$1"; }
+# Connect and stall timeouts, so a transfer that stopped mid-way fails
+# (and is retried) instead of hanging the setup for good.
+fetch() { curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1"; }
 
 echo "[otc-install] Checking the release signature"
 fetch "$REPO_RAW/scripts/updates/VERSIONS" "$STAGE/VERSIONS" || die "could not download the release manifest"
