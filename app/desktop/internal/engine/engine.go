@@ -990,8 +990,21 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	remoteByRel := map[string]*pb.File{}
 	if lof, ok := resp.Payload.(*pb.RespEnvelope_RespListOfFiles); ok {
+		skipped := 0
 		for _, rf := range lof.RespListOfFiles.Files {
-			remoteByRel[strings.TrimPrefix(rf.Path, remotePrefix)] = rf
+			// Device paths are data, not trusted: one that isn't under the
+			// folder, or that climbs out of it, would be written (and later
+			// deleted from the device) outside the folder.
+			rel, under := strings.CutPrefix(rf.Path, remotePrefix)
+			if !under || !safeRelative(rel) {
+				skipped++
+
+				continue
+			}
+			remoteByRel[rel] = rf
+		}
+		if skipped > 0 {
+			log.Printf("two-way %s: %d device entries outside the folder ignored", f.RemotePath, skipped)
 		}
 	}
 
@@ -1233,6 +1246,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		e.setRemoteState(f.ID, FolderState{Kind: StateScanning, Progress: float64(max(bytesDone, 0)) / float64(totalBytes), CurrentFile: fmt.Sprintf("%d/%d · %s", alreadyAgree+i+1, folderCount, baseName(a.relative))})
 		bytesDone += bytesOf(a.relative)
+		if !safeRelative(a.relative) {
+			// Never reached from the listing (filtered above); a record
+			// written by an older version could still carry such a path.
+			delete(newSynced, a.relative)
+
+			continue
+		}
 		localPath := filepath.Join(f.LocalPath, filepath.FromSlash(a.relative))
 		remotePath := remotePrefix + a.relative
 		var err error
@@ -1625,6 +1645,23 @@ func (e *Engine) remotePathFor(path string) string {
 	}
 
 	return "/" + runtime.GOOS + "/" + host + strings.TrimSuffix(p, "/")
+}
+
+// safeRelative: rel (slash-separated, from the device) names a file inside
+// the synced folder - not empty, no "", "." or ".." component, and nothing
+// this OS reads as absolute, a drive, a "\" separator or a device name
+// (filepath.IsLocal). Same rule as SyncModel.safeRelative on the Mac.
+func safeRelative(rel string) bool {
+	if rel == "" || strings.ContainsRune(rel, 0) {
+		return false
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if part == "" || part == "." || part == ".." {
+			return false
+		}
+	}
+
+	return filepath.IsLocal(filepath.FromSlash(rel))
 }
 
 func isHidden(p string) bool {

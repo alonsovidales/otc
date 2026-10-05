@@ -36,6 +36,7 @@ type fakeDevice struct {
 	chunks  int
 	list    []*pb.File // what ListFiles answers
 	reads   int        // ReadFile/GetFile requests
+	deletes []string   // DelFile paths
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -74,6 +75,9 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
 	case *pb.ReqEnvelope_ReqListFiles:
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: d.list}}
+	case *pb.ReqEnvelope_ReqDelFile:
+		d.deletes = append(d.deletes, p.ReqDelFile.Path)
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqGetFile:
 		d.reads++
 		resp.Error, resp.ErrorMessage = true, "the content is missing on this device"
