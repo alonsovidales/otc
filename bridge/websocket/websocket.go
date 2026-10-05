@@ -101,7 +101,10 @@ func maxConnectionsPerDevice() int {
 // availableConns are kept in sync.
 type bridgePool struct {
 	availableConns []*deviceRelay
-	liveCount      int
+	// relays is every live relay, idle or paired with a client, so that
+	// dropping a domain reaches the paired ones too.
+	relays    map[*deviceRelay]struct{}
+	liveCount int
 	// offlineTimer is non-nil exactly while a countdown is pending -
 	// started the instant liveCount drops to zero, stopped/cleared the
 	// instant a fresh registration brings it back above zero. If it fires
@@ -167,6 +170,10 @@ var cUnpairedReadTimeout = 2 * time.Minute
 type deviceRelay struct {
 	conn    *gorilla.Conn
 	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
+	// owner is the owner uuid the device registered with (never its
+	// secret): a relay whose owner is no longer the domain's has been
+	// replaced by a new identity and must stop relaying.
+	owner string
 
 	mu      sync.Mutex
 	waiters map[int32]chan deviceReply
@@ -785,6 +792,7 @@ func (mg *Manager) onDeviceConnectionDied(domain string, dead *deviceRelay) {
 	//
 	// All three were live on cala/tobi: tobi was being refused 2264 times
 	// in three minutes against a pool that was entirely dead.
+	delete(pool.relays, dead)
 	if dead != nil {
 		for i, c := range pool.availableConns {
 			if c == dead {
@@ -980,27 +988,65 @@ func (mg *Manager) SetMailer(m *mailer.Mailer) { mg.mailer = m }
 const CodeDomainNotRegistered = "domain_not_registered"
 
 // dropPool closes every connection domain's device holds on this node,
-// once its name is gone: they would go on relaying for a name that is no
-// longer its (issue #182).
+// idle or paired with a client, once its name is gone: they would go on
+// relaying for a name that is no longer its (issue #182).
 func (mg *Manager) dropPool(domain string) {
+	mg.dropRelays(domain, func(*deviceRelay) bool { return true })
+}
+
+// dropRelays closes the relays of domain's pool that match. Never under
+// pool.lock: Close waits for readLoop, whose onDeath takes it.
+func (mg *Manager) dropRelays(domain string, match func(*deviceRelay) bool) int {
 	mg.bridgesMu.RLock()
 	pool, ok := mg.bridges[domain]
 	mg.bridgesMu.RUnlock()
 	if !ok {
-		return
+		return 0
 	}
 	pool.lock.Lock()
-	conns := pool.availableConns
-	pool.availableConns = nil
-	pool.lock.Unlock()
-	for _, c := range conns {
-		c.Close()
+	var doomed []*deviceRelay
+	for r := range pool.relays {
+		if match(r) {
+			doomed = append(doomed, r)
+		}
 	}
+	kept := pool.availableConns[:0]
+	for _, r := range pool.availableConns {
+		if !match(r) {
+			kept = append(kept, r)
+		} else if _, listed := pool.relays[r]; !listed {
+			doomed = append(doomed, r)
+		}
+	}
+	clear(pool.availableConns[len(kept):])
+	pool.availableConns = kept
+	pool.lock.Unlock()
+	for _, r := range doomed {
+		r.Close()
+	}
+	return len(doomed)
+}
+
+// evictOtherOwners closes domain's relays registered by another owner
+// than owner - a replaced identity's - as owner's device registers, and
+// returns how many idle connections the pool has left (the cap counts
+// those). The old device's relays never count against the new one's.
+func (mg *Manager) evictOtherOwners(domain string, pool *bridgePool, owner string) int {
+	if pool == nil {
+		return 0
+	}
+	if n := mg.dropRelays(domain, func(r *deviceRelay) bool { return r.owner != owner }); n > 0 {
+		log.Info("closed", n, "connections of a replaced identity for", domain)
+	}
+	return pool.size()
 }
 
 // DropDomains is dropPool for each domain (an account's, when it is
-// deleted).
+// deleted; one whose identity was replaced).
 func (mg *Manager) DropDomains(domains []string) {
+	if mg == nil {
+		return
+	}
 	for _, d := range domains {
 		mg.dropPool(d)
 	}
@@ -1369,7 +1415,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
-				} else if size := pool.size(); ok && size >= maxConnectionsPerDevice() {
+				} else if size := mg.evictOtherOwners(domain, pool, p.ReqBridgeRegister.OwnerUuid); ok && size >= maxConnectionsPerDevice() {
 					// Issue #53 follow-up: a device now grows its own pool
 					// dynamically under load (see websocket.ensureBridgePool
 					// on the device side) rather than dialing a fixed count
@@ -1390,6 +1436,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// can evict that exact entry from the pool.
 					var relay *deviceRelay
 					relay = newIdleDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain, relay) })
+					relay.owner = p.ReqBridgeRegister.OwnerUuid
 
 					// The ack goes out before the relay is in the pool. Once
 					// it is, a client's pairing or a one-off can write to
@@ -1423,6 +1470,10 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					pool.lock.Lock()
 					log.Debug("Adding to the pool:", len(pool.availableConns))
 					pool.availableConns = append(pool.availableConns, relay)
+					if pool.relays == nil {
+						pool.relays = make(map[*deviceRelay]struct{})
+					}
+					pool.relays[relay] = struct{}{}
 					mg.onDeviceConnectionRegistered(domain, pool)
 					// Started under the lock: onDeath takes it, so a
 					// connection that dies at once is counted out after it

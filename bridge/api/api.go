@@ -650,6 +650,9 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			log.Info("name handed to a new device by its account:", domain) // no address (issue #162)
+			// The old device's open connections were authenticated once,
+			// when they registered: close them, or clients go on reaching it.
+			api.websocket.DropDomains([]string{domain})
 			writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "replaced": true})
 			return
 		}
@@ -823,6 +826,8 @@ func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accou
 		return
 	}
 	log.Info("domain re-issued from the account page:", domain)
+	// Locked out means its open connections too, not just its next dial.
+	api.websocket.DropDomains([]string{domain})
 	writeJSON(w, http.StatusOK, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
 }
 
