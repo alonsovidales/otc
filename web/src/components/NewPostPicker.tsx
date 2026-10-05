@@ -421,12 +421,14 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       // down).
       let uploadedPaths: (string | null)[] = [];
       if (source === "local") {
-        // Issue #98: Promise.all resolves in the order it was given, so
-        // the uploads land in the strip's own order - the post reads the
-        // way the composer showed it.
-        uploadedPaths = await Promise.all(
-          localFiles.map(f => uploadLocalFile(f).catch(() => null))
-        );
+        // Issue #98: in the strip's own order, so the post reads the way
+        // the composer showed it. One at a time: all at once read and
+        // queued every selected file together, so a few phone videos
+        // held gigabytes in the tab; the bytes share one socket anyway.
+        uploadedPaths = [];
+        for (const f of localFiles) {
+          uploadedPaths.push(await uploadLocalFile(f).catch(() => null));
+        }
         paths = uploadedPaths.filter((p): p is string => p !== null);
         if (paths.length === 0) {
           setError("Could not upload any of the selected files.");
@@ -442,8 +444,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       // Issue #108: the trims are keyed by whatever identified the file in
       // the composer; the device only knows paths, so resolve them here.
       // For local files that means pairing each upload back up with the
-      // File it came from - uploaded[] is index-aligned with localFiles
-      // (Promise.all preserves order) before the nulls are filtered out.
+      // File it came from - uploadedPaths is index-aligned with localFiles
+      // (uploaded in order) before the nulls are filtered out.
       let trims: { path: string; startSecs: number; endSecs: number }[];
       if (source === "local") {
         trims = localFiles.flatMap((f, i) => {
