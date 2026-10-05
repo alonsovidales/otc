@@ -2732,14 +2732,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			// Answered with the group as the list would show it, so a
-			// client can drop it straight into its own list.
-			groups, _ := ch.mg.filesManager.ListImageGroups(ses)
+			// client can drop it straight into its own list - read on its
+			// own, not by listing (and decrypting a cover for) every group.
 			created := &pb.ImageGroup{Id: id, Name: name, FileCount: int32(len(p.ReqCreateImageGroup.Paths))}
-			for _, g := range groups {
-				if g.Id == id {
-					created = g
-					break
-				}
+			if g, err := ch.mg.filesManager.GetImageGroup(ses, id); err == nil {
+				created = g
 			}
 			resp.Payload = &pb.RespEnvelope_RespImageGroup{
 				RespImageGroup: &pb.RespImageGroup{Group: created},

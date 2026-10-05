@@ -868,17 +868,31 @@ func (mg *Manager) ListImageGroups(session *session.Session) ([]*pb.ImageGroup, 
 	}
 	out := make([]*pb.ImageGroup, 0, len(groups))
 	for _, g := range groups {
-		item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount)}
-		if g.CoverHash != "" {
-			if thumb, err := mg.GetThumbnail(session, &pb.File{Hash: g.CoverHash}); err == nil {
-				item.CoverThumbnail = thumb
-			} else {
-				log.Error("error reading a group cover thumbnail:", err)
-			}
-		}
-		out = append(out, item)
+		out = append(out, mg.imageGroupToPB(session, g))
 	}
 	return out, nil
+}
+
+// GetImageGroup is one group as ListImageGroups lists it, reading only its
+// own cover.
+func (mg *Manager) GetImageGroup(session *session.Session, id string) (*pb.ImageGroup, error) {
+	g, err := mg.dao.GetImageGroup(id)
+	if err != nil {
+		return nil, err
+	}
+	return mg.imageGroupToPB(session, g), nil
+}
+
+func (mg *Manager) imageGroupToPB(session *session.Session, g *dao.ImageGroup) *pb.ImageGroup {
+	item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount)}
+	if g.CoverHash != "" {
+		if thumb, err := mg.GetThumbnail(session, &pb.File{Hash: g.CoverHash}); err == nil {
+			item.CoverThumbnail = thumb
+		} else {
+			log.Error("error reading a group cover thumbnail:", err)
+		}
+	}
+	return item
 }
 
 // GetFile serves the current content of path, or (issue #132) the older

@@ -2336,11 +2336,7 @@ type ImageGroup struct {
 // is neither counted nor offered as a cover (see the table's comment in
 // db.sql for why there is no FK doing this for us).
 func (dao *Dao) ListImageGroups() (groups []*ImageGroup, err error) {
-	rows, err := dao.db.Query(
-		"select `g`.`id`, `g`.`name`," +
-			" (select count(distinct `m`.`hash`) from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`)," +
-			" (select `m`.`hash` from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id` order by rand() limit 1)" +
-			" from `image_groups` as `g` order by `g`.`created` desc")
+	rows, err := dao.db.Query(cImageGroupSelect + " order by `g`.`created` desc")
 	if err != nil {
 		return nil, err
 	}
@@ -2356,6 +2352,24 @@ func (dao *Dao) ListImageGroups() (groups []*ImageGroup, err error) {
 		groups = append(groups, g)
 	}
 	return groups, rows.Err()
+}
+
+// cImageGroupSelect is a group as ListImageGroups and GetImageGroup read
+// it: one query, so the two can't drift apart.
+const cImageGroupSelect = "select `g`.`id`, `g`.`name`," +
+	" (select count(distinct `m`.`hash`) from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`)," +
+	" (select `m`.`hash` from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id` order by rand() limit 1)" +
+	" from `image_groups` as `g`"
+
+// GetImageGroup is one group as ListImageGroups lists it.
+func (dao *Dao) GetImageGroup(id string) (*ImageGroup, error) {
+	g := new(ImageGroup)
+	var cover sql.NullString
+	if err := dao.db.QueryRow(cImageGroupSelect+" where `g`.`id` = ?", id).Scan(&g.ID, &g.Name, &g.FileCount, &cover); err != nil {
+		return nil, err
+	}
+	g.CoverHash = cover.String
+	return g, nil
 }
 
 // CreateImageGroup makes a new, empty group and returns its id.

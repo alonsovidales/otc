@@ -1320,3 +1320,31 @@ func TestVaultDefinedWithTwoRowsAndConditionalCreate(t *testing.T) {
 		t.Errorf("not all expected queries ran: %v", err)
 	}
 }
+
+// Creating an album answered with the new group by listing every group
+// (and decrypting each cover). GetImageGroup reads just that one, with the
+// same live count and random cover the list computes.
+func TestGetImageGroupReadsOneGroupAsTheListDoes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("count\\(distinct `m`\\.`hash`\\).*order by rand\\(\\) limit 1\\) from `image_groups` as `g` order by `g`\\.`created` desc").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g1", "Trip", 3, "h1"))
+	mock.ExpectQuery("count\\(distinct `m`\\.`hash`\\).*order by rand\\(\\) limit 1\\) from `image_groups` as `g` where `g`\\.`id` = \\?").
+		WithArgs("g2").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g2", "Empty", 0, nil))
+
+	d := NewWithDB(db)
+	if gs, err := d.ListImageGroups(); err != nil || len(gs) != 1 || gs[0].CoverHash != "h1" {
+		t.Fatalf("ListImageGroups: %v, %v", gs, err)
+	}
+	g, err := d.GetImageGroup("g2")
+	if err != nil || g.ID != "g2" || g.Name != "Empty" || g.FileCount != 0 || g.CoverHash != "" {
+		t.Fatalf("GetImageGroup: %+v, %v", g, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
