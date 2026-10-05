@@ -537,6 +537,7 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 
 	if err := api.dao.NewContactRequest(name, email, reason, message); err != nil {
 		log.Error("error storing contact request:", err)
+		releaseCooldown(&api.contactMu, api.lastContactByAddr, remoteAddr, now)
 		writeJSONErr(w, http.StatusInternalServerError, "internal error, please try again")
 		return
 	}
@@ -544,6 +545,17 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"ok": "true"})
+}
+
+// releaseCooldown undoes the cooldown stamped at `at` for a request that
+// stored nothing and answered "try again" (a 500), so the retry isn't a
+// 429. Only that request's own stamp: a later one stays.
+func releaseCooldown(mu *sync.Mutex, m map[string]time.Time, addr string, at time.Time) {
+	mu.Lock()
+	if t, ok := m[addr]; ok && t.Equal(at) {
+		delete(m, addr)
+	}
+	mu.Unlock()
 }
 
 // deviceDomain is the full bridge domain for a device name.
@@ -668,6 +680,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	owner, registered, err := api.dao.DomainAccount(domain)
 	if err != nil {
 		log.Error("error checking name before claim:", err)
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
 		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 		return
 	}
@@ -677,6 +690,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			// identity stops working, this one takes over.
 			if ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, body.OwnerUUID, body.Secret); err != nil || !ok {
 				log.Error("error handing", domain, "to a new device:", err)
+				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
 				writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 				return
 			}
@@ -695,6 +709,9 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	}
 	if accountID != "" {
 		if code, msg := api.domainLimitReached(accountID); code != 0 {
+			if code == http.StatusInternalServerError {
+				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+			}
 			writeJSON(w, code, map[string]any{"error": msg, "code": "domain_limit"})
 			return
 		}

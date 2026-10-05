@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -511,6 +512,61 @@ func TestClaimWithASessionNeedsAVerifiedAccount(t *testing.T) {
 	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusCreated {
 		t.Errorf("verified: %d %s, want 201", rec.Code, rec.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// A 500 that stored nothing says "try again": the retry must not be
+// refused by the cooldown the failed request started.
+func TestRetryAfterAFailedStoreIsNotThrottled(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectExec("insert into `contact_requests`").WillReturnError(errors.New("driver: bad connection"))
+	mock.ExpectExec("insert into `contact_requests`").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnError(errors.New("driver: bad connection"))
+	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastContactByAddr: map[string]time.Time{}, lastClaimByAddr: map[string]time.Time{}}
+	contact := func(remoteAddr string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/contact", strings.NewReader(`{"name":"a","email":"a@b.c","message":"hi"}`))
+		req.RemoteAddr = remoteAddr
+		rec := httptest.NewRecorder()
+		api.submitContact(rec, req)
+		return rec.Code
+	}
+	claim := func(remoteAddr string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
+			`{"name":"newpi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))
+		req.RemoteAddr = remoteAddr
+		rec := httptest.NewRecorder()
+		api.claimName(rec, req)
+		return rec.Code
+	}
+
+	if got := contact("203.0.113.7:1111"); got != http.StatusInternalServerError {
+		t.Fatalf("failed store: %d, want 500", got)
+	}
+	if got := contact("203.0.113.7:2222"); got != http.StatusCreated {
+		t.Errorf("retry: %d, want 201", got)
+	}
+	if got := contact("203.0.113.7:3333"); got != http.StatusTooManyRequests {
+		t.Errorf("after a stored message: %d, want 429", got)
+	}
+	if got := claim("203.0.113.7:1111"); got != http.StatusInternalServerError {
+		t.Fatalf("failed claim: %d, want 500", got)
+	}
+	if got := claim("203.0.113.7:2222"); got != http.StatusCreated {
+		t.Errorf("claim retry: %d, want 201", got)
+	}
+	if got := claim("203.0.113.7:3333"); got != http.StatusTooManyRequests {
+		t.Errorf("after a claim: %d, want 429", got)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unexpected DB activity: %v", err)
