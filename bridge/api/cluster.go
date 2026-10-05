@@ -6,10 +6,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/bridge/cluster"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -48,7 +50,7 @@ func (cr *clusterRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// the state here: never forwarded twice, so never in a loop.
 	if r.Header.Get(cluster.HopHeader) != "1" && r.Host != cr.tld && !cr.local.HasLocal(r.Host) {
 		if addr, ok := cr.cluster.Locate(r.Host); ok {
-			cr.proxy(addr).ServeHTTP(w, r)
+			cr.proxy(addr).ServeHTTP(withWriteDeadline(w, r), r)
 			return
 		}
 	}
@@ -85,6 +87,43 @@ func (cr *clusterRouter) proxy(addr string) *httputil.ReverseProxy {
 	cr.proxies[addr] = p
 	return p
 }
+
+// deadlineWriter renews the client's write deadline before every write
+// of a forwarded response. The server has no WriteTimeout (it would cut
+// websockets), so otherwise a client that stops reading holds the
+// forwarding goroutine and its connection to the other node for good.
+type deadlineWriter struct {
+	http.ResponseWriter
+	rc    *http.ResponseController
+	stall time.Duration
+}
+
+// withWriteDeadline wraps w for a forwarded request, except a websocket
+// upgrade, which must stay open while idle (and needs the plain writer to
+// hijack).
+func withWriteDeadline(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
+	if r.Header.Get("Upgrade") != "" || r.Method == http.MethodConnect {
+		return w
+	}
+	stall := limits.WriteIdleTimeout
+	if strings.HasPrefix(r.URL.Path, "/media/") {
+		stall = cMediaWriteStall
+	}
+	return &deadlineWriter{ResponseWriter: w, rc: http.NewResponseController(w), stall: stall}
+}
+
+func (d *deadlineWriter) Write(p []byte) (int, error) {
+	_ = d.rc.SetWriteDeadline(time.Now().Add(d.stall))
+	return d.ResponseWriter.Write(p)
+}
+
+// Flush keeps the proxy's FlushInterval -1 flushing through the wrapper.
+func (d *deadlineWriter) Flush() {
+	_ = d.rc.SetWriteDeadline(time.Now().Add(d.stall))
+	_ = d.rc.Flush()
+}
+
+func (d *deadlineWriter) Unwrap() http.ResponseWriter { return d.ResponseWriter }
 
 func remoteIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)

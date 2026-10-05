@@ -8,12 +8,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	gorilla "github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/alonsovidales/otc/bridge/cluster"
+	"github.com/alonsovidales/otc/bridge/limits"
 )
 
 type fakeLocal map[string]bool
@@ -155,6 +157,29 @@ func TestInternalListenerNeedsToken(t *testing.T) {
 		h.ServeHTTP(w, r)
 		if w.Code != http.StatusForbidden {
 			t.Errorf("token %q: %d, want 403", tok, w.Code)
+		}
+	}
+}
+
+// A forwarded response is written under a write deadline - media with the
+// player-sized one - and still flushes through the wrapper; a websocket
+// upgrade is left alone.
+func TestForwardedResponsesGetAWriteDeadline(t *testing.T) {
+	ws := httptest.NewRequest("GET", "https://cala.off-the.cloud/ws", nil)
+	ws.Header.Set("Upgrade", "websocket")
+	rec := httptest.NewRecorder()
+	if withWriteDeadline(rec, ws) != http.ResponseWriter(rec) {
+		t.Error("a websocket upgrade was wrapped")
+	}
+	for path, want := range map[string]time.Duration{"/assets/index-CaKPC84J.js": limits.WriteIdleTimeout, "/media/tok": cMediaWriteStall} {
+		rec := httptest.NewRecorder()
+		dw, ok := withWriteDeadline(rec, httptest.NewRequest("GET", "https://cala.off-the.cloud"+path, nil)).(*deadlineWriter)
+		if !ok || dw.stall != want {
+			t.Fatalf("%s: not wrapped with a %v deadline", path, want)
+		}
+		io.WriteString(dw, "x")
+		if err := http.NewResponseController(dw).Flush(); err != nil || !rec.Flushed || rec.Body.String() != "x" {
+			t.Errorf("%s: write/flush through the wrapper: %v", path, err)
 		}
 	}
 }

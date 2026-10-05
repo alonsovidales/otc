@@ -32,6 +32,44 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, v any, limit int64) erro
 	return json.NewDecoder(http.MaxBytesReader(w, r.Body, limit)).Decode(v)
 }
 
+// WriteIdleTimeout is how long a proxied response may wait on a client
+// that has stopped reading. The servers have no WriteTimeout either (it
+// would cut the websockets), so without one a client that never reads
+// holds the response, and the buffer behind it, forever.
+const WriteIdleTimeout = 30 * time.Second
+
+// writeChunk is how much WriteAll writes under one write deadline.
+const writeChunk = 32 << 10
+
+// WriteAll writes b to w a chunk at a time, renewing the write deadline
+// before each: a slow client that keeps reading is never cut, one that
+// stops for stall is. Where w has no deadlines (a test recorder) it just
+// writes.
+func WriteAll(w http.ResponseWriter, b []byte, stall time.Duration) error {
+	rc := http.NewResponseController(w)
+	for len(b) > 0 {
+		n := min(len(b), writeChunk)
+		_ = rc.SetWriteDeadline(time.Now().Add(stall))
+		if _, err := w.Write(b[:n]); err != nil {
+			return err
+		}
+		b = b[n:]
+	}
+	return nil
+}
+
+// cSweepKeys is the map size that sweeps a Rate before its time-based
+// sweep is due. Past it the trigger is twice what the last sweep left, so
+// a map that keeps growing is scanned in O(1) per Allow (amortised), not
+// on every call.
+const cSweepKeys = 100000
+
+// maxKeys caps a Rate's map (about 150 MB at IPv6 keys): a key not in it
+// is refused once it is full, until a sweep makes room. Only reached by
+// a flood of distinct addresses; refusing, rather than evicting someone,
+// never hands a key a fresh bucket. A var for the tests.
+var maxKeys = 1 << 20
+
 // Rate is a token bucket per key (an address, a domain): burst requests
 // at once, refilled at perSecond. Keys idle long enough to be full again
 // are dropped, so the map only holds recent keys.
@@ -41,7 +79,11 @@ type Rate struct {
 	burst     float64
 	buckets   map[string]*bucket
 	lastSweep time.Time
-	now       func() time.Time
+	// kept is the map's size after the last sweep.
+	kept int
+	// sweeps counts full scans (tests).
+	sweeps int
+	now    func() time.Time
 }
 
 type bucket struct {
@@ -61,6 +103,9 @@ func (l *Rate) Allow(key string) bool {
 	l.sweep(now)
 	b := l.buckets[key]
 	if b == nil {
+		if len(l.buckets) >= maxKeys {
+			return false
+		}
 		b = &bucket{tokens: l.burst, last: now}
 		l.buckets[key] = b
 	}
@@ -73,15 +118,20 @@ func (l *Rate) Allow(key string) bool {
 	return true
 }
 
+// sweep drops the keys idle for long enough to be full again (exactly
+// like an absent key), once per refill window or when the map has doubled
+// since the last sweep.
 func (l *Rate) sweep(now time.Time) {
 	full := time.Duration(l.burst / l.perSecond * float64(time.Second))
-	if now.Sub(l.lastSweep) < full && len(l.buckets) < 100000 {
+	if now.Sub(l.lastSweep) < full && len(l.buckets) < max(cSweepKeys, 2*l.kept) {
 		return
 	}
 	l.lastSweep = now
+	l.sweeps++
 	for k, b := range l.buckets {
 		if now.Sub(b.last) >= full {
 			delete(l.buckets, k)
 		}
 	}
+	l.kept = len(l.buckets)
 }

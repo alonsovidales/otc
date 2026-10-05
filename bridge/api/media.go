@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"google.golang.org/protobuf/proto"
@@ -18,6 +20,14 @@ import (
 // won't return more than this anyway. Asking for more would just mean
 // answering with less than was promised.
 const maxProxiedRange int64 = 4 << 20
+
+// cMediaWriteStall is how long a media response may wait on a client that
+// has stopped reading before it is cut (limits.WriteAll). Players stop
+// reading on purpose, paused or with a full buffer, and ask for a new
+// range when they resume, so it is far longer than limits.WriteIdleTimeout:
+// it only ends the stall that never ends. It also outlasts the longest
+// device fetch between two spans, which runs under the same deadline.
+const cMediaWriteStall = 5 * time.Minute
 
 // proxyMedia is the bridge half of issue #110: a browser or app talks
 // ordinary HTTP to <device>.off-the.cloud/media/<token>, and this turns
@@ -52,6 +62,15 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 	if spec.suffixLen > 0 {
 		length = min(length, spec.suffixLen)
 	}
+	// HEAD needs the size and type, not the bytes: net/http eats a HEAD
+	// response's body writes without an error, so the walk below would
+	// otherwise pull the whole file through the device's uplink, even
+	// after the client hung up. One byte at the same offset keeps every
+	// status (404 past the end, 416 at it) what GET would get.
+	head := r.Method == http.MethodHead
+	if head {
+		length = 1
+	}
 	if spec.suffixLen > 0 {
 		// A suffix range ("bytes=-1024", the last 1024 bytes) can only
 		// be turned into an offset once the total size is known, and the
@@ -85,6 +104,9 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 		// the length.
 		w.Header().Set("Content-Length", strconv.FormatInt(total, 10))
 		w.WriteHeader(http.StatusOK)
+		if head {
+			return
+		}
 		api.writeWholeFile(w, r, token, content, total)
 		return
 	}
@@ -111,6 +133,9 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", offset, last, total))
 	w.Header().Set("Content-Length", strconv.FormatInt(last-offset+1, 10))
 	w.WriteHeader(http.StatusPartialContent)
+	if head {
+		return
+	}
 	api.writeSpan(w, r, token, offset, content, last)
 }
 
@@ -125,13 +150,16 @@ func (api *API) writeWholeFile(w http.ResponseWriter, r *http.Request, token str
 // stops answering, ends it.
 func (api *API) writeSpan(w http.ResponseWriter, r *http.Request, token string, offset int64, first []byte, last int64) {
 	flusher, _ := w.(http.Flusher)
-	if _, err := w.Write(first); err != nil {
+	if err := limits.WriteAll(w, first, cMediaWriteStall); err != nil {
 		return
 	}
 	if flusher != nil {
 		flusher.Flush()
 	}
 	for pos := offset + int64(len(first)); pos <= last; {
+		if r.Context().Err() != nil {
+			return // the client is gone: don't fetch another span for it
+		}
 		content, _, _, ok := api.fetchMediaRange(nil, r, token, pos, min(maxProxiedRange, last-pos+1))
 		if !ok || len(content) == 0 {
 			return
@@ -139,7 +167,7 @@ func (api *API) writeSpan(w http.ResponseWriter, r *http.Request, token string, 
 		if int64(len(content)) > last-pos+1 {
 			content = content[:last-pos+1]
 		}
-		if _, err := w.Write(content); err != nil {
+		if err := limits.WriteAll(w, content, cMediaWriteStall); err != nil {
 			return
 		}
 		if flusher != nil {
@@ -173,7 +201,7 @@ func (api *API) fetchMediaRange(w http.ResponseWriter, r *http.Request, token st
 	if !api.allowOneOff(w, r) {
 		return nil, 0, "", false
 	}
-	respFrame, err := api.websocket.ForwardOneOff(r.Host, frame)
+	respFrame, err := api.oneOff(r.Host, frame)
 	if err != nil {
 		// Same reasoning as proxyStaticAsset's own unreachable case: the
 		// device is temporarily absent, not broken. A player gets a

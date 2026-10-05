@@ -69,6 +69,10 @@ const (
 // leading/trailing hyphen - the same shape scripts/install.sh accepts.
 var cNamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
+// cHashedAssetPath is a Vite build file: /assets/<name>-<8-character
+// content hash>.<ext>.
+var cHashedAssetPath = regexp.MustCompile(`^/assets/[^/]+-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$`)
+
 // cReservedNames can never be device names: they are (or may one day be)
 // the bridge's own hosts.
 var cReservedNames = map[string]bool{
@@ -99,6 +103,20 @@ type API struct {
 	// oneOffPerAddr limits the device GETs (static assets, /media) one
 	// address can make (issue #163): each spends a device connection.
 	oneOffPerAddr *limits.Rate
+	// beaconPerAddr limits the unauthenticated setup-beacon reports (each
+	// is a write on the shared primary) per address.
+	beaconPerAddr *limits.Rate
+	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
+	// fake device); nil in production.
+	forwardOneOff func(domain string, frame []byte) ([]byte, error)
+}
+
+// oneOff sends one request frame to domain's device (ForwardOneOff).
+func (api *API) oneOff(domain string, frame []byte) ([]byte, error) {
+	if api.forwardOneOff != nil {
+		return api.forwardOneOff(domain, frame)
+	}
+	return api.websocket.ForwardOneOff(domain, frame)
 }
 
 // cOneOffPerSecond/cOneOffBurst: a page load fetches a few dozen assets at
@@ -106,6 +124,13 @@ type API struct {
 const (
 	cOneOffPerSecond = 10
 	cOneOffBurst     = 60
+)
+
+// cSetupBeaconPerSecond/cSetupBeaconBurst: a device reports every 5 s while
+// it is set up, so several behind one address still fit.
+const (
+	cSetupBeaconPerSecond = 1
+	cSetupBeaconBurst     = 10
 )
 
 // requestAddr is the client's address: the connecting one, or - for a
@@ -138,6 +163,7 @@ func (api *API) allowOneOff(w http.ResponseWriter, r *http.Request) bool {
 func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, clu *cluster.Cluster, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
+		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -390,7 +416,7 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respFrame, err := api.websocket.ForwardOneOff(r.Host, frame)
+	respFrame, err := api.oneOff(r.Host, frame)
 	if err != nil {
 		// Issue #97: a device that's switched off, offline, or still
 		// booting used to surface as a bare 502 with an empty body -
@@ -426,10 +452,21 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if asset.RespStaticAsset.ContentType != "" {
-		w.Header().Set("Content-Type", asset.RespStaticAsset.ContentType)
+	ct := asset.RespStaticAsset.ContentType
+	if ct != "" {
+		w.Header().Set("Content-Type", ct)
 	}
-	w.Write(asset.RespStaticAsset.Content)
+	// Vite's content-hashed build output: a name never changes content, so
+	// the browser keeps it instead of fetching it through the device's
+	// uplink on every visit. Never for HTML: the device answers a missing
+	// file with index.html, which must not get stuck under an asset URL.
+	if cHashedAssetPath.MatchString(r.URL.Path) && !strings.HasPrefix(ct, "text/html") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	}
+	// Under a write deadline: the whole asset is in memory by now, and the
+	// device slot is already free, so a client that never reads would
+	// otherwise hold it here for good.
+	_ = limits.WriteAll(w, asset.RespStaticAsset.Content, limits.WriteIdleTimeout)
 }
 
 // submitContact handles the public landing page's contact form (issue
@@ -511,6 +548,7 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 
 	if err := api.dao.NewContactRequest(name, email, reason, message); err != nil {
 		log.Error("error storing contact request:", err)
+		releaseCooldown(&api.contactMu, api.lastContactByAddr, remoteAddr, now)
 		writeJSONErr(w, http.StatusInternalServerError, "internal error, please try again")
 		return
 	}
@@ -518,6 +556,17 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"ok": "true"})
+}
+
+// releaseCooldown undoes the cooldown stamped at `at` for a request that
+// stored nothing and answered "try again" (a 500), so the retry isn't a
+// 429. Only that request's own stamp: a later one stays.
+func releaseCooldown(mu *sync.Mutex, m map[string]time.Time, addr string, at time.Time) {
+	mu.Lock()
+	if t, ok := m[addr]; ok && t.Equal(at) {
+		delete(m, addr)
+	}
+	mu.Unlock()
 }
 
 // deviceDomain is the full bridge domain for a device name.
@@ -585,10 +634,11 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 //
 // Issue #124: the claim names its account, with a setup token (the body's
 // setup_token, or "Authorization: Bearer <token>") or the account page's
-// own session. A name the same account already owns is handed to the new
-// identity - that is how a lost device is replaced: run setup again,
-// signed in, pick the same name. Without an account the claim is refused
-// (401 login_required) unless [accounts] open-registration is on.
+// own session (403 until that account has proved its email and accepted
+// the terms in force). A name the same account already owns is handed to
+// the new identity - that is how a lost device is replaced: run setup
+// again, signed in, pick the same name. Without an account the claim is
+// refused (401 login_required) unless [accounts] open-registration is on.
 func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name       string `json:"name"`
@@ -600,7 +650,11 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	accountID := api.claimAccount(r, body.SetupToken)
+	accountID, refusal := api.claimAccount(r, body.SetupToken)
+	if refusal != "" {
+		writeJSONErr(w, http.StatusForbidden, refusal)
+		return
+	}
 	if accountID == "" && (api.accounts != nil && !api.accounts.OpenRegistration()) {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "sign in to register a name", "code": "login_required"})
 		return
@@ -637,6 +691,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	owner, registered, err := api.dao.DomainAccount(domain)
 	if err != nil {
 		log.Error("error checking name before claim:", err)
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
 		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 		return
 	}
@@ -646,6 +701,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			// identity stops working, this one takes over.
 			if ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, body.OwnerUUID, body.Secret); err != nil || !ok {
 				log.Error("error handing", domain, "to a new device:", err)
+				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
 				writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 				return
 			}
@@ -664,6 +720,9 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	}
 	if accountID != "" {
 		if code, msg := api.domainLimitReached(accountID); code != 0 {
+			if code == http.StatusInternalServerError {
+				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+			}
 			writeJSON(w, code, map[string]any{"error": msg, "code": "domain_limit"})
 			return
 		}
@@ -672,9 +731,17 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		err = api.dao.RegistreDevice(body.OwnerUUID, domain, body.Secret)
 	}
 	if err != nil {
-		// Lost a race with another claim for the same name, most likely.
+		if dao.IsDuplicateKey(err) {
+			// Lost a race with another claim for the same name.
+			log.Info("lost a claim race for", domain)
+			writeJSONErr(w, http.StatusConflict, "that name is already taken")
+			return
+		}
+		// Anything else is the database failing: the name may well be
+		// free, so don't tell the person it's taken.
 		log.Error("error claiming name", domain, ":", err)
-		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
 		return
 	}
 	log.Info("name claimed by the setup wizard:", domain) // no address (issue #162)
@@ -683,9 +750,12 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 
 // claimAccount is the account behind a claim: a setup token from the
 // body or the Authorization header, or the account page's own session.
-func (api *API) claimAccount(r *http.Request, bodyToken string) string {
+// A session is refused (with the reason) for an account that hasn't
+// proved its email or accepted the terms in force, as on the account
+// page: a token is only ever issued to one that has.
+func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refusal string) {
 	if api.accounts == nil {
-		return ""
+		return "", ""
 	}
 	token := bodyToken
 	if auth := r.Header.Get("Authorization"); token == "" && strings.HasPrefix(auth, "Bearer ") {
@@ -693,16 +763,29 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) string {
 	}
 	if token != "" {
 		if id, ok := api.accounts.AccountForSetupToken(token); ok {
-			return id
+			return id, ""
 		}
-		return ""
+		return "", ""
 	}
 	if id, ok := api.accounts.AccountFromRequest(r); ok {
-		return id
+		if !api.accounts.Verified(id) {
+			return "", cConfirmEmailFirst
+		}
+		if !api.accounts.HasAcceptedTerms(id) {
+			return "", cAcceptTermsFirst
+		}
+		return id, ""
 	}
 
-	return ""
+	return "", ""
 }
+
+// Why an account may not register a name yet (accountAddDomain, and a
+// claim with the account page's session).
+const (
+	cConfirmEmailFirst = "confirm your email first - open the link we sent you, or ask for a new one above"
+	cAcceptTermsFirst  = "accept the terms of use above first"
+)
 
 // domainLimitReached is the terms' cap (accounts.MaxDomains): 0 when the
 // account may add one, else the status and message to answer with.
@@ -759,11 +842,11 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 // /api/account/domains {name}.
 func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
 	if !api.accounts.Verified(accountID) {
-		writeJSONErr(w, http.StatusForbidden, "confirm your email first - open the link we sent you, or ask for a new one above")
+		writeJSONErr(w, http.StatusForbidden, cConfirmEmailFirst)
 		return
 	}
 	if !api.accounts.HasAcceptedTerms(accountID) {
-		writeJSONErr(w, http.StatusForbidden, "accept the terms of use above first")
+		writeJSONErr(w, http.StatusForbidden, cAcceptTermsFirst)
 		return
 	}
 	var body struct {
@@ -780,6 +863,7 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 	}
 	domain := api.deviceDomain(name)
 	if _, registered, err := api.dao.DomainAccount(domain); err != nil {
+		log.Error("error checking", domain, "before registering it:", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
 		return
 	} else if registered {
@@ -798,7 +882,12 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 	}
 	owner, secret := uuid.New().String(), newSecret()
 	if err := api.dao.RegisterAccountDevice(accountID, owner, domain, secret); err != nil {
-		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		if dao.IsDuplicateKey(err) {
+			writeJSONErr(w, http.StatusConflict, "that name is already taken")
+			return
+		}
+		log.Error("error registering", domain, "from the account page:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
 		return
 	}
 	log.Info("name registered from the account page:", domain)
@@ -815,6 +904,7 @@ func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accou
 	owner, secret := uuid.New().String(), newSecret()
 	ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, owner, secret)
 	if err != nil {
+		log.Error("error re-issuing", domain, ":", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not re-issue that domain right now")
 		return
 	}
@@ -833,6 +923,7 @@ func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, acc
 	domain := r.PathValue("domain")
 	ok, err := api.dao.DeleteAccountDomain(accountID, domain)
 	if err != nil {
+		log.Error("error releasing", domain, ":", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not release that domain right now")
 		return
 	}
@@ -906,6 +997,11 @@ var cSetupTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 // is all this is for, and it keeps the store from being used to point a
 // page at anything else.
 func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
+	if api.beaconPerAddr != nil && !api.beaconPerAddr.Allow(requestAddr(r)) {
+		w.Header().Set("Retry-After", "5")
+		writeJSONErr(w, http.StatusTooManyRequests, "too many requests")
+		return
+	}
 	var body struct {
 		Token string `json:"token"`
 		Addr  string `json:"addr"`
