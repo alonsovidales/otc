@@ -47,7 +47,7 @@ func galleryTestEnv(t *testing.T) (string, *session.Session) {
 		galleryStorage = filepath.Join(dir, "storage") + "/"
 		os.MkdirAll(galleryStorage, 0o750)
 		os.MkdirAll(filepath.Join(dir, "etc"), 0o750)
-		os.WriteFile(filepath.Join(dir, "etc", "otc_gallerytest.ini"), []byte("[otc]\nstorage-path="+galleryStorage+"\n"), 0o600)
+		os.WriteFile(filepath.Join(dir, "etc", "otc_gallerytest.ini"), []byte("[otc]\nstorage-path="+galleryStorage+"\n[tagger]\nmax-images-search=2\n"), 0o600)
 		wd, _ := os.Getwd()
 		os.Chdir(dir)
 		err = cfg.Init("otc", "gallerytest")

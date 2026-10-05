@@ -85,11 +85,10 @@ type Manager struct {
 	// seconds of a boot dereferences a nil.
 	// Issue #167: the local RAM++ model on the primary instance, the
 	// primary's shared one (modelserver.Client) on a supervised child.
-	tagger         modelserver.Tagger
-	taggerReady    chan struct{}
-	searchTokens   *sync.Map
-	tokensToExpire *sync.Map
-	sharedLinkTTL  time.Duration
+	tagger        modelserver.Tagger
+	taggerReady   chan struct{}
+	searchTokens  *searchTokenCache
+	sharedLinkTTL time.Duration
 	// galleryCache holds shared galleries' decrypted manifests (see
 	// openGallery), made on first use under galleryMu.
 	galleryMu    sync.Mutex
@@ -143,12 +142,11 @@ func (mg *Manager) waitForTagger() modelserver.Tagger {
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
 	mg := &Manager{
-		searchTokens:   new(sync.Map),
-		tokensToExpire: new(sync.Map),
-		baseUrl:        baseUrl,
-		dao:            dao,
-		contentBudget:  newMemBudget(contentBudgetBytes()),
-		sharedLinkTTL:  sharedLinkTTLFromCfg(),
+		searchTokens:  newSearchTokenCache(cSearchTokensMaxRows),
+		baseUrl:       baseUrl,
+		dao:           dao,
+		contentBudget: newMemBudget(contentBudgetBytes()),
+		sharedLinkTTL: sharedLinkTTLFromCfg(),
 	}
 
 	// Issue #105 follow-up: loading the RAM++ model is ~870MB of work and
@@ -304,16 +302,9 @@ func (mg *Manager) tokenCollector() {
 }
 
 func (mg *Manager) collectExpiredTokens() {
-	t := time.Now()
-	mg.tokensToExpire.Range(func(token, expire any) bool {
-		if t.Sub(expire.(time.Time)) > cToeknsTTL {
-			mg.tokensToExpire.Delete(token.(string))
-			mg.searchTokens.Delete(token.(string))
-			log.Debug("Expired token:", token)
-		}
-
-		return true
-	})
+	for _, token := range mg.searchTokens.expire(time.Now(), cToeknsTTL) {
+		log.Debug("Expired token:", token)
+	}
 }
 
 // isSharedLinkExpired reports whether a shared link created at "created"
@@ -795,6 +786,9 @@ func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byt
 func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	tokenFound := false
+	// files is all[off:]: what the token (or the new search) has left.
+	var all []*pb.File
+	off := 0
 	if oldToken != "" && before == nil {
 		// Both halves of this have to be checked before the value is
 		// used. A token the device no longer holds - expired after
@@ -809,12 +803,11 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		// !tokenFound below is already the intended answer for an
 		// unknown token - start the search again from the beginning -
 		// it just never got the chance to run.
-		if cached, ok := mg.searchTokens.Load(oldToken); ok {
-			if cachedFiles, isFiles := cached.([]*pb.File); isFiles {
-				files = cachedFiles
-				token = oldToken
-				tokenFound = true
-			}
+		if cur, ok := mg.searchTokens.load(oldToken); ok {
+			all, off = cur.all, cur.off
+			files = all[off:]
+			token = oldToken
+			tokenFound = true
 		}
 	}
 	if !tokenFound {
@@ -844,6 +837,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 			}
 			log.Debug("Resumed a search with an unknown token, skipped:", have)
 		}
+		all, off = files, 0
 		token = uuid.New().String()
 		log.Debug("New Token:", token)
 	}
@@ -876,12 +870,12 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		page = append(page, file)
 	}
 	if next < len(files) {
-		// A copy of what's left, not files[next:]: that slice shares the
-		// whole result's backing array, so every file already served - its
-		// thumbnail included - stayed reachable for as long as the token
-		// lived (issue #173). The rows kept have no content yet.
-		mg.searchTokens.Store(token, append([]*pb.File(nil), files[next:]...))
-		mg.tokensToExpire.Store(token, time.Now())
+		// The rows already served stay in the token only until they
+		// outnumber those left (nextCursor). Issue #173 copied what was
+		// left at every page, because served rows used to carry their
+		// thumbnails; since #171 Content is only ever set on the page's
+		// clones, never on these rows, so keeping them costs only the rows.
+		mg.searchTokens.store(token, nextCursor(all, off, next), time.Now())
 	} else {
 		log.Debug("End for token:", token)
 		token = "" // We reached the end
