@@ -161,7 +161,19 @@ final class SyncModel: ObservableObject {
     // "both changed (conflict)", and "already agree" — see
     // reconcileRemoteFolder for the full logic.
     private var lastSyncedByRemoteFolder: [UUID: [String: String]] = [:]
-    private var debounceTasks: [String: Task<Void, Never>] = [:]
+    // A watched backup's changed files: each waits for a quiet
+    // debounceInterval, then one worker per folder sends them one at a
+    // time. A task per file used to upload them all at once - an import
+    // of 500 photos held 500 open files and 500 4 MiB chunks in flight.
+    private final class ChangeQueue {
+        /// Paths in the order they fall due. A path changed again is
+        /// queued again, and only its latest entry counts.
+        var order: [(path: String, due: ContinuousClock.Instant)] = []
+        var head = 0
+        var latest: [String: ContinuousClock.Instant] = [:]
+    }
+    private var changeQueues: [UUID: ChangeQueue] = [:]
+    private var changeWorkers: [UUID: Task<Void, Never>] = [:]
     private var errorRetryTasks: [UUID: Task<Void, Never>] = [:]
     private var remoteErrorRetryTasks: [UUID: Task<Void, Never>] = [:]
     private var reconcileLoopStarted = false
@@ -535,6 +547,8 @@ final class SyncModel: ObservableObject {
         remoteHashesByFolder.removeValue(forKey: f.id)
         errorRetryTasks[f.id]?.cancel()
         errorRetryTasks.removeValue(forKey: f.id)
+        changeWorkers.removeValue(forKey: f.id)?.cancel()
+        changeQueues.removeValue(forKey: f.id)
 
         dropHashCache(f.id)
         f.url.stopAccessingSecurityScopedResource()
@@ -701,6 +715,8 @@ final class SyncModel: ObservableObject {
     // MARK: - Event-driven sync (issue #37)
 
     private func handleEvents(_ events: [FolderWatcher.Event], folderId: UUID) {
+        let due = ContinuousClock.now + Self.debounceInterval
+        let queue = changeQueues[folderId] ?? ChangeQueue()
         for event in events {
             // We only care about actual file content, not directories
             // being created/renamed/removed — those surface indirectly
@@ -708,15 +724,39 @@ final class SyncModel: ObservableObject {
             let isDir = event.flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemIsDir) != 0
             if isDir { continue }
 
-            let path = event.path
-            debounceTasks[path]?.cancel()
-            debounceTasks[path] = Task { [weak self] in
-                try? await Task.sleep(for: Self.debounceInterval)
-                guard !Task.isCancelled, let self else { return }
-                await self.processChangedPath(path, folderId: folderId)
-                self.debounceTasks[path] = nil
-            }
+            queue.order.append((event.path, due))
+            queue.latest[event.path] = due
         }
+        guard !queue.latest.isEmpty else { return }
+        changeQueues[folderId] = queue
+        if changeWorkers[folderId] == nil {
+            changeWorkers[folderId] = Task { [weak self] in await self?.drainChanges(folderId) }
+        }
+    }
+
+    /// The folder's worker: each changed path once it has been quiet for
+    /// debounceInterval, one after another, until none is left.
+    private func drainChanges(_ folderId: UUID) async {
+        while !Task.isCancelled, let queue = changeQueues[folderId], queue.head < queue.order.count {
+            let (path, due) = queue.order[queue.head]
+            // Changed again since: its later entry stands.
+            guard queue.latest[path] == due else { queue.head += 1; continue }
+            if due > .now {
+                // Entries behind this one fall due later still.
+                try? await Task.sleep(until: due, clock: .continuous)
+                continue
+            }
+            queue.head += 1
+            queue.latest.removeValue(forKey: path)
+            if queue.head >= 1024, queue.head * 2 >= queue.order.count {
+                queue.order.removeFirst(queue.head)
+                queue.head = 0
+            }
+            guard folders.contains(where: { $0.id == folderId }) else { continue }
+            await processChangedPath(path, folderId: folderId)
+        }
+        changeQueues[folderId] = nil
+        changeWorkers[folderId] = nil
     }
 
     private func processChangedPath(_ path: String, folderId: UUID) async {
