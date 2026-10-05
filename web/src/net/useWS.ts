@@ -20,6 +20,23 @@ function bridgeAnswer(resp: RespEnvelope): Error | null {
   return new Error(resp.payload.respAck.errorMsg || resp.errorMessage || "The device did not answer.");
 }
 
+// How long a refused token waits for another tab's successor (see
+// authWithToken): the tab that redeemed the same token first stores the
+// next one a round trip after its own redemption succeeded.
+const cSuccessorWaitMs = 2000;
+
+// The token in storage once it is no longer `spent`, or when waitMs is
+// over: a successor another tab stored, null if storage was emptied, or
+// `spent` itself if nothing new came.
+async function tokenAfter(spent: string, waitMs: number): Promise<string | null> {
+  const until = Date.now() + waitMs;
+  for (;;) {
+    const stored = loadPersistedToken();
+    if (stored !== spent || Date.now() >= until) return stored;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
 export function UseWS() {
   let isConnected = false;
   let lastAuthRef: string = '';
@@ -308,14 +325,16 @@ export function UseWS() {
 
           // Expired, unknown, or already-redeemed — fall back to the normal
           // sign-in form rather than retrying it on every future reload.
-          // Only this token is cleared: two tabs that reloaded or
-          // reconnected together read the same one, and when the other
-          // redeemed it first, storage now holds its successor - which
-          // this tab tries once rather than deleting it.
-          const stored = loadPersistedToken();
-          if (stored === current) clearPersistedToken();
-          if (!stored || stored === current) return false;
-          current = stored;
+          // Two tabs that reloaded or reconnected together read the same
+          // token. When the other one redeemed it first, its successor
+          // reaches storage a round trip after this refusal does, so this
+          // tab waits a moment for it and tries it once, instead of
+          // signing out and clearing storage just before the successor
+          // lands. Only a token nothing replaced is cleared.
+          const next = await tokenAfter(current, attempt === 0 ? cSuccessorWaitMs : 0);
+          if (next === current) clearPersistedToken();
+          if (!next || next === current) return false;
+          current = next;
         }
         return false;
       } catch (e) {
