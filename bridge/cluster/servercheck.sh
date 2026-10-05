@@ -202,6 +202,21 @@ check_host() {
   if [ $ACCEPT -eq 1 ] || [ ! -f "$base" ]; then
     cp "$cur" "$base"; say "  (security baseline saved)"
   else
+    # A kind of line this script added in an update (unit:, unit_link:)
+    # goes into a baseline that has none of that kind yet, noted in the
+    # report but not a problem: otherwise the first scheduled run after the
+    # update mails an alarm over every unit file on the server. Once the
+    # baseline has a kind, any change to it is reported as usual.
+    local kind adopted=""
+    for kind in unit unit_link; do
+      if ! grep -q "^$kind:" "$base" && grep -q "^$kind:" "$cur"; then
+        grep "^$kind:" "$cur" >> "$base"; adopted="$adopted $kind:"
+      fi
+    done
+    if [ -n "$adopted" ]; then
+      sort -o "$base" "$base"
+      say "  (fingerprint lines of a new kind taken into the baseline:$adopted)"
+    fi
     local d; d=$(diff "$base" "$cur")
     if [ -n "$d" ]; then
       bad "$host: security fingerprint changed (if you made this change: servercheck.sh --accept)"

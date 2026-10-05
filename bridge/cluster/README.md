@@ -157,7 +157,15 @@ macOS notification on any problem; each report emailed through Gmail when
 a Gmail app password is in the Keychain (its spaces don't matter):
 `security add-generic-password -s otc-servercheck-smtp -a vidales.miguelez@gmail.com -w`.
 After a change made on purpose (a new port, a key, a deployed binary):
-`bash bridge/cluster/servercheck.sh --accept`. Run now:
+`bash bridge/cluster/servercheck.sh --accept`. The launchd job runs the
+script straight from this checkout, so an update that widens the
+fingerprint reaches the next scheduled run: lines of a kind the baseline
+has none of yet (the `unit:`/`unit_link:` lines, the first time) are taken
+into it and noted in the report, not raised as a problem; new lines of a
+kind it already has (an `authorized_keys2`, or a key file in a home the
+old version did not look at) are reported - check them and `--accept`.
+To see that first comparison before a scheduled run mails it, run the
+script by hand after updating. Run now:
 `launchctl kickstart gui/$(id -u)/cloud.offthe.servercheck`. Only the scheduled run emails
 (the launchd job passes `--mail`); running the script by hand just writes the report and
 notifies, so a deploy and its `--accept` don't send a burst of mails. Unsigned kernel modules are
