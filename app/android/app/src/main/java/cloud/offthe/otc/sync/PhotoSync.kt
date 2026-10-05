@@ -168,6 +168,10 @@ object PhotoSync {
         var target = path
         known[path]?.let { there ->
             if (alt in known) return alt
+            // Issue #141: no hash, its content is missing on the device. Sent
+            // to the same path, it is restored if it is this file, or refused
+            // as "Duplicated file" (then alt, below) if it isn't.
+            if (there.hash.isEmpty()) return@let
             val cached = AssetSyncCache.hash(cacheKey)
             val mine = when {
                 cached != null -> cached == there.hash
