@@ -20,5 +20,12 @@ TimeoutStartSec=4h
 # so the Update button isn't locked for good. See otc-update-stopped.sh.
 ExecStopPost=-/usr/local/bin/otc-update-stopped
 # The update ends by restarting otc.service; this unit is separate from it
-# precisely so that restart doesn't take the updater down with it.
-KillMode=process
+# precisely so that restart doesn't take the updater down with it. That
+# restart (like raid-watch's) runs in its own unit and `systemctl restart`
+# waits for it, so a run that ends on its own leaves nothing behind here.
+# mixed only matters once a run is stopped or times out: SIGTERM to the
+# main script, then SIGKILL to whatever it left running (a stalled
+# download, a build, a migration) before the unit reads as stopped. With
+# process those leftovers outlived the unit, and the next press started a
+# second update alongside them.
+KillMode=mixed
