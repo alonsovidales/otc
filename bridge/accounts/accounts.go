@@ -165,6 +165,9 @@ func (a *Accounts) pruneLoop() {
 		if err := a.dao.PruneAccountTokens(); err != nil {
 			log.Error("error pruning account tokens:", err)
 		}
+		a.limiterMu.Lock()
+		a.pruneFailuresLocked(time.Now())
+		a.limiterMu.Unlock()
 	}
 }
 
@@ -406,7 +409,13 @@ func (a *Accounts) loginAllowed(addr string, now time.Time) bool {
 			recent = append(recent, t)
 		}
 	}
-	a.failures[addr] = recent
+	// No entry for an address without recent failures: every caller
+	// passes here, failing or not (a junk body, a database error).
+	if len(recent) == 0 {
+		delete(a.failures, addr)
+	} else {
+		a.failures[addr] = recent
+	}
 
 	return len(recent) < cLoginFailures
 }
@@ -416,7 +425,24 @@ func (a *Accounts) loginFailed(addr string, now time.Time) {
 	defer a.limiterMu.Unlock()
 	a.failures[addr] = append(a.failures[addr], now)
 	if len(a.failures) > 10000 {
-		a.failures = map[string][]time.Time{}
+		// Stale entries first; dropping everything (every lockout with it)
+		// only when 10,000 addresses failed within the window.
+		a.pruneFailuresLocked(now)
+		if len(a.failures) > 10000 {
+			a.failures = map[string][]time.Time{}
+		}
+	}
+}
+
+// pruneFailuresLocked drops the addresses whose failures are all older
+// than the window, which loginAllowed would ignore anyway. The caller
+// holds limiterMu.
+func (a *Accounts) pruneFailuresLocked(now time.Time) {
+	for addr, ts := range a.failures {
+		// Appended in time order: the last one is the newest.
+		if len(ts) == 0 || now.Sub(ts[len(ts)-1]) >= cLoginWindow {
+			delete(a.failures, addr)
+		}
 	}
 }
 

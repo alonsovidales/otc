@@ -3,6 +3,7 @@
 package accounts
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -299,5 +300,41 @@ func TestSavingTheProfileKeepsTheSessionAge(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+// The login limiter keeps entries only for addresses with recent
+// failures: a caller that never failed (or failed long ago) leaves none,
+// and a sweep keeps an address that is locked out right now.
+func TestLoginLimiterKeepsOnlyRecentFailures(t *testing.T) {
+	a, _ := testAccounts(t)
+	now := time.Now()
+	if !a.loginAllowed("198.51.100.1", now) || len(a.failures) != 0 {
+		t.Fatalf("an address with no failures left an entry: %v", a.failures)
+	}
+	a.failures["198.51.100.2"] = []time.Time{now.Add(-time.Hour), now.Add(-30 * time.Minute)}
+	if !a.loginAllowed("198.51.100.2", now) || len(a.failures) != 0 {
+		t.Fatalf("stale failures left an entry: %v", a.failures)
+	}
+
+	for i := 0; i < cLoginFailures; i++ {
+		a.loginFailed("198.51.100.3", now)
+	}
+	a.failures["198.51.100.4"] = []time.Time{now.Add(-2 * cLoginWindow)}
+	a.pruneFailuresLocked(now)
+	if _, ok := a.failures["198.51.100.4"]; ok {
+		t.Error("the sweep kept an address whose failures are all stale")
+	}
+	if a.loginAllowed("198.51.100.3", now) {
+		t.Error("the sweep lifted a lockout in force")
+	}
+
+	// Past the cap, stale entries go before anyone's lockout does.
+	for i := 0; i < 10000; i++ {
+		a.failures[fmt.Sprintf("stale-%d", i)] = []time.Time{now.Add(-time.Hour)}
+	}
+	a.loginFailed("198.51.100.5", now)
+	if a.loginAllowed("198.51.100.3", now) || len(a.failures) != 2 {
+		t.Errorf("the cap dropped a lockout in force (%d entries left)", len(a.failures))
 	}
 }
