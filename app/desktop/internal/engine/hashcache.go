@@ -96,6 +96,28 @@ func (e *Engine) saveHashCache(folderID string) {
 	_ = os.Rename(tmp, p)
 }
 
+// pruneHashCache drops the entries of files that are no longer in the
+// folder, so renames and deletes don't grow the cache (and its file)
+// forever. local must be a complete listing of the folder taken this pass,
+// before anything is hashed: entries added later in the pass stay.
+func (e *Engine) pruneHashCache(folderID string, local []string) {
+	keep := make(map[string]struct{}, len(local))
+	for _, p := range local {
+		keep[p] = struct{}{}
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	// Loaded first: pruning a cache not read yet would do nothing, and
+	// reading it later would bring every stale entry back.
+	e.loadHashCacheLocked(folderID)
+	for p := range e.hashCache[folderID] {
+		if _, ok := keep[p]; !ok {
+			delete(e.hashCache[folderID], p)
+			e.hashDirty[folderID] = true
+		}
+	}
+}
+
 // dropHashCacheLocked forgets a removed folder's cache, on disk too.
 func (e *Engine) dropHashCacheLocked(folderID string) {
 	delete(e.hashCache, folderID)

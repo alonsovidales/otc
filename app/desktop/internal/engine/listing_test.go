@@ -4,8 +4,11 @@ package engine
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
@@ -123,5 +126,56 @@ func TestNotSynced(t *testing.T) {
 		if got := notSynced(rel); got != want {
 			t.Errorf("notSynced(%q) = %v, want %v", rel, got, want)
 		}
+	}
+}
+
+// A subdirectory that can't be read is not a deleted one: nothing under
+// it is deleted from the device, its record is kept, and the folder says
+// it could not all be read.
+func TestTwoWayUnreadableDirectoryDeletesNothing(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs a directory this user can't read")
+	}
+	withConfigDir(t)
+	local := t.TempDir()
+	sub := filepath.Join(local, "sub")
+	files := map[string][]byte{"/r/sub/a.txt": []byte("a"), "/r/sub/deeper/b.txt": []byte("b"), "/r/c.txt": []byte("c")}
+	record := map[string]string{}
+	for p, b := range files {
+		rel := strings.TrimPrefix(p, "/r/")
+		full := filepath.Join(local, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		record[rel] = sha(b)
+	}
+	d := twoWayDevice(files)
+	conn := connectedEngine(t, d)
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/r", LocalPath: local}
+	e := New(&config.Config{RemoteFolders: []config.RemoteFolder{f}}, "", nil)
+	e.ws = conn.ws
+	e.saveSynced(f.ID, record)
+
+	if err := os.Chmod(sub, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(sub, 0o755) })
+	e.reconcileRemoteFolder(f)
+
+	if len(d.deletes) != 0 {
+		t.Fatalf("deleted from the device: %v", d.deletes)
+	}
+	e.mu.Lock()
+	kept := maps.Clone(e.lastSynced[f.ID])
+	st := e.remoteStates[f.ID]
+	e.mu.Unlock()
+	if !maps.Equal(kept, record) {
+		t.Errorf("record after the pass: %v, want %v", kept, record)
+	}
+	if st.Kind != StateError || !strings.Contains(st.Message, "could not be read") {
+		t.Errorf("state %+v, want an error saying what could not be read", st)
 	}
 }

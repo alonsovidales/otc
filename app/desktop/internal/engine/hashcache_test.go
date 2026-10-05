@@ -53,3 +53,34 @@ func TestHashCachePersists(t *testing.T) {
 		t.Fatalf("cache file still there after drop: %v", err)
 	}
 }
+
+// Entries of files that left the folder go at the next complete listing,
+// including ones only in the saved file (not loaded yet).
+func TestHashCachePrune(t *testing.T) {
+	withConfigDir(t)
+	dir := t.TempDir()
+	keep, gone := filepath.Join(dir, "keep.txt"), filepath.Join(dir, "gone.txt")
+	for _, p := range []string{keep, gone} {
+		if err := os.WriteFile(p, []byte(p), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first := &Engine{hashCache: map[string]map[string]hashEntry{}, hashDirty: map[string]bool{}, hashLoaded: map[string]bool{}}
+	for _, p := range []string{keep, gone} {
+		if _, err := first.cachedHash("f1", p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first.saveHashCache("f1")
+	_ = os.Remove(gone)
+
+	second := &Engine{hashCache: map[string]map[string]hashEntry{}, hashDirty: map[string]bool{}, hashLoaded: map[string]bool{}}
+	local, failed, err := enumerateFiles(dir)
+	if err != nil || len(failed) != 0 {
+		t.Fatal(err, failed)
+	}
+	second.pruneHashCache("f1", local)
+	if _, ok := second.hashCache["f1"][keep]; !ok || len(second.hashCache["f1"]) != 1 || !second.hashDirty["f1"] {
+		t.Fatalf("after prune: %v dirty=%v", second.hashCache["f1"], second.hashDirty["f1"])
+	}
+}

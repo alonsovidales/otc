@@ -811,12 +811,17 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 	}
 
-	local, err := enumerateFiles(f.Path)
+	// An unreadable subdirectory only means fewer uploads here: a backup
+	// never deletes on the device.
+	local, failedDirs, err := enumerateFiles(f.Path)
 	if err != nil {
 		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
 		e.scheduleErrorRetry(f)
 
 		return
+	}
+	if len(failedDirs) == 0 {
+		e.pruneHashCache(f.ID, local)
 	}
 	localRemote := map[string]bool{}
 	var toUpload []uploadItem
@@ -1017,12 +1022,15 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 	}
 
-	local, err := enumerateFiles(f.LocalPath)
+	local, failedDirs, err := enumerateFiles(f.LocalPath)
 	if err != nil {
 		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
 		e.scheduleRemoteRetry(f)
 
 		return
+	}
+	if len(failedDirs) == 0 {
+		e.pruneHashCache(f.ID, local)
 	}
 	e.mu.Lock()
 	e.loadSyncedLocked(f.ID)
@@ -1079,6 +1087,18 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	for k := range last {
 		all[k] = true
+	}
+	// Under a directory that could not be read (permissions, a dead
+	// network mount) files look deleted here; they are left out like an
+	// unreadable file, or their device copies would be deleted.
+	for rel := range all {
+		for _, d := range failedDirs {
+			if rel == d || strings.HasPrefix(rel, d+"/") {
+				unreadable[rel] = true
+
+				break
+			}
+		}
 	}
 
 	newSynced := map[string]string{}
@@ -1322,8 +1342,12 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
 	e.saveSynced(f.ID, newSynced)
-	if len(unreadable) > 0 {
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d file(s) could not be read", len(unreadable))})
+	if len(unreadable) > 0 || len(failedDirs) > 0 {
+		msg := fmt.Sprintf("%d file(s) could not be read", len(unreadable))
+		if len(unreadable) == 0 {
+			msg = fmt.Sprintf("%d folder(s) could not be read", len(failedDirs))
+		}
+		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: msg})
 
 		return
 	}
@@ -1693,14 +1717,21 @@ func isHidden(p string) bool {
 
 // enumerateFiles walks a tree for regular files, skipping hidden entries
 // like the macOS enumerator's .skipsHiddenFiles and this client's own
-// partial downloads.
-func enumerateFiles(root string) ([]string, error) {
-	var out []string
-	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+// partial downloads. failed lists the directories below root that could
+// not be read (relative to root, slash-separated): what is under them is
+// unknown, not gone. An unreadable root is an error.
+func enumerateFiles(root string) (out, failed []string, err error) {
+	err = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			if p == root {
 				return err
 			}
+			// Below the root only a directory's ReadDir reports here.
+			rel, _ := filepath.Rel(root, p)
+			if len(failed) < 5 {
+				log.Printf("cannot read directory %s: %v", rel, err)
+			}
+			failed = append(failed, filepath.ToSlash(rel))
 
 			return nil
 		}
@@ -1718,7 +1749,7 @@ func enumerateFiles(root string) ([]string, error) {
 		return nil
 	})
 
-	return out, err
+	return out, failed, err
 }
 
 type hashEntry struct {
