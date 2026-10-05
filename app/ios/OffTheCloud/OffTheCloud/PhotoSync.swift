@@ -392,19 +392,25 @@ final class PhotoSync: NSObject {
         ifLive(gen) { UploadModel.shared.begin(total: assets.count) }
 
         let targetPath = "/ios/\(secrets.deviceId)/"
-        // Get a list of all the files for the target path
-        let resp = try await ws.request { env in
-            var list = Msg_ListFiles()
-            list.path = targetPath
-            env.payload = .reqListFiles(list)
-        }
+        // Get a list of all the files for the target path - only when
+        // there is something to check against it. Every library change and
+        // every return to the foreground starts a run, almost always with
+        // nothing new, and the listing holds every photo this phone ever
+        // synced (tens of MB through the bridge for a big library).
         var knownPaths = Set<String>()
-        if case .respListOfFiles(let files) = resp.payload {
-            resp.respListOfFiles.files.forEach {
-                knownPaths.insert($0.path)
+        if !assets.isEmpty {
+            let resp = try await ws.request { env in
+                var list = Msg_ListFiles()
+                list.path = targetPath
+                env.payload = .reqListFiles(list)
             }
-        } else if resp.error {
-            print("Upload listing the files:", resp.errorMessage)
+            if case .respListOfFiles = resp.payload {
+                resp.respListOfFiles.files.forEach {
+                    knownPaths.insert($0.path)
+                }
+            } else if resp.error {
+                print("Upload listing the files:", resp.errorMessage)
+            }
         }
 
         // Release 7: ask the device which of these assets it already holds
