@@ -39,9 +39,9 @@ func TestMetricsAreBatched(t *testing.T) {
 	}
 }
 
-// A primary that stops answering costs a flush its time limit, not a hang
-// (Stop waits for the last flush): the counts it couldn't write, and the
-// ones it never got to, are kept for the next one.
+// A primary that stops answering costs a flush its time limit and one
+// write's, not a hang (Stop waits for the last flush): the counts it
+// couldn't write, and the ones it never got to, are kept for the next one.
 func TestMetricsFlushIsBounded(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -56,7 +56,7 @@ func TestMetricsFlushIsBounded(t *testing.T) {
 
 	mock.ExpectExec("insert into `device_metrics`").WillDelayFor(time.Minute).WillReturnResult(sqlmock.NewResult(0, 1))
 	start := time.Now()
-	d.flushMetrics(100 * time.Millisecond)
+	d.flushMetrics(100*time.Millisecond, 200*time.Millisecond)
 	if took := time.Since(start); took > 5*time.Second {
 		t.Fatalf("a stalled flush took %v", took)
 	}
@@ -64,6 +64,39 @@ func TestMetricsFlushIsBounded(t *testing.T) {
 	defer d.metricsMu.Unlock()
 	if len(d.metrics) != 2 {
 		t.Fatalf("%d of 2 counts kept", len(d.metrics))
+	}
+	for k, c := range d.metrics {
+		if c.requests != 1 || c.in+c.out == 0 {
+			t.Errorf("%s: %+v", k.domain, *c)
+		}
+	}
+}
+
+// A write still under way when the pass runs out of time is not cut short:
+// it may already be applied, and its counts, kept, would be added twice.
+// Only the writes not started yet wait for the next pass.
+func TestMetricsWriteUnderWayIsNotCutShort(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	mock.ExpectExec("update `devices` set `last_client_at`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `devices` set `last_client_at`").WillReturnResult(sqlmock.NewResult(0, 1))
+	d.RecordDeviceActivity("a.off-the.cloud", 1, 2)
+	d.RecordDeviceActivity("b.off-the.cloud", 3, 4)
+
+	// Slower than the pass, well within a write's own limit.
+	mock.ExpectExec("insert into `device_metrics`").WillDelayFor(300 * time.Millisecond).WillReturnResult(sqlmock.NewResult(0, 1))
+	d.flushMetrics(50*time.Millisecond, 5*time.Second)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+	d.metricsMu.Lock()
+	defer d.metricsMu.Unlock()
+	if len(d.metrics) != 1 {
+		t.Fatalf("%d counts kept, want only the one never written", len(d.metrics))
 	}
 	for k, c := range d.metrics {
 		if c.requests != 1 || c.in+c.out == 0 {
