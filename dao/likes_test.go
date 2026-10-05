@@ -97,3 +97,41 @@ func TestDeleteLikesDecrementByRowsRemoved(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// Two likes of one post by different domains at once can deadlock on the
+// guard's gap lock; the one InnoDB picks as the victim is run again, not
+// lost - a bounded number of times.
+func TestNewLikeRunsAgainAfterADeadlock(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	dt := time.Unix(1700000000, 0)
+	deadlock := &mysql.MySQLError{Number: 1213}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(likeInsert).WillReturnError(deadlock)
+	mock.ExpectRollback()
+	mock.ExpectBegin()
+	mock.ExpectExec(likeInsert).WithArgs("l1", "p1", dt, "x", "p1", "x").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `social_publications` set `likes` = `likes` \\+ 1 where `uuid` = \\?").WithArgs("p1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	if inserted, err := d.NewLikePublication("l1", "p1", "x", dt); err != nil || !inserted {
+		t.Fatalf("after a deadlock: %v, %v", inserted, err)
+	}
+
+	for i := 0; i < cLikeTries; i++ {
+		mock.ExpectBegin()
+		mock.ExpectExec("insert into `social_publication_comment_likes`").WillReturnError(deadlock)
+		mock.ExpectRollback()
+	}
+	if inserted, err := d.NewLikePublicationComment("l2", "c1", "x", dt); !errors.Is(err, deadlock) || inserted {
+		t.Fatalf("deadlocked every time: %v, %v", inserted, err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

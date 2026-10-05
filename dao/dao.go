@@ -909,9 +909,30 @@ func (dao *Dao) NewLikePublication(uuid, pubUuid string, friendDomain string, dt
 		uuid, pubUuid, dt, friendDomain)
 }
 
+// cLikeTries is how many times a like's transaction runs while InnoDB
+// ends it as a deadlock's victim. Under REPEATABLE READ the guard's read
+// takes a shared lock on the gap the new row goes in, so two likes of one
+// post or comment by different domains at once (the owner's tap and a
+// friend's like synced in) can each wait for the other's insert: one gets
+// 1213, and that like was lost. Run again, it finds the other committed.
+const cLikeTries = 3
+
 // insertLikeOnce runs a like's guarded insert and, only when it added a
 // row, its counter update, in one transaction (see NewLikePublication).
 func (dao *Dao) insertLikeOnce(insert, count, uuid, target string, dt time.Time, friendDomain string) (inserted bool, err error) {
+	for try := 1; ; try++ {
+		inserted, err = dao.insertLikeOnceTx(insert, count, uuid, target, dt, friendDomain)
+		if !isDeadlock(err) || try == cLikeTries {
+			break
+		}
+	}
+	if err != nil {
+		log.Error("Error trying to create a new like", err)
+	}
+	return inserted, err
+}
+
+func (dao *Dao) insertLikeOnceTx(insert, count, uuid, target string, dt time.Time, friendDomain string) (inserted bool, err error) {
 	tx, err := dao.db.Begin()
 	if err != nil {
 		return false, err
@@ -923,7 +944,6 @@ func (dao *Dao) insertLikeOnce(insert, count, uuid, target string, dt time.Time,
 		return false, nil
 	}
 	if err != nil {
-		log.Error("Error trying to create a new like", err)
 		return false, err
 	}
 	if n, _ := res.RowsAffected(); n != 1 {
@@ -943,6 +963,13 @@ func (dao *Dao) insertLikeOnce(insert, count, uuid, target string, dt time.Time,
 func isDuplicateKey(err error) bool {
 	var me *mysql.MySQLError
 	return errors.As(err, &me) && me.Number == 1062
+}
+
+// isDeadlock is MySQL's 1213: InnoDB rolled the transaction back to break
+// a deadlock, and it can be run again.
+func isDeadlock(err error) bool {
+	var me *mysql.MySQLError
+	return errors.As(err, &me) && me.Number == 1213
 }
 
 // HasLikedPublication reports whether likerDomain has already liked pubUuid.
