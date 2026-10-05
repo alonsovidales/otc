@@ -96,25 +96,41 @@ func maxConnectionsPerDevice() int {
 // Pairing limits (a client's socket claims one of a device's connections
 // for as long as it stays open): per client address and device, at most
 // cPairBurst new pairings at once refilled at cPairPerSecond, and
-// cMaxPairedPerAddr open; per device, maxPairedPerDevice in use. A browser
-// restoring its tabs plus the household's apps behind one NAT stay far
-// below them. Vars so tests can shrink them.
+// maxPairedPerAddr open; per device, maxPairedPerDevice in use. Every web
+// tab and every app holds one paired socket for as long as it is open, so
+// a household behind one NAT (or one IPv6 /64) - a browser restoring about
+// 20 tabs, phones, a desktop app, otc-sync - needs a few dozen: the
+// per-address cap is as high as the per-device one, and it is the
+// per-device cap and the rate that bound abuse. Vars so tests can shrink
+// them.
 var (
 	cPairPerSecond             = 2.0
 	cPairBurst                 = 30.0
-	cMaxPairedPerAddr          = 16
+	cDefaultMaxPairedPerAddr   = 64
 	cDefaultMaxPairedPerDevice = 64
 )
 
 // maxPairedPerDevice reads [bridge] max-paired-per-device, optional like
 // max-connections-per-device.
 func maxPairedPerDevice() int {
-	if cfg.HasSection("bridge") {
-		if v := cfg.GetInt("bridge", "max-paired-per-device"); v > 0 {
+	return bridgeLimit("max-paired-per-device", cDefaultMaxPairedPerDevice)
+}
+
+// maxPairedPerAddr reads [bridge] max-paired-per-addr, optional too.
+func maxPairedPerAddr() int {
+	return bridgeLimit("max-paired-per-addr", cDefaultMaxPairedPerAddr)
+}
+
+// bridgeLimit is [bridge] key when it is set to a positive number, def
+// otherwise (no [bridge] section, no key). An absent key is not passed to
+// cfg.GetInt, which logs an error for it: these are read on every pairing.
+func bridgeLimit(key string, def int) int {
+	if cfg.HasSection("bridge") && cfg.GetStr("bridge", key) != "" {
+		if v := cfg.GetInt("bridge", key); v > 0 {
 			return int(v)
 		}
 	}
-	return cDefaultMaxPairedPerDevice
+	return def
 }
 
 // pairingKey is who a pairing is counted against: the client's address
@@ -128,11 +144,12 @@ func pairingKey(addr, host string) string {
 }
 
 // reservePairing counts one more open pairing for key, unless it already
-// has cMaxPairedPerAddr; releasePairing gives it back.
+// has maxPairedPerAddr; releasePairing gives it back.
 func (mg *Manager) reservePairing(key string) bool {
+	limit := maxPairedPerAddr()
 	mg.pairedMu.Lock()
 	defer mg.pairedMu.Unlock()
-	if mg.pairedByAddr[key] >= cMaxPairedPerAddr {
+	if mg.pairedByAddr[key] >= limit {
 		return false
 	}
 	if mg.pairedByAddr == nil {

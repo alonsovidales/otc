@@ -63,7 +63,7 @@ func waitNoPairings(t *testing.T, mg *Manager) {
 // One address can hold only so many of a device's connections at once,
 // and gets them back as its sockets close.
 func TestOpenPairingsPerAddressAreCapped(t *testing.T) {
-	setVar(t, &cMaxPairedPerAddr, 1)
+	setVar(t, &cDefaultMaxPairedPerAddr, 1)
 	mg, dial, host := pairingBridge(t, 3)
 	for i := 0; i < 3; i++ {
 		pooledRelay(t, mg, host, "owner", true)
@@ -80,6 +80,24 @@ func TestOpenPairingsPerAddressAreCapped(t *testing.T) {
 	waitNoPairings(t, mg)
 	if !paired(t, dial()) {
 		t.Fatal("the address never got its pairing back")
+	}
+}
+
+// Every web tab and every app holds one paired socket for as long as it
+// is open: a household behind one NAT - a browser restoring about 20
+// tabs, phones, the desktop app, otc-sync - keeps all of them under the
+// default limits.
+func TestAHouseholdBehindOneAddressKeepsItsSessions(t *testing.T) {
+	const sessions = 24
+	mg, dial, host := pairingBridge(t, sessions)
+	mg.pairPerAddr = limits.NewRate(cPairPerSecond, cPairBurst)
+	for i := 0; i < sessions; i++ {
+		pooledRelay(t, mg, host, "owner", true)
+	}
+	for i := 0; i < sessions; i++ {
+		if !paired(t, dial()) {
+			t.Fatalf("session %d from one address was refused", i+1)
+		}
 	}
 }
 
@@ -107,7 +125,7 @@ func TestPairedConnectionsPerDeviceAreCapped(t *testing.T) {
 	setVar(t, &cDefaultMaxPairedPerDevice, 1)
 	mg, dial, host := pairingBridge(t, 2)
 	mg.pairPerAddr = nil
-	setVar(t, &cMaxPairedPerAddr, 100)
+	setVar(t, &cDefaultMaxPairedPerAddr, 100)
 	for i := 0; i < 2; i++ {
 		pooledRelay(t, mg, host, "owner", true)
 	}
