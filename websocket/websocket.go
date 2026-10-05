@@ -909,6 +909,17 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 	return func() {}
 }
 
+// tooManyAttemptsAck refuses a password attempt while its address (or the
+// device) is locked out (issue #117), saying when to try again.
+func tooManyAttemptsAck(secs int32) *pb.Ack {
+	return &pb.Ack{
+		Ok:                false,
+		Code:              "too_many_attempts",
+		ErrorMsg:          fmt.Sprintf("Too many attempts. Try again in %d seconds.", secs),
+		RetryAfterSeconds: secs,
+	}
+}
+
 // addr is the address the password-attempt limit is kept for.
 func (ch *connHandler) addr() string {
 	ch.mu.RLock()
@@ -1432,30 +1443,35 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqAuth:
+		addr := ch.addr()
 		// Issue #117: refused outright while this address is locked out,
 		// before the password is even looked at.
-		if retry, blocked := session.Attempts.Blocked(ch.addr()); blocked {
-			secs := int32(retry.Seconds() + 0.999)
-			log.Info("password attempt refused, address locked out:", ch.addr(), "for", retry.Round(time.Second))
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok:                false,
-					Code:              "too_many_attempts",
-					ErrorMsg:          fmt.Sprintf("Too many attempts. Try again in %d seconds.", secs),
-					RetryAfterSeconds: secs,
-				},
-			}
+		if retry, blocked := session.Attempts.Blocked(addr); blocked {
+			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds() + 0.999))}
 			return resp, true
 		}
 
-		key, err := ch.decryptSecret(p.ReqAuth.Key)
-		if err == nil {
-			var ses *session.Session
-			ses, err = session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
-			if err == nil {
-				ch.setSession(ses)
-				ch.mg.startBackfillOnce(ses)
+		// Checked again, and the outcome recorded, in turn with every other
+		// password check (see Attempt): guesses queued behind a failure are
+		// refused once the limit trips, without an Argon2 derivation each.
+		retry, blocked, locked, err := session.Attempts.Attempt(addr, func() error {
+			key, err := ch.decryptSecret(p.ReqAuth.Key)
+			if err != nil {
+				return err
 			}
+			ses, err := session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
+			if err != nil {
+				return err
+			}
+			ch.setSession(ses)
+			ch.mg.startBackfillOnce(ses)
+			return nil
+		})
+		if blocked {
+			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds() + 0.999))}
+			return resp, true
 		}
 
 		if err != nil {
@@ -1466,16 +1482,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			ack := &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)}
 			// Issue #117: the attempt that spends the allowance is answered
 			// with the lockout itself, so the client can say when to retry.
-			if locked := session.Attempts.Fail(ch.addr()); locked > 0 {
-				log.Info("too many failed password attempts from", ch.addr(), "- locked out for", locked)
-				ack.Code = "too_many_attempts"
-				ack.RetryAfterSeconds = int32(locked.Seconds())
-				ack.ErrorMsg = fmt.Sprintf("Too many attempts. Try again in %d seconds.", ack.RetryAfterSeconds)
+			if locked > 0 {
+				log.Info("too many failed password attempts from", addr, "- locked out for", locked)
+				ack = tooManyAttemptsAck(int32(locked.Seconds()))
 			}
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 			return resp, true
 		}
-		session.Attempts.Reset(ch.addr())
 		log.Info("Authenticated session")
 
 		// One-off self-healing sweep for any face row written before

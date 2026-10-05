@@ -36,6 +36,10 @@ const (
 	// accepted: it lasts only as long as the flood.)
 	MaxAuthFailuresTotal = 10
 	AuthTotalWindow      = 30 * time.Second
+
+	// cAuthSlots: password checks at once, the same as deriveSlots,
+	// which they would queue on anyway.
+	cAuthSlots = 2
 )
 
 type attempts struct {
@@ -53,13 +57,34 @@ type AuthLimiter struct {
 	by          map[string]*attempts
 	now         func() time.Time
 	last        time.Time // last sweep
+	// slots: see Attempt.
+	slots chan struct{}
 }
 
 // Attempts is the process-wide limiter the auth handler consults.
 var Attempts = NewAuthLimiter()
 
 func NewAuthLimiter() *AuthLimiter {
-	return &AuthLimiter{by: map[string]*attempts{}, now: time.Now}
+	return &AuthLimiter{by: map[string]*attempts{}, now: time.Now, slots: make(chan struct{}, cAuthSlots)}
+}
+
+// Attempt runs one password check, try, for addr unless addr may not try
+// right now. The limit is checked, and the outcome recorded, while
+// holding one of a few slots: requests queued behind a failure see it, so
+// a burst of pipelined or parallel guesses is refused once the limit trips
+// instead of each running a full Argon2 derivation first. lockedFor is
+// the lockout a failure caused, as Fail returns it.
+func (l *AuthLimiter) Attempt(addr string, try func() error) (retryAfter time.Duration, blocked bool, lockedFor time.Duration, err error) {
+	l.slots <- struct{}{}
+	defer func() { <-l.slots }()
+	if retryAfter, blocked = l.Blocked(addr); blocked {
+		return retryAfter, true, 0, nil
+	}
+	if err = try(); err != nil {
+		return 0, false, l.Fail(addr), err
+	}
+	l.Reset(addr)
+	return 0, false, 0, nil
 }
 
 func (l *AuthLimiter) key(addr string) string {
