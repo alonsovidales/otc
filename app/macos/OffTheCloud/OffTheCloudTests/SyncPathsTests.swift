@@ -41,4 +41,17 @@ struct SyncPathsTests {
         #expect(!SyncPaths.isExcludedFromSync("a/b.jpg"))
         #expect(!SyncPaths.isExcludedFromSync("notes.v2/x.txt"))
     }
+
+    @Test func backupWatcherSkipsWhatReconcileSkips() {
+        let root = "/Users/me/Documents"
+        #expect(SyncPaths.isSkippedBackupPath(root + "/.DS_Store", root: root))
+        #expect(SyncPaths.isSkippedBackupPath(root + "/code/.git/index", root: root))
+        #expect(SyncPaths.isSkippedBackupPath(root + "/a.pdf.otc-part", root: root))
+        #expect(!SyncPaths.isSkippedBackupPath(root + "/report.pdf", root: root))
+        // A backup inside a dot directory is still backed up.
+        #expect(!SyncPaths.isSkippedBackupPath("/Users/me/.dotfiles/zshrc", root: "/Users/me/.dotfiles"))
+        // Spelled differently by FSEvents: the file name decides.
+        #expect(!SyncPaths.isSkippedBackupPath("/private/var/x/report.pdf", root: "/var/x"))
+        #expect(SyncPaths.isSkippedBackupPath("/private/var/x/.DS_Store", root: "/var/x"))
+    }
 }

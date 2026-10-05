@@ -31,4 +31,21 @@ enum SyncPaths {
         if relative.hasSuffix(".otc-part") { return true }
         return relative.split(separator: "/").contains { $0.hasPrefix(".") }
     }
+
+    /// A backup's watcher skips what its reconcile never sends: a hidden
+    /// path below the folder (.DS_Store, .git/...) or a partial download.
+    /// Judged below `root` only, as .skipsHiddenFiles: a backup of
+    /// ~/.dotfiles is still watched.
+    static func isSkippedBackupPath(_ path: String, root: String) -> Bool {
+        if path.hasSuffix(".otc-part") { return true }
+        let relative: Substring
+        if path.hasPrefix(root + "/") {
+            relative = path.dropFirst(root.count + 1)
+        } else {
+            // FSEvents spelled the path differently (/private/var vs
+            // /var): judge the file's own name only.
+            relative = Substring((path as NSString).lastPathComponent)
+        }
+        return relative.split(separator: "/").contains { $0.hasPrefix(".") }
+    }
 }

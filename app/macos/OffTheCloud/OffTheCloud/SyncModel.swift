@@ -717,12 +717,16 @@ final class SyncModel: ObservableObject {
     private func handleEvents(_ events: [FolderWatcher.Event], folderId: UUID) {
         let due = ContinuousClock.now + Self.debounceInterval
         let queue = changeQueues[folderId] ?? ChangeQueue()
+        let root = folders.first(where: { $0.id == folderId })?.url.standardizedFileURL.path
         for event in events {
             // We only care about actual file content, not directories
             // being created/renamed/removed — those surface indirectly
             // through their children's own events anyway.
             let isDir = event.flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemIsDir) != 0
             if isDir { continue }
+            // Nor what reconcile skips: every Finder .DS_Store rewrite
+            // used to add a version of it on the device.
+            if let root, SyncPaths.isSkippedBackupPath(event.path, root: root) { continue }
 
             queue.order.append((event.path, due))
             queue.latest[event.path] = due
