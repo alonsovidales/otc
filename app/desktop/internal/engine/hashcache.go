@@ -65,19 +65,22 @@ func (e *Engine) loadHashCacheLocked(folderID string) {
 }
 
 // saveHashCache writes the folder's cache if this pass changed it; called
-// at the end of every reconcile pass.
+// at the end of every reconcile pass. The dirty check comes first: most
+// passes change nothing, and copying a large cache under e.mu for nothing
+// held up everything else that needs the lock.
 func (e *Engine) saveHashCache(folderID string) {
 	e.mu.Lock()
-	dirty := e.hashDirty[folderID]
+	if !e.hashDirty[folderID] {
+		e.mu.Unlock()
+
+		return
+	}
 	delete(e.hashDirty, folderID)
 	stored := make(map[string]hashCacheFile, len(e.hashCache[folderID]))
 	for path, v := range e.hashCache[folderID] {
 		stored[path] = hashCacheFile{Size: v.size, ModNano: v.modTime.UnixNano(), Hash: v.hash}
 	}
 	e.mu.Unlock()
-	if !dirty {
-		return
-	}
 	p, err := hashCachePath(folderID)
 	if err != nil {
 		return
