@@ -24,7 +24,6 @@ const cRetryMaxMs = 10_000;
  */
 export function usePageRetry() {
   const failsRef = useRef(0);
-  const retryAtRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [tick, setTick] = useState(0);
 
@@ -32,13 +31,11 @@ export function usePageRetry() {
     if (timerRef.current != null) clearTimeout(timerRef.current);
     timerRef.current = null;
     failsRef.current = 0;
-    retryAtRef.current = 0;
   }, []);
 
   const failed = useCallback(() => {
     const n = ++failsRef.current;
     const delay = Math.min(cRetryFirstMs * 2 ** (n - 1), cRetryMaxMs);
-    retryAtRef.current = Date.now() + delay;
     if (timerRef.current != null) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
@@ -46,7 +43,11 @@ export function usePageRetry() {
     }, delay);
   }, []);
 
-  const ready = useCallback(() => Date.now() >= retryAtRef.current, []);
+  // Ready once the timer has fired (or was cleared), by that one clock: a
+  // wall-clock check could still read a hair early when the timer fires
+  // (rounded or slewed Date.now()), skip the fetch, and nothing would
+  // bump `tick` again while the sentinel stays in view.
+  const ready = useCallback(() => timerRef.current == null, []);
 
   useEffect(() => {
     // The device status clears on the first good reply from the device,
@@ -63,6 +64,7 @@ export function usePageRetry() {
       unsubscribe();
       window.removeEventListener("online", wake);
       if (timerRef.current != null) clearTimeout(timerRef.current);
+      timerRef.current = null;
     };
   }, [reset]);
 
