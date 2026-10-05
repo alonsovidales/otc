@@ -85,11 +85,29 @@ func TestSharedLinkAndGalleryKnown(t *testing.T) {
 	if !mg.SharedGalleryKnown(id, secret) {
 		t.Fatal("an existing gallery must be known")
 	}
-	// Malformed ids or secrets never reach the database.
-	if mg.SharedGalleryKnown("not-a-uuid", secret) || mg.SharedGalleryKnown(id, "short") {
-		t.Fatal("a malformed gallery link must not be known")
-	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("not all expected queries ran: %v", err)
+	}
+
+	// Malformed ids or secrets never reach the database. This database
+	// would answer "the link exists" to the lookup, so a call that asked
+	// it would come back true: an unexpected query on its own only gets
+	// an error from sqlmock, which reads as "not known" and hides it.
+	db2, mock2, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db2.Close()
+	mock2.MatchExpectationsInOrder(false)
+	for range 2 {
+		mock2.ExpectQuery("select `created`, `expires` from `shared_links` where `uuid` = \\?").
+			WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now(), nil))
+	}
+	malformed := &Manager{dao: dao.NewWithDB(db2)}
+	if malformed.SharedGalleryKnown("not-a-uuid", secret) || malformed.SharedGalleryKnown(id, "short") {
+		t.Fatal("a malformed gallery link must not be known, nor looked up")
+	}
+	if mock2.ExpectationsWereMet() == nil {
+		t.Error("a malformed gallery link was looked up in the database")
 	}
 }
