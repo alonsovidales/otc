@@ -6,13 +6,20 @@ package cfg
 
 import (
 	"fmt"
+	"strconv"
+	"sync"
+
 	"github.com/alonsovidales/otc/log"
 	"github.com/alyu/configparser"
-	"strconv"
 )
 
 var cfg *configparser.Configuration
 var sections = make(map[string]*configparser.Section)
+
+// sectionsMu guards sections: it is filled lazily, on first use, from
+// whichever goroutine reads a section first, and two goroutines writing a
+// Go map at once kill the process (a fatal error no recover catches).
+var sectionsMu sync.RWMutex
 
 // Init Loads a INI file onto memory, first try to liad the config file from
 // the etc/ directory on the current path, and if the file can't be found, try
@@ -70,35 +77,46 @@ func GetBool(sec, subsec string) (v bool) {
 // sections (e.g. [apns], issue #43) that a caller needs to skip gracefully
 // rather than crash the whole process when they're absent.
 func HasSection(name string) bool {
-	if _, ok := sections[name]; ok {
-		return true
+	_, ok := cachedSection(name)
+	return ok
+}
+
+// cachedSection returns the section and whether it exists, filling the
+// cache on first use.
+func cachedSection(name string) (*configparser.Section, bool) {
+	sectionsMu.RLock()
+	sec, ok := sections[name]
+	sectionsMu.RUnlock()
+	if ok {
+		return sec, true
 	}
 	if cfg == nil {
-		return false
+		return nil, false
 	}
-	if sec, err := cfg.Section(name); err == nil {
+	sec, err := cfg.Section(name) // configparser locks its own reads
+	if err != nil {
+		return nil, false
+	}
+	sectionsMu.Lock()
+	if prev, ok := sections[name]; ok {
+		sec = prev
+	} else {
 		sections[name] = sec
-		return true
 	}
-	return false
+	sectionsMu.Unlock()
+	return sec, true
 }
 
 // loadSection loads a section of the config file
 func loadSection(name string) (section *configparser.Section) {
-	if section, ok := sections[name]; ok {
+	if section, ok := cachedSection(name); ok {
 		return section
 	}
 
 	if cfg == nil {
 		log.Fatal("Configuration file not yet loaded, call to the Init method before try to use the config manager")
 	}
+	log.Fatal("Configuration subsection:", name, "can't be parsed")
 
-	if sec, err := cfg.Section(name); err == nil {
-		sections[name] = sec
-
-	} else {
-		log.Fatal("Configuration subsection:", name, "can't be parsed")
-	}
-
-	return sections[name]
+	return nil
 }
