@@ -72,8 +72,64 @@ struct AssetSyncCacheTests {
         defer { try? FileManager.default.removeItem(at: dir) }
         let c = AssetSyncCache(directory: dir)
         c.record(localIdentifier: "A/L0/001", hash: "aa")
+        c.markPending(["B/L0/001"], iCloud: false)
         c.clear()
         #expect(c.hash(for: "A/L0/001") == nil)
-        #expect(AssetSyncCache(directory: dir).hash(for: "A/L0/001") == nil)
+        #expect(c.pending(includeICloud: true).isEmpty)
+        let d = AssetSyncCache(directory: dir)
+        #expect(d.hash(for: "A/L0/001") == nil)
+        #expect(d.pending(includeICloud: true).isEmpty)
+    }
+
+    @Test func retryListSurvivesARelaunch() {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let c = AssetSyncCache(directory: dir)
+        c.markPending(["A", "B"], iCloud: false)
+        c.markPending(["C"], iCloud: true)
+        c.resolve(["B"])
+
+        let d = AssetSyncCache(directory: dir)
+        #expect(Set(d.pending(includeICloud: false)) == ["A"])
+        #expect(Set(d.pending(includeICloud: true)) == ["A", "C"])
+    }
+
+    @Test func anAssetMovesBetweenTheRetryLists() {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let c = AssetSyncCache(directory: dir)
+        c.markPending(["A"], iCloud: false)
+        c.markPending(["A"], iCloud: true)
+        #expect(c.pending(includeICloud: false).isEmpty)
+        c.markPending(["A"], iCloud: false)
+        #expect(AssetSyncCache(directory: dir).pending(includeICloud: false) == ["A"])
+    }
+
+    @Test func clearPendingKeepsTheHashes() {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let c = AssetSyncCache(directory: dir)
+        c.record(localIdentifier: "A", hash: "aa")
+        c.markPending(["B"], iCloud: true)
+        c.clearPending()
+        let d = AssetSyncCache(directory: dir)
+        #expect(d.pending(includeICloud: true).isEmpty)
+        #expect(d.hash(for: "A") == "aa")
+    }
+
+    @Test func aLongRetryLogIsCompacted() {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let c = AssetSyncCache(directory: dir)
+        for i in 0..<300 {
+            c.markPending(["id\(i)"], iCloud: false)
+            c.resolve(["id\(i)"])
+        }
+        c.markPending(["kept"], iCloud: true)
+        c.flush()
+        let log = dir.appendingPathComponent("asset_sync_pending.log")
+        let text = (try? String(contentsOf: log, encoding: .utf8)) ?? ""
+        #expect(text == "i\tkept\n")
+        #expect(AssetSyncCache(directory: dir).pending(includeICloud: true) == ["kept"])
     }
 }

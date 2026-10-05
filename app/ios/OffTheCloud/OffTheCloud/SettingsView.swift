@@ -477,6 +477,8 @@ struct SettingsView: View {
                     Button("Sync From Now") {
                         secrets.persist()
                         UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+                        // Skips what earlier runs couldn't finish, too.
+                        AssetSyncCache.shared.clearPending()
                     }
                 }
 

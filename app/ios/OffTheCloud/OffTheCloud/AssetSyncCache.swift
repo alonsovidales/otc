@@ -15,6 +15,10 @@
 //  was meant to let a client avoid, just moved to the client's iCloud
 //  fetch instead of the network upload. A hit here skips both: the cached
 //  hash goes straight to LinkFile.
+//
+//  Also keeps PhotoSync's retry list: assets a run attempted and couldn't
+//  finish, tried again by later runs although the date watermark has moved
+//  past them.
 
 import Foundation
 
@@ -31,7 +35,12 @@ final class AssetSyncCache {
     /// concurrent uploads wait on. Folded back into the snapshot by
     /// flush() once it gets long.
     private let journal: AppendLog
+    /// The retry list: "r\t<id>" (retry), "i\t<id>" (retry once "Sync from
+    /// iCloud" is on) and "-\t<id>" (resolved) lines.
+    private let pendingLog: AppendLog
     private var cache: [String: String] = [:]
+    private var retry = Set<String>()
+    private var retryICloud = Set<String>()
     // Serializes both the in-memory state and the file writes below -
     // PhotoSync's sync loop calls record(_:hash:) from several concurrent
     // tasks at once (cMaxConcurrentUploads).
@@ -42,12 +51,21 @@ final class AssetSyncCache {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         url = dir.appendingPathComponent("asset_sync_cache.json")
         journal = AppendLog(url: dir.appendingPathComponent("asset_sync_cache.log"))
+        pendingLog = AppendLog(url: dir.appendingPathComponent("asset_sync_pending.log"))
         if let data = try? Data(contentsOf: url),
            let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
             cache = decoded
         }
         for (key, value) in journal.read() {
             cache[key] = value
+        }
+        for (op, id) in pendingLog.read() {
+            switch op {
+            case "r": retry.insert(id); retryICloud.remove(id)
+            case "i": retryICloud.insert(id); retry.remove(id)
+            case "-": retry.remove(id); retryICloud.remove(id)
+            default: break
+            }
         }
         compactIfLong()
     }
@@ -75,8 +93,51 @@ final class AssetSyncCache {
     func clear() {
         queue.sync {
             cache = [:]
+            retry = []
+            retryICloud = []
             journal.remove()
+            pendingLog.remove()
             try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    // MARK: Retry list
+
+    /// The assets to try again. Those that failed while "Sync from iCloud"
+    /// was off only once it is on: retrying them with it still off would
+    /// fail the same way.
+    func pending(includeICloud: Bool) -> [String] {
+        queue.sync { Array(includeICloud ? retry.union(retryICloud) : retry) }
+    }
+
+    func markPending(_ ids: [String], iCloud: Bool) {
+        guard !ids.isEmpty else { return }
+        queue.sync {
+            for id in ids {
+                // Both sides evaluated: the id moves between the lists.
+                let added = iCloud ? retryICloud.insert(id).inserted : retry.insert(id).inserted
+                let moved = (iCloud ? retry.remove(id) : retryICloud.remove(id)) != nil
+                if added || moved { pendingLog.append(iCloud ? "i" : "r", id) }
+            }
+        }
+    }
+
+    /// Done, given up on (it can never work) or gone from the library.
+    func resolve(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        queue.sync {
+            for id in ids where retry.remove(id) != nil || retryICloud.remove(id) != nil {
+                pendingLog.append("-", id)
+            }
+        }
+    }
+
+    /// Sync From Now: skip everything already in the library.
+    func clearPending() {
+        queue.sync {
+            retry = []
+            retryICloud = []
+            pendingLog.remove()
         }
     }
 
@@ -88,6 +149,9 @@ final class AssetSyncCache {
             // A crash before this line is harmless: replaying the journal
             // over the new snapshot gives the same map.
             journal.remove()
+        }
+        if pendingLog.lines > max(200, 2 * (retry.count + retryICloud.count)) {
+            pendingLog.replace(with: retry.sorted().map { ("r", $0) } + retryICloud.sorted().map { ("i", $0) })
         }
     }
 }
