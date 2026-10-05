@@ -444,7 +444,17 @@ final class PhotoSync: NSObject {
         // The watermark never goes past this: a photo with a future date
         // (a wrong camera clock) can't push it ahead of what was fetched.
         let runStart = Date()
-        let (last, epoch) = startingPoint()
+        let (stored, epoch) = startingPoint()
+        var last = stored
+        // A watermark ahead of the clock (Sync From Now, or photos synced
+        // while the clock was ahead, then corrected) would match no new
+        // photo until real time caught up: the end-of-run "now" write that
+        // used to correct it is gone. Pulled back, as on Android.
+        if let s = stored, s > runStart {
+            let pulled = runStart.addingTimeInterval(-1)
+            ifLive(gen, epoch: epoch) { UserDefaults.standard.set(pulled, forKey: "lastSyncDate") }
+            last = pulled
+        }
         print("Sync photos from: \(String(describing: last))")
         var assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
 
@@ -519,7 +529,8 @@ final class PhotoSync: NSObject {
         var idx = 0
         // Cancelled: the run throws, so a BG task reports it unfinished.
         var stopped = false
-        for chunk in assets.chunked(into: Self.cMaxConcurrentUploads) {
+        let chunks = assets.chunked(into: Self.cMaxConcurrentUploads)
+        for (ci, chunk) in chunks.enumerated() {
             // Issue #70: a BGProcessingTask's expiration and Log Out cancel
             // this run. Checked between chunks; uploads already in flight
             // stop at their next 4 MiB chunk (uploadChunked's
@@ -801,7 +812,17 @@ final class PhotoSync: NSObject {
             // The whole chunk has been attempted by the time the group
             // above returns, so the watermark can move past the newly
             // fetched dates in it (retried assets are older).
-            if let latest = chunk.filter({ !retriedIDs.contains($0.localIdentifier) }).compactMap(\.creationDate).max() {
+            if var latest = chunk.filter({ !retriedIDs.contains($0.localIdentifier) }).compactMap(\.creationDate).max() {
+                // A date the next chunk's first fresh asset shares isn't
+                // done yet (as on Android): a run stopped before it would
+                // skip it for good under the fetch's strict "after". This
+                // chunk's assets at that date are fetched again next run
+                // and skipped as already synced.
+                if ci + 1 < chunks.count,
+                   let next = chunks[ci + 1].first(where: { !retriedIDs.contains($0.localIdentifier) })?.creationDate,
+                   next <= latest {
+                    latest = latest.addingTimeInterval(-0.001)
+                }
                 let mark = min(latest, runStart)
                 ifLive(gen, epoch: epoch) { UserDefaults.standard.set(mark, forKey: "lastSyncDate") }
                 print("Latest date:", mark)

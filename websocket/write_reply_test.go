@@ -62,7 +62,9 @@ func dialSmallBuffer(t *testing.T, url string) *gorilla.Conn {
 func TestWriteReplyGivesUpOnAPeerThatStopsReading(t *testing.T) {
 	orig := cReplyStall
 	cReplyStall = 300 * time.Millisecond
-	defer func() { cReplyStall = orig }()
+	// A cleanup, registered before the server's: it runs after the server
+	// closed, so a failing test doesn't race the writer still reading it.
+	t.Cleanup(func() { cReplyStall = orig })
 
 	payload := make([]byte, 16<<20)
 	url, result := replyServer(t, payload)
@@ -83,12 +85,21 @@ func TestWriteReplyGivesUpOnAPeerThatStopsReading(t *testing.T) {
 func TestWriteReplyDeliversALargeReplyToASlowReader(t *testing.T) {
 	orig := cReplyStall
 	cReplyStall = 300 * time.Millisecond
-	defer func() { cReplyStall = orig }()
+	// A cleanup, registered before the server's: it runs after the server
+	// closed, so a failing test doesn't race the writer still reading it.
+	t.Cleanup(func() { cReplyStall = orig })
 
 	payload := make([]byte, 3<<20+12345)
 	rand.Read(payload)
 	url, result := replyServer(t, payload)
-	c := dialSmallBuffer(t, url)
+	// Default buffers on the reading side: with 16 KiB at both ends, Linux
+	// loopback slows to about 150 KB/s and a 64 KiB piece can miss the
+	// shortened stall, which no real peer would see.
+	c, _, err := gorilla.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
 
 	start := time.Now()
 	typ, r, err := c.NextReader()

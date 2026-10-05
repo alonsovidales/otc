@@ -56,6 +56,11 @@ fun logOut(
         SyncScheduler.cancel()
         // Off the main thread: the wipe deletes the whole cache and files dirs.
         withContext(Dispatchers.IO) {
+            // Again, right before the wipe (as AppLogOut on iOS): a sync that
+            // started during the unregister wait above (ON_RESUME, Sync Now,
+            // the WorkManager run) would write its watermark and asset cache
+            // after the wipe, and the next device would skip the library.
+            PhotoSync.cancel()
             AssetSyncCache.clear()
             secrets.logOut()
             if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()

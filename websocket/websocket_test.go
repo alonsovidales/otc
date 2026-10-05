@@ -467,8 +467,8 @@ func TestAuthAcksAShortFirstPasswordWithoutCountingIt(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected a RespAck payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
 		}
-		if ack.RespAck.Ok || ack.RespAck.Code != "password_too_short" {
-			t.Fatalf("attempt %d: expected Ok=false, Code=password_too_short, got %+v", i+1, ack.RespAck)
+		if ack.RespAck.Ok || ack.RespAck.Code != "" || !strings.Contains(ack.RespAck.ErrorMsg, "8 characters") {
+			t.Fatalf("attempt %d: expected Ok=false, no code and the reason, got %+v", i+1, ack.RespAck)
 		}
 	}
 	if _, blocked := session.Attempts.Blocked(addr); blocked {

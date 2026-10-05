@@ -41,7 +41,18 @@ SQL
 
 apply_to otc
 
-for db in $(mysql -N -e "SELECT db_name FROM users" otc 2>/dev/null || true); do
+for db in $(mysql -N -B -e "SELECT db_name FROM users" otc 2>/dev/null || true); do
+    # The otc service can write this table: only a name the device itself
+    # generates (dao checkGenerated, install.sh) reaches root's mysql
+    # command line, where anything starting with - would be an option.
+    if ! [[ "$db" =~ ^otc_[0-9a-f]{32}$ ]]; then
+        echo "skipping a users row whose db_name this device did not generate"
+        continue
+    fi
+    if ! mysql -N -B -e "SHOW DATABASES LIKE '$db'" | grep -qxF -- "$db"; then
+        echo "skipping $db: no such database"
+        continue
+    fi
     apply_to "$db"
 done
 

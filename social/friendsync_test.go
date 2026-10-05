@@ -117,6 +117,30 @@ func TestFriendSyncStopsAtAPostTheConnectionLost(t *testing.T) {
 	}
 }
 
+// The bridge answering for a friend's device it can't reach (restarting
+// for an update, say) is a lost connection, not an answer about the post:
+// the page stops there, as above, instead of skipping the post for good.
+func TestFriendSyncStopsAtAPostTheBridgeCouldNotReach(t *testing.T) {
+	fr, mock := friendFrom(t, "x.off-the.cloud")
+	fr.data.NotificationsStarted = true
+	fr.sc = &Social{}
+	fr.conn = fakeFriendDevice(t, func(req *pb.ReqEnvelope) *pb.RespEnvelope {
+		if _, ok := req.Payload.(*pb.ReqEnvelope_ReqGetEvents); ok {
+			return &pb.RespEnvelope{Payload: &pb.RespEnvelope_RespEvents{RespEvents: &pb.Events{Events: postThenComment()}}}
+		}
+		return &pb.RespEnvelope{Error: true, ErrorMessage: "device unreachable",
+			Payload: &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Code: "device_unreachable"}}}
+	})
+	notStoredYet(mock)
+
+	if err := fr.updateFriendEvents(); !errors.Is(err, errFriendTransport) {
+		t.Fatalf("got %v, want the page stopped on the unreachable device", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
 // An answer about the post itself (deleted on the friend's side since)
 // skips it, as before, and the page carries on.
 func TestFriendSyncSkipsAPostTheFriendNoLongerHas(t *testing.T) {

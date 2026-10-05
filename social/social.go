@@ -976,6 +976,9 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 		return nil, err
 	}
 	if resp.Error {
+		if bridgeLostFriend(&resp) {
+			return nil, fmt.Errorf("%w: %s", errFriendTransport, resp.ErrorMessage)
+		}
 		return nil, errors.New(resp.ErrorMessage)
 	}
 	rf, err := expectPayload[*pb.RespEnvelope_RespFile]("get publication media", fr.data.OriginProfile.Domain, resp.Payload)
@@ -988,6 +991,14 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 // errFriendTransport marks a failure of the connection to a friend's
 // device, as opposed to an answer about one post.
 var errFriendTransport = errors.New("friend connection failed")
+
+// bridgeLostFriend: the bridge answered for a friend's device it can't
+// reach (restarting, say, and it has hung up), so the connection failed,
+// not the post.
+func bridgeLostFriend(resp *pb.RespEnvelope) bool {
+	ack := resp.GetRespAck()
+	return ack != nil && (ack.Code == "device_unreachable" || ack.Code == "account_disabled")
+}
 
 func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err error) {
 	msg := &pb.ReqEnvelope{
@@ -1017,6 +1028,9 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 	}
 	if respProf.Error {
 		log.Debug("Error trying to get publications from friend:", respProf.ErrorMessage)
+		if bridgeLostFriend(&respProf) {
+			return nil, fmt.Errorf("%w: %s", errFriendTransport, respProf.ErrorMessage)
+		}
 		return nil, errors.New(respProf.ErrorMessage)
 	}
 	filesResp, err := expectPayload[*pb.RespEnvelope_RespSocialPublicationFiles]("get publication files", fr.data.OriginProfile.Domain, respProf.Payload)
