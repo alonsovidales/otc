@@ -20,6 +20,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/wsclient"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -34,10 +35,11 @@ type fakeDevice struct {
 	pending map[string]*bytes.Buffer
 	paths   map[string]string
 	chunks  int
-	list    []*pb.File // what ListFiles answers
-	reads   int        // ReadFile/GetFile requests
-	deletes []string   // DelFile paths
-	onRead  func()     // runs on each ReadFile, as if the user did something meanwhile
+	list    []*pb.File             // what ListFiles answers
+	reads   int                    // ReadFile/GetFile requests
+	deletes []string               // DelFile paths
+	onRead  func()                 // runs on each ReadFile, as if the user did something meanwhile
+	modTime *timestamppb.Timestamp // the files' date, when set
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -96,7 +98,7 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		off := p.ReqReadFile.Offset
 		end := min(off+int64(p.ReqReadFile.Length), int64(len(data)))
 		resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{
-			Path: p.ReqReadFile.Path, Hash: hex.EncodeToString(sum[:]), Size: int64(len(data)), Offset: off, Data: data[off:end],
+			Path: p.ReqReadFile.Path, Hash: hex.EncodeToString(sum[:]), Size: int64(len(data)), Offset: off, Data: data[off:end], Modified: d.modTime,
 		}}
 	default:
 		resp.Error, resp.ErrorMessage = true, "unexpected request"

@@ -10,9 +10,11 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // twoWayDevice is a fake device that lists and serves files (path ->
@@ -261,5 +263,35 @@ func TestTwoWayCaseOnlyRename(t *testing.T) {
 	}
 	if len(d.deletes) != 0 {
 		t.Fatalf("deleted from the device: %v", d.deletes)
+	}
+}
+
+// A downloaded file's hash is cached with the date it was given, so the
+// next pass doesn't read it all again.
+func TestTwoWayDownloadCachesItsHash(t *testing.T) {
+	withConfigDir(t)
+	local := t.TempDir()
+	content := []byte("downloaded once")
+	d := twoWayDevice(map[string][]byte{"/r/sub/a.txt": content})
+	d.modTime = timestamppb.New(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	conn := connectedEngine(t, d)
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/r", LocalPath: local}
+	e := New(&config.Config{RemoteFolders: []config.RemoteFolder{f}}, "", nil)
+	e.ws = conn.ws
+
+	e.reconcileRemoteFolder(f)
+	p := filepath.Join(local, "sub", "a.txt")
+	e.mu.Lock()
+	hit := e.hashCache[f.ID][p]
+	e.mu.Unlock()
+	if hit.hash != sha(content) || hit.size != int64(len(content)) {
+		t.Fatalf("cache after the download: %+v", hit)
+	}
+	// Changed here afterwards: the entry no longer matches, so it's read.
+	if err := os.WriteFile(p, []byte("changed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if h, _ := e.cachedHash(f.ID, p); h != sha([]byte("changed")) {
+		t.Fatalf("a stale cache entry answered: %s", h)
 	}
 }

@@ -1375,7 +1375,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				}
 			}
 		case actDownload:
-			err = e.downloadIf(remotePath, localPath, a.hash, func() error { return stillAsScanned(a.relative, localPath) })
+			err = e.downloadIf(remotePath, localPath, a.hash, f.ID, func() error { return stillAsScanned(a.relative, localPath) })
 		case actDownloadKeepLocal:
 			// The local version first, under its conflict name; only then
 			// the device's version over the original name. The rename takes
@@ -1384,12 +1384,12 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			copyPath := conflictPath(localPath, hostLabel(), time.Now())
 			if err = os.Rename(localPath, copyPath); err == nil {
 				log.Printf("conflict on %s: this computer's version kept as %s", a.relative, filepath.Base(copyPath))
-				err = e.downloadIf(remotePath, localPath, a.hash, absent(localPath))
+				err = e.downloadIf(remotePath, localPath, a.hash, f.ID, absent(localPath))
 			}
 		case actUploadKeepRemote:
 			localHash, remoteHash, _ := strings.Cut(a.hash, "\x00")
 			copyPath := conflictPath(localPath, "", time.Now())
-			if err = e.downloadIf(remotePath, copyPath, remoteHash, absent(copyPath)); err == nil {
+			if err = e.downloadIf(remotePath, copyPath, remoteHash, f.ID, absent(copyPath)); err == nil {
 				log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
 				var fi os.FileInfo
 				if fi, err = os.Stat(localPath); err == nil {
@@ -1631,13 +1631,14 @@ func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified 
 // with empty content and no error, and the 0-byte file that made went
 // back up over the device's row on the next pass).
 func (e *Engine) download(remotePath, dest, expectedHash string) error {
-	return e.downloadIf(remotePath, dest, expectedHash, nil)
+	return e.downloadIf(remotePath, dest, expectedHash, "", nil)
 }
 
 // downloadIf is download with a last check: ready, when given, runs once
 // the content is here and verified, just before it takes dest's place,
-// and an error from it leaves dest as it is.
-func (e *Engine) downloadIf(remotePath, dest, expectedHash string, ready func() error) error {
+// and an error from it leaves dest as it is. With a folderID, the hash of
+// what was written goes in that folder's hash cache.
+func (e *Engine) downloadIf(remotePath, dest, expectedHash, folderID string, ready func() error) error {
 	// Issue #168: ReadFile, in pieces, and the file's original bytes -
 	// GetFile turns a HEIC into a JPEG for viewers, so what came back never
 	// matched the listed hash: never written, fetched again every pass,
@@ -1694,7 +1695,8 @@ func (e *Engine) downloadIf(remotePath, dest, expectedHash string, ready func() 
 	// Checked before anything takes the file's place (a device whose blob
 	// had gone missing used to answer with empty content, and the 0-byte
 	// file that made went back up over the device's row on the next pass).
-	if got := hex.EncodeToString(h.Sum(nil)); expectedHash != "" && got != expectedHash {
+	got := hex.EncodeToString(h.Sum(nil))
+	if expectedHash != "" && got != expectedHash {
 		return fmt.Errorf("the device sent %d bytes that don't match the file's hash - not written", offset)
 	}
 	if err := out.Close(); err != nil {
@@ -1716,12 +1718,34 @@ func (e *Engine) downloadIf(remotePath, dest, expectedHash string, ready func() 
 		if last.Created != nil {
 			created = last.Created.AsTime()
 		}
-		if err := setFileTimes(dest, created, last.Modified.AsTime()); err != nil {
+		modified := last.Modified.AsTime()
+		if err := setFileTimes(dest, created, modified); err != nil {
 			log.Printf("could not set the dates of %s: %v", dest, err)
+		} else if folderID != "" {
+			e.cacheDownloadedHash(folderID, dest, offset, modified, got)
 		}
 	}
 
 	return nil
+}
+
+// cacheDownloadedHash records the hash of a file just downloaded, so the
+// next pass (the folder's own watcher starts one a second later) doesn't
+// read it all again. Only when the file still has exactly the size written
+// and the date just set: anything written to it since moved its date on.
+func (e *Engine) cacheDownloadedHash(folderID, p string, size int64, modified time.Time, hash string) {
+	fi, err := os.Stat(p)
+	if err != nil || fi.Size() != size || !fi.ModTime().Equal(modified) {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.loadHashCacheLocked(folderID)
+	if e.hashCache[folderID] == nil {
+		e.hashCache[folderID] = map[string]hashEntry{}
+	}
+	e.hashCache[folderID][p] = hashEntry{size: fi.Size(), modTime: fi.ModTime(), hash: hash}
+	e.hashDirty[folderID] = true
 }
 
 // markUploadOnly makes a backup's folder on the device upload only (issue
