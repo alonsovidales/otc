@@ -148,9 +148,10 @@ export function UseWS() {
     }
   };
 
-  // The password is remembered for request()'s reconnect replay only once
-  // the device has accepted it: a typo, or a password that is no longer
-  // the current one, is never replayed.
+  // The password is remembered for request()'s reconnect replay once the
+  // device has accepted it, or when no answer came at all: one the device
+  // refused (a typo, or a password that is no longer the current one) is
+  // never replayed.
   const sendAuth = (key: string): Promise<boolean> => {
     if (authPromise) return authPromise;
 
@@ -200,6 +201,13 @@ export function UseWS() {
         }
 
         return false;
+      } catch (e) {
+        // No answer about the password (the socket dropped, or the address
+        // is locked out): it is tried again on the next reconnect, as it
+        // always was - the mobile container signs in only once, at launch.
+        // If the device then refuses it, it is forgotten (see request()).
+        if (lastAuthRef === '') lastAuthRef = key;
+        throw e;
       } finally {
         authPromise = null;
       }
