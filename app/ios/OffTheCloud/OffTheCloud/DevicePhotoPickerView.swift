@@ -23,6 +23,8 @@ final class DevicePhotoPickerVM: ObservableObject {
     }
 
     private let ws = OTCConnection.shared
+    /// Three tiles across the screen.
+    static var tileSide: CGFloat { UIScreen.main.bounds.width / 3 }
 
     @Published var groups: [Msg_ImageGroup] = []
     /// "" means "All photos" - same meaning SearchPhotos gives group_id.
@@ -89,12 +91,16 @@ final class DevicePhotoPickerVM: ObservableObject {
             }
             guard myGeneration == generation,
                   case .respListOfFiles(let lof) = resp.payload else { return }
-            let existing = Set(items.map(\.id))
-            let fresh = lof.files
+            let page = lof.files
                 .filter { !$0.mime.hasPrefix("video/") }
                 .map { Item(id: "\($0.path)#\($0.hash)#\($0.size)", path: $0.path,
                             thumbData: $0.hasContent ? $0.content : nil) }
-                .filter { !existing.contains($0.id) }
+            // Decoded off the main thread, at tile size, before the tiles
+            // first draw (see GridThumbCache).
+            await GridThumbCache.prewarm(page.map { ($0.id, $0.thumbData) }, maxPt: Self.tileSide)
+            guard myGeneration == generation else { return }
+            let existing = Set(items.map(\.id))
+            let fresh = page.filter { !existing.contains($0.id) }
             items.append(contentsOf: fresh)
             token = lof.token
             endReached = lof.token.isEmpty
@@ -224,7 +230,7 @@ struct DevicePhotoPickerView: View {
         Color.clear
             .aspectRatio(1, contentMode: .fit)
             .overlay {
-                if let d = item.thumbData, let img = UIImage(data: d) {
+                if let img = GridThumbCache.image(id: item.id, data: item.thumbData, maxPt: DevicePhotoPickerVM.tileSide) {
                     Image(uiImage: img).resizable().scaledToFill()
                 } else {
                     Color.gray.opacity(0.2)

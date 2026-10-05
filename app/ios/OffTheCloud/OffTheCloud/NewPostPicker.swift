@@ -36,18 +36,11 @@ final class NewPostPickerVM: ObservableObject {
         // and fills in the real server path.
         var path: String
         // Set for Source.synced items, which arrive as raw bytes from the
-        // server - nil for Source.phone items, which use thumbImage
-        // instead (see its doc comment for why).
+        // server - nil for Source.phone items, whose thumbnail is the
+        // UIImage PHImageManager hands back, kept in GridThumbCache under
+        // the item's id (see PhoneThumb). Not held here: a 450 px image
+        // per loaded phone photo added up to gigabytes over a long scroll.
         var thumbData: Data?
-        // Set only for Source.phone items - the thumbnail PHImageManager
-        // already handed back as a UIImage, kept as one rather than
-        // round-tripped through jpegData purely to fit thumbData's type:
-        // it's only ever displayed locally, never transmitted (the full
-        // asset is read and sent separately at publish time), so
-        // re-encoding it bought nothing but a quality loss and a
-        // "trying to save an opaque image with AlphaLast" warning from
-        // ImageIO for no reason.
-        var thumbImage: UIImage?
         // Set only for Source.phone items - nil for anything already on
         // the device (Source.synced).
         var asset: PHAsset?
@@ -201,6 +194,10 @@ final class NewPostPickerVM: ObservableObject {
             for f in lof.files {
                 newItems.append(Item(id: "\(f.path)#\(f.hash)#\(f.size)", path: f.path, thumbData: f.hasContent ? f.content : nil, isVideo: f.mime.hasPrefix("video/")))
             }
+            // Decoded off the main thread, at tile size, before the tiles
+            // first draw (see GridThumbCache).
+            await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PickTile.side)
+            guard source == .synced else { return }
             let existing = Set(items.map(\.id))
             let filtered = newItems.filter { !existing.contains($0.id) }
             if !filtered.isEmpty { items.append(contentsOf: filtered) }
@@ -254,46 +251,12 @@ final class NewPostPickerVM: ObservableObject {
         }
         let end = min(localLoadedCount + Self.localPageSize, total)
 
-        let manager = PHImageManager.default()
-        let imgOpts = PHImageRequestOptions()
-        // .fastFormat was the actual cause of "the thumbnails suck" -
-        // it's documented to return whatever the *fastest* available
-        // cached representation is (a small system icon), capped well
-        // below whatever targetSize asks for, no matter how large that is
-        // - bumping targetSize alone (previous attempt) couldn't fix
-        // that. .highQualityFormat asks for the best available quality
-        // for targetSize instead, while still only calling the result
-        // handler once (unlike .opportunistic, which calls it twice and
-        // would violate withCheckedContinuation's single-resume
-        // contract below).
-        imgOpts.deliveryMode = .highQualityFormat
-        // Thumbnails only, never triggers the iCloud full-original
-        // download issue #58 dug into - isNetworkAccessAllowed=false
-        // uses whatever's already cached locally (a proper preview, not
-        // just the tiny fast-format icon) even for an "Optimize Storage"
-        // library, regardless of deliveryMode.
-        imgOpts.isNetworkAccessAllowed = false
-        imgOpts.isSynchronous = false
-        imgOpts.resizeMode = .exact
-
-        // Sized for a @3x device showing this grid's ~140pt-wide tiles
-        // (140 * 3 = 420) with some headroom — 240 was visibly soft.
-        let targetSize = CGSize(width: 450, height: 450)
-
         var newItems: [Item] = []
         for i in localLoadedCount..<end {
             let asset = fetchResult.object(at: i)
-            let thumb: UIImage? = await withCheckedContinuation { cont in
-                manager.requestImage(
-                    for: asset,
-                    targetSize: targetSize,
-                    contentMode: .aspectFill,
-                    options: imgOpts
-                ) { image, _ in
-                    cont.resume(returning: image)
-                }
-            }
-            newItems.append(Item(id: "local#\(asset.localIdentifier)", path: "", thumbImage: thumb, asset: asset, isVideo: asset.mediaType == .video))
+            let id = "local#\(asset.localIdentifier)"
+            if let thumb = await PhoneThumb.request(asset) { GridThumbCache.store(thumb, id: id) }
+            newItems.append(Item(id: id, path: "", asset: asset, isVideo: asset.mediaType == .video))
         }
         items.append(contentsOf: newItems)
         localLoadedCount = end
@@ -337,7 +300,13 @@ final class NewPostPickerVM: ObservableObject {
             if let cg = try? await gen.image(at: .zero).image { thumb = UIImage(cgImage: cg) }
         }
         if source != .phone { switchSource(.phone) }
-        let item = Item(id: "local#\(asset.localIdentifier)", path: "", thumbImage: thumb, asset: asset, isVideo: asset.mediaType == .video)
+        let item = Item(id: "local#\(asset.localIdentifier)", path: "", asset: asset, isVideo: asset.mediaType == .video)
+        // The capture itself is full size: kept at the tiles' 450 px.
+        if let thumb {
+            let short = min(thumb.size.width, thumb.size.height)
+            let s = short > 450 ? 450 / short : 1
+            GridThumbCache.store(thumb.preparingThumbnail(of: CGSize(width: thumb.size.width * s, height: thumb.size.height * s)) ?? thumb, id: item.id)
+        }
         items.removeAll { $0.id == item.id }
         items.insert(item, at: 0)
         if !selectedOrder.contains(item.id) { selectedOrder.append(item.id) }
@@ -810,6 +779,64 @@ struct NewPostPickerView: View {
     }
 }
 
+/// The phone source's tile thumbnails, from PhotoKit.
+enum PhoneThumb {
+    static func request(_ asset: PHAsset) async -> UIImage? {
+        let imgOpts = PHImageRequestOptions()
+        // .fastFormat was the actual cause of "the thumbnails suck" -
+        // it's documented to return whatever the *fastest* available
+        // cached representation is (a small system icon), capped well
+        // below whatever targetSize asks for, no matter how large that is
+        // - bumping targetSize alone (previous attempt) couldn't fix
+        // that. .highQualityFormat asks for the best available quality
+        // for targetSize instead, while still only calling the result
+        // handler once (unlike .opportunistic, which calls it twice and
+        // would violate withCheckedContinuation's single-resume
+        // contract below).
+        imgOpts.deliveryMode = .highQualityFormat
+        // Thumbnails only, never triggers the iCloud full-original
+        // download issue #58 dug into - isNetworkAccessAllowed=false
+        // uses whatever's already cached locally (a proper preview, not
+        // just the tiny fast-format icon) even for an "Optimize Storage"
+        // library, regardless of deliveryMode.
+        imgOpts.isNetworkAccessAllowed = false
+        imgOpts.isSynchronous = false
+        imgOpts.resizeMode = .exact
+
+        // Sized for a @3x device showing this grid's ~140pt-wide tiles
+        // (140 * 3 = 420) with some headroom — 240 was visibly soft.
+        let targetSize = CGSize(width: 450, height: 450)
+
+        return await withCheckedContinuation { cont in
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: targetSize,
+                contentMode: .aspectFill,
+                options: imgOpts
+            ) { image, _ in
+                cont.resume(returning: image)
+            }
+        }
+    }
+}
+
+/// A synced item's tile, decoded once at tile size (GridThumbCache); a
+/// phone item's while it is still cached.
+private func tileImage(_ item: NewPostPickerVM.Item, maxPt: CGFloat) -> UIImage? {
+    if item.asset != nil { return GridThumbCache.stored(item.id) }
+    return GridThumbCache.image(id: item.id, data: item.thumbData, maxPt: maxPt)
+}
+
+/// A phone item's tile, held by the tile while it is on screen: from the
+/// cache, or asked of PhotoKit again once the cache let it go.
+private func phoneTileImage(_ item: NewPostPickerVM.Item) async -> UIImage? {
+    guard let asset = item.asset else { return nil }
+    if let cached = GridThumbCache.stored(item.id) { return cached }
+    guard let img = await PhoneThumb.request(asset) else { return nil }
+    GridThumbCache.store(img, id: item.id)
+    return img
+}
+
 private struct PickTile: View {
     let item: NewPostPickerVM.Item
     // Issue #48: 1-based position in the post, nil when not selected -
@@ -820,18 +847,20 @@ private struct PickTile: View {
 
     private var isSelected: Bool { selectionNumber != nil }
 
+    static let side: CGFloat = 120
+    @State private var phoneThumb: UIImage?
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Group {
-                if let img = item.thumbImage {
-                    Image(uiImage: img).resizable().scaledToFill()
-                } else if let d = item.thumbData, let img = UIImage(data: d) {
+                if let img = phoneThumb ?? tileImage(item, maxPt: Self.side) {
                     Image(uiImage: img).resizable().scaledToFill()
                 } else {
                     Color.gray.opacity(0.2)
                 }
             }
-            .frame(maxWidth: 120, maxHeight: 120)
+            .task(id: item.id) { phoneThumb = await phoneTileImage(item) }
+            .frame(maxWidth: Self.side, maxHeight: Self.side)
             .aspectRatio(1, contentMode: .fill)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
@@ -919,18 +948,19 @@ private struct SelectedThumb: View {
     let trimRange: TrimRange?
     let trimLoading: Bool
 
+    @State private var phoneThumb: UIImage?
+
     var body: some View {
         VStack(spacing: 2) {
             ZStack(alignment: .topTrailing) {
                 Group {
-                    if let img = item.thumbImage {
-                        Image(uiImage: img).resizable().scaledToFill()
-                    } else if let d = item.thumbData, let img = UIImage(data: d) {
+                    if let img = phoneThumb ?? tileImage(item, maxPt: 60) {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
                         Color.gray.opacity(0.2)
                     }
                 }
+                .task(id: item.id) { phoneThumb = await phoneTileImage(item) }
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 // Issue #111: the whole thumbnail opens the trimmer, not

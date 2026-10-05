@@ -712,6 +712,10 @@ final class PhotoGalleryVM: ObservableObject {
                     isLocalOnly: false
                 ))
             }
+            // Decoded off the main thread, at tile size, before the tiles
+            // first draw (see GridThumbCache).
+            await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PhotoTile.side)
+            guard myGeneration == searchGeneration, !Task.isCancelled else { return false }
             let existing = Set(items.map(\.id))
             let filtered = newItems.filter { !existing.contains($0.id) }
             if !filtered.isEmpty { items.append(contentsOf: filtered) }
@@ -1778,11 +1782,13 @@ private struct PhotoTile: View {
     let onTap: () -> Void
     let onLongPress: () -> Void
 
+    static let side: CGFloat = 120
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             ZStack(alignment: .bottomTrailing) {
                 thumb
-                    .frame(maxWidth: 120, maxHeight: 120)
+                    .frame(maxWidth: Self.side, maxHeight: Self.side)
                     .background(Color.secondary.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(selectionOverlay)
@@ -1811,9 +1817,10 @@ private struct PhotoTile: View {
 
     private var thumb: some View {
         Group {
-            if let u = item.localURL, let img = UIImage(contentsOfFile: u.path) {
-                Image(uiImage: img).resizable().scaledToFill()
-            } else if let d = item.thumbData, let img = UIImage(data: d) {
+            // Decoded once at tile size and cached, not on every pass of
+            // this body. A local file is read from disk, as before.
+            if let img = GridThumbCache.image(id: item.id, data: item.thumbData,
+                                              localURL: item.localURL, maxPt: Self.side) {
                 Image(uiImage: img).resizable().scaledToFill()
             } else {
                 Color.gray.opacity(0.2)
