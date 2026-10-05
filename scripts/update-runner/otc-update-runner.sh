@@ -33,14 +33,17 @@ rm -f "$REQUEST"
 # Written to a fresh temp file and moved into place: the directory is the
 # otc user's, and a plain "> $STATUS_FILE" as root followed a symlink it
 # could have put there - to overwrite (or chmod) any file on the system.
-# mv replaces a symlink rather than following it.
+# dd's conv=excl creates the temp file with O_CREAT|O_EXCL, which refuses
+# any name already there (a planted symlink included), and umask 022 gives
+# it its final mode, so there is no chmod for a symlink swapped in later
+# to redirect. mv replaces a symlink rather than following it.
 status() {
-    local tmp
-    tmp="$(mktemp "$STATUS_FILE.XXXXXX")" || return 1
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
     printf '{"state":%s,"message":%s,"version":%s,"updated":%s}\n' \
         "\"$1\"" "\"${2//\"/\\\"}\"" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
-        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" > "$tmp"
-    chmod 644 "$tmp" && mv -Tf "$tmp" "$STATUS_FILE"
+        "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
+        | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
+    mv -Tf "$tmp" "$STATUS_FILE"
 }
 
 # The service's own config decides the repository, the same way the
@@ -76,7 +79,13 @@ KEY=/etc/otc/release-signing.pub
 
 status running "Checking the release signature"
 rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR" && chmod 700 "$RUN_DIR"
-fetch() { curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"; }
+# /run is tmpfs (RAM): nothing staged here outlives the run. exec drops
+# this trap, and update.sh then cleans up after itself (cleanup_stage).
+trap 'rm -rf "$RUN_DIR"' EXIT
+# Connect and stall timeouts: a transfer that stopped mid-way otherwise
+# hangs the unit for good. Under 1 byte/s for two minutes has truly
+# stopped (exit 28, retried); a slow but live link is never cut off.
+fetch() { curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1"; }
 fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS" "$RUN_DIR/VERSIONS" \
     && fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS.sig" "$RUN_DIR/VERSIONS.sig.b64" \
     || { status failed "could not download the release manifest"; exit 1; }
@@ -103,6 +112,9 @@ actual="$(sha256sum "$RUN_DIR/src.tar.gz" | awk '{print $1}')"
 [ "$actual" = "$src_sha" ] || { status failed "the source of release $target does not match its signed hash"; exit 1; }
 mkdir -p "$RUN_DIR/src" && tar -xzf "$RUN_DIR/src.tar.gz" -C "$RUN_DIR/src" --strip-components=1 \
     || { status failed "could not unpack release $target"; exit 1; }
+# Checked and unpacked: nothing reads it again, and it holds RAM through
+# the build.
+rm -f "$RUN_DIR/src.tar.gz"
 
 export OTC_VERIFIED_MANIFEST="$RUN_DIR/VERSIONS" OTC_VERIFIED_SRC="$RUN_DIR/src"
 exec /bin/bash "$RUN_DIR/src/scripts/update.sh"

@@ -4,6 +4,9 @@ package updater
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
+	"errors"
+	"os"
 	"strings"
 	"testing"
 )
@@ -43,5 +46,72 @@ func TestKindsSignature(t *testing.T) {
 	}
 	if _, err := releaseKey(); err != nil {
 		t.Fatalf("the embedded release key doesn't parse: %v", err)
+	}
+}
+
+// The manifest and the release kinds are trusted only signed: a valid
+// signature passes, an altered body or a malformed signature doesn't.
+func TestVerifySigned(t *testing.T) {
+	pub, priv, _ := ed25519.GenerateKey(nil)
+	body := []byte("92\t-\tabc\tA release\tdef\n")
+	sig := []byte(base64.StdEncoding.EncodeToString(ed25519.Sign(priv, body)) + "\n")
+	if err := verifySigned(pub, body, sig); err != nil {
+		t.Fatalf("a signed body was refused: %v", err)
+	}
+	if err := verifySigned(pub, []byte("92\t-\tabc\tPhishing text\tdef\n"), sig); !errors.Is(err, errNotSigned) {
+		t.Fatalf("an altered body: %v", err)
+	}
+	if err := verifySigned(pub, body, []byte("not base64!")); !errors.Is(err, errNotSigned) {
+		t.Fatalf("a malformed signature: %v", err)
+	}
+}
+
+// What is committed verifies with the key devices embed - the same check
+// Check now makes against main.
+func TestCommittedManifestsAreSigned(t *testing.T) {
+	pub, err := parseReleaseKey([]byte(cEmbeddedReleaseKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"VERSIONS", "RELEASES"} {
+		body, err := os.ReadFile("../scripts/updates/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sig, err := os.ReadFile("../scripts/updates/" + name + ".sig")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := verifySigned(pub, body, sig); err != nil {
+			t.Errorf("scripts/updates/%s: %v", name, err)
+		}
+	}
+}
+
+// A check that failed, or couldn't verify the kinds, keeps the alert
+// already known while its release is still pending; a verified one decides.
+func TestNextAlert(t *testing.T) {
+	prev := &Alert{Level: KindCritical, Version: "2.0", Target: 86, Summary: "Fixes the bridge"}
+	pending := []Release{{Version: 86, Kind: KindMinor}}
+
+	if a, ok := nextAlert(prev, nil, errors.New("offline")); a != prev || ok {
+		t.Errorf("a failed check: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(prev, &Info{CurrentVersion: 85, Pending: pending}, nil); a != prev || ok {
+		t.Errorf("unverified kinds: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(prev, &Info{CurrentVersion: 86}, nil); a != nil || ok {
+		t.Errorf("unverified kinds, the alert's release installed: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(nil, &Info{CurrentVersion: 85, Pending: pending}, nil); a != nil || ok {
+		t.Errorf("unverified kinds, nothing known: %+v, %v", a, ok)
+	}
+	if a, ok := nextAlert(prev, &Info{CurrentVersion: 85, KindsVerified: true, Pending: pending}, nil); a != nil || !ok {
+		t.Errorf("verified, only minor pending: %+v, %v", a, ok)
+	}
+	info := &Info{CurrentVersion: 85, LatestVersion: 87, LatestLabel: "3.0", KindsVerified: true,
+		Pending: []Release{{Version: 86, Kind: KindMinor}, {Version: 87, Kind: KindCritical, Description: "Urgent"}}}
+	if a, ok := nextAlert(prev, info, nil); a == nil || !ok || a.Target != 87 || a.Summary != "Urgent" {
+		t.Errorf("verified, a critical pending: %+v, %v", a, ok)
 	}
 }

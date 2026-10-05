@@ -29,6 +29,7 @@ import re
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -63,6 +64,10 @@ CONFIG = {
     "ap_connection_name": "OTC-Setup",
     "ap_ssid": "Off The Cloud",
     "poll_s": 2,
+    # Once setup is done and the hotspot confirmed down, how often it is
+    # checked again (each check is an nmcli call over D-Bus; this loop
+    # runs for the device's whole life).
+    "ap_recheck_s": 60,
 }
 
 
@@ -71,13 +76,19 @@ def safe_write(path, text=""):
     """Root writes into /var/lib/otc, which belongs to the otc user once
     installed: a temp file renamed into place replaces a symlink planted
     there instead of following it (a plain write or touch as root would
-    overwrite whatever file it pointed at)."""
+    overwrite whatever file it pointed at). mkstemp's random name, not a
+    predictable one the otc user could create first to make every write
+    fail (setup-done, and with it the hotspot teardown)."""
     path = Path(path)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
-    with os.fdopen(fd, "w") as f:
-        f.write(text)
-    os.replace(tmp, path)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        os.fchmod(fd, 0o644)
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 def run(cmd, timeout=None):
     try:
@@ -511,6 +522,8 @@ def lift_band_limit():
 def main():
     print("[network-setup] starting")
     ensure_wifi_unblocked()
+    # When the hotspot was last confirmed down after setup (monotonic).
+    ap_seen_down_at = None
     while True:
         ensure_wifi_unblocked()
         perform_pending_wifi_join()
@@ -520,10 +533,27 @@ def main():
         # left over from an older image is taken down.
         if os.environ.get("OTC_ALLOW_HOTSPOT") == "1":
             ensure_ap_mode()
-        elif ap_is_active():
-            teardown_ap_mode()
-        if setup_done() and not ap_is_active():
-            lift_band_limit()
+            if setup_done() and not ap_is_active():
+                lift_band_limit()
+        elif not setup_done():
+            # A join during setup can bring the hotspot back
+            # (perform_pending_wifi_join), so it is checked every poll.
+            ap_seen_down_at = None
+            if ap_is_active():
+                teardown_ap_mode()
+        elif ap_seen_down_at is None or time.monotonic() - ap_seen_down_at >= CONFIG["ap_recheck_s"]:
+            # Set up: nothing here raises the hotspot any more, so once it
+            # is down it is only rechecked now and then - not two nmcli
+            # calls every 2 s for the device's whole life.
+            down = not ap_is_active()
+            if not down:
+                teardown_ap_mode()
+                down = not ap_is_active()
+            if down:
+                ap_seen_down_at = time.monotonic()
+                lift_band_limit()
+            else:
+                ap_seen_down_at = None  # teardown failed: retried next poll
         time.sleep(CONFIG["poll_s"])
 
 

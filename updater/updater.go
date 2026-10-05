@@ -21,7 +21,10 @@ package updater
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,6 +32,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -74,6 +78,12 @@ const (
 	// cManifestTimeout keeps a check from hanging the RPC it was called
 	// from when GitHub is slow or unreachable.
 	cManifestTimeout = 15 * time.Second
+
+	// cUpdateUnit runs every update cRootRunner starts.
+	cUpdateUnit = "otc-update.service"
+	// cInterrupted is what a run reads as once its unit is gone while the
+	// file still says "running" - the same words otc-update-stopped writes.
+	cInterrupted = "The update was interrupted - press Update to try again"
 )
 
 // repoRaw is the base every update artefact is fetched from.
@@ -130,6 +140,10 @@ type Info struct {
 	// Issue #183: the labels of the installed and the newest release.
 	CurrentLabel string
 	LatestLabel  string
+	// KindsVerified: the kinds came from a signed RELEASES. Without it
+	// every release reads as minor, which says nothing about whether a
+	// major or critical one is pending (see nextAlert).
+	KindsVerified bool
 }
 
 // InstalledVersion reads the release this device is on. A missing or
@@ -151,6 +165,11 @@ func InstalledVersion() int {
 // CurrentStatus reports on the last (or running) update. A missing file
 // simply means no update has ever been started here.
 func CurrentStatus() Status {
+	return reconcileStatus(readStatus, updateUnitGone)
+}
+
+// readStatus reads the status file as the root scripts wrote it.
+func readStatus() Status {
 	raw, err := os.ReadFile(cStatusFile)
 	if err != nil {
 		return Status{State: "idle"}
@@ -161,6 +180,64 @@ func CurrentStatus() Status {
 	}
 
 	return status
+}
+
+// reconcileStatus reports a "running" status whose unit has stopped as
+// failed. A power cut mid-update (no unit hook sees that one) otherwise
+// left the file "running" for good, and Apply refuses while it says so -
+// the Update button locked forever. Only reported, never written: the next
+// run overwrites the file anyway, and it is root's.
+func reconcileStatus(read func() Status, unitGone func() bool) Status {
+	status := read()
+	if status.State != "running" || !unitGone() {
+		return status
+	}
+	// systemd answered after that read. A run that ended in between has
+	// written its own failed (with the real reason) or done, and one
+	// started since its own "running": only a file unchanged from before
+	// the unit was seen stopped belongs to a run that was cut off.
+	if now := read(); now != status {
+		return now
+	}
+
+	return Status{State: "failed", Message: cInterrupted, Version: status.Version, Updated: status.Updated}
+}
+
+// unitActiveState asks systemd for the update unit's ActiveState. `show`
+// rather than `is-active`, whose exit code is non-zero for "activating" -
+// what a running oneshot is. A variable so tests can stub it.
+var unitActiveState = func() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "systemctl", "show", "-p", "ActiveState", "--value", cUpdateUnit).Output()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(out)), nil
+}
+
+// updateUnitGone reports whether the update unit has definitely stopped.
+// Every "running" write happens inside it, so "running" with the unit
+// stopped is a run that was cut off. Any doubt (no runner - a legacy sudo
+// device -, systemctl missing or slow, an unexpected answer) is false,
+// which keeps the status as written.
+func updateUnitGone() bool {
+	if _, err := os.Stat(cRootRunner); err != nil {
+		return false
+	}
+	state, err := unitActiveState()
+	if err != nil {
+		return false
+	}
+
+	return unitStopped(state)
+}
+
+// unitStopped: activating, active, deactivating, reloading or "" are a
+// run still going (or unknown).
+func unitStopped(activeState string) bool {
+	return activeState == "inactive" || activeState == "failed"
 }
 
 // Check fetches the manifest and works out what, if anything, this device
@@ -181,6 +258,7 @@ func Check() (*Info, error) {
 	if err != nil {
 		log.Debug("release kinds unavailable:", err)
 	}
+	info.KindsVerified = err == nil
 	for _, release := range releases {
 		if m, ok := kinds[release.Version]; ok {
 			release.Kind, release.Label = m.kind, m.label
@@ -269,18 +347,40 @@ func Apply() error {
 	return nil
 }
 
+// The last manifest that verified, for the few minutes after a release
+// when the CDN may serve the new VERSIONS next to the old VERSIONS.sig.
+var (
+	verifiedMu       sync.Mutex
+	verifiedReleases []Release
+)
+
+// fetchManifest reads VERSIONS only when it carries the release key's
+// signature, as the root runner does: unsigned, anyone able to change the
+// branch could put any text into a real critical banner (its summary comes
+// from here) or list made-up releases - and the body was read unbounded.
 func fetchManifest() ([]Release, error) {
-	client := &http.Client{Timeout: cManifestTimeout}
-	resp, err := client.Get(manifestURL())
+	body, err := fetchSigned(manifestURL())
 	if err != nil {
+		if errors.Is(err, errNotSigned) {
+			verifiedMu.Lock()
+			cached := verifiedReleases
+			verifiedMu.Unlock()
+			if cached != nil {
+				log.Debug("release manifest not verified, showing the last one that was:", err)
+				return cached, nil
+			}
+		}
 		return nil, fmt.Errorf("fetching the release manifest: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetching the release manifest: %s", resp.Status)
+	releases, err := parseManifest(bytes.NewReader(body))
+	if err != nil {
+		return nil, err
 	}
+	verifiedMu.Lock()
+	verifiedReleases = releases
+	verifiedMu.Unlock()
 
-	return parseManifest(resp.Body)
+	return releases, nil
 }
 
 // parseManifest reads the tab-separated release list. Anything it can't

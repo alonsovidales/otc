@@ -24,13 +24,15 @@ want="$(head -c 8 "$REQUEST" 2>/dev/null | tr -dc 'a-z')"
 rm -f "$REQUEST"
 
 # Temp file moved into place: the directory is the otc user's, and a plain
-# "> $STATUS_FILE" as root would follow a symlink put there.
+# "> $STATUS_FILE" as root would follow a symlink put there. dd's
+# conv=excl (O_CREAT|O_EXCL) refuses a name planted ahead of it, umask 022
+# leaves no chmod to redirect, and mv replaces a symlink, never follows it.
 status() {
-    local tmp
-    tmp="$(mktemp "$STATUS_FILE.XXXXXX")" || return 1
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
     printf '{"state":"%s","message":"%s","updated":"%s"}\n' \
-        "$1" "${2//\"/\\\"}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
-    chmod 644 "$tmp" && mv -Tf "$tmp" "$STATUS_FILE"
+        "$1" "${2//\"/\\\"}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
+    mv -Tf "$tmp" "$STATUS_FILE"
 }
 
 if ! command -v tailscale >/dev/null 2>&1; then

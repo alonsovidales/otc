@@ -78,7 +78,7 @@ command -v apt-get >/dev/null 2>&1 || die "only Debian/Ubuntu-family distros are
 if [ -z "${OTC_VERIFIED_SRC:-}" ]; then
     log "Handing over to the verified installer: only a signed release is installed"
     hv="$(mktemp)"
-    curl -fsSL --retry 3 -o "$hv" "${OTC_REPO_RAW:-https://raw.githubusercontent.com/alonsovidales/otc/main}/scripts/verified-install.sh" \
+    curl -fsSL --retry 3 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$hv" "${OTC_REPO_RAW:-https://raw.githubusercontent.com/alonsovidales/otc/main}/scripts/verified-install.sh" \
         || die "could not download the verified installer"
     exec bash "$hv" "$@"
 fi
@@ -87,9 +87,17 @@ fi
 # into place only if it matches the pinned hash (issue #160): nothing
 # downloaded here is run or loaded unchecked.
 fetch_pinned() {
-    local url="$1" dest="$2" want="$3" tmpf
-    tmpf="$(mktemp "${dest}.XXXXXX")"
-    curl -fL --retry 5 --retry-delay 2 -o "$tmpf" "$url" || { rm -f "$tmpf"; die "could not download $url"; }
+    local url="$1" dest="$2" want="$3" tmpf="$2.part"
+    # One fixed-name partial per destination, overwritten by the next try:
+    # a run killed mid-download (the wizard's unit restarting, a power
+    # cut) left a random-named one each time - up to ~870MB for the model.
+    # Also drops those mktemp-style leftovers of earlier releases.
+    rm -f -- "$tmpf" "$dest".??????
+    # Connect and stall timeouts: a transfer that stopped mid-way hung the
+    # install for good. Under 1 byte/s for two minutes has truly stopped
+    # (exit 28, retried); a slow but live link is never cut off.
+    curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 \
+        -o "$tmpf" "$url" || { rm -f "$tmpf"; die "could not download $url"; }
     if [ "$(sha256sum "$tmpf" | awk '{print $1}')" != "$want" ]; then
         rm -f "$tmpf"; die "$url does not match its pinned hash"
     fi
@@ -391,12 +399,22 @@ fi
 
 log "[6/10] RAM++ tagging model (~870MB, only downloaded once)"
 mkdir -p "$MODEL_DIR"
-if [ ! -f "$MODEL_ONNX" ] || [ ! -f "$MODEL_TAGS" ] || [ ! -f "$MODEL_THRESHOLDS" ]; then
+# Each file is checked on its own: fetch_pinned only moves a file into place
+# after its hash matches, so one that is present is already verified, and a
+# failed small download must not cost another ~870MB.
+if [ ! -f "$MODEL_ONNX" ]; then
     # The model's hash is the one Hugging Face lists for it (its LFS oid).
     fetch_pinned "$MODEL_HF_REPO/ram_plus_int8.onnx" "$MODEL_ONNX" 44836da6724dcbdd7446632599c190426af96bd47d4457d47d876b019e10f8bd
+fi
+if [ ! -f "$MODEL_THRESHOLDS" ]; then
     fetch_pinned "$MODEL_HF_REPO/ram_tag_list_threshold.txt" "$MODEL_THRESHOLDS" b6f81d0de1bc7f9c251af512c413eae976c77dbfbadf700d4e3d90510f4c6447
-    # The tag list ships in the verified release itself.
-    gunzip < "$OTC_VERIFIED_SRC/models/models/tag_list_4585.txt.gz" > "$MODEL_TAGS"
+fi
+if [ ! -f "$MODEL_TAGS" ]; then
+    # The tag list ships in the verified release itself. Through a
+    # temporary file, so a half-written list is never left in place.
+    gunzip < "$OTC_VERIFIED_SRC/models/models/tag_list_4585.txt.gz" > "$MODEL_TAGS.tmp" \
+        || { rm -f "$MODEL_TAGS.tmp"; die "could not unpack the tag list"; }
+    mv -f "$MODEL_TAGS.tmp" "$MODEL_TAGS"
 fi
 
 log "[6/10] Face recognition models (issue #52, ~10MB total, only downloaded once)"
@@ -784,7 +802,15 @@ SQL
 # it.
 if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; then
     for user_db in $(mysql otc -N -B -e 'SELECT db_name FROM users' 2>/dev/null); do
-        if mysql -N -B -e "SHOW DATABASES LIKE '$user_db'" 2>/dev/null | grep -q "$user_db"; then
+        # The otc service writes this table, and the name reaches SQL, grep
+        # and mysql's command line here as root: only the shape the device
+        # itself generates (dao's checkGenerated), so nothing can pass as
+        # an option or break out of the quotes. Not echoed: untrusted text.
+        if ! [[ "$user_db" =~ ^otc_[0-9a-f]{32}$ ]]; then
+            log "  WARNING: skipping a users row whose db_name this device didn't generate"
+            continue
+        fi
+        if mysql -N -B -e "SHOW DATABASES LIKE '$user_db'" 2>/dev/null | grep -qxF -- "$user_db"; then
             log "  migrating additional user database $user_db"
             apply_schema_migrations "$user_db"
         else
@@ -938,6 +964,9 @@ EOF
 # runs the update as root - see scripts/update-runner/otc-update-runner.sh.
 log "Update trigger (otc-update.path)"
 install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-runner.sh" /usr/local/bin/otc-update-runner
+# Named by otc-update.service (ExecStopPost): marks a run cut off part-way
+# as failed instead of leaving it "running".
+install -m 0755 "$SRC_DIR/scripts/update-runner/otc-update-stopped.sh" /usr/local/bin/otc-update-stopped
 # Issue #160: the public key every update's manifest must be signed with.
 mkdir -p /etc/otc && install -m 0644 "$SRC_DIR/scripts/release-signing.pub" /etc/otc/release-signing.pub
 install -m 0644 "$SRC_DIR/scripts/update-runner/otc-update.service" /etc/systemd/system/otc-update.service
@@ -1024,3 +1053,8 @@ fi
 
 touch /etc/otc/.install-complete
 echo "[otc-install] Done. Marker at /etc/otc/.install-complete (remove it if you want the next run to treat this as a fresh install)."
+
+# The verified release verified-install.sh staged (archive, tree and web
+# bundle): nothing reads it once installed, and a re-run downloads afresh.
+# Only that exact path, never whatever the variable might hold.
+case "${OTC_VERIFIED_SRC:-}" in /opt/otc-verified/src) rm -rf /opt/otc-verified ;; esac
