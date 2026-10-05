@@ -53,6 +53,10 @@ regulatory domain marks all of 5 GHz "no IR"). A 5 GHz-only network is refused o
 with a pointer to the app. Networks are scanned once before the hotspot starts (scanning
 takes the radio away and drops the phone's captive sheet), and the captive DNS stays on for the
 whole setup so the sheet stays open (the bridge's own domain is exempted so the final link works).
+After setup the hotspot is rechecked once a minute (`ap_recheck_s`; new images only, as releases
+don't reinstall network_setup.py). The wizard changes state only through `update_state()` under
+`_state_lock` (never held across bridge calls) and writes files with `atomic_write`. `raid_watch.py`
+runs no mdadm query or repair unless md0 is in `/proc/mdstat`, and backs off failed adds.
 Fallback if the phone still loses the page: the device reports its LAN address to the bridge under
 a one-time token (`POST /api/setup-beacon`, bridge DB `setup_beacons`, 10-minute expiry) and the
 page polls `GET /api/setup-lookup`. Recovery safety: an array assembled without an mdadm.conf (the wizard's own check, a fresh
@@ -85,6 +89,9 @@ forwarding without Bluetooth; for the phones, `scratchpad`'s `blesim.swift` (a C
 peripheral on the Mac forwarding to a dry-run wizard, e.g. the Lima VM's on port 8090) stands
 in for a device - it needs Bluetooth permission for the terminal, which macOS prompts for. Like
 the hotspot, the Bluetooth setup is open by design and only exists before the install completes.
+The link recovers by itself: on iOS/macOS any state but poweredOn forgets the peripheral
+(`forgetLink`) and a device already picked is rescanned for once Bluetooth is back; Android checks
+every GATT step, drops and rescans on a failure, with a 30 s connect watchdog.
 The owner password is chosen on the wizard's name step, and since both channels are readable by
 anyone nearby it never travels in the clear: the wizard makes a one-off RSA-2048 key at start
 (`SealKey`, stdlib Miller-Rabin), the page seals the password with RSA-OAEP-SHA-256 written in
@@ -122,7 +129,11 @@ bridge2`, SSH aliases for `ubuntu@37.187.141.41` / `ubuntu@149.202.83.7`), one a
 other keeps serving. Since issue #144 (2026-10-01) the bridge is a cluster - two KS-5 nodes behind
 DNS round robin (`@`, `www`, `*` at a 60 s TTL), MySQL primary on bridge1 and replica on bridge2,
 Redis on the old KS-B (51.83.103.72, `redis`), everything internal over WireGuard; see
-`bridge/cluster/README.md`. The old server no longer runs the bridge.
+`bridge/cluster/README.md`. The old server no longer runs the bridge. The Mac's scheduled
+`bridge/cluster/servercheck.sh` also checks each node's served certificate and fingerprints
+`authorized_keys2` and systemd units; a host gets 240 s (plus a 300 s watchdog on the Mac), a run
+cut short skips the fingerprint comparison, and a new *kind* of fingerprint line (`unit:`,
+`unit_link:`) joins the baseline without an alarm.
 
 **Toolchain requirements** (not present by default in a generic dev container):
 - `go.mod` requires Go **1.25+**; the system `go` may be much older (check with `go version` before
@@ -144,8 +155,16 @@ Redis on the old KS-B (51.83.103.72, `redis`), everything internal over WireGuar
   google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`, `brew install swift-protobuf`; ts-proto comes
   from `web/node_modules` after `npm ci --prefix web` - the pb target puts both on its PATH).
 
-**Tests**: only `cfg/` and `log/` currently have `_test.go` files. Run with
-`go test ./cfg/... ./log/...` (or `go test ./...` once the Go toolchain matches `go.mod`).
+**Tests**: most device and bridge packages have `_test.go` files (`face_recognition` needs the
+OpenCV install above). The MySQL ones (`bridge/accounts` `TestInactivityPassMySQL`, `bridge/dao`'s
+`TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestListAdminDevicesMySQL` under
+`ONLY_FULL_GROUP_BY`) skip unless `OTC_TEST_MYSQL_DSN` points at the Lima VM's bridge schema. A
+package var a test shortens must be restored only after the handlers reading it are done (a plain
+`defer` raced under `-race`): bridge tests use `setVar` with a test bridge that waits for its
+handlers; httptest's `Close` doesn't wait for hijacked websockets. `websocket/write_reply_test.go`'s
+slow reader dials with gorilla's default buffers: with 16 KiB at both ends Linux loopback slows to
+about 150 KB/s and a 64 KiB piece can miss the shortened `cReplyStall`, which no real peer would
+see.
 
 **Web app** (`web/`, Vite + React 19 + TypeScript + react-router). To *see* it on a device from a
 terminal session, `scripts/dev/webshot.mjs` drives a headless Chrome over the DevTools protocol
@@ -190,6 +209,16 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   call in `web/src/net/ws.ts`.
 - The frontend's `web/src/net/ws.ts` / `useWS.ts` wrap the same protobuf envelope pattern for the
   browser client.
+- Replies over 64 KiB (`cReplyPiece`) leave the device as one fragmented message in 64 KiB pieces
+  (`writeReply`), and the bridge fragments its writes to clients above 256 KiB: every client must
+  keep accepting fragmented messages.
+- Passwords never cross in the clear (issue #2): each connection gets an ephemeral RSA-2048 key
+  (`GetPubKey`, `rsaKeyPool`), and the clients seal `ReqAuth`'s and `ReqChangeKey`'s keys with
+  RSA-OAEP-SHA-256 (`pwCrypto.ts`, `PwCrypto.swift`, `PwCrypto.kt`, otc-sync's `pwcrypto.go`). That
+  key is not authenticated: the bridge terminates TLS, so a compromised bridge node could hand out
+  its own key and read the password at sign-in. The owner reviewed this on 2026-10-05 and accepts
+  it - the bridge nodes are the owner's own and `servercheck.sh` watches them; pinning a device
+  identity was judged not viable. Reviews should not raise it again.
 
 ### Device-side package layout (root Go module)
 
@@ -207,7 +236,9 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   within five minutes of an open Error row joins it (`details` gains a line, `occurrences`
   goes up, the row is unread again) rather than adding a row; `files_manager.alert` is the
   one call site helper. The clients show one line per row and the full list on hover (web)
-  or tap (iOS/Android). Never push-notify these.
+  or tap (iOS/Android). Never push-notify these. `AddErrorNotification` is serialised in-process,
+  and a group's `details` stop growing at 60000 bytes (later errors still count). The device DSN
+  has `interpolateParams=true` (the provisioning DSNs in `dao/provisioning.go` don't).
 - `files_manager` — file storage, hashing, dedup on disk. Content is keyed by hash, and the
   hash-first upload (`HasFile`/`HasCloudIds` then `LinkFile`) only skips the bytes when the blob is
   really on the disk (`hasBlob`: present and non-empty; each answer is recorded in
@@ -223,6 +254,9 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   takes its own. Blobs are written to a temporary file and renamed into place (`writeBlob`):
 no 0-byte blob after a crash, and a blob owned by another account (a recovered older
 installation's `pi`) can still be replaced; release 22's script hands such files to `otc`.
+At every start (`initRest`) `sweepOrphanedStorage` removes what interrupted work left at the top
+level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries with no
+`shared_links` row - none if that query fails), skipping anything modified in the last minute.
 `integrity.go` checks once a day (10 min after start) for rows whose content is
   missing and raises one Alerts entry per change (`.integrity-reported` in the storage path holds
   the last reported set). The missing blobs found on Cala came with its RAID recovery on
@@ -234,7 +268,9 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   `UploadFile`/`LinkFile` to an existing path there moves the old row into `file_versions`
   (`dao.ReplaceFileKeepingVersion`) instead of failing or overwriting. Blobs are shared by hash
   between `files` and `file_versions`, so `HashReferenced` is the check before one is removed;
-  a path's versions go with it when it is finally deleted. `ListFiles` annotates every entry
+  a path's versions go with it when it is finally deleted. Outside those folders an override
+  (`registerUpload`'s forceOverride, `LinkFile`) replaces the row in place (`dao.OverrideFile`) and
+  keeps any versions; only `DelFile` deletes them. `ListFiles` annotates every entry
   with `upload_only` and `versions`, `ListFileVersions` lists them, and `GetFile.hash` serves
   one. The web, iOS and Android explorers show the lock on folders (a toggle, `SetUploadOnly`)
   and the versions badge that opens the pop-up.
@@ -251,7 +287,11 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   `DownloadSharedLink` with offset/length. Stored videos reach ffmpeg/ffprobe over the device's
   own loopback stream (`SetVideoSource`: a short-lived media token), so processing, reprocess
   and the info panel never load a video whole nor write it out in plaintext; share-link zips
-  are streamed into a segmented file under the link's key.
+  are streamed into a segmented file under the link's key. Every zip entry is Deflate; types that
+  are already compressed (`zipLevelFor`: video, most audio, JPEG/HEIC/PNG/WebP..., archives) go in at
+  `flate.NoCompression`, never `zip.Store` - Go always writes data descriptors, and streaming
+  unzippers (Java's ZipInputStream, funzip) reject stored entries that have one.
+  `OpenSharedLinkRange` (pre-auth) serves only `kind='archive'` rows with canonical lowercase uuids.
   **Files grid** (release 80): the Files section on the web, iOS and Android switches between the
   list and a grid (remembered per browser/app). The grid shows each photo or video by its
   thumbnail - `GetThumbnails{paths}` answers up to 48 paths (about 8 MB) per request with the
@@ -278,6 +318,8 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   `pending_analysis` holds only hashes, so after a restart - when nothing can be decrypted
   until the owner's key is back - `ResumePendingAnalysis` refills the lanes at the first
   sign-in (`startBackfillOnce`, before `BackfillMissingThumbnails`, which skips those hashes).
+  `UploadFile`/`FinishUpload` don't queue content the device already knows and has a thumbnail for,
+  and `processFaces` skips content that already has faces.
   Issue #180 (release 69): **shared galleries** - an image group (`group_id`), a folder
   (`directory`, recursive) or files (`paths`) are copied by a background job
   (`files_manager/shared_gallery.go`: `CreateSharedGallery` then `GetSharedGalleryJob` polling)
@@ -294,6 +336,8 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   every failure identically. Owners: share from an image group or a folder (web, iOS, Android:
   `SharedGalleryShareFlow`), and Settings > Shared Links (`SharedLinksView` /
   `SharedLinksPanel`) lists every link with its opens and size, and deletes a link with its copy.
+  Decrypted manifests are cached (8, 5 min idle, valid only for the same secret and manifest
+  size/mtime), but the expiry is read from the database on every request.
   Issue #166 (release 63): a share link is downloaded in parts (the web page asks for 4 MiB
   ranges; a whole-archive `DownloadSharedLink` is refused above 4 MiB), and every reply carrying
   file content holds the content budget until it is on the wire (`connHandler.reserveMemory`:
@@ -301,14 +345,21 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   photo). A post's video is never loaded: `ExportVideoForPost` re-encodes it from the loopback
   stream straight into the posts' directory (named by hash) or decrypts the original there a
   segment at a time, one transcode at a time (`transcodeSlots`, taken before the stream token);
-  a post's photos are read one at a time, within the budget.
+  a post's photos are read one at a time, within the budget. `budgetSize` sizes a file by its blob
+  once that is 2 GiB or more (`File.size` is int32 and wraps). `checkImageSize` also bounds a HEIC
+  grid by its decoded first tile (`checkHeifGrid`), and upload processing never hands an
+  `errImageTooLarge` file to ffmpeg.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
 - `modelserver` — issue #167: the primary instance loads RAM++ and the face models once and
-  serves them on `models.sock` in its working directory (0600, gob over a Unix socket, the
-  full-resolution image as RGBA so results match local inference); the supervisor sets
+  serves them on `models.sock` in its working directory (0600, Unix socket); the supervisor sets
   `OTC_MODELS_SOCKET` on each child, which then uses `modelserver.Client` for
-  `files_manager`'s `Tagger`/`FaceDetector` instead of loading its own ~870 MB copy.
+  `files_manager`'s `Tagger`/`FaceDetector` instead of loading its own ~870 MB copy. Protocol v1
+  (`cProto`, reported by "info"): a gob header, then raw RGBA pixels (`request.N` = 4*W*H, checked
+  under 2 GiB before allocating); tags use `tags-resized` with only the 384x384 image the child
+  scaled itself (`imagestagger.Resize`, then `TagsResized`), faces still get full resolution. A
+  child speaks v1 only when "info" reports it, and the primary still accepts v0 (pixels inside the
+  gob message) - keep both when changing the socket.
 - `face_recognition` — (matching, issue #173: every face row is kept, but new faces are matched
   against at most 20 decrypted *reference* embeddings per person cached in memory -
   `files_manager/face_refs.go`; at 20 an outlier isn't added and the most redundant reference is
@@ -318,7 +369,12 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   time* - enabling it later never retroactively processes anything already in the library, by
   design (see the `faces` table's doc comment in `db.sql`). Requires CGO + a real OpenCV install at
   build time (see Build section); optional at runtime like APNs - a device with `[faces]`
-  unconfigured just has the feature unavailable, nothing else affected.
+  unconfigured just has the feature unavailable, nothing else affected. On Linux each model is
+  probed first (`model_probe_linux.cpp`), so a bad or empty model leaves faces off instead of
+  aborting. A hash's faces go with its last file or version (`dropFacesOfHash` ->
+  `dao.DelFacesByHash`, which also deletes unnamed people left with no face); lock order is always
+  the hash lock, then `faceRefsMu`, and `processFaces` never takes a hash lock. Only the people who
+  lost a reference are reloaded (`faceRefsStale`), the whole set only after a database error.
   Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
   (on by default, `SetImageTaggingEnabled`, read per file in the slow lane by
   `imageTaggingEnabled`); when off only the place tags from a file's own location data are
@@ -329,6 +385,16 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   (`[otc] bridge-addr`) so the bridge can reach an otherwise unreachable home device. The pool is
   self-managing (5 ready, refilling in batches of 2 once it dips to 3) rather than a fixed count
   dialed once at startup — see `ensureBridgePool`'s doc comment. Issue #170: a pooled connection stops counting as available at its first relayed message (the bridge keeps it for the client's whole session), and the pool refills right then - `serveConnection`'s `onFirst`.
+  The pool's `pending` counts dials in flight *and* retries waiting out a backoff; a successful
+  registration ends every backoff (`bridgePool.wake`). Replies go through `writeReply` (stall
+  deadline `cReplyStall`, 1 min, renewed per 64 KiB piece) and `marshalReply` (a marshal error sends
+  a clone with invalid UTF-8 replaced). `reserveMemory` reserves only for a caller allowed to make
+  the request. Once the peer is gone, queued `pureDownload` requests are skipped - never add one
+  with side effects (`DownloadSharedLink` counts opens). `RespFriendships` never carries
+  `Friendship.secret`. Push-registration syncs to the bridge go only through `mg.requestPushSync`
+  (one at a time). `mediastream.Store.IssueShared(key, res)` reuses a token per resource for 5 min:
+  give it a key only when it names exactly one resource every authorised caller may share (a
+  gallery item, a post's media). The device still serves `ReqUploadFile` for old clients.
 - `social`, `session`, `settings`, `profile`, `status` — feature-specific logic (social feed/friend
   sync, auth sessions, device settings, owner profile, RAID/disk/CPU status) sitting between
   `websocket` and `dao`. `session` also owns issue #101's in-memory session-token store
@@ -340,6 +406,16 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   password-attempt limit: 5 failures in a minute lock that address out for a minute, answered with
   `Ack.code = "too_many_attempts"` + `retry_after_seconds`. The bridge reports each relayed client's
   address to the device with `BridgeClientInfo`, so the limit applies through the bridge too.
+  `ReqAuth` runs through `session.Attempts.Attempt(addr, try)`: the limit is re-checked and the
+  outcome recorded while holding one of `cAuthSlots` (2, matching `deriveSlots`), so guesses queued
+  behind a failure cost no Argon2 derivation. The vault is created by `dao.PersistSecretIfAbsent`
+  (a conditional insert under a mutex), and `session.New` checks a lost race - two first sign-ins
+  at once - against the stored vault; never add a key or migration to `vault` for this. A new
+  password needs `session.MinPasswordLen` (8 bytes: `ChangeKey`, the first password `session.New`
+  sets, `init-owner-password`); one already set is never checked against it. A too-short first
+  password is answered `Ack{Ok:false, ErrorMsg}` with **no code** - the phone apps take any sign-in
+  code for the bridge's "device unreachable" and would keep retrying - undelayed and outside the
+  lockout count (`AuthLimiter.Attempt`); `ChangeKey` answers `code = "password_too_short"`.
   Friend requests (issue #25) can be removed by either side: `ReqDeleteFriendship` deletes the
   local row and, best effort, sends `FriendshipInterDelete` (authenticated by the shared
   per-friendship secret) so the other device drops its copy; a sender whose request was deleted
@@ -369,23 +445,43 @@ installation's `pi`) can still be replaced; release 22's script hands such files
   64 MiB read limit (`ReadMedia`: a whole file, 10 min, the 1000 MiB cap); friend sync closes
   each friend's socket after its pass, and Web Push uses a 15 s HTTP client. The pooled bridge
   relay socket clears the deadlines once registered.
+  **Friend post sync** (`social.updateFriendEvents`): a file whose hash fails `dao.IsContentHash`
+  is dropped (`NewSocialPublication` refuses one too, storing a post and its files in one
+  transaction); the size recorded is what the files take on this disk; media is pulled under
+  `ReserveFriendMedia` (3x the declared size, waiting at most 2 min) and written by
+  `writeFileAtomic`. A transport failure (`errFriendTransport`, including the bridge answering
+  `device_unreachable`/`account_disabled` for the friend) or a failed thumbnail write stops the page
+  at that post without moving `latest_sync` past it; after 3 stops in a row (`cPostTries`) the post
+  is given up. `GetEvents` never serves the last second and completes a full page with the rest of
+  its last second; same-second rows come in `INDEX(dt)` order (insertion order) - don't add a
+  tie-break. A friend's feed page is capped at `dao.MaxFriendFeedPage` (20). **Likes**: action
+  `delete` removes the sending domain's like; any other action, `""` included, is a like. Likes
+  insert with NOT EXISTS and only a new row notifies; release 92 added unique keys `like_once
+  (pub_uuid, friend_domain)` and `comment_like_once (comment_uuid, friend_domain)`.
 - The bridge shared secret never reaches a client (release 66): `GetSettings` leaves it out and
   `SetBridgeSecret`/`RegenerateBridgeSecret` are refused - the device pairs and rotates it itself
   (`regenerateBridgeSecret`), and no Settings screen shows or edits it.
 - `push` — Web Push (per-device VAPID keys) and iOS pushes. The APNs auth key is the developer
   team's private key and lives **only on the bridge**: a device never has an `[apns]` section, it
   relays title/body to the bridge (`BridgeNotify`), which sends to the tokens that device itself
-  registered - so a device can only ever reach its own phones.
+  registered - so a device can only ever reach its own phones. The device runs
+  `Push.StartAsync(256)` (one ordered worker, inline when the queue is full); the bridge stays
+  synchronous and builds its APNs/FCM senders once, so a new .p8 or service-account JSON needs a
+  restart.
 - `api` — the small HTTP layer: healthcheck, the `/ws` upgrade, and static file serving (serves
   `web/dist` copied to the device's static path; appends `.html` to extensionless paths for
-  client-side routing).
+  client-side routing). Listener bind errors are logged, not fatal.
 - `log` — leveled logger with size-based rotation, configured once in `main()` from `[logger]`.
+  Code holding the logger's mutex exits with `die()`, never `Fatal` (a rotation that couldn't
+  reopen the file used to hang).
 - **Plaintext never on the SD card** (issue #156, releases 62/65; devices build `go build ./bin/otc.go` - one file - so `bin/` must stay a single file and helpers live in packages like `hardening`): the service `mlockall`s its memory at
   start (`hardening/hardening_linux.go`; the unit has `LimitMEMLOCK=infinity` and `LimitCORE=0`; `[otc]
   disable-mlock=true` turns it off), swap is zram only (`/etc/rpi/swap.conf.d/90-otc-ram-only.conf`,
   no `/var/swap` writeback; dphys-swapfile removed; Makefile.pi's `swap` is no longer in bootstrap),
   and `TMPDIR` is a per-process `otc-<pid>` directory on a tmpfs (`/tmp` when it is one, else
-  `/dev/shm`), with dead processes' directories swept at start. At `level=info` the log never names
+  `/dev/shm`), with dead processes' directories swept at start (a supervised child resolves an
+  inherited `otc-<pid>` TMPDIR to its base, `tempBaseCandidate`, so it never sweeps the primary's).
+  At `level=info` the log never names
   a file path, search term, share path or Wi-Fi network - those are Debug only - errors name hashes,
   and no request is dumped whole (a friendship secret once was).
 
@@ -395,6 +491,20 @@ A separate deployable with its own `dao`/`websocket`/`api`/`makefile`, sharing o
 and `cfg` with the device module. It maintains a pool of authenticated device WebSocket connections
 keyed by domain (`bridgePool` in `bridge/websocket/websocket.go`) and proxies friend/browser traffic
 to the right device — the device never accepts inbound connections directly.
+
+Relay invariants: a `/ws` socket not yet paired has a 2 min read deadline (`cUnpairedReadTimeout`)
+and is closed on every return path unless a device relay owns it (`handedOff`). Every write to a
+client goes through `writeClient` (fragments above 256 KiB, a fresh 60 s deadline per piece, so only
+a client that stopped reading trips it) - never on a device socket; `pingLoop` uses `WriteControl`
+so pongs flow during large uploads. Device replies are read under `replyBudget` (8 GiB), and
+`forward()`'s `release` is never nil. Pairing is limited per client address (IPv6 by /64) and Host
+to 64 open (`[bridge] max-paired-per-addr`), 2/s with a burst of 30, and per device to 64 in use
+(`[bridge] max-paired-per-device`). A relay records its owner uuid (never the secret), and a
+registration evicts other owners' relays. `DropDomains` (release, account deletion,
+`BridgeReleaseDomain`, inactivity) and `DropReplacedIdentity` (claim replace, `accountNewIdentity`)
+publish on Redis `otc:drop` for every node, and every 20 s each node checks its domains against
+MySQL (`dao.DeviceOwners`). One node sends the offline alert per outage (`otc:alert:<domain>`). The
+bridge's Web Push client reaches only public addresses, without redirects.
 
 ### Frontend (`web/`)
 
@@ -410,6 +520,21 @@ a separate bundle the bridge would otherwise need redeployed by hand on every we
 lets a device running an older build still work correctly through the bridge. `bridge/static/` still
 holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
 independently of a device's web build.
+
+Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and NewPostPicker use
+`useObjectURLs(items, make)` (`make` module-level and stable); other URLs are made in a memo or
+effect and revoked in its cleanup - only `blob:` URLs, never a `/media` stream URL. Social's `Post`
+is a module-level memo component: keep its callbacks stable and `highlighted` a boolean, or every
+post re-renders. Infinite-scroll grids use `usePageRetry` (1 s doubling to 10 s; user searches
+`reset()`). Files reads non-media with chunked `ReqReadFile` (`readAll`; a file replaced mid-read is
+read again) and uses `GetFile` only for what the device converts. `useWS`: `lastAuthRef`, the
+password replayed on reconnect, is set on an ok Ack (or when nothing answered and nothing verified
+is held) and cleared when the device refuses it; a typed password that met a lockout is not replayed;
+call `useWS.passwordChanged(newKey)` after a ChangeKey; the bridge's `device_unreachable` is not a
+refused sign-in (`authOwed`); only a tab that has signed in (`hadSession`) redeems the stored token
+on reconnect. Sign Out also clears `otc_files_path` and `otc_photo_search_tags`. `web/` has no test
+runner; `npm run lint` already reports about 150 problems (mostly `no-explicit-any`), so compare
+counts before and after a change.
 
 Issue #182 (and #175/#176): accounts can be deleted - `DELETE /api/account/me` (`{"confirm":
 "delete", "password"}`, or a sign-in within 15 minutes for Google/Apple-only accounts;
@@ -446,6 +571,8 @@ Retention (issue #176):
   client reaching any of the account's devices (`devices.last_client_at`). The job:
   - warns by email a month before (`inactivity_warned_at`, migration 009, claimed with a
     conditional update so only one node sends it);
+  - unmarks a warning whose email failed, to retry it the next day - unless RCPT TO was refused
+    for good (5.1.1/5.1.2/5.1.3/5.1.6/5.1.10, `mailer.AddressRefused`), which counts as warned;
   - forgets the warning once the account is used again;
   - removes accounts like "Delete my account" would.
 
@@ -467,13 +594,18 @@ username/from `info@off-the.cloud`, `password-file=/etc/otc/smtp-token` - a Prot
 0600 for the service's user, pushed from the Mac's Keychain item `otc-bridge-smtp`, never in the
 ini or the repo): verification is mandatory - an email sign-up gets a link (`#verify=` in the URL
 fragment, 48 h, only its SHA-256 in `account_email_tokens`) and `IssueSetupToken`,
-`AccountForSetupToken` and manual name registration refuse an unverified account; Google/Apple
+`AccountForSetupToken`, manual name registration and `/api/claim` with the account page's session
+cookie (403 `cConfirmEmailFirst`, or `cAcceptTermsFirst` without the current terms) refuse an
+unverified account (a database error loading the account there is a 500, not "confirm your email";
+`LookupSetupToken` is the error-aware form of `AccountForSetupToken`, and `IssueSetupToken` returns
+database errors as they are, so `ErrEmailNotVerified` means just that); Google/Apple
 accounts are verified by the provider, and linking one verifies an email account; accounts from
 before migration 007 were kept verified. `?for=setup` sign-in/sign-up of an unverified account
 answers `verify_email: true` (and resends the link on a sign-in); the setup wizard shows "Confirm
 your email" and signs in again. Password reset: `/api/account/forgot` (same answer for any
 email) mails a one-hour `#reset=` link; `/api/account/reset` sets the password, verifies the
-email and ends every other session.
+email and ends every other session. A new link is sent before older ones are dropped
+(`KeepNewestEmailToken`), and a QUIT error after an accepted DATA counts as sent.
 
 Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`
 (64 KB, 15 s to arrive - the servers bound only headers, since a whole-request `ReadTimeout`
@@ -485,6 +617,16 @@ envelope's id (`envelopeID`, protowire) instead of unmarshalling every frame; st
 clients as `cInternalErrorMsg`; sign-ups are limited to 5 an hour per address, sign-in answers
 the same for unknown, wrong and Google/Apple-only accounts, and new bridge passwords use bcrypt
 cost 12 (`limits.BcryptCost`; account hashes are upgraded at the next sign-in).
+`limits.Rate` deliberately has **no hard cap** on its map (a0ce30c removed one): refusing unknown
+keys would let a flood of distinct addresses (one IPv6 /64 is enough) lock out everyone new, for an
+hour on the sign-up and email limiters. Its size stays bounded by request rate x refill window, and
+besides the time-based sweep it sweeps once the map has doubled since the last sweep, with a 100k
+floor (`cSweepKeys`). Proxied device responses go out through `limits.WriteAll` (deadline renewed
+per 32 KiB: 30 s for static assets, `cMediaWriteStall` 5 min for media, since paused players stop
+reading) and the cluster router's `deadlineWriter`; no `http.Server` `WriteTimeout`, because of the
+websockets. Only hashed Vite assets (`/assets/<name>-<8 chars>.<ext>`) are cached `immutable`. Only
+`dao.IsDuplicateKey` (1062) means 409 "taken"; other insert errors are a 500, which releases the
+contact/claim cooldown (`releaseCooldown`).
 
 ### Bridge accounts (`bridge/accounts`, issue #124)
 
@@ -532,6 +674,19 @@ bridge.test 127.0.0.1"`. Issue #143: every admin list (`/admin/api/devices`, `ac
 `auth-events`, `contact-requests`) takes `q`, `page`, `size` (25 by default, 200 at most) and
 answers `{Items, Total, Page, Size}` (+ `Unread` for messages); searches escape LIKE's
 wildcards (`likeArg`), and `/admin/api/domains` feeds the device pickers.
+
+Sessions and sign-in: only a real sign-in (sign-up, login, provider callback, reset, password
+change) issues the session cookie, whose issue time the 15-minute `cFreshSignIn` checks trust. A
+password change or reset is one UPDATE that also bumps `session_epoch`
+(`dao.SetAccountPasswordEndingSessions`, `LAST_INSERT_ID(session_epoch+1)`). A Google/Apple
+sign-in's state is tied to the browser by `__Host-otc_oauth_<state[:16]>` (SameSite=None) plus a
+`_l` twin without SameSite (Safari 12); a 48-hex state from an older build (`isPreCookieState`)
+passes without. `GET /account/auth/{provider}/start` answers 400 unless it is a top-level
+navigation: open it as a page, never fetch or frame it. `GET /api/account/continue` needs
+`Sec-Fetch-Site: same-origin` (or an https Referer on the bridge's host). The bridge DSN has
+`timeout=5s` and read/write timeouts of 60 s (above InnoDB's 50 s lock wait); relay-path queries run under a 5 s
+context (`cRelayDBTimeout`) - follow that for anything new there. A `device_metrics` write that
+timed out is dropped, not retried.
 
 ### Desktop sync client (`app/desktop`, issues #119 and #120)
 
@@ -645,6 +800,24 @@ unattended from Microsoft's Enterprise Evaluation ISO (`unattend/autounattend.xm
 licence has expired - Windows shows a watermark and may shut the VM down periodically; if that
 gets in the way, rebuild it from a retail ISO (CrystalFetch) with the same answer file.
 
+**Sync invariants** (otc-sync `engine`, the Mac's `SyncModel` + `SyncPaths.swift`). A two-way
+device entry is used only under the folder's prefix and through `safeRelative` (no empty, `.` or
+`..` component, no NUL; the Mac checks by UTF-8 bytes, since a combining mark after `/` hides it from
+a Character split). Hidden paths and `.otc-part` files stay out of two-way sync and the backup
+watcher on both sides (`notSynced` / `isExcludedFromSync`). Two-way actions run local deletes first
+and re-check the local file's size and mtime just before acting (`stillAsScanned` /
+`localMatches`). An unreadable directory is never a deleted one: paths under it keep their baseline
+and get no action (otc-sync reports "N file(s) could not be read"). Backups run one pass per
+folder, watched changes one upload at a time per folder (`drainChanges`), and a pass stops when its
+folder is removed or the device changes. `SetUploadOnly` is re-sent until acknowledged, and that
+is forgotten only when the device or password changes. A sync record counts as saved only after a
+successful write. In both WSClients a superseded connection attempt's outcome is dropped, and a
+rejected password is reported before the socket closes. `otc-sync flash-device` refuses a disk
+whose `--size`/`--name` changed. The Mac's unit tests are hosted by the real app (`TEST_HOST`), so
+`xcodebuild test` launches it with the saved settings and may reach the live device;
+`SyncPathsTests` can run in a scratch SwiftPM package holding only `SyncPaths.swift` (module
+`OffTheCloud`).
+
 ### Native apps (`app/ios`, `app/macos`, `app/android`)
 
 Swift/Xcode projects (`OffTheCloud.xcodeproj` in each) that consume the same generated Swift protobuf
@@ -709,6 +882,45 @@ SurfaceView paints at a stale position over whatever scrolls above it, and a ful
 with `decorFitsSystemWindows = false` needs `systemBarsPadding()` or its top buttons sit under
 the status bar and never get the tap.
 
+**Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
+never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
+`DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
+off so that date is fetched again. Android holds it before the first failed upload; iOS keeps failed
+assets in a retry list (`asset_sync_pending.log`) fetched first next run. A running sync's writes
+are gated by generations bumped by `cancel()` (Log Out, which cancels again right before the wipe)
+and by Sync From Now. A photo whose name the device holds with other content goes to
+`<stem>_<first 8 hex of SHA-256(localIdentifier | MediaStore id)>.<ext>`. After the device rejects
+Auth (an empty `Ack.code`, or `too_many_attempts`) `OTCConnection` fails the same credentials
+without dialling for 5 s doubling to 300 s; success, `invalidate()` or new credentials lift it.
+Files open, versions, trimming and the gallery's video fallback read 4 MiB `ReadFile` pieces
+(`FileDownload.swift` / `ChunkedDownload.kt`); `GetFile` stays for HEIC and as the
+`unknown_payload` fallback. Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
+socket past 16 MiB queued). Android only: backup and device transfer include just
+`otc_settings.xml` (`data_extraction_rules.xml`, `backup_rules.xml`) - new prefs and files stay out
+unless added there on purpose; `SecretsStore` recovers an `otc_secrets` restored without its
+Keystore key by resetting to a fresh install; connection forms write `SecretsStore` only on Save,
+since every reconnect dials the stored values; `PhotoSync.hasPermission()` must match
+`mediaPermissions()`. iOS unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with
+`-only-testing:OffTheCloudTests`.
+
+**Known gaps left by the 2026-10 hardening pass.** `File.size` is int32 on the wire and `int` in
+`files`, `file_versions` and `social_publications_files`: files of 2 GiB or more show a wrong size
+(only the memory budget uses the blob size; widening needs proto, client and ALTER TABLE changes).
+`network/network.go` `RequestJoin` writes `wifi_join_request.json` with a plain `os.WriteFile`, not
+temp + fsync + rename. iOS `FileDownload` falls back to `GetFile` only on `error_code =
+"unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
+exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
+write deadlines or immutable asset headers in its own HTTP server (`api/`), `cloud_id` kept by
+`ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components, `cMaxInFlight` (32)
+requests before sign-in and `wsframe`'s first 4 MiB (`cFree`) outside the frame budget, and the
+gallery preview still hands any image it can't decode to ffmpeg; bridge - no `interpolateParams`,
+`claimName`'s setup-token path and `accountAddDomain` still read a database error as "no account" /
+"unverified", `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
+when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
+clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the
+Mac, no request timeout in iOS `WSClient`, no `usePageRetry` in Social's feed or
+`DevicePhotoPicker`.
+
 ## Cutting a release (issue #94)
 
 Devices update themselves in place: an owner presses **Update** in Settings and the
@@ -732,6 +944,14 @@ root: it reads `[otc] update-repo`/`update-releases` from the root-owned config,
 runner falls back to the old `sudo -n` path, which only works on a hand-set-up box like Pit. To
 exercise the whole flow on Pit without the app: `ssh otc@pit.otc touch /var/lib/otc/update.request`
 and watch `/var/lib/otc/update-status.json`.
+otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside it) and
+`ExecStopPost` `otc-update-stopped`, which turns a status still at "running" into failed;
+`updater.CurrentStatus` does the same, read-only, when the unit has stopped and nothing holds
+`/run/otc-update.lock` (update.sh's shared flock) - power cuts included. Root status files are a
+`dd conv=excl` temp file under umask 022, then `mv -T`: never `> file` or chmod as root in
+`/var/lib/otc`, which `otc` owns. Downloads in the runner, update.sh, verified-install.sh and
+`fetch_pinned` carry `curl --connect-timeout 30 --speed-limit 1 --speed-time 120`, cutting only a
+stalled transfer (no `--max-time`).
 Two more root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
 every update: `scripts/bridge-runner/` (switching the bridge on later, #145) and
 `scripts/tailscale-runner/` (release 50). tailscaled runs only while Tailscale Funnel is on:
@@ -749,12 +969,19 @@ Issue #160: releases are **signed**. Cut one with `scripts/release.sh "Summary s
 Settings"` from a clean, pushed `main` - nothing else. If the release needs a schema or
 config change, first commit its script as `scripts/updates/<N>.sh` (N = the manifest's
 last version + 1; it runs as root on the primary and on every per-user database and MUST
-be idempotent). The tool builds the web bundle, tags `vN`, makes the release's own source
-archive (`src.tar.gz`, `git archive` + `gzip -n`; the manifest and its signature are
-`export-ignore`d in `.gitattributes`, since they carry its hash), appends the manifest line
-(version, script sha, web sha, summary, source sha), signs the whole manifest with the
-release key into `scripts/updates/VERSIONS.sig`, pushes, publishes the GitHub release with
-both archives and checks what was published. The key is Ed25519 at
+be idempotent; update.sh runs it before building the new binary, so it only sees rows the old code
+wrote). A script that loops over users must let only a `db_name` matching `^otc_[0-9a-f]{32}$` reach
+root's mysql command line (the otc service can write `users`, and a name starting with `-` would be
+an option), as `92.sh` (one like per domain) does. The tool builds the web bundle, tags `vN`, makes
+the release's own source archive (`src.tar.gz`, `git archive` + `gzip -n`; the manifests and their
+signatures are `export-ignore`d in `.gitattributes`, since they carry its hash, and so are
+`docs/app-store`, `docs/play-store`, `docs/screenshots` and `bridge/bin/otc_bridge` - about 11 MB
+instead of 90; over 30 MB is refused), appends the manifest line (version, script sha, web sha,
+summary, source sha) and signs the whole manifest with the release key into
+`scripts/updates/VERSIONS.sig`. Then it pushes the tag, publishes the GitHub release, checks the
+published archives, and only then commits and pushes the signed manifest to main - archives first,
+manifest last. A failure before that commit deletes the release and the tag; a failed final push of
+main must be finished by hand (`pull --rebase`, push). The key is Ed25519 at
 `~/.otc/otc-release-signing.pem` on the Mac mini (passphrase in the Keychain item
 `otc-release-signing`; never on GitHub - back it up offline); its public half is
 `scripts/release-signing.pub`, which devices pin in `/etc/otc/release-signing.pub`.
@@ -770,6 +997,9 @@ instance checks for updates by itself every 6 hours (`updater.Watch`): a pending
 update adds one `Update` notification per version, and `Status.update_alert` carries it to every
 app; a critical one shows a banner in the web app, iOS and Android (and a line in the Mac app and
 otc-sync) until it is installed. Settings shows "1.1 (build 85)" and badges pending releases.
+`updater.Check` trusts `VERSIONS` only with its signature (a fork must sign its VERSIONS too) and
+shows the last verified list on a mismatch (CDN skew); `Watch` keeps the known alert through a
+failed check and retries from 5 min, doubling up to 6 h.
 
 On a device, `otc-update-runner` downloads the manifest and its signature, verifies it with
 the pinned key, downloads the target release's `src.tar.gz`, checks it against the signed
@@ -796,7 +1026,9 @@ for its web bundle, the script carried on with the old one, and the per-release 
 the device "up to date" for good. Each release's migration is recorded in
 `/etc/otc/version.migrated`, so a failed run retries everything else without re-running scripts. A
 web bundle that can't be downloaded fails the update, and a failed build leaves the running binary
-untouched.
+untouched: update.sh runs migrations, build, then the web bundle's download and check, and only
+then installs anything (`install_atomic`: temp, sync, rename) and writes the version file. The
+staged release is removed on exit.
 
 **Forks** set `[otc] update-repo` and `[otc] update-releases` so a device updates from its
 own repository rather than silently taking code from upstream.
