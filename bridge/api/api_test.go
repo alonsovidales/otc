@@ -499,14 +499,19 @@ func TestClaimWithASessionNeedsAVerifiedAccount(t *testing.T) {
 		t.Errorf("unverified: %d %s, want 403", rec.Code, rec.Body.String())
 	}
 	epoch()
-	accountRow(mock, true, accounts.TermsVersion)
 	accountRow(mock, true, "2020-01-01")
 	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "terms of use") {
 		t.Errorf("old terms: %d %s, want 403", rec.Code, rec.Body.String())
 	}
-	// Neither refusal used the address's claim cooldown.
+	// A database failure loading the account is "try again", not a
+	// verified account told to verify.
 	epoch()
-	accountRow(mock, true, accounts.TermsVersion)
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(errors.New("driver: bad connection"))
+	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "could not reserve") {
+		t.Errorf("account lookup failed: %d %s, want 500", rec.Code, rec.Body.String())
+	}
+	// None of these used the address's claim cooldown.
+	epoch()
 	accountRow(mock, true, accounts.TermsVersion)
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
