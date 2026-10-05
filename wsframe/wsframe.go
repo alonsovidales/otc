@@ -88,15 +88,22 @@ func Read(conn *gorilla.Conn, limit int64, b *Budget) (int, []byte, func(), erro
 	if err != nil {
 		return 0, nil, noop, err
 	}
-	var buf bytes.Buffer
+	var head bytes.Buffer
 	var held int64
 	release := func() { b.release(held); held = 0 }
-	if _, err := io.CopyN(&buf, r, cFree); err != nil {
+	if _, err := io.CopyN(&head, r, cFree); err != nil {
 		if err == io.EOF {
-			return typ, buf.Bytes(), noop, nil
+			return typ, head.Bytes(), noop, nil
 		}
 		return 0, nil, noop, err
 	}
+	// Past cFree the message is read in chunks of cStep, each reserved
+	// before it's read, and joined once at the end. A bytes.Buffer doubled
+	// its capacity as it grew: a 600 MiB message ended in a 1 GiB array,
+	// with the 512 MiB one before it still live at the last grow - far
+	// past what the budget held for it.
+	var chunks [][]byte
+	total := head.Len()
 	for {
 		if b != nil {
 			if err := b.acquire(cStep); err != nil {
@@ -105,13 +112,29 @@ func Read(conn *gorilla.Conn, limit int64, b *Budget) (int, []byte, func(), erro
 			}
 			held += cStep
 		}
-		if _, err := io.CopyN(&buf, r, cStep); err != nil {
-			if err == io.EOF {
-				var once sync.Once
-				return typ, buf.Bytes(), func() { once.Do(release) }, nil
-			}
+		c := make([]byte, cStep)
+		n, err := io.ReadFull(r, c)
+		if n > 0 {
+			chunks = append(chunks, c[:n])
+			total += n
+		}
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			break // the end of the message
+		}
+		if err != nil {
 			release()
 			return 0, nil, noop, err
 		}
 	}
+	var once sync.Once
+	if len(chunks) == 0 {
+		return typ, head.Bytes(), func() { once.Do(release) }, nil
+	}
+	out := make([]byte, total)
+	k := copy(out, head.Bytes())
+	for i := range chunks {
+		k += copy(out[k:], chunks[i])
+		chunks[i] = nil
+	}
+	return typ, out, func() { once.Do(release) }, nil
 }
