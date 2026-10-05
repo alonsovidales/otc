@@ -62,13 +62,13 @@ func WriteAll(w http.ResponseWriter, b []byte, stall time.Duration) error {
 // sweep is due. Past it the trigger is twice what the last sweep left, so
 // a map that keeps growing is scanned in O(1) per Allow (amortised), not
 // on every call.
+//
+// The map has no hard cap on purpose: refusing a key it doesn't hold yet
+// would turn a flood of distinct addresses into a lockout of everyone new
+// (an hour long for the sign-up and email limiters), and evicting one
+// would hand a key a fresh bucket. Its size stays bounded by the request
+// rate over one refill window.
 const cSweepKeys = 100000
-
-// maxKeys caps a Rate's map (about 150 MB at IPv6 keys): a key not in it
-// is refused once it is full, until a sweep makes room. Only reached by
-// a flood of distinct addresses; refusing, rather than evicting someone,
-// never hands a key a fresh bucket. A var for the tests.
-var maxKeys = 1 << 20
 
 // Rate is a token bucket per key (an address, a domain): burst requests
 // at once, refilled at perSecond. Keys idle long enough to be full again
@@ -103,9 +103,6 @@ func (l *Rate) Allow(key string) bool {
 	l.sweep(now)
 	b := l.buckets[key]
 	if b == nil {
-		if len(l.buckets) >= maxKeys {
-			return false
-		}
 		b = &bucket{tokens: l.burst, last: now}
 		l.buckets[key] = b
 	}

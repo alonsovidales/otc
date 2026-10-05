@@ -650,7 +650,11 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	accountID, refusal := api.claimAccount(r, body.SetupToken)
+	accountID, refusal, err := api.claimAccount(r, body.SetupToken)
+	if err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
+		return
+	}
 	if refusal != "" {
 		writeJSONErr(w, http.StatusForbidden, refusal)
 		return
@@ -756,10 +760,12 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 // body or the Authorization header, or the account page's own session.
 // A session is refused (with the reason) for an account that hasn't
 // proved its email or accepted the terms in force, as on the account
-// page: a token is only ever issued to one that has.
-func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refusal string) {
+// page: a token is only ever issued to one that has. err is the database
+// failing to load the session's account (logged here): not a refusal,
+// the claim can be tried again.
+func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refusal string, err error) {
 	if api.accounts == nil {
-		return "", ""
+		return "", "", nil
 	}
 	token := bodyToken
 	if auth := r.Header.Get("Authorization"); token == "" && strings.HasPrefix(auth, "Bearer ") {
@@ -767,21 +773,26 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refu
 	}
 	if token != "" {
 		if id, ok := api.accounts.AccountForSetupToken(token); ok {
-			return id, ""
+			return id, "", nil
 		}
-		return "", ""
+		return "", "", nil
 	}
 	if id, ok := api.accounts.AccountFromRequest(r); ok {
-		if !api.accounts.Verified(id) {
-			return "", cConfirmEmailFirst
+		acc, err := api.dao.GetAccount(id)
+		if err != nil {
+			log.Error("error loading the account behind a claim:", err)
+			return "", "", err
 		}
-		if !api.accounts.HasAcceptedTerms(id) {
-			return "", cAcceptTermsFirst
+		if acc == nil || !acc.EmailVerified {
+			return "", cConfirmEmailFirst, nil
 		}
-		return id, ""
+		if !accounts.TermsAccepted(acc) {
+			return "", cAcceptTermsFirst, nil
+		}
+		return id, "", nil
 	}
 
-	return "", ""
+	return "", "", nil
 }
 
 // Why an account may not register a name yet (accountAddDomain, and a
