@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -76,6 +77,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -96,7 +98,8 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.VideoTrim
 import cloud.offthe.otc.sync.PhotoSync
-import cloud.offthe.otc.ui.common.decodeBitmap
+import cloud.offthe.otc.ui.common.gridCellPx
+import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -473,13 +476,18 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                     }
                 }
 
-                LazyVerticalGrid(columns = GridCells.Fixed(3), contentPadding = PaddingValues(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                    items(st.items, key = { it.id }) { item ->
-                        LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
-                        val n = st.selectedOrder.indexOf(item.id).let { if (it < 0) null else it + 1 }
-                        PickTile(item, n) { vm.toggleSelect(item.id) }
+                BoxWithConstraints(Modifier.weight(1f)) {
+                    // The tiles' side, as the grid lays them out: what thumbnails decode to.
+                    val tilePx = if (constraints.hasBoundedWidth) gridCellPx(constraints.maxWidth, LocalDensity.current, 10.dp, 8.dp, count = 3)
+                        else with(LocalDensity.current) { 240.dp.roundToPx() }
+                    LazyVerticalGrid(columns = GridCells.Fixed(3), contentPadding = PaddingValues(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+                        items(st.items, key = { it.id }) { item ->
+                            LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
+                            val n = st.selectedOrder.indexOf(item.id).let { if (it < 0) null else it + 1 }
+                            PickTile(item, n, tilePx) { vm.toggleSelect(item.id) }
+                        }
+                        if (st.loading) item(span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                     }
-                    if (st.loading) item(span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                 }
 
                 if (st.selectedOrder.isNotEmpty()) SelectedOrderStrip(vm, st)
@@ -522,12 +530,15 @@ fun mediaPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 33) {
     arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 }
 
+// A phone item's bitmap is MediaStore's own 450 px thumbnail; a synced one's
+// is decoded off the main thread to [sidePx].
 @Composable
-private fun thumbOf(item: NewPostPickerViewModel.Item): Bitmap? = remember(item.id) { item.thumbImage ?: item.thumbData?.let { decodeBitmap(it) } }
+private fun thumbOf(item: NewPostPickerViewModel.Item, sidePx: Int): Bitmap? =
+    item.thumbImage ?: rememberTileThumb(item.thumbData?.let { item.id }, sidePx) { item.thumbData }
 
 @Composable
-private fun PickTile(item: NewPostPickerViewModel.Item, selectionNumber: Int?, onTap: () -> Unit) {
-    val bmp = thumbOf(item)
+private fun PickTile(item: NewPostPickerViewModel.Item, selectionNumber: Int?, sidePx: Int, onTap: () -> Unit) {
+    val bmp = thumbOf(item, sidePx)
     val selected = selectionNumber != null
     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x33808080)).clickable(onClick = onTap)) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize().alpha(if (selected) 0.75f else 1f), contentScale = ContentScale.Crop)
@@ -567,7 +578,7 @@ private fun SelectedThumb(
     item: NewPostPickerViewModel.Item, position: Int, canMoveLeft: Boolean, canMoveRight: Boolean,
     moveLeft: () -> Unit, moveRight: () -> Unit, remove: () -> Unit, trim: (() -> Unit)?, trimRange: TrimRange?, trimLoading: Boolean,
 ) {
-    val bmp = thumbOf(item)
+    val bmp = thumbOf(item, with(LocalDensity.current) { 60.dp.roundToPx() })
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Box(Modifier.size(64.dp)) {
             Box(Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x33808080)).clickable(enabled = trim != null && !trimLoading) { trim?.invoke() }) {

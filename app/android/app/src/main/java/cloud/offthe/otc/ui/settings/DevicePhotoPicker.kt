@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -43,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -53,7 +55,8 @@ import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
-import cloud.offthe.otc.ui.gallery.rememberThumb
+import cloud.offthe.otc.ui.common.gridCellPx
+import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,7 +70,8 @@ import kotlinx.coroutines.withContext
  * circle crop, which the caller opens exactly as for a phone pick.
  */
 
-private data class PickItem(val path: String, val thumb: ByteArray?)
+// key: path#hash#size, what its decoded thumbnail is cached under.
+private data class PickItem(val path: String, val key: String, val thumb: ByteArray?)
 
 @Composable
 fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
@@ -97,7 +101,7 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
             val lof = resp.respListOfFiles
             val seen = items.map { it.path }.toSet()
             items = items + lof.filesList.filter { it.path !in seen }
-                .map { f -> PickItem(f.path, if (f.hasContent()) f.content.toByteArray() else null) }
+                .map { f -> PickItem(f.path, "${f.path}#${f.hash}#${f.size}", if (f.hasContent()) f.content.toByteArray() else null) }
             token = lof.token.ifEmpty { null }
         } catch (e: Exception) {
             if (mine == generation) error = "Could not load your photos."
@@ -157,20 +161,25 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
                 }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(110.dp), state = grid, contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f).fillMaxWidth(),
-            ) {
-                items(items, key = { it.path }) { item ->
-                    PickTile(item, busy = fetching == item.path) { pick(item) }
-                }
-                if (loading) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                // The tiles' side, as the grid lays them out: what thumbnails decode to.
+                val tilePx = if (constraints.hasBoundedWidth) gridCellPx(constraints.maxWidth, LocalDensity.current, 8.dp, 2.dp, minSize = 110.dp)
+                    else with(LocalDensity.current) { 220.dp.roundToPx() }
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(110.dp), state = grid, contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(items, key = { it.path }) { item ->
+                        PickTile(item, tilePx, busy = fetching == item.path) { pick(item) }
                     }
-                } else if (items.isEmpty() && token == null) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text("No photos here yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+                    if (loading) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        }
+                    } else if (items.isEmpty() && token == null) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text("No photos here yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+                        }
                     }
                 }
             }
@@ -179,8 +188,8 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
 }
 
 @Composable
-private fun PickTile(item: PickItem, busy: Boolean, onTap: () -> Unit) {
-    val bmp = rememberThumb(item.thumb)
+private fun PickTile(item: PickItem, sidePx: Int, busy: Boolean, onTap: () -> Unit) {
+    val bmp = rememberTileThumb(item.thumb?.let { item.key }, sidePx) { item.thumb }
     Box(Modifier.aspectRatio(1f).background(Color(0x1A808080)).clickable(onClick = onTap)) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         if (busy) {
