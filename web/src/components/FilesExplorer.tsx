@@ -517,6 +517,18 @@ export default function FilesExplorer({
   const uploadsPct = uploads.length ? Math.round((uploadsDone / uploads.length) * 100) : 0;
 
   // ---- rows prepared for display ----
+  const rows = useMemo(() => listing.map((f) => ({
+    k: rowKey(f),
+    name: f.path === ".." ? ".." : leafName(f.path),
+    isDir: isDir(f),
+    size: f.size,
+    created: f.created,
+    modified: f.modified,
+    uploadOnly: !!f.uploadOnly,
+    versions: f.versions ?? 0,
+    file: f,
+  })), [listing]);
+
   // -------- grid view ----------
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
   const switchView = (m: ViewMode) => {
@@ -531,18 +543,26 @@ export default function FilesExplorer({
   const thumbsAsked = useRef<Set<string>>(new Set());
   useEffect(() => () => { Object.values(thumbsRef.current).forEach(u => u && URL.revokeObjectURL(u)); }, []);
   const fullPathOf = useCallback((f: PbFile) => (f.path.includes("/") ? f.path : joinPath(path, f.path)), [path]);
-  useEffect(() => {
-    if (viewMode !== "grid") return;
-    const want = listing.filter(f => !isDir(f) && isMedia(f)).map(fullPathOf).filter(p => !thumbsAsked.current.has(p));
-    if (!want.length) return;
-    want.forEach(p => thumbsAsked.current.add(p));
-    let alive = true;
-    (async () => {
-      for (let i = 0; i < want.length && alive; i += cThumbBatch) {
-        const batch = want.slice(i, i + cThumbBatch);
+
+  // Only tiles on or near the screen ask for theirs, as the iOS app does:
+  // a phone's whole library syncs into one folder, and asking for every
+  // photo in it up front sent hundreds of requests and held every result.
+  // One queue, one batch in flight at a time. What is still queued when
+  // the listing changes (Refresh, an upload, another folder) is forgotten,
+  // so the tiles of the next listing ask for it again rather than keep
+  // their type icon until a reload.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const thumbQueue = useRef<string[]>([]);
+  const pumping = useRef(false);
+  const pumpThumbs = useCallback(async () => {
+    if (pumping.current) return;
+    pumping.current = true;
+    try {
+      while (thumbQueue.current.length) {
+        const batch = thumbQueue.current.splice(0, cThumbBatch);
         try {
           const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-            (e as any).payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch } };
+            e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch } };
           });
           const got: Record<string, string> = {};
           if (resp.payload?.$case === "respListOfFiles") {
@@ -557,9 +577,42 @@ export default function FilesExplorer({
           batch.forEach(p => thumbsAsked.current.delete(p)); // tried again on the next visit
         }
       }
-    })();
-    return () => { alive = false; };
-  }, [viewMode, listing, fullPathOf]);
+    } finally {
+      pumping.current = false;
+    }
+  }, []);
+  const wantThumbs = useCallback((paths: string[]) => {
+    for (const p of paths) {
+      if (thumbsAsked.current.has(p)) continue;
+      thumbsAsked.current.add(p);
+      thumbQueue.current.push(p);
+    }
+    void pumpThumbs();
+  }, [pumpThumbs]);
+  useEffect(() => {
+    if (viewMode !== "grid" || loading || !gridRef.current) return;
+    const asked = thumbsAsked.current;
+    // The viewport as the root, 1000px ahead: an ancestor that scrolls
+    // still clips, whichever element it is.
+    const obs = new IntersectionObserver((entries) => {
+      const paths: string[] = [];
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        const el = en.target as HTMLElement;
+        obs.unobserve(el);
+        if (el.dataset.thumb) paths.push(el.dataset.thumb);
+      }
+      if (paths.length) wantThumbs(paths);
+    }, { rootMargin: "1000px 0px" });
+    gridRef.current.querySelectorAll<HTMLElement>("[data-thumb]").forEach(el => {
+      if (!asked.has(el.dataset.thumb!)) obs.observe(el);
+    });
+    return () => {
+      obs.disconnect();
+      thumbQueue.current.forEach(p => asked.delete(p));
+      thumbQueue.current = [];
+    };
+  }, [viewMode, loading, rows, wantThumbs]);
 
   // Photos and videos open in the Images section's own viewer
   // (MediaViewer), paging through this folder's photos and videos.
@@ -573,18 +626,19 @@ export default function FilesExplorer({
     const index = Math.max(0, media.findIndex(x => x.path === f.path));
     setMediaViewer({ items, index });
   };
-
-  const rows = useMemo(() => listing.map((f) => ({
-    k: rowKey(f),
-    name: f.path === ".." ? ".." : leafName(f.path),
-    isDir: isDir(f),
-    size: f.size,
-    created: f.created,
-    modified: f.modified,
-    uploadOnly: !!f.uploadOnly,
-    versions: f.versions ?? 0,
-    file: f,
-  })), [listing]);
+  // The thumbnails as they are now, not as they were when the viewer
+  // opened: with tiles asking only near the screen, paging on reaches
+  // items whose thumbnail lands after that. The grid used to have every
+  // one by then, so the item in view and its neighbours are asked for.
+  const viewerItems = useMemo(
+    () => mediaViewer?.items.map(it => ({ ...it, thumbURL: thumbs[it.path] || undefined })) ?? [],
+    [mediaViewer?.items, thumbs],
+  );
+  useEffect(() => {
+    if (!mediaViewer || viewMode !== "grid") return;
+    const i = mediaViewer.index;
+    wantThumbs(mediaViewer.items.slice(Math.max(0, i - 2), i + 3).map(it => it.path));
+  }, [mediaViewer, viewMode, wantThumbs]);
 
   const lockIcon = (locked: boolean) => (
     <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -704,7 +758,7 @@ export default function FilesExplorer({
       )}
 
       {viewMode === "grid" ? (
-        <div className="fb-grid">
+        <div className="fb-grid" ref={gridRef}>
           {loading && <div className="fb-grid-note">Loading…</div>}
           {!loading && rows.length === 0 && <div className="fb-grid-note">This folder is empty.</div>}
           {!loading && rows.map(r => {
@@ -712,7 +766,8 @@ export default function FilesExplorer({
             const thumb = !r.isDir ? thumbs[full] : undefined;
             return (
               <div className={`fb-tile${sel[r.k] ? " selected" : ""}`} key={r.k}>
-                <button className="fb-tile-art" onClick={() => openEntry(r.file)} disabled={openingPath !== null} title={r.name}>
+                <button className="fb-tile-art" onClick={() => openEntry(r.file)} disabled={openingPath !== null} title={r.name}
+                  data-thumb={!r.isDir && isMedia(r.file) ? full : undefined}>
                   {r.isDir
                     ? <svg className="fb-folder" viewBox="0 0 64 52" aria-hidden="true"><path d="M4 6a4 4 0 0 1 4-4h16l6 6h26a4 4 0 0 1 4 4v34a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" /></svg>
                     : thumb
@@ -811,7 +866,7 @@ export default function FilesExplorer({
 
       {mediaViewer && (
         <MediaViewer
-          items={mediaViewer.items}
+          items={viewerItems}
           index={mediaViewer.index}
           onIndexChange={i => setMediaViewer(v => (v ? { ...v, index: i } : v))}
           onClose={() => setMediaViewer(null)}
