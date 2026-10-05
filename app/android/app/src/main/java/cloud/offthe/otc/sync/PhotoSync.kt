@@ -54,7 +54,7 @@ object PhotoSync {
 
     var lastSyncMs: Long
         get() = prefs.getLong("lastSyncMs", 0)
-        set(v) { prefs.edit().putLong("lastSyncMs", v).apply() }
+        private set(v) { prefs.edit().putLong("lastSyncMs", v).apply() }
 
     // Checks what mediaPermissions() (NewPostPickerView.kt) asks for on this
     // API level: READ_MEDIA_IMAGES doesn't exist before 33, so on Android
@@ -75,6 +75,18 @@ object PhotoSync {
     // Bumped by cancel(): a run from before Log Out writes no sync state
     // into the store it just wiped.
     @Volatile private var generation = 0
+    // Bumped by setWatermark(): a run that started before the owner pressed
+    // Sync All or Sync From Now doesn't write over that choice.
+    @Volatile private var watermarkGen = 0
+    private val watermarkLock = Any()
+
+    /** Settings > Sync All (0) and Sync From Now (now). */
+    fun setWatermark(ms: Long) = synchronized(watermarkLock) { watermarkGen++; lastSyncMs = ms }
+
+    // A run's own watermark, unless Log Out or the owner came first.
+    private fun runWatermark(ms: Long, gen: Int, wgen: Int) = synchronized(watermarkLock) {
+        if (gen == generation && wgen == watermarkGen) lastSyncMs = ms
+    }
 
     fun runForegroundAsync() {
         scope.launch { try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") } }
@@ -224,6 +236,7 @@ object PhotoSync {
         val job = currentCoroutineContext()[Job]
         currentSync = job
         val gen = generation
+        val wgen = watermarkGen
         try {
             if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return }
             val secrets = SecretsStore.loadOrCreate()
@@ -234,7 +247,7 @@ object PhotoSync {
             val startedSec = System.currentTimeMillis() / 1000
             // A watermark ahead of the clock (set while it was wrong) would
             // hide everything taken until then; the old "now" undid that too.
-            if (lastSyncMs / 1000 > startedSec && gen == generation) lastSyncMs = (startedSec - 1) * 1000
+            if (lastSyncMs / 1000 > startedSec) runWatermark((startedSec - 1) * 1000, gen, wgen)
             val assets = fetchNewAssets(secrets.includeVideos.value, lastSyncMs)
             Log.i(tag, "sync start: ${assets.size} new asset(s) since $lastSyncMs")
             UploadModel.begin(assets.size)
@@ -284,7 +297,7 @@ object PhotoSync {
                         val last = chunk.last().addedSec
                         if (assets.getOrNull(start + chunk.size)?.addedSec == last) last - 1 else last
                     } else failed.minOf { it.addedSec } - 1
-                    lastSyncMs = minOf(doneSec, startedSec - 1) * 1000
+                    runWatermark(minOf(doneSec, startedSec - 1) * 1000, gen, wgen)
                     held = failed.isNotEmpty()
                 }
                 if (failed.isNotEmpty()) {
