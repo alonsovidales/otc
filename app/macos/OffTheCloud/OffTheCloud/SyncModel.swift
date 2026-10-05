@@ -1629,10 +1629,24 @@ final class SyncModel: ObservableObject {
     // run synchronously on the main actor inside reconcile()'s per-file
     // loop, so hashing e.g. a multi-GB video blocked the whole UI for as
     // long as that took. `nonisolated static` lets it run off-actor.
+    // Read a chunk at a time, as otc-sync's sha256File: a memory-mapped
+    // file truncated by another app mid-hash crashed the app (SIGBUS), and
+    // on a volume Foundation won't map the whole file was read into RAM.
     private nonisolated static func sha256Hex(of url: URL) throws -> String {
-        let data = try Data(contentsOf: url, options: .mappedIfSafe)
-        let digest = SHA256.hash(data: data)
-        return digest.map { String(format: "%02x", $0) }.joined()
+        let fh = try FileHandle(forReadingFrom: url)
+        defer { try? fh.close() }
+        var hasher = SHA256()
+        while true {
+            // The pool frees each chunk's buffer as it goes: a detached
+            // task has no run loop to drain it across a multi-GB file.
+            let more: Bool = try autoreleasepool {
+                guard let chunk = try fh.read(upToCount: Int(chunkSize)), !chunk.isEmpty else { return false }
+                hasher.update(data: chunk)
+                return true
+            }
+            if !more { break }
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Persistence helpers
