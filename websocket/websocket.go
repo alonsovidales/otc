@@ -3762,7 +3762,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			respBin, _ := proto.Marshal(resp)
 
 			writeMu.Lock()
-			writeErr := conn.WriteMessage(gorilla.BinaryMessage, respBin)
+			writeErr := writeReply(conn, respBin)
 			writeMu.Unlock()
 
 			if writeErr != nil {
@@ -3775,6 +3775,45 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			}
 		}(&env)
 	}
+}
+
+// cReplyPiece: a reply larger than this goes out in pieces of this size,
+// each with its own write deadline (see writeReply).
+const cReplyPiece = 64 << 10
+
+// cReplyStall: a peer that takes none of the next piece of a reply for this
+// long has stopped reading; its connection is closed.
+var cReplyStall = time.Minute
+
+// writeReply writes one reply with a deadline that only fires when the peer
+// stops taking it. Replies had none: a peer that stopped reading (gone
+// without a reset, or a zero TCP window) held writeMu, and every request
+// queued behind it kept its frame and content budget, for as long as the
+// socket lived. A large reply goes out in pieces, each given cReplyStall,
+// so a slow link still gets a file of any size; one up to cReplyPiece goes
+// out exactly as before. Clients already reassemble a message sent in
+// several frames, as replies through the bridge always were. A
+// timeout fails every later write on conn, so the requests queued on
+// writeMu end at once. The caller holds writeMu.
+func writeReply(conn *gorilla.Conn, b []byte) error {
+	conn.SetWriteDeadline(time.Now().Add(cReplyStall))
+	if len(b) <= cReplyPiece {
+		return conn.WriteMessage(gorilla.BinaryMessage, b)
+	}
+	w, err := conn.NextWriter(gorilla.BinaryMessage)
+	if err != nil {
+		return err
+	}
+	for len(b) > 0 {
+		n := min(len(b), cReplyPiece)
+		conn.SetWriteDeadline(time.Now().Add(cReplyStall))
+		if _, err := w.Write(b[:n]); err != nil {
+			return err
+		}
+		b = b[n:]
+	}
+	conn.SetWriteDeadline(time.Now().Add(cReplyStall))
+	return w.Close()
 }
 
 // peerGone: the error only says the other side went away.
