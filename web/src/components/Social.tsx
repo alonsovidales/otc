@@ -62,6 +62,15 @@ function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
   const blob = new Blob([bytes], { type: mime });
   return URL.createObjectURL(blob);
 }
+const revokeAll = (urls: Set<string>) => {
+  urls.forEach(u => URL.revokeObjectURL(u));
+  urls.clear();
+};
+
+// Viewer steps closer together than this are a held arrow key: the
+// full-size fetch waits this long and is skipped if the viewer has moved
+// on by then (MediaViewer does the same).
+const cRapidStepMs = 250;
 
 // How many posts to fetch per page (issue #15): loading the whole feed
 // up front is what made the page take ages to appear once there were many
@@ -353,8 +362,28 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   const [viewerIsVideo, setViewerIsVideo] = useState(false);
   const [viewerPosterURL, setViewerPosterURL] = useState<string | null>(null);
   const [viewerVideoURL, setViewerVideoURL] = useState<string | null>(null);
+  // Which item the viewer is on: every step (and closing) moves it on, so
+  // a full-size reply for an item already paged past is dropped. The
+  // device answers out of order, and one used to land under the next
+  // item's dot, marked hi-res, or clear its "Loading" early.
+  const viewerGenRef = useRef(0);
+  // The blobs the viewer is showing (thumbnail or poster, full size),
+  // freed together when it steps to another item or closes - paging
+  // used to drop each full-size photo or clip without revoking it.
+  // Stream URLs own nothing and never go in here.
+  const viewerBlobsRef = useRef<Set<string>>(new Set());
+  // When the previous item was opened (see cRapidStepMs).
+  const lastViewerStepRef = useRef(0);
+  useEffect(() => {
+    const blobs = viewerBlobsRef.current;
+    return () => { viewerGenRef.current += 1; revokeAll(blobs); };
+  }, []);
 
   const openViewer = useCallback(async (pub: PbSocialPublication, index: number) => {
+    const gen = ++viewerGenRef.current;
+    const current = () => gen === viewerGenRef.current;
+    // The previous item's blobs leave the screen with this update.
+    revokeAll(viewerBlobsRef.current);
     setViewerPub(pub);
     setViewerIdx(index);
     setViewerOpen(true);
@@ -367,6 +396,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     // current/lowURL above) - shown immediately either as the low-res
     // image preview, or as a video's poster while its real bytes load.
     const thumb = bytesToURL(f.content as unknown as Uint8Array, "image/jpeg") || null;
+    if (thumb) viewerBlobsRef.current.add(thumb);
     if (isVideo) {
       setViewerPosterURL(thumb);
       setViewerVideoURL(null);
@@ -381,6 +411,16 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     // then fetch the full file - the actual video bytes for a video, or
     // the hi-res original for an image
     setViewerLoading(true);
+    // A post's media wraps around, so a held arrow key fetched the same
+    // originals over and over: a step within cRapidStepMs of the last
+    // waits, and fetches only if the viewer is still on it.
+    const now = Date.now();
+    const rapid = now - lastViewerStepRef.current < cRapidStepMs;
+    lastViewerStepRef.current = now;
+    if (rapid) {
+      await new Promise(r => setTimeout(r, cRapidStepMs));
+      if (!current()) return;
+    }
     try {
       // Issue #107: same correction as playInline - a publication's files
       // are addressed by hash, never by path.
@@ -389,11 +429,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       // down whole below.
       if (isVideo) {
         const streamURL = await requestStreamURL({ pubUuid: pub.uuid, hash: f.hash });
+        if (!current()) return;
         if (streamURL) {
-          setViewerVideoURL(prev => {
-            if (prev && prev.startsWith("blob:") && prev !== streamURL) URL.revokeObjectURL(prev);
-            return streamURL;
-          });
+          setViewerVideoURL(streamURL);
           return;
         }
       }
@@ -404,38 +442,33 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
           reqGetPublicationMedia: { pubUuid: pub.uuid, hash: f.hash },
         };
       });
+      if (!current()) return;
       if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
         const full = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+        if (full) viewerBlobsRef.current.add(full);
         if (isVideo) {
-          setViewerVideoURL(prev => {
-            if (prev && prev !== full) URL.revokeObjectURL(prev);
-            return full;
-          });
+          setViewerVideoURL(full);
         } else {
-          setViewerURL(prev => {
-            if (prev && prev !== full) URL.revokeObjectURL(prev);
-            return full;
-          });
+          setViewerURL(full);
           setViewerHiRes(true);
         }
       }
     } finally {
-      setViewerLoading(false);
+      if (current()) setViewerLoading(false);
     }
   }, []);
 
   const closeViewer = useCallback(() => {
+    viewerGenRef.current += 1;
+    revokeAll(viewerBlobsRef.current);
     setViewerOpen(false);
     setViewerLoading(false);
-    if (viewerURL) URL.revokeObjectURL(viewerURL);
-    if (viewerPosterURL) URL.revokeObjectURL(viewerPosterURL);
-    if (viewerVideoURL) URL.revokeObjectURL(viewerVideoURL);
     setViewerURL(null);
     setViewerPosterURL(null);
     setViewerVideoURL(null);
     setViewerIsVideo(false);
     setViewerPub(null);
-  }, [viewerURL, viewerPosterURL, viewerVideoURL]);
+  }, []);
 
   const nextImg = useCallback(() => {
     if (!viewerPub) return;
