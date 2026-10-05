@@ -33,4 +33,12 @@ struct SyncPathsTests {
         #expect(!SyncPaths.isSafeRelative("a/.."))
         #expect(!SyncPaths.isSafeRelative(""))
     }
+
+    @Test func twoWayLeavesOutWhatTheLocalScanSkips() {
+        #expect(SyncPaths.isExcludedFromSync(".env"))
+        #expect(SyncPaths.isExcludedFromSync("project/.git/config"))
+        #expect(SyncPaths.isExcludedFromSync("a/b.jpg.otc-part"))
+        #expect(!SyncPaths.isExcludedFromSync("a/b.jpg"))
+        #expect(!SyncPaths.isExcludedFromSync("notes.v2/x.txt"))
+    }
 }

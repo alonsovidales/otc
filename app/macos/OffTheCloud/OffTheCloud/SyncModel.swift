@@ -1009,6 +1009,7 @@ final class SyncModel: ObservableObject {
                         outside += 1
                         continue
                     }
+                    if SyncPaths.isExcludedFromSync(relative) { continue }
                     remoteByRelative[relative] = file
                 }
                 if outside > 0 {
@@ -1037,8 +1038,9 @@ final class SyncModel: ObservableObject {
             loadSyncedIfNeeded(folder.id)
             let storedSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
             // A record written before paths were checked may hold one
-            // that leads outside the folder: it leaves with the next save.
-            let lastSynced = storedSynced.filter { SyncPaths.isSafeRelative($0.key) }
+            // that leads outside the folder, or a dotfile that came down
+            // from the device: they leave with the next save.
+            let lastSynced = storedSynced.filter { SyncPaths.isSafeRelative($0.key) && !SyncPaths.isExcludedFromSync($0.key) }
             var localHashes: [String: String] = [:]
             var unreadable: Set<String> = []
             // Only here, not on the device and never synced: an upload

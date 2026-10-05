@@ -21,4 +21,14 @@ enum SyncPaths {
         return !relative.split(separator: "/", omittingEmptySubsequences: false)
             .contains { $0.isEmpty || $0 == "." || $0 == ".." }
     }
+
+    /// Left out of a two-way pass on both sides: what the local scan never
+    /// sees (a component starting with ".", as .skipsHiddenFiles) and
+    /// downloads in progress. A dotfile listed on the device used to come
+    /// down, look deleted here on the next pass, and be deleted there.
+    /// As otc-sync's notSynced.
+    static func isExcludedFromSync(_ relative: String) -> Bool {
+        if relative.hasSuffix(".otc-part") { return true }
+        return relative.split(separator: "/").contains { $0.hasPrefix(".") }
+    }
 }
