@@ -195,6 +195,11 @@ final class SyncModel: ObservableObject {
     /// The content hash of `url`, from the cache when size and date still
     /// match, else freshly computed (off the main actor) and cached.
     private func cachedHash(for url: URL, folderId: UUID) async throws -> String {
+        try await cachedHashEntry(for: url, folderId: folderId).hash
+    }
+
+    /// cachedHash, with the size and date the hash belongs to.
+    private func cachedHashEntry(for url: URL, folderId: UUID) async throws -> HashEntry {
         let values = try url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
         let size = values.fileSize ?? -1
         let modified = values.contentModificationDate ?? .distantPast
@@ -203,12 +208,33 @@ final class SyncModel: ObservableObject {
         // A date survives the JSON round trip to the microsecond, not
         // the nanosecond, hence the tolerance rather than ==.
         if let hit = localHashCache[folderId]?[key], hit.size == size, abs(hit.modified.timeIntervalSince(modified)) < 0.001 {
-            return hit.hash
+            return hit
         }
         let hash = try await Task.detached(priority: .utility) { try Self.sha256Hex(of: url) }.value
-        localHashCache[folderId, default: [:]][key] = HashEntry(size: size, modified: modified, hash: hash)
+        let entry = HashEntry(size: size, modified: modified, hash: hash)
+        localHashCache[folderId, default: [:]][key] = entry
         hashCacheDirty.insert(folderId)
-        return hash
+        return entry
+    }
+
+    /// What a two-way pass saw at a path when it planned: nothing, or a
+    /// file of this size and modification date.
+    private enum LocalStamp { case absent, present(size: Int, modified: Date) }
+
+    /// Whether the file at `url` is still what the plan saw. A pass can
+    /// run for hours: an edit made here after the hashing must not be
+    /// overwritten by a planned download or trashed by a planned delete.
+    private nonisolated static func localMatches(_ url: URL, _ stamp: LocalStamp) -> Bool {
+        switch stamp {
+        case .absent:
+            return !FileManager.default.fileExists(atPath: url.path)
+        case let .present(size, modified):
+            // A fresh URL: no resource values cached from the scan.
+            guard let v = try? URL(fileURLWithPath: url.path).resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]),
+                  let s = v.fileSize, let m = v.contentModificationDate else { return false }
+            // The same tolerance as cachedHash: a cached date went through JSON.
+            return s == size && abs(m.timeIntervalSince(modified)) < 0.001
+        }
     }
 
     private static func hashCacheURL(_ folderId: UUID) -> URL? {
@@ -1042,6 +1068,9 @@ final class SyncModel: ObservableObject {
             // from the device: they leave with the next save.
             let lastSynced = storedSynced.filter { SyncPaths.isSafeRelative($0.key) && !SyncPaths.isExcludedFromSync($0.key) }
             var localHashes: [String: String] = [:]
+            // What each hashed file looked like then, checked again just
+            // before a download replaces it or a delete trashes it.
+            var localStamps: [String: LocalStamp] = [:]
             var unreadable: Set<String> = []
             // Only here, not on the device and never synced: an upload
             // whatever its content, so it's hashed when it is sent, not
@@ -1061,7 +1090,9 @@ final class SyncModel: ObservableObject {
                     updateRemoteState(folder.id, .scanning(progress: 0, currentFile: "Checking \(checked)/\(localByRelative.count) · \(url.lastPathComponent)"))
                 }
                 do {
-                    localHashes[relative] = try await cachedHash(for: url, folderId: folder.id)
+                    let entry = try await cachedHashEntry(for: url, folderId: folder.id)
+                    localHashes[relative] = entry.hash
+                    localStamps[relative] = .present(size: entry.size, modified: entry.modified)
                 } catch {
                     unreadable.insert(relative)
                     if unreadable.count <= 5 {
@@ -1250,14 +1281,16 @@ final class SyncModel: ObservableObject {
                             if localByRelative[action.relative] == nil, FileManager.default.fileExists(atPath: localURL.path) {
                                 throw NSError(domain: "sync.download", code: 6, userInfo: [NSLocalizedDescriptionKey: "another file is already at this name here - left alone"])
                             }
-                            try await download(remotePath, to: localURL, expectedHash: action.hash)
+                            try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: localStamps[action.relative] ?? .absent)
                         case .downloadKeepLocal:
                             // This Mac's version first, under its conflict
                             // name; only then the device's over the original.
                             let copy = Self.conflictURL(for: localURL, from: Host.current().localizedName)
                             try FileManager.default.moveItem(at: localURL, to: copy)
                             syncLog.info("conflict on \(action.relative, privacy: .public): this Mac's version kept as \(copy.lastPathComponent, privacy: .public)")
-                            try await download(remotePath, to: localURL, expectedHash: action.hash)
+                            // Nothing may be at the name now: something that
+                            // appeared during the download is not overwritten.
+                            try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: .absent)
                         case .uploadKeepRemote(let remoteHash):
                             let copy = Self.conflictURL(for: localURL, from: nil)
                             try await download(remotePath, to: copy, expectedHash: remoteHash)
@@ -1266,7 +1299,11 @@ final class SyncModel: ObservableObject {
                         case .deleteRemote: try await delete(remotePath)
                         // To the Trash, not gone: recoverable if a deletion on
                         // the device was a mistake.
-                        case .deleteLocal: try FileManager.default.trashItem(at: localURL, resultingItemURL: nil)
+                        case .deleteLocal:
+                            guard Self.localMatches(localURL, localStamps[action.relative] ?? .absent) else {
+                                throw NSError(domain: "sync.delete", code: 2, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not deleted"])
+                            }
+                            try FileManager.default.trashItem(at: localURL, resultingItemURL: nil)
                         }
                     } catch {
                         // Revert this one path back to its pre-reconcile
@@ -1364,7 +1401,10 @@ final class SyncModel: ObservableObject {
         return candidate
     }
 
-    private func download(_ remotePath: String, to dest: URL, expectedHash: String? = nil) async throws {
+    /// `expectLocal`, when given, is what the pass saw at `dest` when it
+    /// planned this: anything else there now (an edit made since) is not
+    /// replaced.
+    private func download(_ remotePath: String, to dest: URL, expectedHash: String? = nil, expectLocal: LocalStamp? = nil) async throws {
         let part = dest.appendingPathExtension("otc-part")
         let sink = try await Task.detached(priority: .utility) {
             try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -1414,6 +1454,11 @@ final class SyncModel: ObservableObject {
             let got = sink.finish()
             if let expectedHash, !expectedHash.isEmpty, got != expectedHash {
                 throw NSError(domain: "sync.download", code: 3, userInfo: [NSLocalizedDescriptionKey: "the device sent \(file.size) bytes that don't match the file's hash - not written"])
+            }
+            // Checked last, right before the rename: the pass leaves the
+            // path for the next one, which sees the edit and decides again.
+            if let expectLocal, !Self.localMatches(dest, expectLocal) {
+                throw NSError(domain: "sync.download", code: 7, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not overwritten"])
             }
             if FileManager.default.fileExists(atPath: dest.path) {
                 _ = try FileManager.default.replaceItemAt(dest, withItemAt: part)
