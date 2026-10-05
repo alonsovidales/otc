@@ -24,6 +24,15 @@ export interface DeviceStatus {
 // are the stable tags; the text alongside them is free to change.
 const cKnownCodes: DeviceStatusCode[] = ["device_unreachable", "account_disabled"];
 
+/**
+ * Whether an Ack code is the bridge answering for the device (it could not
+ * reach it, or the account is switched off) rather than the device's own
+ * answer.
+ */
+export function isDeviceStatusCode(code: string | undefined): code is DeviceStatusCode {
+  return !!code && (cKnownCodes as string[]).includes(code);
+}
+
 let current: DeviceStatus | null = null;
 const listeners = new Set<(s: DeviceStatus | null) => void>();
 
@@ -53,8 +62,8 @@ function publish(next: DeviceStatus | null) {
  * button needed.
  */
 export function noteResponse(code: string | undefined, message: string | undefined, isError: boolean) {
-  if (code && (cKnownCodes as string[]).includes(code)) {
-    publish({ code: code as DeviceStatusCode, message: message || "" });
+  if (isDeviceStatusCode(code)) {
+    publish({ code, message: message || "" });
     return;
   }
   if (!isError) publish(null);

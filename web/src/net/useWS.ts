@@ -3,11 +3,22 @@
 import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { encryptForConnection, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
+import { isDeviceStatusCode } from "./deviceStatus";
 
 // The device refused a password and refuses any more from this address
 // for a while (issue #117). Unlike a sign-in nobody answered, that is the
 // device's verdict on the password, so the password is not kept for it.
 class LockedOut extends Error {}
+
+// The bridge's own reply when it could not hand a request to the device
+// (no live connection to it, or the account is switched off - see
+// deviceStatus.ts), as the error a sign-in throws for it. The device never
+// saw the password or token, so this is no verdict on it: the credential
+// is kept for another try, as when the socket drops.
+function bridgeAnswer(resp: RespEnvelope): Error | null {
+  if (resp.payload?.$case !== "respAck" || !isDeviceStatusCode(resp.payload.respAck.code)) return null;
+  return new Error(resp.payload.respAck.errorMsg || resp.errorMessage || "The device did not answer.");
+}
 
 export function UseWS() {
   let isConnected = false;
@@ -31,6 +42,12 @@ export function UseWS() {
   // reconnect only then: on first load App.tsx's own effect is the one
   // redeemer, so the same single-use token is never redeemed twice at once.
   let hadSession = false;
+  // Set when a sign-in got no answer from the device while the socket
+  // stayed open: the bridge keeps a connection it could not pair with the
+  // device open, so the next request() signs in again on it instead of
+  // waiting for a reconnect. Without that it would reach the device, once
+  // it is back, on a connection with no session.
+  let authOwed = false;
 
   // Registered exactly once per useWS instance (this function only ever
   // runs once - see the singleton export at the bottom of this file).
@@ -92,9 +109,11 @@ export function UseWS() {
   const rawRequest = (req: (e: Partial<ReqEnvelope>) => void) => wsClient.request.bind(wsClient)(req);
 
   const request = (async (req: (e: Partial<ReqEnvelope>) => void) => {
-    if (!wsClient || !wsClient.connected) {
-      await connect();
+    const reconnect = !wsClient || !wsClient.connected;
+    if (reconnect || authOwed) {
+      if (reconnect) await connect();
       if (wsClient.connected && !authPromise) {
+        authOwed = false;
         if (lastAuthRef !== '') {
           // A replay the device rejects (the password was changed on
           // another device) is tried once, not on every click: sendAuth
@@ -108,9 +127,10 @@ export function UseWS() {
               if (setAuth) void setAuth(false);
             }
           }, () => {
-            // too_many_attempts or a dropped socket: the password is kept
-            // (a blocked address is refused before anything is counted),
-            // and the await below hands the error to this request's caller.
+            // too_many_attempts, a dropped socket or the bridge answering
+            // for an unreachable device: the password is kept (a blocked
+            // address is refused before anything is counted), and the
+            // await below hands the error to this request's caller.
           });
         } else if (hadSession) {
           // A session restored from a stored token: tokens outlive the
@@ -119,7 +139,12 @@ export function UseWS() {
           // (sleep, a WiFi change, a bridge redeploy) signed the tab out
           // and deleted a token that still worked.
           const token = loadPersistedToken();
-          if (token) void authWithToken(token);
+          if (token) {
+            authWithToken(token).catch(() => {
+              // No answer (see sendAuth's above): the token is kept and
+              // tried again, and the await below hands the error on.
+            });
+          }
         }
       }
     }
@@ -161,6 +186,7 @@ export function UseWS() {
     if (authPromise) return authPromise;
 
     authPromise = (async () => {
+      authOwed = false;
       try {
         if (!isConnected || !wsClient.connected) {
           await connect();
@@ -183,6 +209,12 @@ export function UseWS() {
 
           return true;
         }
+
+        // The bridge, not the device, answered: the device went away
+        // between the key and the password (a node restarting, the device
+        // re-dialing). Not a wrong password.
+        const unanswered = bridgeAnswer(resp);
+        if (unanswered) throw unanswered;
 
         // Issue #117: locked out for a while - say so, with the time,
         // rather than "incorrect password". Thrown so the sign-in form's
@@ -207,10 +239,12 @@ export function UseWS() {
 
         return false;
       } catch (e) {
-        // No answer about the password (the socket dropped): it is tried
-        // again on the next reconnect, as it always was - the mobile
-        // container signs in only once, at launch. If the device then
-        // refuses it, it is forgotten (see request()).
+        // No answer about the password (the socket dropped, or the bridge
+        // answered for the device): it is tried again on the next
+        // reconnect, or the next request if the socket is still open, as
+        // it always was - the mobile container signs in only once, at
+        // launch. If the device then refuses it, it is forgotten (see
+        // request()).
         //
         // A lockout is different for a typed password: the attempt that
         // starts one is a wrong password the device counted, and replaying
@@ -220,6 +254,7 @@ export function UseWS() {
         // during someone else's lockout heals once it ends; one that did
         // work is never dropped here.
         const containerKey = key === window.__OTC_CONFIG?.password;
+        if (!(e instanceof LockedOut)) authOwed = wsClient.connected;
         if (lastAuthRef === '' && (!(e instanceof LockedOut) || containerKey)) lastAuthRef = key;
         throw e;
       } finally {
@@ -240,6 +275,7 @@ export function UseWS() {
     if (authPromise) return authPromise;
 
     authPromise = (async () => {
+      authOwed = false;
       try {
         if (!isConnected || !wsClient.connected) {
           await connect();
@@ -264,6 +300,12 @@ export function UseWS() {
             return true;
           }
 
+          // The bridge answered for a device it could not reach (a node
+          // restarting, the device not yet re-dialed): the token was never
+          // looked at and still works, so it stays for another try.
+          const unanswered = bridgeAnswer(resp);
+          if (unanswered) throw unanswered;
+
           // Expired, unknown, or already-redeemed — fall back to the normal
           // sign-in form rather than retrying it on every future reload.
           // Only this token is cleared: two tabs that reloaded or
@@ -276,6 +318,9 @@ export function UseWS() {
           current = stored;
         }
         return false;
+      } catch (e) {
+        authOwed = wsClient.connected;
+        throw e;
       } finally {
         authPromise = null;
       }
