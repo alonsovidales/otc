@@ -62,9 +62,9 @@ const INLINE_MIME = /^(application\/pdf|text\/plain|text\/csv|text\/markdown|app
 function canOpenInline(name: string) { return INLINE_EXT.test(name); }
 function safeToOpen(mime: string) { return INLINE_MIME.test(mime || ""); }
 
-function downloadBytes(bytes: Uint8Array, name: string) {
+function downloadBytes(parts: Uint8Array[], name: string) {
   // octet-stream: saved, never rendered, whatever the file is.
-  const url = bytesToURL(bytes, "application/octet-stream");
+  const url = blobURL(parts, "application/octet-stream");
   const a = document.createElement("a");
   a.href = url;
   a.download = name;
@@ -73,8 +73,53 @@ function downloadBytes(bytes: Uint8Array, name: string) {
 }
 
 function bytesToURL(bytes: Uint8Array, mime = "application/octet-stream") {
-  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+  return blobURL([bytes], mime);
 }
+
+function blobURL(parts: Uint8Array[], type: string) {
+  return URL.createObjectURL(new Blob(parts as BlobPart[], { type }));
+}
+
+// Points a tab opened for the click at the file. The tab keeps using the
+// URL after it loads (a reload, the PDF viewer's own Save), so it is
+// released once the tab is closed rather than after a set time.
+function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
+  const url = blobURL(parts, mime);
+  tab.location.href = url;
+  const t = window.setInterval(() => {
+    if (tab.closed) { URL.revokeObjectURL(url); window.clearInterval(t); }
+  }, 5000);
+}
+
+// A file in pieces of at most 4 MB (ReadFile), as the sync clients read
+// it. GetFile answers with the whole file in one message: the device holds
+// about three times the file in memory while every other download waits
+// behind it, and past the bridge's message limit the download just fails.
+// Its original bytes and mime, or null if the device stopped answering.
+const cReadChunk = 4 << 20;
+async function readAll(path: string, hash = ""): Promise<{ parts: Uint8Array[]; mime: string } | null> {
+  const parts: Uint8Array[] = [];
+  let mime = "";
+  let offset = 0;
+  let total = -1;
+  while (total < 0 || offset < total) {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = { $case: "reqReadFile", reqReadFile: { path, hash, offset: BigInt(offset), length: cReadChunk } };
+    });
+    if (resp.payload?.$case !== "respFileChunk") return null;
+    const chunk = resp.payload.respFileChunk;
+    if (total < 0) mime = chunk.mime;
+    total = Number(chunk.size);
+    if (chunk.data.length === 0 && offset < total) return null;
+    parts.push(chunk.data);
+    offset += chunk.data.length;
+  }
+  return { parts, mime };
+}
+
+// What the device converts for display (HEIC to JPEG, see GetFile's
+// isHeicFile) still comes through GetFile, converted, as it always has.
+const isHeicName = (name: string) => /\.heic$/i.test(name);
 
 function joinPath(base: string, leaf: string) {
   const b = base.endsWith("/") ? base.slice(0, -1) : base;
@@ -113,7 +158,7 @@ export default function FilesExplorer({
 
   // Issue #132: the versions pop-up - which file it is for and the older
   // versions the device listed (newest first), or null when closed.
-  const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; versions: PbFile[] } | null>(null);
+  const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; mime: string; versions: PbFile[] } | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(false);
 
   // Image viewer
@@ -275,8 +320,8 @@ export default function FilesExplorer({
     setOpeningPath(f.path);
 
     // Issue #72: open a blank tab synchronously, in the same tick as the
-    // click, for a non-image - a tab opened later, after the GetFile
-    // await below resolves, reads to the browser as unrelated to the
+    // click, for a non-image - a tab opened later, after the fetch
+    // below resolves, reads to the browser as unrelated to the
     // click that "caused" it, and gets popup-blocked. Filling in its
     // location once the content's actually in hand still shows the
     // browser's native viewer for anything it can render (PDFs chief among
@@ -287,6 +332,21 @@ export default function FilesExplorer({
 
     try {
       const fullPath = f.path.includes("/") ? f.path : joinPath(path, f.path);
+      if (!isImg(f) && !isHeicName(f.path)) {
+        const got = await readAll(fullPath);
+        if (!got) {
+          preopenedTab?.close();
+          return;
+        }
+        // The device's own reading of the content decides, as below.
+        if (preopenedTab && safeToOpen(got.mime)) {
+          showInTab(preopenedTab, got.parts, got.mime);
+        } else {
+          preopenedTab?.close();
+          downloadBytes(got.parts, leafName(f.path));
+        }
+        return;
+      }
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: fullPath } };
       });
@@ -301,11 +361,11 @@ export default function FilesExplorer({
       if (isImg(f) && safeToOpen(mime)) {
         setViewer({ name: leafName(f.path), url: bytesToURL(bytes, mime) });
       } else if (preopenedTab && safeToOpen(mime)) {
-        preopenedTab.location.href = bytesToURL(bytes, mime);
+        showInTab(preopenedTab, [bytes], mime);
       } else {
         // Anything else - and a blocked popup - is downloaded.
         preopenedTab?.close();
-        downloadBytes(bytes, leafName(f.path));
+        downloadBytes([bytes], leafName(f.path));
       }
     } catch {
       preopenedTab?.close();
@@ -367,13 +427,13 @@ export default function FilesExplorer({
   const openVersions = async (f: PbFile) => {
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
     setVersionsLoading(true);
-    setVersionsOf({ path: full, name: leafName(full), versions: [] });
+    setVersionsOf({ path: full, name: leafName(full), mime: f.mime, versions: [] });
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqListFileVersions", reqListFileVersions: { path: full } };
       });
       if (resp.payload?.$case === "respFileVersions") {
-        setVersionsOf({ path: full, name: leafName(full), versions: resp.payload.respFileVersions.versions });
+        setVersionsOf({ path: full, name: leafName(full), mime: f.mime, versions: resp.payload.respFileVersions.versions });
       }
     } finally {
       setVersionsLoading(false);
@@ -381,12 +441,19 @@ export default function FilesExplorer({
   };
 
   // A version downloads by its hash; the current one is the row itself.
-  const downloadVersion = async (full: string, hash: string, name: string) => {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: full, hash } };
-    });
-    if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) return;
-    const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+  const downloadVersion = async (full: string, hash: string, name: string, mime: string) => {
+    let url: string;
+    if (isHeicName(name) || mime.toLowerCase() === "image/heic") {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: full, hash } };
+      });
+      if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) return;
+      url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+    } else {
+      const got = await readAll(full, hash);
+      if (!got) return;
+      url = blobURL(got.parts, got.mime);
+    }
     const a = document.createElement("a");
     a.href = url;
     a.download = name;
@@ -751,13 +818,13 @@ export default function FilesExplorer({
                 <li className="fb-versions-item current">
                   <span className="fb-versions-when">Current</span>
                   <span className="fb-versions-size" />
-                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name)}>Download</button>
+                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name, versionsOf.mime)}>Download</button>
                 </li>
                 {versionsOf.versions.map((v) => (
                   <li key={v.hash} className="fb-versions-item">
                     <span className="fb-versions-when">Replaced {v.modified ? v.modified.toLocaleString() : "—"}</span>
                     <span className="fb-versions-size">{fmtBytes(v.size)}</span>
-                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name)}>Download</button>
+                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime)}>Download</button>
                   </li>
                 ))}
               </ul>
