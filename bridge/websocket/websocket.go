@@ -217,6 +217,9 @@ func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 	// which are bounded like relayed requests. Left at 8 MB, every bigger
 	// reply killed the relay and the client saw the device as away.
 	conn.SetReadLimit(cRelayedReadLimit)
+	// A device's writes have no deadline (its pong deadline closes a dead
+	// one); none may be left from a reply written while it was unpaired.
+	conn.SetWriteDeadline(time.Time{})
 
 	conn.SetReadDeadline(time.Now().Add(cPongWait))
 	conn.SetPongHandler(func(string) error {
@@ -764,6 +767,40 @@ func (mg *Manager) fireOfflineAlertIfStillDown(domain string) {
 	}
 }
 
+// cClientWriteChunk/cClientWriteStall: a write to a client times out on a
+// lack of progress, not on its size. A reply larger than a chunk goes out
+// as a fragmented message, each chunk with its own deadline, so a slow
+// link never trips it and a client that stopped reading (a zero window, a
+// peer gone without a FIN) does within cClientWriteStall - instead of
+// pinning its relay goroutines, their frames and its device connection.
+const cClientWriteChunk = 256 << 10
+
+var cClientWriteStall = 60 * time.Second // var so tests can shrink it
+
+// writeClient writes msg to a client's socket. The caller holds the
+// socket's writer slot (writeMu, or is its reading goroutine before
+// pairing). Never a device's socket: the deadline would stay on it.
+func writeClient(conn *gorilla.Conn, msg []byte) error {
+	if len(msg) <= cClientWriteChunk {
+		conn.SetWriteDeadline(time.Now().Add(cClientWriteStall))
+		return conn.WriteMessage(gorilla.BinaryMessage, msg) // one frame, as always
+	}
+	w, err := conn.NextWriter(gorilla.BinaryMessage)
+	if err != nil {
+		return err
+	}
+	for len(msg) > 0 {
+		n := min(len(msg), cClientWriteChunk)
+		conn.SetWriteDeadline(time.Now().Add(cClientWriteStall))
+		if _, err := w.Write(msg[:n]); err != nil {
+			return err
+		}
+		msg = msg[n:]
+	}
+	conn.SetWriteDeadline(time.Now().Add(cClientWriteStall))
+	return w.Close()
+}
+
 func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 	log.Error("closing socket with error:", err)
 	// Acknoledge the authentication
@@ -777,7 +814,7 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 		},
 	}
 	resp, _ := proto.Marshal(respAuth)
-	if err := conn.WriteMessage(gorilla.BinaryMessage, resp); err != nil {
+	if err := writeClient(conn, resp); err != nil {
 		log.Error("error responding, closing the connection:", err)
 	}
 	conn.Close()
@@ -1002,6 +1039,11 @@ func deviceUnreachableFrame(reqFrame []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return deviceUnreachableReply(id)
+}
+
+// deviceUnreachableReply is deviceUnreachableFrame for a request id.
+func deviceUnreachableReply(id int32) ([]byte, error) {
 	return proto.Marshal(&pb.RespEnvelope{
 		Id:           id,
 		Error:        true,
@@ -1104,7 +1146,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 				}()
 
+				reqLen := int64(len(frame))
+				reqID, idErr := envelopeID(frame)
 				respFrame, err := relay.forward(frame)
+				// The request is on the device now: its budget share and
+				// memory aren't needed while the reply goes out, which a
+				// slow client can stretch out.
+				frame = nil
+				releaseFrame()
 				if err != nil {
 					// Issue #56: this is the mid-session half of "the
 					// device isn't reachable" - the client was already
@@ -1119,13 +1168,17 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// into this situation end up telling the client the
 					// same thing.
 					log.Error("error forwarding message, device unreachable:", err)
-					unreachableFrame, mErr := deviceUnreachableFrame(frame)
+					if idErr != nil {
+						log.Error("error building unreachable response:", idErr)
+						return
+					}
+					unreachableFrame, mErr := deviceUnreachableReply(reqID)
 					if mErr != nil {
 						log.Error("error building unreachable response:", mErr)
 						return
 					}
 					writeMu.Lock()
-					wErr := conn.WriteMessage(gorilla.BinaryMessage, unreachableFrame)
+					wErr := writeClient(conn, unreachableFrame)
 					writeMu.Unlock()
 					if wErr != nil {
 						log.Error("error sending unreachable response:", wErr)
@@ -1151,14 +1204,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				writeMu.Lock()
-				writeErr := conn.WriteMessage(gorilla.BinaryMessage, respFrame)
+				writeErr := writeClient(conn, respFrame)
 				writeMu.Unlock()
 				if writeErr != nil {
+					// Closing is what ends the session: gorilla only records a
+					// failed write, and the reader would go on waiting on a
+					// client that stopped reading, its relay claimed.
 					log.Error("error forwading respose, closing the connection:", writeErr)
+					conn.Close()
 					return
 				}
 
-				if err := mg.dao.RecordDeviceActivity(r.Host, int64(len(frame)), int64(len(respFrame))); err != nil {
+				if err := mg.dao.RecordDeviceActivity(r.Host, reqLen, int64(len(respFrame))); err != nil {
 					// Metrics are best-effort: never fail the actual relay
 					// over a metrics-write error.
 					log.Error("error recording device activity:", err)
@@ -1202,7 +1259,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 							log.Error("error logging auth event:", logErr)
 						}
 						respBin, _ := proto.Marshal(resp)
-						if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+						if err := writeClient(conn, respBin); err != nil {
 							log.Error("error responding:", err)
 						}
 						conn.Close()
@@ -1305,7 +1362,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 				// Refused: answered here, and conn is closed on the way out.
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding, closing the connection:", err)
 				}
 				return
@@ -1352,7 +1409,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1380,7 +1437,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 				}
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1420,7 +1477,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 				}
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1459,7 +1516,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding, closing the connection:", err)
 				}
 				return
@@ -1495,7 +1552,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1534,7 +1591,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1579,7 +1636,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1613,7 +1670,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage, Code: cCodeAccountDisabled},
 					}
 					respBin, _ := proto.Marshal(resp)
-					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					if err := writeClient(conn, respBin); err != nil {
 						log.Error("error responding, closing the connection:", err)
 					}
 					return
@@ -1695,7 +1752,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// deviceRelay.onDeath's doc comment.
 						defer relay.Close()
 
-						if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
+						if err := writeClient(conn, respFrame); err != nil {
 							log.Error("error responding, closing the connection:", err)
 							return
 						}
@@ -1728,7 +1785,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage, Code: cCodeDeviceUnreachable},
 					}
 					respBin, _ := proto.Marshal(resp)
-					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					if err := writeClient(conn, respBin); err != nil {
 						log.Error("error responding, closing the connection:", err)
 						return
 					}

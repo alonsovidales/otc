@@ -299,3 +299,94 @@ func TestUnpairedConnectionsTimeOutPairedOnesDoNot(t *testing.T) {
 		}
 	}
 }
+
+// newBigReplyDeviceServer answers every request with a reply of size bytes.
+func newBigReplyDeviceServer(t *testing.T, size int) string {
+	t.Helper()
+	big := strings.Repeat("x", size)
+	upgrader := gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			_, frame, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var req pb.ReqEnvelope
+			if proto.Unmarshal(frame, &req) != nil {
+				return
+			}
+			resp, _ := proto.Marshal(&pb.RespEnvelope{Id: req.Id, ErrorMessage: big})
+			if conn.WriteMessage(gorilla.BinaryMessage, resp) != nil {
+				return
+			}
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return "ws" + strings.TrimPrefix(srv.URL, "http")
+}
+
+// A paired client that stops reading is hung up on once a reply makes no
+// progress for cClientWriteStall, which frees its device connection;
+// before, the writer blocked forever and everything behind it stayed held.
+func TestClientThatStopsReadingIsHungUpOn(t *testing.T) {
+	restore := cClientWriteStall
+	cClientWriteStall = 300 * time.Millisecond
+	defer func() { cClientWriteStall = restore }()
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(false))
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	dial, host := newTestBridge(t, mg)
+	died := make(chan struct{})
+	relay := dialRelayWithOnDeath(t, newBigReplyDeviceServer(t, 4<<20), func() { close(died) })
+	mg.bridges[host] = &bridgePool{lock: new(sync.Mutex), availableConns: []*deviceRelay{relay}}
+
+	c := dial()
+	for i := int32(1); i <= 16; i++ { // ~64 MB of replies, far more than socket buffers hold
+		if err := c.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case <-died:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the device connection is still held by a client that stopped reading")
+	}
+}
+
+// A large reply reaches a client that reads, fragmented or not.
+func TestLargeReplyReachesTheClientWhole(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `disabled` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"disabled"}).AddRow(false))
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	dial, host := newTestBridge(t, mg)
+	relay := dialRelay(t, newBigReplyDeviceServer(t, 3<<20))
+	mg.bridges[host] = &bridgePool{lock: new(sync.Mutex), availableConns: []*deviceRelay{relay}}
+
+	c := dial()
+	for i := int32(1); i <= 2; i++ { // the pairing reply, then a relayed one
+		if err := c.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, i)); err != nil {
+			t.Fatal(err)
+		}
+		if resp := readResp(t, c); resp.Id != i || len(resp.ErrorMessage) != 3<<20 {
+			t.Fatalf("reply %d: id %d, %d bytes", i, resp.Id, len(resp.ErrorMessage))
+		}
+	}
+}
