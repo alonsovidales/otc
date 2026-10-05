@@ -13,6 +13,8 @@ import { uploadFile } from "../net/upload";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
+import { useObjectURLs } from "./useObjectURLs";
+import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -21,6 +23,8 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   if (u8.byteLength === 0) return "";
   return URL.createObjectURL(new Blob([u8], { type: mime }));
 };
+// A library tile's thumbnail - see the comment where the grid draws it.
+const tileThumb = (f: MsgFile) => bytesToURL(f.content, "image/jpeg");
 const fileKey = (f: MsgFile, idx?: number) =>
   `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${f.size || 0}#${idx ?? -1}`;
 
@@ -94,6 +98,10 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // -------- data & paging ------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
   const mapRef = useRef<Map<string, MsgFile>>(new Map());
+  // The grid's own thumbnail URLs, one per loaded item and freed when a new
+  // tag filter clears the grid. Separate from stripUrlFor below, which
+  // keeps the picks' thumbnails across filter changes.
+  const gridThumb = useObjectURLs(items, tileThumb);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [endReached, setEndReached] = useState(false);
@@ -102,6 +110,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // where the page itself scrolls), so it - not the viewport - is what the
   // sentinel has to be measured against.
   const gridRef = useRef<HTMLDivElement | null>(null);
+  // A failed page is asked for again after a pause, not at once forever.
+  const { tick: retryTick, failed: pageFailed, reset: resetRetry, ready: retryReady } = usePageRetry();
 
   const fetchPage = useCallback(
     async (overrideToken?: string | null) => {
@@ -116,7 +126,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             reqSearchPhotos: { tags: chips, token: overrideToken ?? token ?? "", includeVideos: true },
           };
         });
-        if (resp.payload?.$case !== "respListOfFiles") return;
+        if (resp.payload?.$case !== "respListOfFiles") { pageFailed(); return; }
         const lof = resp.payload.respListOfFiles!;
         const nextToken = lof.token || null;
 
@@ -134,11 +144,17 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
 
         setToken(nextToken);
         setEndReached(!nextToken);
+        resetRetry();
+      } catch (err) {
+        // No connection, or the request failed outright: retried after a
+        // pause (usePageRetry).
+        console.warn("Composer library page failed:", err);
+        pageFailed();
       } finally {
         setLoading(false);
       }
     },
-    [chips, token, loading, endReached]
+    [chips, token, loading, endReached, pageFailed, resetRetry]
   );
 
   const loadTags = useCallback(async () => {
@@ -159,6 +175,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   }, []);
 
   useEffect(() => {
+    resetRetry();
     (async () => {
       setItems([]);
       mapRef.current = new Map();
@@ -174,7 +191,9 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     if (!node) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !loading && !endReached) fetchPage();
+        // After a failed page, not before its retry is due (retryTick
+        // re-creates this observer when it is).
+        if (entries[0]?.isIntersecting && !loading && !endReached && retryReady()) fetchPage();
       },
       // Bottom margin: the point is to start the next page while the
       // sentinel is still below the fold, so scrolling doesn't stall on
@@ -183,7 +202,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [fetchPage, loading, endReached]);
+  }, [fetchPage, loading, endReached, retryTick, retryReady]);
 
   // -------- selection (tap a tile, no separate checkbox/viewer) ---------
   // Issue #98: an ordered list, not a Set - the post's own order is the
@@ -397,12 +416,14 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       // down).
       let uploadedPaths: (string | null)[] = [];
       if (source === "local") {
-        // Issue #98: Promise.all resolves in the order it was given, so
-        // the uploads land in the strip's own order - the post reads the
-        // way the composer showed it.
-        uploadedPaths = await Promise.all(
-          localFiles.map(f => uploadLocalFile(f).catch(() => null))
-        );
+        // Issue #98: in the strip's own order, so the post reads the way
+        // the composer showed it. One at a time: all at once read and
+        // queued every selected file together, so a few phone videos
+        // held gigabytes in the tab; the bytes share one socket anyway.
+        uploadedPaths = [];
+        for (const f of localFiles) {
+          uploadedPaths.push(await uploadLocalFile(f).catch(() => null));
+        }
         paths = uploadedPaths.filter((p): p is string => p !== null);
         if (paths.length === 0) {
           setError("Could not upload any of the selected files.");
@@ -418,8 +439,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       // Issue #108: the trims are keyed by whatever identified the file in
       // the composer; the device only knows paths, so resolve them here.
       // For local files that means pairing each upload back up with the
-      // File it came from - uploaded[] is index-aligned with localFiles
-      // (Promise.all preserves order) before the nulls are filtered out.
+      // File it came from - uploadedPaths is index-aligned with localFiles
+      // (uploaded in order) before the nulls are filtered out.
       let trims: { path: string; startSecs: number; endSecs: number }[];
       if (source === "local") {
         trims = localFiles.flatMap((f, i) => {
@@ -521,7 +542,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               // here, or a video tile's Blob gets tagged "video/mp4" over
               // genuinely-JPEG bytes and the browser refuses to render it
               // as an <img>.
-              const thumb = bytesToURL(f.content, "image/jpeg");
+              const thumb = gridThumb(f);
               const isVideo = (f.mime || "").startsWith("video/");
               // Issue #98: the badge is the tile's position in the post,
               // not a plain checkmark - so the order is visible from the

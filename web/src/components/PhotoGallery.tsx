@@ -9,6 +9,8 @@ import './PhotoGallery.css';
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
 import MediaViewer from "./MediaViewer";
+import { useObjectURLs } from "./useObjectURLs";
+import { usePageRetry } from "./usePageRetry";
 
 type Chip = string;
 type Token = string | null;
@@ -33,6 +35,8 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   if (u8.byteLength === 0) return "";
   return URL.createObjectURL(new Blob([u8], { type: mime }));
 };
+// A grid tile's thumbnail - always a JPEG, see isVideoFile.
+const thumbOf = (f: MsgFile) => bytesToURL(f.content);
 const fileKey = (f: MsgFile, idx?: number) =>
   `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${f.size || 0}#${idx ?? -1}`;
 
@@ -309,6 +313,9 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
   const mapRef = useRef<Map<string, MsgFile>>(new Map()); // dedupe
+  // One object URL per loaded item, freed once it leaves `items` (a new
+  // search, a jump to a date, a delete) - see useObjectURLs.
+  const thumbFor = useObjectURLs(items, thumbOf);
   const [token, setToken] = useState<Token>(null);
   const [loading, setLoading] = useState(false);
   const [endReached, setEndReached] = useState(false);
@@ -440,6 +447,8 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
   // but the grid shows the other request's (wrong) results, because that
   // one's reply simply arrived second.
   const searchGenRef = useRef(0);
+  // A failed page is asked for again after a pause, not at once forever.
+  const { tick: retryTick, failed: pageFailed, reset: resetRetry, ready: retryReady } = usePageRetry();
 
   const fetchPage = useCallback(
     async (overrideToken?: Token, force = false, before?: Date) => {
@@ -485,7 +494,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         // A newer search superseded this one while it was in flight -
         // discard rather than let a stale reply clobber current results.
         if (myGen !== searchGenRef.current) return;
-        if (resp.payload?.$case !== "respListOfFiles") return;
+        if (resp.payload?.$case !== "respListOfFiles") { pageFailed(); return; }
 
         const lof = resp.payload.respListOfFiles!;
         const nextToken = lof.token || null;
@@ -505,6 +514,12 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
 
         setToken(nextToken);
         setEndReached(!nextToken); // if no token back, we've reached the end
+        resetRetry();
+      } catch (err) {
+        // No connection, or the request failed outright: retried after a
+        // pause (usePageRetry). A superseded search's failure is no one's.
+        console.warn("Photo search page failed:", err);
+        if (myGen === searchGenRef.current) pageFailed();
       } finally {
         // Only this request's own generation may clear loading - a stale
         // one finishing after a newer search started must not report
@@ -512,7 +527,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [chips, selectedPeople, token, loading, endReached]
+    [chips, selectedPeople, token, loading, endReached, pageFailed, resetRetry]
   );
 
   // Issue #77: the date scrubber's "jump to date" - a reset exactly like
@@ -529,6 +544,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     const before = new Date(y, m, 0, 23, 59, 59, 999); // last instant of `month`
     searchGenRef.current += 1;
     const myGen = searchGenRef.current;
+    resetRetry();
     setItems([]);
     mapRef.current = new Map();
     setToken(null);
@@ -540,7 +556,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     } finally {
       if (myGen === searchGenRef.current) setPlaceholderCount(null);
     }
-  }, [fetchPage]);
+  }, [fetchPage, resetRetry]);
 
   const handleScrubMove = (clientY: number) => {
     const el = scrubTrackRef.current;
@@ -594,6 +610,13 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
 
   // open the viewer (MediaViewer) on an item
   const openAt = useCallback((idx: number) => setOpenIdx(idx), []);
+  // The viewer shows the grid's own thumbnail URL while the full size
+  // loads, rather than making another copy of it per render.
+  const viewerOpen = openIdx != null;
+  const viewerItems = useMemo(
+    () => (viewerOpen ? items.map(f => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f) })) : []),
+    [viewerOpen, items, thumbFor]
+  );
 
   // -------- initial load ----------------------------------------------------
   // Just the autocomplete tag list - the photo list itself is fetched by
@@ -616,6 +639,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     // selection before this one's own request even goes out - see
     // searchGenRef's doc comment.
     searchGenRef.current += 1;
+    resetRetry();
     (async () => {
       setItems([]);
       mapRef.current = new Map();
@@ -641,7 +665,9 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       (entries) => {
         const ent = entries[0];
         if (!ent?.isIntersecting) return;
-        if (!loading && !endReached) fetchPage();
+        // After a failed page, not before its retry is due (retryTick
+        // re-creates this observer when it is).
+        if (!loading && !endReached && retryReady()) fetchPage();
       },
       { root: null, rootMargin: "600px 0px 0px 0px" }
     );
@@ -651,7 +677,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       obs.disconnect();
       observerRef.current = null;
     };
-  }, [fetchPage, loading, endReached]);
+  }, [fetchPage, loading, endReached, retryTick, retryReady]);
 
   // -------- selection bar (issue #48: ordered, not a Set — post order
   // matches selection order, and can be explicitly fixed up via moveSel
@@ -1021,7 +1047,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
           <>
             {items.map((f, i) => {
               const key = fileKey(f, i); // unique key (fixes React warnings)
-              const thumb = bytesToURL(f.content); // always a JPEG thumbnail - see isVideoFile
+              const thumb = thumbFor(f); // always a JPEG thumbnail - see isVideoFile
               const selIdx = selOrder.indexOf(f.path);
               return (
                 <div key={key} className="pg-cell">
@@ -1082,7 +1108,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
           <span className="pg-order-strip-label">Order in post:</span>
           {selOrder.map((path, idx) => {
             const item = items.find(it => it.path === path);
-            const thumb = item ? bytesToURL(item.content) : "";
+            const thumb = item ? thumbFor(item) : "";
             return (
               <div key={path} className="pg-order-thumb">
                 <img src={thumb} alt={path} />
@@ -1118,7 +1144,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
 
       {/* modal: the shared viewer (MediaViewer.tsx), also used by Files */}
       {openIdx != null && (
-        <MediaViewer items={items} index={openIdx} onIndexChange={openAt} onClose={() => setOpenIdx(null)} />
+        <MediaViewer items={viewerItems} index={openIdx} onIndexChange={openAt} onClose={() => setOpenIdx(null)} />
       )}
 
       {/* styles */}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // Import your generated types (adjust paths/names if needed)
 import type {
@@ -282,9 +282,17 @@ export default function FriendshipsManager() {
   const isWaiting = (f: MsgFriendship) => !f.sent && f.status === FriendShipStatus.Pending;
   const waiting = friends?.friendships.filter(isWaiting) ?? [];
   const others = friends?.friendships.filter((f) => !isWaiting(f)) ?? [];
+  // One avatar URL per friend per loaded list, freed when the list is
+  // reloaded or the panel closes - not a new, never-freed one for every
+  // row on every render.
+  const avatars = useMemo(
+    () => new Map((friends?.friendships ?? []).map(f => [f, bytesToObjectURL(f.originProfile?.image)])),
+    [friends]
+  );
+  useEffect(() => () => avatars.forEach(u => { if (u) URL.revokeObjectURL(u); }), [avatars]);
 
   const renderRow = (f: MsgFriendship) => {
-    const avatar = bytesToObjectURL(f.originProfile?.image);
+    const avatar = avatars.get(f);
     const name = f.originProfile?.name || "(no name)";
     const domain = f.originProfile?.domain || "(no domain)";
     return (

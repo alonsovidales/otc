@@ -5,7 +5,7 @@
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41). The apps do the same with ImageModal.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
 import type { RespEnvelope, FileExifInfo } from "../proto/messages";
@@ -14,6 +14,10 @@ import LowResBadge from "./LowResBadge";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
+// Steps closer together than this are a held arrow key or a burst of
+// swipes: the full-size fetch waits this long and is skipped if the viewer
+// has moved on by then.
+const cRapidStepMs = 250;
 
 /** One item: its path and mime, and its thumbnail (JPEG) if there is one. */
 export type ViewerItem = { path: string; mime?: string; content?: Uint8Array | number[] | null; thumbURL?: string };
@@ -32,6 +36,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   onClose: () => void;
 }) {
   const [hiURL, setHiURL] = useState<string | null>(null);
+  // A full-size photo (or a small video fetched whole) is a blob of
+  // several MB: freed after the commit that took it off screen - the next
+  // item, or closing. A streamed /media URL owns nothing to free.
+  useEffect(() => () => { if (hiURL?.startsWith("blob:")) URL.revokeObjectURL(hiURL); }, [hiURL]);
   // Issue #106: why the opened video isn't playing, when it isn't. "codec"
   // means the browser said so (an HEVC recording some browsers can't
   // decode); "stalled" means nothing arrived for cVideoStallMs - a
@@ -51,8 +59,26 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   // show the next one and then the previous one's image over it.
   const viewGenRef = useRef(0);
   useEffect(() => () => { viewGenRef.current += 1; }, []);
+  // When the previous item was opened (see cRapidStepMs).
+  const lastStepRef = useRef(0);
 
   const item = items[index];
+
+  // A caller that passes no thumbURL gets one made here from the item's
+  // bytes: once per item, freed with it, rather than one per render (and
+  // every pinch or ctrl+wheel step of a zoom is a render). A layout effect,
+  // so no frame is painted without it. A caller's own thumbURL is the
+  // caller's to free.
+  const [ownThumb, setOwnThumb] = useState("");
+  const itemThumbURL = item?.thumbURL;
+  const itemContent = item?.content;
+  useLayoutEffect(() => {
+    if (itemThumbURL || !itemContent) { setOwnThumb(""); return; }
+    const u = bytesToURL(itemContent);
+    setOwnThumb(u);
+    return () => { if (u) URL.revokeObjectURL(u); };
+  }, [itemThumbURL, itemContent]);
+
   useEffect(() => {
     const gen = ++viewGenRef.current;
     const current = () => gen === viewGenRef.current;
@@ -63,7 +89,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
     setZoomScale(1);
     if (!item) return;
     setHiLoading(true);
-    (async () => {
+    const fetchFull = async () => {
       try {
         // Issue #110: a video streams from a URL; the device declines
         // small clips, which fall through to the whole-file fetch.
@@ -85,7 +111,20 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
       } finally {
         if (current()) setHiLoading(false);
       }
-    })();
+    };
+    // A held arrow key steps about 30 times a second, and every full-size
+    // GetFile it sent ran to the end on the device (a HEIC decode and a
+    // share of its memory budget each) only to be dropped here, while the
+    // photo the user stopped on queued behind them - a request already
+    // sent can't be called back. The first open and a deliberate step
+    // still fetch at once; of a burst, only its first step and the item
+    // it ends on fetch.
+    const now = Date.now();
+    const rapid = now - lastStepRef.current < cRapidStepMs;
+    lastStepRef.current = now;
+    if (!rapid) { void fetchFull(); return; }
+    const timer = setTimeout(() => void fetchFull(), cRapidStepMs);
+    return () => clearTimeout(timer);
   }, [item?.path, item?.mime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Issue #41: camera/EXIF metadata, computed on the device from the file.
@@ -182,7 +221,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
         >
           {(() => {
             const f = items[index];
-            const thumb = f.thumbURL || bytesToURL(f.content); // always a JPEG thumbnail
+            const thumb = f.thumbURL || ownThumb; // always a JPEG thumbnail
             // Issue #106: a video opens as something you can actually
             // play. Until the full file arrives (hiURL), its own
             // thumbnail stands in - the same still the grid shows -

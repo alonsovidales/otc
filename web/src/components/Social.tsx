@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL } from "../net/media";
 import NewPostPicker from "./NewPostPicker";
@@ -33,6 +33,32 @@ function formatPostDate(d?: Date): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+// A post is memoised and re-renders only when its own data changes, so
+// nothing else would move "just now" on to "5m ago". One shared tick a
+// minute, running only while some post date is mounted, re-renders just
+// the date labels.
+const cPostDateTickMs = 60_000;
+const postDateListeners = new Set<() => void>();
+let postDateTimer: ReturnType<typeof setInterval> | null = null;
+function subscribePostDateTick(fn: () => void): () => void {
+  postDateListeners.add(fn);
+  if (postDateTimer == null) {
+    postDateTimer = setInterval(() => postDateListeners.forEach(l => l()), cPostDateTickMs);
+  }
+  return () => {
+    postDateListeners.delete(fn);
+    if (postDateListeners.size === 0 && postDateTimer != null) {
+      clearInterval(postDateTimer);
+      postDateTimer = null;
+    }
+  };
+}
+function PostDate({ d }: { d: Date }) {
+  const [, setTick] = useState(0);
+  useEffect(() => subscribePostDateTick(() => setTick(t => t + 1)), []);
+  return <div className="sv-post-date">{formatPostDate(d)}</div>;
+}
+
 // Instagram's feed range: nothing wider than 1.91:1, nothing taller than
 // 4:5. A post's media keeps its own shape between those two.
 // Issue #114: whether feed videos are muted, shared by every post - once
@@ -62,6 +88,15 @@ function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
   const blob = new Blob([bytes], { type: mime });
   return URL.createObjectURL(blob);
 }
+const revokeAll = (urls: Set<string>) => {
+  urls.forEach(u => URL.revokeObjectURL(u));
+  urls.clear();
+};
+
+// Viewer steps closer together than this are a held arrow key: the
+// full-size fetch waits this long and is skipped if the viewer has moved
+// on by then (MediaViewer does the same).
+const cRapidStepMs = 250;
 
 // How many posts to fetch per page (issue #15): loading the whole feed
 // up front is what made the page take ages to appear once there were many
@@ -333,6 +368,13 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   }, []);
 
   const closeLikers = useCallback(() => { setLikersOpen(false); setLikers(null); }, []);
+  // One avatar URL per liker while the list is up, freed with it - not a
+  // new, never-freed one for every liker on every render of Social.
+  const likerURLs = useMemo(
+    () => (likers ?? []).map(l => bytesToURL(l.image as unknown as Uint8Array, "image/jpeg")),
+    [likers]
+  );
+  useEffect(() => () => likerURLs.forEach(u => { if (u) URL.revokeObjectURL(u); }), [likerURLs]);
 
   // ---------------- Image viewer (modal) ----------------
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -353,8 +395,28 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   const [viewerIsVideo, setViewerIsVideo] = useState(false);
   const [viewerPosterURL, setViewerPosterURL] = useState<string | null>(null);
   const [viewerVideoURL, setViewerVideoURL] = useState<string | null>(null);
+  // Which item the viewer is on: every step (and closing) moves it on, so
+  // a full-size reply for an item already paged past is dropped. The
+  // device answers out of order, and one used to land under the next
+  // item's dot, marked hi-res, or clear its "Loading" early.
+  const viewerGenRef = useRef(0);
+  // The blobs the viewer is showing (thumbnail or poster, full size),
+  // freed together when it steps to another item or closes - paging
+  // used to drop each full-size photo or clip without revoking it.
+  // Stream URLs own nothing and never go in here.
+  const viewerBlobsRef = useRef<Set<string>>(new Set());
+  // When the previous item was opened (see cRapidStepMs).
+  const lastViewerStepRef = useRef(0);
+  useEffect(() => {
+    const blobs = viewerBlobsRef.current;
+    return () => { viewerGenRef.current += 1; revokeAll(blobs); };
+  }, []);
 
   const openViewer = useCallback(async (pub: PbSocialPublication, index: number) => {
+    const gen = ++viewerGenRef.current;
+    const current = () => gen === viewerGenRef.current;
+    // The previous item's blobs leave the screen with this update.
+    revokeAll(viewerBlobsRef.current);
     setViewerPub(pub);
     setViewerIdx(index);
     setViewerOpen(true);
@@ -367,6 +429,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     // current/lowURL above) - shown immediately either as the low-res
     // image preview, or as a video's poster while its real bytes load.
     const thumb = bytesToURL(f.content as unknown as Uint8Array, "image/jpeg") || null;
+    if (thumb) viewerBlobsRef.current.add(thumb);
     if (isVideo) {
       setViewerPosterURL(thumb);
       setViewerVideoURL(null);
@@ -381,6 +444,16 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     // then fetch the full file - the actual video bytes for a video, or
     // the hi-res original for an image
     setViewerLoading(true);
+    // A post's media wraps around, so a held arrow key fetched the same
+    // originals over and over: a step within cRapidStepMs of the last
+    // waits, and fetches only if the viewer is still on it.
+    const now = Date.now();
+    const rapid = now - lastViewerStepRef.current < cRapidStepMs;
+    lastViewerStepRef.current = now;
+    if (rapid) {
+      await new Promise(r => setTimeout(r, cRapidStepMs));
+      if (!current()) return;
+    }
     try {
       // Issue #107: same correction as playInline - a publication's files
       // are addressed by hash, never by path.
@@ -389,11 +462,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       // down whole below.
       if (isVideo) {
         const streamURL = await requestStreamURL({ pubUuid: pub.uuid, hash: f.hash });
+        if (!current()) return;
         if (streamURL) {
-          setViewerVideoURL(prev => {
-            if (prev && prev.startsWith("blob:") && prev !== streamURL) URL.revokeObjectURL(prev);
-            return streamURL;
-          });
+          setViewerVideoURL(streamURL);
           return;
         }
       }
@@ -404,38 +475,33 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
           reqGetPublicationMedia: { pubUuid: pub.uuid, hash: f.hash },
         };
       });
+      if (!current()) return;
       if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
         const full = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+        if (full) viewerBlobsRef.current.add(full);
         if (isVideo) {
-          setViewerVideoURL(prev => {
-            if (prev && prev !== full) URL.revokeObjectURL(prev);
-            return full;
-          });
+          setViewerVideoURL(full);
         } else {
-          setViewerURL(prev => {
-            if (prev && prev !== full) URL.revokeObjectURL(prev);
-            return full;
-          });
+          setViewerURL(full);
           setViewerHiRes(true);
         }
       }
     } finally {
-      setViewerLoading(false);
+      if (current()) setViewerLoading(false);
     }
   }, []);
 
   const closeViewer = useCallback(() => {
+    viewerGenRef.current += 1;
+    revokeAll(viewerBlobsRef.current);
     setViewerOpen(false);
     setViewerLoading(false);
-    if (viewerURL) URL.revokeObjectURL(viewerURL);
-    if (viewerPosterURL) URL.revokeObjectURL(viewerPosterURL);
-    if (viewerVideoURL) URL.revokeObjectURL(viewerVideoURL);
     setViewerURL(null);
     setViewerPosterURL(null);
     setViewerVideoURL(null);
     setViewerIsVideo(false);
     setViewerPub(null);
-  }, [viewerURL, viewerPosterURL, viewerVideoURL]);
+  }, []);
 
   const nextImg = useCallback(() => {
     if (!viewerPub) return;
@@ -485,431 +551,14 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     if (x < rect.width / 2) onLeft(); else onRight();
   };
 
-  // --------- Render helpers ----------
-  const Post: React.FC<{ p: PbSocialPublication }> = ({ p }) => {
-    const [idx, setIdx] = useState(0);
-    const rootRef = useRef<HTMLElement | null>(null);
-
-    // Trigger the next page fetch once this post (one of the last two
-    // currently loaded) actually scrolls into view, mirroring the iOS
-    // app's "trigger near the end of the list" pagination (issue #15).
-    useEffect(() => {
-      const el = rootRef.current;
-      if (!el) return;
-      const obs = new IntersectionObserver((entries) => {
-        if (entries[0]?.isIntersecting) void loadMoreIfNeeded(p.uuid);
-      }, { rootMargin: "600px" });
-      obs.observe(el);
-      return () => obs.disconnect();
-    }, [p.uuid]);
-
-    const goLeft = () => setIdx(i => (i - 1 + p.files.length) % p.files.length);
-    const goRight = () => setIdx(i => (i + 1) % p.files.length);
-
-    // Issue #112: every post's media now sits in one fixed 4:5 box (see
-    // .sv-media), so there is nothing per-post left to measure. This used
-    // to load every image in a carousel just to find the tallest and pin
-    // the card to it - work that is now done by a single CSS rule, and
-    // which applies to single-media posts too rather than only carousels.
-
-    // Issue #112 fix-up: the box takes this post's own shape, clamped to
-    // the range Instagram allows (nothing wider than 1.91:1, nothing
-    // taller than 4:5). Hardcoding 4:5 for every post cropped every
-    // landscape photo in the feed into a tall portrait slot.
-    //
-    // Measured from the first thumbnail, which is a local blob and
-    // therefore decodes immediately; one ratio for the whole post so
-    // swiping a carousel can't resize the card.
-    const [boxAspect, setBoxAspect] = useState<number | null>(null);
-    useEffect(() => {
-      const first = p.files[0];
-      if (!first) return;
-      const url = bytesToURL(first.content as unknown as Uint8Array, "image/jpeg");
-      if (!url) return;
-      let cancelled = false;
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        if (cancelled || !img.naturalWidth || !img.naturalHeight) return;
-        const ratio = img.naturalWidth / img.naturalHeight;
-        setBoxAspect(Math.min(Math.max(ratio, cFeedMinAspect), cFeedMaxAspect));
-      };
-      img.onerror = () => URL.revokeObjectURL(url);
-      img.src = url;
-      return () => { cancelled = true; };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [p.uuid]);
-
-    // Issue #109: a swipe moves the images with the finger and snaps when
-    // it ends, instead of swapping only once the finger lifted - which
-    // made a swipe feel like it had done nothing right up until it
-    // suddenly had. Showing the next image arriving means every image in
-    // the post has to be on screen, side by side, so they all need a URL.
-    const stripURLs = useMemo(
-      () => p.files.map(f => bytesToURL(f.content as unknown as Uint8Array, "image/jpeg")),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [p.uuid]
-    );
-    useEffect(
-      () => () => { stripURLs.forEach(u => { if (u) URL.revokeObjectURL(u); }); },
-      [stripURLs]
-    );
-
-    // How far the strip is dragged right now, in pixels. Zero whenever a
-    // gesture isn't in progress, which is also what re-enables the snap
-    // animation (a transition during the drag would lag the finger).
-    const [dragDX, setDragDX] = useState(0);
-    const dragStartX = useRef<number | null>(null);
-
-    const onStripTouchStart = (e: React.TouchEvent) => {
-      if (p.files.length < 2) return;
-      dragStartX.current = e.touches[0].clientX;
-    };
-    const onStripTouchMove = (e: React.TouchEvent) => {
-      if (dragStartX.current == null) return;
-      let dx = e.touches[0].clientX - dragStartX.current;
-      // Resistance at the two ends, so the first and last image can still
-      // be pulled a little rather than feeling stuck.
-      if ((idx === 0 && dx > 0) || (idx === p.files.length - 1 && dx < 0)) dx /= 3;
-      setDragDX(dx);
-    };
-    const onStripTouchEnd = (e: React.TouchEvent) => {
-      if (dragStartX.current == null) return;
-      const dx = e.changedTouches[0].clientX - dragStartX.current;
-      const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width || 1;
-      dragStartX.current = null;
-      setDragDX(0);
-      // A quarter of the width, rather than a fixed 30px: the same flick
-      // should mean the same thing on a phone and on a desktop window.
-      if (dx < -width / 4) goRight();
-      else if (dx > width / 4) goLeft();
-    };
-
-    const current = p.files[idx];
-    const isVideo = (current.mime || "").startsWith("video/");
-    // current.content is always a server-generated JPEG thumbnail (see
-    // files_manager.GetThumbnail), for a video file same as a photo -
-    // never pass the file's own mime here, or a video post's Blob gets
-    // tagged "video/mp4" over genuinely-JPEG bytes and the browser refuses
-    // to render it as an <img> (issue #60).
-    const lowURL = useMemo(
-      () => bytesToURL(current.content as unknown as Uint8Array, "image/jpeg"),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [p.uuid, idx]
-    );
-    // Issue #107: a video in the feed plays where it is. It used to open
-    // the full-screen viewer instead - a modal covering the whole timeline
-    // to play something that was already on screen, which is not what
-    // tapping play should do in a feed. Images still open the viewer:
-    // wanting a photo bigger is a real thing to want, wanting a video
-    // somewhere else is not.
-    //
-    // Keyed to this file (path), so paging a multi-file post to a
-    // different video doesn't leave the previous one's bytes showing.
-    const [inlineVideo, setInlineVideo] = useState<{ path: string; url: string } | null>(null);
-    const [inlineLoading, setInlineLoading] = useState(false);
-    // Shows the replay button. Set when the clip runs out, cleared by the
-    // element's own play event - which covers replaying it and scrolling
-    // back onto it alike, since play() on a finished video seeks to the
-    // start by itself.
-    const [ended, setEnded] = useState(false);
-    const [muted, setMuted] = useFeedMuted();
-    const mediaRef = useRef<HTMLDivElement | null>(null);
-    const videoElRef = useRef<HTMLVideoElement | null>(null);
-    // Whatever object URL is on screen has to outlive the fetch that
-    // replaced it, hence revoking the previous one rather than the current.
-    useEffect(() => () => { if (inlineVideo) URL.revokeObjectURL(inlineVideo.url); },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      []);
-
-    const playInline = async (f: PbFile) => {
-      if (inlineLoading) return;
-      if (inlineVideo?.path === f.hash) return; // already playing this one
-      setInlineLoading(true);
-      try {
-        // Issue #110: stream it if the device offers a URL for it, so a
-        // long clip starts playing immediately instead of after the whole
-        // file has come down the socket. A small one it declines, and the
-        // whole-file fetch below runs exactly as it did.
-        const streamURL = await requestStreamURL({ pubUuid: p.uuid, hash: f.hash });
-        if (streamURL) {
-          setInlineVideo(prev => {
-            // Only a blob URL owns memory that has to be handed back; a
-            // streamed one is just an address.
-            if (prev?.url.startsWith("blob:")) URL.revokeObjectURL(prev.url);
-            return { path: f.hash, url: streamURL };
-          });
-          return;
-        }
-        // Issue #107: by hash, via the publication - a feed file has no
-        // path at all (social_publications_files stores pos/uuid/hash/
-        // mime/size), so the reqGetFile({path}) this used to send was
-        // always asking for "", which is why a timeline video never
-        // played on any platform.
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = {
-            $case: "reqGetPublicationMedia",
-            reqGetPublicationMedia: { pubUuid: p.uuid, hash: f.hash },
-          };
-        });
-        if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
-          // The real file mime here, unlike the thumbnail above - these
-          // are the actual video bytes.
-          const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
-          if (url) {
-            setInlineVideo(prev => {
-              if (prev?.url.startsWith("blob:")) URL.revokeObjectURL(prev.url);
-              return { path: f.hash, url };
-            });
-          }
-        }
-      } finally {
-        setInlineLoading(false);
-      }
-    };
-
-    // React renders `muted` as a property but not as an attribute, and a
-    // browser deciding whether to allow autoplay looks at the element
-    // before React has necessarily applied it - so set it directly as
-    // well, or the very first autoplay of a page load can be refused.
-    useEffect(() => {
-      if (videoElRef.current) videoElRef.current.muted = muted;
-    }, [muted, inlineVideo?.url]);
-
-    // Issue #114: a video starts when you scroll onto it and stops when
-    // you leave, so the feed plays itself. 60% visible means "mostly on
-    // screen", which is also what stops two videos playing at once -
-    // only one post can be that visible at a time.
-    useEffect(() => {
-      const node = mediaRef.current;
-      if (!node || !isVideo) return;
-      const obs = new IntersectionObserver(
-        entries => {
-          const showing = entries[0]?.intersectionRatio ?? 0;
-          if (showing >= 0.6) {
-            // Already loaded: just resume. Otherwise fetch it, which
-            // sets autoPlay on the element that replaces the poster.
-            if (videoElRef.current) void videoElRef.current.play().catch(() => {});
-            else void playInline(current);
-          } else {
-            videoElRef.current?.pause();
-          }
-        },
-        { threshold: [0, 0.6, 1] }
-      );
-      obs.observe(node);
-      return () => obs.disconnect();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isVideo, current.hash, inlineVideo?.url]);
-
-
-    const profURL = useMemo(
-      () => bytesToURL(p.publisher?.image as unknown as Uint8Array, "image/jpeg"),
-      [p.uuid, idx]
-    );
-
-    useEffect(() => () => { if (lowURL) URL.revokeObjectURL(lowURL); }, [lowURL]);
-
-    return (
-      <article
-        id={`post-${p.uuid}`}
-        className={`sv-post${p.uuid === highlightPub ? " sv-highlight" : ""}`}
-        ref={rootRef as React.RefObject<HTMLElement>}
-      >
-        <header className="sv-post-hdr">
-          {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
-          <div className="sv-pub-meta">
-            <div className="sv-publisher">{p.publisher?.name || "User"}</div>
-            {p.dateTime && <div className="sv-post-date">{formatPostDate(p.dateTime)}</div>}
-          </div>
-          {/* Issue #34: delete one of your own posts. */}
-          {p.own && (
-            <button
-              className="sv-post-delete"
-              title="Delete post"
-              onClick={() => { if (window.confirm("Delete this post?")) void deletePublication(p.uuid); }}
-            >
-              🗑️
-            </button>
-          )}
-        </header>
-
-        {/* Issue #112: the box's shape comes from CSS now (a 4:5 feed
-            slot), so there is no per-post height to set here - which is
-            also what keeps the poster and the player identical. */}
-        <div className="sv-media"
-             ref={mediaRef}
-             style={boxAspect ? { aspectRatio: String(boxAspect) } : undefined}
-             onTouchStart={onStripTouchStart}
-             onTouchMove={onStripTouchMove}
-             onTouchEnd={onStripTouchEnd}>
-          {isVideo && inlineVideo?.path === current.hash ? (
-            // Issue #107: plays right here, sized exactly like the poster
-            // it replaced so the card doesn't jump when it starts.
-            <video
-              ref={videoElRef}
-              className="sv-inline-video"
-              src={inlineVideo.url}
-              poster={lowURL ?? undefined}
-              controls
-              autoPlay
-              playsInline
-              // Issue #114: muted is not a preference here, it is what
-              // makes autoplay possible at all - every browser blocks
-              // an unmuted video that starts on its own. The speaker
-              // button below is how sound gets turned on, and doing it
-              // from a real tap is what the browser requires.
-              muted={muted}
-              onEnded={() => setEnded(true)}
-              onPlay={() => setEnded(false)}
-            />
-          ) : lowURL ? (
-            <div
-              className="sv-strip"
-              style={{
-                transform: `translateX(calc(${-idx * 100}% + ${dragDX}px))`,
-                transition: dragDX === 0 ? "transform 0.25s ease-out" : "none",
-              }}
-            >
-              {p.files.map((f, i) => (
-                <img
-                  key={`${f.hash}-${i}`}
-                  className={`sv-slide${(f.mime || "").startsWith("video/") ? " is-video" : ""}`}
-                  src={stripURLs[i] || lowURL}
-                  alt={f.path}
-                  onClick={(e) => {
-                    // Issue #20: click the left/right quarter of a
-                    // multi-image post to page through it (no visible
-                    // buttons) — the middle half still opens the
-                    // full-screen viewer, which is also where a video
-                    // post's thumbnail (its poster, tapped here) actually
-                    // starts playing (issue #60).
-                    if (p.files.length > 1) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = e.clientX - rect.left;
-                      if (x < rect.width * 0.25) { goLeft(); return; }
-                      if (x > rect.width * 0.75) { goRight(); return; }
-                    }
-                    if ((f.mime || "").startsWith("video/")) { void playInline(f); return; }
-                    openViewer(p, i);
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="sv-media-ph">🖼️</div>
-          )}
-          {isVideo && inlineVideo?.path !== current.hash && (
-            <div className="sv-video-badge" aria-hidden={!inlineLoading}>
-              {inlineLoading ? <Spinner /> : "▶"}
-            </div>
-          )}
-          {isVideo && ended && (
-            <button
-              className="sv-replay"
-              onClick={e => {
-                e.stopPropagation();
-                const el = videoElRef.current;
-                if (!el) return;
-                el.currentTime = 0;
-                void el.play().catch(() => {});
-              }}
-              aria-label="Replay video"
-            >
-              ↺
-            </button>
-          )}
-          {isVideo && (
-            <button
-              className="sv-mute"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMuted(!muted);
-              }}
-              aria-label={muted ? "Unmute video" : "Mute video"}
-            >
-              {muted ? "🔇" : "🔊"}
-            </button>
-          )}
-          {/* Issue #68: the iOS app already shows a dot per image (current
-              one solid, the rest dimmed) over a multi-image post - the web
-              feed had the exact same swipe/tap paging (goLeft/goRight
-              above) but nothing on screen showing there even *was* more
-              than one image, let alone which one you were on. */}
-          {p.files.length > 1 && (
-            <div className="sv-dots" aria-hidden="true">
-              {p.files.map((_, i) => (
-                <span key={i} className={`sv-dot${i === idx ? " active" : ""}`} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="sv-caption">{p.text}</div>
-
-        <div className="sv-actions">
-          <button
-            className={`sv-btn${p.liked ? " liked" : ""}`}
-            onClick={() => likePublication(p.uuid)}
-            aria-label={p.liked ? "Unlike publication" : "Like publication"}
-            aria-pressed={p.liked}
-          >
-            {p.liked ? "❤️" : "🤍"}
-          </button>
-          <button className="sv-btn" onClick={() => alert("Share (not implemented)")}>↗︎ Share</button>
-        </div>
-        {/* Issue #29: tap the count (separate from the heart toggle above) */}
-        {p.likes > 0 && (
-          <button className="sv-likes-link" onClick={() => showPublicationLikers(p.uuid)}>
-            {p.likes} like{p.likes === 1 ? "" : "s"}
-          </button>
-        )}
-
-        {/* Comments */}
-        <div className="sv-comments">
-          {p.comments?.map(c => (
-            <div
-              id={`comment-${c.commentUuid}`}
-              className={`sv-comment${c.commentUuid === highlightComment ? " sv-highlight" : ""}`}
-              key={c.commentUuid}
-            >
-              <div className="sv-cmeta">
-                <span className="sv-cname">{c.publisher || "User"}:</span>
-                <span className="sv-ctext">{c.comment}</span>
-              </div>
-              {c.likes > 0 && (
-                <button className="sv-likes-link tiny" onClick={() => showCommentLikers(c.commentUuid)}>
-                  {c.likes}
-                </button>
-              )}
-              <button
-                className={`sv-btn tiny${c.liked ? " liked" : ""}`}
-                onClick={() => likeComment(c.commentUuid)}
-                aria-label={c.liked ? "Unlike comment" : "Like comment"}
-                aria-pressed={c.liked}
-              >
-                {c.liked ? "❤️" : "🤍"}
-              </button>
-              {/* Issue #35: on your own post, any comment can be deleted —
-                  not just ones you wrote. Issue #174: and your own comment
-                  anywhere (not the optimistic placeholder, which has no
-                  real uuid yet). */}
-              {(p.own || c.own) && !c.commentUuid.startsWith("pending-") && (
-                <button
-                  className="sv-btn tiny"
-                  title="Delete comment"
-                  onClick={() => { if (window.confirm("Delete this comment?")) void deleteComment(c.commentUuid); }}
-                >
-                  🗑️
-                </button>
-              )}
-            </div>
-          ))}
-          <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, "me")} />
-        </div>
-      </article>
-    );
-  };
+  // Every callback here is stable, so this is too - see Post.
+  const postActions = useMemo<PostActions>(() => ({
+    loadMoreIfNeeded, likePublication, likeComment, addComment, deletePublication,
+    deleteComment, showPublicationLikers, showCommentLikers, openViewer,
+  }), [
+    loadMoreIfNeeded, likePublication, likeComment, addComment, deletePublication,
+    deleteComment, showPublicationLikers, showCommentLikers, openViewer,
+  ]);
 
   return (
     <div className="sv-wrap">
@@ -931,7 +580,16 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             </button>
           </div>
         )}
-        {feed.map(p => <Post key={p.uuid} p={p} />)}
+        {feed.map((p, i) => (
+          <Post
+            key={p.uuid}
+            p={p}
+            highlighted={p.uuid === highlightPub}
+            highlightComment={highlightComment}
+            armPagination={i >= feed.length - 2 && !loadingMore}
+            actions={postActions}
+          />
+        ))}
         {loadingMore && <div className="sv-loading-more">Loading more…</div>}
       </div>
 
@@ -1014,7 +672,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             ) : (
               <ul className="sv-likers-list">
                 {likers.map((l, i) => {
-                  const avatarURL = bytesToURL(l.image as unknown as Uint8Array, "image/jpeg");
+                  const avatarURL = likerURLs[i];
                   return (
                     <li key={`${l.domain}-${i}`}>
                       {avatarURL ? <img src={avatarURL} className="sv-img-avatar" /> : <div className="sv-avatar">👤</div>}
@@ -1032,6 +690,478 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
 }
 
 // -------- Small bits --------
+
+// One post of the feed. Its own component at module level: declared inside
+// Social it was a new component type on every Social render, so a like, a
+// page load, a highlight or any App re-render unmounted and remounted
+// every post - a comment being typed was wiped, a carousel jumped back to
+// its first image, and a playing video restarted and was downloaded again.
+// Memoised: with stable actions, a post re-renders only when its own data,
+// highlight or pagination role changes.
+type PostActions = {
+  loadMoreIfNeeded: (pubUuid: string) => Promise<void>;
+  likePublication: (pubUuid: string) => Promise<void>;
+  likeComment: (commentUuid: string) => Promise<void>;
+  addComment: (pubUuid: string, text: string, publisherName: string) => Promise<void>;
+  deletePublication: (pubUuid: string) => Promise<void>;
+  deleteComment: (commentUuid: string) => Promise<void>;
+  showPublicationLikers: (pubUuid: string) => Promise<void>;
+  showCommentLikers: (commentUuid: string) => Promise<void>;
+  openViewer: (pub: PbSocialPublication, index: number) => Promise<void>;
+};
+
+const Post = memo(function Post({ p, highlighted, highlightComment, armPagination, actions }: {
+  p: PbSocialPublication;
+  // Issue #78: the post (and comment) a tapped notification opened.
+  highlighted: boolean;
+  highlightComment: string | null;
+  // One of the last two posts while no page is loading (see below).
+  armPagination: boolean;
+  actions: PostActions;
+}) {
+  const {
+    loadMoreIfNeeded, likePublication, likeComment, addComment, deletePublication,
+    deleteComment, showPublicationLikers, showCommentLikers, openViewer,
+  } = actions;
+  const [idx, setIdx] = useState(0);
+  const rootRef = useRef<HTMLElement | null>(null);
+
+  // Trigger the next page fetch once this post (one of the last two
+  // currently loaded) actually scrolls into view, mirroring the iOS
+  // app's "trigger near the end of the list" pagination (issue #15).
+  // Re-armed each time a page finishes loading: a new observer reports
+  // at once, so a page that failed or brought nothing new is asked for
+  // again while the end of the feed is still in view.
+  useEffect(() => {
+    if (!armPagination) return;
+    const el = rootRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) void loadMoreIfNeeded(p.uuid);
+    }, { rootMargin: "600px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [p.uuid, armPagination, loadMoreIfNeeded]);
+
+  const goLeft = () => setIdx(i => (i - 1 + p.files.length) % p.files.length);
+  const goRight = () => setIdx(i => (i + 1) % p.files.length);
+
+  // Issue #112: every post's media now sits in one fixed 4:5 box (see
+  // .sv-media), so there is nothing per-post left to measure. This used
+  // to load every image in a carousel just to find the tallest and pin
+  // the card to it - work that is now done by a single CSS rule, and
+  // which applies to single-media posts too rather than only carousels.
+
+  // Issue #112 fix-up: the box takes this post's own shape, clamped to
+  // the range Instagram allows (nothing wider than 1.91:1, nothing
+  // taller than 4:5). Hardcoding 4:5 for every post cropped every
+  // landscape photo in the feed into a tall portrait slot.
+  //
+  // Measured from the first thumbnail, which is a local blob and
+  // therefore decodes immediately; one ratio for the whole post so
+  // swiping a carousel can't resize the card.
+  const [boxAspect, setBoxAspect] = useState<number | null>(null);
+  useEffect(() => {
+    const first = p.files[0];
+    if (!first) return;
+    const url = bytesToURL(first.content as unknown as Uint8Array, "image/jpeg");
+    if (!url) return;
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (cancelled || !img.naturalWidth || !img.naturalHeight) return;
+      const ratio = img.naturalWidth / img.naturalHeight;
+      setBoxAspect(Math.min(Math.max(ratio, cFeedMinAspect), cFeedMaxAspect));
+    };
+    img.onerror = () => URL.revokeObjectURL(url);
+    img.src = url;
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.uuid]);
+
+  // Issue #109: a swipe moves the images with the finger and snaps when
+  // it ends, instead of swapping only once the finger lifted - which
+  // made a swipe feel like it had done nothing right up until it
+  // suddenly had. Showing the next image arriving means every image in
+  // the post has to be on screen, side by side, so they all need a URL.
+  const stripURLs = useMemo(
+    () => p.files.map(f => bytesToURL(f.content as unknown as Uint8Array, "image/jpeg")),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [p.uuid]
+  );
+  useEffect(
+    () => () => { stripURLs.forEach(u => { if (u) URL.revokeObjectURL(u); }); },
+    [stripURLs]
+  );
+
+  // How far the strip is dragged right now, in pixels. Zero whenever a
+  // gesture isn't in progress, which is also what re-enables the snap
+  // animation (a transition during the drag would lag the finger).
+  const [dragDX, setDragDX] = useState(0);
+  const dragStartX = useRef<number | null>(null);
+
+  const onStripTouchStart = (e: React.TouchEvent) => {
+    if (p.files.length < 2) return;
+    dragStartX.current = e.touches[0].clientX;
+  };
+  const onStripTouchMove = (e: React.TouchEvent) => {
+    if (dragStartX.current == null) return;
+    let dx = e.touches[0].clientX - dragStartX.current;
+    // Resistance at the two ends, so the first and last image can still
+    // be pulled a little rather than feeling stuck.
+    if ((idx === 0 && dx > 0) || (idx === p.files.length - 1 && dx < 0)) dx /= 3;
+    setDragDX(dx);
+  };
+  const onStripTouchEnd = (e: React.TouchEvent) => {
+    if (dragStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - dragStartX.current;
+    const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width || 1;
+    dragStartX.current = null;
+    setDragDX(0);
+    // A quarter of the width, rather than a fixed 30px: the same flick
+    // should mean the same thing on a phone and on a desktop window.
+    if (dx < -width / 4) goRight();
+    else if (dx > width / 4) goLeft();
+  };
+
+  const current = p.files[idx];
+  const isVideo = (current.mime || "").startsWith("video/");
+  // current.content is always a server-generated JPEG thumbnail (see
+  // files_manager.GetThumbnail), for a video file same as a photo -
+  // never pass the file's own mime here, or a video post's Blob gets
+  // tagged "video/mp4" over genuinely-JPEG bytes and the browser refuses
+  // to render it as an <img> (issue #60).
+  const lowURL = useMemo(
+    () => bytesToURL(current.content as unknown as Uint8Array, "image/jpeg"),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [p.uuid, idx]
+  );
+  // Issue #107: a video in the feed plays where it is. It used to open
+  // the full-screen viewer instead - a modal covering the whole timeline
+  // to play something that was already on screen, which is not what
+  // tapping play should do in a feed. Images still open the viewer:
+  // wanting a photo bigger is a real thing to want, wanting a video
+  // somewhere else is not.
+  //
+  // Keyed to this file (path), so paging a multi-file post to a
+  // different video doesn't leave the previous one's bytes showing.
+  const [inlineVideo, setInlineVideo] = useState<{ path: string; url: string } | null>(null);
+  const [inlineLoading, setInlineLoading] = useState(false);
+  // Shows the replay button. Set when the clip runs out, cleared by the
+  // element's own play event - which covers replaying it and scrolling
+  // back onto it alike, since play() on a finished video seeks to the
+  // start by itself.
+  const [ended, setEnded] = useState(false);
+  const [muted, setMuted] = useFeedMuted();
+  const mediaRef = useRef<HTMLDivElement | null>(null);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
+  // Whatever object URL is on screen has to outlive the fetch that
+  // replaced it, hence revoking the previous one rather than the current.
+  // The one still showing is freed on unmount, read through a ref: a
+  // cleanup set up on mount only ever saw that render's null, and leaked
+  // every clip fetched whole.
+  const inlineURLRef = useRef<string | null>(null);
+  useEffect(() => { inlineURLRef.current = inlineVideo?.url ?? null; }, [inlineVideo?.url]);
+  useEffect(() => () => {
+    const u = inlineURLRef.current;
+    if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
+  }, []);
+
+  const playInline = async (f: PbFile) => {
+    if (inlineLoading) return;
+    if (inlineVideo?.path === f.hash) return; // already playing this one
+    setInlineLoading(true);
+    try {
+      // Issue #110: stream it if the device offers a URL for it, so a
+      // long clip starts playing immediately instead of after the whole
+      // file has come down the socket. A small one it declines, and the
+      // whole-file fetch below runs exactly as it did.
+      const streamURL = await requestStreamURL({ pubUuid: p.uuid, hash: f.hash });
+      if (streamURL) {
+        setInlineVideo(prev => {
+          // Only a blob URL owns memory that has to be handed back; a
+          // streamed one is just an address.
+          if (prev?.url.startsWith("blob:")) URL.revokeObjectURL(prev.url);
+          return { path: f.hash, url: streamURL };
+        });
+        return;
+      }
+      // Issue #107: by hash, via the publication - a feed file has no
+      // path at all (social_publications_files stores pos/uuid/hash/
+      // mime/size), so the reqGetFile({path}) this used to send was
+      // always asking for "", which is why a timeline video never
+      // played on any platform.
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = {
+          $case: "reqGetPublicationMedia",
+          reqGetPublicationMedia: { pubUuid: p.uuid, hash: f.hash },
+        };
+      });
+      if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
+        // The real file mime here, unlike the thumbnail above - these
+        // are the actual video bytes.
+        const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+        if (url) {
+          setInlineVideo(prev => {
+            if (prev?.url.startsWith("blob:")) URL.revokeObjectURL(prev.url);
+            return { path: f.hash, url };
+          });
+        }
+      }
+    } finally {
+      setInlineLoading(false);
+    }
+  };
+
+  // React renders `muted` as a property but not as an attribute, and a
+  // browser deciding whether to allow autoplay looks at the element
+  // before React has necessarily applied it - so set it directly as
+  // well, or the very first autoplay of a page load can be refused.
+  useEffect(() => {
+    if (videoElRef.current) videoElRef.current.muted = muted;
+  }, [muted, inlineVideo?.url]);
+
+  // Issue #114: a video starts when you scroll onto it and stops when
+  // you leave, so the feed plays itself. 60% visible means "mostly on
+  // screen", which is also what stops two videos playing at once -
+  // only one post can be that visible at a time.
+  useEffect(() => {
+    const node = mediaRef.current;
+    if (!node || !isVideo) return;
+    const obs = new IntersectionObserver(
+      entries => {
+        const showing = entries[0]?.intersectionRatio ?? 0;
+        if (showing >= 0.6) {
+          // Already loaded: just resume. Otherwise fetch it, which
+          // sets autoPlay on the element that replaces the poster.
+          if (videoElRef.current) void videoElRef.current.play().catch(() => {});
+          else void playInline(current);
+        } else {
+          videoElRef.current?.pause();
+        }
+      },
+      { threshold: [0, 0.6, 1] }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVideo, current.hash, inlineVideo?.url]);
+
+
+  // Made again only when a refresh brings new image bytes (a like or a
+  // comment keeps the same publisher object), not on every carousel step,
+  // and freed when replaced.
+  const publisherImage = p.publisher?.image;
+  const profURL = useMemo(
+    () => bytesToURL(publisherImage as unknown as Uint8Array, "image/jpeg"),
+    [publisherImage]
+  );
+  useEffect(() => () => { if (profURL) URL.revokeObjectURL(profURL); }, [profURL]);
+
+  useEffect(() => () => { if (lowURL) URL.revokeObjectURL(lowURL); }, [lowURL]);
+
+  return (
+    <article
+      id={`post-${p.uuid}`}
+      className={`sv-post${highlighted ? " sv-highlight" : ""}`}
+      ref={rootRef as React.RefObject<HTMLElement>}
+    >
+      <header className="sv-post-hdr">
+        {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
+        <div className="sv-pub-meta">
+          <div className="sv-publisher">{p.publisher?.name || "User"}</div>
+          {p.dateTime && <PostDate d={p.dateTime} />}
+        </div>
+        {/* Issue #34: delete one of your own posts. */}
+        {p.own && (
+          <button
+            className="sv-post-delete"
+            title="Delete post"
+            onClick={() => { if (window.confirm("Delete this post?")) void deletePublication(p.uuid); }}
+          >
+            🗑️
+          </button>
+        )}
+      </header>
+
+      {/* Issue #112: the box's shape comes from CSS now (a 4:5 feed
+          slot), so there is no per-post height to set here - which is
+          also what keeps the poster and the player identical. */}
+      <div className="sv-media"
+           ref={mediaRef}
+           style={boxAspect ? { aspectRatio: String(boxAspect) } : undefined}
+           onTouchStart={onStripTouchStart}
+           onTouchMove={onStripTouchMove}
+           onTouchEnd={onStripTouchEnd}>
+        {isVideo && inlineVideo?.path === current.hash ? (
+          // Issue #107: plays right here, sized exactly like the poster
+          // it replaced so the card doesn't jump when it starts.
+          <video
+            ref={videoElRef}
+            className="sv-inline-video"
+            src={inlineVideo.url}
+            poster={lowURL ?? undefined}
+            controls
+            autoPlay
+            playsInline
+            // Issue #114: muted is not a preference here, it is what
+            // makes autoplay possible at all - every browser blocks
+            // an unmuted video that starts on its own. The speaker
+            // button below is how sound gets turned on, and doing it
+            // from a real tap is what the browser requires.
+            muted={muted}
+            onEnded={() => setEnded(true)}
+            onPlay={() => setEnded(false)}
+          />
+        ) : lowURL ? (
+          <div
+            className="sv-strip"
+            style={{
+              transform: `translateX(calc(${-idx * 100}% + ${dragDX}px))`,
+              transition: dragDX === 0 ? "transform 0.25s ease-out" : "none",
+            }}
+          >
+            {p.files.map((f, i) => (
+              <img
+                key={`${f.hash}-${i}`}
+                className={`sv-slide${(f.mime || "").startsWith("video/") ? " is-video" : ""}`}
+                src={stripURLs[i] || lowURL}
+                alt={f.path}
+                onClick={(e) => {
+                  // Issue #20: click the left/right quarter of a
+                  // multi-image post to page through it (no visible
+                  // buttons) — the middle half still opens the
+                  // full-screen viewer, which is also where a video
+                  // post's thumbnail (its poster, tapped here) actually
+                  // starts playing (issue #60).
+                  if (p.files.length > 1) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    if (x < rect.width * 0.25) { goLeft(); return; }
+                    if (x > rect.width * 0.75) { goRight(); return; }
+                  }
+                  if ((f.mime || "").startsWith("video/")) { void playInline(f); return; }
+                  openViewer(p, i);
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="sv-media-ph">🖼️</div>
+        )}
+        {isVideo && inlineVideo?.path !== current.hash && (
+          <div className="sv-video-badge" aria-hidden={!inlineLoading}>
+            {inlineLoading ? <Spinner /> : "▶"}
+          </div>
+        )}
+        {isVideo && ended && (
+          <button
+            className="sv-replay"
+            onClick={e => {
+              e.stopPropagation();
+              const el = videoElRef.current;
+              if (!el) return;
+              el.currentTime = 0;
+              void el.play().catch(() => {});
+            }}
+            aria-label="Replay video"
+          >
+            ↺
+          </button>
+        )}
+        {isVideo && (
+          <button
+            className="sv-mute"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMuted(!muted);
+            }}
+            aria-label={muted ? "Unmute video" : "Mute video"}
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
+        )}
+        {/* Issue #68: the iOS app already shows a dot per image (current
+            one solid, the rest dimmed) over a multi-image post - the web
+            feed had the exact same swipe/tap paging (goLeft/goRight
+            above) but nothing on screen showing there even *was* more
+            than one image, let alone which one you were on. */}
+        {p.files.length > 1 && (
+          <div className="sv-dots" aria-hidden="true">
+            {p.files.map((_, i) => (
+              <span key={i} className={`sv-dot${i === idx ? " active" : ""}`} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="sv-caption">{p.text}</div>
+
+      <div className="sv-actions">
+        <button
+          className={`sv-btn${p.liked ? " liked" : ""}`}
+          onClick={() => likePublication(p.uuid)}
+          aria-label={p.liked ? "Unlike publication" : "Like publication"}
+          aria-pressed={p.liked}
+        >
+          {p.liked ? "❤️" : "🤍"}
+        </button>
+        <button className="sv-btn" onClick={() => alert("Share (not implemented)")}>↗︎ Share</button>
+      </div>
+      {/* Issue #29: tap the count (separate from the heart toggle above) */}
+      {p.likes > 0 && (
+        <button className="sv-likes-link" onClick={() => showPublicationLikers(p.uuid)}>
+          {p.likes} like{p.likes === 1 ? "" : "s"}
+        </button>
+      )}
+
+      {/* Comments */}
+      <div className="sv-comments">
+        {p.comments?.map(c => (
+          <div
+            id={`comment-${c.commentUuid}`}
+            className={`sv-comment${c.commentUuid === highlightComment ? " sv-highlight" : ""}`}
+            key={c.commentUuid}
+          >
+            <div className="sv-cmeta">
+              <span className="sv-cname">{c.publisher || "User"}:</span>
+              <span className="sv-ctext">{c.comment}</span>
+            </div>
+            {c.likes > 0 && (
+              <button className="sv-likes-link tiny" onClick={() => showCommentLikers(c.commentUuid)}>
+                {c.likes}
+              </button>
+            )}
+            <button
+              className={`sv-btn tiny${c.liked ? " liked" : ""}`}
+              onClick={() => likeComment(c.commentUuid)}
+              aria-label={c.liked ? "Unlike comment" : "Like comment"}
+              aria-pressed={c.liked}
+            >
+              {c.liked ? "❤️" : "🤍"}
+            </button>
+            {/* Issue #35: on your own post, any comment can be deleted —
+                not just ones you wrote. Issue #174: and your own comment
+                anywhere (not the optimistic placeholder, which has no
+                real uuid yet). */}
+            {(p.own || c.own) && !c.commentUuid.startsWith("pending-") && (
+              <button
+                className="sv-btn tiny"
+                title="Delete comment"
+                onClick={() => { if (window.confirm("Delete this comment?")) void deleteComment(c.commentUuid); }}
+              >
+                🗑️
+              </button>
+            )}
+          </div>
+        ))}
+        <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, "me")} />
+      </div>
+    </article>
+  );
+});
+
 
 function NewComment({ onSend }: { pubUuid: string; onSend: (t: string) => void }) {
   const [txt, setTxt] = useState("");
