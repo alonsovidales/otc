@@ -84,6 +84,13 @@ SRC_SHA="$(shasum -a 256 "$work/src.tar.gz" | awk '{print $1}')"
 if tar -tzf "$work/src.tar.gz" | grep -q "scripts/updates/VERSIONS"; then
     git tag -d "v$N" >/dev/null; echo "the source archive contains the manifest - check .gitattributes"; exit 1
 fi
+# Every device downloads this on every update and stages it in RAM: about
+# 11 MB once the screenshots and the bridge binary are export-ignore'd.
+SRC_SIZE="$(wc -c < "$work/src.tar.gz" | tr -d ' ')"
+if [ "$SRC_SIZE" -gt 30000000 ]; then
+    git tag -d "v$N" >/dev/null
+    echo "src.tar.gz is $SRC_SIZE bytes - a large file slipped in; export-ignore it in .gitattributes"; exit 1
+fi
 
 printf '%s\t%s\t%s\t%s\t%s\n' "$N" "$SCRIPT_SHA" "$WEB_SHA" "$SUMMARY" "$SRC_SHA" >> "$MANIFEST"
 printf '%s\t%s\t%s\n' "$N" "$KIND" "$LABEL" >> "$KINDS"
