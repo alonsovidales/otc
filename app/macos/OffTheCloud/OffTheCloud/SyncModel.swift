@@ -191,6 +191,12 @@ final class SyncModel: ObservableObject {
     // (setupFolder), whose watcher only starts once that pass is over.
     private var foldersBusy: Set<UUID> = []
     private var foldersSettingUp: Set<UUID> = []
+    // Backups the device linked now has confirmed as upload only. One it
+    // didn't (the link dropped, a device not updated yet) is asked again
+    // by its next pass, not only at the next launch. Each failure is
+    // logged once, not every pass.
+    private var uploadOnlyOK: Set<UUID> = []
+    private var uploadOnlyErrors: [UUID: String] = [:]
 
     // Local content hashes remembered per folder, keyed by full path and
     // validated by size + modification date: a two-way folder is
@@ -450,6 +456,9 @@ final class SyncModel: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.overallStatus = "Connected"
+                // Possibly another device, or this one set up again: each
+                // backup's next pass makes it upload only there.
+                self.uploadOnlyOK.removeAll()
                 self.startRaidPolling()
                 // Folders left in an error while the link was down (their
                 // retry finds no connection and gives up) go again now,
@@ -644,6 +653,8 @@ final class SyncModel: ObservableObject {
         errorRetryTasks.removeValue(forKey: f.id)
         changeWorkers.removeValue(forKey: f.id)?.cancel()
         changeQueues.removeValue(forKey: f.id)
+        uploadOnlyOK.remove(f.id)
+        uploadOnlyErrors.removeValue(forKey: f.id)
 
         dropHashCache(f.id)
         f.url.stopAccessingSecurityScopedResource()
@@ -773,7 +784,7 @@ final class SyncModel: ObservableObject {
         guard folderWatchers[folder.id] == nil, !foldersSettingUp.contains(folder.id) else { return }
         foldersSettingUp.insert(folder.id)
         defer { foldersSettingUp.remove(folder.id) }
-        await markUploadOnly(folder)
+        // reconcile() makes the folder upload only first.
         await reconcile(folder)
         startWatcher(for: folder)
     }
@@ -909,6 +920,7 @@ final class SyncModel: ObservableObject {
         guard !foldersBusy.contains(folder.id) else { return }
         foldersBusy.insert(folder.id)
         defer { foldersBusy.remove(folder.id) }
+        if !uploadOnlyOK.contains(folder.id) { await markUploadOnly(folder) }
 
         // Reconciling now anyway (whatever triggered this call), so any
         // still-pending short retry from a previous failure would just be
@@ -1877,6 +1889,7 @@ final class SyncModel: ObservableObject {
     /// markUploadOnly.
     private func markUploadOnly(_ folder: TrackedFolder) async {
         let path = remotePathFor(folder.url.path) + "/"
+        let problem: String
         do {
             let resp = try await ws.request { req in
                 var u = Msg_SetUploadOnly()
@@ -1884,10 +1897,19 @@ final class SyncModel: ObservableObject {
                 u.uploadOnly = true
                 req.payload = .reqSetUploadOnly(u)
             }
-            if resp.error { syncLog.error("backup \(folder.url.path, privacy: .public): upload only refused: \(resp.errorMessage, privacy: .public)") }
+            guard resp.error else {
+                uploadOnlyOK.insert(folder.id)
+                uploadOnlyErrors[folder.id] = nil
+                return
+            }
+            problem = "upload only refused: \(resp.errorMessage)"
         } catch {
-            syncLog.error("backup \(folder.url.path, privacy: .public): could not make it upload only: \(error.localizedDescription, privacy: .public)")
+            problem = "could not make it upload only: \(error.localizedDescription)"
         }
+        // A device on a release before #132 refuses it on every pass.
+        guard uploadOnlyErrors[folder.id] != problem else { return }
+        uploadOnlyErrors[folder.id] = problem
+        syncLog.error("backup \(folder.url.path, privacy: .public): \(problem, privacy: .public)")
     }
 
     private func delete(_ remotePath: String) async throws {
