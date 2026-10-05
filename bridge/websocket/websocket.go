@@ -169,7 +169,9 @@ type deviceRelay struct {
 	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
 
 	mu      sync.Mutex
-	waiters map[int32]chan []byte
+	waiters map[int32]chan deviceReply
+	// budget bounds the memory of the replies read here (replyBudget).
+	budget *wsframe.Budget
 
 	// onDeath (issue #62) fires exactly once, from failAll, whenever this
 	// connection stops being usable - whether that's a real network
@@ -209,7 +211,7 @@ func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 // so a registration can answer the device before anything else may write
 // to conn or the relay's death can be counted.
 func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
-	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan []byte), onDeath: onDeath, stopPing: make(chan struct{})}
+	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan deviceReply), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{})}
 
 	// The registration was read with cUnpairedReadLimit, and gorilla keeps
 	// a connection's limit: from here on this connection carries the
@@ -269,19 +271,30 @@ func (d *deviceRelay) pingLoop() {
 	}
 }
 
+// deviceReply is a device's response frame and the release of its share
+// of replyBudget, which whoever ends up with it calls once done.
+type deviceReply struct {
+	frame   []byte
+	release func()
+}
+
 // readLoop is this relay's one and only reader — gorilla tolerates only
 // one concurrent reader, same as one writer — so every response coming
 // back from the device passes through here and gets routed to whichever
 // forward() call is waiting on that response's envelope id.
 func (d *deviceRelay) readLoop() {
 	for {
-		_, frame, err := d.conn.ReadMessage()
+		// Budgeted like the clients' frames (issue #163): replies of up to
+		// cRelayedReadLimit, on every relay at once, idle ones included,
+		// were otherwise buffered whole with nothing bounding the total.
+		_, frame, release, err := wsframe.Read(d.conn, cRelayedReadLimit, d.budget)
 		if err != nil {
 			d.failAll()
 			return
 		}
 		id, err := envelopeID(frame)
 		if err != nil {
+			release()
 			log.Error("bad proto from device:", err)
 			continue
 		}
@@ -289,13 +302,16 @@ func (d *deviceRelay) readLoop() {
 		ch, ok := d.waiters[id]
 		if ok {
 			delete(d.waiters, id)
+			// Sent under d.mu (the channel has room for it), so abandon
+			// knows a reply is either in ch or never coming.
+			ch <- deviceReply{frame, release}
 		}
 		d.mu.Unlock()
-		if ok {
-			ch <- frame
+		if !ok {
+			// No waiter for this id (already gave up, or a stray/duplicate
+			// message) — nothing to deliver it to, so just drop it.
+			release()
 		}
-		// No waiter for this id (already gave up, or a stray/duplicate
-		// message) — nothing to deliver it to, so just drop it.
 	}
 }
 
@@ -305,7 +321,7 @@ func (d *deviceRelay) readLoop() {
 func (d *deviceRelay) failAll() {
 	d.mu.Lock()
 	waiters := d.waiters
-	d.waiters = make(map[int32]chan []byte)
+	d.waiters = make(map[int32]chan deviceReply)
 	d.mu.Unlock()
 	for _, ch := range waiters {
 		close(ch)
@@ -409,9 +425,13 @@ func envelopeID(frame []byte) (int32, error) {
 	return id, nil // no id field: proto3's default, 0
 }
 
-func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
+// The returned release gives the reply's share of replyBudget back: call
+// it once the reply is written on. Never nil.
+func (d *deviceRelay) forward(frame []byte) ([]byte, func(), error) {
 	return d.forwardWithTimeout(frame, cForwardTimeout)
 }
+
+func noRelease() {}
 
 // forwardWithTimeout is forward with an explicit timeout - factored out
 // for ForwardOneOff (issue #95), whose candidates are popped off a pool
@@ -425,23 +445,21 @@ func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 // ran against a device whose pool had accumulated any (issue #95's own
 // testing, against a device redeployed and restarted many times over one
 // long session).
-func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, error) {
+func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, func(), error) {
 	id, err := envelopeID(frame)
 	if err != nil {
-		return nil, fmt.Errorf("bad proto: %w", err)
+		return nil, noRelease, fmt.Errorf("bad proto: %w", err)
 	}
 
-	ch := make(chan []byte, 1)
+	ch := make(chan deviceReply, 1)
 	d.mu.Lock()
 	d.waiters[id] = ch
 	d.mu.Unlock()
 
 	err = d.writeFrame(frame)
 	if err != nil {
-		d.mu.Lock()
-		delete(d.waiters, id)
-		d.mu.Unlock()
-		return nil, err
+		d.abandon(id, ch)
+		return nil, noRelease, err
 	}
 
 	// A bounded wait, not just <-ch: the failAll() fix above (closing the
@@ -455,14 +473,29 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 	select {
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, errors.New("device connection closed")
+			return nil, noRelease, errors.New("device connection closed")
 		}
-		return resp, nil
+		return resp.frame, resp.release, nil
 	case <-time.After(timeout):
-		d.mu.Lock()
+		d.abandon(id, ch)
+		return nil, noRelease, fmt.Errorf("timed out waiting for device response")
+	}
+}
+
+// abandon gives up waiting on ch. A reply readLoop already handed over in
+// the meantime is released, or its budget share would be lost for good.
+func (d *deviceRelay) abandon(id int32, ch chan deviceReply) {
+	d.mu.Lock()
+	if d.waiters[id] == ch {
 		delete(d.waiters, id)
-		d.mu.Unlock()
-		return nil, fmt.Errorf("timed out waiting for device response")
+	}
+	d.mu.Unlock()
+	select {
+	case r, ok := <-ch:
+		if ok {
+			r.release()
+		}
+	default:
 	}
 }
 
@@ -1034,12 +1067,16 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 			return nil, errors.New("no available connections in the pool for this device")
 		}
 
-		respFrame, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
+		var release func()
+		respFrame, release, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
 		candidate.Close()
 		if err != nil {
 			log.Error("error forwarding one-off request, trying the next available connection:", err)
 			continue
 		}
+		// One-off replies are few (cOneOffConcurrent a device) and bounded
+		// by the device: budgeted while read, not while the caller writes.
+		release()
 		if dbErr := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); dbErr != nil {
 			log.Error("error recording device activity:", dbErr)
 		}
@@ -1182,7 +1219,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 				reqLen := int64(len(frame))
 				reqID, idErr := envelopeID(frame)
-				respFrame, err := relay.forward(frame)
+				respFrame, releaseResp, err := relay.forward(frame)
+				defer releaseResp()
 				// The request is on the device now: its budget share and
 				// memory aren't needed while the reply goes out, which a
 				// slow client can stretch out.
@@ -1761,13 +1799,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 								ReqBridgeClientInfo: &pb.BridgeClientInfo{RemoteAddr: clientAddr(r, conn)},
 							},
 						}); err == nil {
-							if _, err := candidate.forward(infoFrame); err != nil {
+							_, releaseInfo, err := candidate.forward(infoFrame)
+							releaseInfo()
+							if err != nil {
 								log.Error("error sending client info to the device:", err)
 								candidate.Close()
 								continue
 							}
 						}
-						respFrame, err := candidate.forward(frame)
+						respFrame, releaseResp, err := candidate.forward(frame)
 						if err != nil {
 							log.Error("Error fordwading message:", err)
 							candidate.Close()
@@ -1786,7 +1826,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// deviceRelay.onDeath's doc comment.
 						defer relay.Close()
 
-						if err := writeClient(conn, respFrame); err != nil {
+						err = writeClient(conn, respFrame)
+						releaseResp()
+						if err != nil {
 							log.Error("error responding, closing the connection:", err)
 							return
 						}
@@ -1850,6 +1892,11 @@ const (
 
 // frameBudget bounds the memory of large messages being relayed at once.
 var frameBudget = wsframe.NewBudget(8 << 30)
+
+// replyBudget is frameBudget for the devices' replies. Separate: a client's
+// request holds its frameBudget share until its reply has arrived, so
+// replies drawing on the same budget could wait on themselves.
+var replyBudget = wsframe.NewBudget(8 << 30)
 
 func isClientInfo(frame []byte) bool {
 	const cClientInfoField = 100 // ReqEnvelope.req_bridge_client_info

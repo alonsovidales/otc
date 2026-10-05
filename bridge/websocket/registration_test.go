@@ -17,6 +17,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/dao"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/wsframe"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 )
@@ -457,10 +458,11 @@ func TestLargeRequestDoesNotStarveTheKeepalive(t *testing.T) {
 
 	req, _ := proto.Marshal(&pb.ReqEnvelope{Id: 9, Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Key: make([]byte, size)}}})
 	start := time.Now()
-	respFrame, err := relay.forward(req)
+	respFrame, release, err := relay.forward(req)
 	if err != nil {
 		t.Fatalf("forward failed after %v: %v", time.Since(start), err)
 	}
+	defer release()
 	if time.Since(start) < cPongWait {
 		t.Logf("the request took only %v; the test proves nothing on this machine", time.Since(start))
 	}
@@ -470,5 +472,59 @@ func TestLargeRequestDoesNotStarveTheKeepalive(t *testing.T) {
 	}
 	if died.Load() != 0 {
 		t.Fatal("the relay was declared dead during the upload")
+	}
+}
+
+// Device replies are read within a budget, and a reply that comes after
+// its request gave up gives its share back: leaked, the next large reply
+// would wait for room that never comes (wsframe's cWait, then the relay
+// dies).
+func TestLateReplyGivesItsBudgetBack(t *testing.T) {
+	const size = 6 << 20 // past wsframe's free 4 MiB: reserves one 4 MiB step
+	big := strings.Repeat("x", size)
+	upgrader := gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			_, frame, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			id, _ := envelopeID(frame)
+			time.Sleep(200 * time.Millisecond)
+			resp, _ := proto.Marshal(&pb.RespEnvelope{Id: id, ErrorMessage: big})
+			if conn.WriteMessage(gorilla.BinaryMessage, resp) != nil {
+				return
+			}
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	conn, _, err := gorilla.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	relay := newIdleDeviceRelay(conn, nil)
+	relay.budget = wsframe.NewBudget(4 << 20) // room for one such reply
+	relay.start()
+	t.Cleanup(func() { relay.Close() })
+
+	if _, _, err := relay.forwardWithTimeout(envelopeFrame(t, 1), 50*time.Millisecond); err == nil {
+		t.Fatal("the first request should have timed out")
+	}
+	time.Sleep(500 * time.Millisecond) // its reply arrives with nobody waiting
+
+	start := time.Now()
+	resp, release, err := relay.forwardWithTimeout(envelopeFrame(t, 2), 5*time.Second)
+	if err != nil {
+		t.Fatalf("the next large reply never got room (budget leaked?): %v after %v", err, time.Since(start))
+	}
+	release()
+	if len(resp) < size {
+		t.Fatalf("short reply: %d bytes", len(resp))
 	}
 }

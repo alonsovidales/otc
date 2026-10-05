@@ -146,11 +146,12 @@ func TestDeviceRelayForwardMatchesResponsesByIdNotArrivalOrder(t *testing.T) {
 		wg.Add(1)
 		go func(id int32) {
 			defer wg.Done()
-			respFrame, err := relay.forward(envelopeFrame(t, id))
+			respFrame, release, err := relay.forward(envelopeFrame(t, id))
 			if err != nil {
 				t.Errorf("forward(%d): unexpected error: %v", id, err)
 				return
 			}
+			defer release()
 			var resp pb.RespEnvelope
 			if err := proto.Unmarshal(respFrame, &resp); err != nil {
 				t.Errorf("forward(%d): unmarshaling response: %v", id, err)
@@ -187,7 +188,7 @@ func TestDeviceRelayFailAllUnblocksPendingForwardsWhenConnectionDies(t *testing.
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := relay.forward(envelopeFrame(t, 1))
+		_, _, err := relay.forward(envelopeFrame(t, 1))
 		done <- err
 	}()
 
@@ -306,7 +307,7 @@ func TestDeviceRelayForwardFailsPromptlyAfterPingPongTimeoutDeath(t *testing.T) 
 	// while idle) and picks it for a real request.
 	done := make(chan error, 1)
 	go func() {
-		_, err := relay.forward(envelopeFrame(t, 99))
+		_, _, err := relay.forward(envelopeFrame(t, 99))
 		done <- err
 	}()
 
