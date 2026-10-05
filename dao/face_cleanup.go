@@ -3,6 +3,7 @@
 package dao
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 )
@@ -89,4 +90,17 @@ func (dao *Dao) OrphanFaceHashes() (hashes []string, err error) {
 		hashes = append(hashes, h)
 	}
 	return hashes, rows.Err()
+}
+
+// HashHasFaces is whether faces were already found in the content hash.
+// A content's faces are found once: detecting them again added a second
+// set of rows (new ids, no unique key), inflating People - see
+// files_manager.processFaces.
+func (dao *Dao) HashHasFaces(hash string) (bool, error) {
+	var one int
+	err := dao.db.QueryRow("select 1 from `faces` where `hash` = ? limit 1", hash).Scan(&one)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return err == nil, err
 }

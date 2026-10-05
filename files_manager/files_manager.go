@@ -1205,6 +1205,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		wrote = true
 	}
 
+	known := mg.contentKnown(hash)
 	file, write, err := mg.registerUpload(session, path, hash, mimeType.String(), int64(len(content)), forceOverride, created, modified, cloudID)
 	if err != nil {
 		if wrote {
@@ -1227,6 +1228,12 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		}
 	}
 
+	// Content the device already had and processed needs none of it redone
+	// (see LinkFile): a photo the phone synced, dropped again in Files.
+	if known && mg.hasThumbnail(hash) {
+		return file, nil
+	}
+
 	// Processing happens in the background, from what is now on the disk
 	// (issue #165): the thumbnail in the fast lane, tags and faces in the
 	// slow one (lanes.go). The upload's memory is free as soon as this
@@ -1234,6 +1241,25 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	mg.enqueueMedia(session, file, targetPath)
 
 	return
+}
+
+// contentKnown is whether a file or kept version already uses hash, asked
+// before an upload's row is stored. Its thumbnail, tags and faces are
+// keyed by hash, so once its thumbnail exists - processing writes that
+// first, and analysis is queued in pending_analysis before it - the
+// upload of another path, or of a restore, has nothing to process: it ran
+// the whole pipeline again, and stored the photo's faces a second time.
+// Without a thumbnail (never processed, or undecodable) it's processed as
+// before. false when it can't be answered.
+func (mg *Manager) contentKnown(hash string) bool {
+	known, err := mg.dao.HashReferenced(hash)
+	return err == nil && known
+}
+
+// hasThumbnail is whether processing has written hash's thumbnail.
+func (mg *Manager) hasThumbnail(hash string) bool {
+	_, err := os.Stat(blobPath(hash) + "_thumbnail")
+	return err == nil
 }
 
 // registerUpload records the row for an upload of path with content hash

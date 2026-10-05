@@ -4,12 +4,14 @@ package filesmanager
 
 import (
 	"fmt"
+	"image"
 	"math"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
+	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 )
 
@@ -381,6 +383,50 @@ func TestDropFacesOfHashInvalidatesTheMatchingSetOnlyWhenFacesWent(t *testing.T)
 	mg.dropFacesOfHash("withfaces")
 	if mg.faceRefs != nil {
 		t.Error("the matching set kept a deleted face")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+type countingDetector struct{ calls int }
+
+func (d *countingDetector) DetectFaces(image.Image) ([]facerecognition.FaceDetection, error) {
+	d.calls++
+	return nil, nil
+}
+
+// Content whose faces were already found isn't run through the model
+// again - that stored a second set of rows for the same faces - while new
+// content still is.
+func TestProcessFacesSkipsContentWithFacesAlready(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	det := &countingDetector{}
+	mg := &Manager{dao: dao.NewWithDB(db), faceRecognizer: det}
+	enabled := func() {
+		mock.ExpectQuery("select `face_recognition_enabled` from `settings`").
+			WillReturnRows(sqlmock.NewRows([]string{"face_recognition_enabled"}).AddRow(true))
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+
+	enabled()
+	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? limit 1").WithArgs("seen").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+	mg.processFaces(nil, &pb.File{Hash: "seen"}, img)
+	if det.calls != 0 {
+		t.Error("content with faces already was run through the model again")
+	}
+
+	enabled()
+	mock.ExpectQuery("select 1 from `faces` where `hash` = \\? limit 1").WithArgs("new").
+		WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mg.processFaces(nil, &pb.File{Hash: "new"}, img)
+	if det.calls != 1 {
+		t.Errorf("new content: %d model passes, want 1", det.calls)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

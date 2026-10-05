@@ -46,6 +46,13 @@ func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.I
 	if !enabled {
 		return
 	}
+	// Faces are keyed by content, like tags and thumbnails, and found once:
+	// a second pass on the same content (a backfill, a resumed reprocess,
+	// two uploads of it at once) stored a second set of rows for the same
+	// faces. A Reprocess wipes them first, so it still detects everything.
+	if mg.hasFaces(file.Hash) {
+		return
+	}
 
 	detections, err := mg.faceRecognizer.DetectFaces(img)
 	if err != nil {
@@ -61,6 +68,11 @@ func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.I
 	// shared reference set.
 	mg.faceRefsMu.Lock()
 	defer mg.faceRefsMu.Unlock()
+	// Again under the lock: another analysis of the same content may have
+	// stored its faces while this one was detecting.
+	if mg.hasFaces(file.Hash) {
+		return
+	}
 
 	refs, err := mg.loadFaceRefsLocked(ses)
 	if err != nil {
@@ -94,6 +106,17 @@ func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.I
 			updatePersonCoverFace(mg.dao, personID, refs[personID])
 		}
 	}
+}
+
+// hasFaces is dao.HashHasFaces, false when it can't be answered (the
+// faces are then detected, as they always were).
+func (mg *Manager) hasFaces(hash string) bool {
+	has, err := mg.dao.HashHasFaces(hash)
+	if err != nil {
+		log.Error("could not check for the faces already found in", hash, ":", err)
+		return false
+	}
+	return has
 }
 
 // loadFaceRefsLocked returns the cached reference set, building it on

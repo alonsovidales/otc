@@ -221,6 +221,7 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		mg.alert("could not be saved to disk", up.path, err)
 		return nil, err
 	}
+	known := mg.contentKnown(hash)
 	file, write, err := mg.registerUpload(ses, up.path, hash, mimetype.Detect(up.head).String(), up.size, up.force, up.created, up.modified, up.cloudID)
 	if err != nil {
 		mg.removeBlobIfUnused(hash)
@@ -234,6 +235,10 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		err = errors.New("the upload's content was removed before it was recorded - send it again")
 		mg.alert("could not be saved to disk", file.Path, err)
 		return nil, err
+	}
+	// As UploadFile: content already processed isn't processed again.
+	if known && mg.hasThumbnail(hash) {
+		return file, nil
 	}
 
 	mg.enqueueMedia(ses, file, target)
