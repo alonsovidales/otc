@@ -133,3 +133,60 @@ func expectClosed(t *testing.T, c *gorilla.Conn) {
 		t.Fatal("the socket was left open")
 	}
 }
+
+// expectValidDevice answers IsValidDevice with owner/secret on record.
+func expectValidDevice(mock sqlmock.Sqlmock, owner, secret string) {
+	mock.ExpectQuery("select `owner_uuid`, `secret` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"owner_uuid", "secret"}).AddRow(owner, secret))
+}
+
+// A registered connection gets its ack as its first frame, is pooled and
+// counted; and one that dies right away is counted out again.
+func TestRegistrationAcksThenPoolsAndCountsTheRelay(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	expectValidDevice(mock, "owner-uuid", "secret")
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	dial, _ := newTestBridge(t, mg)
+	c := dial()
+	if err := c.WriteMessage(gorilla.BinaryMessage, registerFrame(t, "pit.otc", "owner-uuid", "secret")); err != nil {
+		t.Fatal(err)
+	}
+	resp := readResp(t, c)
+	if ack, ok := resp.Payload.(*pb.RespEnvelope_RespBridgeAckOnboard); !ok || !ack.RespBridgeAckOnboard.Ok {
+		t.Fatalf("first frame is %T, want the registration ack", resp.Payload)
+	}
+	pool := waitForPool(t, mg, "pit.otc", func(p *bridgePool) bool { return len(p.availableConns) == 1 && p.liveCount == 1 })
+
+	c.Close()
+	waitForPool(t, mg, "pit.otc", func(p *bridgePool) bool { return len(p.availableConns) == 0 && p.liveCount == 0 })
+	pool.lock.Lock()
+	if pool.offlineTimer != nil {
+		pool.offlineTimer.Stop()
+	}
+	pool.lock.Unlock()
+}
+
+func waitForPool(t *testing.T, mg *Manager, domain string, cond func(*bridgePool) bool) *bridgePool {
+	t.Helper()
+	for i := 0; i < 200; i++ {
+		mg.bridgesMu.RLock()
+		p := mg.bridges[domain]
+		mg.bridgesMu.RUnlock()
+		if p != nil {
+			p.lock.Lock()
+			ok := cond(p)
+			p.lock.Unlock()
+			if ok {
+				return p
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("pool for %s never reached the expected state", domain)
+	return nil
+}

@@ -191,6 +191,15 @@ type deviceRelay struct {
 // reason) is what makes that detection actually fire for a silent network
 // failure, not just a graceful shutdown.
 func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
+	d := newIdleDeviceRelay(conn, onDeath)
+	d.start()
+	return d
+}
+
+// newIdleDeviceRelay is newDeviceRelay without starting its loops (start),
+// so a registration can answer the device before anything else may write
+// to conn or the relay's death can be counted.
+func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan []byte), onDeath: onDeath, stopPing: make(chan struct{})}
 
 	// The registration was read with cUnpairedReadLimit, and gorilla keeps
@@ -205,11 +214,14 @@ func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 		conn.SetReadDeadline(time.Now().Add(cPongWait))
 		return nil
 	})
+	return d
+}
 
+// start runs the relay's readLoop and pingLoop.
+func (d *deviceRelay) start() {
 	d.wg.Add(2)
 	go func() { defer d.wg.Done(); d.readLoop() }()
 	go func() { defer d.wg.Done(); d.pingLoop() }()
-	return d
 }
 
 // pingLoop is deviceRelay's half of the keepalive - see cPongWait/
@@ -1208,7 +1220,23 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// the handler always has the relay it belongs to, and
 					// can evict that exact entry from the pool.
 					var relay *deviceRelay
-					relay = newDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain, relay) })
+					relay = newIdleDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain, relay) })
+
+					// The ack goes out before the relay is in the pool. Once
+					// it is, a client's pairing or a one-off can write to
+					// conn: written after, the ack raced that write (two
+					// writers on one gorilla conn) or came second, and the
+					// device took the client's request for its answer.
+					resp.Payload = &pb.RespEnvelope_RespBridgeAckOnboard{
+						RespBridgeAckOnboard: &pb.BridgeAckOnboard{
+							Ok: true,
+						},
+					}
+					respBin, _ := proto.Marshal(resp)
+					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+						log.Error("error responding, closing the connection:", err)
+						return
+					}
 					handedOff = true
 
 					// Re-check under the write lock (rather than trusting
@@ -1219,37 +1247,27 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					pool, ok = mg.bridges[domain]
 					if !ok {
 						log.Debug("Creating new pool")
-						pool = &bridgePool{
-							availableConns: []*deviceRelay{relay},
-							lock:           new(sync.Mutex),
-						}
+						pool = &bridgePool{lock: new(sync.Mutex)}
 						mg.bridges[domain] = pool
-						mg.bridgesMu.Unlock()
-						pool.lock.Lock()
-						mg.onDeviceConnectionRegistered(domain, pool)
-						pool.lock.Unlock()
-					} else {
-						mg.bridgesMu.Unlock()
-						pool.lock.Lock()
-						log.Debug("Adding to the pool:", len(pool.availableConns))
-						pool.availableConns = append(pool.availableConns, relay)
-						mg.onDeviceConnectionRegistered(domain, pool)
-						pool.lock.Unlock()
 					}
-					resp.Payload = &pb.RespEnvelope_RespBridgeAckOnboard{
-						RespBridgeAckOnboard: &pb.BridgeAckOnboard{
-							Ok: true,
-						},
-					}
+					mg.bridgesMu.Unlock()
+					pool.lock.Lock()
+					log.Debug("Adding to the pool:", len(pool.availableConns))
+					pool.availableConns = append(pool.availableConns, relay)
+					mg.onDeviceConnectionRegistered(domain, pool)
+					// Started under the lock: onDeath takes it, so a
+					// connection that dies at once is counted out after it
+					// was counted in, never before (liveCount stuck at 1).
+					relay.start()
+					pool.lock.Unlock()
+					return
 				}
 
+				// Refused: answered here, and conn is closed on the way out.
 				respBin, _ := proto.Marshal(resp)
 				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
 					log.Error("error responding, closing the connection:", err)
-					conn.Close()
 				}
-				// Only a successful registration leaves conn open (handedOff,
-				// to its relay); a refused one is closed on the way out.
 				return
 
 			case *pb.ReqEnvelope_ReqRotateBridgeSecret:
