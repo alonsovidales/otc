@@ -10,6 +10,7 @@ import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
 import MediaViewer from "./MediaViewer";
 import { useObjectURLs } from "./useObjectURLs";
+import { usePageRetry } from "./usePageRetry";
 
 type Chip = string;
 type Token = string | null;
@@ -446,6 +447,8 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
   // but the grid shows the other request's (wrong) results, because that
   // one's reply simply arrived second.
   const searchGenRef = useRef(0);
+  // A failed page is asked for again after a pause, not at once forever.
+  const { tick: retryTick, failed: pageFailed, reset: resetRetry, ready: retryReady } = usePageRetry();
 
   const fetchPage = useCallback(
     async (overrideToken?: Token, force = false, before?: Date) => {
@@ -491,7 +494,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         // A newer search superseded this one while it was in flight -
         // discard rather than let a stale reply clobber current results.
         if (myGen !== searchGenRef.current) return;
-        if (resp.payload?.$case !== "respListOfFiles") return;
+        if (resp.payload?.$case !== "respListOfFiles") { pageFailed(); return; }
 
         const lof = resp.payload.respListOfFiles!;
         const nextToken = lof.token || null;
@@ -511,6 +514,12 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
 
         setToken(nextToken);
         setEndReached(!nextToken); // if no token back, we've reached the end
+        resetRetry();
+      } catch (err) {
+        // No connection, or the request failed outright: retried after a
+        // pause (usePageRetry). A superseded search's failure is no one's.
+        console.warn("Photo search page failed:", err);
+        if (myGen === searchGenRef.current) pageFailed();
       } finally {
         // Only this request's own generation may clear loading - a stale
         // one finishing after a newer search started must not report
@@ -518,7 +527,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [chips, selectedPeople, token, loading, endReached]
+    [chips, selectedPeople, token, loading, endReached, pageFailed, resetRetry]
   );
 
   // Issue #77: the date scrubber's "jump to date" - a reset exactly like
@@ -535,6 +544,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     const before = new Date(y, m, 0, 23, 59, 59, 999); // last instant of `month`
     searchGenRef.current += 1;
     const myGen = searchGenRef.current;
+    resetRetry();
     setItems([]);
     mapRef.current = new Map();
     setToken(null);
@@ -546,7 +556,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     } finally {
       if (myGen === searchGenRef.current) setPlaceholderCount(null);
     }
-  }, [fetchPage]);
+  }, [fetchPage, resetRetry]);
 
   const handleScrubMove = (clientY: number) => {
     const el = scrubTrackRef.current;
@@ -629,6 +639,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
     // selection before this one's own request even goes out - see
     // searchGenRef's doc comment.
     searchGenRef.current += 1;
+    resetRetry();
     (async () => {
       setItems([]);
       mapRef.current = new Map();
@@ -654,7 +665,9 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       (entries) => {
         const ent = entries[0];
         if (!ent?.isIntersecting) return;
-        if (!loading && !endReached) fetchPage();
+        // After a failed page, not before its retry is due (retryTick
+        // re-creates this observer when it is).
+        if (!loading && !endReached && retryReady()) fetchPage();
       },
       { root: null, rootMargin: "600px 0px 0px 0px" }
     );
@@ -664,7 +677,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       obs.disconnect();
       observerRef.current = null;
     };
-  }, [fetchPage, loading, endReached]);
+  }, [fetchPage, loading, endReached, retryTick, retryReady]);
 
   // -------- selection bar (issue #48: ordered, not a Set — post order
   // matches selection order, and can be explicitly fixed up via moveSel

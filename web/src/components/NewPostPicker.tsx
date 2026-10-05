@@ -13,6 +13,7 @@ import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages"
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
 import { useObjectURLs } from "./useObjectURLs";
+import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -108,6 +109,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // where the page itself scrolls), so it - not the viewport - is what the
   // sentinel has to be measured against.
   const gridRef = useRef<HTMLDivElement | null>(null);
+  // A failed page is asked for again after a pause, not at once forever.
+  const { tick: retryTick, failed: pageFailed, reset: resetRetry, ready: retryReady } = usePageRetry();
 
   const fetchPage = useCallback(
     async (overrideToken?: string | null) => {
@@ -122,7 +125,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             reqSearchPhotos: { tags: chips, token: overrideToken ?? token ?? "", includeVideos: true },
           };
         });
-        if (resp.payload?.$case !== "respListOfFiles") return;
+        if (resp.payload?.$case !== "respListOfFiles") { pageFailed(); return; }
         const lof = resp.payload.respListOfFiles!;
         const nextToken = lof.token || null;
 
@@ -140,11 +143,17 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
 
         setToken(nextToken);
         setEndReached(!nextToken);
+        resetRetry();
+      } catch (err) {
+        // No connection, or the request failed outright: retried after a
+        // pause (usePageRetry).
+        console.warn("Composer library page failed:", err);
+        pageFailed();
       } finally {
         setLoading(false);
       }
     },
-    [chips, token, loading, endReached]
+    [chips, token, loading, endReached, pageFailed, resetRetry]
   );
 
   const loadTags = useCallback(async () => {
@@ -165,6 +174,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   }, []);
 
   useEffect(() => {
+    resetRetry();
     (async () => {
       setItems([]);
       mapRef.current = new Map();
@@ -180,7 +190,9 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     if (!node) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !loading && !endReached) fetchPage();
+        // After a failed page, not before its retry is due (retryTick
+        // re-creates this observer when it is).
+        if (entries[0]?.isIntersecting && !loading && !endReached && retryReady()) fetchPage();
       },
       // Bottom margin: the point is to start the next page while the
       // sentinel is still below the fold, so scrolling doesn't stall on
@@ -189,7 +201,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [fetchPage, loading, endReached]);
+  }, [fetchPage, loading, endReached, retryTick, retryReady]);
 
   // -------- selection (tap a tile, no separate checkbox/viewer) ---------
   // Issue #98: an ordered list, not a Set - the post's own order is the
