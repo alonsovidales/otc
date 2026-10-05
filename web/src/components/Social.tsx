@@ -342,6 +342,13 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   }, []);
 
   const closeLikers = useCallback(() => { setLikersOpen(false); setLikers(null); }, []);
+  // One avatar URL per liker while the list is up, freed with it - not a
+  // new, never-freed one for every liker on every render of Social.
+  const likerURLs = useMemo(
+    () => (likers ?? []).map(l => bytesToURL(l.image as unknown as Uint8Array, "image/jpeg")),
+    [likers]
+  );
+  useEffect(() => () => likerURLs.forEach(u => { if (u) URL.revokeObjectURL(u); }), [likerURLs]);
 
   // ---------------- Image viewer (modal) ----------------
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -639,7 +646,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             ) : (
               <ul className="sv-likers-list">
                 {likers.map((l, i) => {
-                  const avatarURL = bytesToURL(l.image as unknown as Uint8Array, "image/jpeg");
+                  const avatarURL = likerURLs[i];
                   return (
                     <li key={`${l.domain}-${i}`}>
                       {avatarURL ? <img src={avatarURL} className="sv-img-avatar" /> : <div className="sv-avatar">👤</div>}
