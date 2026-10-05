@@ -54,6 +54,11 @@ final class PhotoSync: NSObject {
     /// after the wipe used to write lastSyncDate=now into the fresh
     /// defaults, so the next device never got the existing library.
     private var generation = 0
+    /// Bumped by syncFromNow(). A run's watermark and retry-list writes
+    /// land only while the value it started with is current: after the
+    /// press, its per-chunk watermark is older than the press and its
+    /// failures are what Sync From Now skips. Its uploads carry on.
+    private var fromNowEpoch = 0
     /// The sync in progress, so Log Out can stop it (`cancel()`). Under
     /// syncLock: written from the cooperative pool, read on main.
     private var currentSync: Task<Void, Error>?
@@ -83,14 +88,35 @@ final class PhotoSync: NSObject {
 
     /// Runs `body` only if the run's generation is still current, under
     /// the same lock cancel() takes: a write lands before Log Out (whose
-    /// wipe then erases it) or not at all.
+    /// wipe then erases it) or not at all. With `epoch`, likewise only
+    /// before a Sync From Now press (see `fromNowEpoch`).
     @discardableResult
-    private func ifLive(_ gen: Int, _ body: () -> Void = {}) -> Bool {
+    private func ifLive(_ gen: Int, epoch: Int? = nil, _ body: () -> Void = {}) -> Bool {
         syncLock.lock()
         defer { syncLock.unlock() }
-        guard generation == gen else { return false }
+        guard generation == gen, epoch == nil || epoch == fromNowEpoch else { return false }
         body()
         return true
+    }
+
+    /// Where a run starts: the watermark, and the Sync From Now epoch its
+    /// writes belong to, read together.
+    private func startingPoint() -> (last: Date?, epoch: Int) {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        return (UserDefaults.standard.object(forKey: "lastSyncDate") as? Date, fromNowEpoch)
+    }
+
+    /// Sync From Now: skip everything already in the library, what earlier
+    /// runs couldn't finish included. A run in progress still uploads
+    /// what it fetched, as it always did, but no longer moves the
+    /// watermark back before now or puts its failures back on the list.
+    func syncFromNow() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        fromNowEpoch &+= 1
+        UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+        AssetSyncCache.shared.clearPending()
     }
 
     // How many assets to read from disk + upload at the same time (issue
@@ -418,7 +444,7 @@ final class PhotoSync: NSObject {
         // The watermark never goes past this: a photo with a future date
         // (a wrong camera clock) can't push it ahead of what was fetched.
         let runStart = Date()
-        let last = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
+        let (last, epoch) = startingPoint()
         print("Sync photos from: \(String(describing: last))")
         var assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
 
@@ -762,7 +788,7 @@ final class PhotoSync: NSObject {
             // The retry list before the watermark: no asset is ever behind
             // the watermark without being on the device or on the list.
             // Failures used to be logged and then skipped for good.
-            ifLive(gen) {
+            ifLive(gen, epoch: epoch) {
                 AssetSyncCache.shared.resolve(finished)
                 AssetSyncCache.shared.markPending(failed, iCloud: false)
                 AssetSyncCache.shared.markPending(failedICloud, iCloud: true)
@@ -777,7 +803,7 @@ final class PhotoSync: NSObject {
             // fetched dates in it (retried assets are older).
             if let latest = chunk.filter({ !retriedIDs.contains($0.localIdentifier) }).compactMap(\.creationDate).max() {
                 let mark = min(latest, runStart)
-                ifLive(gen) { UserDefaults.standard.set(mark, forKey: "lastSyncDate") }
+                ifLive(gen, epoch: epoch) { UserDefaults.standard.set(mark, forKey: "lastSyncDate") }
                 print("Latest date:", mark)
             }
 
