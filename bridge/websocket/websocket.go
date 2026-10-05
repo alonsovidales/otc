@@ -1150,13 +1150,21 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				pool, ok := mg.bridges[domain]
 				mg.bridgesMu.RUnlock()
 
-				if defined && !validSecret {
-					// err is nil on this branch (IsValidDevice answered
-					// fine - the answer was "no"), so it used to log a
-					// useless "error registering bridge: <nil>" with no
-					// domain, which sent an outage investigation down the
-					// wrong path. The secret itself is deliberately not
-					// logged.
+				if err != nil {
+					// Checked first: IsValidDevice answers a database
+					// failure with defined=true and validSecret=false, which
+					// is not a wrong secret - no "Invalid Secret", no
+					// invalid_secret auth event; the device backs off and
+					// retries. Also a failed open-registration insert.
+					log.Error("error checking registration for", domain, "from", conn.RemoteAddr().String(), ":", err)
+					resp.Error = true
+					resp.ErrorMessage = cInternalErrorMsg
+				} else if defined && !validSecret {
+					// err is nil on this branch (checked just above: the
+					// answer was "no"), so it used to log a useless "error
+					// registering bridge: <nil>" with no domain, which sent
+					// an outage investigation down the wrong path. The
+					// secret itself is deliberately not logged.
 					log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(),
 						"- owner/secret do not match the bridge's record (owner claimed:", p.ReqBridgeRegister.OwnerUuid, ")")
 					resp.Error = true
@@ -1168,10 +1176,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
-				} else if err != nil {
-					log.Error("error trying to register:", err)
-					resp.Error = true
-					resp.ErrorMessage = cInternalErrorMsg
 				} else if size := pool.size(); ok && size >= maxConnectionsPerDevice() {
 					// Issue #53 follow-up: a device now grows its own pool
 					// dynamically under load (see websocket.ensureBridgePool
