@@ -1188,6 +1188,10 @@ final class SyncModel: ObservableObject {
                 }
                 guardNote = "\(localDeletes) files had disappeared from the device - restored them from this Mac instead of deleting them here"
             }
+            // Local deletes first: a rename on another client that only
+            // changes case ("Photo.jpg" -> "photo.jpg") then trashes the
+            // old name before the new one comes down, in one pass.
+            actions = actions.filter { $0.kind == .deleteLocal } + actions.filter { $0.kind != .deleteLocal }
 
             syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote")
             if !actions.isEmpty {
@@ -1237,7 +1241,16 @@ final class SyncModel: ObservableObject {
                     do {
                         switch action.kind {
                         case .upload: newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
-                        case .download: try await download(remotePath, to: localURL, expectedHash: action.hash)
+                        case .download:
+                            // The plan saw nothing at this name, yet something
+                            // is there: a name that differs only by case (APFS
+                            // ignores case), or a file created during the pass.
+                            // Overwriting it, and then deleting the other name,
+                            // lost the file. Left alone; the next pass decides.
+                            if localByRelative[action.relative] == nil, FileManager.default.fileExists(atPath: localURL.path) {
+                                throw NSError(domain: "sync.download", code: 6, userInfo: [NSLocalizedDescriptionKey: "another file is already at this name here - left alone"])
+                            }
+                            try await download(remotePath, to: localURL, expectedHash: action.hash)
                         case .downloadKeepLocal:
                             // This Mac's version first, under its conflict
                             // name; only then the device's over the original.
