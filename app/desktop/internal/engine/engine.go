@@ -928,9 +928,7 @@ func (e *Engine) reconcile(f config.Folder) {
 
 		return
 	}
-	if len(failedDirs) == 0 {
-		e.pruneHashCache(f.ID, local)
-	}
+	e.pruneHashCache(f.ID, f.Path, local, failedDirs)
 	localRemote := map[string]bool{}
 	var toUpload []uploadItem
 	// Issue #138 (as SyncModel.reconcile): say which file is being checked,
@@ -1180,9 +1178,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 		return
 	}
-	if len(failedDirs) == 0 {
-		e.pruneHashCache(f.ID, local)
-	}
+	e.pruneHashCache(f.ID, f.LocalPath, local, failedDirs)
 	e.mu.Lock()
 	e.loadSyncedLocked(f.ID)
 	last := e.lastSynced[f.ID]

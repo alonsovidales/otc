@@ -79,8 +79,37 @@ func TestHashCachePrune(t *testing.T) {
 	if err != nil || len(failed) != 0 {
 		t.Fatal(err, failed)
 	}
-	second.pruneHashCache("f1", local)
+	second.pruneHashCache("f1", dir, local, failed)
 	if _, ok := second.hashCache["f1"][keep]; !ok || len(second.hashCache["f1"]) != 1 || !second.hashDirty["f1"] {
 		t.Fatalf("after prune: %v dirty=%v", second.hashCache["f1"], second.hashDirty["f1"])
+	}
+}
+
+// Under a directory that could not be read the files are unknown, not
+// gone: their entries stay, and the rest of the folder is pruned as usual.
+func TestHashCachePruneKeepsUnreadableDirectories(t *testing.T) {
+	withConfigDir(t)
+	dir := t.TempDir()
+	e := &Engine{hashCache: map[string]map[string]hashEntry{}, hashDirty: map[string]bool{}, hashLoaded: map[string]bool{"f1": true}}
+	inside := filepath.Join(dir, "locked", "deeper", "a.txt")
+	sibling := filepath.Join(dir, "locked-not", "b.txt")
+	gone := filepath.Join(dir, "gone.txt")
+	here := filepath.Join(dir, "here.txt")
+	e.hashCache["f1"] = map[string]hashEntry{inside: {hash: "1"}, sibling: {hash: "2"}, gone: {hash: "3"}, here: {hash: "4"}}
+
+	e.pruneHashCache("f1", dir, []string{here}, []string{"locked"})
+
+	got := e.hashCache["f1"]
+	if _, ok := got[inside]; !ok {
+		t.Error("the entry under the unreadable directory was dropped")
+	}
+	if _, ok := got[here]; !ok {
+		t.Error("the listed file's entry was dropped")
+	}
+	if _, ok := got[sibling]; ok {
+		t.Error("an entry next to the unreadable directory, with a name it prefixes, was kept")
+	}
+	if _, ok := got[gone]; ok {
+		t.Error("the entry of a file that left was kept")
 	}
 }
