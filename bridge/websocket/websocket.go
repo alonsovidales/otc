@@ -258,6 +258,10 @@ type deviceRelay struct {
 	// secret): a relay whose owner is no longer the domain's has been
 	// replaced by a new identity and must stop relaying.
 	owner string
+	// registeredAt is when the relay went into its pool, after the
+	// registration was checked against the database: sweepStale leaves
+	// alone the relays registered after its own query.
+	registeredAt time.Time
 
 	mu      sync.Mutex
 	waiters map[int32]chan deviceReply
@@ -810,11 +814,18 @@ func (mg *Manager) sweepLoop() {
 // older release, or a deletion that drops nothing (the admin panel's)
 // leaves relaying. Its own goroutine, not clusterSync's: a slow query
 // must not hold up the claims. A database error closes nothing.
+//
+// Only relays registered before the query started are judged by its
+// answer: one registered since was checked against the database after it
+// (a device given a new identity, or a name claimed again, while the
+// sweep ran) and is left for the next sweep.
 func (mg *Manager) sweepStale() {
 	held := mg.heldDomains()
 	if len(held) == 0 {
 		return
 	}
+	start := time.Now()
+	before := func(r *deviceRelay) bool { return !r.registeredAt.After(start) }
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	owners, err := mg.dao.DeviceOwners(ctx, held)
@@ -833,12 +844,13 @@ func (mg *Manager) sweepStale() {
 				return
 			}
 			if !registered {
-				log.Info("closing the connections of a domain no longer registered:", d)
-				mg.dropPool(d)
+				if n := mg.dropRelays(d, before); n > 0 {
+					log.Info("closed", n, "connections of a domain no longer registered:", d)
+				}
 				continue
 			}
 		}
-		if n := mg.dropRelays(d, func(r *deviceRelay) bool { return r.owner != owner }); n > 0 {
+		if n := mg.dropRelays(d, func(r *deviceRelay) bool { return before(r) && r.owner != owner }); n > 0 {
 			log.Info("closed", n, "connections of a replaced identity for", d)
 		}
 	}
@@ -1671,6 +1683,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					mg.bridgesMu.Unlock()
 					pool.lock.Lock()
 					log.Debug("Adding to the pool:", len(pool.availableConns))
+					relay.registeredAt = time.Now()
 					pool.availableConns = append(pool.availableConns, relay)
 					if pool.relays == nil {
 						pool.relays = make(map[*deviceRelay]struct{})

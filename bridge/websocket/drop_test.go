@@ -40,6 +40,7 @@ func pooledRelay(t *testing.T, mg *Manager, domain, owner string, idle bool) (*d
 	}
 	mg.bridgesMu.Unlock()
 	pool.lock.Lock()
+	relay.registeredAt = time.Now()
 	if idle {
 		pool.availableConns = append(pool.availableConns, relay)
 	}
@@ -164,6 +165,55 @@ func TestSweepClosesUnregisteredAndReplacedRelays(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
 	}
+}
+
+// The sweep's answer from the database is as old as its query: a device
+// that registered since - given a new identity, or a name claimed again,
+// while the sweep ran - was checked after it, and its relays stay.
+func TestSweepLeavesRelaysRegisteredAfterItsQuery(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `domain`, `owner_uuid` from `devices` where `domain` in \\(\\?, \\?\\)").
+		WillReturnRows(sqlmock.NewRows([]string{"domain", "owner_uuid"}).AddRow("kept.otc", "old-owner"))
+	mock.ExpectQuery("select `owner_uuid` from `devices` where `domain` = \\?").
+		WithArgs("claimed.otc").
+		WillReturnError(sql.ErrNoRows)
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	defer stopOfflineTimer(mg, "kept.otc")
+	defer stopOfflineTimer(mg, "claimed.otc")
+	_, staleDied := pooledRelay(t, mg, "kept.otc", "older-owner", true)
+	newRelay, newDied := pooledRelay(t, mg, "kept.otc", "new-owner", true)
+	claimed, claimedDied := pooledRelay(t, mg, "claimed.otc", "owner", true)
+	registeredLater(mg, "kept.otc", newRelay)
+	registeredLater(mg, "claimed.otc", claimed)
+
+	mg.sweepStale()
+	waitDead(t, staleDied, "the relay of an identity replaced before the query")
+	select {
+	case <-newDied:
+		t.Fatal("the sweep closed a relay of the identity registered after its query")
+	case <-claimedDied:
+		t.Fatal("the sweep closed a relay of the name registered after its query")
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// registeredLater makes relay one that went into its pool after any sweep
+// this test starts.
+func registeredLater(mg *Manager, domain string, relay *deviceRelay) {
+	mg.bridgesMu.RLock()
+	pool := mg.bridges[domain]
+	mg.bridgesMu.RUnlock()
+	pool.lock.Lock()
+	relay.registeredAt = time.Now().Add(time.Hour)
+	pool.lock.Unlock()
 }
 
 // A database failure must never read as "nothing is registered": that
