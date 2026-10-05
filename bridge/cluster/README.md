@@ -95,7 +95,8 @@ host = 10.10.0.2                 ; the primary, from every node
   strip those headers from outside requests.
 - "Online" (admin panel, account page, the setup wizard's check) is any
   node holding the device; the offline alert is skipped while another node
-  holds it.
+  holds it, and only one node sends it per outage (`otc:alert:<domain>`,
+  cleared when a node holds the device again).
 - A domain released, deleted with its account or given a new identity
   stops relaying on every node: the node that handled it publishes the
   domain on the `otc:drop` channel and each node closes its connections,

@@ -117,3 +117,25 @@ func TestDropReachesEveryNode(t *testing.T) {
 	}
 	none.SubscribeDrops(func(string) { t.Fatal("a nil cluster delivered a drop") })
 }
+
+// When a device on both nodes goes away, both count down and find it
+// gone: only one of them alerts the owner, until the device is back.
+func TestOneOfflineAlertPerOutage(t *testing.T) {
+	a, b, _ := twoNodes(t)
+	if !a.ClaimAlert("pit.off-the.cloud") || b.ClaimAlert("pit.off-the.cloud") {
+		t.Fatal("want exactly the first node to claim the alert")
+	}
+	if a.ClaimAlert("pit.off-the.cloud") {
+		t.Fatal("claimed twice for one outage")
+	}
+	if err := b.Hold("pit.off-the.cloud"); err != nil { // the device is back
+		t.Fatal(err)
+	}
+	if !b.ClaimAlert("pit.off-the.cloud") {
+		t.Fatal("the next outage could not alert")
+	}
+	var none *Cluster
+	if !none.ClaimAlert("x") {
+		t.Fatal("a single bridge must always alert")
+	}
+}

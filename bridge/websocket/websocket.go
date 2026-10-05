@@ -894,6 +894,10 @@ func (mg *Manager) fireOfflineAlertIfStillDown(domain string) {
 		log.Info("device left this node but another one holds it, no offline alert:", domain)
 		return
 	}
+	if stillDown && !mg.cluster.ClaimAlert(domain) {
+		log.Info("another node already alerted the owner of", domain)
+		return
+	}
 	if stillDown {
 		mg.sendOfflineAlert(domain)
 	}

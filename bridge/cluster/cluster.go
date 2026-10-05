@@ -36,10 +36,16 @@ const (
 	TokenHeader = "X-Otc-Cluster-Token"
 	HopHeader   = "X-Otc-Cluster-Hop"
 
-	keyNodes    = "otc:nodes" // node id -> internal address
-	keyDevice   = "otc:dev:"  // + domain: node id -> claim expiry (unix)
-	keyDrop     = "otc:drop"  // pub/sub: domains whose connections every node closes
+	keyNodes    = "otc:nodes"  // node id -> internal address
+	keyDevice   = "otc:dev:"   // + domain: node id -> claim expiry (unix)
+	keyDrop     = "otc:drop"   // pub/sub: domains whose connections every node closes
+	keyAlert    = "otc:alert:" // + domain: the node that sent this outage's offline alert
 	cRedisTimer = 2 * time.Second
+
+	// AlertClaim only tidies up: a claim is cleared as soon as any node
+	// holds the device again (Hold), which is what lets the next outage
+	// alert.
+	AlertClaim = 10 * time.Minute
 )
 
 // Cluster is this node's view of the others.
@@ -132,6 +138,8 @@ func (c *Cluster) Hold(domains ...string) error {
 		// The key outlives every claim in it by a little; a device no node
 		// holds any more goes away on its own.
 		pipe.Expire(ctx, keyDevice+d, 2*Holding)
+		// Held again: the device is back, so its next outage alerts anew.
+		pipe.Del(ctx, keyAlert+d)
 	}
 	_, err := pipe.Exec(ctx)
 	return err
@@ -246,4 +254,22 @@ func (c *Cluster) SubscribeDrops(drop func(domain string)) {
 			drop(m.Payload)
 		}
 	}()
+}
+
+// ClaimAlert reports whether this node is the one to send domain's
+// offline alert for this outage: when the device was on both nodes, both
+// count down and both found it gone. True without a cluster, and when
+// Redis can't say - a duplicate alert beats none.
+func (c *Cluster) ClaimAlert(domain string) bool {
+	if c == nil {
+		return true
+	}
+	ctx, cancel := c.ctx()
+	defer cancel()
+	ok, err := c.rdb.SetNX(ctx, keyAlert+domain, c.node, AlertClaim).Result()
+	if err != nil {
+		log.Error("cluster: could not claim the offline alert for", domain, ":", err)
+		return true
+	}
+	return ok
 }
