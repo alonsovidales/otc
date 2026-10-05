@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -110,6 +111,13 @@ class BLESetupTransport(private val context: Context) {
     private val waiters = ConcurrentHashMap<Int, CompletableDeferred<ByteArray>>()
     private var nextStream = 0
     @Volatile private var mtu = 23
+    // The INFO read issued once notifications are on: Ready waits for it.
+    @Volatile private var infoPending = false
+    // A handshake that stalls (no services, no notifications - Android's
+    // 129/133 failures leave the link up with no further callback) is
+    // dropped and the device looked for again, not "Connecting…" forever.
+    private val watchdog = Runnable { gatt?.let { if (!isReady) drop(it) } }
+    private val dropLock = Any()
     private val writeLock = Mutex()
     @Volatile private var writeDone: CompletableDeferred<Boolean>? = null
     private var scanning = false
@@ -177,11 +185,16 @@ class BLESetupTransport(private val context: Context) {
         if (scanning) { adapter?.bluetoothLeScanner?.stopScan(scanCallback); scanning = false }
         _phase.value = Phase.Connecting
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        // As long as Android's own connect timeout (~30 s, status 133), so a
+        // slow but healthy connect isn't cut short.
+        main.removeCallbacks(watchdog)
+        main.postDelayed(watchdog, 30_000)
     }
 
     @SuppressLint("MissingPermission")
     fun stop() {
         stopped = true
+        main.removeCallbacks(watchdog)
         if (scanning) { adapter?.bluetoothLeScanner?.stopScan(scanCallback); scanning = false }
         gatt?.close()
         gatt = null
@@ -228,53 +241,84 @@ class BLESetupTransport(private val context: Context) {
         override fun onScanFailed(errorCode: Int) { _phase.value = Phase.Off }
     }
 
+    /**
+     * Ends this link, whatever state it is in, and looks for the device
+     * again (only the one chosen). Not disconnect() alone: before CONNECTED,
+     * or on a half-dead link, it often never calls back. close() stops the
+     * callbacks, so this runs once per link.
+     */
+    @SuppressLint("MissingPermission")
+    private fun drop(g: BluetoothGatt) {
+        val current = synchronized(dropLock) { (gatt === g).also { if (it) gatt = null } }
+        g.disconnect()
+        g.close()
+        if (!current) return
+        main.removeCallbacks(watchdog)
+        requestChrc = null
+        responseChrc = null
+        infoPending = false
+        failAll(SetupException("Not connected to the device"))
+        _phase.value = Phase.Lost
+        if (!stopped) scan()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun markReady(g: BluetoothGatt, name: String?) {
+        main.removeCallbacks(watchdog)
+        _phase.value = Phase.Ready(name ?: g.device.name ?: "Off The Cloud")
+        _everReady.value = true
+    }
+
+    // Every step of the handshake is checked: one that fails, or answers with
+    // an error, used to leave "Connecting…" up for good, or a Ready page with
+    // notifications never enabled (every request then waited 90 s).
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                g.requestMtu(517)
+                // A refused MTU request isn't fatal: 23 bytes, as a failed one.
+                if (!g.requestMtu(517) && !g.discoverServices()) drop(g)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                g.close()
-                if (gatt === g) gatt = null
-                requestChrc = null
-                responseChrc = null
-                failAll(SetupException("Not connected to the device"))
-                _phase.value = Phase.Lost
-                if (!stopped) scan()
+                drop(g)
             }
         }
 
         @SuppressLint("MissingPermission")
         override fun onMtuChanged(g: BluetoothGatt, newMtu: Int, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) mtu = newMtu
-            g.discoverServices()
+            if (!g.discoverServices()) drop(g)
         }
 
         @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
-            val service = g.getService(SERVICE) ?: return
+            if (status != BluetoothGatt.GATT_SUCCESS) return drop(g)
+            val service = g.getService(SERVICE) ?: return drop(g)
             requestChrc = service.getCharacteristic(REQUEST)
-            val resp = service.getCharacteristic(RESPONSE) ?: return
+            val resp = service.getCharacteristic(RESPONSE) ?: return drop(g)
             responseChrc = resp
-            g.setCharacteristicNotification(resp, true)
-            val cccd = resp.getDescriptor(CCCD) ?: return
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                g.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+            if (!g.setCharacteristicNotification(resp, true)) return drop(g)
+            val cccd = resp.getDescriptor(CCCD) ?: return drop(g)
+            val writing = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                g.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS
             } else {
                 @Suppress("DEPRECATION")
                 cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 @Suppress("DEPRECATION")
                 g.writeDescriptor(cccd)
             }
+            if (!writing) drop(g)
         }
 
         @SuppressLint("MissingPermission")
         override fun onDescriptorWrite(g: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-            if (descriptor.characteristic.uuid == RESPONSE && requestChrc != null) {
-                _phase.value = Phase.Ready(g.device.name ?: "Off The Cloud")
-                _everReady.value = true
-                g.getService(SERVICE)?.getCharacteristic(INFO)?.let { g.readCharacteristic(it) }
-            }
+            if (descriptor.characteristic.uuid != RESPONSE) return
+            if (status != BluetoothGatt.GATT_SUCCESS || requestChrc == null) return drop(g)
+            // Ready once the INFO read is over: a request written while it is
+            // pending fails as busy, and the wizard's first page load showed
+            // as an error page never reloaded. Also shows the device's own
+            // name from the start.
+            val info = g.getService(SERVICE)?.getCharacteristic(INFO)
+            if (info != null && g.readCharacteristic(info)) infoPending = true else markReady(g, null)
         }
 
         override fun onCharacteristicWrite(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
@@ -296,11 +340,12 @@ class BLESetupTransport(private val context: Context) {
         }
 
         override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
-            if (characteristic.uuid == INFO && status == BluetoothGatt.GATT_SUCCESS) {
-                runCatching { JSONObject(String(value)).optString("name") }.getOrNull()?.takeIf { it.isNotEmpty() }?.let {
-                    if (isReady) _phase.value = Phase.Ready(it)
-                }
-            }
+            if (characteristic.uuid != INFO) return
+            val name = if (status != BluetoothGatt.GATT_SUCCESS) null
+                else runCatching { JSONObject(String(value)).optString("name") }.getOrNull()?.takeIf { it.isNotEmpty() }
+            // A failed read, or a device without a name there, is Ready all the same.
+            if (infoPending) { infoPending = false; markReady(g, name) }
+            else if (name != null && isReady) _phase.value = Phase.Ready(name)
         }
 
         @Deprecated("Deprecated in Java")

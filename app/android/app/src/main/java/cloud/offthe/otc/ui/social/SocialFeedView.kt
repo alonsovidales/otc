@@ -102,7 +102,9 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SocialPublication
 import cloud.offthe.otc.ui.AvatarView
 import cloud.offthe.otc.ui.common.decodeBitmap
+import cloud.offthe.otc.ui.common.imageAspect
 import cloud.offthe.otc.ui.common.relativeTime
+import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.compose.NewPostPickerView
 import cloud.offthe.otc.ui.theme.Ember
 import kotlinx.coroutines.Dispatchers
@@ -126,6 +128,9 @@ private object MediaCache {
     private val images = object : LruCache<String, Bitmap>(64 shl 20) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
+    /** Already decoded, or null: never decodes, so it is cheap on the main thread. */
+    fun peek(hash: String): Bitmap? = images.get(hash)
+    /** Decodes on a miss: call it off the main thread. */
     fun image(file: PbFile): Bitmap? {
         images.get(file.hash)?.let { return it }
         if (!file.hasContent()) return null
@@ -382,9 +387,12 @@ private fun PostCard(
 /** The feed's media box: the first item's ratio, clamped like Instagram's. */
 private fun boxAspect(post: SocialPublication): Float {
     val first = post.filesList.firstOrNull() ?: return feedMinAspect
-    val bmp = MediaCache.image(first) ?: return feedMinAspect
-    if (bmp.width <= 0 || bmp.height <= 0) return feedMinAspect
-    return (bmp.width.toFloat() / bmp.height).coerceIn(feedMinAspect, feedMaxAspect)
+    // From the header alone when it isn't decoded yet: the box needs its
+    // height on the first frame, the pixels can come a frame later.
+    val ratio = MediaCache.peek(first.hash)?.let { if (it.width > 0 && it.height > 0) it.width.toFloat() / it.height else null }
+        ?: (if (first.hasContent()) imageAspect(first.content.toByteArray()) else null)
+        ?: return feedMinAspect
+    return ratio.coerceIn(feedMinAspect, feedMaxAspect)
 }
 
 @Composable
@@ -422,7 +430,7 @@ private fun MediaContent(post: SocialPublication, file: PbFile, playing: Boolean
     if (file.mime.startsWith("video/")) {
         VideoContent(post, file, playing)
     } else {
-        val bmp = remember(file.hash) { MediaCache.image(file) }
+        val bmp = rememberOffMain(file.hash, { MediaCache.peek(file.hash) }) { withContext(Dispatchers.Default) { MediaCache.image(file) } }
         if (bmp != null) Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
         else Box(Modifier.fillMaxSize().background(Color(0x14808080)))
     }
@@ -437,7 +445,7 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
     var loading by remember(file.hash) { mutableStateOf(false) }
     var ended by remember(file.hash) { mutableStateOf(false) }
     val muted = FeedAudio.muted
-    val poster = remember(file.hash) { MediaCache.image(file) }
+    val poster = rememberOffMain(file.hash, { MediaCache.peek(file.hash) }) { withContext(Dispatchers.Default) { MediaCache.image(file) } }
 
     fun load() {
         if (loading || player != null) return

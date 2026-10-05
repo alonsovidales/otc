@@ -7,6 +7,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -29,12 +30,23 @@ class WSClient {
         .readTimeout(0, TimeUnit.MILLISECONDS) // long-lived socket
         .build()
 
+    // socket and gen are guarded by the waiters monitor, like the map.
     private var socket: WebSocket? = null
     @Volatile var connected = false
         private set
     private var nextId = 1
     private val waiters = HashMap<Int, (Result<RespEnvelope>) -> Unit>()
     private val lock = Mutex()
+    // Which socket is the current one: bumped by connect(), close() and
+    // failAndClose(), so a replaced socket's late callbacks (OkHttp delivers
+    // them on its own threads) can't fail the new one's requests or close it.
+    private var gen = 0
+
+    private companion object {
+        // As the macOS client and otc-sync: long enough for ApplyUpdate and a
+        // 4 MiB chunk on a slow link, but a request can no longer hang forever.
+        const val requestTimeoutMs = 30 * 60_000L
+    }
 
     /** Fired once, when the socket breaks. The owner reconnects; this class never retries. */
     var onDisconnect: (() -> Unit)? = null
@@ -43,13 +55,21 @@ class WSClient {
         if (connected) return
         val opened = CompletableDeferred<Unit>()
         val req = Request.Builder().url(url).build()
-        socket = client.newWebSocket(req, object : WebSocketListener() {
+        val myGen = synchronized(waiters) { ++gen }
+        fun current() = synchronized(waiters) { gen == myGen }
+        val ws = client.newWebSocket(req, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                connected = true
+                val mine = synchronized(waiters) { (gen == myGen).also { if (it) connected = true } }
+                if (!mine) {
+                    webSocket.cancel()
+                    opened.completeExceptionally(IOException("connection closed"))
+                    return
+                }
                 opened.complete(Unit)
             }
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+                if (!current()) return
                 val env = try { RespEnvelope.parseFrom(bytes.toByteArray()) } catch (e: Exception) { return }
                 val cb = synchronized(waiters) { waiters.remove(env.id) }
                 cb?.invoke(Result.success(env))
@@ -59,8 +79,11 @@ class WSClient {
                 val err = if (response != null && !connected) {
                     IOException("bad response from the server (${response.code})", t)
                 } else t
+                // onDisconnect first, while the connect it ends is still in
+                // flight: that is what makes OTCConnection schedule a retry.
+                failAndClose(err, myGen)
+                // Always, so a connect() whose socket was replaced never hangs.
                 if (!opened.isCompleted) opened.completeExceptionally(err)
-                failAndClose(err)
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -68,26 +91,42 @@ class WSClient {
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                failAndClose(IOException("connection closed ($code)"))
+                failAndClose(IOException("connection closed ($code)"), myGen)
             }
         })
+        val replaced = synchronized(waiters) { (gen != myGen).also { if (!it) socket = ws } }
+        if (replaced) ws.cancel()
         opened.await()
     }
 
+    /**
+     * A deliberate close: no onDisconnect, so no reconnect is scheduled.
+     * What was waiting on the socket fails now - its own callbacks are
+     * ignored from here on, and used to leave those requests hanging.
+     */
     fun close() {
-        connected = false
-        socket?.cancel()
-        socket = null
+        val (s, pending) = detach()
+        s?.cancel()
+        pending.forEach { it(Result.failure(IOException("connection closed"))) }
     }
 
-    private fun failAndClose(error: Throwable) {
-        if (!connected && socket == null) return
-        connected = false
-        val pending = synchronized(waiters) { val p = waiters.values.toList(); waiters.clear(); p }
+    // Fires onDisconnect once per socket, a connect that failed before it
+    // opened included (OTCConnection's backoff retry relies on that).
+    private fun failAndClose(error: Throwable, myGen: Int) {
+        val (s, pending) = synchronized(waiters) { if (gen != myGen) return; detach() }
         pending.forEach { it(Result.failure(error)) }
-        socket?.cancel()
-        socket = null
+        s?.cancel()
         onDisconnect?.invoke()
+    }
+
+    private fun detach(): Pair<WebSocket?, List<(Result<RespEnvelope>) -> Unit>> = synchronized(waiters) {
+        gen++
+        connected = false
+        val s = socket
+        socket = null
+        val p = waiters.values.toList()
+        waiters.clear()
+        s to p
     }
 
     suspend fun request(build: (ReqEnvelope.Builder) -> Unit): RespEnvelope {
@@ -100,16 +139,19 @@ class WSClient {
         // id 0 and collide with every other in-flight request.
         b.id = id
         val bytes = b.build().toByteArray()
-        return suspendCancellableCoroutine { cont ->
-            synchronized(waiters) {
-                waiters[id] = { r -> r.fold({ cont.resume(it) }, { cont.resumeWithException(it) }) }
+        return withTimeoutOrNull(requestTimeoutMs) {
+            suspendCancellableCoroutine { cont ->
+                val s = synchronized(waiters) {
+                    waiters[id] = { r -> r.fold({ cont.resume(it) }, { cont.resumeWithException(it) }) }
+                    socket
+                }
+                val ok = s?.send(bytes.toByteString()) ?: false
+                if (!ok) {
+                    val cb = synchronized(waiters) { waiters.remove(id) }
+                    cb?.invoke(Result.failure(IOException("send failed")))
+                }
+                cont.invokeOnCancellation { synchronized(waiters) { waiters.remove(id) } }
             }
-            val ok = socket?.send(bytes.toByteString()) ?: false
-            if (!ok) {
-                val cb = synchronized(waiters) { waiters.remove(id) }
-                cb?.invoke(Result.failure(IOException("send failed")))
-            }
-            cont.invokeOnCancellation { synchronized(waiters) { waiters.remove(id) } }
-        }
+        } ?: throw IOException("The device did not answer in time")
     }
 }

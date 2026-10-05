@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import android.app.ActivityManager
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -8,6 +9,7 @@ import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.AddToImageGroup
@@ -32,6 +34,7 @@ import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.ShareFilesLink
 import cloud.offthe.otc.ui.common.SelectionActionTask
 import cloud.offthe.otc.ui.common.Share
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.Dispatchers
@@ -55,9 +58,10 @@ import java.util.UUID
 // (showFiles): a separate instance holding just that folder's photos and
 // videos, with no search or paging.
 class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
-    // preview: an already decoded placeholder (the Files grid's thumbnail),
-    // used when there are no thumb bytes.
-    data class Item(val id: String, val path: String, val mime: String, val size: Int, val thumb: ByteArray?, val preview: Bitmap? = null)
+    // thumbKey: the thumbnail's bytes in ThumbStore (the item's id), null
+    // when the device sent none. preview: an already decoded placeholder
+    // (the Files grid's thumbnail), used when there are no thumb bytes.
+    data class Item(val id: String, val path: String, val mime: String, val size: Int, val thumbKey: String?, val preview: Bitmap? = null)
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
     data class PendingMerge(val target: Person, val source: Person)
 
@@ -376,7 +380,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             if (mine != searchGeneration) return false
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return false
             val lof = resp.respListOfFiles
-            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.size}", f.path, f.mime, f.size, if (f.hasContent()) f.content.toByteArray() else null) }
+            val withThumb = lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() }
+            ThumbStore.putAll(withThumb)
+            if (mine != searchGeneration) return false
+            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.size}".let { id -> Item(id, f.path, f.mime, f.size, if (f.hasContent()) id else null) } }
             _state.update { st ->
                 val existing = st.items.map { it.id }.toSet()
                 st.copy(items = st.items + newItems.filter { it.id !in existing })
@@ -392,10 +399,21 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         }
     }
 
-    // Viewer
+    // Viewer. hiResOrder: the cached full-size images, least recently used first.
     private val hiResOrder = mutableListOf<String>()
     private val inFlightHiRes = mutableSetOf<String>()
     private val hiResCacheSize = 8
+    // And a byte budget: a 12 MP photo decodes to 48 MB, so eight of them
+    // could hold ~400 MB. The open photo and its neighbours stay regardless.
+    private val hiResBudgetBytes: Long = run {
+        val am = OTCApp.instance.getSystemService(ActivityManager::class.java)
+        val mb = when {
+            am == null -> 128
+            am.isLowRamDevice -> 64
+            else -> (am.memoryClass / 2).coerceIn(96, 192)
+        }
+        mb.toLong() shl 20
+    }
 
     fun open(index: Int) {
         if (index !in _state.value.items.indices) return
@@ -413,11 +431,28 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     }
 
     private fun cacheHiRes(path: String, bmp: Bitmap) {
-        if (path !in _state.value.hiResImages) hiResOrder += path
-        val evicted = mutableListOf<String>()
-        while (hiResOrder.size > hiResCacheSize) evicted += hiResOrder.removeAt(0)
-        _state.update { it.copy(hiResImages = (it.hiResImages - evicted.toSet()) + (path to bmp)) }
+        hiResOrder -= path
+        hiResOrder += path
+        val st = _state.value
+        val keep = st.openIndex?.let { i -> (i - 1..i + 1).mapNotNull { st.items.getOrNull(it)?.path }.toSet() } ?: emptySet()
+        val images = st.hiResImages + (path to bmp)
+        var total = images.values.sumOf { it.allocationByteCount.toLong() }
+        val evicted = mutableSetOf<String>()
+        val oldest = hiResOrder.iterator()
+        while (oldest.hasNext() && (hiResOrder.size > hiResCacheSize || total > hiResBudgetBytes)) {
+            val p = oldest.next()
+            if (p in keep) continue
+            oldest.remove()
+            evicted += p
+            total -= images[p]?.allocationByteCount?.toLong() ?: 0
+        }
+        // The new one may be evicted too (far from the open photo, budget
+        // spent): then it isn't kept untracked by hiResOrder either.
+        _state.update { it.copy(hiResImages = (it.hiResImages + (path to bmp)) - evicted) }
     }
+
+    // Swiped back to: the newest again, so it isn't the next one evicted while shown.
+    private fun touchHiRes(path: String) { if (hiResOrder.remove(path)) hiResOrder += path }
     fun prev() { _state.value.openIndex?.let { if (it > 0) open(it - 1) } }
     fun next() { _state.value.openIndex?.let { if (it < _state.value.items.size - 1) open(it + 1) } }
 
@@ -442,7 +477,8 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     private suspend fun fetchHiRes(index: Int, prefetch: Boolean = false) {
         val it = _state.value.items.getOrNull(index) ?: return
         if (it.mime.startsWith("video/")) { if (!prefetch) fetchVideo(it); return }
-        if (it.path in _state.value.hiResImages || it.path in inFlightHiRes) return
+        if (it.path in _state.value.hiResImages) { touchHiRes(it.path); return }
+        if (it.path in inFlightHiRes) return
         inFlightHiRes += it.path
         _state.update { s -> s.copy(hiResLoading = s.hiResLoading + it.path) }
         try {
@@ -465,29 +501,31 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         fun stillOpen() = _state.value.openIndex?.let { i -> _state.value.items.getOrNull(i)?.path } == it.path
         MediaStream.url(forPath = it.path)?.let { url -> if (stillOpen()) _state.update { s -> s.copy(videoUrl = url) }; return }
         try {
-            val resp = OTCConnection.request { e -> e.setReqGetFile(GetFile.newBuilder().setPath(it.path)) }
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || !resp.respFile.hasContent()) return
-            val ext = when (resp.respFile.mime.lowercase()) {
+            // In pieces (a video can be far bigger than the heap), stopped as
+            // soon as the viewer moves on; named once its mime is known.
+            val uuid = UUID.randomUUID().toString()
+            val raw = File(OTCApp.instance.cacheDir, uuid)
+            val meta = ChunkedDownload.download(it.path, "", raw, keepGoing = { stillOpen() })
+            if (meta.size == 0L) { raw.delete(); return }
+            val ext = when (meta.mime.lowercase()) {
                 "video/quicktime" -> "mov"
                 "video/mp4", "video/x-m4v" -> "mp4"
                 "video/x-matroska" -> "mkv"
                 "video/3gpp" -> "3gp"
                 else -> it.path.substringAfterLast('.', "mp4").lowercase()
             }
-            val tmp = File(OTCApp.instance.cacheDir, "${UUID.randomUUID()}.$ext")
-            if (!stillOpen()) return
-            withContext(Dispatchers.IO) { tmp.writeBytes(resp.respFile.content.toByteArray()) }
-            if (!stillOpen()) { tmp.delete(); return }
+            val tmp = File(OTCApp.instance.cacheDir, "$uuid.$ext")
+            if (!stillOpen() || !raw.renameTo(tmp)) { raw.delete(); return }
             _state.update { s -> s.copy(videoUrl = tmp.toURI().toString()) }
         } catch (_: Exception) {}
     }
 
-    fun currentImage(): Bitmap? {
+    suspend fun currentImage(): Bitmap? {
         val st = _state.value
         st.hiRes?.let { return it }
         val idx = st.openIndex ?: return null
         val item = st.items.getOrNull(idx) ?: return null
-        return item.thumb?.let { decodeBitmap(it) } ?: item.preview
+        return item.thumbKey?.let { ThumbStore.load(it) }?.let { decodeBitmap(it) } ?: item.preview
     }
 
     /** Issue #9: write the loaded image to a temp file and hand it to the share sheet. */

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.ui.common.ConnectionEndpointFields
 
 // Port of OnboardingView.swift: the first-run connection form.
@@ -49,6 +50,7 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 secrets.setEndpoint(newEndpoint)
                 secrets.setPassword(newPassword)
                 secrets.persist()
+                OTCConnection.invalidate()
                 setupOpen = false
                 onSaved()
             },
@@ -89,6 +91,9 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                     secrets.setEndpoint(endpoint.trim())
                     secrets.setPassword(password)
                     secrets.persist()
+                    // A socket still signed in to the device logged out of
+                    // (a request retried during Log Out) must not carry over.
+                    OTCConnection.invalidate()
                     onSaved()
                 },
                 enabled = endpoint.isNotEmpty() && password.isNotEmpty(),

@@ -5,8 +5,10 @@ import cloud.offthe.otc.proto.BeginUpload
 import cloud.offthe.otc.proto.FinishUpload
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.UploadChunk
-import com.google.protobuf.ByteString
 import com.google.protobuf.Timestamp
+import com.google.protobuf.UnsafeByteOperations
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.IOException
 import java.io.InputStream
 import java.security.MessageDigest
@@ -19,12 +21,21 @@ import java.security.MessageDigest
 object ChunkedUpload {
     const val chunkSize = 4 shl 20
 
-    /** A source's SHA-256 (hex) and byte count, read in [chunkSize] pieces. */
+    // OkHttp closes the socket (1001) once more than 16 MiB is queued and
+    // not yet written, failing every request on it. Three 4 MiB chunks in
+    // flight keep the queue under that whatever mix of sync, composer and
+    // Files uploads is running; a permit is held until the device answers.
+    private const val maxChunksInFlight = 3
+    private val chunkPermits = Semaphore(maxChunksInFlight)
+
+    /** A source's SHA-256 (hex) and byte count, read as a stream. */
     data class Digest(val sha256: String, val size: Long)
 
     fun digest(open: () -> InputStream): Digest {
         val md = MessageDigest.getInstance("SHA-256")
-        val buf = ByteArray(chunkSize)
+        // Hashing is no faster with a bigger buffer, and several uploads
+        // may be hashing at once.
+        val buf = ByteArray(256 shl 10)
         var size = 0L
         open().use { input ->
             while (true) {
@@ -61,10 +72,12 @@ object ChunkedUpload {
         val uploadId = started.respUploadStarted.uploadId
 
         val md = if (sha256 == null) MessageDigest.getInstance("SHA-256") else null
-        val buf = ByteArray(chunkSize)
         var offset = 0L
         open().use { input ->
             while (true) {
+                // A fresh array per chunk, wrapped rather than copied into the
+                // message: nothing writes to it once it is sent.
+                val buf = ByteArray(chunkSize)
                 // Fill the whole chunk (a stream may return less per read).
                 var n = 0
                 while (n < chunkSize) {
@@ -76,8 +89,11 @@ object ChunkedUpload {
                 if (offset + n > size) throw IOException("$path grew past $size bytes while uploading")
                 md?.update(buf, 0, n)
                 val at = offset
-                val progress = OTCConnection.request {
-                    it.setReqUploadChunk(UploadChunk.newBuilder().setUploadId(uploadId).setOffset(at).setData(ByteString.copyFrom(buf, 0, n)))
+                val data = UnsafeByteOperations.unsafeWrap(buf, 0, n)
+                val progress = chunkPermits.withPermit {
+                    OTCConnection.request {
+                        it.setReqUploadChunk(UploadChunk.newBuilder().setUploadId(uploadId).setOffset(at).setData(data))
+                    }
                 }
                 check(progress, RespEnvelope.PayloadCase.RESP_UPLOAD_PROGRESS, "UploadChunk")
                 if (progress.respUploadProgress.received != offset + n) {

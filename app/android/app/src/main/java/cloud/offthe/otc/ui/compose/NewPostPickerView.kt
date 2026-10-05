@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -76,6 +77,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -88,15 +90,19 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.OTCConnection
-import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.GetTags
 import cloud.offthe.otc.proto.NewSocialPublication
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.VideoTrim
 import cloud.offthe.otc.sync.PhotoSync
-import cloud.offthe.otc.ui.common.decodeBitmap
+import cloud.offthe.otc.ui.common.ThumbCache
+import cloud.offthe.otc.ui.common.ThumbStore
+import cloud.offthe.otc.ui.common.gridCellPx
+import cloud.offthe.otc.ui.common.rememberOffMain
+import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -111,7 +117,10 @@ import java.util.UUID
 class NewPostPickerViewModel : ViewModel() {
     enum class Source { PHONE, SYNCED }
 
-    data class Item(val id: String, val path: String, val thumbData: ByteArray? = null, val thumbImage: Bitmap? = null, val asset: PhotoSync.Asset? = null, val isVideo: Boolean = false) {
+    // thumbKey: a synced item's thumbnail in ThumbStore. A phone item's comes
+    // from MediaStore when its tile shows (see thumbOf), so pages scrolled
+    // through don't each keep 60 bitmaps.
+    data class Item(val id: String, val path: String, val thumbKey: String? = null, val asset: PhotoSync.Asset? = null, val isVideo: Boolean = false) {
         override fun equals(other: Any?) = other is Item && other.id == id
         override fun hashCode() = id.hashCode()
     }
@@ -204,7 +213,8 @@ class NewPostPickerViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqSearchPhotos(SearchPhotos.newBuilder().addAllTags(chips).setToken(overrideToken ?: token ?: "").setIncludeVideos(true)) }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return
             val lof = resp.respListOfFiles
-            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.size}", f.path, thumbData = if (f.hasContent()) f.content.toByteArray() else null, isVideo = f.mime.startsWith("video/")) }
+            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() })
+            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.size}".let { id -> Item(id, f.path, thumbKey = if (f.hasContent()) id else null, isVideo = f.mime.startsWith("video/")) } }
             _state.update { st -> val existing = st.items.map { it.id }.toSet(); st.copy(items = st.items + newItems.filter { it.id !in existing }) }
             token = lof.token.ifEmpty { null }
             _state.update { it.copy(endReached = token == null) }
@@ -249,10 +259,9 @@ class NewPostPickerViewModel : ViewModel() {
                     if (c.moveToFirst()) { name = c.getString(0) ?: ""; mime = c.getString(1) ?: mime }
                 }
                 val asset = PhotoSync.Asset(android.content.ContentUris.parseId(uri), uri, name, mime, System.currentTimeMillis(), video)
-                val thumb = try {
-                    if (Build.VERSION.SDK_INT >= 29) resolver.loadThumbnail(uri, Size(450, 450), null) else null
-                } catch (e: Exception) { null }
-                Item("local#${asset.id}", "", thumbImage = thumb, asset = asset, isVideo = video)
+                // Ready before the tile first draws, so the capture shows at once.
+                phoneThumbnail(asset)?.let { ThumbCache.put("local#${asset.id}", it) }
+                Item("local#${asset.id}", "", asset = asset, isVideo = video)
             }
             if (_state.value.source != Source.PHONE) switchSource(Source.PHONE)
             _state.update { st ->
@@ -276,15 +285,7 @@ class NewPostPickerViewModel : ViewModel() {
             val all = localAssets ?: withContext(Dispatchers.IO) { PhotoSync.fetchNewAssets(includeVideos = true, sinceMs = 0, newestFirst = true) }.also { localAssets = it }
             if (localLoadedCount >= all.size) { _state.update { it.copy(endReached = true) }; return }
             val end = minOf(localLoadedCount + localPageSize, all.size)
-            val newItems = withContext(Dispatchers.IO) {
-                (localLoadedCount until end).map { i ->
-                    val a = all[i]
-                    val thumb = try {
-                        if (Build.VERSION.SDK_INT >= 29) OTCApp.instance.contentResolver.loadThumbnail(a.uri, Size(450, 450), null) else null
-                    } catch (e: Exception) { null }
-                    Item("local#${a.id}", "", thumbImage = thumb, asset = a, isVideo = a.isVideo)
-                }
-            }
+            val newItems = (localLoadedCount until end).map { i -> all[i].let { a -> Item("local#${a.id}", "", asset = a, isVideo = a.isVideo) } }
             _state.update { it.copy(items = it.items + newItems) }
             localLoadedCount = end
             _state.update { it.copy(endReached = localLoadedCount >= all.size) }
@@ -329,14 +330,16 @@ class NewPostPickerViewModel : ViewModel() {
 
     fun closeTrimmer() = _state.update { it.copy(trimming = null) }
 
+    // In pieces: a synced video can be far bigger than the app's heap.
     private suspend fun downloadForTrimming(path: String): String {
-        val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(path)) }
-        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || resp.respFile.content.isEmpty) {
-            throw IllegalStateException(if (resp.error) resp.errorMessage else "Empty response")
-        }
         val ext = path.substringAfterLast('.', "mp4")
         val f = File(OTCApp.instance.cacheDir, "otc-trim-${UUID.randomUUID()}.$ext")
-        withContext(Dispatchers.IO) { f.writeBytes(resp.respFile.content.toByteArray()) }
+        val meta = try {
+            ChunkedDownload.download(path, "", f)
+        } catch (e: ChunkedDownload.Refused) {
+            throw IllegalStateException(e.message?.ifEmpty { null } ?: "Empty response")
+        }
+        if (meta.size == 0L) { f.delete(); throw IllegalStateException("Empty response") }
         return f.toURI().toString()
     }
 
@@ -471,13 +474,18 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                     }
                 }
 
-                LazyVerticalGrid(columns = GridCells.Fixed(3), contentPadding = PaddingValues(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                    items(st.items, key = { it.id }) { item ->
-                        LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
-                        val n = st.selectedOrder.indexOf(item.id).let { if (it < 0) null else it + 1 }
-                        PickTile(item, n) { vm.toggleSelect(item.id) }
+                BoxWithConstraints(Modifier.weight(1f)) {
+                    // The tiles' side, as the grid lays them out: what thumbnails decode to.
+                    val tilePx = if (constraints.hasBoundedWidth) gridCellPx(constraints.maxWidth, LocalDensity.current, 10.dp, 8.dp, count = 3)
+                        else with(LocalDensity.current) { 240.dp.roundToPx() }
+                    LazyVerticalGrid(columns = GridCells.Fixed(3), contentPadding = PaddingValues(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+                        items(st.items, key = { it.id }) { item ->
+                            LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
+                            val n = st.selectedOrder.indexOf(item.id).let { if (it < 0) null else it + 1 }
+                            PickTile(item, n, tilePx) { vm.toggleSelect(item.id) }
+                        }
+                        if (st.loading) item(span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                     }
-                    if (st.loading) item(span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                 }
 
                 if (st.selectedOrder.isNotEmpty()) SelectedOrderStrip(vm, st)
@@ -520,12 +528,26 @@ fun mediaPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 33) {
     arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 }
 
+/** MediaStore's own 450 px thumbnail of a phone item (its cache makes this quick). */
+private fun phoneThumbnail(asset: PhotoSync.Asset): Bitmap? = try {
+    if (Build.VERSION.SDK_INT >= 29) OTCApp.instance.contentResolver.loadThumbnail(asset.uri, Size(450, 450), null) else null
+} catch (e: Exception) { null }
+
+// A phone item's bitmap is MediaStore's 450 px thumbnail, loaded when its
+// tile shows and kept in ThumbCache; a synced one's is decoded off the main
+// thread to [sidePx].
 @Composable
-private fun thumbOf(item: NewPostPickerViewModel.Item): Bitmap? = remember(item.id) { item.thumbImage ?: item.thumbData?.let { decodeBitmap(it) } }
+private fun thumbOf(item: NewPostPickerViewModel.Item, sidePx: Int): Bitmap? {
+    val asset = item.asset
+    if (asset != null) return rememberOffMain(item.id, { ThumbCache.get(item.id) }) {
+        withContext(Dispatchers.IO) { phoneThumbnail(asset) }?.also { ThumbCache.put(item.id, it) }
+    }
+    return rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
+}
 
 @Composable
-private fun PickTile(item: NewPostPickerViewModel.Item, selectionNumber: Int?, onTap: () -> Unit) {
-    val bmp = thumbOf(item)
+private fun PickTile(item: NewPostPickerViewModel.Item, selectionNumber: Int?, sidePx: Int, onTap: () -> Unit) {
+    val bmp = thumbOf(item, sidePx)
     val selected = selectionNumber != null
     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x33808080)).clickable(onClick = onTap)) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize().alpha(if (selected) 0.75f else 1f), contentScale = ContentScale.Crop)
@@ -565,7 +587,7 @@ private fun SelectedThumb(
     item: NewPostPickerViewModel.Item, position: Int, canMoveLeft: Boolean, canMoveRight: Boolean,
     moveLeft: () -> Unit, moveRight: () -> Unit, remove: () -> Unit, trim: (() -> Unit)?, trimRange: TrimRange?, trimLoading: Boolean,
 ) {
-    val bmp = thumbOf(item)
+    val bmp = thumbOf(item, with(LocalDensity.current) { 60.dp.roundToPx() })
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Box(Modifier.size(64.dp)) {
             Box(Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x33808080)).clickable(enabled = trim != null && !trimLoading) { trim?.invoke() }) {

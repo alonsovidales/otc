@@ -3,6 +3,7 @@ package cloud.offthe.otc.ui.files
 
 import android.content.Context
 import android.net.Uri
+import android.util.LruCache
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -36,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.DelFile
@@ -77,6 +80,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -161,8 +166,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val versionsLoading: Boolean = false,
         // List or grid, kept across launches ("files_view_mode").
         val grid: Boolean = prefs.getString(VIEW_MODE_KEY, "list") == "grid",
-        // Grid thumbnails for the session, by thumbKey.
+        // Grid thumbnails by thumbKey: what the bounded cache below holds.
         val thumbs: Map<String, ImageBitmap> = emptyMap(),
+        // Bumped by load(): tiles ask again for thumbnails that failed, as a
+        // reload or pull-to-refresh always did.
+        val thumbGen: Int = 0,
     )
 
     companion object {
@@ -171,10 +179,25 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         private val prefs get() = OTCApp.instance.getSharedPreferences("otc_settings", Context.MODE_PRIVATE)
     }
 
-    // Thumbnails asked for and not answered yet, or that the device said it
-    // has none of - neither is asked again this session.
+    // Picked files upload two at a time: each one hashes and holds a chunk
+    // while it waits for ChunkedUpload's send permits.
+    private val uploadSlots = Semaphore(2)
+
+    // Thumbnails decoded at 512 px (up to ~1 MB each), bounded by bytes to
+    // several screens of tiles; it used to keep every one of a folder for the
+    // session. Not cleared on a folder change: keys hold the full path and
+    // hash, so old folders age out, and going back still shows them at once.
+    private val thumbCache = object : LruCache<String, ImageBitmap>(96 shl 20) {
+        override fun sizeOf(key: String, value: ImageBitmap) = value.asAndroidBitmap().byteCount
+    }
+    // Under thumbLock: tiles waiting for a request (key, full path, folder),
+    // the ones asked for and not answered yet, and the ones the device said
+    // it has none of - neither of the last two is asked again.
+    private val thumbLock = Any()
+    private val thumbQueue = ArrayDeque<Triple<String, String, String>>()
     private val thumbsPending = mutableSetOf<String>()
     private val noThumb = mutableSetOf<String>()
+    private var pumping = false
 
     private val _state = MutableStateFlow(State(path = initialPath))
     val state: StateFlow<State> = _state
@@ -190,8 +213,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                 val rows = files.map { f ->
                     FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.size, f, f.uploadOnly, f.versions)
                 }
-                _state.update { it.copy(rows = rows, selected = emptySet()) }
-                if (_state.value.grid) launchThumbnails()
+                _state.update { it.copy(rows = rows, selected = emptySet(), thumbGen = it.thumbGen + 1) }
             } else if (resp.error) {
                 _state.update { it.copy(error = resp.errorMessage.ifEmpty { "Failed to list path" }) }
             } else {
@@ -218,43 +240,67 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     fun setGrid(grid: Boolean) {
         prefs.edit().putString(VIEW_MODE_KEY, if (grid) "grid" else "list").apply()
         _state.update { it.copy(grid = grid) }
-        if (grid) launchThumbnails()
     }
 
-    private fun launchThumbnails() = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { loadThumbnails() }
+    /**
+     * A grid tile appeared (on screen or in the grid's prefetch, as the
+     * iOS grid asks): its thumbnail is queued unless it is cached - which
+     * also keeps it among the newest - asked for already, or known missing.
+     */
+    fun wantThumbnail(row: FileRow) {
+        if (!isMedia(row)) return
+        val key = thumbKey(row)
+        if (thumbCache.get(key) != null) {
+            // Fetched while another folder was shown: not published then.
+            if (_state.value.thumbs[key] == null) _state.update { it.copy(thumbs = thumbCache.snapshot()) }
+            return
+        }
+        synchronized(thumbLock) {
+            if (key in noThumb || key in thumbsPending) return
+            thumbsPending += key
+            thumbQueue.addLast(Triple(key, fullPath(row), path))
+            if (pumping) return
+            pumping = true
+        }
+        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { pumpThumbnails() }
+    }
+
+    /** The tile went away before its turn (a fling): not asked for after all. */
+    fun dropThumbnail(key: String) = synchronized(thumbLock) {
+        if (thumbQueue.removeAll { it.first == key }) thumbsPending -= key
+    }
 
     /**
-     * The folder's photos and videos, in batches of 24 full paths. Paths the
-     * answer leaves out have no thumbnail; anything that arrives after the
-     * folder changed is dropped.
+     * Sends the queued tiles in batches of 24 full paths. Paths the answer
+     * leaves out have no thumbnail; tiles of a folder that was left are
+     * dropped before they are asked for.
      */
-    private suspend fun loadThumbnails() {
-        val folder = path
-        val have = _state.value.thumbs
-        val wanted = synchronized(thumbsPending) {
-            _state.value.rows.filter { isMedia(it) }.map { thumbKey(it) to fullPath(it) }
-                .filter { (k, _) -> k !in have && k !in noThumb && k !in thumbsPending }
-                .also { list -> thumbsPending.addAll(list.map { it.first }) }
-        }
-        for (batch in wanted.chunked(THUMB_BATCH)) {
-            if (path != folder) break
+    private suspend fun pumpThumbnails() {
+        while (true) {
+            val batch = synchronized(thumbLock) {
+                val left = thumbQueue.filter { it.third != path }
+                thumbQueue.removeAll(left)
+                thumbsPending -= left.map { it.first }.toSet()
+                List(minOf(THUMB_BATCH, thumbQueue.size)) { thumbQueue.removeFirst() }.also { if (it.isEmpty()) pumping = false }
+            }
+            if (batch.isEmpty()) return
+            val folder = batch[0].third
             try {
                 val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { b -> b.second })) }
-                if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) continue
-                val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
-                val got = mutableMapOf<String, ImageBitmap>()
-                for ((key, full) in batch) {
-                    val bmp = byPath[full]?.let { decodeBitmap(it.content.toByteArray(), maxSide = 512) }
-                    if (bmp != null) got[key] = bmp.asImageBitmap()
-                    else synchronized(thumbsPending) { noThumb.add(key) }
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
+                    val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
+                    for ((key, full, _) in batch) {
+                        val bmp = byPath[full]?.let { decodeBitmap(it.content.toByteArray(), maxSide = 512) }
+                        if (bmp != null) thumbCache.put(key, bmp.asImageBitmap())
+                        else synchronized(thumbLock) { noThumb.add(key) }
+                    }
+                    if (path == folder) _state.update { it.copy(thumbs = thumbCache.snapshot()) }
                 }
-                if (path == folder) _state.update { it.copy(thumbs = it.thumbs + got) }
             } catch (_: Exception) {
             } finally {
-                synchronized(thumbsPending) { thumbsPending.removeAll(batch.map { it.first }.toSet()) }
+                synchronized(thumbLock) { thumbsPending.removeAll(batch.map { it.first }.toSet()) }
             }
         }
-        synchronized(thumbsPending) { thumbsPending.removeAll(wanted.map { it.first }.toSet()) }
     }
 
     fun toggleSelect(p: String) = _state.update {
@@ -273,17 +319,33 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         if (_state.value.openingPath != null) return
         _state.update { it.copy(openingPath = row.path) }
         try {
-            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row))) }
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) { showToast("Could not fetch file"); return }
-            val f = resp.respFile
-            val tmp = File(context.cacheDir, leafName(row.path))
-            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
-            Share.preview(context, tmp, f.mime.ifEmpty { null })
+            val (tmp, mime) = fetchToCache(context, row, "")
+            Share.preview(context, tmp, mime)
+        } catch (e: ChunkedDownload.Refused) {
+            showToast("Could not fetch file")
         } catch (e: Exception) {
             showToast("Download failed: ${e.message}")
         } finally {
             _state.update { it.copy(openingPath = null) }
         }
+    }
+
+    /**
+     * The file (or its version [hash]) written to the cache under its own
+     * name, with its mime. In pieces (ChunkedDownload), except a HEIC: GetFile
+     * hands viewers a JPEG of it, as before. Refused: the device said no.
+     */
+    private suspend fun fetchToCache(context: Context, row: FileRow, hash: String): Pair<File, String?> {
+        val tmp = File(context.cacheDir, leafName(row.path))
+        if (row.name.endsWith(".heic", ignoreCase = true) || row.raw.mime.equals("image/heic", ignoreCase = true)) {
+            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row)).setHash(hash)) }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) throw ChunkedDownload.Refused(resp.errorMessage)
+            val f = resp.respFile
+            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
+            return tmp to f.mime.ifEmpty { null }
+        }
+        val meta = ChunkedDownload.download(fullPath(row), hash, tmp)
+        return tmp to meta.mime.ifEmpty { null }
     }
 
     /** Issue #132: the selection touches an upload-only folder - the device refuses those deletes. */
@@ -329,13 +391,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     /** A version opens the way a file does; an empty hash is the current one. */
     suspend fun openVersion(context: Context, row: FileRow, hash: String) {
         try {
-            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row)).setHash(hash)) }
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) { showToast("Could not fetch that version"); return }
-            val f = resp.respFile
-            val tmp = File(context.cacheDir, leafName(row.path))
-            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
+            val (tmp, mime) = fetchToCache(context, row, hash)
             closeVersions()
-            Share.preview(context, tmp, f.mime.ifEmpty { null })
+            Share.preview(context, tmp, mime)
+        } catch (e: ChunkedDownload.Refused) {
+            showToast("Could not fetch that version")
         } catch (e: Exception) {
             showToast("Download failed: ${e.message}")
         }
@@ -374,7 +434,13 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
      * never loaded whole.
      */
     suspend fun upload(open: () -> InputStream, filename: String) {
+        // The folder it was picked into, read before waiting for a slot:
+        // the owner may have opened another one by then.
         val target = joinPath(path, filename)
+        uploadSlots.withPermit { uploadTo(target, open) }
+    }
+
+    private suspend fun uploadTo(target: String, open: () -> InputStream) {
         try {
             val digest = ChunkedUpload.digest(open)
             val hash = digest.sha256
@@ -471,6 +537,15 @@ fun FilesExplorerView(initialPath: String) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(st.rows, key = { it.path }) { row ->
+                        // Asked for as the tile is composed (the visible rows
+                        // and the grid's prefetch), again if it was evicted
+                        // while shown or failed before a reload.
+                        if (isMedia(row)) {
+                            val key = vm.thumbKey(row)
+                            val has = st.thumbs[key] != null
+                            LaunchedEffect(key, has, st.thumbGen) { vm.wantThumbnail(row) }
+                            DisposableEffect(key) { onDispose { vm.dropThumbnail(key) } }
+                        }
                         FileGridCell(
                             row, selected = row.path in st.selected, opening = st.openingPath == row.path,
                             thumb = if (isMedia(row)) st.thumbs[vm.thumbKey(row)] else null,

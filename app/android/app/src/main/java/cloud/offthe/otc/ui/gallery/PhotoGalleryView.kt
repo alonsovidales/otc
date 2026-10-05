@@ -108,7 +108,11 @@ import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.Share
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
+import cloud.offthe.otc.ui.common.gridCellPx
+import cloud.offthe.otc.ui.common.rememberOffMain
+import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -120,8 +124,15 @@ import kotlin.math.abs
 // the selection bar and the full-screen viewer with share/save/delete
 // and the EXIF panel (issue #41).
 
+// Full size: the viewer's placeholder, until the full image arrives. Tiles
+// use rememberTileThumb (decoded off the main thread, to the tile's size).
+// Bytes ThumbStore still holds in memory show on the first frame, ones it
+// moved to disk a moment later.
 @Composable
-fun rememberThumb(bytes: ByteArray?): Bitmap? = remember(bytes) { bytes?.let { decodeBitmap(it) } }
+private fun rememberThumb(key: String?): Bitmap? {
+    val bytes = rememberOffMain(key, { key?.let(ThumbStore::peek) }) { key?.let { ThumbStore.load(it) } }
+    return remember(bytes) { bytes?.let { decodeBitmap(it) } }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -232,7 +243,11 @@ fun PhotoGalleryView(deviceId: String) {
         }
 
         // Grid + scrubber + selection bar
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            // The tiles' side, as the grid lays them out: what thumbnails decode to.
+            val density = LocalDensity.current
+            val tilePx = if (constraints.hasBoundedWidth) gridCellPx(constraints.maxWidth, density, 10.dp, 1.dp, minSize = 120.dp)
+                else with(density) { 240.dp.roundToPx() }
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(120.dp), state = gridState, contentPadding = PaddingValues(10.dp),
                 horizontalArrangement = Arrangement.spacedBy(1.dp), verticalArrangement = Arrangement.spacedBy(1.dp), modifier = Modifier.fillMaxSize(),
@@ -244,7 +259,7 @@ fun PhotoGalleryView(deviceId: String) {
                     items(st.items, key = { it.id }) { item ->
                         LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
                         PhotoTile(
-                            item, isSelected = item.path in st.selected, hasSelection = st.selected.isNotEmpty(),
+                            item, tilePx, isSelected = item.path in st.selected, hasSelection = st.selected.isNotEmpty(),
                             onTap = { vm.open(st.items.indexOfFirst { it.path == item.path }) }, onLongPress = { vm.toggleSelect(item.path) },
                         )
                     }
@@ -283,7 +298,10 @@ fun PhotoGalleryView(deviceId: String) {
                 if (st.groups.isEmpty()) Text("No groups yet — select some pictures and choose Group.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 st.groups.forEach { g ->
                     Row(Modifier.fillMaxWidth().clickable { showGroups = false; vm.openGroup(g) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        val cover = rememberThumb(if (g.coverThumbnail.isEmpty) null else g.coverThumbnail.toByteArray())
+                        val cover = rememberTileThumb(
+                            if (g.coverThumbnail.isEmpty) null else "g:${g.id}:${g.coverThumbnail.hashCode()}",
+                            with(LocalDensity.current) { 44.dp.roundToPx() },
+                        ) { g.coverThumbnail.toByteArray() }
                         if (cover != null) Image(cover.asImageBitmap(), null, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
                         else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Book, null) }
                         Spacer(Modifier.width(12.dp))
@@ -396,7 +414,12 @@ private fun PersonFilterChip(
     person: Person, isSelected: Boolean, isMergeTarget: Boolean, isEditing: Boolean, editingName: String, onEditingNameChange: (String) -> Unit,
     onTap: () -> Unit, onStartRename: () -> Unit, onCommitRename: () -> Unit, onMerge: () -> Unit, onDelete: () -> Unit,
 ) {
-    val bmp = rememberThumb(if (person.coverThumbnail.isEmpty) null else person.coverThumbnail.toByteArray())
+    // Keyed on the cover's content: a new array every recomposition used to
+    // decode every chip again on each keystroke of a rename.
+    val bmp = rememberTileThumb(
+        if (person.coverThumbnail.isEmpty) null else "p:${person.id}:${person.coverThumbnail.hashCode()}",
+        with(LocalDensity.current) { 44.dp.roundToPx() },
+    ) { person.coverThumbnail.toByteArray() }
     val ring = if (isMergeTarget) Color.Red else if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Box(Modifier.size(44.dp).clip(CircleShape).border(3.dp, ring, CircleShape).clickable(onClick = onTap), contentAlignment = Alignment.Center) {
@@ -425,8 +448,8 @@ private fun PersonFilterChip(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PhotoTile(item: PhotoGalleryViewModel.Item, isSelected: Boolean, hasSelection: Boolean, onTap: () -> Unit, onLongPress: () -> Unit) {
-    val bmp = rememberThumb(item.thumb)
+private fun PhotoTile(item: PhotoGalleryViewModel.Item, sidePx: Int, isSelected: Boolean, hasSelection: Boolean, onTap: () -> Unit, onLongPress: () -> Unit) {
+    val bmp = rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
     Box(
         Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x1A808080))
             .combinedClickable(onClick = { if (hasSelection) onLongPress() else onTap() }, onLongClick = onLongPress),
@@ -575,7 +598,7 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             return@Box
         }
         val hiRes = st.hiResImages[item.path]
-        val image = hiRes ?: item.preview ?: rememberThumb(item.thumb)
+        val image = hiRes ?: item.preview ?: rememberThumb(item.thumbKey)
         if (image == null) { CircularProgressIndicator(color = Color.White); return@Box }
         // Still the thumbnail: the full-size image hasn't arrived (or
         // failed). Photos only - a video page's poster is never "low res".

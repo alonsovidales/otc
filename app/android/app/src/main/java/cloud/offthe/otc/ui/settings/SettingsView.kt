@@ -211,10 +211,19 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             Section("Connection") {
-                ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = secrets::setEndpoint)
-                PasswordField(password, "Password", secrets::setPassword)
+                // Edits stay here until Save Connection: a reconnect (a socket
+                // drop while typing) dials the store's values. Keyed on the
+                // saved ones, so a password change or leaving the bridge still
+                // shows up in the fields.
+                var editEndpoint by remember(endpoint) { mutableStateOf(endpoint) }
+                var editPassword by remember(password) { mutableStateOf(password) }
+                ConnectionEndpointFields(endpoint = editEndpoint, onEndpointChange = { editEndpoint = it })
+                PasswordField(editPassword, "Password") { editPassword = it }
                 Caption("Device ID: $deviceId")
-                RowButton("Save Connection") { secrets.persist(); OTCConnection.invalidate() }
+                RowButton("Save Connection") {
+                    secrets.setEndpoint(editEndpoint); secrets.setPassword(editPassword)
+                    secrets.persist(); OTCConnection.invalidate()
+                }
                 RowButton("Log Out", destructive = true) { confirmLogout = true }
             }
 
@@ -227,8 +236,8 @@ fun SettingsView(secrets: SecretsStore) {
 
             Section("Sync", "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.") {
                 RowButton("Sync Now") { secrets.persist(); PhotoSync.runForegroundAsync() }
-                RowButton("Sync All") { secrets.persist(); PhotoSync.lastSyncMs = 0; PhotoSync.runForegroundAsync() }
-                RowButton("Sync From Now") { secrets.persist(); PhotoSync.lastSyncMs = System.currentTimeMillis() }
+                RowButton("Sync All") { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
+                RowButton("Sync From Now") { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
             }
 
             UpdateSection()
