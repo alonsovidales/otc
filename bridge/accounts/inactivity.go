@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -71,7 +72,13 @@ func (a *Accounts) inactivityPass(now time.Time, send func(to, subject, body str
 			"As our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on %s. Your devices keep working at home.\n\n"+
 			"To keep it, sign in at https://%s/account or use your device through the bridge before then.\n\n"+
 			"Off The Cloud\n", greet, acc.Email, when, a.tld)
-		if err := send(acc.Email, "Your Off The Cloud account will be removed on "+when, body); err != nil {
+		if err := send(acc.Email, "Your Off The Cloud account will be removed on "+when, body); mailer.AddressRefused(err) {
+			// The mail server refuses the address itself: no later pass
+			// would get a warning through either, and releasing it would
+			// keep the account for ever. The attempt stands as the
+			// warning, the month runs from it.
+			log.Error("inactivity: the mail server refuses the address of account", acc.ID, "- counted as warned:", err)
+		} else if err != nil {
 			log.Error("inactivity: could not email the warning to account", acc.ID, "(will retry tomorrow):", err)
 			// Not warned after all: the next pass tries again, and the
 			// month before removal starts from a warning that went out.
