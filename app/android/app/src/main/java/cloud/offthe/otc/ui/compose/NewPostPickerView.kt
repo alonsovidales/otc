@@ -88,8 +88,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.OTCConnection
-import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.GetTags
 import cloud.offthe.otc.proto.NewSocialPublication
 import cloud.offthe.otc.proto.RespEnvelope
@@ -329,14 +329,16 @@ class NewPostPickerViewModel : ViewModel() {
 
     fun closeTrimmer() = _state.update { it.copy(trimming = null) }
 
+    // In pieces: a synced video can be far bigger than the app's heap.
     private suspend fun downloadForTrimming(path: String): String {
-        val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(path)) }
-        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || resp.respFile.content.isEmpty) {
-            throw IllegalStateException(if (resp.error) resp.errorMessage else "Empty response")
-        }
         val ext = path.substringAfterLast('.', "mp4")
         val f = File(OTCApp.instance.cacheDir, "otc-trim-${UUID.randomUUID()}.$ext")
-        withContext(Dispatchers.IO) { f.writeBytes(resp.respFile.content.toByteArray()) }
+        val meta = try {
+            ChunkedDownload.download(path, "", f)
+        } catch (e: ChunkedDownload.Refused) {
+            throw IllegalStateException(e.message?.ifEmpty { null } ?: "Empty response")
+        }
+        if (meta.size == 0L) { f.delete(); throw IllegalStateException("Empty response") }
         return f.toURI().toString()
     }
 

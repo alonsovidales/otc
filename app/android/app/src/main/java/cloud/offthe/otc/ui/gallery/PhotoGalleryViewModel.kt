@@ -8,6 +8,7 @@ import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.AddToImageGroup
@@ -465,19 +466,21 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         fun stillOpen() = _state.value.openIndex?.let { i -> _state.value.items.getOrNull(i)?.path } == it.path
         MediaStream.url(forPath = it.path)?.let { url -> if (stillOpen()) _state.update { s -> s.copy(videoUrl = url) }; return }
         try {
-            val resp = OTCConnection.request { e -> e.setReqGetFile(GetFile.newBuilder().setPath(it.path)) }
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || !resp.respFile.hasContent()) return
-            val ext = when (resp.respFile.mime.lowercase()) {
+            // In pieces (a video can be far bigger than the heap), stopped as
+            // soon as the viewer moves on; named once its mime is known.
+            val uuid = UUID.randomUUID().toString()
+            val raw = File(OTCApp.instance.cacheDir, uuid)
+            val meta = ChunkedDownload.download(it.path, "", raw, keepGoing = { stillOpen() })
+            if (meta.size == 0L) { raw.delete(); return }
+            val ext = when (meta.mime.lowercase()) {
                 "video/quicktime" -> "mov"
                 "video/mp4", "video/x-m4v" -> "mp4"
                 "video/x-matroska" -> "mkv"
                 "video/3gpp" -> "3gp"
                 else -> it.path.substringAfterLast('.', "mp4").lowercase()
             }
-            val tmp = File(OTCApp.instance.cacheDir, "${UUID.randomUUID()}.$ext")
-            if (!stillOpen()) return
-            withContext(Dispatchers.IO) { tmp.writeBytes(resp.respFile.content.toByteArray()) }
-            if (!stillOpen()) { tmp.delete(); return }
+            val tmp = File(OTCApp.instance.cacheDir, "$uuid.$ext")
+            if (!stillOpen() || !raw.renameTo(tmp)) { raw.delete(); return }
             _state.update { s -> s.copy(videoUrl = tmp.toURI().toString()) }
         } catch (_: Exception) {}
     }

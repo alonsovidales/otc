@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.DelFile
@@ -279,17 +280,33 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         if (_state.value.openingPath != null) return
         _state.update { it.copy(openingPath = row.path) }
         try {
-            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row))) }
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) { showToast("Could not fetch file"); return }
-            val f = resp.respFile
-            val tmp = File(context.cacheDir, leafName(row.path))
-            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
-            Share.preview(context, tmp, f.mime.ifEmpty { null })
+            val (tmp, mime) = fetchToCache(context, row, "")
+            Share.preview(context, tmp, mime)
+        } catch (e: ChunkedDownload.Refused) {
+            showToast("Could not fetch file")
         } catch (e: Exception) {
             showToast("Download failed: ${e.message}")
         } finally {
             _state.update { it.copy(openingPath = null) }
         }
+    }
+
+    /**
+     * The file (or its version [hash]) written to the cache under its own
+     * name, with its mime. In pieces (ChunkedDownload), except a HEIC: GetFile
+     * hands viewers a JPEG of it, as before. Refused: the device said no.
+     */
+    private suspend fun fetchToCache(context: Context, row: FileRow, hash: String): Pair<File, String?> {
+        val tmp = File(context.cacheDir, leafName(row.path))
+        if (row.name.endsWith(".heic", ignoreCase = true) || row.raw.mime.equals("image/heic", ignoreCase = true)) {
+            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row)).setHash(hash)) }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) throw ChunkedDownload.Refused(resp.errorMessage)
+            val f = resp.respFile
+            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
+            return tmp to f.mime.ifEmpty { null }
+        }
+        val meta = ChunkedDownload.download(fullPath(row), hash, tmp)
+        return tmp to meta.mime.ifEmpty { null }
     }
 
     /** Issue #132: the selection touches an upload-only folder - the device refuses those deletes. */
@@ -335,13 +352,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     /** A version opens the way a file does; an empty hash is the current one. */
     suspend fun openVersion(context: Context, row: FileRow, hash: String) {
         try {
-            val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row)).setHash(hash)) }
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) { showToast("Could not fetch that version"); return }
-            val f = resp.respFile
-            val tmp = File(context.cacheDir, leafName(row.path))
-            withContext(Dispatchers.IO) { tmp.writeBytes(f.content.toByteArray()) }
+            val (tmp, mime) = fetchToCache(context, row, hash)
             closeVersions()
-            Share.preview(context, tmp, f.mime.ifEmpty { null })
+            Share.preview(context, tmp, mime)
+        } catch (e: ChunkedDownload.Refused) {
+            showToast("Could not fetch that version")
         } catch (e: Exception) {
             showToast("Download failed: ${e.message}")
         }
