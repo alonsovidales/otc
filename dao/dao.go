@@ -1030,30 +1030,70 @@ func (dao *Dao) GetCommentLikerDomains(commentUuid string) (domains []string, er
 	return
 }
 
+// GetSocialPublicationComments lists a post's comments, newest first, each
+// with whether viewerDomain liked it.
 func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comments []*pb.Comment, err error) {
 	log.Debug("Get SocialPublication Comments")
-	rowComms, err := dao.db.Query("select `uuid`, `dt`, `comment`, `publisher_name`, `likes`, `own_comment` from `social_publications_comments` where `pub_uuid` = ? order by `dt` desc", pubUuid)
+	comments, err = dao.queryComments("c.`pub_uuid` = ?", viewerDomain, pubUuid)
 	if err != nil {
 		return nil, err
 	}
-	defer rowComms.Close()
-	comments = []*pb.Comment{}
-	for rowComms.Next() {
-		comment := &pb.Comment{
-			PubUuid: pubUuid,
-		}
-		var dt time.Time
-		if err := rowComms.Scan(&comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes, &comment.Own); err != nil {
-			return nil, err
-		}
+	for _, c := range comments {
+		c.PubUuid = pubUuid
+	}
 
-		comment.DateTime = timestamppb.New(dt)
-		if comment.Liked, err = dao.HasLikedComment(comment.CommentUuid, viewerDomain); err != nil {
+	return comments, nil
+}
+
+// GetSocialPublicationsComments is GetSocialPublicationComments for a
+// whole feed page in one query: the feed ran one query per post. Comments
+// come back grouped by publication uuid, each group newest first; a
+// publication with no comments has no entry.
+func (dao *Dao) GetSocialPublicationsComments(pubUuids []string, viewerDomain string) (comments map[string][]*pb.Comment, err error) {
+	comments = map[string][]*pb.Comment{}
+	if len(pubUuids) == 0 {
+		return comments, nil
+	}
+	ph, args := inPlaceholders(pubUuids)
+	all, err := dao.queryComments("c.`pub_uuid` in ("+ph+")", viewerDomain, args...)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range all {
+		comments[c.PubUuid] = append(comments[c.PubUuid], c)
+	}
+
+	return comments, nil
+}
+
+// queryComments is the comments query both of the above share. The liked
+// flag is part of it: it used to be one more query per comment, run while
+// the comments were still open - two pooled connections per request, and
+// enough concurrent feed requests each held one while waiting for a second
+// that none was ever freed and every query on the device hung.
+func (dao *Dao) queryComments(where, viewerDomain string, args ...any) (comments []*pb.Comment, err error) {
+	rows, err := dao.db.Query(
+		"select c.`pub_uuid`, c.`uuid`, c.`dt`, c.`comment`, c.`publisher_name`, c.`likes`, c.`own_comment`, "+
+			"exists(select 1 from `social_publication_comment_likes` l where l.`comment_uuid` = c.`uuid` and l.`friend_domain` = ?) "+
+			"from `social_publications_comments` c where "+where+" order by c.`dt` desc",
+		append([]any{viewerDomain}, args...)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	comments = []*pb.Comment{}
+	for rows.Next() {
+		comment := new(pb.Comment)
+		var dt time.Time
+		var liked int
+		if err := rows.Scan(&comment.PubUuid, &comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes, &comment.Own, &liked); err != nil {
 			return nil, err
 		}
+		comment.DateTime = timestamppb.New(dt)
+		comment.Liked = liked != 0
 		comments = append(comments, comment)
 	}
-	if err := rowComms.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 

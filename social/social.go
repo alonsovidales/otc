@@ -459,6 +459,16 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 		return
 	}
 
+	// The page's comments in one query (they were one query per post).
+	uuids := make([]string, 0, len(publications.Publications))
+	for _, pub := range publications.Publications {
+		uuids = append(uuids, pub.Uuid)
+	}
+	comments, err := sc.dao.GetSocialPublicationsComments(uuids, pr.Domain())
+	if err != nil {
+		return nil, err
+	}
+
 	// Populate the files content. A missing/corrupted thumbnail is skipped
 	// rather than failing the whole feed - see GetPublicationFiles' doc
 	// comment for why this used to be much worse than "this one photo is
@@ -476,9 +486,9 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 		}
 		pub.Files = goodFiles
 
-		pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain())
-		if err != nil {
-			return nil, err
+		pub.Comments = comments[pub.Uuid]
+		if pub.Comments == nil {
+			pub.Comments = []*pb.Comment{}
 		}
 	}
 
