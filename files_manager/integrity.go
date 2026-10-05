@@ -117,7 +117,15 @@ func (mg *Manager) CheckStorageIntegrity() error {
 		return nil
 	}
 	title, detail := integrityReport(missing, paths)
-	log.Error("storage integrity check:", title, "-", detail)
+	// The paths go to the owner's Alerts only: at Error the log names
+	// hashes, never paths, and "Send logs" mails it off the device. Capped
+	// like the detail, so a RAID loss doesn't write one line of many KB.
+	shown := missing
+	if len(shown) > cIntegrityListed {
+		shown = shown[:cIntegrityListed]
+	}
+	log.Error("storage integrity check:", title, "-", len(missing), "missing blobs:", strings.Join(shown, ","))
+	log.Debug("storage integrity check:", detail)
 	if err := mg.dao.AddErrorNotification(title, detail); err != nil {
 		return err
 	}
