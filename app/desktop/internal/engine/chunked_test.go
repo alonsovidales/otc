@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -44,6 +45,8 @@ type fakeDevice struct {
 	// SetUploadOnly requests answered, and whether they are refused.
 	uploadOnly       int
 	refuseUploadOnly bool
+	// Uploads begun and not finished, now and at most.
+	open, maxOpen int
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -61,7 +64,9 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		}
 		resp.Payload = &pb.RespEnvelope_RespFileExists{RespFileExists: &pb.FileExists{Exists: false}}
 	case *pb.ReqEnvelope_ReqBeginUpload:
-		id := "u1"
+		id := fmt.Sprintf("u%d", len(d.pending)+1)
+		d.open++
+		d.maxOpen = max(d.maxOpen, d.open)
 		d.pending[id] = &bytes.Buffer{}
 		d.paths[id] = p.ReqBeginUpload.Path
 		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id}}
@@ -75,6 +80,7 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		d.chunks++
 		resp.Payload = &pb.RespEnvelope_RespUploadProgress{RespUploadProgress: &pb.UploadProgress{Received: int64(b.Len())}}
 	case *pb.ReqEnvelope_ReqFinishUpload:
+		d.open--
 		id := p.ReqFinishUpload.UploadId
 		sum := sha256.Sum256(d.pending[id].Bytes())
 		if hex.EncodeToString(sum[:]) != p.ReqFinishUpload.Sha256 {

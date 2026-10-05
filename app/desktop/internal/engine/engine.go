@@ -133,6 +133,11 @@ type Engine struct {
 	watchers     map[string]*Watcher
 	remoteWatch  map[string]*Watcher
 	debounce     map[string]*time.Timer // per changed path (upload folders)
+	// Debounced changes of a backup folder wait here for its one worker
+	// (drainChanges), in order and each path once.
+	changeQueue  map[string][]string
+	changeQueued map[string]map[string]bool
+	draining     map[string]bool
 	remoteDeb    map[string]*time.Timer // per remote folder
 	errorRetry   map[string]*time.Timer
 	remoteRetry  map[string]*time.Timer
@@ -178,6 +183,9 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		watchers:      map[string]*Watcher{},
 		remoteWatch:   map[string]*Watcher{},
 		debounce:      map[string]*time.Timer{},
+		changeQueue:   map[string][]string{},
+		changeQueued:  map[string]map[string]bool{},
+		draining:      map[string]bool{},
 		remoteDeb:     map[string]*time.Timer{},
 		errorRetry:    map[string]*time.Timer{},
 		remoteRetry:   map[string]*time.Timer{},
@@ -300,6 +308,8 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 			delete(e.folderStates, f.ID)
 			delete(e.uploadOnlyOK, f.ID)
 			delete(e.uploadOnlyErr, f.ID)
+			delete(e.changeQueue, f.ID)
+			delete(e.changeQueued, f.ID)
 			continue
 		}
 		if !keep[f.ID] {
@@ -341,6 +351,9 @@ func (e *Engine) dropFolderLocked(id string) {
 	delete(e.folderStates, id)
 	delete(e.uploadOnlyOK, id)
 	delete(e.uploadOnlyErr, id)
+	// A running drainChanges ends at its next look at the queue.
+	delete(e.changeQueue, id)
+	delete(e.changeQueued, id)
 	e.dropHashCacheLocked(id)
 	if t := e.errorRetry[id]; t != nil {
 		t.Stop()
@@ -747,11 +760,51 @@ func (e *Engine) debounceChange(path string, f config.Folder) {
 	}
 	e.debounce[path] = time.AfterFunc(debounceInterval, func() {
 		e.mu.Lock()
+		defer e.mu.Unlock()
 		delete(e.debounce, path)
-		e.mu.Unlock()
-		e.processChangedPath(path, f)
+		if e.stopped {
+			return
+		}
+		// Queued for the folder's worker, not uploaded from here: a
+		// directory of 2,000 photos copied in fired 2,000 timers at once,
+		// each hashing and holding chunk buffers for its own upload.
+		if e.changeQueued[f.ID] == nil {
+			e.changeQueued[f.ID] = map[string]bool{}
+		}
+		if !e.changeQueued[f.ID][path] {
+			e.changeQueued[f.ID][path] = true
+			e.changeQueue[f.ID] = append(e.changeQueue[f.ID], path)
+		}
+		if !e.draining[f.ID] {
+			e.draining[f.ID] = true
+			go e.drainChanges(f)
+		}
 	})
 	e.mu.Unlock()
+}
+
+// drainChanges is a backup folder's one worker for its debounced changes:
+// one file hashed and uploaded at a time, in the order they came. A path
+// leaves the queue before it is processed, so a change during its own
+// upload queues it again and the new content follows.
+func (e *Engine) drainChanges(f config.Folder) {
+	for {
+		e.mu.Lock()
+		q := e.changeQueue[f.ID]
+		if e.stopped || len(q) == 0 || !e.backupConfiguredLocked(f.ID) {
+			delete(e.changeQueue, f.ID)
+			delete(e.changeQueued, f.ID)
+			delete(e.draining, f.ID)
+			e.mu.Unlock()
+
+			return
+		}
+		path := q[0]
+		e.changeQueue[f.ID] = q[1:]
+		delete(e.changeQueued[f.ID], path)
+		e.mu.Unlock()
+		e.processChangedPath(path, f)
+	}
 }
 
 func (e *Engine) processChangedPath(path string, f config.Folder) {

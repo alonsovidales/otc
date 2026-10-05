@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 )
@@ -142,5 +143,34 @@ func TestUploadOnlyRetriedUntilAcknowledged(t *testing.T) {
 	e.startSync()
 	if got := sent(); got != tries+1 {
 		t.Fatalf("asked again once acknowledged (%d)", got-tries-1)
+	}
+}
+
+// Many files changing at once in a backup (a directory copied in) go up
+// one at a time, every one of them.
+func TestBackupChangesUploadOneAtATime(t *testing.T) {
+	const n = 30
+	e, d, f := backupFixture(t, n)
+	for i := 0; i < n; i++ {
+		e.debounceChange(filepath.Join(f.Path, fmt.Sprintf("f%d.txt", i)), f)
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		d.mu.Lock()
+		got, most := len(d.files), d.maxOpen
+		d.mu.Unlock()
+		e.mu.Lock()
+		idle := !e.draining[f.ID] && len(e.changeQueue[f.ID]) == 0
+		e.mu.Unlock()
+		if got == n && idle {
+			if most != 1 {
+				t.Fatalf("%d uploads under way at once, want 1", most)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d of %d files uploaded, worker idle: %v", got, n, idle)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
