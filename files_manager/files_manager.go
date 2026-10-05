@@ -642,11 +642,18 @@ func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err erro
 // offset (length < 0: all of it), and the archive's size. A range decrypts
 // only the segments it covers.
 func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length int) ([]byte, int64, error) {
-	created, err := mg.dao.GetSharedLinkCreated(uuid)
+	// Asked before signing in, so only an archive's own id gets this far:
+	// a gallery's row (its own, longer expiry) or an id in another case
+	// (the column's collation matches it, the folder name doesn't) could
+	// otherwise be deleted below by anyone holding its link, secret or not.
+	if !galleryUUID.MatchString(uuid) {
+		return nil, 0, sql.ErrNoRows // the same answer as an unknown id
+	}
+	created, expires, err := mg.dao.GetArchiveLinkExpiry(uuid)
 	if err != nil {
 		return nil, 0, err
 	}
-	if isSharedLinkExpired(created, time.Now(), mg.sharedLinkTTL) {
+	if sharedLinkExpired(created, expires, time.Now(), mg.sharedLinkTTL) {
 		// Don't wait for the next sweep: drop the content and row now
 		// that we know it's expired, and refuse the download.
 		mg.deleteSharedLink(uuid)

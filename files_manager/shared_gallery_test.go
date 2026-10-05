@@ -314,3 +314,50 @@ func TestSharedGalleryJobFinishesWhenTheCopyPanics(t *testing.T) {
 		t.Errorf("%d gallery folders after the crash, want %d: the partial copy was left", got, before)
 	}
 }
+
+// The archive download is asked before signing in: a gallery's id - or an
+// id in upper case - must not reach the expiry check that deletes, while a
+// real archive past its expiry still goes at once.
+func TestOpenSharedLinkRangeOnlyExpiresArchives(t *testing.T) {
+	storage, _ := galleryTestEnv(t)
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: 7 * 24 * time.Hour}
+
+	// A gallery shared for 30 days, 8 days ago: not an archive, so not found
+	// - and its folder stays.
+	gallery := "0b9f3c3e-6a51-4c1e-9d0a-3f6f2b7c8d10"
+	os.MkdirAll(galleryDir(gallery), 0o750)
+	mock.ExpectQuery("select `created`, `expires` from `shared_links` where `uuid` = \\? and `kind` = 'archive'").
+		WithArgs(gallery).
+		WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}))
+	if _, _, err := mg.OpenSharedLinkRange(gallery, "x", 0, 1); err == nil {
+		t.Error("a gallery was served as an archive")
+	}
+	if _, err := os.Stat(galleryDir(gallery)); err != nil {
+		t.Errorf("the gallery's folder went: %v", err)
+	}
+
+	// Upper case: refused before the database is asked.
+	if _, _, err := mg.OpenSharedLinkRange(strings.ToUpper(gallery), "x", 0, 1); err == nil {
+		t.Error("an upper-cased id was accepted")
+	}
+
+	// An archive past the device's default expiry is deleted right away.
+	archive := "5d2c1b0a-9e8f-4a7b-8c6d-5e4f3a2b1c0d"
+	os.WriteFile(filepath.Join(storage, archive), []byte("zip"), 0o600)
+	mock.ExpectQuery("select `created`, `expires` from `shared_links` where `uuid` = \\? and `kind` = 'archive'").
+		WithArgs(archive).
+		WillReturnRows(sqlmock.NewRows([]string{"created", "expires"}).AddRow(time.Now().Add(-8*24*time.Hour), nil))
+	mock.ExpectExec("delete from `shared_links` where `uuid` = \\?").WithArgs(archive).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	if _, _, err := mg.OpenSharedLinkRange(archive, "x", 0, 1); err == nil || !strings.Contains(err.Error(), "expired") {
+		t.Errorf("an expired archive: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(storage, archive)); !os.IsNotExist(err) {
+		t.Errorf("the expired archive is still on disk: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

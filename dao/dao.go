@@ -726,11 +726,13 @@ func (dao *Dao) InsertSharedLink(pathUuid string, size int) (err error) {
 	return
 }
 
-// GetSharedLinkCreated returns the creation time of a shared link, so
-// callers can decide whether it has expired. Returns sql.ErrNoRows if the
-// link doesn't exist (already expired and swept, or never existed).
-func (dao *Dao) GetSharedLinkCreated(pathUuid string) (created time.Time, err error) {
-	err = dao.db.QueryRow("select `created` from `shared_links` where `uuid` = ?", pathUuid).Scan(&created)
+// GetArchiveLinkExpiry is an archive share link's creation and its own
+// expiry (unset: the device's default), so callers can decide whether it
+// has expired. Returns sql.ErrNoRows if there is no such archive (already
+// expired and swept, never existed, or a gallery: those aren't served as
+// archives).
+func (dao *Dao) GetArchiveLinkExpiry(pathUuid string) (created time.Time, expires sql.NullTime, err error) {
+	err = dao.db.QueryRow("select `created`, `expires` from `shared_links` where `uuid` = ? and `kind` = 'archive'", pathUuid).Scan(&created, &expires)
 
 	return
 }
