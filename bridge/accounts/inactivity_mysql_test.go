@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -53,9 +54,26 @@ func TestInactivityPassMySQL(t *testing.T) {
 	old := now.Add(-40 * 24 * time.Hour)
 	add("inact-7m-warned", months(7), &old)
 
+	warnedAt := func(id string) sql.NullTime {
+		var warned sql.NullTime
+		db.QueryRow("select `inactivity_warned_at` from `accounts` where `id` = ?", id).Scan(&warned)
+		return warned
+	}
+	// The email fails (the SMTP server is away): nobody counts as warned,
+	// so the next pass tries again.
+	a.inactivityPass(now, func(to, subject, body string) error { return errors.New("smtp away") }, nil)
+	for _, id := range []string{"inact-5m", "inact-7m-unwarned"} {
+		if warnedAt(id).Valid {
+			t.Errorf("%s counts as warned after a failed email", id)
+		}
+	}
+
 	sent := map[string]int{}
 	send := func(to, subject, body string) error { sent[to]++; return nil }
 	a.inactivityPass(now, send, nil)
+	if !warnedAt("inact-5m").Valid {
+		t.Error("a warning that went out was not recorded")
+	}
 
 	exists := func(id string) bool {
 		var n int

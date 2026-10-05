@@ -62,6 +62,15 @@ func (dao *Dao) MarkInactivityWarned(accountID string, at time.Time) (bool, erro
 	return n == 1, err
 }
 
+// UnmarkInactivityWarned forgets a warning that could not be emailed, so
+// the next pass tries again: an account is never removed unwarned. By id
+// alone - the column holds whole seconds, so the claim's time wouldn't
+// match - which is safe: while the claim is held, nothing else sets it.
+func (dao *Dao) UnmarkInactivityWarned(accountID string) error {
+	_, err := dao.db.Exec("update `accounts` set `inactivity_warned_at` = null where `id` = ?", accountID)
+	return err
+}
+
 // ClearUsedInactivityWarnings forgets the warning of every account used
 // since it was warned, so a later spell of inactivity warns again.
 func (dao *Dao) ClearUsedInactivityWarnings() error {
