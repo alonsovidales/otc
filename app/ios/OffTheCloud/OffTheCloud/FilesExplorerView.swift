@@ -12,6 +12,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import QuickLook
+import ImageIO
 
 private func isDirFile(_ f: Msg_File) -> Bool { f.mime == "inode/directory" }
 private func isImgFile(_ f: Msg_File) -> Bool { f.mime.hasPrefix("image/") }
@@ -88,10 +89,32 @@ final class FilesExplorerViewModel: ObservableObject {
     // versions the device listed (newest first).
     @Published var versionsOf: (row: FileRow, versions: [Msg_File])?
     @Published var versionsLoading = false
-    // The grid's thumbnails for this app session, by full path + hash so a
-    // replaced file gets a fresh one. noThumb remembers the paths the
-    // device answered without one, so they aren't asked for again.
-    @Published var thumbs: [String: UIImage] = [:]
+    // The grid's thumbnails, by full path + hash so a replaced file gets a
+    // fresh one. noThumb remembers the paths the device answered without
+    // one, so they aren't asked for again.
+    //
+    // `thumbs` holds only the tiles on screen, so none of them can be
+    // evicted; a tile scrolling away moves its image to thumbCache, which
+    // is bounded and gives memory back under pressure. Every tile ever
+    // drawn used to stay decoded for the session - ~5 MB each at the
+    // device's 1000 px, so a few hundred tiles of a big photo folder got
+    // the app killed. Not @Published: a tile leaving needs no redraw, and
+    // additions send the change themselves.
+    private(set) var thumbs: [String: UIImage] = [:]
+    private var visibleThumbs: Set<String> = []
+    private let thumbCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.totalCostLimit = 96 << 20
+        return cache
+    }()
+    // The device's own thumbnail bytes, for the viewer: its placeholder
+    // and its save/share fallback stay at the full 1000 px (the Images
+    // section feeds it the same way), while tiles are decoded smaller.
+    private let thumbBytes: NSCache<NSString, NSData> = {
+        let cache = NSCache<NSString, NSData>()
+        cache.totalCostLimit = 32 << 20
+        return cache
+    }()
     private var noThumb: Set<String> = []
     // Paths the grid wants (cells that appeared), drained 24 at a time by
     // one task at a time; inFlight keeps a cell scrolling back into view
@@ -153,12 +176,49 @@ final class FilesExplorerViewModel: ObservableObject {
     func wantThumbnail(for row: FileRow) {
         guard isMedia(row) else { return }
         let key = thumbKey(for: row)
+        visibleThumbs.insert(key)
+        if thumbs[key] == nil, let cached = thumbCache.object(forKey: key as NSString) {
+            objectWillChange.send()
+            thumbs[key] = cached
+            return
+        }
         guard thumbs[key] == nil, !noThumb.contains(key), !thumbInFlight.contains(key) else { return }
         thumbInFlight.insert(key)
         thumbQueue.append((key, fullPath(for: row), path))
         guard !thumbPumping else { return }
         thumbPumping = true
         Task { await pumpThumbnails() }
+    }
+
+    /// Called as a grid cell disappears: its image moves to the bounded
+    /// cache. Evicted there, it is asked for again when the cell returns.
+    func thumbGone(for row: FileRow) {
+        guard isMedia(row) else { return }
+        let key = thumbKey(for: row)
+        visibleThumbs.remove(key)
+        if let img = thumbs.removeValue(forKey: key) {
+            thumbCache.setObject(img, forKey: key as NSString, cost: Self.cost(of: img))
+        }
+    }
+
+    private static func cost(of image: UIImage) -> Int {
+        Int(image.size.width * image.scale * image.size.height * image.scale) * 4
+    }
+
+    /// A tile is at most ~200 pt (600 px at 3x) and scaledToFill only
+    /// needs the short side to cover it: 512 px is plenty, and a fraction
+    /// of the 1000 px original's memory. Decoded here, off the main
+    /// thread, not lazily when first drawn. Android uses the same size.
+    nonisolated static func decodeTile(_ data: Data) -> UIImage? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: 512,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else { return nil }
+        return UIImage(cgImage: cg)
     }
 
     /// Sends the queue to the device in batches of 24 (it takes at most 48
@@ -185,12 +245,28 @@ final class FilesExplorerViewModel: ObservableObject {
             guard let resp, case .respListOfFiles(let lof) = resp.payload else { continue }
             var got: [String: Data] = [:]
             for f in lof.files { got[f.path] = f.content }
-            for item in batch {
-                if let data = got[item.path], let img = UIImage(data: data) {
-                    thumbs[item.key] = img
-                } else {
-                    noThumb.insert(item.key)
+            let wanted = batch.map { (key: $0.key, data: got[$0.path]) }
+            let decoded = await Task.detached(priority: .userInitiated) {
+                wanted.map { ($0.key, $0.data, $0.data.flatMap(Self.decodeTile)) }
+            }.value
+            var fresh: [String: UIImage] = [:]
+            for (key, data, img) in decoded {
+                guard let data, let img else {
+                    noThumb.insert(key)
+                    continue
                 }
+                thumbBytes.setObject(data as NSData, forKey: key as NSString, cost: data.count)
+                // A cell that scrolled away meanwhile: straight to the cache.
+                if visibleThumbs.contains(key) {
+                    fresh[key] = img
+                } else {
+                    thumbCache.setObject(img, forKey: key as NSString, cost: Self.cost(of: img))
+                }
+            }
+            // One change for the batch, not one redraw per tile.
+            if !fresh.isEmpty {
+                objectWillChange.send()
+                thumbs.merge(fresh) { $1 }
             }
         }
     }
@@ -206,19 +282,21 @@ final class FilesExplorerViewModel: ObservableObject {
 
     /// The folder's photos and videos as the viewer's items, in the order
     /// the list and grid show them, each with the grid's thumbnail if it
-    /// has one (the viewer fetches the full-size image either way).
+    /// has one (the viewer fetches the full-size image either way): the
+    /// device's bytes while cached, else the smaller tile image.
     func viewerItems() -> [PhotoGalleryVM.Item] {
         rows.filter(isMedia).map { row in
             let full = fullPath(for: row)
+            let key = thumbKey(for: row) as NSString
             return PhotoGalleryVM.Item(
                 id: "\(full)#\(row.raw.hash)#\(row.size)",
                 path: full,
                 mime: row.raw.mime,
                 size: Int(row.size),
-                thumbData: nil,
+                thumbData: thumbBytes.object(forKey: key) as Data?,
                 localURL: nil,
                 isLocalOnly: false,
-                thumbImage: thumbs[thumbKey(for: row)]
+                thumbImage: thumbs[key as String] ?? thumbCache.object(forKey: key)
             )
         }
     }
@@ -681,7 +759,7 @@ struct FilesExplorerView: View {
     /// the full-size image arrives (as the Images section does).
     private func viewerThumb() -> UIImage? {
         guard let i = viewer.openIndex, viewer.items.indices.contains(i) else { return nil }
-        return viewer.items[i].thumbImage
+        return viewer.items[i].thumbData.flatMap(UIImage.init(data:)) ?? viewer.items[i].thumbImage
     }
 
     /// What a tap on a row (or a grid tile) does: open the folder or file.
@@ -770,6 +848,7 @@ struct FilesExplorerView: View {
                     // Lazily: only tiles that scroll into view ask the
                     // device for their thumbnail.
                     .onAppear { vm.wantThumbnail(for: row) }
+                    .onDisappear { vm.thumbGone(for: row) }
                 }
             }
             .padding()
