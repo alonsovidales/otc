@@ -112,12 +112,21 @@ func Read(conn *gorilla.Conn, limit int64, b *Budget) (int, []byte, func(), erro
 			}
 			held += cStep
 		}
-		c := make([]byte, cStep)
-		n, err := io.ReadFull(r, c)
-		if n > 0 {
-			chunks = append(chunks, c[:n])
-			total += n
+		// One byte first: a message that ended exactly at the last
+		// chunk's end allocates no empty chunk to find that out.
+		var first [1]byte
+		if _, err := io.ReadFull(r, first[:]); err != nil {
+			if err == io.EOF {
+				break // the end of the message
+			}
+			release()
+			return 0, nil, noop, err
 		}
+		c := make([]byte, cStep)
+		c[0] = first[0]
+		n, err := io.ReadFull(r, c[1:])
+		chunks = append(chunks, c[:1+n])
+		total += 1 + n
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			break // the end of the message
 		}
@@ -130,6 +139,10 @@ func Read(conn *gorilla.Conn, limit int64, b *Budget) (int, []byte, func(), erro
 	if len(chunks) == 0 {
 		return typ, head.Bytes(), func() { once.Do(release) }, nil
 	}
+	// The join holds the message twice for a moment, and only the chunks
+	// are reserved: reserving the copy too would halve the largest
+	// message the budget admits (a 600 MB upload against a 4 GB Pi's
+	// ~800 MB budget would fail with ErrNoRoom where it works now).
 	out := make([]byte, total)
 	k := copy(out, head.Bytes())
 	for i := range chunks {

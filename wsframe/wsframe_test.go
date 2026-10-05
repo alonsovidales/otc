@@ -106,7 +106,7 @@ func TestReadRoundTripsLargeMessagesExactly(t *testing.T) {
 	c := dial(t, srv)
 	defer c.Close()
 
-	for _, size := range []int{cFree - 1, cFree, cFree + 1, cFree + cStep, cFree + cStep + 1, 10<<20 + 123} {
+	for _, size := range []int{cFree - 1, cFree, cFree + 1, cFree + 2, cFree + cStep - 1, cFree + cStep, cFree + cStep + 1, cFree + 2*cStep, 10<<20 + 123} {
 		m := make([]byte, size)
 		for i := range m {
 			m[i] = byte(i*7 + i>>13)
