@@ -3,6 +3,10 @@
 package api
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -439,5 +444,75 @@ func TestOriginGuard(t *testing.T) {
 		if got := try(c.method, c.path, c.origin, c.cookie); got != c.want {
 			t.Errorf("%s %s from %q (cookie %v): %d, want %d", c.method, c.path, c.origin, c.cookie, got, c.want)
 		}
+	}
+}
+
+// sessionCookie is the account page's session for accountID at epoch 0,
+// signed the way package accounts signs it (sessionToken) under
+// sessionSecret.
+func sessionCookie(sessionSecret []byte, accountID string) *http.Cookie {
+	key := hmac.New(sha256.New, sessionSecret)
+	key.Write([]byte("account-session"))
+	payload := fmt.Sprintf("%s|0|%d", accountID, time.Now().Add(time.Hour).Unix())
+	mac := hmac.New(sha256.New, key.Sum(nil))
+	mac.Write([]byte(payload))
+	return &http.Cookie{Name: "__Host-otc_account", Value: payload + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))}
+}
+
+func accountRow(mock sqlmock.Sqlmock, verified bool, terms string) {
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), verified, terms, time.Now()))
+}
+
+// A claim with the account page's session follows the account page's
+// rules: no name for an email nobody proved, or before the terms in force
+// are accepted. A verified account's claim goes through.
+func TestClaimWithASessionNeedsAVerifiedAccount(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	secret := []byte("test session secret")
+	d := dao.NewWithDB(db)
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: d, accounts: accounts.Init(d, secret, "off-the.cloud"), lastClaimByAddr: map[string]time.Time{}}
+	claim := func(remoteAddr string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
+			`{"name":"newpi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))
+		req.RemoteAddr = remoteAddr
+		req.AddCookie(sessionCookie(secret, "acc1"))
+		rec := httptest.NewRecorder()
+		api.claimName(rec, req)
+		return rec
+	}
+	epoch := func() {
+		mock.ExpectQuery("select `session_epoch` from `accounts`").WillReturnRows(sqlmock.NewRows([]string{"session_epoch"}).AddRow(0))
+	}
+
+	epoch()
+	accountRow(mock, false, accounts.TermsVersion)
+	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "confirm your email") {
+		t.Errorf("unverified: %d %s, want 403", rec.Code, rec.Body.String())
+	}
+	epoch()
+	accountRow(mock, true, accounts.TermsVersion)
+	accountRow(mock, true, "2020-01-01")
+	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "terms of use") {
+		t.Errorf("old terms: %d %s, want 403", rec.Code, rec.Body.String())
+	}
+	// Neither refusal used the address's claim cooldown.
+	epoch()
+	accountRow(mock, true, accounts.TermsVersion)
+	accountRow(mock, true, accounts.TermsVersion)
+	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select count\\(\\*\\) from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
+	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusCreated {
+		t.Errorf("verified: %d %s, want 201", rec.Code, rec.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
 	}
 }

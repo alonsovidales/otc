@@ -611,10 +611,11 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 //
 // Issue #124: the claim names its account, with a setup token (the body's
 // setup_token, or "Authorization: Bearer <token>") or the account page's
-// own session. A name the same account already owns is handed to the new
-// identity - that is how a lost device is replaced: run setup again,
-// signed in, pick the same name. Without an account the claim is refused
-// (401 login_required) unless [accounts] open-registration is on.
+// own session (403 until that account has proved its email and accepted
+// the terms in force). A name the same account already owns is handed to
+// the new identity - that is how a lost device is replaced: run setup
+// again, signed in, pick the same name. Without an account the claim is
+// refused (401 login_required) unless [accounts] open-registration is on.
 func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name       string `json:"name"`
@@ -626,7 +627,11 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	accountID := api.claimAccount(r, body.SetupToken)
+	accountID, refusal := api.claimAccount(r, body.SetupToken)
+	if refusal != "" {
+		writeJSONErr(w, http.StatusForbidden, refusal)
+		return
+	}
 	if accountID == "" && (api.accounts != nil && !api.accounts.OpenRegistration()) {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "sign in to register a name", "code": "login_required"})
 		return
@@ -709,9 +714,12 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 
 // claimAccount is the account behind a claim: a setup token from the
 // body or the Authorization header, or the account page's own session.
-func (api *API) claimAccount(r *http.Request, bodyToken string) string {
+// A session is refused (with the reason) for an account that hasn't
+// proved its email or accepted the terms in force, as on the account
+// page: a token is only ever issued to one that has.
+func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refusal string) {
 	if api.accounts == nil {
-		return ""
+		return "", ""
 	}
 	token := bodyToken
 	if auth := r.Header.Get("Authorization"); token == "" && strings.HasPrefix(auth, "Bearer ") {
@@ -719,16 +727,29 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) string {
 	}
 	if token != "" {
 		if id, ok := api.accounts.AccountForSetupToken(token); ok {
-			return id
+			return id, ""
 		}
-		return ""
+		return "", ""
 	}
 	if id, ok := api.accounts.AccountFromRequest(r); ok {
-		return id
+		if !api.accounts.Verified(id) {
+			return "", cConfirmEmailFirst
+		}
+		if !api.accounts.HasAcceptedTerms(id) {
+			return "", cAcceptTermsFirst
+		}
+		return id, ""
 	}
 
-	return ""
+	return "", ""
 }
+
+// Why an account may not register a name yet (accountAddDomain, and a
+// claim with the account page's session).
+const (
+	cConfirmEmailFirst = "confirm your email first - open the link we sent you, or ask for a new one above"
+	cAcceptTermsFirst  = "accept the terms of use above first"
+)
 
 // domainLimitReached is the terms' cap (accounts.MaxDomains): 0 when the
 // account may add one, else the status and message to answer with.
@@ -785,11 +806,11 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 // /api/account/domains {name}.
 func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
 	if !api.accounts.Verified(accountID) {
-		writeJSONErr(w, http.StatusForbidden, "confirm your email first - open the link we sent you, or ask for a new one above")
+		writeJSONErr(w, http.StatusForbidden, cConfirmEmailFirst)
 		return
 	}
 	if !api.accounts.HasAcceptedTerms(accountID) {
-		writeJSONErr(w, http.StatusForbidden, "accept the terms of use above first")
+		writeJSONErr(w, http.StatusForbidden, cAcceptTermsFirst)
 		return
 	}
 	var body struct {
