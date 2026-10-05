@@ -1281,7 +1281,7 @@ final class SyncModel: ObservableObject {
                             if localByRelative[action.relative] == nil, FileManager.default.fileExists(atPath: localURL.path) {
                                 throw NSError(domain: "sync.download", code: 6, userInfo: [NSLocalizedDescriptionKey: "another file is already at this name here - left alone"])
                             }
-                            try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: localStamps[action.relative] ?? .absent)
+                            try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: localStamps[action.relative] ?? .absent, folderId: folder.id)
                         case .downloadKeepLocal:
                             // This Mac's version first, under its conflict
                             // name; only then the device's over the original.
@@ -1290,10 +1290,10 @@ final class SyncModel: ObservableObject {
                             syncLog.info("conflict on \(action.relative, privacy: .public): this Mac's version kept as \(copy.lastPathComponent, privacy: .public)")
                             // Nothing may be at the name now: something that
                             // appeared during the download is not overwritten.
-                            try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: .absent)
+                            try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: .absent, folderId: folder.id)
                         case .uploadKeepRemote(let remoteHash):
                             let copy = Self.conflictURL(for: localURL, from: nil)
-                            try await download(remotePath, to: copy, expectedHash: remoteHash)
+                            try await download(remotePath, to: copy, expectedHash: remoteHash, folderId: folder.id)
                             syncLog.info("conflict on \(action.relative, privacy: .public): the other version kept as \(copy.lastPathComponent, privacy: .public)")
                             newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
                         case .deleteRemote: try await delete(remotePath)
@@ -1403,8 +1403,9 @@ final class SyncModel: ObservableObject {
 
     /// `expectLocal`, when given, is what the pass saw at `dest` when it
     /// planned this: anything else there now (an edit made since) is not
-    /// replaced.
-    private func download(_ remotePath: String, to dest: URL, expectedHash: String? = nil, expectLocal: LocalStamp? = nil) async throws {
+    /// replaced. With `folderId` the content's hash goes into that
+    /// folder's hash cache, so the next pass doesn't read it all again.
+    private func download(_ remotePath: String, to dest: URL, expectedHash: String? = nil, expectLocal: LocalStamp? = nil, folderId: UUID? = nil) async throws {
         let part = dest.appendingPathExtension("otc-part")
         let sink = try await Task.detached(priority: .utility) {
             try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -1450,7 +1451,7 @@ final class SyncModel: ObservableObject {
         }
         guard let file = last else { return }
 
-        try await Task.detached(priority: .utility) {
+        let written = try await Task.detached(priority: .utility) { () -> HashEntry? in
             let got = sink.finish()
             if let expectedHash, !expectedHash.isEmpty, got != expectedHash {
                 throw NSError(domain: "sync.download", code: 3, userInfo: [NSLocalizedDescriptionKey: "the device sent \(file.size) bytes that don't match the file's hash - not written"])
@@ -1473,7 +1474,21 @@ final class SyncModel: ObservableObject {
             if file.hasCreated { attrs[.creationDate] = file.created.date }
             if file.hasModified { attrs[.modificationDate] = file.modified.date }
             if !attrs.isEmpty { try? FileManager.default.setAttributes(attrs, ofItemAtPath: dest.path) }
+            // Cached only when the file reads back with the device's size
+            // and date (not on a volume with coarse dates, nor when the
+            // date could not be set): a wrong cached hash would hide a
+            // later edit here from the next pass.
+            guard file.hasModified,
+                  let v = try? URL(fileURLWithPath: dest.path).resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]),
+                  let size = v.fileSize, Int64(size) == file.size,
+                  let modified = v.contentModificationDate, abs(modified.timeIntervalSince(file.modified.date)) < 0.001 else { return nil }
+            return HashEntry(size: size, modified: modified, hash: got)
         }.value
+        if let folderId, let written {
+            loadHashCacheIfNeeded(folderId)
+            localHashCache[folderId, default: [:]][dest.standardizedFileURL.path] = written
+            hashCacheDirty.insert(folderId)
+        }
         done = true
     }
 
