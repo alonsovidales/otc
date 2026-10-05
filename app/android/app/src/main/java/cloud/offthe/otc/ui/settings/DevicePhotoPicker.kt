@@ -55,6 +55,7 @@ import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.gridCellPx
 import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.Dispatchers
@@ -70,8 +71,8 @@ import kotlinx.coroutines.withContext
  * circle crop, which the caller opens exactly as for a phone pick.
  */
 
-// key: path#hash#size, what its decoded thumbnail is cached under.
-private data class PickItem(val path: String, val key: String, val thumb: ByteArray?)
+// thumbKey: path#hash#size, the thumbnail's bytes in ThumbStore (null: none).
+private data class PickItem(val path: String, val thumbKey: String?)
 
 @Composable
 fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
@@ -99,9 +100,11 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
             if (mine != generation) return
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = "Could not load your photos."; return }
             val lof = resp.respListOfFiles
+            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() })
+            if (mine != generation) return
             val seen = items.map { it.path }.toSet()
             items = items + lof.filesList.filter { it.path !in seen }
-                .map { f -> PickItem(f.path, "${f.path}#${f.hash}#${f.size}", if (f.hasContent()) f.content.toByteArray() else null) }
+                .map { f -> PickItem(f.path, if (f.hasContent()) "${f.path}#${f.hash}#${f.size}" else null) }
             token = lof.token.ifEmpty { null }
         } catch (e: Exception) {
             if (mine == generation) error = "Could not load your photos."
@@ -189,7 +192,7 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
 
 @Composable
 private fun PickTile(item: PickItem, sidePx: Int, busy: Boolean, onTap: () -> Unit) {
-    val bmp = rememberTileThumb(item.thumb?.let { item.key }, sidePx) { item.thumb }
+    val bmp = rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
     Box(Modifier.aspectRatio(1f).background(Color(0x1A808080)).clickable(onClick = onTap)) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         if (busy) {

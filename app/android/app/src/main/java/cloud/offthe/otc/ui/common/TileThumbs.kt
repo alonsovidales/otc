@@ -23,13 +23,14 @@ fun <T : Any> rememberOffMain(key: Any?, cached: () -> T?, compute: suspend () -
     return state.value
 }
 
-/** Grid tiles already decoded, by item and size, bounded by bytes. */
+/** Grid tiles already decoded, by item and size (the composer's phone items by id), bounded by bytes. */
 object ThumbCache {
     private val bitmaps = object : LruCache<String, Bitmap>(32 shl 20) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
     fun get(key: String): Bitmap? = bitmaps.get(key)
     fun put(key: String, bmp: Bitmap) { bitmaps.put(key, bmp) }
+    fun clear() = bitmaps.evictAll()
 }
 
 /**

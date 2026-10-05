@@ -14,6 +14,8 @@ import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
+import cloud.offthe.otc.ui.common.ThumbCache
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -49,6 +51,8 @@ fun logOut(
         SocialFeedViewModel.reset()
         OTCConnection.reset()
         MediaStream.reset()
+        ThumbStore.clear()
+        ThumbCache.clear()
         SyncScheduler.cancel()
         // Off the main thread: the wipe deletes the whole cache and files dirs.
         withContext(Dispatchers.IO) {

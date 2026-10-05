@@ -98,7 +98,10 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.VideoTrim
 import cloud.offthe.otc.sync.PhotoSync
+import cloud.offthe.otc.ui.common.ThumbCache
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.gridCellPx
+import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -114,7 +117,10 @@ import java.util.UUID
 class NewPostPickerViewModel : ViewModel() {
     enum class Source { PHONE, SYNCED }
 
-    data class Item(val id: String, val path: String, val thumbData: ByteArray? = null, val thumbImage: Bitmap? = null, val asset: PhotoSync.Asset? = null, val isVideo: Boolean = false) {
+    // thumbKey: a synced item's thumbnail in ThumbStore. A phone item's comes
+    // from MediaStore when its tile shows (see thumbOf), so pages scrolled
+    // through don't each keep 60 bitmaps.
+    data class Item(val id: String, val path: String, val thumbKey: String? = null, val asset: PhotoSync.Asset? = null, val isVideo: Boolean = false) {
         override fun equals(other: Any?) = other is Item && other.id == id
         override fun hashCode() = id.hashCode()
     }
@@ -207,7 +213,8 @@ class NewPostPickerViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqSearchPhotos(SearchPhotos.newBuilder().addAllTags(chips).setToken(overrideToken ?: token ?: "").setIncludeVideos(true)) }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return
             val lof = resp.respListOfFiles
-            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.size}", f.path, thumbData = if (f.hasContent()) f.content.toByteArray() else null, isVideo = f.mime.startsWith("video/")) }
+            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() })
+            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.size}".let { id -> Item(id, f.path, thumbKey = if (f.hasContent()) id else null, isVideo = f.mime.startsWith("video/")) } }
             _state.update { st -> val existing = st.items.map { it.id }.toSet(); st.copy(items = st.items + newItems.filter { it.id !in existing }) }
             token = lof.token.ifEmpty { null }
             _state.update { it.copy(endReached = token == null) }
@@ -252,10 +259,9 @@ class NewPostPickerViewModel : ViewModel() {
                     if (c.moveToFirst()) { name = c.getString(0) ?: ""; mime = c.getString(1) ?: mime }
                 }
                 val asset = PhotoSync.Asset(android.content.ContentUris.parseId(uri), uri, name, mime, System.currentTimeMillis(), video)
-                val thumb = try {
-                    if (Build.VERSION.SDK_INT >= 29) resolver.loadThumbnail(uri, Size(450, 450), null) else null
-                } catch (e: Exception) { null }
-                Item("local#${asset.id}", "", thumbImage = thumb, asset = asset, isVideo = video)
+                // Ready before the tile first draws, so the capture shows at once.
+                phoneThumbnail(asset)?.let { ThumbCache.put("local#${asset.id}", it) }
+                Item("local#${asset.id}", "", asset = asset, isVideo = video)
             }
             if (_state.value.source != Source.PHONE) switchSource(Source.PHONE)
             _state.update { st ->
@@ -279,15 +285,7 @@ class NewPostPickerViewModel : ViewModel() {
             val all = localAssets ?: withContext(Dispatchers.IO) { PhotoSync.fetchNewAssets(includeVideos = true, sinceMs = 0, newestFirst = true) }.also { localAssets = it }
             if (localLoadedCount >= all.size) { _state.update { it.copy(endReached = true) }; return }
             val end = minOf(localLoadedCount + localPageSize, all.size)
-            val newItems = withContext(Dispatchers.IO) {
-                (localLoadedCount until end).map { i ->
-                    val a = all[i]
-                    val thumb = try {
-                        if (Build.VERSION.SDK_INT >= 29) OTCApp.instance.contentResolver.loadThumbnail(a.uri, Size(450, 450), null) else null
-                    } catch (e: Exception) { null }
-                    Item("local#${a.id}", "", thumbImage = thumb, asset = a, isVideo = a.isVideo)
-                }
-            }
+            val newItems = (localLoadedCount until end).map { i -> all[i].let { a -> Item("local#${a.id}", "", asset = a, isVideo = a.isVideo) } }
             _state.update { it.copy(items = it.items + newItems) }
             localLoadedCount = end
             _state.update { it.copy(endReached = localLoadedCount >= all.size) }
@@ -530,11 +528,22 @@ fun mediaPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 33) {
     arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 }
 
-// A phone item's bitmap is MediaStore's own 450 px thumbnail; a synced one's
-// is decoded off the main thread to [sidePx].
+/** MediaStore's own 450 px thumbnail of a phone item (its cache makes this quick). */
+private fun phoneThumbnail(asset: PhotoSync.Asset): Bitmap? = try {
+    if (Build.VERSION.SDK_INT >= 29) OTCApp.instance.contentResolver.loadThumbnail(asset.uri, Size(450, 450), null) else null
+} catch (e: Exception) { null }
+
+// A phone item's bitmap is MediaStore's 450 px thumbnail, loaded when its
+// tile shows and kept in ThumbCache; a synced one's is decoded off the main
+// thread to [sidePx].
 @Composable
-private fun thumbOf(item: NewPostPickerViewModel.Item, sidePx: Int): Bitmap? =
-    item.thumbImage ?: rememberTileThumb(item.thumbData?.let { item.id }, sidePx) { item.thumbData }
+private fun thumbOf(item: NewPostPickerViewModel.Item, sidePx: Int): Bitmap? {
+    val asset = item.asset
+    if (asset != null) return rememberOffMain(item.id, { ThumbCache.get(item.id) }) {
+        withContext(Dispatchers.IO) { phoneThumbnail(asset) }?.also { ThumbCache.put(item.id, it) }
+    }
+    return rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
+}
 
 @Composable
 private fun PickTile(item: NewPostPickerViewModel.Item, selectionNumber: Int?, sidePx: Int, onTap: () -> Unit) {

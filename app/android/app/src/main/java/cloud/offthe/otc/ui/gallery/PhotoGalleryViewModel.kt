@@ -34,6 +34,7 @@ import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.ShareFilesLink
 import cloud.offthe.otc.ui.common.SelectionActionTask
 import cloud.offthe.otc.ui.common.Share
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.Dispatchers
@@ -57,9 +58,10 @@ import java.util.UUID
 // (showFiles): a separate instance holding just that folder's photos and
 // videos, with no search or paging.
 class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
-    // preview: an already decoded placeholder (the Files grid's thumbnail),
-    // used when there are no thumb bytes.
-    data class Item(val id: String, val path: String, val mime: String, val size: Int, val thumb: ByteArray?, val preview: Bitmap? = null)
+    // thumbKey: the thumbnail's bytes in ThumbStore (the item's id), null
+    // when the device sent none. preview: an already decoded placeholder
+    // (the Files grid's thumbnail), used when there are no thumb bytes.
+    data class Item(val id: String, val path: String, val mime: String, val size: Int, val thumbKey: String?, val preview: Bitmap? = null)
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
     data class PendingMerge(val target: Person, val source: Person)
 
@@ -378,7 +380,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             if (mine != searchGeneration) return false
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return false
             val lof = resp.respListOfFiles
-            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.size}", f.path, f.mime, f.size, if (f.hasContent()) f.content.toByteArray() else null) }
+            val withThumb = lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() }
+            ThumbStore.putAll(withThumb)
+            if (mine != searchGeneration) return false
+            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.size}".let { id -> Item(id, f.path, f.mime, f.size, if (f.hasContent()) id else null) } }
             _state.update { st ->
                 val existing = st.items.map { it.id }.toSet()
                 st.copy(items = st.items + newItems.filter { it.id !in existing })
@@ -513,12 +518,12 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         } catch (_: Exception) {}
     }
 
-    fun currentImage(): Bitmap? {
+    suspend fun currentImage(): Bitmap? {
         val st = _state.value
         st.hiRes?.let { return it }
         val idx = st.openIndex ?: return null
         val item = st.items.getOrNull(idx) ?: return null
-        return item.thumb?.let { decodeBitmap(it) } ?: item.preview
+        return item.thumbKey?.let { ThumbStore.load(it) }?.let { decodeBitmap(it) } ?: item.preview
     }
 
     /** Issue #9: write the loaded image to a temp file and hand it to the share sheet. */

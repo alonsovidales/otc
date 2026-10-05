@@ -108,8 +108,10 @@ import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.Share
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
 import cloud.offthe.otc.ui.common.gridCellPx
+import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -124,8 +126,13 @@ import kotlin.math.abs
 
 // Full size: the viewer's placeholder, until the full image arrives. Tiles
 // use rememberTileThumb (decoded off the main thread, to the tile's size).
+// Bytes ThumbStore still holds in memory show on the first frame, ones it
+// moved to disk a moment later.
 @Composable
-fun rememberThumb(bytes: ByteArray?): Bitmap? = remember(bytes) { bytes?.let { decodeBitmap(it) } }
+private fun rememberThumb(key: String?): Bitmap? {
+    val bytes = rememberOffMain(key, { key?.let(ThumbStore::peek) }) { key?.let { ThumbStore.load(it) } }
+    return remember(bytes) { bytes?.let { decodeBitmap(it) } }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -442,7 +449,7 @@ private fun PersonFilterChip(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PhotoTile(item: PhotoGalleryViewModel.Item, sidePx: Int, isSelected: Boolean, hasSelection: Boolean, onTap: () -> Unit, onLongPress: () -> Unit) {
-    val bmp = rememberTileThumb(item.thumb?.let { item.id }, sidePx) { item.thumb }
+    val bmp = rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
     Box(
         Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x1A808080))
             .combinedClickable(onClick = { if (hasSelection) onLongPress() else onTap() }, onLongClick = onLongPress),
@@ -591,7 +598,7 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             return@Box
         }
         val hiRes = st.hiResImages[item.path]
-        val image = hiRes ?: item.preview ?: rememberThumb(item.thumb)
+        val image = hiRes ?: item.preview ?: rememberThumb(item.thumbKey)
         if (image == null) { CircularProgressIndicator(color = Color.White); return@Box }
         // Still the thumbnail: the full-size image hasn't arrived (or
         // failed). Photos only - a video page's poster is never "low res".
