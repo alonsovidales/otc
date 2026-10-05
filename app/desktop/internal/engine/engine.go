@@ -133,6 +133,11 @@ type Engine struct {
 	watchers     map[string]*Watcher
 	remoteWatch  map[string]*Watcher
 	debounce     map[string]*time.Timer // per changed path (upload folders)
+	// Debounced changes of a backup folder wait here for its one worker
+	// (drainChanges), in order and each path once.
+	changeQueue  map[string][]string
+	changeQueued map[string]map[string]bool
+	draining     map[string]bool
 	remoteDeb    map[string]*time.Timer // per remote folder
 	errorRetry   map[string]*time.Timer
 	remoteRetry  map[string]*time.Timer
@@ -146,9 +151,13 @@ type Engine struct {
 	hashDirty  map[string]bool // folders whose cache changed since it was last saved
 	hashLoaded map[string]bool // folders whose cache file has been read
 	folderBusy map[string]bool
-	onChange   func()
-	hostname   string
-	stopped    bool
+	// Backups whose SetUploadOnly the device linked now acknowledged, and
+	// the last error logged for the others (see ensureUploadOnly).
+	uploadOnlyOK  map[string]bool
+	uploadOnlyErr map[string]string
+	onChange      func()
+	hostname      string
+	stopped       bool
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -159,30 +168,35 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		host = "PC"
 	}
 	e := &Engine{
-		ws:           wsclient.New(),
-		cfg:          cfg,
-		password:     password,
-		status:       "Not connected",
-		raid:         RaidUnknown,
-		folderStates: map[string]FolderState{},
-		remoteStates: map[string]FolderState{},
-		held:         map[string]FolderState{},
-		heldTimers:   map[string]*time.Timer{},
-		remoteHashes: map[string]map[string]string{},
-		lastSynced:   map[string]map[string]string{},
-		savedSynced:  map[string]map[string]string{},
-		watchers:     map[string]*Watcher{},
-		remoteWatch:  map[string]*Watcher{},
-		debounce:     map[string]*time.Timer{},
-		remoteDeb:    map[string]*time.Timer{},
-		errorRetry:   map[string]*time.Timer{},
-		remoteRetry:  map[string]*time.Timer{},
-		folderBusy:   map[string]bool{},
-		hashCache:    map[string]map[string]hashEntry{},
-		hashDirty:    map[string]bool{},
-		hashLoaded:   map[string]bool{},
-		onChange:     onChange,
-		hostname:     host,
+		ws:            wsclient.New(),
+		cfg:           cfg,
+		password:      password,
+		status:        "Not connected",
+		raid:          RaidUnknown,
+		folderStates:  map[string]FolderState{},
+		remoteStates:  map[string]FolderState{},
+		held:          map[string]FolderState{},
+		heldTimers:    map[string]*time.Timer{},
+		remoteHashes:  map[string]map[string]string{},
+		lastSynced:    map[string]map[string]string{},
+		savedSynced:   map[string]map[string]string{},
+		watchers:      map[string]*Watcher{},
+		remoteWatch:   map[string]*Watcher{},
+		debounce:      map[string]*time.Timer{},
+		changeQueue:   map[string][]string{},
+		changeQueued:  map[string]map[string]bool{},
+		draining:      map[string]bool{},
+		remoteDeb:     map[string]*time.Timer{},
+		errorRetry:    map[string]*time.Timer{},
+		remoteRetry:   map[string]*time.Timer{},
+		folderBusy:    map[string]bool{},
+		uploadOnlyOK:  map[string]bool{},
+		uploadOnlyErr: map[string]string{},
+		hashCache:     map[string]map[string]hashEntry{},
+		hashDirty:     map[string]bool{},
+		hashLoaded:    map[string]bool{},
+		onChange:      onChange,
+		hostname:      host,
 	}
 	e.migrateFolders(cfg)
 	for _, f := range cfg.Folders {
@@ -292,6 +306,10 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 				delete(e.watchers, f.ID)
 			}
 			delete(e.folderStates, f.ID)
+			delete(e.uploadOnlyOK, f.ID)
+			delete(e.uploadOnlyErr, f.ID)
+			delete(e.changeQueue, f.ID)
+			delete(e.changeQueued, f.ID)
 			continue
 		}
 		if !keep[f.ID] {
@@ -307,6 +325,12 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 	if credsChanged && e.authRetry != nil {
 		e.authRetry.Stop()
 		e.authRetry = nil
+	}
+	if credsChanged {
+		// Possibly another device: every backup is marked there again on
+		// the reconnect (harmless on the same one).
+		e.uploadOnlyOK = map[string]bool{}
+		e.uploadOnlyErr = map[string]string{}
 	}
 	e.mu.Unlock()
 	e.notify()
@@ -325,6 +349,11 @@ func (e *Engine) dropFolderLocked(id string) {
 	}
 	delete(e.remoteHashes, id)
 	delete(e.folderStates, id)
+	delete(e.uploadOnlyOK, id)
+	delete(e.uploadOnlyErr, id)
+	// A running drainChanges ends at its next look at the queue.
+	delete(e.changeQueue, id)
+	delete(e.changeQueued, id)
 	e.dropHashCacheLocked(id)
 	if t := e.errorRetry[id]; t != nil {
 		t.Stop()
@@ -607,14 +636,18 @@ func (e *Engine) startSync() {
 	for _, f := range folders {
 		e.mu.Lock()
 		_, watching := e.watchers[f.ID]
-		errored := e.folderStates[f.ID].Kind == StateError
+		atRest := e.folderStates[f.ID].Kind == StateWatching
 		e.mu.Unlock()
 		if !watching {
 			e.setupFolder(f)
-		} else if errored {
+		} else if !atRest {
 			// Left in an error while the link was down (its retry finds
-			// no connection and gives up): again now, not in 10 minutes.
+			// no connection and gives up), or a pass stopped when the
+			// device changed (backupPassOver): again now, not in 10
+			// minutes. A pass still running is left to finish (busy).
 			e.reconcile(f)
+		} else {
+			e.ensureUploadOnly(f)
 		}
 	}
 	for _, f := range remotes {
@@ -636,7 +669,15 @@ func (e *Engine) startSync() {
 }
 
 func (e *Engine) setupFolder(f config.Folder) {
-	e.markUploadOnly(f)
+	// Removed while startSync worked through its copy of the folder list:
+	// nothing to set up, nor to make upload only on the device.
+	e.mu.Lock()
+	configured := e.backupConfiguredLocked(f.ID)
+	e.mu.Unlock()
+	if !configured {
+		return
+	}
+	e.ensureUploadOnly(f)
 	e.reconcile(f)
 	e.startWatcher(f)
 }
@@ -683,7 +724,7 @@ func (e *Engine) remoteReconcileLoop() {
 
 func (e *Engine) startWatcher(f config.Folder) {
 	e.mu.Lock()
-	if _, ok := e.watchers[f.ID]; ok || e.stopped {
+	if _, ok := e.watchers[f.ID]; ok || e.stopped || !e.backupConfiguredLocked(f.ID) {
 		e.mu.Unlock()
 
 		return
@@ -701,6 +742,15 @@ func (e *Engine) startWatcher(f config.Folder) {
 		return
 	}
 	e.mu.Lock()
+	// Removed (or stopped) while its first pass ran, or a concurrent
+	// startSync got there first: a watcher kept now would never be stopped,
+	// and would go on uploading the folder.
+	if e.stopped || e.watchers[f.ID] != nil || !e.backupConfiguredLocked(f.ID) {
+		e.mu.Unlock()
+		w.Stop()
+
+		return
+	}
 	e.watchers[f.ID] = w
 	e.mu.Unlock()
 }
@@ -712,14 +762,62 @@ func (e *Engine) debounceChange(path string, f config.Folder) {
 	}
 	e.debounce[path] = time.AfterFunc(debounceInterval, func() {
 		e.mu.Lock()
+		defer e.mu.Unlock()
 		delete(e.debounce, path)
-		e.mu.Unlock()
-		e.processChangedPath(path, f)
+		if e.stopped {
+			return
+		}
+		// Queued for the folder's worker, not uploaded from here: a
+		// directory of 2,000 photos copied in fired 2,000 timers at once,
+		// each hashing and holding chunk buffers for its own upload.
+		if e.changeQueued[f.ID] == nil {
+			e.changeQueued[f.ID] = map[string]bool{}
+		}
+		if !e.changeQueued[f.ID][path] {
+			e.changeQueued[f.ID][path] = true
+			e.changeQueue[f.ID] = append(e.changeQueue[f.ID], path)
+		}
+		if !e.draining[f.ID] {
+			e.draining[f.ID] = true
+			go e.drainChanges(f)
+		}
 	})
 	e.mu.Unlock()
 }
 
+// drainChanges is a backup folder's one worker for its debounced changes:
+// one file hashed and uploaded at a time, in the order they came. A path
+// leaves the queue before it is processed, so a change during its own
+// upload queues it again and the new content follows.
+func (e *Engine) drainChanges(f config.Folder) {
+	for {
+		e.mu.Lock()
+		q := e.changeQueue[f.ID]
+		if e.stopped || len(q) == 0 || !e.backupConfiguredLocked(f.ID) {
+			delete(e.changeQueue, f.ID)
+			delete(e.changeQueued, f.ID)
+			delete(e.draining, f.ID)
+			e.mu.Unlock()
+
+			return
+		}
+		path := q[0]
+		e.changeQueue[f.ID] = q[1:]
+		delete(e.changeQueued[f.ID], path)
+		e.mu.Unlock()
+		e.processChangedPath(path, f)
+	}
+}
+
 func (e *Engine) processChangedPath(path string, f config.Folder) {
+	e.mu.Lock()
+	domain := e.cfg.Domain
+	e.mu.Unlock()
+	// A change still waiting when its folder was removed, or became two-way,
+	// is not sent.
+	if !e.stillBackingUp(f.ID, domain) {
+		return
+	}
 	if !e.ws.IsConnected() {
 		return // the reconcile safety net catches it up later
 	}
@@ -729,11 +827,20 @@ func (e *Engine) processChangedPath(path string, f config.Folder) {
 	known := e.remoteHashes[f.ID][remotePath]
 	e.mu.Unlock()
 	if err == nil && !fi.IsDir() {
-		if isHidden(path) {
+		rel, relErr := filepath.Rel(f.Path, path)
+		if relErr != nil {
+			rel = filepath.Base(path)
+		}
+		if notSynced(filepath.ToSlash(rel)) {
+			return // as the reconcile: not part of the backup
+		}
+		h, err := e.cachedHashInfo(f.ID, path, fi)
+		if err != nil || h == known {
 			return
 		}
-		h, err := e.cachedHash(f.ID, path)
-		if err != nil || h == known {
+		// Hashing takes a while: removed, or pointed at another device,
+		// meanwhile.
+		if !e.stillBackingUp(f.ID, domain) {
 			return
 		}
 		if err := e.upload(path, remotePath, h, fi); err != nil {
@@ -742,10 +849,12 @@ func (e *Engine) processChangedPath(path string, f config.Folder) {
 			return
 		}
 		e.mu.Lock()
-		if e.remoteHashes[f.ID] == nil {
-			e.remoteHashes[f.ID] = map[string]string{}
+		if e.backupConfiguredLocked(f.ID) {
+			if e.remoteHashes[f.ID] == nil {
+				e.remoteHashes[f.ID] = map[string]string{}
+			}
+			e.remoteHashes[f.ID][remotePath] = h
 		}
-		e.remoteHashes[f.ID][remotePath] = h
 		e.mu.Unlock()
 	}
 	// Gone here: nothing to do. A backup is upload only - what this
@@ -762,16 +871,20 @@ type uploadItem struct {
 }
 
 func (e *Engine) reconcile(f config.Folder) {
-	defer e.saveHashCache(f.ID)
+	defer e.saveHashCacheIfKept(f.ID)
 	if !e.ws.IsConnected() {
 		return
 	}
 	e.mu.Lock()
-	if e.folderBusy[f.ID] {
+	// Not configured any more: a pass from a stale copy of the folder list
+	// (startSync, reconcileLoop) or a retry that fired after the removal.
+	if e.folderBusy[f.ID] || !e.backupConfiguredLocked(f.ID) {
 		e.mu.Unlock()
 
 		return
 	}
+	// The device this pass talks to, as reconcileRemoteFolder.
+	domainAtStart := e.cfg.Domain
 	e.folderBusy[f.ID] = true
 	if t := e.errorRetry[f.ID]; t != nil {
 		t.Stop()
@@ -783,6 +896,7 @@ func (e *Engine) reconcile(f config.Folder) {
 		delete(e.folderBusy, f.ID)
 		e.mu.Unlock()
 	}()
+	e.ensureUploadOnly(f)
 
 	remotePrefix := e.remotePathFor(f.Path) + "/"
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
@@ -807,13 +921,16 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 	}
 
-	local, err := enumerateFiles(f.Path)
+	// An unreadable subdirectory only means fewer uploads here: a backup
+	// never deletes on the device.
+	local, failedDirs, err := enumerateFiles(f.Path)
 	if err != nil {
 		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
 		e.scheduleErrorRetry(f)
 
 		return
 	}
+	e.pruneHashCache(f.ID, f.Path, local, failedDirs)
 	localRemote := map[string]bool{}
 	var toUpload []uploadItem
 	// Issue #138 (as SyncModel.reconcile): say which file is being checked,
@@ -823,6 +940,9 @@ func (e *Engine) reconcile(f config.Folder) {
 	var folderBytes int64
 	for i, p := range local {
 		if time.Since(lastShown) > time.Second {
+			if e.backupPassOver(f, domainAtStart) {
+				return
+			}
 			lastShown = time.Now()
 			e.setFolderState(f.ID, FolderState{Kind: StateScanning, CurrentFile: fmt.Sprintf("Checking %d/%d · %s", i+1, len(local), filepath.Base(p))})
 		}
@@ -841,7 +961,7 @@ func (e *Engine) reconcile(f config.Folder) {
 		h := ""
 		if _, onDevice := remoteMap[rp]; onDevice {
 			var err error
-			h, err = e.cachedHash(f.ID, p)
+			h, err = e.cachedHashInfo(f.ID, p, fi)
 			if err != nil || remoteMap[rp] == h {
 				continue
 			}
@@ -863,6 +983,9 @@ func (e *Engine) reconcile(f config.Folder) {
 		}
 		alreadyThere := len(local) - len(toUpload)
 		for k, it := range toUpload {
+			if e.backupPassOver(f, domainAtStart) {
+				return
+			}
 			// The link went: stop rather than "fail" every remaining file
 			// in a second each, racing the bar to 100% with nothing sent
 			// (as SyncModel.reconcile); OnConnect's startSync resumes it.
@@ -881,6 +1004,11 @@ func (e *Engine) reconcile(f config.Folder) {
 					continue
 				}
 				it.hash = h
+				// A large file takes a while to hash: checked again so
+				// nothing goes to a device this folder no longer syncs with.
+				if e.backupPassOver(f, domainAtStart) {
+					return
+				}
 			}
 			if err := e.upload(it.path, it.remote, it.hash, it.info); err != nil {
 				log.Printf("error syncing %s: %v", filepath.Base(it.path), err)
@@ -892,15 +1020,50 @@ func (e *Engine) reconcile(f config.Folder) {
 	}
 
 	// A backup is upload only: what is no longer here stays on the device.
+	if e.backupPassOver(f, domainAtStart) {
+		return
+	}
 	e.mu.Lock()
-	e.remoteHashes[f.ID] = remoteMap
+	if e.backupConfiguredLocked(f.ID) {
+		e.remoteHashes[f.ID] = remoteMap
+	}
 	e.mu.Unlock()
 	e.setFolderState(f.ID, FolderState{Kind: StateWatching})
+}
+
+// backupPassOver: a backup pass ends once its folder is removed or this
+// computer is pointed at another device (disconnected, another device set
+// up) - what is left is not sent there, as stillSyncing does for two-way
+// passes. When only the device changed, the folder goes again shortly,
+// from the new device's own listing. No status of its own, as on the Mac:
+// the folder shows a plain scan (not the stopped pass's file and progress)
+// until that pass, which the retry or, if the new device is not connected
+// by then, startSync's resume of a folder not at rest starts.
+func (e *Engine) backupPassOver(f config.Folder, domain string) bool {
+	e.mu.Lock()
+	configured := e.backupConfiguredLocked(f.ID)
+	sameDevice := e.cfg.Domain == domain
+	e.mu.Unlock()
+	if configured && sameDevice {
+		return false
+	}
+	log.Printf("backup %s: folder removed or device changed - pass stopped", f.Path)
+	if configured {
+		e.setFolderState(f.ID, FolderState{Kind: StateScanning})
+		e.scheduleErrorRetry(f)
+	}
+
+	return true
 }
 
 func (e *Engine) scheduleErrorRetry(f config.Folder) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	// A removed folder's pass that failed: a retry would list the device
+	// every 30 seconds for a folder nobody syncs any more.
+	if e.stopped || !e.backupConfiguredLocked(f.ID) {
+		return
+	}
 	if t := e.errorRetry[f.ID]; t != nil {
 		t.Stop()
 	}
@@ -935,7 +1098,7 @@ type action struct {
 }
 
 func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
-	defer e.saveHashCache(f.ID)
+	defer e.saveHashCacheIfKept(f.ID)
 	if !e.ws.IsConnected() {
 		return
 	}
@@ -946,7 +1109,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	domainAtStart := e.cfg.Domain
 	e.mu.Unlock()
 	e.mu.Lock()
-	if e.folderBusy[f.ID] {
+	if e.folderBusy[f.ID] || !e.remoteConfiguredLocked(f.ID) {
 		e.mu.Unlock()
 
 		return
@@ -990,18 +1153,37 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	remoteByRel := map[string]*pb.File{}
 	if lof, ok := resp.Payload.(*pb.RespEnvelope_RespListOfFiles); ok {
+		skipped := 0
 		for _, rf := range lof.RespListOfFiles.Files {
-			remoteByRel[strings.TrimPrefix(rf.Path, remotePrefix)] = rf
+			// Device paths are data, not trusted: one that isn't under the
+			// folder, or that climbs out of it, would be written (and later
+			// deleted from the device) outside the folder.
+			rel, under := strings.CutPrefix(rf.Path, remotePrefix)
+			if !under || !safeRelative(rel) {
+				skipped++
+
+				continue
+			}
+			if notSynced(rel) {
+				// Never seen here either (enumerateFiles): listing it
+				// meant a download, then a delete from the device.
+				continue
+			}
+			remoteByRel[rel] = rf
+		}
+		if skipped > 0 {
+			log.Printf("two-way %s: %d device entries outside the folder ignored", f.RemotePath, skipped)
 		}
 	}
 
-	local, err := enumerateFiles(f.LocalPath)
+	local, failedDirs, err := enumerateFiles(f.LocalPath)
 	if err != nil {
 		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
 		e.scheduleRemoteRetry(f)
 
 		return
 	}
+	e.pruneHashCache(f.ID, f.LocalPath, local, failedDirs)
 	e.mu.Lock()
 	e.loadSyncedLocked(f.ID)
 	last := e.lastSynced[f.ID]
@@ -1011,6 +1193,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	localByRel := map[string]string{}
 	localHashes := map[string]string{}
+	// The stat each hash was taken with: sizes for the progress bar, and
+	// what the file must still look like before a planned action
+	// overwrites or deletes it.
+	localInfo := map[string]os.FileInfo{}
 	// Only here, not on the device and never synced: an upload whatever
 	// its content, hashed when it is sent (see reconcile()).
 	newLocal := map[string]bool{}
@@ -1038,8 +1224,14 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				continue
 			}
 		}
-		if h, err := e.cachedHash(f.ID, p); err == nil {
+		fi, err := os.Stat(p)
+		var h string
+		if err == nil {
+			h, err = e.cachedHashInfo(f.ID, p, fi)
+		}
+		if err == nil {
 			localHashes[rel] = h
+			localInfo[rel] = fi
 		} else {
 			unreadable[rel] = true
 			if len(unreadable) <= 5 {
@@ -1057,6 +1249,19 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	for k := range last {
 		all[k] = true
+	}
+	// Under a directory that could not be read (permissions, a dead
+	// network mount) files look deleted here; they are left out like an
+	// unreadable file, or their device copies would be deleted - and are
+	// counted in the folder's "could not be read" like one.
+	for rel := range all {
+		for _, d := range failedDirs {
+			if rel == d || strings.HasPrefix(rel, d+"/") {
+				unreadable[rel] = true
+
+				break
+			}
+		}
 	}
 
 	newSynced := map[string]string{}
@@ -1176,36 +1381,99 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		guardNote = fmt.Sprintf("%d files had disappeared from the device - restored them from this computer instead of deleting them here", localDeletes)
 	}
 
+	// Local deletes first: on a disk that ignores case (Windows, macOS) a
+	// file renamed only in case elsewhere is a download of "A.txt" and a
+	// delete of "a.txt" here - the same file. Downloading first, the delete
+	// then removed what had just been written.
+	sort.SliceStable(actions, func(i, j int) bool {
+		return actions[i].kind == actDeleteLocal && actions[j].kind != actDeleteLocal
+	})
+
+	// stillAsScanned: the local file is as the plan saw it - same size and
+	// modification time, or still absent. Checked at the last moment before
+	// it is overwritten or deleted: a pass can run for hours, and an edit
+	// (or a new file) made here meanwhile must not be lost. The next pass
+	// sees it as a change, and a conflict keeps both versions.
+	stillAsScanned := func(rel, p string) error {
+		fi, err := os.Lstat(p)
+		seen, had := localInfo[rel]
+		if !had {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			return errChangedHere
+		}
+		if err != nil {
+			return err
+		}
+		if fi.Size() != seen.Size() || !fi.ModTime().Equal(seen.ModTime()) {
+			return errChangedHere
+		}
+
+		return nil
+	}
+	absent := func(p string) func() error {
+		return func() error {
+			if _, err := os.Lstat(p); err == nil {
+				return errChangedHere
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+
+			return nil
+		}
+	}
+
 	// Of the whole folder, as SyncModel.reconcileRemoteFolder: every path
-	// on either side counts and what already agrees is done.
+	// on either side counts and what already agrees is done. Only worked
+	// out when there is something to do - a folder at rest is the usual
+	// pass, and summing it stat'ed every file again every minute.
+	sizes := map[string]int64{}
 	bytesOf := func(rel string) int64 {
-		if p, ok := localByRel[rel]; ok {
-			if fi, err := os.Stat(p); err == nil {
-				return fi.Size()
+		if n, ok := sizes[rel]; ok {
+			return n
+		}
+		fi, ok := localInfo[rel]
+		if p, here := localByRel[rel]; !ok && here {
+			// Not hashed this pass (new here): stat it now.
+			var err error
+			if fi, err = os.Stat(p); err == nil {
+				ok = true
 			}
 		}
-		if rf := remoteByRel[rel]; rf != nil {
-			return int64(rf.Size)
+		var n int64
+		if ok {
+			n = fi.Size()
+		} else if rf := remoteByRel[rel]; rf != nil {
+			n = int64(rf.Size)
 		}
-		return 0
+		sizes[rel] = n
+		return n
 	}
-	folderPaths := map[string]bool{}
-	for k := range localByRel {
-		folderPaths[k] = true
-	}
-	for k := range remoteByRel {
-		folderPaths[k] = true
-	}
-	folderCount := max(len(folderPaths), len(actions))
-	alreadyAgree := folderCount - len(actions)
-	var totalBytes int64
-	for k := range folderPaths {
-		totalBytes += bytesOf(k)
-	}
-	totalBytes = max(totalBytes, 1)
-	bytesDone := totalBytes
-	for _, a := range actions {
-		bytesDone -= bytesOf(a.relative)
+	var folderCount, alreadyAgree int
+	var totalBytes, bytesDone int64
+	if len(actions) > 0 {
+		folderPaths := map[string]bool{}
+		for k := range localByRel {
+			folderPaths[k] = true
+		}
+		for k := range remoteByRel {
+			folderPaths[k] = true
+		}
+		folderCount = max(len(folderPaths), len(actions))
+		alreadyAgree = folderCount - len(actions)
+		for k := range folderPaths {
+			totalBytes += bytesOf(k)
+		}
+		totalBytes = max(totalBytes, 1)
+		bytesDone = totalBytes
+		for _, a := range actions {
+			bytesDone -= bytesOf(a.relative)
+		}
 	}
 
 	for i, a := range actions {
@@ -1233,6 +1501,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		e.setRemoteState(f.ID, FolderState{Kind: StateScanning, Progress: float64(max(bytesDone, 0)) / float64(totalBytes), CurrentFile: fmt.Sprintf("%d/%d · %s", alreadyAgree+i+1, folderCount, baseName(a.relative))})
 		bytesDone += bytesOf(a.relative)
+		if !safeRelative(a.relative) {
+			// Never reached from the listing (filtered above); a record
+			// written by an older version could still carry such a path.
+			delete(newSynced, a.relative)
+
+			continue
+		}
 		localPath := filepath.Join(f.LocalPath, filepath.FromSlash(a.relative))
 		remotePath := remotePrefix + a.relative
 		var err error
@@ -1245,6 +1520,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				if a.hash == "" {
 					a.hash, err = e.cachedHash(f.ID, localPath)
 				}
+				// Hashing a new file takes a while: the same check as the
+				// loop's, so nothing goes to a device this folder left.
+				if err == nil && !e.stillSyncing(f.ID, domainAtStart) {
+					log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
+
+					return
+				}
 				if err == nil {
 					err = e.upload(localPath, remotePath, a.hash, fi)
 				}
@@ -1253,20 +1535,27 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				}
 			}
 		case actDownload:
-			err = e.download(remotePath, localPath, a.hash)
+			err = e.downloadIf(remotePath, localPath, a.hash, f.ID, func() error { return stillAsScanned(a.relative, localPath) })
 		case actDownloadKeepLocal:
 			// The local version first, under its conflict name; only then
-			// the device's version over the original name.
+			// the device's version over the original name. The rename takes
+			// whatever is there now, edits included; only a file created
+			// at the name during the download could still be overwritten.
 			copyPath := conflictPath(localPath, hostLabel(), time.Now())
 			if err = os.Rename(localPath, copyPath); err == nil {
 				log.Printf("conflict on %s: this computer's version kept as %s", a.relative, filepath.Base(copyPath))
-				err = e.download(remotePath, localPath, a.hash)
+				err = e.downloadIf(remotePath, localPath, a.hash, f.ID, absent(localPath))
 			}
 		case actUploadKeepRemote:
 			localHash, remoteHash, _ := strings.Cut(a.hash, "\x00")
 			copyPath := conflictPath(localPath, "", time.Now())
-			if err = e.download(remotePath, copyPath, remoteHash); err == nil {
+			if err = e.downloadIf(remotePath, copyPath, remoteHash, f.ID, absent(copyPath)); err == nil {
 				log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
+				if !e.stillSyncing(f.ID, domainAtStart) {
+					log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
+
+					return
+				}
 				var fi os.FileInfo
 				if fi, err = os.Stat(localPath); err == nil {
 					err = e.upload(localPath, remotePath, localHash, fi)
@@ -1275,7 +1564,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		case actDeleteRemote:
 			err = e.deleteRemote(remotePath)
 		case actDeleteLocal:
-			err = os.Remove(localPath)
+			if err = stillAsScanned(a.relative, localPath); err == nil {
+				err = os.Remove(localPath)
+			}
 		}
 		if err != nil {
 			// Back to the baseline for this path so a transient failure is
@@ -1285,7 +1576,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			} else {
 				delete(newSynced, a.relative)
 			}
-			log.Printf("error syncing %s: %v", a.relative, err)
+			if errors.Is(err, errChangedHere) {
+				log.Printf("%s %v", a.relative, err)
+			} else {
+				log.Printf("error syncing %s: %v", a.relative, err)
+			}
 		}
 	}
 
@@ -1293,6 +1588,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
 	e.saveSynced(f.ID, newSynced)
+	// Files under a directory that could not be read are in unreadable
+	// (see above) and counted here. Such a directory with nothing synced
+	// under it - lost+found at a mount's root, System Volume Information
+	// at a drive's - is only logged (enumerateFiles), as on the Mac: it
+	// would otherwise hold the folder in an error for good.
 	if len(unreadable) > 0 {
 		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d file(s) could not be read", len(unreadable))})
 
@@ -1306,13 +1606,17 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
 }
 
+// errChangedHere: a planned overwrite or delete found the local file no
+// longer as the pass saw it (see stillAsScanned).
+var errChangedHere = errors.New("changed on this computer during the pass - left for the next pass")
+
 // massDeleteMin: two-way folders - more local deletions than this in one
 // pass (and a quarter of the folder) mean the device lost the files.
 const massDeleteMin = 20
 
 func (e *Engine) startRemoteWatcher(f config.RemoteFolder) {
 	e.mu.Lock()
-	if _, ok := e.remoteWatch[f.ID]; ok || e.stopped {
+	if _, ok := e.remoteWatch[f.ID]; ok || e.stopped || !e.remoteConfiguredLocked(f.ID) {
 		e.mu.Unlock()
 
 		return
@@ -1347,6 +1651,14 @@ func (e *Engine) startRemoteWatcher(f config.RemoteFolder) {
 		return
 	}
 	e.mu.Lock()
+	// As startWatcher: removed meanwhile (the pass's own safety guard does
+	// that), or already watched - never keep an orphan watcher.
+	if e.stopped || e.remoteWatch[f.ID] != nil || !e.remoteConfiguredLocked(f.ID) {
+		e.mu.Unlock()
+		w.Stop()
+
+		return
+	}
 	e.remoteWatch[f.ID] = w
 	e.mu.Unlock()
 }
@@ -1354,6 +1666,9 @@ func (e *Engine) startRemoteWatcher(f config.RemoteFolder) {
 func (e *Engine) scheduleRemoteRetry(f config.RemoteFolder) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.stopped || !e.remoteConfiguredLocked(f.ID) {
+		return
+	}
 	if t := e.remoteRetry[f.ID]; t != nil {
 		t.Stop()
 	}
@@ -1493,6 +1808,14 @@ func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified 
 // with empty content and no error, and the 0-byte file that made went
 // back up over the device's row on the next pass).
 func (e *Engine) download(remotePath, dest, expectedHash string) error {
+	return e.downloadIf(remotePath, dest, expectedHash, "", nil)
+}
+
+// downloadIf is download with a last check: ready, when given, runs once
+// the content is here and verified, just before it takes dest's place,
+// and an error from it leaves dest as it is. With a folderID, the hash of
+// what was written goes in that folder's hash cache.
+func (e *Engine) downloadIf(remotePath, dest, expectedHash, folderID string, ready func() error) error {
 	// Issue #168: ReadFile, in pieces, and the file's original bytes -
 	// GetFile turns a HEIC into a JPEG for viewers, so what came back never
 	// matched the listed hash: never written, fetched again every pass,
@@ -1549,11 +1872,17 @@ func (e *Engine) download(remotePath, dest, expectedHash string) error {
 	// Checked before anything takes the file's place (a device whose blob
 	// had gone missing used to answer with empty content, and the 0-byte
 	// file that made went back up over the device's row on the next pass).
-	if got := hex.EncodeToString(h.Sum(nil)); expectedHash != "" && got != expectedHash {
+	got := hex.EncodeToString(h.Sum(nil))
+	if expectedHash != "" && got != expectedHash {
 		return fmt.Errorf("the device sent %d bytes that don't match the file's hash - not written", offset)
 	}
 	if err := out.Close(); err != nil {
 		return err
+	}
+	if ready != nil {
+		if err := ready(); err != nil {
+			return err
+		}
 	}
 	if err := os.Rename(tmp, dest); err != nil {
 		return err
@@ -1566,12 +1895,34 @@ func (e *Engine) download(remotePath, dest, expectedHash string) error {
 		if last.Created != nil {
 			created = last.Created.AsTime()
 		}
-		if err := setFileTimes(dest, created, last.Modified.AsTime()); err != nil {
+		modified := last.Modified.AsTime()
+		if err := setFileTimes(dest, created, modified); err != nil {
 			log.Printf("could not set the dates of %s: %v", dest, err)
+		} else if folderID != "" {
+			e.cacheDownloadedHash(folderID, dest, offset, modified, got)
 		}
 	}
 
 	return nil
+}
+
+// cacheDownloadedHash records the hash of a file just downloaded, so the
+// next pass (the folder's own watcher starts one a second later) doesn't
+// read it all again. Only when the file still has exactly the size written
+// and the date just set: anything written to it since moved its date on.
+func (e *Engine) cacheDownloadedHash(folderID, p string, size int64, modified time.Time, hash string) {
+	fi, err := os.Stat(p)
+	if err != nil || fi.Size() != size || !fi.ModTime().Equal(modified) {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.loadHashCacheLocked(folderID)
+	if e.hashCache[folderID] == nil {
+		e.hashCache[folderID] = map[string]hashEntry{}
+	}
+	e.hashCache[folderID][p] = hashEntry{size: fi.Size(), modTime: fi.ModTime(), hash: hash}
+	e.hashDirty[folderID] = true
 }
 
 // markUploadOnly makes a backup's folder on the device upload only (issue
@@ -1579,15 +1930,48 @@ func (e *Engine) download(remotePath, dest, expectedHash string) error {
 // of a file when it changes. Sent at every start, so backups added before
 // this get it too; harmless when already set. As SyncModel.markUploadOnly.
 func (e *Engine) markUploadOnly(f config.Folder) {
+	e.mu.Lock()
+	domain := e.cfg.Domain
+	e.mu.Unlock()
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqSetUploadOnly{ReqSetUploadOnly: &pb.SetUploadOnly{Path: e.remotePathFor(f.Path) + "/", UploadOnly: true}}
 	})
 	if err == nil {
 		err = wsclient.RespError(resp, "upload only refused")
 	}
-	if err != nil {
+	e.mu.Lock()
+	logIt := false
+	if e.backupConfiguredLocked(f.ID) && e.cfg.Domain == domain {
+		if err == nil {
+			e.uploadOnlyOK[f.ID] = true
+			delete(e.uploadOnlyErr, f.ID)
+		} else if e.uploadOnlyErr[f.ID] != err.Error() {
+			// Once per error, not every pass: a device older than #132
+			// refuses every attempt the same way.
+			e.uploadOnlyErr[f.ID] = err.Error()
+			logIt = true
+		}
+	}
+	e.mu.Unlock()
+	if logIt {
 		log.Printf("could not make backup %s upload only on the device: %v", f.Path, err)
 	}
+}
+
+// ensureUploadOnly sends markUploadOnly until the device linked now has
+// acknowledged it. It used to be sent once, when the folder was set up: a
+// failure there (the link dropping right after connect, a device not yet
+// updated) left the backup unprotected - deletes from a phone accepted,
+// older versions overwritten - until otc-sync restarted. Now every pass
+// and reconnect tries again until it succeeds; after that, nothing more.
+func (e *Engine) ensureUploadOnly(f config.Folder) {
+	e.mu.Lock()
+	done := e.uploadOnlyOK[f.ID]
+	e.mu.Unlock()
+	if done || !e.ws.IsConnected() {
+		return
+	}
+	e.markUploadOnly(f)
 }
 
 func (e *Engine) deleteRemote(remotePath string) error {
@@ -1627,6 +2011,31 @@ func (e *Engine) remotePathFor(path string) string {
 	return "/" + runtime.GOOS + "/" + host + strings.TrimSuffix(p, "/")
 }
 
+// safeRelative: rel (slash-separated, from the device) names a file inside
+// the synced folder - not empty, no "", "." or ".." component, and nothing
+// this OS reads as absolute, a drive, a "\" separator or a device name
+// (filepath.IsLocal). Same rule as SyncModel.safeRelative on the Mac.
+func safeRelative(rel string) bool {
+	if rel == "" || strings.ContainsRune(rel, 0) {
+		return false
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if part == "" || part == "." || part == ".." {
+			return false
+		}
+	}
+
+	return filepath.IsLocal(filepath.FromSlash(rel))
+}
+
+// notSynced: paths this client never syncs - hidden ones (as
+// enumerateFiles and the Mac's .skipsHiddenFiles) and its own partial
+// downloads. rel is relative to the folder, so a folder that itself sits
+// under a dot directory is still synced.
+func notSynced(rel string) bool {
+	return isHidden(rel) || strings.HasSuffix(rel, ".otc-part")
+}
+
 func isHidden(p string) bool {
 	for _, part := range strings.Split(filepath.ToSlash(p), "/") {
 		if strings.HasPrefix(part, ".") && part != "." && part != ".." {
@@ -1639,13 +2048,21 @@ func isHidden(p string) bool {
 
 // enumerateFiles walks a tree for regular files, skipping hidden entries
 // like the macOS enumerator's .skipsHiddenFiles and this client's own
-// partial downloads.
-func enumerateFiles(root string) ([]string, error) {
-	var out []string
-	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+// partial downloads. failed lists the directories below root that could
+// not be read (relative to root, slash-separated): what is under them is
+// unknown, not gone. An unreadable root is an error.
+func enumerateFiles(root string) (out, failed []string, err error) {
+	err = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			if p == root {
 				return err
+			}
+			// Below the root only a directory's ReadDir reports here.
+			if rel, ok := unreadableDir(root, p, err); ok {
+				if len(failed) < 5 {
+					log.Printf("cannot read directory %s: %v", rel, err)
+				}
+				failed = append(failed, rel)
 			}
 
 			return nil
@@ -1664,7 +2081,20 @@ func enumerateFiles(root string) ([]string, error) {
 		return nil
 	})
 
-	return out, err
+	return out, failed, err
+}
+
+// unreadableDir: the directory below root whose read failed with err, as
+// enumerateFiles lists it, and whether it counts as one that could not be
+// read. One deleted or renamed since its parent was listed does not: it is
+// gone, and what was under it is handled as any delete.
+func unreadableDir(root, p string, err error) (string, bool) {
+	if errors.Is(err, os.ErrNotExist) {
+		return "", false
+	}
+	rel, _ := filepath.Rel(root, p)
+
+	return filepath.ToSlash(rel), true
 }
 
 type hashEntry struct {
@@ -1678,6 +2108,16 @@ func (e *Engine) cachedHash(folderID, p string) (string, error) {
 	fi, err := os.Stat(p)
 	if err != nil {
 		return "", err
+	}
+
+	return e.cachedHashInfo(folderID, p, fi)
+}
+
+// cachedHashInfo is cachedHash with the file's stat already taken by the
+// caller, moments before.
+func (e *Engine) cachedHashInfo(folderID, p string, fi os.FileInfo) (string, error) {
+	if fi == nil {
+		return "", fmt.Errorf("cannot read %s", filepath.Base(p))
 	}
 	e.mu.Lock()
 	e.loadHashCacheLocked(folderID)
@@ -1766,6 +2206,60 @@ func hostLabel() string {
 		return "this computer"
 	}
 	return strings.TrimSuffix(h, ".local")
+}
+
+// backupConfiguredLocked: the backup folder id is still in the config;
+// e.mu must be held.
+func (e *Engine) backupConfiguredLocked(id string) bool {
+	if e.cfg == nil {
+		return false
+	}
+	for _, f := range e.cfg.Folders {
+		if f.ID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+// remoteConfiguredLocked: the same for a two-way folder.
+func (e *Engine) remoteConfiguredLocked(id string) bool {
+	if e.cfg == nil {
+		return false
+	}
+	for _, f := range e.cfg.RemoteFolders {
+		if f.ID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+// stillBackingUp: stillSyncing for a backup folder.
+func (e *Engine) stillBackingUp(id, domain string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.backupConfiguredLocked(id) && e.cfg.Domain == domain
+}
+
+// saveHashCacheIfKept is the end of a pass's saveHashCache - unless the
+// folder was removed meanwhile: what the pass cached then goes too, rather
+// than bringing back the file the removal deleted.
+func (e *Engine) saveHashCacheIfKept(id string) {
+	e.mu.Lock()
+	kept := e.backupConfiguredLocked(id) || e.remoteConfiguredLocked(id)
+	if !kept {
+		delete(e.hashCache, id)
+		delete(e.hashDirty, id)
+		delete(e.hashLoaded, id)
+	}
+	e.mu.Unlock()
+	if kept {
+		e.saveHashCache(id)
+	}
 }
 
 // stillSyncing: the two-way folder id is still configured and the device

@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/wsclient"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -34,8 +36,17 @@ type fakeDevice struct {
 	pending map[string]*bytes.Buffer
 	paths   map[string]string
 	chunks  int
-	list    []*pb.File // what ListFiles answers
-	reads   int        // ReadFile/GetFile requests
+	list    []*pb.File             // what ListFiles answers
+	reads   int                    // ReadFile/GetFile requests
+	deletes []string               // DelFile paths
+	onRead  func()                 // runs on each ReadFile, as if the user did something meanwhile
+	modTime *timestamppb.Timestamp // the files' date, when set
+	onHas   func()                 // runs on each HasFile (the start of an upload)
+	// SetUploadOnly requests answered, and whether they are refused.
+	uploadOnly       int
+	refuseUploadOnly bool
+	// Uploads begun and not finished, now and at most.
+	open, maxOpen int
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -48,9 +59,14 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 	case *pb.ReqEnvelope_ReqAuth:
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqHasFile:
+		if d.onHas != nil {
+			d.onHas()
+		}
 		resp.Payload = &pb.RespEnvelope_RespFileExists{RespFileExists: &pb.FileExists{Exists: false}}
 	case *pb.ReqEnvelope_ReqBeginUpload:
-		id := "u1"
+		id := fmt.Sprintf("u%d", len(d.pending)+1)
+		d.open++
+		d.maxOpen = max(d.maxOpen, d.open)
 		d.pending[id] = &bytes.Buffer{}
 		d.paths[id] = p.ReqBeginUpload.Path
 		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id}}
@@ -64,6 +80,7 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		d.chunks++
 		resp.Payload = &pb.RespEnvelope_RespUploadProgress{RespUploadProgress: &pb.UploadProgress{Received: int64(b.Len())}}
 	case *pb.ReqEnvelope_ReqFinishUpload:
+		d.open--
 		id := p.ReqFinishUpload.UploadId
 		sum := sha256.Sum256(d.pending[id].Bytes())
 		if hex.EncodeToString(sum[:]) != p.ReqFinishUpload.Sha256 {
@@ -74,11 +91,24 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
 	case *pb.ReqEnvelope_ReqListFiles:
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: d.list}}
+	case *pb.ReqEnvelope_ReqSetUploadOnly:
+		d.uploadOnly++
+		if d.refuseUploadOnly {
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "unknown_payload", "unknown request"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+	case *pb.ReqEnvelope_ReqDelFile:
+		d.deletes = append(d.deletes, p.ReqDelFile.Path)
+		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqGetFile:
 		d.reads++
 		resp.Error, resp.ErrorMessage = true, "the content is missing on this device"
 	case *pb.ReqEnvelope_ReqReadFile:
 		d.reads++
+		if d.onRead != nil {
+			d.onRead()
+		}
 		data, ok := d.files[p.ReqReadFile.Path]
 		if !ok {
 			resp.Error, resp.ErrorMessage = true, "no such file"
@@ -88,7 +118,7 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		off := p.ReqReadFile.Offset
 		end := min(off+int64(p.ReqReadFile.Length), int64(len(data)))
 		resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{
-			Path: p.ReqReadFile.Path, Hash: hex.EncodeToString(sum[:]), Size: int64(len(data)), Offset: off, Data: data[off:end],
+			Path: p.ReqReadFile.Path, Hash: hex.EncodeToString(sum[:]), Size: int64(len(data)), Offset: off, Data: data[off:end], Modified: d.modTime,
 		}}
 	default:
 		resp.Error, resp.ErrorMessage = true, "unexpected request"

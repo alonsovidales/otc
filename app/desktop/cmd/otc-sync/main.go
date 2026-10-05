@@ -249,6 +249,7 @@ type app struct {
 	password string
 	eng      *engine.Engine // nil in viewer mode
 	saveTmr  *time.Timer
+	saveMu   sync.Mutex // one state.json write at a time, in order
 	quit     chan struct{}
 }
 
@@ -386,17 +387,30 @@ func (a *app) reload() {
 	tray.Refresh()
 }
 
+// scheduleStateWrite writes state.json at most every 300 ms, and always
+// after the last change. It used to restart its timer on every change, and
+// a pass changes something per file - faster than that on a LAN - so
+// state.json was not written for the whole pass, went stale, and `otc-sync
+// status` and a tray next to the service said the sync was not running.
 func (a *app) scheduleStateWrite() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.saveTmr != nil {
-		a.saveTmr.Stop()
+		return // already due: it takes the latest snapshot when it fires
 	}
 	a.saveTmr = time.AfterFunc(300*time.Millisecond, func() {
-		if a.eng != nil {
-			st := a.eng.Snapshot()
-			_ = config.SaveState(&st)
+		a.mu.Lock()
+		// Cleared before the snapshot, so a change made while it is
+		// written schedules the next write rather than being missed.
+		a.saveTmr = nil
+		a.mu.Unlock()
+		if a.eng == nil {
+			return
 		}
+		a.saveMu.Lock()
+		defer a.saveMu.Unlock()
+		st := a.eng.Snapshot()
+		_ = config.SaveState(&st)
 	})
 }
 
@@ -421,6 +435,21 @@ func (a *app) Config() *config.Config {
 	}
 
 	return cfg
+}
+
+// LoadConfig is config.json for an edit about to be saved: a file that
+// can't be read is an error here, never the empty config Config shows -
+// saving that over the real file dropped every folder (and their sync
+// records) and the device. A read that races another process's
+// rename-over (Windows) is tried again.
+func (a *app) LoadConfig() (*config.Config, error) {
+	cfg, err := config.Load()
+	for try := 1; err != nil && try < 3; try++ {
+		time.Sleep(50 * time.Millisecond)
+		cfg, err = config.Load()
+	}
+
+	return cfg, err
 }
 
 func (a *app) SaveConfig(cfg *config.Config) error {
@@ -448,18 +477,65 @@ func (a *app) SetPassword(pw string) error {
 	return nil
 }
 
-func (a *app) ListRemote(path string) ([]engine.RemoteEntry, error) {
+// RemoteBrowser is the remote folder picker's listing for one showing of
+// it, and what to call once it closes. This process's engine link when it
+// runs the engine. In viewer mode, one connection of its own for the
+// whole browse - it used to sign in afresh for every folder opened, each
+// time an Argon2id check on the device. A connection that stopped working
+// is replaced, and a listing that fails on a reused one is tried once on a
+// fresh one, so every listing still works, or fails, as a fresh one would.
+func (a *app) RemoteBrowser() (func(string) ([]engine.RemoteEntry, error), func()) {
 	if a.eng != nil {
-		return a.eng.ListRemoteDirectory(path)
+		return a.eng.ListRemoteDirectory, func() {}
 	}
-	// Viewer mode: a short-lived connection of its own.
-	ws, err := connectOnce(a.Config(), a.Password())
-	if err != nil {
-		return nil, err
-	}
-	defer ws.Disconnect()
+	var mu sync.Mutex
+	var ws *wsclient.Client
+	connect := func() error {
+		c, err := connectOnce(a.Config(), a.Password())
+		ws = c
 
-	return engine.ListRemoteDirectory(ws, path)
+		return err
+	}
+	drop := func() {
+		if ws != nil {
+			ws.Disconnect()
+			ws = nil
+		}
+	}
+	list := func(path string) ([]engine.RemoteEntry, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if ws != nil && !ws.IsConnected() {
+			// The client is reconnecting on its own, and a request would
+			// fail at once until it has: start over instead.
+			drop()
+		}
+		reused := ws != nil
+		if !reused {
+			if err := connect(); err != nil {
+				return nil, err
+			}
+		}
+		entries, err := engine.ListRemoteDirectory(ws, path)
+		if err != nil && reused {
+			// The device restarted, or the link dropped, while a dialog
+			// was open: what a fresh connection gets past.
+			drop()
+			if err := connect(); err != nil {
+				return nil, err
+			}
+			entries, err = engine.ListRemoteDirectory(ws, path)
+		}
+
+		return entries, err
+	}
+	done := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		drop()
+	}
+
+	return list, done
 }
 
 func (a *app) AutostartEnabled() bool {
@@ -469,7 +545,11 @@ func (a *app) AutostartEnabled() bool {
 }
 
 func (a *app) SetAutostart(on bool) error {
-	cfg := a.Config()
+	// Before the login item changes: a failed read leaves both as they are.
+	cfg, err := a.LoadConfig()
+	if err != nil {
+		return err
+	}
 	v := on
 	cfg.Autostart = &v
 	if err := cfg.Save(); err != nil {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
@@ -65,19 +66,22 @@ func (e *Engine) loadHashCacheLocked(folderID string) {
 }
 
 // saveHashCache writes the folder's cache if this pass changed it; called
-// at the end of every reconcile pass.
+// at the end of every reconcile pass. The dirty check comes first: most
+// passes change nothing, and copying a large cache under e.mu for nothing
+// held up everything else that needs the lock.
 func (e *Engine) saveHashCache(folderID string) {
 	e.mu.Lock()
-	dirty := e.hashDirty[folderID]
+	if !e.hashDirty[folderID] {
+		e.mu.Unlock()
+
+		return
+	}
 	delete(e.hashDirty, folderID)
 	stored := make(map[string]hashCacheFile, len(e.hashCache[folderID]))
 	for path, v := range e.hashCache[folderID] {
 		stored[path] = hashCacheFile{Size: v.size, ModNano: v.modTime.UnixNano(), Hash: v.hash}
 	}
 	e.mu.Unlock()
-	if !dirty {
-		return
-	}
 	p, err := hashCachePath(folderID)
 	if err != nil {
 		return
@@ -91,6 +95,47 @@ func (e *Engine) saveHashCache(folderID string) {
 		return
 	}
 	_ = os.Rename(tmp, p)
+}
+
+// pruneHashCache drops the entries of files that are no longer in the
+// folder, so renames and deletes don't grow the cache (and its file)
+// forever. local and failed are enumerateFiles(root) of this pass, taken
+// before anything is hashed: entries added later in the pass stay. What
+// is under a directory that could not be read is unknown, not gone, so
+// its entries stay too - a folder with one such directory for good
+// (lost+found at a mount's root) is still pruned everywhere else.
+func (e *Engine) pruneHashCache(folderID, root string, local, failed []string) {
+	keep := make(map[string]struct{}, len(local))
+	for _, p := range local {
+		keep[p] = struct{}{}
+	}
+	unknown := make([]string, 0, len(failed))
+	for _, d := range failed {
+		unknown = append(unknown, filepath.Join(root, filepath.FromSlash(d))+string(filepath.Separator))
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	// Loaded first: pruning a cache not read yet would do nothing, and
+	// reading it later would bring every stale entry back.
+	e.loadHashCacheLocked(folderID)
+	for p := range e.hashCache[folderID] {
+		if _, ok := keep[p]; ok || underAny(p, unknown) {
+			continue
+		}
+		delete(e.hashCache[folderID], p)
+		e.hashDirty[folderID] = true
+	}
+}
+
+// underAny: p is inside one of dirs (each ending in a separator).
+func underAny(p string, dirs []string) bool {
+	for _, d := range dirs {
+		if strings.HasPrefix(p, d) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // dropHashCacheLocked forgets a removed folder's cache, on disk too.

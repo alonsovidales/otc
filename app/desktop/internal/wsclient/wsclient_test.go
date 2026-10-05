@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -157,5 +158,152 @@ func TestKeepsRetryingWhileTheDeviceIsOffline(t *testing.T) {
 	}
 	if conns.Load() < 3 || unreachable.Load() < 2 || authFailed.Load() != 0 {
 		t.Fatalf("connections %d, unreachable %d, auth failures %d - want retries and no auth failure", conns.Load(), unreachable.Load(), authFailed.Load())
+	}
+}
+
+// A dial that was superseded (the address corrected while it still hung)
+// and fails afterwards says nothing: it used to mark the working
+// connection "Disconnected" and stop its RAID polling.
+func TestStaleDialFailureIsIgnored(t *testing.T) {
+	old := handshakeTO
+	handshakeTO = 500 * time.Millisecond
+	defer func() { handshakeTO = old }()
+
+	// Accepts and never answers: the handshake hangs until the timeout.
+	stall, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stall.Close()
+	go func() {
+		for {
+			c, err := stall.Accept()
+			if err != nil {
+				return
+			}
+			defer c.Close()
+		}
+	}()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubDER, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	up := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		for {
+			_, data, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			req := &pb.ReqEnvelope{}
+			if proto.Unmarshal(data, req) != nil {
+				return
+			}
+			resp := &pb.RespEnvelope{Id: req.Id, Payload: &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}}
+			if _, ok := req.Payload.(*pb.ReqEnvelope_ReqGetPubKey); ok {
+				resp.Payload = &pb.RespEnvelope_RespPubKey{RespPubKey: &pb.PubKey{PublicKey: pubDER}}
+			}
+			b, _ := proto.Marshal(resp)
+			if c.WriteMessage(websocket.BinaryMessage, b) != nil {
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	c := New()
+	var live atomic.Bool
+	var lateDisconnects atomic.Int32
+	connected := make(chan struct{}, 1)
+	c.OnConnect = func() { live.Store(true); connected <- struct{}{} }
+	c.OnDisconnect = func(err error) {
+		if err != nil && live.Load() {
+			lateDisconnects.Add(1)
+		}
+	}
+	c.Configure("ws://"+stall.Addr().String()+"/ws", "test", "secret")
+	c.Connect()
+	time.Sleep(50 * time.Millisecond) // the first dial is hanging now
+	c.Disconnect()
+	c.Configure("ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", "test", "secret")
+	c.Connect()
+	defer c.Disconnect()
+	select {
+	case <-connected:
+	case <-time.After(10 * time.Second):
+		t.Fatal("never connected to the working address")
+	}
+
+	time.Sleep(handshakeTO + 500*time.Millisecond) // the stale dial times out meanwhile
+	if n := lateDisconnects.Load(); n != 0 || !c.IsConnected() {
+		t.Fatalf("stale failure reported %d time(s), connected %v", n, c.IsConnected())
+	}
+}
+
+// A rejected password is the first thing reported: closing the socket
+// wakes the read loop, whose read error used to reach OnDisconnect first
+// at times - and connectOnce (otc-sync ls, the remote folder picker) takes
+// the first answer, so a wrong password showed as a socket error.
+func TestAuthFailureIsReportedFirst(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubDER, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	up := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		for {
+			_, data, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			req := &pb.ReqEnvelope{}
+			if proto.Unmarshal(data, req) != nil {
+				return
+			}
+			resp := &pb.RespEnvelope{Id: req.Id, Payload: &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: false, ErrorMsg: "wrong password"}}}
+			if _, ok := req.Payload.(*pb.ReqEnvelope_ReqGetPubKey); ok {
+				resp.Payload = &pb.RespEnvelope_RespPubKey{RespPubKey: &pb.PubKey{PublicKey: pubDER}}
+			}
+			b, _ := proto.Marshal(resp)
+			if c.WriteMessage(websocket.BinaryMessage, b) != nil {
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	for i := 0; i < 20; i++ {
+		c := New()
+		c.Configure("ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", "test", "secret")
+		first := make(chan string, 4)
+		c.OnAuthFailed = func(msg string, _ int) { first <- "auth: " + msg }
+		c.OnDisconnect = func(err error) {
+			if err != nil {
+				first <- "disconnect: " + err.Error()
+			}
+		}
+		c.Connect()
+		select {
+		case got := <-first:
+			if got != "auth: wrong password" {
+				t.Fatalf("attempt %d: first report %q, want the rejected password", i, got)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("no report")
+		}
+		c.Disconnect()
 	}
 }
