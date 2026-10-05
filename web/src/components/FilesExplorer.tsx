@@ -259,7 +259,7 @@ export default function FilesExplorer({
         const ab = await f.arrayBuffer();
         const bytes = new Uint8Array(ab);
 
-        await useWS.request((e: Partial<ReqEnvelope>) => {
+        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
           (e as any).payload = {
             $case: "reqUploadFile",
             reqUploadFile: {
@@ -269,6 +269,16 @@ export default function FilesExplorer({
             },
           };
         });
+        // The device refuses with a reply, not a dropped request: a file
+        // edited and dropped onto its own name ("Duplicated file"), or a
+        // failed disk write. The listing still shows the old file by that
+        // name, so a "Done" here would say the new content was kept.
+        if (resp.error || resp.payload?.$case !== "respFile") {
+          failed++;
+          setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "failed" } : u)));
+          console.error("Upload failed for", f.name, resp.errorMessage);
+          continue;
+        }
 
         setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "done" } : u)));
       } catch (err) {
