@@ -9,6 +9,7 @@
 // hit Publish.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import { uploadFile } from "../net/upload";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
@@ -359,21 +360,15 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // An inline banner reports the same errors without blocking anything.
   const [error, setError] = useState<string | null>(null);
 
-  // Issue #87: uploads one local File straight to this device (same
-  // reqUploadFile the Files section's own drag & drop uses), returning
+  // Issue #87: uploads one local File straight to this device (the same
+  // uploadFile the Files section's own drag & drop uses), returning
   // the server path it lands at so it can be included in the publish
   // call below - a post always references paths already on the server,
   // whether they got there just now or were already synced in.
   const uploadLocalFile = async (f: File): Promise<string | null> => {
-    const ab = await f.arrayBuffer();
     const path = `/web/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.name}`;
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = {
-        $case: "reqUploadFile",
-        reqUploadFile: { path, content: new Uint8Array(ab), forceOverride: false },
-      };
-    });
-    // ReqUploadFile answers with the stored RespFile (its path/hash/etc.),
+    const resp: RespEnvelope = await uploadFile(path, f, false);
+    // An upload answers with the stored RespFile (its path/hash/etc.),
     // not the generic Ack every mutation-with-nothing-to-say-back uses -
     // checking for respAck here always missed, silently treating every
     // successful upload as a failure (see FilesExplorer.tsx's own drag &

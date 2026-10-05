@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -20,6 +21,7 @@ import (
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/social"
 	"github.com/alonsovidales/otc/supervisor"
+	"google.golang.org/protobuf/proto"
 )
 
 // handleConnection dispatches every incoming envelope through up to three
@@ -690,5 +692,149 @@ func TestBridgeRetryDelayGrowsWithConsecutiveFailures(t *testing.T) {
 	// after a long streak would still be a flood.
 	if late < 30*time.Second {
 		t.Errorf("average delay after a long streak = %s, want tens of seconds at least", late)
+	}
+}
+
+// During a bridge outage each dropped pool connection used to open fresh
+// dials while earlier attempts slept in backoff uncounted - hundreds of
+// retry loops, and a pool at the bridge's per-device cap once it came
+// back. A waiting retry keeps its slot, a success ends every backoff, and
+// a retry the pool no longer needs gives its slot up instead of dialing.
+func TestBridgeRetriesStayCountedInThePool(t *testing.T) {
+	// Backoffs no test outlives: only the wake below ends them, so no
+	// retry ever dials (cfg has no bridge here).
+	origBase, origMax := cBridgeRetryBase, cBridgeRetryMax
+	cBridgeRetryBase, cBridgeRetryMax = 1000*time.Hour, 1000*time.Hour
+	defer func() { cBridgeRetryBase, cBridgeRetryMax = origBase, origMax }()
+
+	mg := &Manager{}
+	target := bridgePoolTarget()
+	total := func() (int, int) {
+		mg.bridgePool.mu.Lock()
+		defer mg.bridgePool.mu.Unlock()
+		return mg.bridgePool.available, mg.bridgePool.pending
+	}
+
+	// The whole pool fails: every attempt waits to retry.
+	mg.bridgePool.pending = target
+	for i := 0; i < target; i++ {
+		mg.failedBridgeDial()
+	}
+	for i := 0; i < 10; i++ {
+		mg.ensureBridgePool() // connections dropping meanwhile
+	}
+	if a, p := total(); a+p != target {
+		t.Fatalf("available %d + pending %d, want the target %d", a, p, target)
+	}
+
+	// The pool refilled meanwhile and a registration succeeds: every
+	// waiting retry wakes, finds the pool full, and gives its slot up.
+	mg.bridgePool.mu.Lock()
+	mg.bridgePool.available = target
+	close(mg.bridgePool.wake)
+	mg.bridgePool.wake = nil
+	mg.bridgePool.mu.Unlock()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		a, p := total()
+		if a == target && p == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("retries not released: available %d, pending %d", a, p)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// Only downloads with no effect besides their reply are dropped once the
+// peer is gone; a share link's first part counts an opening the owner
+// sees, so it always runs.
+func TestPureDownloadExcludesRequestsWithEffects(t *testing.T) {
+	for _, env := range []*pb.ReqEnvelope{
+		{Payload: &pb.ReqEnvelope_ReqGetFile{ReqGetFile: &pb.GetFile{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetThumbnails{ReqGetThumbnails: &pb.GetThumbnails{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetPublicationMedia{ReqGetPublicationMedia: &pb.GetPublicationMedia{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetSharedGalleryItem{ReqGetSharedGalleryItem: &pb.GetSharedGalleryItem{}}},
+	} {
+		if !pureDownload(env) {
+			t.Errorf("%T should be droppable", env.Payload)
+		}
+	}
+	for _, env := range []*pb.ReqEnvelope{
+		{Payload: &pb.ReqEnvelope_ReqDownloadSharedLink{ReqDownloadSharedLink: &pb.DownloadSharedLink{}}},
+		{Payload: &pb.ReqEnvelope_ReqDelFile{ReqDelFile: &pb.DelFile{}}},
+		{Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{}}},
+	} {
+		if pureDownload(env) {
+			t.Errorf("%T must never be dropped", env.Payload)
+		}
+	}
+}
+
+// A reply carrying a string that isn't valid UTF-8 (a camera's EXIF make)
+// was sent as encoded, error ignored, and the native apps' strict decoders
+// rejected it - the request then waited forever. It goes out cleaned.
+func TestMarshalReplyCleansInvalidUTF8(t *testing.T) {
+	ok := &pb.RespEnvelope{Id: 3, Payload: &pb.RespEnvelope_RespFileInfo{RespFileInfo: &pb.FileExifInfo{CameraMake: "Canon"}}}
+	want, _ := proto.Marshal(ok)
+	if got := marshalReply(3, ok); !bytes.Equal(got, want) {
+		t.Fatal("a valid reply must be sent exactly as before")
+	}
+
+	bad := &pb.RespEnvelope{Id: 4, Payload: &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{
+		Files: []*pb.File{{Path: "/ok"}, {Path: "/caf\xe9.jpg"}},
+	}}}
+	var out pb.RespEnvelope
+	if err := proto.Unmarshal(marshalReply(4, bad), &out); err != nil {
+		t.Fatalf("the reply must decode strictly: %v", err)
+	}
+	files := out.GetRespListOfFiles().GetFiles()
+	if out.Id != 4 || len(files) != 2 || files[0].Path != "/ok" || files[1].Path != "/caf�.jpg" {
+		t.Fatalf("got %v", &out)
+	}
+	if bad.GetRespListOfFiles().Files[1].Path != "/caf\xe9.jpg" {
+		t.Error("the handler's own reply object must not be changed in place")
+	}
+}
+
+// A pre-auth friend request may carry a domain up to the 8 MiB read limit,
+// and it was logged at Info before anything else - a dozen such messages
+// rotated the whole log history away. One longer than any DNS name is
+// answered as an unknown domain is, without touching social or the
+// database (both nil here).
+func TestOverlongFriendDomainIsAnsweredAsUnknown(t *testing.T) {
+	ch := &connHandler{mg: &Manager{}}
+	long := strings.Repeat("a", cMaxFriendDomain+1)
+	ack := func(env *pb.ReqEnvelope) (string, bool) {
+		t.Helper()
+		resp, closeConn := ch.processNonAuthRequest(env)
+		a, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+		if !ok || a.RespAck.Ok {
+			t.Fatalf("%T: want a refusing Ack, got %v", env.Payload, resp.Payload)
+		}
+		return a.RespAck.ErrorMsg, closeConn
+	}
+
+	resp, closeConn := ch.processNonAuthRequest(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqGetFriendshipStatus{
+		ReqGetFriendshipStatus: &pb.GetFriendshipStatus{Domain: long}}})
+	if st := resp.GetRespFriendshipStatus(); st == nil || !st.NotFound || closeConn {
+		t.Fatalf("status: want not found, got %v", resp)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqAuthAsFriend{
+		ReqAuthAsFriend: &pb.AuthAsFriend{Domain: long}}}); msg != "Friendship not accepted" || !c {
+		t.Errorf("auth as friend: %q close=%v", msg, c)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqFriendshipInterDelete{
+		ReqFriendshipInterDelete: &pb.FriendshipInterDelete{Domain: long, ForgetMe: true}}}); msg != "Error: Friendship not found" || !c {
+		t.Errorf("inter delete: %q close=%v", msg, c)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqDidSendFriendshipReq{
+		ReqDidSendFriendshipReq: &pb.DidSendFriendshipReq{Domain: long}}}); msg != "Error: "+sql.ErrNoRows.Error() || !c {
+		t.Errorf("did send: %q close=%v", msg, c)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqFriendshipInterRequest{
+		ReqFriendshipInterRequest: &pb.FriendshipInterRequest{Domain: long, OriginProfile: &pb.Profile{}}}}); strings.Contains(msg, long) || !c {
+		t.Errorf("inter request: the reply must not echo the domain, close=%v", c)
 	}
 }

@@ -52,6 +52,7 @@ import (
 	gorilla "github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v4/disk"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
@@ -97,9 +98,11 @@ const (
 // connections — not the bridge's, which is separate, server-side state.
 // available is how many of the connections this device has open right now
 // are just sitting idle in the bridge's pool, not yet consumed for a
-// relay; pending is how many dial+auth attempts are currently in flight
-// (counted toward the target too, so a slow dial doesn't cause a second,
-// redundant refill to fire before the first one even finishes).
+// relay; pending is how many dial+auth attempts are in flight or waiting
+// out a retry backoff (counted toward the target too, so a slow dial or a
+// sleeping retry doesn't cause a second, redundant refill - during an
+// outage those used to pile up into hundreds of retry loops, and the pool
+// grew to the bridge's per-device cap once it came back).
 type bridgeConnPool struct {
 	mu        sync.Mutex
 	available int
@@ -108,6 +111,10 @@ type bridgeConnPool struct {
 	// by every successful registration, so a device that is simply
 	// reconnecting after a blip pays no penalty.
 	consecutiveFailures int
+	// wake is closed by the next successful registration, ending every
+	// retry's backoff at once: the bridge is reachable again, and the
+	// slots those retries hold should be filled now, not minutes later.
+	wake chan struct{}
 }
 
 // Retry backoff for failed bridge dials/registrations (see
@@ -541,6 +548,10 @@ func (mg *Manager) openBridgeConn() {
 	// failure starts from a one-second retry again rather than inheriting
 	// whatever penalty an earlier outage built up.
 	mg.bridgePool.consecutiveFailures = 0
+	if mg.bridgePool.wake != nil {
+		close(mg.bridgePool.wake)
+		mg.bridgePool.wake = nil
+	}
 	mg.bridgePool.mu.Unlock()
 
 	// Blocks for this connection's entire lifetime in the pool - returns
@@ -575,20 +586,21 @@ func (mg *Manager) openBridgeConn() {
 }
 
 // failedBridgeDial accounts for one attempt that never became available
-// (a dial error, a rejected registration, ...) and schedules its
-// replacement after a random 0-3s backoff — keeping a persistent failure
+// (a dial error, a rejected registration, ...) and retries it after a
+// jittered backoff (bridgeRetryDelay) — keeping a persistent failure
 // (e.g. a stale secret) from turning into a tight retry loop hammering the
-// bridge, the same spirit as the jitter the old fixed-pool loop already
-// had. This intentionally does NOT call ensureBridgePool: the retry below
-// already re-adds exactly the one pending slot this attempt is giving up,
-// so the pool's total stays correct without a second, competing refill
-// decision.
+// bridge. The attempt keeps its pending slot while it waits, so
+// ensureBridgePool sees it and doesn't open a replacement of its own; a
+// successful registration elsewhere ends the wait early (see wake).
 func (mg *Manager) failedBridgeDial() {
 	mg.bridgePool.mu.Lock()
-	mg.bridgePool.pending--
 	mg.bridgePool.consecutiveFailures++
 	delay := bridgeRetryDelay(mg.bridgePool.consecutiveFailures)
 	failures := mg.bridgePool.consecutiveFailures
+	if mg.bridgePool.wake == nil {
+		mg.bridgePool.wake = make(chan struct{})
+	}
+	wake := mg.bridgePool.wake
 	mg.bridgePool.mu.Unlock()
 
 	if failures == 1 || failures%20 == 0 {
@@ -596,12 +608,29 @@ func (mg *Manager) failedBridgeDial() {
 	}
 
 	go func() {
-		time.Sleep(delay)
-		mg.bridgePool.mu.Lock()
-		mg.bridgePool.pending++
-		mg.bridgePool.mu.Unlock()
+		t := time.NewTimer(delay)
+		select {
+		case <-t.C:
+		case <-wake:
+			t.Stop()
+		}
+		if mg.dropSurplusBridgeRetry() {
+			return
+		}
 		mg.openBridgeConn()
 	}()
+}
+
+// dropSurplusBridgeRetry gives up a waiting retry's slot when the pool is
+// already over its target (a target lowered meanwhile), instead of dialing.
+func (mg *Manager) dropSurplusBridgeRetry() bool {
+	mg.bridgePool.mu.Lock()
+	defer mg.bridgePool.mu.Unlock()
+	if mg.bridgePool.available+mg.bridgePool.pending > bridgePoolTarget() {
+		mg.bridgePool.pending--
+		return true
+	}
+	return false
 }
 
 // regenerateBridgeSecret backs the Settings page's self-service
@@ -893,7 +922,17 @@ const (
 	// cOwnerReadLimit is the largest message from a signed-in owner: the
 	// apps send a file in one message, up to 1000 MB.
 	cOwnerReadLimit = 1000<<20 + 1<<20
+	// cMaxFriendDomain is the longest a DNS name can be;
+	// social_friendship.domain holds at most 128, so nothing longer can
+	// match a friendship.
+	cMaxFriendDomain = 253
 )
+
+// friendDomainTooLong: a friend request's domain no friendship can have.
+// Answered as an unknown domain is, before it is logged or looked up -
+// the pre-auth read limit let a megabytes-long one into the log, enough
+// of them to rotate its whole history away.
+func friendDomainTooLong(d string) bool { return len(d) > cMaxFriendDomain }
 
 // frameBudget bounds the memory of large incoming messages across every
 // connection (see wsframe): a fifth of the machine's memory.
@@ -924,18 +963,32 @@ const (
 
 // reserveMemory holds the content budget a request that answers with file
 // content needs (a file, a post's media, a share link's part), until its
-// reply is on the wire. Never nil.
-func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
+// reply is on the wire. Never nil. owner and friend say who this
+// connection is: a request its caller may not make is answered with an
+// error and holds nothing - an anonymous peer's GetThumbnails, or a part
+// of a share link that doesn't exist, used to take the budget the owner's
+// downloads wait on.
+func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope, owner, friend bool) func() {
 	fm := ch.mg.filesManager
 	if fm == nil {
 		return func() {}
 	}
+	none := func() {}
 	switch p := env.Payload.(type) {
 	case *pb.ReqEnvelope_ReqGetFile:
+		if !owner {
+			return none
+		}
 		return fm.ReserveForDownload(p.ReqGetFile.Path, p.ReqGetFile.Hash)
 	case *pb.ReqEnvelope_ReqGetPublicationMedia:
+		if !owner && !friend {
+			return none
+		}
 		return fm.ReservePublicationMedia(p.ReqGetPublicationMedia.Hash)
 	case *pb.ReqEnvelope_ReqGetSharedGalleryItem:
+		if !fm.SharedGalleryKnown(p.ReqGetSharedGalleryItem.Uuid, p.ReqGetSharedGalleryItem.Secret) {
+			return none
+		}
 		// Issue #180: like a share link's parts.
 		n := int64(p.ReqGetSharedGalleryItem.Length)
 		if n <= 0 || n > filesmanager.MaxChunk {
@@ -943,6 +996,9 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 		}
 		return fm.ReserveBytes(n * 2)
 	case *pb.ReqEnvelope_ReqGetThumbnails:
+		if !owner {
+			return none
+		}
 		// The Files grid: a batch of thumbnails, at most about 8 MB.
 		return fm.ReserveBytes(16 << 20)
 	case *pb.ReqEnvelope_ReqGetSocialPublications:
@@ -964,6 +1020,9 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 		}
 		return fm.ReserveBytes(n * cFeedPostBytes * 2)
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
+		if !fm.SharedLinkKnown(p.ReqDownloadSharedLink.Uuid) {
+			return none
+		}
 		// Issue #166: reachable by anyone with a link - one part at a time.
 		n := int64(p.ReqDownloadSharedLink.Length)
 		if n <= 0 || n > filesmanager.MaxChunk {
@@ -971,7 +1030,31 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope) func() {
 		}
 		return fm.ReserveBytes(n * 2)
 	}
-	return func() {}
+	return none
+}
+
+// pureDownload: a request that only reads content (and reserves the
+// budget for it), with no effect worth having once its reply can't be
+// delivered. Not ReqDownloadSharedLink: its first part counts an opening
+// of the link, which the owner sees.
+func pureDownload(env *pb.ReqEnvelope) bool {
+	switch env.Payload.(type) {
+	case *pb.ReqEnvelope_ReqGetFile, *pb.ReqEnvelope_ReqGetPublicationMedia,
+		*pb.ReqEnvelope_ReqGetThumbnails, *pb.ReqEnvelope_ReqGetSharedGalleryItem:
+		return true
+	}
+	return false
+}
+
+// tooManyAttemptsAck refuses a password attempt while its address (or the
+// device) is locked out (issue #117), saying when to try again.
+func tooManyAttemptsAck(secs int32) *pb.Ack {
+	return &pb.Ack{
+		Ok:                false,
+		Code:              "too_many_attempts",
+		ErrorMsg:          fmt.Sprintf("Too many attempts. Try again in %d seconds.", secs),
+		RetryAfterSeconds: secs,
+	}
 }
 
 // addr is the address the password-attempt limit is kept for.
@@ -1123,6 +1206,7 @@ func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
 // trip before a single byte moved.
 func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size int64, mime string, expiresAtMs int64, err error) {
 	res := mediastream.Resource{}
+	reuseKey := ""
 
 	switch {
 	case req.PubUuid != "" && req.Hash != "":
@@ -1153,6 +1237,8 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 			Mime:    pubMime,
 			Size:    info.Size(),
 		}
+		// The same unencrypted bytes for the owner and every friend.
+		reuseKey = "pub:" + req.PubUuid + "/" + req.Hash
 
 	case req.Path != "":
 		// A library path is the owner's own file - a friend reading the
@@ -1179,12 +1265,14 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		return "", 0, "", 0, fmt.Errorf("nothing to stream")
 	}
 
-	return ch.streamURL(res)
+	return ch.streamURL(reuseKey, res)
 }
 
 // streamURL mints a stream for res - or answers "fetch it the usual way"
-// (an empty url) for a file not worth streaming.
-func (ch *connHandler) streamURL(res mediastream.Resource) (url string, size int64, mime string, expiresAtMs int64, err error) {
+// (an empty url) for a file not worth streaming. A non-empty reuseKey
+// names res exactly, for every caller allowed it: asking again within
+// mediastream.ReuseWindow gets the same token rather than a new one.
+func (ch *connHandler) streamURL(reuseKey string, res mediastream.Resource) (url string, size int64, mime string, expiresAtMs int64, err error) {
 	// Both of these answer "don't stream this, fetch it the usual way",
 	// which every client already handles - an empty url is a normal
 	// reply, not an error.
@@ -1195,7 +1283,7 @@ func (ch *connHandler) streamURL(res mediastream.Resource) (url string, size int
 		return "", res.Size, res.Mime, 0, nil
 	}
 
-	token, expiresAt, tErr := ch.mg.media.Store().Issue(res)
+	token, expiresAt, tErr := ch.mg.media.Store().IssueShared(reuseKey, res)
 	if tErr != nil {
 		log.Error("error issuing a media token:", tErr)
 		return "", 0, "", 0, fmt.Errorf("could not prepare the stream")
@@ -1372,6 +1460,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqGetFriendshipStatus:
+		if friendDomainTooLong(p.ReqGetFriendshipStatus.Domain) {
+			resp.Payload = &pb.RespEnvelope_RespFriendshipStatus{
+				RespFriendshipStatus: &pb.FriendshipStatusReply{NotFound: true},
+			}
+			break
+		}
 		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain)
 		fr, err := ch.mg.social.GetFriendship(p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
 		log.Info("Getting friendship status err:", err)
@@ -1394,9 +1488,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 
 	case *pb.ReqEnvelope_ReqAuthAsFriend:
 		var err error
-		friendship, err := ch.mg.social.GetFriendship(
-			p.ReqAuthAsFriend.Domain,
-			p.ReqAuthAsFriend.Secret)
+		var friendship *pb.Friendship
+		if friendDomainTooLong(p.ReqAuthAsFriend.Domain) {
+			err = sql.ErrNoRows
+		} else {
+			friendship, err = ch.mg.social.GetFriendship(
+				p.ReqAuthAsFriend.Domain,
+				p.ReqAuthAsFriend.Secret)
+		}
 
 		if err != nil || friendship == nil || friendship.Status != pb.FriendShipStatus_Accepted {
 			resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1423,6 +1522,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	case *pb.ReqEnvelope_ReqFriendshipInterDelete:
 		// Issue #25: the other device deleted the friendship; its secret is
 		// what authorises dropping our copy (see ExternalFriendshipDelete).
+		if friendDomainTooLong(p.ReqFriendshipInterDelete.Domain) {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: "Error: Friendship not found"},
+			}
+			return resp, true
+		}
 		log.Info("Friendship deleted by the other side:", p.ReqFriendshipInterDelete.Domain)
 		if err := ch.mg.social.ExternalFriendshipDelete(p.ReqFriendshipInterDelete.Domain, p.ReqFriendshipInterDelete.Secret, p.ReqFriendshipInterDelete.ForgetMe); err != nil {
 			resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1434,9 +1539,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 
 	case *pb.ReqEnvelope_ReqDidSendFriendshipReq:
 		var err error
-		friendship, err := ch.mg.social.GetFriendship(
-			p.ReqDidSendFriendshipReq.Domain,
-			p.ReqDidSendFriendshipReq.Secret)
+		var friendship *pb.Friendship
+		if friendDomainTooLong(p.ReqDidSendFriendshipReq.Domain) {
+			err = sql.ErrNoRows
+		} else {
+			friendship, err = ch.mg.social.GetFriendship(
+				p.ReqDidSendFriendshipReq.Domain,
+				p.ReqDidSendFriendshipReq.Secret)
+		}
 
 		// Issue #102: this is the anti-spoofing check behind
 		// ExternalFriendshipRequest - a friend's device calls back here to
@@ -1469,6 +1579,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqFriendshipInterRequest:
+		if friendDomainTooLong(p.ReqFriendshipInterRequest.Domain) {
+			// Before ExternalFriendshipRequest, whose errors quote the
+			// domain into the log and the reply.
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: "Error: friendship request refused"},
+			}
+			return resp, true
+		}
 		var err error
 		err = ch.mg.social.ExternalFriendshipRequest(
 			p.ReqFriendshipInterRequest.Domain,
@@ -1501,30 +1619,35 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqAuth:
+		addr := ch.addr()
 		// Issue #117: refused outright while this address is locked out,
 		// before the password is even looked at.
-		if retry, blocked := session.Attempts.Blocked(ch.addr()); blocked {
-			secs := int32(retry.Seconds() + 0.999)
-			log.Info("password attempt refused, address locked out:", ch.addr(), "for", retry.Round(time.Second))
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok:                false,
-					Code:              "too_many_attempts",
-					ErrorMsg:          fmt.Sprintf("Too many attempts. Try again in %d seconds.", secs),
-					RetryAfterSeconds: secs,
-				},
-			}
+		if retry, blocked := session.Attempts.Blocked(addr); blocked {
+			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds() + 0.999))}
 			return resp, true
 		}
 
-		key, err := ch.decryptSecret(p.ReqAuth.Key)
-		if err == nil {
-			var ses *session.Session
-			ses, err = session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
-			if err == nil {
-				ch.setSession(ses)
-				ch.mg.startBackfillOnce(ses)
+		// Checked again, and the outcome recorded, in turn with every other
+		// password check (see Attempt): guesses queued behind a failure are
+		// refused once the limit trips, without an Argon2 derivation each.
+		retry, blocked, locked, err := session.Attempts.Attempt(addr, func() error {
+			key, err := ch.decryptSecret(p.ReqAuth.Key)
+			if err != nil {
+				return err
 			}
+			ses, err := session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
+			if err != nil {
+				return err
+			}
+			ch.setSession(ses)
+			ch.mg.startBackfillOnce(ses)
+			return nil
+		})
+		if blocked {
+			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds() + 0.999))}
+			return resp, true
 		}
 
 		if err != nil {
@@ -1535,16 +1658,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			ack := &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)}
 			// Issue #117: the attempt that spends the allowance is answered
 			// with the lockout itself, so the client can say when to retry.
-			if locked := session.Attempts.Fail(ch.addr()); locked > 0 {
-				log.Info("too many failed password attempts from", ch.addr(), "- locked out for", locked)
-				ack.Code = "too_many_attempts"
-				ack.RetryAfterSeconds = int32(locked.Seconds())
-				ack.ErrorMsg = fmt.Sprintf("Too many attempts. Try again in %d seconds.", ack.RetryAfterSeconds)
+			if locked > 0 {
+				log.Info("too many failed password attempts from", addr, "- locked out for", locked)
+				ack = tooManyAttemptsAck(int32(locked.Seconds()))
 			}
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 			return resp, true
 		}
-		session.Attempts.Reset(ch.addr())
 		log.Info("Authenticated session")
 
 		// One-off self-healing sweep for any face row written before
@@ -1642,7 +1762,8 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
 			break
 		}
-		url, size, mime, exp, err := ch.streamURL(res)
+		// The uuid and secret were checked above; a gallery has one secret.
+		url, size, mime, exp, err := ch.streamURL(fmt.Sprintf("gallery:%s/%d", r.Uuid, r.Index), res)
 		if err != nil {
 			resp.Error, resp.ErrorMessage = true, err.Error()
 			break
@@ -2680,14 +2801,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			// Answered with the group as the list would show it, so a
-			// client can drop it straight into its own list.
-			groups, _ := ch.mg.filesManager.ListImageGroups(ses)
+			// client can drop it straight into its own list - read on its
+			// own, not by listing (and decrypting a cover for) every group.
 			created := &pb.ImageGroup{Id: id, Name: name, FileCount: int32(len(p.ReqCreateImageGroup.Paths))}
-			for _, g := range groups {
-				if g.Id == id {
-					created = g
-					break
-				}
+			if g, err := ch.mg.filesManager.GetImageGroup(ses, id); err == nil {
+				created = g
 			}
 			resp.Payload = &pb.RespEnvelope_RespImageGroup{
 				RespImageGroup: &pb.RespImageGroup{Group: created},
@@ -3599,6 +3717,54 @@ func notAuthenticatedResponse(id int32) *pb.RespEnvelope {
 	}
 }
 
+// marshalReply encodes resp. A string that isn't valid UTF-8 (a camera's
+// EXIF make, say) still encodes, with an error that used to be ignored:
+// the web client shows such a reply, but the native apps reject it and
+// their request waits forever. A copy with those strings cleaned is sent
+// instead - the same text the web client already shows.
+func marshalReply(id int32, resp *pb.RespEnvelope) []byte {
+	b, err := proto.Marshal(resp)
+	if err == nil {
+		return b
+	}
+	log.Error("marshalling reply", id, fmt.Sprintf("%T", resp.Payload), ":", err)
+	clean := proto.Clone(resp).(*pb.RespEnvelope)
+	sanitizeUTF8(clean.ProtoReflect())
+	if b, err = proto.Marshal(clean); err != nil {
+		// Same shape as processMessage's panic reply.
+		b, _ = proto.Marshal(&pb.RespEnvelope{Id: id, Error: true, ErrorMessage: "internal error"})
+	}
+	return b
+}
+
+// sanitizeUTF8 replaces invalid UTF-8 in every string field of m, however
+// deep, with U+FFFD.
+func sanitizeUTF8(m protoreflect.Message) {
+	clean := func(s string) protoreflect.Value {
+		return protoreflect.ValueOfString(strings.ToValidUTF8(s, "\uFFFD"))
+	}
+	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		switch {
+		case fd.IsMap():
+			// None in messages.proto.
+		case fd.IsList():
+			l := v.List()
+			for i := 0; i < l.Len(); i++ {
+				if fd.Kind() == protoreflect.StringKind {
+					l.Set(i, clean(l.Get(i).String()))
+				} else if fd.Message() != nil {
+					sanitizeUTF8(l.Get(i).Message())
+				}
+			}
+		case fd.Kind() == protoreflect.StringKind:
+			m.Set(fd, clean(v.String()))
+		case fd.Message() != nil:
+			sanitizeUTF8(v.Message())
+		}
+		return true
+	})
+}
+
 func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -3688,10 +3854,16 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	var writeMu sync.Mutex
 	var wg sync.WaitGroup
 	var closeOnce sync.Once
+	// gone is closed once no further reply can reach the peer: it went
+	// away, or the connection was closed here.
+	gone := make(chan struct{})
+	var goneOnce sync.Once
+	markGone := func() { goneOnce.Do(func() { close(gone) }) }
 	closeConn := func() {
 		closeOnce.Do(func() {
 			conn.Close()
 		})
+		markGone()
 	}
 	// However this loop exits, wait for every goroutine it started before
 	// returning - handleConnection returning is what lets a caller's own
@@ -3715,6 +3887,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			// with one "error" every two minutes per friend.
 			if peerGone(err) {
 				log.Debug("connection closed:", err)
+				markGone()
 			} else {
 				log.Error("error processing message:", err)
 			}
@@ -3748,8 +3921,23 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 
 			// A download waits here for room in the device's memory
 			// budget, and holds it until its reply is on the wire (see
-			// filesmanager.ReserveForDownload).
-			defer ch.reserveMemory(env)()
+			// filesmanager.ReserveForDownload). Only for a caller who may
+			// make it: a session or friend is never cleared once set, so
+			// at worst one racing its own sign-in skips the budget.
+			ses, friend := ch.getSession(), ch.getFriendProfile()
+			defer ch.reserveMemory(env, ses != nil, friend != nil)()
+
+			// A download that waited for the budget while its peer left
+			// (an app sent to the background mid-gallery) isn't worth
+			// reading and decoding for a reply nobody can receive.
+			if pureDownload(env) {
+				select {
+				case <-gone:
+					log.Debug("connection gone, dropping request", env.Id)
+					return
+				default:
+				}
+			}
 
 			resp, doClose := ch.processMessage(env)
 
@@ -3764,10 +3952,10 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 				resp = notAuthenticatedResponse(env.Id)
 			}
 
-			respBin, _ := proto.Marshal(resp)
+			respBin := marshalReply(env.Id, resp)
 
 			writeMu.Lock()
-			writeErr := conn.WriteMessage(gorilla.BinaryMessage, respBin)
+			writeErr := writeReply(conn, respBin)
 			writeMu.Unlock()
 
 			if writeErr != nil {
@@ -3780,6 +3968,45 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			}
 		}(&env)
 	}
+}
+
+// cReplyPiece: a reply larger than this goes out in pieces of this size,
+// each with its own write deadline (see writeReply).
+const cReplyPiece = 64 << 10
+
+// cReplyStall: a peer that takes none of the next piece of a reply for this
+// long has stopped reading; its connection is closed.
+var cReplyStall = time.Minute
+
+// writeReply writes one reply with a deadline that only fires when the peer
+// stops taking it. Replies had none: a peer that stopped reading (gone
+// without a reset, or a zero TCP window) held writeMu, and every request
+// queued behind it kept its frame and content budget, for as long as the
+// socket lived. A large reply goes out in pieces, each given cReplyStall,
+// so a slow link still gets a file of any size; one up to cReplyPiece goes
+// out exactly as before. Clients already reassemble a message sent in
+// several frames, as replies through the bridge always were. A
+// timeout fails every later write on conn, so the requests queued on
+// writeMu end at once. The caller holds writeMu.
+func writeReply(conn *gorilla.Conn, b []byte) error {
+	conn.SetWriteDeadline(time.Now().Add(cReplyStall))
+	if len(b) <= cReplyPiece {
+		return conn.WriteMessage(gorilla.BinaryMessage, b)
+	}
+	w, err := conn.NextWriter(gorilla.BinaryMessage)
+	if err != nil {
+		return err
+	}
+	for len(b) > 0 {
+		n := min(len(b), cReplyPiece)
+		conn.SetWriteDeadline(time.Now().Add(cReplyStall))
+		if _, err := w.Write(b[:n]); err != nil {
+			return err
+		}
+		b = b[n:]
+	}
+	conn.SetWriteDeadline(time.Now().Add(cReplyStall))
+	return w.Close()
 }
 
 // peerGone: the error only says the other side went away.

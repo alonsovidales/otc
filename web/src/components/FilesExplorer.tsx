@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import { uploadFile } from "../net/upload";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -193,8 +194,8 @@ export default function FilesExplorer({
   // -------- drag & drop upload (2) ----------
   // Issue #86: each dropped file is tracked through its phases so the UI can
   // show an upload progress panel instead of a blank screen. The per-file
-  // "sending" phase is a single WebSocket send (the whole file as one
-  // protobuf message), so it cannot report byte-level progress - but seeing
+  // "sending" phase covers the whole upload (in 4 MB pieces, see
+  // net/upload.ts), so it does not report byte-level progress - but seeing
   // which file is in flight and the overall "N/M done" is what was missing.
   const onDrop: React.DragEventHandler<HTMLDivElement> = async (ev) => {
     ev.preventDefault(); ev.stopPropagation(); setDragOver(false);
@@ -211,19 +212,13 @@ export default function FilesExplorer({
       const f = files[i];
       setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "sending" } : u)));
       try {
-        const ab = await f.arrayBuffer();
-        const bytes = new Uint8Array(ab);
-
-        await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = {
-            $case: "reqUploadFile",
-            reqUploadFile: {
-              path: joinPath(path, f.name),
-              content: bytes,
-              forceOverride: false,
-            },
-          };
-        });
+        // As with the whole-file ReqUploadFile this replaced, any reply
+        // counts as "done", even an error one (such as "Duplicated file"
+        // for a name already in a normal folder); only an upload that
+        // throws (the socket closed, or the device stopped taking pieces)
+        // shows "failed". Reporting error replies as failed is a separate,
+        // visible change left for its own release.
+        await uploadFile(joinPath(path, f.name), f, false);
 
         setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "done" } : u)));
       } catch (err) {

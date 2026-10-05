@@ -162,3 +162,20 @@ func (mg *Manager) ReserveForDownload(path, versionHash string) func() {
 	}
 	return mg.contentBudget.acquire(need)
 }
+
+// SharedLinkKnown: a share link with this uuid exists, so a request for one
+// of its parts is worth a share of the content budget. A cheap lookup only:
+// the download itself still checks expiry and the secret.
+func (mg *Manager) SharedLinkKnown(uuid string) bool {
+	_, err := mg.dao.GetSharedLinkCreated(uuid)
+	return err == nil
+}
+
+// SharedGalleryKnown is SharedLinkKnown for a gallery (issue #180).
+func (mg *Manager) SharedGalleryKnown(id, secret string) bool {
+	if !galleryUUID.MatchString(id) || !gallerySecret.MatchString(secret) {
+		return false
+	}
+	_, _, err := mg.dao.GetSharedLinkExpiry(id)
+	return err == nil
+}

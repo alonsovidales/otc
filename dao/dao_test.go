@@ -1290,3 +1290,61 @@ func TestDeleteFriendshipWithSecretReportsWhetherARowMatched(t *testing.T) {
 		t.Errorf("not all expected queries ran: %v", err)
 	}
 }
+
+// Two first sign-ins at once used to leave two vault rows, and scanning
+// count(*) = 2 into a bool then failed every sign-in. Such a vault must
+// read as defined; creating one is conditional, and says whether it did.
+func TestVaultDefinedWithTwoRowsAndConditionalCreate(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(2))
+	mock.ExpectExec("insert into `vault` \\(`secret`, `salt`\\) select \\?, \\? from dual where not exists \\(select 1 from `vault`\\)").
+		WithArgs([]byte("enc"), []byte("salt")).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("insert into `vault`").WithArgs([]byte("enc2"), []byte("salt2")).WillReturnResult(sqlmock.NewResult(0, 0))
+
+	d := NewWithDB(db)
+	if defined, err := d.IsSecretDefined(); err != nil || !defined {
+		t.Fatalf("two vault rows: defined=%v err=%v, want true/nil", defined, err)
+	}
+	if created, err := d.PersistSecretIfAbsent([]byte("enc"), []byte("salt")); err != nil || !created {
+		t.Fatalf("empty vault: created=%v err=%v, want true/nil", created, err)
+	}
+	if created, err := d.PersistSecretIfAbsent([]byte("enc2"), []byte("salt2")); err != nil || created {
+		t.Fatalf("vault already there: created=%v err=%v, want false/nil", created, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
+// Creating an album answered with the new group by listing every group
+// (and decrypting each cover). GetImageGroup reads just that one, with the
+// same live count and random cover the list computes.
+func TestGetImageGroupReadsOneGroupAsTheListDoes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectQuery("count\\(distinct `m`\\.`hash`\\).*order by rand\\(\\) limit 1\\) from `image_groups` as `g` order by `g`\\.`created` desc").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g1", "Trip", 3, "h1"))
+	mock.ExpectQuery("count\\(distinct `m`\\.`hash`\\).*order by rand\\(\\) limit 1\\) from `image_groups` as `g` where `g`\\.`id` = \\?").
+		WithArgs("g2").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g2", "Empty", 0, nil))
+
+	d := NewWithDB(db)
+	if gs, err := d.ListImageGroups(); err != nil || len(gs) != 1 || gs[0].CoverHash != "h1" {
+		t.Fatalf("ListImageGroups: %v, %v", gs, err)
+	}
+	g, err := d.GetImageGroup("g2")
+	if err != nil || g.ID != "g2" || g.Name != "Empty" || g.FileCount != 0 || g.CoverHash != "" {
+		t.Fatalf("GetImageGroup: %+v, %v", g, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}

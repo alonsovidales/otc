@@ -51,6 +51,14 @@ const (
 // being useful quickly.
 const TTL = time.Hour
 
+// ReuseWindow: IssueShared hands out the same token for the same resource
+// for this long after minting it, so asking again and again (anyone with a
+// gallery link can) doesn't grow the store.
+const ReuseWindow = 5 * time.Minute
+
+// cPurgeEvery: how often minting sweeps expired tokens out.
+const cPurgeEvery = time.Minute
+
 type Resource struct {
 	Kind Kind
 	// Path for KindLibraryFile.
@@ -70,30 +78,62 @@ type Resource struct {
 type entry struct {
 	res       Resource
 	expiresAt time.Time
+	// reuseKey: what IssueShared minted it for, if anything.
+	reuseKey string
 }
 
 type Store struct {
 	mutex  sync.Mutex
 	tokens map[string]*entry
+	// byKey: the token IssueShared last minted for each reuse key.
+	byKey     map[string]string
+	lastPurge time.Time
 }
 
 func NewStore() *Store {
-	return &Store{tokens: make(map[string]*entry)}
+	return &Store{tokens: make(map[string]*entry), byKey: make(map[string]string)}
 }
 
 // Issue mints a token for res and returns it with its expiry.
 func (s *Store) Issue(res Resource) (string, time.Time, error) {
+	return s.IssueShared("", res)
+}
+
+// IssueShared is Issue, except that a token minted for the same key (one
+// resource, e.g. a gallery item) less than ReuseWindow ago is returned
+// again instead of a new one. The caller authorises every request before
+// asking; the key must name exactly the resource, and only one anyone so
+// authorised may share. An older token is never revoked - a player may
+// still be using it - it just expires. An empty key never reuses.
+func (s *Store) IssueShared(key string, res Resource) (string, time.Time, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", time.Time{}, err
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw)
-	expiresAt := time.Now().Add(TTL)
+	now := time.Now()
+	expiresAt := now.Add(TTL)
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.purgeExpiredLocked()
-	s.tokens[token] = &entry{res: res, expiresAt: expiresAt}
+	if key != "" {
+		if old, ok := s.byKey[key]; ok {
+			if e, ok := s.tokens[old]; ok && e.expiresAt.Sub(now) > TTL-ReuseWindow {
+				return old, e.expiresAt, nil
+			}
+		}
+	}
+	// A full sweep at most once a minute, not on every mint: it holds the
+	// lock every /media range request (and ffmpeg's reads) waits on.
+	// Resolve drops an expired token it meets anyway.
+	if now.Sub(s.lastPurge) > cPurgeEvery {
+		s.purgeExpiredLocked()
+		s.lastPurge = now
+	}
+	s.tokens[token] = &entry{res: res, expiresAt: expiresAt, reuseKey: key}
+	if key != "" {
+		s.byKey[key] = token
+	}
 
 	return token, expiresAt, nil
 }
@@ -111,7 +151,7 @@ func (s *Store) Resolve(token string) (Resource, bool) {
 		return Resource{}, false
 	}
 	if time.Now().After(e.expiresAt) {
-		delete(s.tokens, token)
+		s.deleteLocked(token, e)
 		return Resource{}, false
 	}
 
@@ -123,17 +163,26 @@ func (s *Store) Resolve(token string) (Resource, bool) {
 func (s *Store) Revoke(token string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	if e, ok := s.tokens[token]; ok {
+		s.deleteLocked(token, e)
+	}
+}
+
+func (s *Store) deleteLocked(token string, e *entry) {
 	delete(s.tokens, token)
+	if e.reuseKey != "" && s.byKey[e.reuseKey] == token {
+		delete(s.byKey, e.reuseKey)
+	}
 }
 
 // purgeExpiredLocked keeps the map from growing without bound. Called on
 // mint rather than from a timer: a device nobody is streaming from has
-// nothing to clean up, and one that is gets swept on every new token.
+// nothing to clean up, and one that is gets swept as it mints tokens.
 func (s *Store) purgeExpiredLocked() {
 	now := time.Now()
 	for token, e := range s.tokens {
 		if now.After(e.expiresAt) {
-			delete(s.tokens, token)
+			s.deleteLocked(token, e)
 		}
 	}
 }
