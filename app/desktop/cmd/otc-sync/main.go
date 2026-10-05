@@ -249,6 +249,7 @@ type app struct {
 	password string
 	eng      *engine.Engine // nil in viewer mode
 	saveTmr  *time.Timer
+	saveMu   sync.Mutex // one state.json write at a time, in order
 	quit     chan struct{}
 }
 
@@ -386,17 +387,30 @@ func (a *app) reload() {
 	tray.Refresh()
 }
 
+// scheduleStateWrite writes state.json at most every 300 ms, and always
+// after the last change. It used to restart its timer on every change, and
+// a pass changes something per file - faster than that on a LAN - so
+// state.json was not written for the whole pass, went stale, and `otc-sync
+// status` and a tray next to the service said the sync was not running.
 func (a *app) scheduleStateWrite() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.saveTmr != nil {
-		a.saveTmr.Stop()
+		return // already due: it takes the latest snapshot when it fires
 	}
 	a.saveTmr = time.AfterFunc(300*time.Millisecond, func() {
-		if a.eng != nil {
-			st := a.eng.Snapshot()
-			_ = config.SaveState(&st)
+		a.mu.Lock()
+		// Cleared before the snapshot, so a change made while it is
+		// written schedules the next write rather than being missed.
+		a.saveTmr = nil
+		a.mu.Unlock()
+		if a.eng == nil {
+			return
 		}
+		a.saveMu.Lock()
+		defer a.saveMu.Unlock()
+		st := a.eng.Snapshot()
+		_ = config.SaveState(&st)
 	})
 }
 
