@@ -9,6 +9,8 @@ import (
 	"image/jpeg"
 	"math"
 	"math/rand"
+	"os"
+	"strings"
 	"testing"
 
 	"gocv.io/x/gocv"
@@ -458,5 +460,17 @@ func TestImageToBGRMatMatchesGocv(t *testing.T) {
 		}
 		got.Close()
 		want.Close()
+	}
+}
+
+// An empty model file (a download that never wrote anything) is refused
+// with a clear error before OpenCV sees it.
+func TestNewRecognizerRefusesAnEmptyModel(t *testing.T) {
+	dir := t.TempDir()
+	det, rec := dir+"/det.onnx", dir+"/rec.onnx"
+	os.WriteFile(det, nil, 0o600)
+	os.WriteFile(rec, []byte("x"), 0o600)
+	if _, err := NewRecognizer(det, rec); err == nil || !strings.Contains(err.Error(), "empty") {
+		t.Errorf("an empty detector model: %v", err)
 	}
 }

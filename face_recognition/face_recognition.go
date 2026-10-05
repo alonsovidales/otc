@@ -137,11 +137,20 @@ type Recognizer struct {
 // operator hasn't downloaded these two (small: ~230KB + ~10MB) models yet,
 // must still start up and serve everything else normally.
 func NewRecognizer(detectorModelPath, recognizerModelPath string) (*Recognizer, error) {
-	if _, err := os.Stat(detectorModelPath); err != nil {
+	if fi, err := os.Stat(detectorModelPath); err != nil {
 		return nil, fmt.Errorf("face detector model: %w", err)
+	} else if fi.Size() == 0 {
+		return nil, fmt.Errorf("face detector model: %s is empty", detectorModelPath)
 	}
-	if _, err := os.Stat(recognizerModelPath); err != nil {
+	if fi, err := os.Stat(recognizerModelPath); err != nil {
 		return nil, fmt.Errorf("face recognizer model: %w", err)
+	} else if fi.Size() == 0 {
+		return nil, fmt.Errorf("face recognizer model: %s is empty", recognizerModelPath)
+	}
+	// A file OpenCV can't read must leave faces off, not abort the
+	// process (see probeModels).
+	if err := probeModels(detectorModelPath, recognizerModelPath); err != nil {
+		return nil, fmt.Errorf("loading face models: %w", err)
 	}
 
 	detector := gocv.NewFaceDetectorYNWithParams(
