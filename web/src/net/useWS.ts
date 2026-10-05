@@ -2,7 +2,7 @@
 
 import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { encryptForConnection, savePersistedToken, clearPersistedToken } from "./pwCrypto";
+import { encryptForConnection, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
 
 export function UseWS() {
   let isConnected = false;
@@ -21,6 +21,11 @@ export function UseWS() {
   // as the feed just being slow, when the first attempt had actually
   // already failed outright.
   let authPromise: Promise<boolean> | null = null;
+  // True from a sign-in (password or stored token) until the device says
+  // the session is gone. request() redeems the stored token on a
+  // reconnect only then: on first load App.tsx's own effect is the one
+  // redeemer, so the same single-use token is never redeemed twice at once.
+  let hadSession = false;
 
   // Registered exactly once per useWS instance (this function only ever
   // runs once - see the singleton export at the bottom of this file).
@@ -45,14 +50,17 @@ export function UseWS() {
     // that signed in with a password keeps it in memory for exactly this
     // (lastAuthRef, replayed by request() on reconnect), so that session
     // heals itself and must not be torn down here. One restored from a
-    // stored token has no such credential - the token was single-use and
-    // is already spent - so there is genuinely no way back without the
-    // password, and leaving the app "signed in" over a dead session just
-    // produces views whose data never loads.
+    // stored token heals on reconnect by redeeming the token its last
+    // redemption stored; it gets here only when that failed too (the
+    // device restarted, or the token expired or was revoked), so there is
+    // genuinely no way back without the password, and leaving the app
+    // "signed in" over a dead session just produces views whose data
+    // never loads.
     if (env.payload?.$case !== "respAck") return;
     if (env.payload.respAck.code !== "not_authenticated") return;
     if (lastAuthRef !== "") return;
 
+    hadSession = false;
     clearPersistedToken();
     if (setAuth) void setAuth(false);
   });
@@ -81,20 +89,33 @@ export function UseWS() {
   const request = (async (req: (e: Partial<ReqEnvelope>) => void) => {
     if (!wsClient || !wsClient.connected) {
       await connect();
-      if (wsClient.connected && lastAuthRef !== '' && !authPromise) {
-        // A replay the device rejects (the password was changed on
-        // another device) is tried once, not on every click: sendAuth
-        // forgets the password, and this tab signs out the way a dead
-        // token session does (#105). Each retry used to count as a failed
-        // attempt for this address - through the bridge, the household's
-        // public IP - until it was locked out.
-        sendAuth(lastAuthRef).then((ok) => {
-          if (!ok && lastAuthRef === '' && setAuth) void setAuth(false);
-        }, () => {
-          // too_many_attempts or a dropped socket: the password is kept
-          // (a blocked address is refused before anything is counted),
-          // and the await below hands the error to this request's caller.
-        });
+      if (wsClient.connected && !authPromise) {
+        if (lastAuthRef !== '') {
+          // A replay the device rejects (the password was changed on
+          // another device) is tried once, not on every click: sendAuth
+          // forgets the password, and this tab signs out the way a dead
+          // token session does (#105). Each retry used to count as a
+          // failed attempt for this address - through the bridge, the
+          // household's public IP - until it was locked out.
+          sendAuth(lastAuthRef).then((ok) => {
+            if (!ok && lastAuthRef === '') {
+              hadSession = false;
+              if (setAuth) void setAuth(false);
+            }
+          }, () => {
+            // too_many_attempts or a dropped socket: the password is kept
+            // (a blocked address is refused before anything is counted),
+            // and the await below hands the error to this request's caller.
+          });
+        } else if (hadSession) {
+          // A session restored from a stored token: tokens outlive the
+          // connection on the device, so the one the last redemption
+          // stored brings this one back. Without this a socket drop
+          // (sleep, a WiFi change, a bridge redeploy) signed the tab out
+          // and deleted a token that still worked.
+          const token = loadPersistedToken();
+          if (token) void authWithToken(token);
+        }
       }
     }
     // Whether this call is the one that just kicked off sendAuth above, or
@@ -149,6 +170,7 @@ export function UseWS() {
           // with a token the device issues for this session, never the
           // password that was just used to establish it.
           await refreshSessionToken();
+          hadSession = true;
           if (setAuth) {
             await setAuth(true);
           }
@@ -201,25 +223,36 @@ export function UseWS() {
           await connect();
         }
 
-        const resp: RespEnvelope = await rawRequest(e => {
-          (e as any).payload = { $case: "reqAuthWithToken", reqAuthWithToken: { token } };
-        });
-        if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-          // Redeeming consumes the token (see session.RedeemToken), so the
-          // one in storage is spent the moment this succeeds — replace it
-          // with a fresh one, which also slides the TTL forward another
-          // hour for a tab that keeps getting reloaded.
-          await refreshSessionToken();
-          if (setAuth) {
-            await setAuth(true);
+        let current = token;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const resp: RespEnvelope = await rawRequest(e => {
+            (e as any).payload = { $case: "reqAuthWithToken", reqAuthWithToken: { token: current } };
+          });
+          if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+            // Redeeming consumes the token (see session.RedeemToken), so the
+            // one in storage is spent the moment this succeeds — replace it
+            // with a fresh one, which also slides the TTL forward another
+            // hour for a tab that keeps getting reloaded.
+            await refreshSessionToken();
+            hadSession = true;
+            if (setAuth) {
+              await setAuth(true);
+            }
+
+            return true;
           }
 
-          return true;
+          // Expired, unknown, or already-redeemed — fall back to the normal
+          // sign-in form rather than retrying it on every future reload.
+          // Only this token is cleared: two tabs that reloaded or
+          // reconnected together read the same one, and when the other
+          // redeemed it first, storage now holds its successor - which
+          // this tab tries once rather than deleting it.
+          const stored = loadPersistedToken();
+          if (stored === current) clearPersistedToken();
+          if (!stored || stored === current) return false;
+          current = stored;
         }
-
-        // Expired, unknown, or already-redeemed — fall back to the normal
-        // sign-in form rather than retrying it on every future reload.
-        clearPersistedToken();
         return false;
       } finally {
         authPromise = null;
