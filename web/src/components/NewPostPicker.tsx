@@ -12,6 +12,7 @@ import { useWS } from "../net/useWS";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
+import { useObjectURLs } from "./useObjectURLs";
 import "./NewPostPicker.css";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -20,6 +21,8 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   if (u8.byteLength === 0) return "";
   return URL.createObjectURL(new Blob([u8], { type: mime }));
 };
+// A library tile's thumbnail - see the comment where the grid draws it.
+const tileThumb = (f: MsgFile) => bytesToURL(f.content, "image/jpeg");
 const fileKey = (f: MsgFile, idx?: number) =>
   `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${f.size || 0}#${idx ?? -1}`;
 
@@ -93,6 +96,10 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // -------- data & paging ------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
   const mapRef = useRef<Map<string, MsgFile>>(new Map());
+  // The grid's own thumbnail URLs, one per loaded item and freed when a new
+  // tag filter clears the grid. Separate from stripUrlFor below, which
+  // keeps the picks' thumbnails across filter changes.
+  const gridThumb = useObjectURLs(items, tileThumb);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [endReached, setEndReached] = useState(false);
@@ -526,7 +533,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               // here, or a video tile's Blob gets tagged "video/mp4" over
               // genuinely-JPEG bytes and the browser refuses to render it
               // as an <img>.
-              const thumb = bytesToURL(f.content, "image/jpeg");
+              const thumb = gridThumb(f);
               const isVideo = (f.mime || "").startsWith("video/");
               // Issue #98: the badge is the tile's position in the post,
               // not a plain checkmark - so the order is visible from the

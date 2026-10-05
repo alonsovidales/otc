@@ -9,6 +9,7 @@ import './PhotoGallery.css';
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
 import MediaViewer from "./MediaViewer";
+import { useObjectURLs } from "./useObjectURLs";
 
 type Chip = string;
 type Token = string | null;
@@ -33,6 +34,8 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   if (u8.byteLength === 0) return "";
   return URL.createObjectURL(new Blob([u8], { type: mime }));
 };
+// A grid tile's thumbnail - always a JPEG, see isVideoFile.
+const thumbOf = (f: MsgFile) => bytesToURL(f.content);
 const fileKey = (f: MsgFile, idx?: number) =>
   `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${f.size || 0}#${idx ?? -1}`;
 
@@ -309,6 +312,9 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
   const mapRef = useRef<Map<string, MsgFile>>(new Map()); // dedupe
+  // One object URL per loaded item, freed once it leaves `items` (a new
+  // search, a jump to a date, a delete) - see useObjectURLs.
+  const thumbFor = useObjectURLs(items, thumbOf);
   const [token, setToken] = useState<Token>(null);
   const [loading, setLoading] = useState(false);
   const [endReached, setEndReached] = useState(false);
@@ -594,6 +600,13 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
 
   // open the viewer (MediaViewer) on an item
   const openAt = useCallback((idx: number) => setOpenIdx(idx), []);
+  // The viewer shows the grid's own thumbnail URL while the full size
+  // loads, rather than making another copy of it per render.
+  const viewerOpen = openIdx != null;
+  const viewerItems = useMemo(
+    () => (viewerOpen ? items.map(f => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f) })) : []),
+    [viewerOpen, items, thumbFor]
+  );
 
   // -------- initial load ----------------------------------------------------
   // Just the autocomplete tag list - the photo list itself is fetched by
@@ -1021,7 +1034,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
           <>
             {items.map((f, i) => {
               const key = fileKey(f, i); // unique key (fixes React warnings)
-              const thumb = bytesToURL(f.content); // always a JPEG thumbnail - see isVideoFile
+              const thumb = thumbFor(f); // always a JPEG thumbnail - see isVideoFile
               const selIdx = selOrder.indexOf(f.path);
               return (
                 <div key={key} className="pg-cell">
@@ -1082,7 +1095,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
           <span className="pg-order-strip-label">Order in post:</span>
           {selOrder.map((path, idx) => {
             const item = items.find(it => it.path === path);
-            const thumb = item ? bytesToURL(item.content) : "";
+            const thumb = item ? thumbFor(item) : "";
             return (
               <div key={path} className="pg-order-thumb">
                 <img src={thumb} alt={path} />
@@ -1118,7 +1131,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
 
       {/* modal: the shared viewer (MediaViewer.tsx), also used by Files */}
       {openIdx != null && (
-        <MediaViewer items={items} index={openIdx} onIndexChange={openAt} onClose={() => setOpenIdx(null)} />
+        <MediaViewer items={viewerItems} index={openIdx} onIndexChange={openAt} onClose={() => setOpenIdx(null)} />
       )}
 
       {/* styles */}
