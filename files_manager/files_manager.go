@@ -1396,8 +1396,6 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		}
 
 		startClass := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 
 		img, err := decodeImage(content)
 		if err != nil && checkImageSize(content) == nil {
@@ -1466,7 +1464,14 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		if stages&stageAnalysis != 0 {
 			var tags []imagestagger.RAMTag
 			if mg.imageTaggingEnabled() {
-				tags, err = mg.waitForTagger().Tags(ctx, img, imagestagger.DefaultRAMOptions())
+				// The deadline starts once the model is there: started before
+				// the decode and the wait for a model still loading (~15s
+				// after every start), it had often passed already, and the
+				// file was left untagged for good.
+				tagger := mg.waitForTagger()
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				tags, err = tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
+				cancel()
 				if err != nil {
 					mg.alert("could not be tagged", file.Path, err)
 				}
@@ -1486,8 +1491,6 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		// rows keyed by hash — just against a handful of frames
 		// sampled across the video instead of the one still image.
 		startClass := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
 
 		// A stored video (content nil) is read by ffmpeg through the
 		// device's own loopback stream - seeking to the frames it samples,
@@ -1533,7 +1536,12 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		if stages&stageAnalysis != 0 {
 			var tags []imagestagger.RAMTag
 			if mg.imageTaggingEnabled() {
-				tags = tagVideoFrames(ctx, mg.waitForTagger(), frames)
+				// As for a photo: the clock starts after the frames are out
+				// and the model is loaded.
+				tagger := mg.waitForTagger()
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				tags = tagVideoFrames(ctx, tagger, frames)
+				cancel()
 			}
 			tags = append(tags, locationTags(exif)...)
 			log.Debug("Tags:", tags)
