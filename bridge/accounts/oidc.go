@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -142,6 +143,7 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)
 		return
 	}
+	setOAuthCookies(w, state, int(cOAuthStateTTL.Seconds()))
 	q := url.Values{
 		"client_id": {p.clientID}, "redirect_uri": {a.redirectURI(p)}, "response_type": {"code"},
 		"scope": {p.scope}, "state": {state},
@@ -150,6 +152,60 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		q.Set("response_mode", "form_post")
 	}
 	http.Redirect(w, r, p.authURL+"?"+q.Encode(), http.StatusFound)
+}
+
+// A sign-in's state also goes in a cookie, and the callback must come back
+// with both: otherwise anyone could start a sign-in to their own account,
+// stop at the callback URL and send it to someone else, whose browser
+// would finish it - signed in to the attacker's account.
+const (
+	// __Host-: a device's page is a same-site subdomain and could otherwise
+	// set one carrying the attacker's own state.
+	cOAuthCookie = "__Host-otc_oauth_"
+	// cOAuthStateTTL is as long as ConsumeOAuthState takes a state.
+	cOAuthStateTTL = 15 * time.Minute
+)
+
+// oauthCookieNames are the two cookies that carry a state; the names carry
+// part of it, so two sign-ins at once (two tabs, an app's sheet and the
+// browser) keep their own.
+func oauthCookieNames(state string) (string, string) {
+	k := state[:16]
+	return cOAuthCookie + k, cOAuthCookie + k + "_l"
+}
+
+// isOAuthState is whether s has the shape of a state OAuthStart makes.
+func isOAuthState(s string) bool {
+	_, err := hex.DecodeString(s)
+	return len(s) == 48 && err == nil
+}
+
+// setOAuthCookies sets (maxAge > 0) or clears (< 0) a state's cookies. One
+// is SameSite=None: Apple comes back with a cross-site POST, which a Lax
+// cookie misses. The other has no SameSite at all, for Safari 12, which
+// takes None for Strict and would send neither back.
+func setOAuthCookies(w http.ResponseWriter, state string, maxAge int) {
+	name, legacy := oauthCookieNames(state)
+	value := state
+	if maxAge < 0 {
+		value = ""
+	}
+	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true, Secure: true, SameSite: http.SameSiteNoneMode})
+	http.SetCookie(w, &http.Cookie{Name: legacy, Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true, Secure: true})
+}
+
+// oauthStartedHere is whether this browser started the sign-in with state.
+func oauthStartedHere(r *http.Request, state string) bool {
+	if !isOAuthState(state) {
+		return false
+	}
+	name, legacy := oauthCookieNames(state)
+	for _, n := range []string{name, legacy} {
+		if c, err := r.Cookie(n); err == nil && subtle.ConstantTimeCompare([]byte(c.Value), []byte(state)) == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // OAuthCallback finishes a sign-in: exchanges the code, verifies the
@@ -167,8 +223,18 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state, code := r.Form.Get("state"), r.Form.Get("code")
+	// Whatever the outcome, this sign-in's cookies are done with.
+	if isOAuthState(state) {
+		setOAuthCookies(w, state, -1)
+	}
 	if errCode := r.Form.Get("error"); errCode != "" || code == "" {
 		http.Redirect(w, r, "/account?error="+url.QueryEscape("the sign-in was cancelled"), http.StatusFound)
+		return
+	}
+	// Checked before the state is consumed: a planted link can neither use
+	// it nor burn it.
+	if !oauthStartedHere(r, state) {
+		http.Redirect(w, r, "/account?error="+url.QueryEscape("that sign-in has expired, please try again"), http.StatusFound)
 		return
 	}
 	returnURL, found, err := a.dao.ConsumeOAuthState(state)

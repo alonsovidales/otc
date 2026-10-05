@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"database/sql/driver"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -66,11 +67,32 @@ func newFakeIdP(t *testing.T, a *Accounts) *fakeIdP {
 }
 
 // callbackRequest is the provider sending the browser back with state and
-// code.
+// code, without the cookie OAuthStart set (withStateCookie adds it).
 func callbackRequest(state, code string) *http.Request {
 	r := httptest.NewRequest("GET", "/account/auth/google/callback?state="+url.QueryEscape(state)+"&code="+url.QueryEscape(code), nil)
 	r.SetPathValue("provider", "google")
 	return r
+}
+
+// withStateCookie adds the cookie OAuthStart set for state: the
+// SameSite=None one, or the legacy one Safari 12 keeps.
+func withStateCookie(r *http.Request, state string, legacy bool) *http.Request {
+	name, legacyName := oauthCookieNames(state)
+	if legacy {
+		name = legacyName
+	}
+	r.AddCookie(&http.Cookie{Name: name, Value: state})
+	return r
+}
+
+// sessionCookie is the account session cookie a response sets, if any.
+func sessionCookie(w *httptest.ResponseRecorder) string {
+	for _, c := range w.Result().Cookies() {
+		if c.Name == cSessionCookie {
+			return c.Value
+		}
+	}
+	return ""
 }
 
 // expectStateConsumed answers ConsumeOAuthState with a live state.
@@ -106,12 +128,12 @@ func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
 
 	w := httptest.NewRecorder()
-	a.OAuthCallback(w, callbackRequest(state, "code"))
+	a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, false))
 	if w.Code != http.StatusFound || w.Header().Get("Location") != "/account" {
 		t.Fatalf("callback: %d %q", w.Code, w.Header().Get("Location"))
 	}
-	if !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=acc1|1|") {
-		t.Errorf("the provider user's cookie is not on the new epoch: %q", w.Header().Get("Set-Cookie"))
+	if c := sessionCookie(w); !strings.HasPrefix(c, "acc1|1|") {
+		t.Errorf("the provider user's cookie is not on the new epoch: %q", c)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -131,9 +153,9 @@ func TestProviderLinkStopsWhenThePasswordStays(t *testing.T) {
 	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnError(errDBDown)
 
 	w := httptest.NewRecorder()
-	a.OAuthCallback(w, callbackRequest(state, "code"))
-	if w.Code != http.StatusInternalServerError || w.Header().Get("Set-Cookie") != "" {
-		t.Fatalf("a link that kept the password: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
+	a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, false))
+	if w.Code != http.StatusInternalServerError || sessionCookie(w) != "" {
+		t.Fatalf("a link that kept the password: %d, cookie %q", w.Code, sessionCookie(w))
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -204,4 +226,97 @@ func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 			}
 		}
 	}
+}
+
+// The state is tied to the browser that started the sign-in: a callback
+// link someone else started (a login CSRF into their account) is refused
+// before the state is even consumed.
+func TestOAuthStateBelongsToTheBrowser(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+
+	// Start: the state is in the database and in both cookies.
+	var state string
+	mock.ExpectExec("insert into `oauth_states`").WithArgs(stateCapture{&state}, "", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	start := httptest.NewRequest("GET", "/account/auth/google/start", nil)
+	start.SetPathValue("provider", "google")
+	w := httptest.NewRecorder()
+	a.OAuthStart(w, start)
+	if w.Code != http.StatusFound || !strings.Contains(w.Header().Get("Location"), "state="+state) {
+		t.Fatalf("start: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	name, legacy := oauthCookieNames(state)
+	cookies := map[string]string{}
+	for _, h := range w.Header().Values("Set-Cookie") {
+		cookies[strings.SplitN(h, "=", 2)[0]] = h
+	}
+	for n, sameSite := range map[string]string{name: "; SameSite=None", legacy: ""} {
+		h := cookies[n]
+		for _, attr := range []string{n + "=" + state + ";", "; Path=/", "; Max-Age=900", "; HttpOnly", "; Secure"} {
+			if !strings.Contains(h, attr) {
+				t.Errorf("cookie %q lacks %q", h, attr)
+			}
+		}
+		if strings.Contains(h, "Domain=") || (sameSite == "") == strings.Contains(h, "SameSite") || !strings.Contains(h, sameSite) {
+			t.Errorf("cookie %q: wrong Domain or SameSite", h)
+		}
+	}
+
+	// Refused without this browser's cookie: the state stays unconsumed.
+	other := strings.Repeat("ef", 24)
+	for _, r := range []*http.Request{
+		callbackRequest(state, "code"),
+		withStateCookie(callbackRequest(state, "code"), other, false),
+		withStateCookie(callbackRequest(other, "code"), state, false),
+		withStateCookie(callbackRequest(state[:47], "code"), state[:47], false),
+	} {
+		a, mock := testAccounts(t)
+		newFakeIdP(t, a)
+		mock.ExpectBegin()
+		w := httptest.NewRecorder()
+		a.OAuthCallback(w, r)
+		if loc := w.Header().Get("Location"); w.Code != http.StatusFound || !strings.Contains(loc, "expired") || sessionCookie(w) != "" {
+			t.Errorf("a callback this browser didn't start: %d %q", w.Code, loc)
+		}
+		if mock.ExpectationsWereMet() == nil {
+			t.Error("the state was consumed")
+		}
+	}
+
+	// Either cookie alone lets the sign-in through, and both are cleared.
+	for _, legacyOnly := range []bool{false, true} {
+		a, mock := testAccounts(t)
+		newFakeIdP(t, a)
+		expectStateConsumed(mock, state, "")
+		mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols).
+			AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now()))
+		epochRow(mock, 0)
+		mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+		w := httptest.NewRecorder()
+		a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, legacyOnly))
+		if w.Code != http.StatusFound || w.Header().Get("Location") != "/account" || !strings.HasPrefix(sessionCookie(w), "acc1|0|") {
+			t.Errorf("legacy cookie %v: %d %q", legacyOnly, w.Code, w.Header().Get("Location"))
+		}
+		cleared := 0
+		for _, c := range w.Result().Cookies() {
+			if (c.Name == name || c.Name == legacy) && c.MaxAge < 0 {
+				cleared++
+			}
+		}
+		if cleared != 2 {
+			t.Errorf("%d of the state's cookies cleared, want 2", cleared)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+// stateCapture records the state OAuthStart stores.
+type stateCapture struct{ to *string }
+
+func (s stateCapture) Match(v driver.Value) bool {
+	str, ok := v.(string)
+	*s.to = str
+	return ok && isOAuthState(str)
 }
