@@ -953,6 +953,10 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 	return rf.RespFile.Content, nil
 }
 
+// errFriendTransport marks a failure of the connection to a friend's
+// device, as opposed to an answer about one post.
+var errFriendTransport = errors.New("friend connection failed")
+
 func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err error) {
 	msg := &pb.ReqEnvelope{
 		Id: 1,
@@ -965,13 +969,13 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 	b, _ := proto.Marshal(msg)
 	if err = fr.conn.WriteMessage(gorilla.BinaryMessage, b); err != nil {
 		log.Error("write error trying to get publication files from friend:", fr.data.OriginProfile.Domain, err)
-		return
+		return nil, fmt.Errorf("%w: %v", errFriendTransport, err)
 	}
 
 	_, data, err := fr.conn.ReadMessage()
 	if err != nil {
 		log.Error("read error trying to get publication files from friend:", fr.data.OriginProfile.Domain, err)
-		return
+		return nil, fmt.Errorf("%w: %v", errFriendTransport, err)
 	}
 
 	log.Debug("Getting response for publication files:", fr.data.OriginProfile.Domain)
@@ -1179,6 +1183,14 @@ event_loop:
 			files, err := fr.getPublicationFiles(pubData.Uuid)
 			if err != nil {
 				log.Error("Error getting publication:", err)
+				if errors.Is(err, errFriendTransport) {
+					// The connection failed, not the post: stop here, so
+					// the next sync asks again from this event instead of
+					// the events after it moving the cursor past it for
+					// good. An answer about the post (deleted since) skips it.
+					fr.stopPage(newPosts)
+					return err
+				}
 				continue event_loop
 			}
 
@@ -1189,8 +1201,10 @@ event_loop:
 			for _, file := range files {
 				ok, err := fr.storeFriendFile(pubData.Uuid, file, unencDir)
 				if err != nil {
+					// This disk, not the post: tried again next sync.
 					log.Error("Error trying to write file from an external event:", err)
-					continue event_loop
+					fr.stopPage(newPosts)
+					return err
 				}
 				if ok {
 					kept = append(kept, file)
@@ -1284,10 +1298,16 @@ event_loop:
 		}
 	}
 
+	fr.stopPage(newPosts)
+	return
+}
+
+// stopPage is what ends a page of a friend's events, however it ends: if
+// it stored new posts, friends' posts may now be over the storage limit.
+func (fr *friendship) stopPage(newPosts bool) {
 	if newPosts {
 		fr.sc.EnforceStorageLimit()
 	}
-	return
 }
 
 // applyLike stores a friend's like of a post, or removes it: an unlike is
