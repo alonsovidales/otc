@@ -11,6 +11,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/dao"
 )
 
 // newTestSession builds a Session with a deterministic cipher, bypassing
@@ -143,5 +146,23 @@ func TestChangeKeyRefusesAShortNewPassword(t *testing.T) {
 	ses := &Session{Uuid: "test-uuid"}
 	if err := ses.ChangeKey("old-password", "1234567"); !errors.Is(err, ErrPasswordTooShort) {
 		t.Fatalf("ChangeKey with a 7-byte password: got %v, want ErrPasswordTooShort", err)
+	}
+}
+
+// The first password, set on a brand-new vault, is held to MinPasswordLen
+// too, and nothing is written when it is too short.
+func TestNewRefusesAShortFirstPassword(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+
+	if _, err := New("owner-uuid", "1234567", true, dao.NewWithDB(db)); !errors.Is(err, ErrPasswordTooShort) {
+		t.Fatalf("New with a 7-byte first password: got %v, want ErrPasswordTooShort", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expected only the vault check, nothing written: %v", err)
 	}
 }

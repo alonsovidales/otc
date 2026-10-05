@@ -1458,6 +1458,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			}
 		}
 
+		if errors.Is(err, session.ErrPasswordTooShort) {
+			// Choosing the first password, not guessing one: no delay, not
+			// counted toward the lockout, and the reason is said.
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, Code: "password_too_short", ErrorMsg: err.Error()},
+			}
+			return resp, true
+		}
 		if err != nil {
 			// Deliberate delay on a failed auth attempt: was `time.Sleep(1)`,
 			// which is 1 *nanosecond* (time.Sleep takes a Duration, i.e.

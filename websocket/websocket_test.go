@@ -434,6 +434,49 @@ func TestChangeKeyAcksAShortNewPassword(t *testing.T) {
 	}
 }
 
+// A first password that is too short, on a brand-new vault, is answered
+// with the reason and is not a failed guess: repeating it never locks the
+// address out.
+func TestAuthAcksAShortFirstPasswordWithoutCountingIt(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa.GenerateKey: %v", err)
+	}
+	const addr = "198.51.100.7"
+	t.Cleanup(func() { session.Attempts.Reset(addr) })
+	ch := &connHandler{mg: &Manager{dao: dao.NewWithDB(db)}, privKey: priv, remoteAddr: addr}
+
+	for i := 0; i < session.MaxAuthAttempts; i++ {
+		mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+		key, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &priv.PublicKey, []byte("short"), nil)
+		if err != nil {
+			t.Fatalf("EncryptOAEP: %v", err)
+		}
+		resp, _ := ch.processNonAuthRequest(&pb.ReqEnvelope{
+			Id:      int32(i + 1),
+			Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Key: key, Create: true}},
+		})
+		ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+		if !ok {
+			t.Fatalf("expected a RespAck payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
+		}
+		if ack.RespAck.Ok || ack.RespAck.Code != "password_too_short" {
+			t.Fatalf("attempt %d: expected Ok=false, Code=password_too_short, got %+v", i+1, ack.RespAck)
+		}
+	}
+	if _, blocked := session.Attempts.Blocked(addr); blocked {
+		t.Error("a too-short first password must not count toward the lockout")
+	}
+	if ch.getSession() != nil {
+		t.Error("expected no session")
+	}
+}
+
 // newTestAuthenticatedSession builds a real *session.Session the same way
 // a successful ReqAuth would (vault creation, Argon2id, the lot) via a
 // mocked "brand new device" vault, so issue #101's token handlers below

@@ -109,6 +109,11 @@ func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err err
 	var secretValidator []byte
 
 	if !defined {
+		// This key becomes the password, so it is held to MinPasswordLen
+		// here, whichever client sets it (create is not looked at).
+		if len(key) < MinPasswordLen {
+			return nil, ErrPasswordTooShort
+		}
 		// Brand new device: nothing to stay compatible with, so start
 		// straight on the salted scheme.
 		salt, err := randomSalt()
