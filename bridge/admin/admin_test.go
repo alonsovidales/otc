@@ -3,6 +3,7 @@
 package admin
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/limits"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestSessionTokenRoundTrip(t *testing.T) {
@@ -339,4 +342,44 @@ func TestAccountSessionIsNotAnAdminSession(t *testing.T) {
 	if _, _, ok := verifySessionToken(adminKey, newSessionToken(adminKey, "admin", 0, time.Now()), time.Now()); !ok {
 		t.Fatal("an admin token no longer verifies")
 	}
+}
+
+// An unknown username costs the same bcrypt as a real one: the decoy is at
+// the current cost, and a real hash from before it is moved up to it at
+// the next sign-in, with no session ended.
+func TestAdminLoginTimingMatchesForUnknownUsers(t *testing.T) {
+	if cost, err := bcrypt.Cost([]byte(adminDummyHash)); err != nil || cost != limits.BcryptCost {
+		t.Fatalf("decoy cost %d (%v), want %d", cost, err, limits.BcryptCost)
+	}
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	old, _ := bcrypt.GenerateFromPassword([]byte("the-real-password"), bcrypt.MinCost)
+	mock.ExpectQuery("select `password_hash` from `admin_users`").WillReturnRows(sqlmock.NewRows([]string{"password_hash"}).AddRow(string(old)))
+	var rehashed string
+	mock.ExpectExec("insert into `admin_users`").WithArgs("operator", hashArg{&rehashed}).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("select `session_epoch` from `admin_users`").WillReturnRows(sqlmock.NewRows([]string{"session_epoch"}).AddRow(0))
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	w := httptest.NewRecorder()
+	a.Login(w, httptest.NewRequest(http.MethodPost, "/admin/api/login", strings.NewReader(`{"username":"operator","password":"the-real-password"}`)))
+	if w.Code != http.StatusOK {
+		t.Fatalf("login: %d %s", w.Code, w.Body)
+	}
+	if cost, err := bcrypt.Cost([]byte(rehashed)); err != nil || cost != limits.BcryptCost || !checkPassword(rehashed, "the-real-password") {
+		t.Errorf("rehashed to cost %d (%v)", cost, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// hashArg records the hash a query is given.
+type hashArg struct{ to *string }
+
+func (h hashArg) Match(v driver.Value) bool {
+	s, ok := v.(string)
+	*h.to = s
+	return ok
 }

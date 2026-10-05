@@ -125,6 +125,16 @@ func hashPassword(plain string) (string, error) {
 	return string(hash), err
 }
 
+// adminDummyHash is compared against when the username is unknown, at the
+// same cost as a real admin hash so the timing doesn't tell them apart.
+var adminDummyHash = func() string {
+	h, err := bcrypt.GenerateFromPassword([]byte("not a password"), limits.BcryptCost)
+	if err != nil {
+		panic(err)
+	}
+	return string(h)
+}()
+
 func checkPassword(hash, plain string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)) == nil
 }
@@ -204,7 +214,7 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	// Always run bcrypt, even for an unknown username, so the response
 	// time doesn't reveal whether the username exists.
 	if !found {
-		hash = "$2a$10$invalidinvalidinvaliduinvalidinvalidinvalidinvalidin"
+		hash = adminDummyHash
 	}
 	if !checkPassword(hash, body.Password) || !found {
 		// Counted against the IP, not the username: a guesser picks the
@@ -217,6 +227,16 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.loginLimiter.recordSuccess(ip)
+	// Older hashes move to the current cost while the password is at hand
+	// (as account passwords do): a cheaper real hash would be told apart
+	// from the decoy by its speed.
+	if cost, err := bcrypt.Cost([]byte(hash)); err == nil && cost < limits.BcryptCost {
+		if h, err := hashPassword(body.Password); err == nil {
+			if err := a.dao.SetAdminPassword(body.Username, h); err != nil {
+				log.Error("error rehashing an admin password:", err)
+			}
+		}
+	}
 	epoch, _, err := a.dao.AdminSessionEpoch(body.Username)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not sign in right now")
