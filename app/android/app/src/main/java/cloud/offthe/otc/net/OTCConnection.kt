@@ -7,17 +7,18 @@ import cloud.offthe.otc.proto.GetPubKey
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
 import com.google.protobuf.ByteString
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.ConnectException
@@ -44,8 +45,10 @@ object OTCConnection {
     /** Set whenever connecting or signing in fails; MainView shows the connection form while set. */
     val connectionFailed: StateFlow<Boolean> = _connectionFailed
 
-    private var connectJob: Deferred<Unit>? = null
-    private val connectLock = Mutex()
+    // Non-null exactly while a connect is running (cleared by its own
+    // completion), so handleDisconnect's check means what it says.
+    @Volatile private var connectJob: Deferred<Unit>? = null
+    private val connectLock = Any()
     private var backoffMs = 1_000L
     private const val maxBackoffMs = 30_000L
 
@@ -55,6 +58,11 @@ object OTCConnection {
         try {
             ensureConnected()
             ws.request(build)
+        } catch (e: CancellationException) {
+            // The caller went away (a closed screen, a cancelled search): the
+            // connection is fine, and signing in again would cost the device
+            // an Argon2id derivation for nothing.
+            throw e
         } catch (e: Exception) {
             _authenticated.value = false
             ensureConnected()
@@ -64,19 +72,31 @@ object OTCConnection {
 
     /** Connects and authenticates if not already; concurrent callers share the one attempt. */
     suspend fun ensureConnected() {
-        if (_authenticated.value) return
-        val job = connectLock.withLock {
-            connectJob ?: scope.async { connectAndAuth() }.also { connectJob = it }
-        }
-        try {
-            job.await()
-        } finally {
-            connectLock.withLock { if (connectJob === job) connectJob = null }
+        while (true) {
+            if (_authenticated.value) return
+            val job = synchronized(connectLock) {
+                connectJob ?: scope.async { connectAndAuth() }.also { d ->
+                    connectJob = d
+                    d.invokeOnCompletion { synchronized(connectLock) { if (connectJob === d) connectJob = null } }
+                }
+            }
+            try {
+                job.await()
+                return
+            } catch (e: CancellationException) {
+                // Our own cancellation ends here; an attempt invalidate()
+                // dropped (new settings) is followed by one for the new ones.
+                currentCoroutineContext().ensureActive()
+                if (!job.isCancelled) throw e
+            }
         }
     }
 
     /** After the endpoint/password changed: the next request re-authenticates. */
     fun invalidate() {
+        // An attempt still running dials the old address, and close() is
+        // about to cancel its socket under it.
+        synchronized(connectLock) { connectJob?.cancel(); connectJob = null }
         ws.close()
         _authenticated.value = false
         backoffMs = 1_000L
@@ -93,7 +113,12 @@ object OTCConnection {
 
     private suspend fun connectAndAuth() {
         val secrets = SecretsStore.loadOrCreate()
+        // Read once: Log Out wipes the store while a request it interrupted
+        // may be retrying, and a sign-in with the old address but the wiped
+        // password would count as a failed attempt on the device.
         val url = secrets.endpointURLString
+        val password = secrets.password.value
+        val deviceId = secrets.deviceId.value
         if (url.isEmpty() || !(url.startsWith("ws://") || url.startsWith("wss://"))) {
             _lastError.value = "The address \"${secrets.endpoint.value}\" isn't valid."
             _connectionFailed.value = true
@@ -102,6 +127,8 @@ object OTCConnection {
         try {
             ws.connect(url)
         } catch (e: Exception) {
+            // Dropped by invalidate(): no "Canceled" on the card.
+            currentCoroutineContext().ensureActive()
             _lastError.value = describe(e)
             _connectionFailed.value = true
             throw e
@@ -118,9 +145,9 @@ object OTCConnection {
                 _lastError.value = msg
                 throw RequestError(msg)
             }
-            val encrypted = PwCrypto.encryptPassword(secrets.password.value, pubKeyResp.respPubKey.publicKey.toByteArray())
+            val encrypted = PwCrypto.encryptPassword(password, pubKeyResp.respPubKey.publicKey.toByteArray())
             val auth = Auth.newBuilder()
-                .setUuid(secrets.deviceId.value)
+                .setUuid(deviceId)
                 .setKey(ByteString.copyFrom(encrypted))
                 .setCreate(false)
                 .build()
@@ -135,12 +162,16 @@ object OTCConnection {
                 throw RequestError(msg)
             }
         } catch (e: Exception) {
+            // Dropped by invalidate(): the socket ws holds now may already be
+            // the next attempt's, so leave it, and the card, alone.
+            currentCoroutineContext().ensureActive()
             // A handshake that failed holds a bridge pool slot for nothing: close it.
             ws.close()
             if (_lastError.value == null) _lastError.value = describe(e)
             _connectionFailed.value = true
             throw e
         }
+        currentCoroutineContext().ensureActive()
         _lastError.value = null
         _statusCode.value = null
         _connectionFailed.value = false
