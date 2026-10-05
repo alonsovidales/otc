@@ -882,7 +882,17 @@ const (
 	// cOwnerReadLimit is the largest message from a signed-in owner: the
 	// apps send a file in one message, up to 1000 MB.
 	cOwnerReadLimit = 1000<<20 + 1<<20
+	// cMaxFriendDomain is the longest a DNS name can be;
+	// social_friendship.domain holds at most 128, so nothing longer can
+	// match a friendship.
+	cMaxFriendDomain = 253
 )
+
+// friendDomainTooLong: a friend request's domain no friendship can have.
+// Answered as an unknown domain is, before it is logged or looked up -
+// the pre-auth read limit let a megabytes-long one into the log, enough
+// of them to rotate its whole history away.
+func friendDomainTooLong(d string) bool { return len(d) > cMaxFriendDomain }
 
 // frameBudget bounds the memory of large incoming messages across every
 // connection (see wsframe): a fifth of the machine's memory.
@@ -1376,6 +1386,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqGetFriendshipStatus:
+		if friendDomainTooLong(p.ReqGetFriendshipStatus.Domain) {
+			resp.Payload = &pb.RespEnvelope_RespFriendshipStatus{
+				RespFriendshipStatus: &pb.FriendshipStatusReply{NotFound: true},
+			}
+			break
+		}
 		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain)
 		fr, err := ch.mg.social.GetFriendship(p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
 		log.Info("Getting friendship status err:", err)
@@ -1398,9 +1414,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 
 	case *pb.ReqEnvelope_ReqAuthAsFriend:
 		var err error
-		friendship, err := ch.mg.social.GetFriendship(
-			p.ReqAuthAsFriend.Domain,
-			p.ReqAuthAsFriend.Secret)
+		var friendship *pb.Friendship
+		if friendDomainTooLong(p.ReqAuthAsFriend.Domain) {
+			err = sql.ErrNoRows
+		} else {
+			friendship, err = ch.mg.social.GetFriendship(
+				p.ReqAuthAsFriend.Domain,
+				p.ReqAuthAsFriend.Secret)
+		}
 
 		if err != nil || friendship == nil || friendship.Status != pb.FriendShipStatus_Accepted {
 			resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1427,6 +1448,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	case *pb.ReqEnvelope_ReqFriendshipInterDelete:
 		// Issue #25: the other device deleted the friendship; its secret is
 		// what authorises dropping our copy (see ExternalFriendshipDelete).
+		if friendDomainTooLong(p.ReqFriendshipInterDelete.Domain) {
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: "Error: Friendship not found"},
+			}
+			return resp, true
+		}
 		log.Info("Friendship deleted by the other side:", p.ReqFriendshipInterDelete.Domain)
 		if err := ch.mg.social.ExternalFriendshipDelete(p.ReqFriendshipInterDelete.Domain, p.ReqFriendshipInterDelete.Secret, p.ReqFriendshipInterDelete.ForgetMe); err != nil {
 			resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1438,9 +1465,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 
 	case *pb.ReqEnvelope_ReqDidSendFriendshipReq:
 		var err error
-		friendship, err := ch.mg.social.GetFriendship(
-			p.ReqDidSendFriendshipReq.Domain,
-			p.ReqDidSendFriendshipReq.Secret)
+		var friendship *pb.Friendship
+		if friendDomainTooLong(p.ReqDidSendFriendshipReq.Domain) {
+			err = sql.ErrNoRows
+		} else {
+			friendship, err = ch.mg.social.GetFriendship(
+				p.ReqDidSendFriendshipReq.Domain,
+				p.ReqDidSendFriendshipReq.Secret)
+		}
 
 		// Issue #102: this is the anti-spoofing check behind
 		// ExternalFriendshipRequest - a friend's device calls back here to
@@ -1473,6 +1505,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 		}
 
 	case *pb.ReqEnvelope_ReqFriendshipInterRequest:
+		if friendDomainTooLong(p.ReqFriendshipInterRequest.Domain) {
+			// Before ExternalFriendshipRequest, whose errors quote the
+			// domain into the log and the reply.
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: "Error: friendship request refused"},
+			}
+			return resp, true
+		}
 		var err error
 		err = ch.mg.social.ExternalFriendshipRequest(
 			p.ReqFriendshipInterRequest.Domain,

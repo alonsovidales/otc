@@ -797,3 +797,44 @@ func TestMarshalReplyCleansInvalidUTF8(t *testing.T) {
 		t.Error("the handler's own reply object must not be changed in place")
 	}
 }
+
+// A pre-auth friend request may carry a domain up to the 8 MiB read limit,
+// and it was logged at Info before anything else - a dozen such messages
+// rotated the whole log history away. One longer than any DNS name is
+// answered as an unknown domain is, without touching social or the
+// database (both nil here).
+func TestOverlongFriendDomainIsAnsweredAsUnknown(t *testing.T) {
+	ch := &connHandler{mg: &Manager{}}
+	long := strings.Repeat("a", cMaxFriendDomain+1)
+	ack := func(env *pb.ReqEnvelope) (string, bool) {
+		t.Helper()
+		resp, closeConn := ch.processNonAuthRequest(env)
+		a, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+		if !ok || a.RespAck.Ok {
+			t.Fatalf("%T: want a refusing Ack, got %v", env.Payload, resp.Payload)
+		}
+		return a.RespAck.ErrorMsg, closeConn
+	}
+
+	resp, closeConn := ch.processNonAuthRequest(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqGetFriendshipStatus{
+		ReqGetFriendshipStatus: &pb.GetFriendshipStatus{Domain: long}}})
+	if st := resp.GetRespFriendshipStatus(); st == nil || !st.NotFound || closeConn {
+		t.Fatalf("status: want not found, got %v", resp)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqAuthAsFriend{
+		ReqAuthAsFriend: &pb.AuthAsFriend{Domain: long}}}); msg != "Friendship not accepted" || !c {
+		t.Errorf("auth as friend: %q close=%v", msg, c)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqFriendshipInterDelete{
+		ReqFriendshipInterDelete: &pb.FriendshipInterDelete{Domain: long, ForgetMe: true}}}); msg != "Error: Friendship not found" || !c {
+		t.Errorf("inter delete: %q close=%v", msg, c)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqDidSendFriendshipReq{
+		ReqDidSendFriendshipReq: &pb.DidSendFriendshipReq{Domain: long}}}); msg != "Error: "+sql.ErrNoRows.Error() || !c {
+		t.Errorf("did send: %q close=%v", msg, c)
+	}
+	if msg, c := ack(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqFriendshipInterRequest{
+		ReqFriendshipInterRequest: &pb.FriendshipInterRequest{Domain: long, OriginProfile: &pb.Profile{}}}}); strings.Contains(msg, long) || !c {
+		t.Errorf("inter request: the reply must not echo the domain, close=%v", c)
+	}
+}
