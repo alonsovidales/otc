@@ -252,6 +252,9 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// bridge round-trip.
 	ps.OnChange = func() { go mg.syncPushRegistrationsToBridge() }
 	ps.RelayMobile = mg.relayMobileToBridge
+	// Pushes leave the friend sync's path: about one sync page of events
+	// across a few friends fits before Notify falls back to sending inline.
+	ps.StartAsync(256)
 
 	// Issue #103: a local-only user's instance has no bridge-addr at all
 	// (see supervisor.bridgeAddrFor), and dialing "wss:///ws" forever

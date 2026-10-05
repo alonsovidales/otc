@@ -139,6 +139,35 @@ type Push struct {
 	// for any other reason, and nil is a valid no-op value (the bridge's
 	// own Push instance has no further hop to sync to).
 	OnChange func()
+
+	// queue, once StartAsync has run, takes Notify's deliveries off the
+	// caller; nil means Notify sends inline.
+	queue     chan notifyJob
+	queueOnce sync.Once
+}
+
+type notifyJob struct {
+	title, body string
+	t           Target
+}
+
+// StartAsync makes Notify hand its deliveries to one background worker,
+// which keeps their order, instead of sending them on the caller. On the
+// device every caller is the friend sync (or a friend request waiting for
+// its answer), which used to wait on each push service and a bridge dial
+// per notification, holding up every friend after it. A full queue sends
+// inline, so nothing is dropped. The bridge never calls this: its Push
+// instances live for one request, and BridgeNotify answers after sending.
+func (p *Push) StartAsync(size int) {
+	p.queueOnce.Do(func() {
+		q := make(chan notifyJob, size)
+		go func() {
+			for j := range q {
+				p.deliver(j.title, j.body, j.t)
+			}
+		}()
+		p.queue = q
+	})
 }
 
 // Init loads (generating on first use - see loadOrGenerateVapidKeys) this
@@ -306,6 +335,18 @@ func (p *Push) NotifyFriendshipAccepted(friendName string) {
 // (social.SyncWithFriends), which has nowhere useful to surface a
 // push-delivery failure to.
 func (p *Push) Notify(title, body string, t Target) {
+	if p.queue != nil {
+		select {
+		case p.queue <- notifyJob{title: title, body: body, t: t}:
+			return
+		default:
+			log.Error("push queue full, sending inline")
+		}
+	}
+	p.deliver(title, body, t)
+}
+
+func (p *Push) deliver(title, body string, t Target) {
 	p.sendWebPush(title, body, t)
 	p.sendMobile(title, body, t)
 }
@@ -370,8 +411,18 @@ var webPushClient = &http.Client{Timeout: 15 * time.Second}
 func (p *Push) NotifyMobile(title, body string, t Target) { p.sendMobile(title, body, t) }
 
 func (p *Push) sendMobile(title, body string, t Target) {
-	if p.RelayMobile != nil && p.RelayMobile(title, body, t) {
-		return
+	if p.RelayMobile != nil {
+		// No phone registered here: the bridge only has the tokens this
+		// device gave it, so relaying would dial it to deliver nothing. An
+		// error (an older schema without fcm_tokens) still relays.
+		apns, errA := p.storage.ListApnsTokens()
+		fcm, errF := p.storage.ListFcmTokens()
+		if errA == nil && errF == nil && len(apns) == 0 && len(fcm) == 0 {
+			return
+		}
+		if p.RelayMobile(title, body, t) {
+			return
+		}
 	}
 	p.sendApns(title, body, t)
 	p.sendFcm(title, body, t)
