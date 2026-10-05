@@ -12,7 +12,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import QuickLook
-import ImageIO
 
 private func isDirFile(_ f: Msg_File) -> Bool { f.mime == "inode/directory" }
 private func isImgFile(_ f: Msg_File) -> Bool { f.mime.hasPrefix("image/") }
@@ -205,20 +204,14 @@ final class FilesExplorerViewModel: ObservableObject {
         Int(image.size.width * image.scale * image.size.height * image.scale) * 4
     }
 
-    /// A tile is at most ~200 pt (600 px at 3x) and scaledToFill only
-    /// needs the short side to cover it: 512 px is plenty, and a fraction
-    /// of the 1000 px original's memory. Decoded here, off the main
-    /// thread, not lazily when first drawn. Android uses the same size.
+    /// A tile is at most ~200 pt and scaledToFill only needs the short
+    /// side to cover it: decoded with that side at 600 px (3x), never
+    /// above the device's own size - a fraction of the 1000 px original's
+    /// memory for a photo, all of it for a wide one, whose short side is
+    /// already smaller. Decoded here, off the main thread, not lazily when
+    /// first drawn.
     nonisolated static func decodeTile(_ data: Data) -> UIImage? {
-        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        let opts: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: 512,
-        ]
-        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else { return nil }
-        return UIImage(cgImage: cg)
+        GridThumbCache.decode(data: data, localURL: nil, maxPt: 200)
     }
 
     /// Sends the queue to the device in batches of 24 (it takes at most 48

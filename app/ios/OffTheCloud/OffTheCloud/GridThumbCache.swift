@@ -71,7 +71,9 @@ enum GridThumbCache {
         images.object(forKey: id as NSString)
     }
 
-    private static func decode(data: Data?, localURL: URL?, maxPt: CGFloat) -> UIImage? {
+    /// Decodes without caching, for a caller that keeps its own (the
+    /// Files grid).
+    static func decode(data: Data?, localURL: URL?, maxPt: CGFloat) -> UIImage? {
         if let localURL, let src = CGImageSourceCreateWithURL(localURL as CFURL, nil),
            let img = decode(src, maxPt: maxPt) {
             return img
