@@ -28,4 +28,17 @@ struct PhotoSyncNamingTests {
         #expect(PhotoSync.isDuplicatedFile("error finishing the upload: Duplicated file"))
         #expect(!PhotoSync.isDuplicatedFile("error finishing the upload: upload incomplete: 1 of 2 bytes"))
     }
+
+    @Test func aNameTakenInTheRunIsSharedOnlyByTheSameContent() {
+        let claims = PhotoSync.PathClaims()
+        let path = "/ios/d/IMG_0001.HEIC"
+        #expect(claims.claim(path, by: "A/L0/001", hash: "aa"))
+        #expect(claims.claim(path, by: "A/L0/001", hash: "aa"))
+        // A duplicate in Photos: same name, same bytes. It keeps the name
+        // and the device answers with the existing row.
+        #expect(claims.claim(path, by: "B/L0/001", hash: "aa"))
+        // Another photo under that name goes to its alternate name.
+        #expect(!claims.claim(path, by: "C/L0/001", hash: "cc"))
+        #expect(claims.claim("/ios/d/IMG_0002.HEIC", by: "C/L0/001", hash: "cc"))
+    }
 }

@@ -310,19 +310,23 @@ final class PhotoSync: NSObject {
         let underlying: Error
     }
 
-    /// Remote paths taken during one run, so a second asset with the same
-    /// name goes straight to its alternate name instead of a wasted
-    /// transfer (or, in an upload-only folder, replacing the first).
-    private final class PathClaims: @unchecked Sendable {
+    /// Remote paths taken during one run, with the content each was taken
+    /// for, so a second asset with the same name and other content goes
+    /// straight to its alternate name instead of a wasted transfer (or, in
+    /// an upload-only folder, replacing the first). The same content keeps
+    /// the name - a photo duplicated in Photos keeps its filename - and the
+    /// device answers it with the existing row: one file, as always.
+    final class PathClaims: @unchecked Sendable {
         private let lock = NSLock()
-        private var owners: [String: String] = [:]
+        private var owners: [String: (id: String, hash: String)] = [:]
 
-        /// True when `path` is free or already `id`'s.
-        func claim(_ path: String, by id: String) -> Bool {
+        /// True when `path` is free, already `id`'s, or taken for the same
+        /// content.
+        func claim(_ path: String, by id: String, hash: String) -> Bool {
             lock.lock()
             defer { lock.unlock() }
-            if let owner = owners[path] { return owner == id }
-            owners[path] = id
+            if let owner = owners[path] { return owner.id == id || owner.hash == hash }
+            owners[path] = (id, hash)
             return true
         }
     }
@@ -596,8 +600,8 @@ final class PhotoSync: NSObject {
                                 }
                                 print("[dedup] \(cleanName): \(basePath) holds another file, using \(altPath)")
                                 path = altPath
-                            } else if !claims.claim(basePath, by: id) {
-                                print("[dedup] \(cleanName): name taken in this run, using \(altPath)")
+                            } else if !claims.claim(basePath, by: id, hash: hash) {
+                                print("[dedup] \(cleanName): name taken in this run by other content, using \(altPath)")
                                 path = altPath
                             }
 
