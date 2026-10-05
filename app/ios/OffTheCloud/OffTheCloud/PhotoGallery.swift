@@ -6,6 +6,7 @@ import Photos
 import MapKit
 import CryptoKit
 import AVKit
+import ImageIO
 
 // MARK: - Proto typealiases (rename if your generated names differ)
 typealias ReqEnvelope       = Msg_ReqEnvelope
@@ -162,9 +163,21 @@ final class PhotoGalleryVM: ObservableObject {
     // Full-size images by path, kept for the last few opened so the pager
     // can draw the neighbour it is sliding towards and swiping back to a
     // photo doesn't fetch it again. hiResImage is the open one's.
+    //
+    // Display bitmaps, capped at 4096 px and decoded off the main thread
+    // (decodeForDisplay); hiResSource keeps the bytes each came from, for
+    // Save and Share at full resolution. Bounded by count and by bytes:
+    // eight 24 MP photos decoded at full size were ~800 MB.
     @Published var hiResImages: [String: UIImage] = [:]
+    private var hiResSource: [String: HiResSource] = [:]
     private var hiResOrder: [String] = []
     private var inFlightHiRes = Set<String>()
+    private let cHiResBudget = 200 << 20
+
+    enum HiResSource {
+        case data(Data)
+        case file(URL)
+    }
     // Photos whose full-size fetch came back empty or errored - the viewer
     // keeps showing the thumbnail, and its "Low res" badge drops the
     // spinner since nothing is on its way any more.
@@ -790,18 +803,65 @@ final class PhotoGalleryVM: ObservableObject {
     func closeModal() {
         openIndex = nil
         hiResImages.removeAll()
+        hiResSource.removeAll()
         hiResOrder.removeAll()
         hiResFailed.removeAll()
         videoPlayer?.pause()
         videoPlayer = nil
     }
 
-    private func cacheHiRes(_ img: UIImage, for path: String) {
-        if hiResImages[path] == nil { hiResOrder.append(path) }
-        hiResImages[path] = img
-        while hiResOrder.count > cHiResCacheSize {
-            hiResImages.removeValue(forKey: hiResOrder.removeFirst())
+    private func cacheHiRes(_ img: UIImage, source: HiResSource, for path: String) {
+        var images = hiResImages
+        if images[path] == nil { hiResOrder.append(path) }
+        images[path] = img
+        hiResSource[path] = source
+        // The pager draws the open photo and both neighbours: never those.
+        let drawn = Set((openIndex.map { [$0 - 1, $0, $0 + 1] } ?? [])
+            .filter { items.indices.contains($0) }
+            .map { items[$0].path })
+        var bytes = hiResOrder.reduce(0) { $0 + (images[$1].map(Self.cost(of:)) ?? 0) }
+        var i = 0
+        while i < hiResOrder.count && (hiResOrder.count > cHiResCacheSize || bytes > cHiResBudget) {
+            let p = hiResOrder[i]
+            if drawn.contains(p) { i += 1; continue }
+            hiResOrder.remove(at: i)
+            bytes -= images.removeValue(forKey: p).map(Self.cost(of:)) ?? 0
+            hiResSource.removeValue(forKey: p)
         }
+        hiResImages = images
+    }
+
+    private static func cost(of image: UIImage) -> Int {
+        if let cg = image.cgImage { return cg.bytesPerRow * cg.height }
+        return Int(image.size.width * image.scale * image.size.height * image.scale) * 4
+    }
+
+    /// Decodes now, at most `maxSide` px (Android's cap, ~3x the widest
+    /// iPhone screen; a 12 MP photo is not downscaled at all), honouring
+    /// the EXIF orientation as UIImage(data:) does. Off the main thread:
+    /// UIImage(data:) decoded lazily, during the slide animation.
+    nonisolated static func decodeForDisplay(_ src: CGImageSource, maxSide: Int = 4096) -> UIImage? {
+        let opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxSide,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else { return nil }
+        return UIImage(cgImage: cg, scale: 1, orientation: .up)
+    }
+
+    /// The open photo at full resolution, for Save and Share: decoded from
+    /// the same bytes, the same way, as before the display cap. nil while
+    /// it hasn't arrived.
+    func fullImageForOpen() async -> UIImage? {
+        guard let i = openIndex, items.indices.contains(i), let src = hiResSource[items[i].path] else { return nil }
+        return await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            switch src {
+            case .data(let d): return UIImage(data: d)
+            case .file(let u): return UIImage(contentsOfFile: u.path)
+            }
+        }.value
     }
 
     // Issue #41: fetch and show the currently-open photo/video's
@@ -941,13 +1001,19 @@ final class PhotoGalleryVM: ObservableObject {
         }
 
         if hiResImages[it.path] != nil || inFlightHiRes.contains(it.path) { return }
-        if let u = it.localURL, let img = UIImage(contentsOfFile: u.path) {
-            cacheHiRes(img, for: it.path)
-            return
-        }
         inFlightHiRes.insert(it.path)
-        hiResFailed.remove(it.path)
         defer { inFlightHiRes.remove(it.path) }
+        if let u = it.localURL {
+            let img = await Task.detached(priority: .userInitiated) {
+                CGImageSourceCreateWithURL(u as CFURL, nil).flatMap { Self.decodeForDisplay($0) }
+            }.value
+            if let img {
+                // Closed meanwhile: don't fill the cache again.
+                if openIndex != nil { cacheHiRes(img, source: .file(u), for: it.path) }
+                return
+            }
+        }
+        hiResFailed.remove(it.path)
         do {
             let resp = try await ws.request { e in
                 var req = ReqEnvelope()
@@ -956,8 +1022,16 @@ final class PhotoGalleryVM: ObservableObject {
                 req.payload = .reqGetFile(gf)
                 e = req
             }
-            if case .respFile(let f) = resp.payload, let img = UIImage(data: f.content) {
-                cacheHiRes(img, for: it.path)
+            if case .respFile(let f) = resp.payload {
+                let data = f.content
+                let img = await Task.detached(priority: .userInitiated) {
+                    CGImageSourceCreateWithData(data as CFData, nil).flatMap { Self.decodeForDisplay($0) }
+                }.value
+                if let img {
+                    if openIndex != nil { cacheHiRes(img, source: .data(data), for: it.path) }
+                } else {
+                    hiResFailed.insert(it.path)
+                }
             } else {
                 hiResFailed.insert(it.path)
             }
@@ -1579,8 +1653,14 @@ struct PhotoGalleryView: View {
         )) {
             ImageModal(
                 vm: vm,
-                save: { vm.saveToPhotos(vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) })) },
-                share: { vm.shareCurrentPhoto(vm.hiResImage ?? (vm.openIndex.flatMap { idxFromThumb($0) })) },
+                save: {
+                    let fallback = vm.openIndex.flatMap { idxFromThumb($0) }
+                    Task { vm.saveToPhotos(await vm.fullImageForOpen() ?? fallback) }
+                },
+                share: {
+                    let fallback = vm.openIndex.flatMap { idxFromThumb($0) }
+                    Task { vm.shareCurrentPhoto(await vm.fullImageForOpen() ?? fallback) }
+                },
                 delete: { vm.deleteCurrentPhoto() }
             )
         }

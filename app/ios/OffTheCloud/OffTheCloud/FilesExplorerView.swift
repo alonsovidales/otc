@@ -748,8 +748,14 @@ struct FilesExplorerView: View {
         )) {
             ImageModal(
                 vm: viewer,
-                save: { viewer.saveToPhotos(viewer.hiResImage ?? viewerThumb()) },
-                share: { viewer.shareCurrentPhoto(viewer.hiResImage ?? viewerThumb()) },
+                save: {
+                    let fallback = viewerThumb()
+                    Task { viewer.saveToPhotos(await viewer.fullImageForOpen() ?? fallback) }
+                },
+                share: {
+                    let fallback = viewerThumb()
+                    Task { viewer.shareCurrentPhoto(await viewer.fullImageForOpen() ?? fallback) }
+                },
                 delete: { viewer.deleteCurrentPhoto() }
             )
         }
