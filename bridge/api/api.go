@@ -103,6 +103,9 @@ type API struct {
 	// oneOffPerAddr limits the device GETs (static assets, /media) one
 	// address can make (issue #163): each spends a device connection.
 	oneOffPerAddr *limits.Rate
+	// beaconPerAddr limits the unauthenticated setup-beacon reports (each
+	// is a write on the shared primary) per address.
+	beaconPerAddr *limits.Rate
 	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
 	// fake device); nil in production.
 	forwardOneOff func(domain string, frame []byte) ([]byte, error)
@@ -121,6 +124,13 @@ func (api *API) oneOff(domain string, frame []byte) ([]byte, error) {
 const (
 	cOneOffPerSecond = 10
 	cOneOffBurst     = 60
+)
+
+// cSetupBeaconPerSecond/cSetupBeaconBurst: a device reports every 5 s while
+// it is set up, so several behind one address still fit.
+const (
+	cSetupBeaconPerSecond = 1
+	cSetupBeaconBurst     = 10
 )
 
 // requestAddr is the client's address: the connecting one, or - for a
@@ -153,6 +163,7 @@ func (api *API) allowOneOff(w http.ResponseWriter, r *http.Request) bool {
 func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *accounts.Accounts, clu *cluster.Cluster, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
+		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -986,6 +997,11 @@ var cSetupTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 // is all this is for, and it keeps the store from being used to point a
 // page at anything else.
 func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
+	if api.beaconPerAddr != nil && !api.beaconPerAddr.Allow(requestAddr(r)) {
+		w.Header().Set("Retry-After", "5")
+		writeJSONErr(w, http.StatusTooManyRequests, "too many requests")
+		return
+	}
 	var body struct {
 		Token string `json:"token"`
 		Addr  string `json:"addr"`

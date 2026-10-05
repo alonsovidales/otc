@@ -13,6 +13,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -60,6 +61,10 @@ func (dao *Dao) recordRelease(domain, accountID string) error {
 type Dao struct {
 	db            *sql.DB
 	stopLogPruner chan struct{}
+
+	// lastBeaconPrune is when SetSetupBeacon last dropped the expired
+	// hand-offs (unix nanoseconds).
+	lastBeaconPrune atomic.Int64
 
 	// Issue #139: when devices.last_client_at was last written per
 	// domain, so relayed traffic touches that row at most once a minute.
@@ -409,12 +414,20 @@ func (dao *Dao) NewContactRequest(name, email, reason, message string) (err erro
 // cSetupBeaconTTLMinutes is how long a setup hand-off stays answerable.
 const cSetupBeaconTTLMinutes = 10
 
+// cBeaconPruneEvery is how often SetSetupBeacon drops expired hand-offs:
+// a device reports every 5 s while it is set up, and an expired row is
+// already ignored by GetSetupBeacon, so a minute's lag changes no answer.
+const cBeaconPruneEvery = time.Minute
+
 // SetSetupBeacon records (or refreshes) where a device being set up can be
 // reached on its LAN, under the wizard's one-time token (issue #38), and
-// drops every expired hand-off while it is at it.
+// drops the expired hand-offs at most once every cBeaconPruneEvery.
 func (dao *Dao) SetSetupBeacon(token, addr string) (err error) {
-	if _, err = dao.db.Exec("delete from `setup_beacons` where `created` < now() - interval ? minute", cSetupBeaconTTLMinutes); err != nil {
-		return
+	now := time.Now().UnixNano()
+	if last := dao.lastBeaconPrune.Load(); now-last >= int64(cBeaconPruneEvery) && dao.lastBeaconPrune.CompareAndSwap(last, now) {
+		if _, err = dao.db.Exec("delete from `setup_beacons` where `created` < now() - interval ? minute", cSetupBeaconTTLMinutes); err != nil {
+			return
+		}
 	}
 	_, err = dao.db.Exec(
 		"insert into `setup_beacons` (`token`, `addr`, `created`) values (?, ?, now()) on duplicate key update `addr` = values(`addr`), `created` = now()",

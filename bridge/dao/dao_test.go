@@ -340,6 +340,36 @@ func TestSetupBeaconRoundTrip(t *testing.T) {
 	}
 }
 
+// A device reports every few seconds while it is set up: the expired
+// hand-offs are dropped once a minute, not on every report.
+func TestSetupBeaconPrunesAtMostOnceAMinute(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectExec("delete from `setup_beacons`").WithArgs(10).WillReturnResult(sqlmock.NewResult(0, 0))
+	for i := 0; i < 3; i++ {
+		mock.ExpectExec("insert into `setup_beacons`").WithArgs("tok-1", "192.168.1.20").WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	mock.ExpectExec("delete from `setup_beacons`").WithArgs(10).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("insert into `setup_beacons`").WithArgs("tok-1", "192.168.1.20").WillReturnResult(sqlmock.NewResult(0, 1))
+
+	d := NewWithDB(db)
+	for i := 0; i < 3; i++ {
+		if err := d.SetSetupBeacon("tok-1", "192.168.1.20"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d.lastBeaconPrune.Add(-int64(cBeaconPruneEvery)) // a minute later
+	if err := d.SetSetupBeacon("tok-1", "192.168.1.20"); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("not all expected queries ran: %v", err)
+	}
+}
+
 // The admin panel's delete frees a name at once: no 30-day hold, and any
 // hold already on it is lifted.
 func TestDeleteDeviceLiftsTheHold(t *testing.T) {

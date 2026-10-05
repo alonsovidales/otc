@@ -18,6 +18,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/go-sql-driver/mysql"
@@ -601,6 +602,42 @@ func TestClaimInsertFailureIsNotTaken(t *testing.T) {
 		if rec.Code != c.want {
 			t.Errorf("insert error %v: %d %s, want %d", c.err, rec.Code, rec.Body.String(), c.want)
 		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// Setup-beacon reports are limited per address: one device reporting
+// every few seconds never notices, a loop of made-up tokens does.
+func TestSetupBeaconIsLimitedPerAddress(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectExec("delete from `setup_beacons`").WillReturnResult(sqlmock.NewResult(0, 0))
+	for i := 0; i < cSetupBeaconBurst+1; i++ {
+		mock.ExpectExec("insert into `setup_beacons`").WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), beaconPerAddr: limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst)}
+	beacon := func(remoteAddr string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/setup-beacon", strings.NewReader(`{"token":"abcdefghijklmnopqrstuvwxyz0123456789ABCD","addr":"192.168.1.20"}`))
+		req.RemoteAddr = remoteAddr
+		rec := httptest.NewRecorder()
+		api.setupBeacon(rec, req)
+		return rec
+	}
+	for i := 0; i < cSetupBeaconBurst; i++ {
+		if rec := beacon("203.0.113.7:1111"); rec.Code != http.StatusNoContent {
+			t.Fatalf("report %d: %d, want 204", i, rec.Code)
+		}
+	}
+	if rec := beacon("203.0.113.7:2222"); rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+		t.Errorf("past the burst: %d, want 429 with Retry-After", rec.Code)
+	}
+	if rec := beacon("198.51.100.4:1111"); rec.Code != http.StatusNoContent {
+		t.Errorf("another address: %d, want 204", rec.Code)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unexpected DB activity: %v", err)
