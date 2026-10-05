@@ -144,6 +144,11 @@ type Push struct {
 	// caller; nil means Notify sends inline.
 	queue     chan notifyJob
 	queueOnce sync.Once
+
+	// WebPushClient, if set, sends Web Push instead of webPushClient. The
+	// bridge sets one that only reaches public addresses: its
+	// subscriptions come from devices, which could name anything.
+	WebPushClient *http.Client
 }
 
 type notifyJob struct {
@@ -369,6 +374,10 @@ func (p *Push) sendWebPush(title, body string, t Target) {
 		return
 	}
 
+	client := webPushClient
+	if p.WebPushClient != nil {
+		client = p.WebPushClient
+	}
 	opts := &webpush.Options{
 		Subscriber:      p.subscriberID,
 		VAPIDPublicKey:  p.vapidPublicKey,
@@ -377,7 +386,7 @@ func (p *Push) sendWebPush(title, body string, t Target) {
 		// Issue #169: the library's default client has no timeout, and a
 		// push service that never answers held up the friend sync that
 		// raised the notification.
-		HTTPClient: webPushClient,
+		HTTPClient: client,
 	}
 
 	for _, sub := range subs {

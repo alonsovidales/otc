@@ -81,3 +81,76 @@ func TestNilCluster(t *testing.T) {
 		t.Fatal("a nil cluster located a node")
 	}
 }
+
+// A drop published by one node reaches every node, itself included; a
+// replaced identity's says whose connections stay.
+func TestDropReachesEveryNode(t *testing.T) {
+	a, b, mr := twoNodes(t)
+	got := make(chan string, 4)
+	for _, c := range []*Cluster{a, b} {
+		node := c.Node()
+		c.SubscribeDrops(func(d, keep string) { got <- node + " " + d + " keep=" + keep })
+	}
+	for i := 0; mr.PubSubNumSub(keyDrop)[keyDrop] < 2; i++ {
+		if i == 100 {
+			t.Fatal("the nodes never subscribed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	expect := func(want ...string) {
+		t.Helper()
+		seen := map[string]bool{}
+		for len(seen) < len(want) {
+			select {
+			case m := <-got:
+				seen[m] = true
+			case <-time.After(2 * time.Second):
+				t.Fatalf("drops delivered: %v", seen)
+			}
+		}
+		for _, w := range want {
+			if !seen[w] {
+				t.Fatalf("drops delivered: %v, want %q", seen, w)
+			}
+		}
+	}
+	if err := a.PublishDrop("cala.off-the.cloud"); err != nil {
+		t.Fatal(err)
+	}
+	expect("bridge1 cala.off-the.cloud keep=", "bridge2 cala.off-the.cloud keep=")
+	if err := b.PublishReplaced("pit.off-the.cloud", "new-owner"); err != nil {
+		t.Fatal(err)
+	}
+	expect("bridge1 pit.off-the.cloud keep=new-owner", "bridge2 pit.off-the.cloud keep=new-owner")
+
+	var none *Cluster
+	if err := none.PublishDrop("x"); err != nil {
+		t.Fatal(err)
+	}
+	if err := none.PublishReplaced("x", "o"); err != nil {
+		t.Fatal(err)
+	}
+	none.SubscribeDrops(func(string, string) { t.Fatal("a nil cluster delivered a drop") })
+}
+
+// When a device on both nodes goes away, both count down and find it
+// gone: only one of them alerts the owner, until the device is back.
+func TestOneOfflineAlertPerOutage(t *testing.T) {
+	a, b, _ := twoNodes(t)
+	if !a.ClaimAlert("pit.off-the.cloud") || b.ClaimAlert("pit.off-the.cloud") {
+		t.Fatal("want exactly the first node to claim the alert")
+	}
+	if a.ClaimAlert("pit.off-the.cloud") {
+		t.Fatal("claimed twice for one outage")
+	}
+	if err := b.Hold("pit.off-the.cloud"); err != nil { // the device is back
+		t.Fatal(err)
+	}
+	if !b.ClaimAlert("pit.off-the.cloud") {
+		t.Fatal("the next outage could not alert")
+	}
+	var none *Cluster
+	if !none.ClaimAlert("x") {
+		t.Fatal("a single bridge must always alert")
+	}
+}

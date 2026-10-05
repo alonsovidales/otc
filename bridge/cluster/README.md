@@ -95,7 +95,18 @@ host = 10.10.0.2                 ; the primary, from every node
   strip those headers from outside requests.
 - "Online" (admin panel, account page, the setup wizard's check) is any
   node holding the device; the offline alert is skipped while another node
-  holds it.
+  holds it, and only one node sends it per outage (`otc:alert:<domain>`,
+  cleared when a node holds the device again).
+- A domain released, deleted with its account or given a new identity
+  stops relaying on every node: the node that handled it publishes the
+  domain on the `otc:drop` channel and each node closes its connections,
+  paired ones included. For a new identity the message is
+  `domain<TAB>owner uuid`, and the new owner's connections stay: its device
+  registers as soon as it is told, maybe before a node gets the message.
+  Every 20 s each node also checks the devices it holds against MySQL and
+  closes those no longer registered, or registered by another owner uuid -
+  what a message missed while Redis was away, or the admin panel's delete
+  (which publishes nothing), leaves behind.
 
 ## Log retention (issue #176)
 
@@ -122,24 +133,39 @@ servers: a compromised server could tamper with a check that runs on it.
 Read-only over SSH:
 
 - health: services, disk, memory, RAID, SMART health and NVMe wear,
-  WireGuard handshakes, MySQL replication, Redis, certificate days left;
+  WireGuard handshakes, MySQL replication, Redis, certificate days left
+  (redis's certbot copy, and the one each node actually serves);
 - intrusion signs: system files that differ from their packages
   (`dpkg -V`), processes running from executables that no longer exist,
   SSH logins (and from where) and failed attempts, and a security
   fingerprint compared with a baseline kept on the Mac - listening ports,
-  uid 0 and login users, every `authorized_keys`, sudoers, sshd config,
-  crontabs, systemd units, ufw rules, our binaries; and kernel modules that
-  taint the kernel while unsigned or from no package (a rootkit - not ZFS,
-  which Ubuntu ships signed);
+  uid 0 and login users, every `authorized_keys`/`authorized_keys2` of any
+  home, sudoers, sshd config, crontabs, systemd unit files, drop-ins and
+  enable links (content, not just names), ufw rules, our binaries; and
+  kernel modules that taint the kernel while unsigned or from no package
+  (a rootkit - not ZFS, which Ubuntu ships signed);
 - from outside: the sites and both nodes answer, DNS, and MySQL, Redis and
   the internal port are closed to the internet.
+
+Each host's check is limited to 240 s on the server (smartctl, mysql and
+redis-cli have shorter limits of their own, reported when they run out),
+with a 300 s watchdog on the Mac; a check that runs out is reported as a
+problem, and its security fingerprint is not compared that time.
 
 Reports: `~/Library/Logs/otc-servercheck/` (`latest.txt`, a month kept); a
 macOS notification on any problem; each report emailed through Gmail when
 a Gmail app password is in the Keychain (its spaces don't matter):
 `security add-generic-password -s otc-servercheck-smtp -a vidales.miguelez@gmail.com -w`.
 After a change made on purpose (a new port, a key, a deployed binary):
-`bash bridge/cluster/servercheck.sh --accept`. Run now:
+`bash bridge/cluster/servercheck.sh --accept`. The launchd job runs the
+script straight from this checkout, so an update that widens the
+fingerprint reaches the next scheduled run: lines of a kind the baseline
+has none of yet (the `unit:`/`unit_link:` lines, the first time) are taken
+into it and noted in the report, not raised as a problem; new lines of a
+kind it already has (an `authorized_keys2`, or a key file in a home the
+old version did not look at) are reported - check them and `--accept`.
+To see that first comparison before a scheduled run mails it, run the
+script by hand after updating. Run now:
 `launchctl kickstart gui/$(id -u)/cloud.offthe.servercheck`. Only the scheduled run emails
 (the launchd job passes `--mail`); running the script by hand just writes the report and
 notifies, so a deploy and its `--accept` don't send a burst of mails. Unsigned kernel modules are

@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -92,6 +93,89 @@ func maxConnectionsPerDevice() int {
 	return cDefaultMaxConnectionsPerDevice
 }
 
+// Pairing limits (a client's socket claims one of a device's connections
+// for as long as it stays open): per client address and device, at most
+// cPairBurst new pairings at once refilled at cPairPerSecond, and
+// maxPairedPerAddr open; per device, maxPairedPerDevice in use. Every web
+// tab and every app holds one paired socket for as long as it is open, so
+// a household behind one NAT (or one IPv6 /64) - a browser restoring about
+// 20 tabs, phones, a desktop app, otc-sync - needs a few dozen: the
+// per-address cap is as high as the per-device one, and it is the
+// per-device cap and the rate that bound abuse. Vars so tests can shrink
+// them.
+var (
+	cPairPerSecond             = 2.0
+	cPairBurst                 = 30.0
+	cDefaultMaxPairedPerAddr   = 64
+	cDefaultMaxPairedPerDevice = 64
+)
+
+// maxPairedPerDevice reads [bridge] max-paired-per-device, optional like
+// max-connections-per-device.
+func maxPairedPerDevice() int {
+	return bridgeLimit("max-paired-per-device", cDefaultMaxPairedPerDevice)
+}
+
+// maxPairedPerAddr reads [bridge] max-paired-per-addr, optional too.
+func maxPairedPerAddr() int {
+	return bridgeLimit("max-paired-per-addr", cDefaultMaxPairedPerAddr)
+}
+
+// bridgeLimit is [bridge] key when it is set to a positive number, def
+// otherwise (no [bridge] section, no key). An absent key is not passed to
+// cfg.GetInt, which logs an error for it: these are read on every pairing.
+func bridgeLimit(key string, def int) int {
+	if cfg.HasSection("bridge") && cfg.GetStr("bridge", key) != "" {
+		if v := cfg.GetInt("bridge", key); v > 0 {
+			return int(v)
+		}
+	}
+	return def
+}
+
+// pairingKey is who a pairing is counted against: the client's address
+// (clientAddr) - an IPv6 one by its /64, which one host can rotate
+// through - and the device it asks for.
+func pairingKey(addr, host string) string {
+	if ip := net.ParseIP(addr); ip != nil && ip.To4() == nil {
+		addr = ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
+	}
+	return addr + "|" + host
+}
+
+// reservePairing counts one more open pairing for key, unless it already
+// has maxPairedPerAddr; releasePairing gives it back.
+func (mg *Manager) reservePairing(key string) bool {
+	limit := maxPairedPerAddr()
+	mg.pairedMu.Lock()
+	defer mg.pairedMu.Unlock()
+	if mg.pairedByAddr[key] >= limit {
+		return false
+	}
+	if mg.pairedByAddr == nil {
+		mg.pairedByAddr = map[string]int{}
+	}
+	mg.pairedByAddr[key]++
+	return true
+}
+
+func (mg *Manager) releasePairing(key string) {
+	mg.pairedMu.Lock()
+	defer mg.pairedMu.Unlock()
+	if mg.pairedByAddr[key] <= 1 {
+		delete(mg.pairedByAddr, key)
+	} else {
+		mg.pairedByAddr[key]--
+	}
+}
+
+// logRefusal logs a refused pairing, once a minute per key at most.
+func (mg *Manager) logRefusal(key string, what ...any) {
+	if mg.refusalLog == nil || mg.refusalLog.Allow(key) {
+		log.Error(what...)
+	}
+}
+
 // bridgePool is one device's spare connections plus its offline-detection
 // state (issue #62). liveCount is every connection currently held for this
 // domain, idle-in-availableConns or already claimed for one client's relay
@@ -101,7 +185,10 @@ func maxConnectionsPerDevice() int {
 // availableConns are kept in sync.
 type bridgePool struct {
 	availableConns []*deviceRelay
-	liveCount      int
+	// relays is every live relay, idle or paired with a client, so that
+	// dropping a domain reaches the paired ones too.
+	relays    map[*deviceRelay]struct{}
+	liveCount int
 	// offlineTimer is non-nil exactly while a countdown is pending -
 	// started the instant liveCount drops to zero, stopped/cleared the
 	// instant a fresh registration brings it back above zero. If it fires
@@ -155,12 +242,31 @@ var (
 	cPingPeriod = (cPongWait * 8) / 10
 )
 
+// cUnpairedReadTimeout bounds each read on a connection not yet paired
+// with a device - the wait for a message and the message itself. Every
+// real peer sends its first message as soon as the socket opens (the web's
+// DeviceUnreachable screen re-asks every 5 s on the same socket); without
+// it, anyone could hold sockets open forever, each with up to cFree of an
+// unfinished first frame. Long enough for a 2 MB log upload on a slow
+// uplink. Var so tests can shrink it.
+var cUnpairedReadTimeout = 2 * time.Minute
+
 type deviceRelay struct {
 	conn    *gorilla.Conn
 	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
+	// owner is the owner uuid the device registered with (never its
+	// secret): a relay whose owner is no longer the domain's has been
+	// replaced by a new identity and must stop relaying.
+	owner string
+	// registeredAt is when the relay went into its pool, after the
+	// registration was checked against the database: sweepStale leaves
+	// alone the relays registered after its own query.
+	registeredAt time.Time
 
 	mu      sync.Mutex
-	waiters map[int32]chan []byte
+	waiters map[int32]chan deviceReply
+	// budget bounds the memory of the replies read here (replyBudget).
+	budget *wsframe.Budget
 
 	// onDeath (issue #62) fires exactly once, from failAll, whenever this
 	// connection stops being usable - whether that's a real network
@@ -191,7 +297,16 @@ type deviceRelay struct {
 // reason) is what makes that detection actually fire for a silent network
 // failure, not just a graceful shutdown.
 func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
-	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan []byte), onDeath: onDeath, stopPing: make(chan struct{})}
+	d := newIdleDeviceRelay(conn, onDeath)
+	d.start()
+	return d
+}
+
+// newIdleDeviceRelay is newDeviceRelay without starting its loops (start),
+// so a registration can answer the device before anything else may write
+// to conn or the relay's death can be counted.
+func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
+	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan deviceReply), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{})}
 
 	// The registration was read with cUnpairedReadLimit, and gorilla keeps
 	// a connection's limit: from here on this connection carries the
@@ -199,17 +314,23 @@ func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 	// which are bounded like relayed requests. Left at 8 MB, every bigger
 	// reply killed the relay and the client saw the device as away.
 	conn.SetReadLimit(cRelayedReadLimit)
+	// A device's writes have no deadline (its pong deadline closes a dead
+	// one); none may be left from a reply written while it was unpaired.
+	conn.SetWriteDeadline(time.Time{})
 
 	conn.SetReadDeadline(time.Now().Add(cPongWait))
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(cPongWait))
 		return nil
 	})
+	return d
+}
 
+// start runs the relay's readLoop and pingLoop.
+func (d *deviceRelay) start() {
 	d.wg.Add(2)
 	go func() { defer d.wg.Done(); d.readLoop() }()
 	go func() { defer d.wg.Done(); d.pingLoop() }()
-	return d
 }
 
 // pingLoop is deviceRelay's half of the keepalive - see cPongWait/
@@ -222,9 +343,16 @@ func (d *deviceRelay) pingLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			d.writeMu.Lock()
-			err := d.conn.WriteMessage(gorilla.PingMessage, nil)
-			d.writeMu.Unlock()
+			// WriteControl, not writeMu: it may go out between the frames
+			// of a large request (see writeFrame), where waiting for the
+			// whole upload let the pong deadline kill a working relay.
+			err := d.conn.WriteControl(gorilla.PingMessage, nil, time.Now().Add(cPongWait))
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
+				// No turn to write within cPongWait: the read deadline
+				// decides whether the device is gone, not this.
+				continue
+			}
 			if err != nil {
 				// readLoop's own ReadMessage() will fail from the same
 				// dead connection and drive failAll/onDeath - nothing
@@ -238,19 +366,30 @@ func (d *deviceRelay) pingLoop() {
 	}
 }
 
+// deviceReply is a device's response frame and the release of its share
+// of replyBudget, which whoever ends up with it calls once done.
+type deviceReply struct {
+	frame   []byte
+	release func()
+}
+
 // readLoop is this relay's one and only reader — gorilla tolerates only
 // one concurrent reader, same as one writer — so every response coming
 // back from the device passes through here and gets routed to whichever
 // forward() call is waiting on that response's envelope id.
 func (d *deviceRelay) readLoop() {
 	for {
-		_, frame, err := d.conn.ReadMessage()
+		// Budgeted like the clients' frames (issue #163): replies of up to
+		// cRelayedReadLimit, on every relay at once, idle ones included,
+		// were otherwise buffered whole with nothing bounding the total.
+		_, frame, release, err := wsframe.Read(d.conn, cRelayedReadLimit, d.budget)
 		if err != nil {
 			d.failAll()
 			return
 		}
 		id, err := envelopeID(frame)
 		if err != nil {
+			release()
 			log.Error("bad proto from device:", err)
 			continue
 		}
@@ -258,13 +397,16 @@ func (d *deviceRelay) readLoop() {
 		ch, ok := d.waiters[id]
 		if ok {
 			delete(d.waiters, id)
+			// Sent under d.mu (the channel has room for it), so abandon
+			// knows a reply is either in ch or never coming.
+			ch <- deviceReply{frame, release}
 		}
 		d.mu.Unlock()
-		if ok {
-			ch <- frame
+		if !ok {
+			// No waiter for this id (already gave up, or a stray/duplicate
+			// message) — nothing to deliver it to, so just drop it.
+			release()
 		}
-		// No waiter for this id (already gave up, or a stray/duplicate
-		// message) — nothing to deliver it to, so just drop it.
 	}
 }
 
@@ -274,7 +416,7 @@ func (d *deviceRelay) readLoop() {
 func (d *deviceRelay) failAll() {
 	d.mu.Lock()
 	waiters := d.waiters
-	d.waiters = make(map[int32]chan []byte)
+	d.waiters = make(map[int32]chan deviceReply)
 	d.mu.Unlock()
 	for _, ch := range waiters {
 		close(ch)
@@ -339,33 +481,52 @@ func clientAddr(r *http.Request, conn *gorilla.Conn) string {
 // the rest (issue #163): relaying a frame never needs its payload, and a
 // full proto.Unmarshal of a large file chunk just to correlate it cost a
 // second copy of it.
+//
+// The last id wins, as in proto.Unmarshal on the device: taking the first
+// one let a frame carrying two ids be waited on under one while the device
+// answered the other, and every relay it was tried on timed out. A
+// malformed tail after an id still answers that id, as before.
 func envelopeID(frame []byte) (int32, error) {
+	var id int32
+	found := false
+	fail := func(n int) (int32, error) {
+		if found {
+			return id, nil
+		}
+		return 0, protowire.ParseError(n)
+	}
 	b := frame
 	for len(b) > 0 {
 		num, typ, n := protowire.ConsumeTag(b)
 		if n < 0 {
-			return 0, protowire.ParseError(n)
+			return fail(n)
 		}
 		b = b[n:]
 		if num == 1 && typ == protowire.VarintType {
 			v, m := protowire.ConsumeVarint(b)
 			if m < 0 {
-				return 0, protowire.ParseError(m)
+				return fail(m)
 			}
-			return int32(v), nil
+			id, found = int32(v), true
+			b = b[m:]
+			continue
 		}
 		m := protowire.ConsumeFieldValue(num, typ, b)
 		if m < 0 {
-			return 0, protowire.ParseError(m)
+			return fail(m)
 		}
 		b = b[m:]
 	}
-	return 0, nil // no id field: proto3's default, 0
+	return id, nil // no id field: proto3's default, 0
 }
 
-func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
+// The returned release gives the reply's share of replyBudget back: call
+// it once the reply is written on. Never nil.
+func (d *deviceRelay) forward(frame []byte) ([]byte, func(), error) {
 	return d.forwardWithTimeout(frame, cForwardTimeout)
 }
+
+func noRelease() {}
 
 // forwardWithTimeout is forward with an explicit timeout - factored out
 // for ForwardOneOff (issue #95), whose candidates are popped off a pool
@@ -379,25 +540,21 @@ func (d *deviceRelay) forward(frame []byte) ([]byte, error) {
 // ran against a device whose pool had accumulated any (issue #95's own
 // testing, against a device redeployed and restarted many times over one
 // long session).
-func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, error) {
+func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, func(), error) {
 	id, err := envelopeID(frame)
 	if err != nil {
-		return nil, fmt.Errorf("bad proto: %w", err)
+		return nil, noRelease, fmt.Errorf("bad proto: %w", err)
 	}
 
-	ch := make(chan []byte, 1)
+	ch := make(chan deviceReply, 1)
 	d.mu.Lock()
 	d.waiters[id] = ch
 	d.mu.Unlock()
 
-	d.writeMu.Lock()
-	err = d.conn.WriteMessage(gorilla.BinaryMessage, frame)
-	d.writeMu.Unlock()
+	err = d.writeFrame(frame)
 	if err != nil {
-		d.mu.Lock()
-		delete(d.waiters, id)
-		d.mu.Unlock()
-		return nil, err
+		d.abandon(id, ch)
+		return nil, noRelease, err
 	}
 
 	// A bounded wait, not just <-ch: the failAll() fix above (closing the
@@ -411,15 +568,59 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 	select {
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, errors.New("device connection closed")
+			return nil, noRelease, errors.New("device connection closed")
 		}
-		return resp, nil
+		return resp.frame, resp.release, nil
 	case <-time.After(timeout):
-		d.mu.Lock()
-		delete(d.waiters, id)
-		d.mu.Unlock()
-		return nil, fmt.Errorf("timed out waiting for device response")
+		d.abandon(id, ch)
+		return nil, noRelease, fmt.Errorf("timed out waiting for device response")
 	}
+}
+
+// abandon gives up waiting on ch. A reply readLoop already handed over in
+// the meantime is released, or its budget share would be lost for good.
+func (d *deviceRelay) abandon(id int32, ch chan deviceReply) {
+	d.mu.Lock()
+	if d.waiters[id] == ch {
+		delete(d.waiters, id)
+	}
+	d.mu.Unlock()
+	select {
+	case r, ok := <-ch:
+		if ok {
+			r.release()
+		}
+	default:
+	}
+}
+
+// cRelayWriteChunk: a request larger than this goes to the device as a
+// fragmented message of chunks this size, so pingLoop's ping can get out
+// between them. Written whole, a several-hundred-MB upload held the socket
+// past cPongWait and the relay was declared dead mid-transfer.
+const cRelayWriteChunk = 256 << 10
+
+// writeFrame writes one request to the device. writeMu keeps concurrent
+// forwards from interleaving their frames; gorilla serialises the ping
+// between chunks itself.
+func (d *deviceRelay) writeFrame(frame []byte) error {
+	d.writeMu.Lock()
+	defer d.writeMu.Unlock()
+	if len(frame) <= cRelayWriteChunk {
+		return d.conn.WriteMessage(gorilla.BinaryMessage, frame) // one frame, as always
+	}
+	w, err := d.conn.NextWriter(gorilla.BinaryMessage)
+	if err != nil {
+		return err
+	}
+	for len(frame) > 0 {
+		n := min(len(frame), cRelayWriteChunk)
+		if _, err := w.Write(frame[:n]); err != nil {
+			return err
+		}
+		frame = frame[n:]
+	}
+	return w.Close()
 }
 
 // Close closes the underlying connection and waits for readLoop/pingLoop to
@@ -452,6 +653,14 @@ type Manager struct {
 	logsPerDomain *limits.Rate
 	bridgesMu     sync.RWMutex // guards the bridges map itself, not each pool's own contents (pool.lock does that)
 
+	// pairPerAddr, pairedByAddr: new and open pairings per client address
+	// and device (pairingKey), so no one address can hold a device's
+	// connections. refusalLog keeps the refusals from flooding the log.
+	pairPerAddr  *limits.Rate
+	pairedMu     sync.Mutex
+	pairedByAddr map[string]int
+	refusalLog   *limits.Rate
+
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
 	// applies them, so a claim and its release are never reordered.
@@ -469,6 +678,14 @@ func (mg *Manager) SetCluster(c *cluster.Cluster) {
 	mg.cluster = c
 	mg.dirty = make(chan string, 4096)
 	go mg.clusterSync()
+	// Outside clusterSync: closing relays must never hold up the claims.
+	c.SubscribeDrops(func(domain, keep string) {
+		if keep == "" {
+			mg.dropPool(domain)
+		} else {
+			mg.dropOtherOwners(domain, keep)
+		}
+	})
 }
 
 // markDirty asks clusterSync to bring domain's claim up to date. Never
@@ -562,6 +779,8 @@ func (mg *Manager) HasLocal(domain string) bool {
 func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 	mg = &Manager{
 		logsPerDomain:    limits.NewRate(3.0/3600, 3),
+		pairPerAddr:      limits.NewRate(cPairPerSecond, cPairBurst),
+		refusalLog:       limits.NewRate(1.0/60, 1),
 		baseUrl:          baseUrl,
 		dao:              dao,
 		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
@@ -571,8 +790,70 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 		},
 		bridges: make(map[string]*bridgePool),
 	}
+	if dao != nil {
+		go mg.sweepLoop()
+	}
 
 	return
+}
+
+// cSweepEvery is how often sweepStale runs.
+var cSweepEvery = cluster.Refresh
+
+func (mg *Manager) sweepLoop() {
+	t := time.NewTicker(cSweepEvery)
+	defer t.Stop()
+	for range t.C {
+		mg.sweepStale()
+	}
+}
+
+// sweepStale closes this node's relays for domains no longer registered,
+// and those registered by an owner uuid the domain no longer has: what a
+// drop published while this node was cut off from Redis, a node on an
+// older release, or a deletion that drops nothing (the admin panel's)
+// leaves relaying. Its own goroutine, not clusterSync's: a slow query
+// must not hold up the claims. A database error closes nothing.
+//
+// Only relays registered before the query started are judged by its
+// answer: one registered since was checked against the database after it
+// (a device given a new identity, or a name claimed again, while the
+// sweep ran) and is left for the next sweep.
+func (mg *Manager) sweepStale() {
+	held := mg.heldDomains()
+	if len(held) == 0 {
+		return
+	}
+	start := time.Now()
+	before := func(r *deviceRelay) bool { return !r.registeredAt.After(start) }
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	owners, err := mg.dao.DeviceOwners(ctx, held)
+	if err != nil {
+		log.Error("could not check the held domains against the database:", err)
+		return
+	}
+	for _, d := range held {
+		owner, ok := owners[d]
+		if !ok {
+			// Not stored under exactly this name: ask the way the
+			// registration was checked before calling it gone.
+			var registered bool
+			if owner, registered, err = mg.dao.DeviceOwner(ctx, d); err != nil {
+				log.Error("could not check", d, "against the database:", err)
+				return
+			}
+			if !registered {
+				if n := mg.dropRelays(d, before); n > 0 {
+					log.Info("closed", n, "connections of a domain no longer registered:", d)
+				}
+				continue
+			}
+		}
+		if n := mg.dropRelays(d, func(r *deviceRelay) bool { return before(r) && r.owner != owner }); n > 0 {
+			log.Info("closed", n, "connections of a replaced identity for", d)
+		}
+	}
 }
 
 // domainPushStorage adapts *dao.Dao's per-domain push-registration methods
@@ -592,7 +873,15 @@ func (s *domainPushStorage) SetVapidKeys(pub, priv string) error {
 	return s.dao.SetVapidKeysForDomain(s.domain, pub, priv)
 }
 func (s *domainPushStorage) ListWebPushSubscriptions() ([]*push.WebPushSubscription, error) {
-	return s.dao.ListWebPushSubscriptionsForDomain(s.domain)
+	subs, err := s.dao.ListWebPushSubscriptionsForDomain(s.domain)
+	// Rows stored before the bridge checked them: https only.
+	kept := subs[:0]
+	for _, sub := range subs {
+		if webPushEndpointOK(sub.Endpoint) {
+			kept = append(kept, sub)
+		}
+	}
+	return kept, err
 }
 func (s *domainPushStorage) DeleteWebPushSubscription(endpoint string) error {
 	return s.dao.DeleteWebPushSubscriptionForDomain(s.domain, endpoint)
@@ -624,6 +913,7 @@ func (mg *Manager) sendOfflineAlert(domain string) {
 		log.Error("could not init push for offline alert:", domain, err)
 		return
 	}
+	ps.WebPushClient = bridgeWebPushClient
 	ps.Notify("Off The Cloud", "Your device appears to have gone offline", push.Target{})
 }
 
@@ -679,6 +969,7 @@ func (mg *Manager) onDeviceConnectionDied(domain string, dead *deviceRelay) {
 	//
 	// All three were live on cala/tobi: tobi was being refused 2264 times
 	// in three minutes against a pool that was entirely dead.
+	delete(pool.relays, dead)
 	if dead != nil {
 		for i, c := range pool.availableConns {
 			if c == dead {
@@ -723,9 +1014,47 @@ func (mg *Manager) fireOfflineAlertIfStillDown(domain string) {
 		log.Info("device left this node but another one holds it, no offline alert:", domain)
 		return
 	}
+	if stillDown && !mg.cluster.ClaimAlert(domain) {
+		log.Info("another node already alerted the owner of", domain)
+		return
+	}
 	if stillDown {
 		mg.sendOfflineAlert(domain)
 	}
+}
+
+// cClientWriteChunk/cClientWriteStall: a write to a client times out on a
+// lack of progress, not on its size. A reply larger than a chunk goes out
+// as a fragmented message, each chunk with its own deadline, so a slow
+// link never trips it and a client that stopped reading (a zero window, a
+// peer gone without a FIN) does within cClientWriteStall - instead of
+// pinning its relay goroutines, their frames and its device connection.
+const cClientWriteChunk = 256 << 10
+
+var cClientWriteStall = 60 * time.Second // var so tests can shrink it
+
+// writeClient writes msg to a client's socket. The caller holds the
+// socket's writer slot (writeMu, or is its reading goroutine before
+// pairing). Never a device's socket: the deadline would stay on it.
+func writeClient(conn *gorilla.Conn, msg []byte) error {
+	if len(msg) <= cClientWriteChunk {
+		conn.SetWriteDeadline(time.Now().Add(cClientWriteStall))
+		return conn.WriteMessage(gorilla.BinaryMessage, msg) // one frame, as always
+	}
+	w, err := conn.NextWriter(gorilla.BinaryMessage)
+	if err != nil {
+		return err
+	}
+	for len(msg) > 0 {
+		n := min(len(msg), cClientWriteChunk)
+		conn.SetWriteDeadline(time.Now().Add(cClientWriteStall))
+		if _, err := w.Write(msg[:n]); err != nil {
+			return err
+		}
+		msg = msg[n:]
+	}
+	conn.SetWriteDeadline(time.Now().Add(cClientWriteStall))
+	return w.Close()
 }
 
 func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
@@ -741,7 +1070,7 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 		},
 	}
 	resp, _ := proto.Marshal(respAuth)
-	if err := conn.WriteMessage(gorilla.BinaryMessage, resp); err != nil {
+	if err := writeClient(conn, resp); err != nil {
 		log.Error("error responding, closing the connection:", err)
 	}
 	conn.Close()
@@ -778,6 +1107,12 @@ var cOneOffForwardTimeout = 45 * time.Second
 // until it refilled. Three is enough to step past a couple of genuinely
 // stale entries without ever being able to drain the pool.
 const cOneOffMaxAttempts = 3
+
+// cPairMaxAttempts caps the pool connections a client's first request may
+// spend before it is told the device is unreachable, for the same reason
+// (see TestForwardOneOffCannotDrainThePool): each failed attempt closes
+// the connection it tried.
+const cPairMaxAttempts = cOneOffMaxAttempts
 
 // cOneOffConcurrent caps the one-off requests (static assets, /media)
 // in flight per device (issue #163). Each spends a pool connection, and
@@ -834,29 +1169,100 @@ func (mg *Manager) SetMailer(m *mailer.Mailer) { mg.mailer = m }
 const CodeDomainNotRegistered = "domain_not_registered"
 
 // dropPool closes every connection domain's device holds on this node,
-// once its name is gone: they would go on relaying for a name that is no
-// longer its (issue #182).
+// idle or paired with a client, once its name is gone: they would go on
+// relaying for a name that is no longer its (issue #182).
 func (mg *Manager) dropPool(domain string) {
+	mg.dropRelays(domain, func(*deviceRelay) bool { return true })
+}
+
+// dropRelays closes the relays of domain's pool that match. Never under
+// pool.lock: Close waits for readLoop, whose onDeath takes it.
+func (mg *Manager) dropRelays(domain string, match func(*deviceRelay) bool) int {
 	mg.bridgesMu.RLock()
 	pool, ok := mg.bridges[domain]
 	mg.bridgesMu.RUnlock()
 	if !ok {
-		return
+		return 0
 	}
 	pool.lock.Lock()
-	conns := pool.availableConns
-	pool.availableConns = nil
+	var doomed []*deviceRelay
+	for r := range pool.relays {
+		if match(r) {
+			doomed = append(doomed, r)
+		}
+	}
+	kept := pool.availableConns[:0]
+	for _, r := range pool.availableConns {
+		if !match(r) {
+			kept = append(kept, r)
+		} else if _, listed := pool.relays[r]; !listed {
+			doomed = append(doomed, r)
+		}
+	}
+	clear(pool.availableConns[len(kept):])
+	pool.availableConns = kept
 	pool.lock.Unlock()
-	for _, c := range conns {
-		c.Close()
+	for _, r := range doomed {
+		r.Close()
+	}
+	return len(doomed)
+}
+
+// evictOtherOwners closes domain's relays registered by another owner
+// than owner - a replaced identity's - as owner's device registers, and
+// returns how many idle connections the pool has left (the cap counts
+// those). The old device's relays never count against the new one's.
+func (mg *Manager) evictOtherOwners(domain string, pool *bridgePool, owner string) int {
+	if pool == nil {
+		return 0
+	}
+	mg.dropOtherOwners(domain, owner)
+	return pool.size()
+}
+
+// dropOtherOwners closes domain's relays registered by any owner but
+// owner: those of the identity owner replaced.
+func (mg *Manager) dropOtherOwners(domain, owner string) {
+	if n := mg.dropRelays(domain, func(r *deviceRelay) bool { return r.owner != owner }); n > 0 {
+		log.Info("closed", n, "connections of a replaced identity for", domain)
 	}
 }
 
-// DropDomains is dropPool for each domain (an account's, when it is
-// deleted).
+// DropReplacedIdentity closes domain's connections but those of newOwner,
+// the identity it was just given, on every node of the cluster: the old
+// device's are authenticated once, when they registered, and would go on
+// relaying. newOwner's are kept because its device registers as soon as
+// it is told, possibly before a node gets the message.
+func (mg *Manager) DropReplacedIdentity(domain, newOwner string) {
+	if mg == nil {
+		return
+	}
+	mg.dropOtherOwners(domain, newOwner)
+	if mg.cluster.Enabled() {
+		go func() {
+			if err := mg.cluster.PublishReplaced(domain, newOwner); err != nil {
+				log.Error("cluster: could not tell the other nodes to drop the replaced identity of", domain, ":", err)
+			}
+		}()
+	}
+}
+
+// DropDomains is dropPool for each domain (released, or an account's,
+// when it is deleted) - on every node of the cluster, which holds
+// connections from the same device too.
 func (mg *Manager) DropDomains(domains []string) {
+	if mg == nil {
+		return
+	}
 	for _, d := range domains {
 		mg.dropPool(d)
+	}
+	if mg.cluster.Enabled() && len(domains) > 0 {
+		go func() {
+			if err := mg.cluster.PublishDrop(domains...); err != nil {
+				log.Error("cluster: could not tell the other nodes to drop", domains, ":", err)
+			}
+		}()
 	}
 }
 
@@ -921,12 +1327,16 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 			return nil, errors.New("no available connections in the pool for this device")
 		}
 
-		respFrame, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
+		var release func()
+		respFrame, release, err = candidate.forwardWithTimeout(frame, cOneOffForwardTimeout)
 		candidate.Close()
 		if err != nil {
 			log.Error("error forwarding one-off request, trying the next available connection:", err)
 			continue
 		}
+		// One-off replies are few (cOneOffConcurrent a device) and bounded
+		// by the device: budgeted while read, not while the caller writes.
+		release()
 		if dbErr := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); dbErr != nil {
 			log.Error("error recording device activity:", dbErr)
 		}
@@ -960,6 +1370,11 @@ func deviceUnreachableFrame(reqFrame []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return deviceUnreachableReply(id)
+}
+
+// deviceUnreachableReply is deviceUnreachableFrame for a request id.
+func deviceUnreachableReply(id int32) ([]byte, error) {
 	return proto.Marshal(&pb.RespEnvelope{
 		Id:           id,
 		Error:        true,
@@ -998,6 +1413,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	defer wg.Wait()
 
 	inFlight := make(chan struct{}, cMaxInFlight)
+	// conn is closed on every way out of here except a registered device's,
+	// whose relay owns it from then on: a refused registration, a read
+	// error or an undecodable first frame used to leave the socket open
+	// with nothing reading it (CLOSE_WAIT until a GC finalizer). Deferred
+	// after wg.Wait so it runs first: closing unblocks a relay goroutine
+	// stuck writing to a client that stopped reading.
+	handedOff := false
+	defer func() {
+		if !handedOff {
+			conn.Close()
+		}
+	}()
 
 	for {
 		// Small until the client is paired with a device (its first
@@ -1006,10 +1433,20 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		limit := int64(cUnpairedReadLimit)
 		if relay != nil {
 			limit = cRelayedReadLimit
+		} else {
+			// Paired clients may sit idle as long as they like: the
+			// deadline is cleared when the pairing happens.
+			conn.SetReadDeadline(time.Now().Add(cUnpairedReadTimeout))
 		}
 		_, frame, releaseFrame, err := wsframe.Read(conn, limit, frameBudget)
 		if err != nil {
-			log.Error("error processing message:", err)
+			var ne net.Error
+			if relay == nil && errors.As(err, &ne) && ne.Timeout() {
+				// A background tab, mostly: not worth an error line each.
+				log.Debug("closing an unpaired connection that went quiet:", err)
+			} else {
+				log.Error("error processing message:", err)
+			}
 			return
 		}
 
@@ -1040,7 +1477,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 				}()
 
-				respFrame, err := relay.forward(frame)
+				reqLen := int64(len(frame))
+				reqID, idErr := envelopeID(frame)
+				respFrame, releaseResp, err := relay.forward(frame)
+				defer releaseResp()
+				// The request is on the device now: its budget share and
+				// memory aren't needed while the reply goes out, which a
+				// slow client can stretch out.
+				frame = nil
+				releaseFrame()
 				if err != nil {
 					// Issue #56: this is the mid-session half of "the
 					// device isn't reachable" - the client was already
@@ -1055,13 +1500,17 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// into this situation end up telling the client the
 					// same thing.
 					log.Error("error forwarding message, device unreachable:", err)
-					unreachableFrame, mErr := deviceUnreachableFrame(frame)
+					if idErr != nil {
+						log.Error("error building unreachable response:", idErr)
+						return
+					}
+					unreachableFrame, mErr := deviceUnreachableReply(reqID)
 					if mErr != nil {
 						log.Error("error building unreachable response:", mErr)
 						return
 					}
 					writeMu.Lock()
-					wErr := conn.WriteMessage(gorilla.BinaryMessage, unreachableFrame)
+					wErr := writeClient(conn, unreachableFrame)
 					writeMu.Unlock()
 					if wErr != nil {
 						log.Error("error sending unreachable response:", wErr)
@@ -1087,14 +1536,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				writeMu.Lock()
-				writeErr := conn.WriteMessage(gorilla.BinaryMessage, respFrame)
+				writeErr := writeClient(conn, respFrame)
 				writeMu.Unlock()
 				if writeErr != nil {
+					// Closing is what ends the session: gorilla only records a
+					// failed write, and the reader would go on waiting on a
+					// client that stopped reading, its relay claimed.
 					log.Error("error forwading respose, closing the connection:", writeErr)
+					conn.Close()
 					return
 				}
 
-				if err := mg.dao.RecordDeviceActivity(r.Host, int64(len(frame)), int64(len(respFrame))); err != nil {
+				if err := mg.dao.RecordDeviceActivity(r.Host, reqLen, int64(len(respFrame))); err != nil {
 					// Metrics are best-effort: never fail the actual relay
 					// over a metrics-write error.
 					log.Error("error recording device activity:", err)
@@ -1138,7 +1591,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 							log.Error("error logging auth event:", logErr)
 						}
 						respBin, _ := proto.Marshal(resp)
-						if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+						if err := writeClient(conn, respBin); err != nil {
 							log.Error("error responding:", err)
 						}
 						conn.Close()
@@ -1150,13 +1603,21 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				pool, ok := mg.bridges[domain]
 				mg.bridgesMu.RUnlock()
 
-				if defined && !validSecret {
-					// err is nil on this branch (IsValidDevice answered
-					// fine - the answer was "no"), so it used to log a
-					// useless "error registering bridge: <nil>" with no
-					// domain, which sent an outage investigation down the
-					// wrong path. The secret itself is deliberately not
-					// logged.
+				if err != nil {
+					// Checked first: IsValidDevice answers a database
+					// failure with defined=true and validSecret=false, which
+					// is not a wrong secret - no "Invalid Secret", no
+					// invalid_secret auth event; the device backs off and
+					// retries. Also a failed open-registration insert.
+					log.Error("error checking registration for", domain, "from", conn.RemoteAddr().String(), ":", err)
+					resp.Error = true
+					resp.ErrorMessage = cInternalErrorMsg
+				} else if defined && !validSecret {
+					// err is nil on this branch (checked just above: the
+					// answer was "no"), so it used to log a useless "error
+					// registering bridge: <nil>" with no domain, which sent
+					// an outage investigation down the wrong path. The
+					// secret itself is deliberately not logged.
 					log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(),
 						"- owner/secret do not match the bridge's record (owner claimed:", p.ReqBridgeRegister.OwnerUuid, ")")
 					resp.Error = true
@@ -1168,11 +1629,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), domain, p.ReqBridgeRegister.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
-				} else if err != nil {
-					log.Error("error trying to register:", err)
-					resp.Error = true
-					resp.ErrorMessage = cInternalErrorMsg
-				} else if size := pool.size(); ok && size >= maxConnectionsPerDevice() {
+				} else if size := mg.evictOtherOwners(domain, pool, p.ReqBridgeRegister.OwnerUuid); ok && size >= maxConnectionsPerDevice() {
 					// Issue #53 follow-up: a device now grows its own pool
 					// dynamically under load (see websocket.ensureBridgePool
 					// on the device side) rather than dialing a fixed count
@@ -1192,7 +1649,25 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// the handler always has the relay it belongs to, and
 					// can evict that exact entry from the pool.
 					var relay *deviceRelay
-					relay = newDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain, relay) })
+					relay = newIdleDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain, relay) })
+					relay.owner = p.ReqBridgeRegister.OwnerUuid
+
+					// The ack goes out before the relay is in the pool. Once
+					// it is, a client's pairing or a one-off can write to
+					// conn: written after, the ack raced that write (two
+					// writers on one gorilla conn) or came second, and the
+					// device took the client's request for its answer.
+					resp.Payload = &pb.RespEnvelope_RespBridgeAckOnboard{
+						RespBridgeAckOnboard: &pb.BridgeAckOnboard{
+							Ok: true,
+						},
+					}
+					respBin, _ := proto.Marshal(resp)
+					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+						log.Error("error responding, closing the connection:", err)
+						return
+					}
+					handedOff = true
 
 					// Re-check under the write lock (rather than trusting
 					// the ok/pool snapshot read above) so two connections
@@ -1202,36 +1677,32 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					pool, ok = mg.bridges[domain]
 					if !ok {
 						log.Debug("Creating new pool")
-						pool = &bridgePool{
-							availableConns: []*deviceRelay{relay},
-							lock:           new(sync.Mutex),
-						}
+						pool = &bridgePool{lock: new(sync.Mutex)}
 						mg.bridges[domain] = pool
-						mg.bridgesMu.Unlock()
-						pool.lock.Lock()
-						mg.onDeviceConnectionRegistered(domain, pool)
-						pool.lock.Unlock()
-					} else {
-						mg.bridgesMu.Unlock()
-						pool.lock.Lock()
-						log.Debug("Adding to the pool:", len(pool.availableConns))
-						pool.availableConns = append(pool.availableConns, relay)
-						mg.onDeviceConnectionRegistered(domain, pool)
-						pool.lock.Unlock()
 					}
-					resp.Payload = &pb.RespEnvelope_RespBridgeAckOnboard{
-						RespBridgeAckOnboard: &pb.BridgeAckOnboard{
-							Ok: true,
-						},
+					mg.bridgesMu.Unlock()
+					pool.lock.Lock()
+					log.Debug("Adding to the pool:", len(pool.availableConns))
+					relay.registeredAt = time.Now()
+					pool.availableConns = append(pool.availableConns, relay)
+					if pool.relays == nil {
+						pool.relays = make(map[*deviceRelay]struct{})
 					}
+					pool.relays[relay] = struct{}{}
+					mg.onDeviceConnectionRegistered(domain, pool)
+					// Started under the lock: onDeath takes it, so a
+					// connection that dies at once is counted out after it
+					// was counted in, never before (liveCount stuck at 1).
+					relay.start()
+					pool.lock.Unlock()
+					return
 				}
 
+				// Refused: answered here, and conn is closed on the way out.
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding, closing the connection:", err)
-					conn.Close()
 				}
-				// After the connection is created, we leave it open and return
 				return
 
 			case *pb.ReqEnvelope_ReqRotateBridgeSecret:
@@ -1276,7 +1747,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1300,11 +1771,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.ErrorMessage = "Invalid Secret"
 				default:
 					log.Info("device released its domain:", req.Domain)
-					mg.dropPool(req.Domain)
+					mg.DropDomains([]string{req.Domain})
 					resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 				}
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1344,7 +1815,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 				}
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1383,7 +1854,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding, closing the connection:", err)
 				}
 				return
@@ -1419,7 +1890,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1458,7 +1929,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
@@ -1487,11 +1958,12 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = "Invalid Secret"
 				} else {
-					webSubs := make([]push.WebPushSubscription, 0, len(req.WebPushSubs))
-					for _, s := range req.WebPushSubs {
-						webSubs = append(webSubs, push.WebPushSubscription{Endpoint: s.Endpoint, P256dh: s.P256Dh, Auth: s.Auth})
+					// The offline alert posts to these from the bridge itself.
+					apnsTokens, fcmTokens, webSubs, dropped := filterPushRegistrations(req)
+					if dropped > 0 {
+						log.Info("left out", dropped, "push registrations of", req.Domain, "(not https, too long, repeated or too many)")
 					}
-					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, req.ApnsTokens, req.FcmTokens, webSubs); err != nil {
+					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, apnsTokens, fcmTokens, webSubs); err != nil {
 						log.Error("error storing push registrations:", err)
 						resp.Error = true
 						resp.ErrorMessage = cInternalErrorMsg
@@ -1503,13 +1975,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 
 				respBin, _ := proto.Marshal(resp)
-				if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+				if err := writeClient(conn, respBin); err != nil {
 					log.Error("error responding:", err)
 				}
 				return
 
 			default:
-				defer conn.Close()
+				// conn is closed by handedOff's defer: one deferred here
+				// piled up per message from a client retrying an offline
+				// device on the same socket.
 				// Issue #93: a disabled additional user (issue #90) has its
 				// own process actually stopped, so its pool would just look
 				// like any other offline device below - checked first so a
@@ -1535,7 +2009,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage, Code: cCodeAccountDisabled},
 					}
 					respBin, _ := proto.Marshal(resp)
-					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					if err := writeClient(conn, respBin); err != nil {
 						log.Error("error responding, closing the connection:", err)
 					}
 					return
@@ -1552,7 +2026,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				pool, ok := mg.bridges[r.Host]
 				mg.bridgesMu.RUnlock()
 				if ok {
-					for picked == nil {
+					// Reserved before a candidate is popped, so a refused
+					// client never costs the device the first round trip.
+					pairKey := pairingKey(clientAddr(r, conn), r.Host)
+					allowed := mg.reservePairing(pairKey)
+					if !allowed {
+						mg.logRefusal(pairKey, "too many open connections from one address to", r.Host)
+					} else if mg.pairPerAddr != nil && !mg.pairPerAddr.Allow(pairKey) {
+						mg.releasePairing(pairKey)
+						allowed = false
+						mg.logRefusal(pairKey, "too many new connections from one address to", r.Host)
+					}
+					for attempt := 0; allowed && picked == nil && attempt < cPairMaxAttempts; attempt++ {
 						// pool.lock is held only long enough to pop a
 						// candidate - never across the round trips to the
 						// device below, and never across Close(). Close()
@@ -1576,6 +2061,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 							pool.lock.Unlock()
 							break
 						}
+						// Paired (and in-flight one-off) connections are
+						// what the device keeps replacing; without a cap
+						// anyone could make it open them until it ran out
+						// of memory.
+						if pool.liveCount-len(pool.availableConns) >= maxPairedPerDevice() {
+							pool.lock.Unlock()
+							mg.logRefusal(r.Host, "device at its cap of connections in use:", r.Host)
+							break
+						}
 						candidate := pool.availableConns[0]
 						pool.availableConns = pool.availableConns[1:]
 						pool.lock.Unlock()
@@ -1592,13 +2086,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 								ReqBridgeClientInfo: &pb.BridgeClientInfo{RemoteAddr: clientAddr(r, conn)},
 							},
 						}); err == nil {
-							if _, err := candidate.forward(infoFrame); err != nil {
+							_, releaseInfo, err := candidate.forward(infoFrame)
+							releaseInfo()
+							if err != nil {
 								log.Error("error sending client info to the device:", err)
 								candidate.Close()
 								continue
 							}
 						}
-						respFrame, err := candidate.forward(frame)
+						respFrame, releaseResp, err := candidate.forward(frame)
 						if err != nil {
 							log.Error("Error fordwading message:", err)
 							candidate.Close()
@@ -1608,6 +2104,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 						picked = candidate
 						relay = candidate
+						conn.SetReadDeadline(time.Time{})
 						// Single use connection, close as soon as it is
 						// finished since they are authenticated. Close()
 						// triggers candidate's onDeath exactly once (via
@@ -1615,14 +2112,20 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// genuine network failure would - see
 						// deviceRelay.onDeath's doc comment.
 						defer relay.Close()
+						defer mg.releasePairing(pairKey)
 
-						if err := conn.WriteMessage(gorilla.BinaryMessage, respFrame); err != nil {
+						err = writeClient(conn, respFrame)
+						releaseResp()
+						if err != nil {
 							log.Error("error responding, closing the connection:", err)
 							return
 						}
 						if err := mg.dao.RecordDeviceActivity(r.Host, int64(len(frame)), int64(len(respFrame))); err != nil {
 							log.Error("error recording device activity:", err)
 						}
+					}
+					if allowed && picked == nil {
+						mg.releasePairing(pairKey)
 					}
 				}
 
@@ -1649,7 +2152,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						RespAck: &pb.Ack{Ok: false, ErrorMsg: resp.ErrorMessage, Code: cCodeDeviceUnreachable},
 					}
 					respBin, _ := proto.Marshal(resp)
-					if err := conn.WriteMessage(gorilla.BinaryMessage, respBin); err != nil {
+					if err := writeClient(conn, respBin); err != nil {
 						log.Error("error responding, closing the connection:", err)
 						return
 					}
@@ -1680,6 +2183,11 @@ const (
 
 // frameBudget bounds the memory of large messages being relayed at once.
 var frameBudget = wsframe.NewBudget(8 << 30)
+
+// replyBudget is frameBudget for the devices' replies. Separate: a client's
+// request holds its frameBudget share until its reply has arrived, so
+// replies drawing on the same budget could wait on themselves.
+var replyBudget = wsframe.NewBudget(8 << 30)
 
 func isClientInfo(frame []byte) bool {
 	const cClientInfoField = 100 // ReqEnvelope.req_bridge_client_info

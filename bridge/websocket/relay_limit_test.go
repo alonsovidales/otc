@@ -52,10 +52,11 @@ func TestRelayTakesRepliesOverTheRegistrationLimit(t *testing.T) {
 	relay := newDeviceRelay(conn, nil)
 	defer relay.Close()
 
-	resp, err := relay.forward(envelopeFrame(t, 7))
+	resp, release, err := relay.forward(envelopeFrame(t, 7))
 	if err != nil {
 		t.Fatalf("a 9 MB reply killed the relay: %v", err)
 	}
+	defer release()
 	if len(resp) < len(big) {
 		t.Fatalf("short reply: %d bytes", len(resp))
 	}

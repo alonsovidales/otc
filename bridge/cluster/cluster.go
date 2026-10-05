@@ -16,6 +16,7 @@ import (
 	"crypto/subtle"
 	"math/rand/v2"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -36,9 +37,16 @@ const (
 	TokenHeader = "X-Otc-Cluster-Token"
 	HopHeader   = "X-Otc-Cluster-Hop"
 
-	keyNodes    = "otc:nodes" // node id -> internal address
-	keyDevice   = "otc:dev:"  // + domain: node id -> claim expiry (unix)
+	keyNodes    = "otc:nodes"  // node id -> internal address
+	keyDevice   = "otc:dev:"   // + domain: node id -> claim expiry (unix)
+	keyDrop     = "otc:drop"   // pub/sub: domains whose connections every node closes
+	keyAlert    = "otc:alert:" // + domain: the node that sent this outage's offline alert
 	cRedisTimer = 2 * time.Second
+
+	// AlertClaim only tidies up: a claim is cleared as soon as any node
+	// holds the device again (Hold), which is what lets the next outage
+	// alert.
+	AlertClaim = 10 * time.Minute
 )
 
 // Cluster is this node's view of the others.
@@ -131,6 +139,8 @@ func (c *Cluster) Hold(domains ...string) error {
 		// The key outlives every claim in it by a little; a device no node
 		// holds any more goes away on its own.
 		pipe.Expire(ctx, keyDevice+d, 2*Holding)
+		// Held again: the device is back, so its next outage alerts anew.
+		pipe.Del(ctx, keyAlert+d)
 	}
 	_, err := pipe.Exec(ctx)
 	return err
@@ -212,4 +222,73 @@ func (c *Cluster) Locate(domain string) (string, bool) {
 		return "", false
 	}
 	return addr, true
+}
+
+// PublishDrop tells every node, this one included, to close its
+// connections to domains: released or deleted. A node on a release
+// without SubscribeDrops ignores it.
+func (c *Cluster) PublishDrop(domains ...string) error {
+	if c == nil || len(domains) == 0 {
+		return nil
+	}
+	ctx, cancel := c.ctx()
+	defer cancel()
+	pipe := c.rdb.Pipeline()
+	for _, d := range domains {
+		pipe.Publish(ctx, keyDrop, d)
+	}
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// PublishReplaced tells every node, this one included, to close its
+// connections to domain except owner's: domain was given owner as its new
+// identity, and owner's device may register on a node before the message
+// gets there. The message is "domain<TAB>owner" (a domain has no tab); a
+// node that took it for a bare domain would find no pool by that name and
+// close nothing, which its periodic check makes up for.
+func (c *Cluster) PublishReplaced(domain, owner string) error {
+	if c == nil {
+		return nil
+	}
+	ctx, cancel := c.ctx()
+	defer cancel()
+	return c.rdb.Publish(ctx, keyDrop, domain+"\t"+owner).Err()
+}
+
+// SubscribeDrops calls drop for every message PublishDrop and
+// PublishReplaced send, from any node, for as long as the process runs:
+// keep is the owner whose connections stay, "" for none. go-redis
+// resubscribes after a lost connection; what was published meanwhile is
+// lost, which each node's periodic check of its devices against the
+// database makes up for.
+func (c *Cluster) SubscribeDrops(drop func(domain, keep string)) {
+	if c == nil {
+		return
+	}
+	ps := c.rdb.Subscribe(context.Background(), keyDrop)
+	go func() {
+		for m := range ps.Channel() {
+			domain, keep, _ := strings.Cut(m.Payload, "\t")
+			drop(domain, keep)
+		}
+	}()
+}
+
+// ClaimAlert reports whether this node is the one to send domain's
+// offline alert for this outage: when the device was on both nodes, both
+// count down and both found it gone. True without a cluster, and when
+// Redis can't say - a duplicate alert beats none.
+func (c *Cluster) ClaimAlert(domain string) bool {
+	if c == nil {
+		return true
+	}
+	ctx, cancel := c.ctx()
+	defer cancel()
+	ok, err := c.rdb.SetNX(ctx, keyAlert+domain, c.node, AlertClaim).Result()
+	if err != nil {
+		log.Error("cluster: could not claim the offline alert for", domain, ":", err)
+		return true
+	}
+	return ok
 }
