@@ -134,11 +134,13 @@ func (c *Client) IsConnected() bool {
 	return c.open && c.signedIn
 }
 
-// current: the attempt gen (with its socket conn, once it has one) is still
-// this client's own. One that was superseded - Disconnect, or a reconfigure
-// and Connect while it was still dialing or signing in - reports nothing
-// and changes nothing: its late failure used to mark the newer, working
-// connection "Disconnected", stop its RAID polling, or tear it down.
+// current: the attempt gen is still this client's own (and, with conn,
+// still on that socket). One that was superseded - Disconnect, or a
+// reconfigure and Connect while it was still dialing or signing in -
+// reports nothing and changes nothing: its late failure used to mark the
+// newer, working connection "Disconnected", stop its RAID polling, or tear
+// it down. Failures are judged by the generation alone, so an answer about
+// the password is still reported when the socket dropped just after it.
 func (c *Client) current(gen int64, conn *websocket.Conn) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -194,7 +196,7 @@ func (c *Client) dial(gen int64) {
 		// The bridge is up, the device isn't: say so and close - the read
 		// loop's error path reconnects with a growing delay (reset only
 		// after a sign-in succeeds, so this doesn't retry every second).
-		if c.OnUnreachable != nil && c.current(gen, conn) {
+		if c.OnUnreachable != nil && c.current(gen, nil) {
 			c.OnUnreachable(ue.Message)
 		}
 		_ = conn.Close()
@@ -217,7 +219,7 @@ func (c *Client) dial(gen int64) {
 		// called again. Checked and changed in one go: a superseded
 		// attempt's answer must not take down the connection after it.
 		c.mu.Lock()
-		if !c.currentLocked(gen, conn) {
+		if !c.currentLocked(gen, nil) {
 			c.mu.Unlock()
 			_ = conn.Close()
 
