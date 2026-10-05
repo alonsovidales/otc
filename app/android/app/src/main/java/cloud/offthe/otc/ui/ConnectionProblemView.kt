@@ -53,10 +53,14 @@ import kotlinx.coroutines.launch
 // Port of ConnectionProblemView.swift: shown over the tabs when the app
 // can't connect or sign in, with the reason and the settings to fix it.
 @Composable
-fun ConnectionProblemView(secrets: SecretsStore, onLeave: (() -> Unit)? = null) {
+fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, password: String) -> Unit)? = null) {
     val lastError by OTCConnection.lastError.collectAsState()
-    val endpoint by secrets.endpoint.collectAsState()
-    val password by secrets.password.collectAsState()
+    // The form edits a copy until Save & Retry: every reconnect dials the
+    // store's values, and pollers keep retrying while this card shows, so a
+    // half-typed device name would hand the password to whichever device
+    // has that name.
+    var endpoint by remember { mutableStateOf(secrets.endpoint.value) }
+    var password by remember { mutableStateOf(secrets.password.value) }
     var retrying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Leaving this device for the start screen - how a phone moves on to
@@ -68,7 +72,7 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: (() -> Unit)? = null) 
             onDismissRequest = { confirmLeave = false },
             title = { Text("Leave this device?") },
             text = { Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.") },
-            confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave() }) { Text("Leave", color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave(endpoint, password) }) { Text("Leave", color = Color(0xFFE53935)) } },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
         )
     }
@@ -86,10 +90,10 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: (() -> Unit)? = null) 
                 Spacer(Modifier.height(18.dp))
                 Column(Modifier.fillMaxWidth()) {
                     Text("Connection", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = { secrets.setEndpoint(it) })
+                    ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = { endpoint = it })
                     Spacer(Modifier.height(8.dp))
                     OTCTextField(
-                        value = password, onValueChange = { secrets.setPassword(it) }, label = { Text("Password") },
+                        value = password, onValueChange = { password = it }, label = { Text("Password") },
                         singleLine = true, visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.fillMaxWidth(),
@@ -99,6 +103,8 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: (() -> Unit)? = null) 
                 Button(
                     onClick = {
                         retrying = true
+                        secrets.setEndpoint(endpoint)
+                        secrets.setPassword(password)
                         secrets.persist()
                         OTCConnection.invalidate()
                         scope.launch {
@@ -106,7 +112,7 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: (() -> Unit)? = null) 
                             retrying = false
                         }
                     },
-                    enabled = !retrying && secrets.isConfigured,
+                    enabled = !retrying && endpoint.isNotEmpty() && password.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

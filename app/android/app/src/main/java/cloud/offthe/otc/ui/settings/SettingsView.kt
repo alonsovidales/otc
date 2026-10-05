@@ -211,10 +211,19 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             Section("Connection") {
-                ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = secrets::setEndpoint)
-                PasswordField(password, "Password", secrets::setPassword)
+                // Edits stay here until Save Connection: a reconnect (a socket
+                // drop while typing) dials the store's values. Keyed on the
+                // saved ones, so a password change or leaving the bridge still
+                // shows up in the fields.
+                var editEndpoint by remember(endpoint) { mutableStateOf(endpoint) }
+                var editPassword by remember(password) { mutableStateOf(password) }
+                ConnectionEndpointFields(endpoint = editEndpoint, onEndpointChange = { editEndpoint = it })
+                PasswordField(editPassword, "Password") { editPassword = it }
                 Caption("Device ID: $deviceId")
-                RowButton("Save Connection") { secrets.persist(); OTCConnection.invalidate() }
+                RowButton("Save Connection") {
+                    secrets.setEndpoint(editEndpoint); secrets.setPassword(editPassword)
+                    secrets.persist(); OTCConnection.invalidate()
+                }
                 RowButton("Log Out", destructive = true) { confirmLogout = true }
             }
 

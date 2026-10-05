@@ -172,7 +172,7 @@ fun MainView(secrets: SecretsStore) {
             if (code != null) {
                 DeviceUnreachableView(message = lastError ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
             } else if (showConnectionProblem) {
-                ConnectionProblemView(secrets = secrets, onLeave = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
+                ConnectionProblemView(secrets = secrets, onLeave = { e, p -> logOut(context, secrets, unregisterPush = false, keepDevice = true, lastDevice = e to p) })
             }
         }
     }
