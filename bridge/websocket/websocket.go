@@ -838,7 +838,15 @@ func (s *domainPushStorage) SetVapidKeys(pub, priv string) error {
 	return s.dao.SetVapidKeysForDomain(s.domain, pub, priv)
 }
 func (s *domainPushStorage) ListWebPushSubscriptions() ([]*push.WebPushSubscription, error) {
-	return s.dao.ListWebPushSubscriptionsForDomain(s.domain)
+	subs, err := s.dao.ListWebPushSubscriptionsForDomain(s.domain)
+	// Rows stored before the bridge checked them: https only.
+	kept := subs[:0]
+	for _, sub := range subs {
+		if webPushEndpointOK(sub.Endpoint) {
+			kept = append(kept, sub)
+		}
+	}
+	return kept, err
 }
 func (s *domainPushStorage) DeleteWebPushSubscription(endpoint string) error {
 	return s.dao.DeleteWebPushSubscriptionForDomain(s.domain, endpoint)
@@ -870,6 +878,7 @@ func (mg *Manager) sendOfflineAlert(domain string) {
 		log.Error("could not init push for offline alert:", domain, err)
 		return
 	}
+	ps.WebPushClient = bridgeWebPushClient
 	ps.Notify("Off The Cloud", "Your device appears to have gone offline", push.Target{})
 }
 
@@ -1888,11 +1897,12 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = "Invalid Secret"
 				} else {
-					webSubs := make([]push.WebPushSubscription, 0, len(req.WebPushSubs))
-					for _, s := range req.WebPushSubs {
-						webSubs = append(webSubs, push.WebPushSubscription{Endpoint: s.Endpoint, P256dh: s.P256Dh, Auth: s.Auth})
+					// The offline alert posts to these from the bridge itself.
+					apnsTokens, fcmTokens, webSubs, dropped := filterPushRegistrations(req)
+					if dropped > 0 {
+						log.Info("left out", dropped, "push registrations of", req.Domain, "(not https, too long, repeated or too many)")
 					}
-					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, req.ApnsTokens, req.FcmTokens, webSubs); err != nil {
+					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, apnsTokens, fcmTokens, webSubs); err != nil {
 						log.Error("error storing push registrations:", err)
 						resp.Error = true
 						resp.ErrorMessage = cInternalErrorMsg

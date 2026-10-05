@@ -138,6 +138,11 @@ type Push struct {
 	// for any other reason, and nil is a valid no-op value (the bridge's
 	// own Push instance has no further hop to sync to).
 	OnChange func()
+
+	// WebPushClient, if set, sends Web Push instead of webPushClient. The
+	// bridge sets one that only reaches public addresses: its
+	// subscriptions come from devices, which could name anything.
+	WebPushClient *http.Client
 }
 
 // Init loads (generating on first use - see loadOrGenerateVapidKeys) this
@@ -303,6 +308,10 @@ func (p *Push) sendWebPush(title, body string, t Target) {
 		return
 	}
 
+	client := webPushClient
+	if p.WebPushClient != nil {
+		client = p.WebPushClient
+	}
 	opts := &webpush.Options{
 		Subscriber:      p.subscriberID,
 		VAPIDPublicKey:  p.vapidPublicKey,
@@ -311,7 +320,7 @@ func (p *Push) sendWebPush(title, body string, t Target) {
 		// Issue #169: the library's default client has no timeout, and a
 		// push service that never answers held up the friend sync that
 		// raised the notification.
-		HTTPClient: webPushClient,
+		HTTPClient: client,
 	}
 
 	for _, sub := range subs {
