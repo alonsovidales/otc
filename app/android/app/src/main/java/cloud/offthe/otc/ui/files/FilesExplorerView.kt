@@ -250,7 +250,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     fun wantThumbnail(row: FileRow) {
         if (!isMedia(row)) return
         val key = thumbKey(row)
-        if (thumbCache.get(key) != null) return
+        if (thumbCache.get(key) != null) {
+            // Fetched while another folder was shown: not published then.
+            if (_state.value.thumbs[key] == null) _state.update { it.copy(thumbs = thumbCache.snapshot()) }
+            return
+        }
         synchronized(thumbLock) {
             if (key in noThumb || key in thumbsPending) return
             thumbsPending += key
