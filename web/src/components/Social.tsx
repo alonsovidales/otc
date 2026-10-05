@@ -33,6 +33,32 @@ function formatPostDate(d?: Date): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+// A post is memoised and re-renders only when its own data changes, so
+// nothing else would move "just now" on to "5m ago". One shared tick a
+// minute, running only while some post date is mounted, re-renders just
+// the date labels.
+const cPostDateTickMs = 60_000;
+const postDateListeners = new Set<() => void>();
+let postDateTimer: ReturnType<typeof setInterval> | null = null;
+function subscribePostDateTick(fn: () => void): () => void {
+  postDateListeners.add(fn);
+  if (postDateTimer == null) {
+    postDateTimer = setInterval(() => postDateListeners.forEach(l => l()), cPostDateTickMs);
+  }
+  return () => {
+    postDateListeners.delete(fn);
+    if (postDateListeners.size === 0 && postDateTimer != null) {
+      clearInterval(postDateTimer);
+      postDateTimer = null;
+    }
+  };
+}
+function PostDate({ d }: { d: Date }) {
+  const [, setTick] = useState(0);
+  useEffect(() => subscribePostDateTick(() => setTick(t => t + 1)), []);
+  return <div className="sv-post-date">{formatPostDate(d)}</div>;
+}
+
 // Instagram's feed range: nothing wider than 1.91:1, nothing taller than
 // 4:5. A post's media keeps its own shape between those two.
 // Issue #114: whether feed videos are muted, shared by every post - once
@@ -945,7 +971,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
         {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
         <div className="sv-pub-meta">
           <div className="sv-publisher">{p.publisher?.name || "User"}</div>
-          {p.dateTime && <div className="sv-post-date">{formatPostDate(p.dateTime)}</div>}
+          {p.dateTime && <PostDate d={p.dateTime} />}
         </div>
         {/* Issue #34: delete one of your own posts. */}
         {p.own && (
