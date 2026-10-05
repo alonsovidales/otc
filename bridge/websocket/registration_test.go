@@ -25,8 +25,15 @@ func newTestBridge(t *testing.T, mg *Manager) (dial func() *gorilla.Conn, host s
 	if mg.upgrader.CheckOrigin == nil {
 		mg.upgrader = gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	}
-	srv := httptest.NewServer(http.HandlerFunc(mg.Listen))
-	t.Cleanup(srv.Close)
+	// Cleanup waits for every handler, so a test's package-var changes
+	// (restored with setVar, which must come first) never race one.
+	var handlers sync.WaitGroup
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlers.Add(1)
+		defer handlers.Done()
+		mg.Listen(w, r)
+	}))
+	t.Cleanup(func() { srv.Close(); handlers.Wait() })
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
 	return func() *gorilla.Conn {
 		t.Helper()
@@ -37,6 +44,14 @@ func newTestBridge(t *testing.T, mg *Manager) (dial func() *gorilla.Conn, host s
 		t.Cleanup(func() { c.Close() })
 		return c
 	}, strings.TrimPrefix(srv.URL, "http://")
+}
+
+// setVar sets *p to v until the test's cleanups have run.
+func setVar[T any](t *testing.T, p *T, v T) {
+	t.Helper()
+	old := *p
+	*p = v
+	t.Cleanup(func() { *p = old })
 }
 
 func registerFrame(t *testing.T, domain, owner, secret string) []byte {
@@ -213,9 +228,7 @@ func TestEnvelopeIDTakesTheLastIDLikeProtobuf(t *testing.T) {
 // A client's first request may spend at most cPairMaxAttempts of the
 // device's connections, then gets the unreachable answer.
 func TestPairingCannotDrainThePool(t *testing.T) {
-	restore := cForwardTimeout
-	cForwardTimeout = 50 * time.Millisecond
-	defer func() { cForwardTimeout = restore }()
+	setVar(t, &cForwardTimeout, 50*time.Millisecond)
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -256,9 +269,7 @@ func TestPairingCannotDrainThePool(t *testing.T) {
 // is closed after cUnpairedReadTimeout; a paired client may go quiet for
 // as long as it likes.
 func TestUnpairedConnectionsTimeOutPairedOnesDoNot(t *testing.T) {
-	restore := cUnpairedReadTimeout
-	cUnpairedReadTimeout = 200 * time.Millisecond
-	defer func() { cUnpairedReadTimeout = restore }()
+	setVar(t, &cUnpairedReadTimeout, 200*time.Millisecond)
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -334,9 +345,7 @@ func newBigReplyDeviceServer(t *testing.T, size int) string {
 // progress for cClientWriteStall, which frees its device connection;
 // before, the writer blocked forever and everything behind it stayed held.
 func TestClientThatStopsReadingIsHungUpOn(t *testing.T) {
-	restore := cClientWriteStall
-	cClientWriteStall = 300 * time.Millisecond
-	defer func() { cClientWriteStall = restore }()
+	setVar(t, &cClientWriteStall, 300*time.Millisecond)
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
