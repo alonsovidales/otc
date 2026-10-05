@@ -4,10 +4,13 @@ package websocket
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -397,5 +400,75 @@ func TestLargeReplyReachesTheClientWhole(t *testing.T) {
 		if resp := readResp(t, c); resp.Id != i || len(resp.ErrorMessage) != 3<<20 {
 			t.Fatalf("reply %d: id %d, %d bytes", i, resp.Id, len(resp.ErrorMessage))
 		}
+	}
+}
+
+// A request that takes longer than cPongWait to reach a slow-reading
+// device must not get its relay declared dead: the keepalive ping goes out
+// between the request's frames and the device answers it while reading.
+// The relay is the server side of the socket, as on the bridge, where
+// gorilla otherwise writes a whole message as one frame.
+func TestLargeRequestDoesNotStarveTheKeepalive(t *testing.T) {
+	setVar(t, &cPongWait, 800*time.Millisecond)
+	setVar(t, &cPingPeriod, 100*time.Millisecond)
+	const size = 32 << 20
+
+	var died atomic.Int32
+	relays := make(chan *deviceRelay, 1)
+	upgrader := gorilla.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		relays <- newDeviceRelay(conn, func() { died.Add(1) })
+	}))
+	t.Cleanup(srv.Close)
+
+	device, _, err := gorilla.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { device.Close() })
+	relay := <-relays
+	t.Cleanup(func() { relay.Close() })
+
+	go func() { // the device: reads the request slowly, then answers
+		device.SetReadLimit(2 * size)
+		_, rd, err := device.NextReader()
+		if err != nil {
+			return
+		}
+		var msg []byte
+		buf := make([]byte, 256<<10)
+		for {
+			n, err := io.ReadFull(rd, buf)
+			msg = append(msg, buf[:n]...)
+			if err != nil {
+				break
+			}
+			time.Sleep(10 * time.Millisecond) // ~25 MB/s: the whole request takes over a second
+		}
+		id, _ := envelopeID(msg)
+		resp, _ := proto.Marshal(&pb.RespEnvelope{Id: id, ErrorMessage: fmt.Sprint(len(msg))})
+		device.WriteMessage(gorilla.BinaryMessage, resp)
+		device.ReadMessage() // answers pings until the relay closes
+	}()
+
+	req, _ := proto.Marshal(&pb.ReqEnvelope{Id: 9, Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Key: make([]byte, size)}}})
+	start := time.Now()
+	respFrame, err := relay.forward(req)
+	if err != nil {
+		t.Fatalf("forward failed after %v: %v", time.Since(start), err)
+	}
+	if time.Since(start) < cPongWait {
+		t.Logf("the request took only %v; the test proves nothing on this machine", time.Since(start))
+	}
+	var resp pb.RespEnvelope
+	if err := proto.Unmarshal(respFrame, &resp); err != nil || resp.Id != 9 || resp.ErrorMessage != fmt.Sprint(len(req)) {
+		t.Fatalf("reply %v %q, want id 9 and %d bytes received", err, resp.ErrorMessage, len(req))
+	}
+	if died.Load() != 0 {
+		t.Fatal("the relay was declared dead during the upload")
 	}
 }

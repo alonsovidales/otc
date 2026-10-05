@@ -246,9 +246,16 @@ func (d *deviceRelay) pingLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			d.writeMu.Lock()
-			err := d.conn.WriteMessage(gorilla.PingMessage, nil)
-			d.writeMu.Unlock()
+			// WriteControl, not writeMu: it may go out between the frames
+			// of a large request (see writeFrame), where waiting for the
+			// whole upload let the pong deadline kill a working relay.
+			err := d.conn.WriteControl(gorilla.PingMessage, nil, time.Now().Add(cPongWait))
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
+				// No turn to write within cPongWait: the read deadline
+				// decides whether the device is gone, not this.
+				continue
+			}
 			if err != nil {
 				// readLoop's own ReadMessage() will fail from the same
 				// dead connection and drive failAll/onDeath - nothing
@@ -429,9 +436,7 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 	d.waiters[id] = ch
 	d.mu.Unlock()
 
-	d.writeMu.Lock()
-	err = d.conn.WriteMessage(gorilla.BinaryMessage, frame)
-	d.writeMu.Unlock()
+	err = d.writeFrame(frame)
 	if err != nil {
 		d.mu.Lock()
 		delete(d.waiters, id)
@@ -459,6 +464,35 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 		d.mu.Unlock()
 		return nil, fmt.Errorf("timed out waiting for device response")
 	}
+}
+
+// cRelayWriteChunk: a request larger than this goes to the device as a
+// fragmented message of chunks this size, so pingLoop's ping can get out
+// between them. Written whole, a several-hundred-MB upload held the socket
+// past cPongWait and the relay was declared dead mid-transfer.
+const cRelayWriteChunk = 256 << 10
+
+// writeFrame writes one request to the device. writeMu keeps concurrent
+// forwards from interleaving their frames; gorilla serialises the ping
+// between chunks itself.
+func (d *deviceRelay) writeFrame(frame []byte) error {
+	d.writeMu.Lock()
+	defer d.writeMu.Unlock()
+	if len(frame) <= cRelayWriteChunk {
+		return d.conn.WriteMessage(gorilla.BinaryMessage, frame) // one frame, as always
+	}
+	w, err := d.conn.NextWriter(gorilla.BinaryMessage)
+	if err != nil {
+		return err
+	}
+	for len(frame) > 0 {
+		n := min(len(frame), cRelayWriteChunk)
+		if _, err := w.Write(frame[:n]); err != nil {
+			return err
+		}
+		frame = frame[n:]
+	}
+	return w.Close()
 }
 
 // Close closes the underlying connection and waits for readLoop/pingLoop to
