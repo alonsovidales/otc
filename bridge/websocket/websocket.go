@@ -93,6 +93,72 @@ func maxConnectionsPerDevice() int {
 	return cDefaultMaxConnectionsPerDevice
 }
 
+// Pairing limits (a client's socket claims one of a device's connections
+// for as long as it stays open): per client address and device, at most
+// cPairBurst new pairings at once refilled at cPairPerSecond, and
+// cMaxPairedPerAddr open; per device, maxPairedPerDevice in use. A browser
+// restoring its tabs plus the household's apps behind one NAT stay far
+// below them. Vars so tests can shrink them.
+var (
+	cPairPerSecond             = 2.0
+	cPairBurst                 = 30.0
+	cMaxPairedPerAddr          = 16
+	cDefaultMaxPairedPerDevice = 64
+)
+
+// maxPairedPerDevice reads [bridge] max-paired-per-device, optional like
+// max-connections-per-device.
+func maxPairedPerDevice() int {
+	if cfg.HasSection("bridge") {
+		if v := cfg.GetInt("bridge", "max-paired-per-device"); v > 0 {
+			return int(v)
+		}
+	}
+	return cDefaultMaxPairedPerDevice
+}
+
+// pairingKey is who a pairing is counted against: the client's address
+// (clientAddr) - an IPv6 one by its /64, which one host can rotate
+// through - and the device it asks for.
+func pairingKey(addr, host string) string {
+	if ip := net.ParseIP(addr); ip != nil && ip.To4() == nil {
+		addr = ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
+	}
+	return addr + "|" + host
+}
+
+// reservePairing counts one more open pairing for key, unless it already
+// has cMaxPairedPerAddr; releasePairing gives it back.
+func (mg *Manager) reservePairing(key string) bool {
+	mg.pairedMu.Lock()
+	defer mg.pairedMu.Unlock()
+	if mg.pairedByAddr[key] >= cMaxPairedPerAddr {
+		return false
+	}
+	if mg.pairedByAddr == nil {
+		mg.pairedByAddr = map[string]int{}
+	}
+	mg.pairedByAddr[key]++
+	return true
+}
+
+func (mg *Manager) releasePairing(key string) {
+	mg.pairedMu.Lock()
+	defer mg.pairedMu.Unlock()
+	if mg.pairedByAddr[key] <= 1 {
+		delete(mg.pairedByAddr, key)
+	} else {
+		mg.pairedByAddr[key]--
+	}
+}
+
+// logRefusal logs a refused pairing, once a minute per key at most.
+func (mg *Manager) logRefusal(key string, what ...any) {
+	if mg.refusalLog == nil || mg.refusalLog.Allow(key) {
+		log.Error(what...)
+	}
+}
+
 // bridgePool is one device's spare connections plus its offline-detection
 // state (issue #62). liveCount is every connection currently held for this
 // domain, idle-in-availableConns or already claimed for one client's relay
@@ -566,6 +632,14 @@ type Manager struct {
 	logsPerDomain *limits.Rate
 	bridgesMu     sync.RWMutex // guards the bridges map itself, not each pool's own contents (pool.lock does that)
 
+	// pairPerAddr, pairedByAddr: new and open pairings per client address
+	// and device (pairingKey), so no one address can hold a device's
+	// connections. refusalLog keeps the refusals from flooding the log.
+	pairPerAddr  *limits.Rate
+	pairedMu     sync.Mutex
+	pairedByAddr map[string]int
+	refusalLog   *limits.Rate
+
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
 	// applies them, so a claim and its release are never reordered.
@@ -678,6 +752,8 @@ func (mg *Manager) HasLocal(domain string) bool {
 func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 	mg = &Manager{
 		logsPerDomain:    limits.NewRate(3.0/3600, 3),
+		pairPerAddr:      limits.NewRate(cPairPerSecond, cPairBurst),
+		refusalLog:       limits.NewRate(1.0/60, 1),
 		baseUrl:          baseUrl,
 		dao:              dao,
 		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
@@ -1879,7 +1955,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				pool, ok := mg.bridges[r.Host]
 				mg.bridgesMu.RUnlock()
 				if ok {
-					for attempt := 0; picked == nil && attempt < cPairMaxAttempts; attempt++ {
+					// Reserved before a candidate is popped, so a refused
+					// client never costs the device the first round trip.
+					pairKey := pairingKey(clientAddr(r, conn), r.Host)
+					allowed := mg.reservePairing(pairKey)
+					if !allowed {
+						mg.logRefusal(pairKey, "too many open connections from one address to", r.Host)
+					} else if mg.pairPerAddr != nil && !mg.pairPerAddr.Allow(pairKey) {
+						mg.releasePairing(pairKey)
+						allowed = false
+						mg.logRefusal(pairKey, "too many new connections from one address to", r.Host)
+					}
+					for attempt := 0; allowed && picked == nil && attempt < cPairMaxAttempts; attempt++ {
 						// pool.lock is held only long enough to pop a
 						// candidate - never across the round trips to the
 						// device below, and never across Close(). Close()
@@ -1901,6 +1988,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						pool.lock.Lock()
 						if len(pool.availableConns) == 0 {
 							pool.lock.Unlock()
+							break
+						}
+						// Paired (and in-flight one-off) connections are
+						// what the device keeps replacing; without a cap
+						// anyone could make it open them until it ran out
+						// of memory.
+						if pool.liveCount-len(pool.availableConns) >= maxPairedPerDevice() {
+							pool.lock.Unlock()
+							mg.logRefusal(r.Host, "device at its cap of connections in use:", r.Host)
 							break
 						}
 						candidate := pool.availableConns[0]
@@ -1945,6 +2041,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// genuine network failure would - see
 						// deviceRelay.onDeath's doc comment.
 						defer relay.Close()
+						defer mg.releasePairing(pairKey)
 
 						err = writeClient(conn, respFrame)
 						releaseResp()
@@ -1955,6 +2052,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						if err := mg.dao.RecordDeviceActivity(r.Host, int64(len(frame)), int64(len(respFrame))); err != nil {
 							log.Error("error recording device activity:", err)
 						}
+					}
+					if allowed && picked == nil {
+						mg.releasePairing(pairKey)
 					}
 				}
 
