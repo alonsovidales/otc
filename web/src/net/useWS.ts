@@ -4,6 +4,11 @@ import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { encryptForConnection, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
 
+// The device refused a password and refuses any more from this address
+// for a while (issue #117). Unlike a sign-in nobody answered, that is the
+// device's verdict on the password, so the password is not kept for it.
+class LockedOut extends Error {}
+
 export function UseWS() {
   let isConnected = false;
   let lastAuthRef: string = '';
@@ -183,7 +188,7 @@ export function UseWS() {
         // rather than "incorrect password". Thrown so the sign-in form's
         // existing error path shows the device's own message.
         if (resp.payload?.$case === "respAck" && resp.payload.respAck.code === "too_many_attempts") {
-          throw new Error(resp.payload.respAck.errorMsg || "Too many attempts. Try again in a minute.");
+          throw new LockedOut(resp.payload.respAck.errorMsg || "Too many attempts. Try again in a minute.");
         }
 
         // Wrong/stale password (e.g. it was changed elsewhere, or a
@@ -202,11 +207,20 @@ export function UseWS() {
 
         return false;
       } catch (e) {
-        // No answer about the password (the socket dropped, or the address
-        // is locked out): it is tried again on the next reconnect, as it
-        // always was - the mobile container signs in only once, at launch.
-        // If the device then refuses it, it is forgotten (see request()).
-        if (lastAuthRef === '') lastAuthRef = key;
+        // No answer about the password (the socket dropped): it is tried
+        // again on the next reconnect, as it always was - the mobile
+        // container signs in only once, at launch. If the device then
+        // refuses it, it is forgotten (see request()).
+        //
+        // A lockout is different for a typed password: the attempt that
+        // starts one is a wrong password the device counted, and replaying
+        // it would fail every request with "Too many attempts" until the
+        // lockout ends, then count once more. The person retypes it
+        // anyway. The container's own password is still kept, so a launch
+        // during someone else's lockout heals once it ends; one that did
+        // work is never dropped here.
+        const containerKey = key === window.__OTC_CONFIG?.password;
+        if (lastAuthRef === '' && (!(e instanceof LockedOut) || containerKey)) lastAuthRef = key;
         throw e;
       } finally {
         authPromise = null;
