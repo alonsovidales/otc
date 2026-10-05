@@ -3,6 +3,7 @@
 package dao
 
 import (
+	"context"
 	"crypto/subtle"
 	"database/sql"
 	"fmt"
@@ -15,6 +16,12 @@ import (
 	"sync"
 	"time"
 )
+
+// cRelayDBTimeout bounds the queries the relay makes on its own path (a
+// device dialling in, a client pairing, the last-client stamp): a primary
+// that stops answering costs them this, then they go on as on any other
+// database error, rather than holding the relay and the connection pool.
+const cRelayDBTimeout = 5 * time.Second
 
 const (
 	// cLogRetention is how long auth_events and device_metrics rows are
@@ -98,7 +105,11 @@ func Init() (dao *Dao) {
 		// the system one otherwise - Europe/London on the Pi image - while
 		// parseTime reads every DATETIME back as UTC, so whatever SQL
 		// stamped came out an hour ahead ("in 49 min" on a new alert).
-		"%s:%s@tcp(%s:%d)/%s?parseTime=true&charset=utf8mb4,utf8&time_zone=%%27%%2B00%%3A00%%27",
+		// Timeouts: the primary is another node (issue #144), and a dead
+		// one used to hang a query until TCP gave up, some 15 minutes. The
+		// read timeout is above InnoDB's 50 s lock wait, which some
+		// transactions here (select ... for update) may sit out.
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true&charset=utf8mb4,utf8&time_zone=%%27%%2B00%%3A00%%27&timeout=5s&readTimeout=60s&writeTimeout=60s",
 		cfg.GetStr("mysql", "user"),
 		cfg.GetStr("mysql", "pass"),
 		mysqlHost(),
@@ -191,7 +202,9 @@ func (dao *Dao) PruneOldLogs(before time.Time) (err error) {
 func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecret bool, err error) {
 	log.Debug("Is valid device")
 	var dbSecret, dbOwner string
-	err = dao.db.QueryRow("select `owner_uuid`, `secret` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbSecret)
+	ctx, cancel := context.WithTimeout(context.Background(), cRelayDBTimeout)
+	defer cancel()
+	err = dao.db.QueryRowContext(ctx, "select `owner_uuid`, `secret` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbSecret)
 	if err != nil {
 		// if we have sql.ErrNoRows that means that the domain is free for grabs
 		return err != sql.ErrNoRows, false, err
@@ -250,7 +263,10 @@ func (dao *Dao) SetDeviceDisabled(domain string, disabled bool) (err error) {
 // already fail for that reason, without needing an "account disabled"
 // message that would be actively misleading).
 func (dao *Dao) IsDeviceDisabled(domain string) (disabled bool, err error) {
-	err = dao.db.QueryRow("select `disabled` from `devices` where `domain` = ?", domain).Scan(&disabled)
+	// Its callers go on without it on an error: bounded so they do.
+	ctx, cancel := context.WithTimeout(context.Background(), cRelayDBTimeout)
+	defer cancel()
+	err = dao.db.QueryRowContext(ctx, "select `disabled` from `devices` where `domain` = ?", domain).Scan(&disabled)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -828,10 +844,32 @@ func (dao *Dao) UpdateAccountProfile(id, name, surname, country string) error {
 	return err
 }
 
+// SetAccountPassword sets the password hash; an empty one clears it, as
+// NULL like CreateAccount writes (the admin list reads NULL as none).
 func (dao *Dao) SetAccountPassword(id, passwordHash string) error {
-	_, err := dao.db.Exec("update `accounts` set `password_hash` = ? where `id` = ?", passwordHash, id)
+	_, err := dao.db.Exec("update `accounts` set `password_hash` = ? where `id` = ?", sql.NullString{String: passwordHash, Valid: passwordHash != ""}, id)
 
 	return err
+}
+
+// SetAccountPasswordEndingSessions sets the password and, in the same
+// statement, ends every session issued so far (issue #164); it returns the
+// new epoch. LAST_INSERT_ID(expr) hands the epoch back in the statement's
+// own reply: no second write or read that could fail once the password has
+// changed, leaving the old sessions alive or the new cookie unsigned.
+func (dao *Dao) SetAccountPasswordEndingSessions(id, passwordHash string) (int, error) {
+	res, err := dao.db.Exec("update `accounts` set `password_hash` = ?, `session_epoch` = LAST_INSERT_ID(`session_epoch` + 1) where `id` = ?", passwordHash, id)
+	if err != nil {
+		return 0, err
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		if err == nil {
+			err = sql.ErrNoRows
+		}
+		return 0, err
+	}
+	epoch, err := res.LastInsertId()
+	return int(epoch), err
 }
 
 // TouchAccount records activity (the terms release an account after six
@@ -869,7 +907,9 @@ func (dao *Dao) PruneAccountTokens() error {
 	if _, err := dao.db.Exec("delete from `account_tokens` where `expires` < ?", time.Now()); err != nil {
 		return err
 	}
-	if _, err := dao.db.Exec("delete from `oauth_states` where `created` < ?", time.Now().Add(-time.Hour)); err != nil {
+	// ConsumeOAuthState takes a state for 15 minutes; a few more cover the
+	// two nodes' clocks.
+	if _, err := dao.db.Exec("delete from `oauth_states` where `created` < ?", time.Now().Add(-20*time.Minute)); err != nil {
 		return err
 	}
 	return dao.PruneEmailTokens()
@@ -1093,7 +1133,9 @@ func (dao *Dao) touchLastClient(domain string) {
 	// Written from Go in UTC, like every other time the bridge stores: the
 	// driver reads datetimes back as UTC, and the database's own now() is
 	// the server's local time, which need not be.
-	if _, err := dao.db.Exec("update `devices` set `last_client_at` = ? where `domain` = ?", now.UTC(), domain); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), cRelayDBTimeout)
+	defer cancel()
+	if _, err := dao.db.ExecContext(ctx, "update `devices` set `last_client_at` = ? where `domain` = ?", now.UTC(), domain); err != nil {
 		log.Error("error recording the last client of", domain, err)
 	}
 }
@@ -1138,18 +1180,21 @@ func (dao *Dao) ListAdminDevices(accountID, q string, limit, offset int) (device
 		return nil, 0, err
 	}
 
-	query := "select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, ''), coalesce(a.`email`, ''), " +
-		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))), d.`disabled`, d.`created`, d.`last_client_at`, " +
+	// The page is picked first (p), and only its devices' metrics summed:
+	// grouping the whole join before the limit summed 30 days of hourly
+	// rows for every device on each page and keystroke of the search.
+	tail, targs := pageClause(limit, offset)
+	query := "select p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`, " +
 		"coalesce(sum(case when m.`hour_bucket` >= date_format(now() - interval 1 hour, '%Y-%m-%d %H:00:00') then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(case when m.`hour_bucket` >= now() - interval 1 day then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(m.`bytes_in` + m.`bytes_out`), 0) " +
-		"from `devices` d left join `accounts` a on a.`id` = d.`account_id` " +
-		"left join `device_metrics` m on m.`domain` = d.`domain` and m.`hour_bucket` >= now() - interval 30 day" +
-		where +
-		" group by d.`domain`, d.`owner_uuid`, d.`account_id`, a.`email`, a.`name`, a.`surname`, d.`disabled`, d.`created`, d.`last_client_at`" +
-		" order by d.`domain`"
-	tail, targs := pageClause(limit, offset)
-	rows, err := dao.db.Query(query+tail, append(args, targs...)...)
+		"from (select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, '') as `account_id`, coalesce(a.`email`, '') as `email`, " +
+		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))) as `name`, d.`disabled`, d.`created`, d.`last_client_at` " +
+		"from `devices` d left join `accounts` a on a.`id` = d.`account_id`" + where + " order by d.`domain`" + tail + ") p " +
+		"left join `device_metrics` m on m.`domain` = p.`domain` and m.`hour_bucket` >= now() - interval 30 day" +
+		" group by p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`" +
+		" order by p.`domain`"
+	rows, err := dao.db.Query(query, append(args, targs...)...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1228,7 +1273,8 @@ func (dao *Dao) ListAdminAccounts(id, q string, limit, offset int) (accounts []A
 		return nil, 0, err
 	}
 
-	query := "select a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, a.`password_hash` is not null, " +
+	// '' too: a provider link used to clear a password to the empty string.
+	query := "select a.`id`, a.`email`, a.`name`, a.`surname`, a.`country`, coalesce(a.`password_hash`, '') <> '', " +
 		"a.`created`, a.`last_seen`, a.`free_until`, count(distinct d.`domain`), coalesce(group_concat(distinct l.`provider` order by l.`provider`), '') " +
 		"from `accounts` a left join `devices` d on d.`account_id` = a.`id` left join `account_logins` l on l.`account_id` = a.`id`" +
 		where +

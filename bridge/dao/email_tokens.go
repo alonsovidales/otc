@@ -9,7 +9,9 @@ import (
 
 // Email verification and password-reset links. Only the token's SHA-256
 // is stored (the token is in the email alone), each is single use, and a
-// new one of the same purpose replaces the account's previous one.
+// new one of the same purpose replaces the account's previous ones - once
+// it has been sent: a send that fails leaves the link already in the
+// inbox working.
 
 // SetEmailVerified marks accountID's email as proven.
 func (dao *Dao) SetEmailVerified(accountID string) error {
@@ -17,24 +19,31 @@ func (dao *Dao) SetEmailVerified(accountID string) error {
 	return err
 }
 
-// SaveEmailToken stores hash as accountID's link for purpose, replacing an
-// older one of the same purpose.
-func (dao *Dao) SaveEmailToken(hash, accountID, purpose string, ttl time.Duration) error {
-	tx, err := dao.db.Begin()
-	if err != nil {
-		return err
-	}
-	if _, err := tx.Exec("delete from `account_email_tokens` where `account_id` = ? and `purpose` = ?", accountID, purpose); err != nil {
-		tx.Rollback()
-		return err
-	}
-	now := time.Now().UTC()
-	if _, err := tx.Exec("insert into `account_email_tokens` (`token_hash`, `account_id`, `purpose`, `created`, `expires`) values (?, ?, ?, ?, ?)",
-		hash, accountID, purpose, now, now.Add(ttl)); err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit()
+// AddEmailToken stores hash as a link of accountID's for purpose, next to
+// any older ones (KeepNewestEmailToken retires those once it is sent). It
+// returns when the link was made, as stored: to the second, the column's
+// resolution.
+func (dao *Dao) AddEmailToken(hash, accountID, purpose string, ttl time.Duration) (created time.Time, err error) {
+	now := time.Now().UTC().Truncate(time.Second)
+	_, err = dao.db.Exec("insert into `account_email_tokens` (`token_hash`, `account_id`, `purpose`, `created`, `expires`) values (?, ?, ?, ?, ?)",
+		hash, accountID, purpose, now, now.Add(ttl))
+	return now, err
+}
+
+// KeepNewestEmailToken drops accountID's links for purpose made before
+// created, the time of hash's. Strictly before: two links made at once
+// (two requests past the throttle together) both stay, rather than each
+// deleting the other.
+func (dao *Dao) KeepNewestEmailToken(hash, accountID, purpose string, created time.Time) error {
+	_, err := dao.db.Exec("delete from `account_email_tokens` where `account_id` = ? and `purpose` = ? and `token_hash` <> ? and `created` < ?",
+		accountID, purpose, hash, created.UTC())
+	return err
+}
+
+// DropEmailToken removes one link (one whose email could not be sent).
+func (dao *Dao) DropEmailToken(hash string) error {
+	_, err := dao.db.Exec("delete from `account_email_tokens` where `token_hash` = ?", hash)
+	return err
 }
 
 // LastEmailTokenSent is when accountID's current link for purpose was

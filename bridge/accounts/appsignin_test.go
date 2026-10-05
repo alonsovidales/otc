@@ -144,6 +144,27 @@ func TestValidReturnURLLocalNames(t *testing.T) {
 		"http://8.8.8.8/":              false,
 		"javascript:alert(1)":          false,
 		"https://evil.com@pit.otc/":    true, // the host is pit.otc
+		// Spellings a browser takes for a public host: fully qualified
+		// names, IPv4 as a number, and Unicode that IDNA maps to ASCII.
+		"http://evil.com./":               false,
+		"https://attacker.example.com./x": false,
+		"http://evil.co.uk./":             false,
+		"http://1572395042/":              false,
+		"http://0x5db8d822/":              false,
+		"http://017700000001/":            false,
+		"http://0x7f.1/":                  false,
+		"http://010.010.010.010/":         false,
+		"http://8.8.8.8./":                false,
+		"http://evil。com/":                false,
+		"http://evil．com/":                false,
+		"http://ｅｖｉｌ.ｃｏｍ/":                false,
+		// Still local.
+		"http://pit.otc./":   true,
+		"http://otc.local./": true,
+		"http://10.0.0.5./":  true,
+		"http://localhost/":  true,
+		"http://[fd00::1]/":  true,
+		"http://127.0.0.1/":  true,
 	} {
 		if _, ok := validReturnURL(raw); ok != want {
 			t.Errorf("validReturnURL(%q) = %v, want %v", raw, ok, want)

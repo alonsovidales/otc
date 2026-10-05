@@ -132,7 +132,11 @@ func (m *Mailer) SendWith(to, replyTo, subject, body string, att *Attachment) er
 	if err := w.Close(); err != nil {
 		return err
 	}
-	return c.Quit()
+	// Close read the server's answer to the message: it is accepted. A
+	// failed goodbye after that is no failed send - a caller would send
+	// it again, or drop the link it carries.
+	_ = c.Quit()
+	return nil
 }
 
 func (m *Mailer) message(to, replyTo, subject, body string, att *Attachment) []byte {

@@ -72,7 +72,12 @@ func (a *Accounts) inactivityPass(now time.Time, send func(to, subject, body str
 			"To keep it, sign in at https://%s/account or use your device through the bridge before then.\n\n"+
 			"Off The Cloud\n", greet, acc.Email, when, a.tld)
 		if err := send(acc.Email, "Your Off The Cloud account will be removed on "+when, body); err != nil {
-			log.Error("inactivity: could not email the warning to account", acc.ID, ":", err)
+			log.Error("inactivity: could not email the warning to account", acc.ID, "(will retry tomorrow):", err)
+			// Not warned after all: the next pass tries again, and the
+			// month before removal starts from a warning that went out.
+			if uerr := a.dao.UnmarkInactivityWarned(acc.ID); uerr != nil {
+				log.Error("inactivity: could not release the warning of account", acc.ID, ":", uerr)
+			}
 		} else {
 			log.Info("inactivity: warned account", acc.ID)
 		}

@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -131,7 +132,13 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	buf := make([]byte, 24)
+	// Counted only for a start that writes a state: a bad provider or
+	// return address costs nothing.
+	if a.oauthStarts != nil && !a.oauthStarts.Allow(clientIP(r)) {
+		http.Error(w, "too many sign-in attempts from this address, try again in a minute", http.StatusTooManyRequests)
+		return
+	}
+	buf := make([]byte, cOAuthStateBytes)
 	if _, err := rand.Read(buf); err != nil {
 		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)
 		return
@@ -142,6 +149,7 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)
 		return
 	}
+	setOAuthCookies(w, state, int(cOAuthStateTTL.Seconds()))
 	q := url.Values{
 		"client_id": {p.clientID}, "redirect_uri": {a.redirectURI(p)}, "response_type": {"code"},
 		"scope": {p.scope}, "state": {state},
@@ -150,6 +158,77 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		q.Set("response_mode", "form_post")
 	}
 	http.Redirect(w, r, p.authURL+"?"+q.Encode(), http.StatusFound)
+}
+
+// A sign-in's state also goes in a cookie, and the callback must come back
+// with both: otherwise anyone could start a sign-in to their own account,
+// stop at the callback URL and send it to someone else, whose browser
+// would finish it - signed in to the attacker's account.
+const (
+	// __Host-: a device's page is a same-site subdomain and could otherwise
+	// set one carrying the attacker's own state.
+	cOAuthCookie = "__Host-otc_oauth_"
+	// cOAuthStateTTL is as long as ConsumeOAuthState takes a state.
+	cOAuthStateTTL = 15 * time.Minute
+	// cOAuthStateBytes is a state's randomness, 64 hex characters: that
+	// length is what tells it from one made before the cookie, which had
+	// 24 bytes (isPreCookieState).
+	cOAuthStateBytes   = 32
+	cPreCookieStateLen = 48
+)
+
+// oauthCookieNames are the two cookies that carry a state; the names carry
+// part of it, so two sign-ins at once (two tabs, an app's sheet and the
+// browser) keep their own.
+func oauthCookieNames(state string) (string, string) {
+	k := state[:16]
+	return cOAuthCookie + k, cOAuthCookie + k + "_l"
+}
+
+// isOAuthState is whether s has the shape of a state OAuthStart makes.
+func isOAuthState(s string) bool {
+	_, err := hex.DecodeString(s)
+	return len(s) == 2*cOAuthStateBytes && err == nil
+}
+
+// isPreCookieState is whether s has the shape of a state made by a release
+// from before the state cookie, which set none. The cluster is deployed one
+// node at a time, so a sign-in can start on a node still on that release
+// and come back to one on this (or start before a restart and finish
+// after): such a state goes through without a cookie, as it did there.
+// Only those releases store that shape, so once no node runs one, the last
+// of them is gone within cOAuthStateTTL and every sign-in needs its cookie.
+func isPreCookieState(s string) bool {
+	_, err := hex.DecodeString(s)
+	return len(s) == cPreCookieStateLen && err == nil
+}
+
+// setOAuthCookies sets (maxAge > 0) or clears (< 0) a state's cookies. One
+// is SameSite=None: Apple comes back with a cross-site POST, which a Lax
+// cookie misses. The other has no SameSite at all, for Safari 12, which
+// takes None for Strict and would send neither back.
+func setOAuthCookies(w http.ResponseWriter, state string, maxAge int) {
+	name, legacy := oauthCookieNames(state)
+	value := state
+	if maxAge < 0 {
+		value = ""
+	}
+	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true, Secure: true, SameSite: http.SameSiteNoneMode})
+	http.SetCookie(w, &http.Cookie{Name: legacy, Value: value, Path: "/", MaxAge: maxAge, HttpOnly: true, Secure: true})
+}
+
+// oauthStartedHere is whether this browser started the sign-in with state.
+func oauthStartedHere(r *http.Request, state string) bool {
+	if !isOAuthState(state) {
+		return false
+	}
+	name, legacy := oauthCookieNames(state)
+	for _, n := range []string{name, legacy} {
+		if c, err := r.Cookie(n); err == nil && subtle.ConstantTimeCompare([]byte(c.Value), []byte(state)) == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // OAuthCallback finishes a sign-in: exchanges the code, verifies the
@@ -167,14 +246,29 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state, code := r.Form.Get("state"), r.Form.Get("code")
+	// Whatever the outcome, this sign-in's cookies are done with.
+	if isOAuthState(state) {
+		setOAuthCookies(w, state, -1)
+	}
 	if errCode := r.Form.Get("error"); errCode != "" || code == "" {
 		http.Redirect(w, r, "/account?error="+url.QueryEscape("the sign-in was cancelled"), http.StatusFound)
+		return
+	}
+	// Checked before the state is consumed: a planted link can neither use
+	// it nor burn it. A state from a node on an older release never had a
+	// cookie (isPreCookieState).
+	startedHere := oauthStartedHere(r, state)
+	if !startedHere && !isPreCookieState(state) {
+		http.Redirect(w, r, "/account?error="+url.QueryEscape("that sign-in has expired, please try again"), http.StatusFound)
 		return
 	}
 	returnURL, found, err := a.dao.ConsumeOAuthState(state)
 	if err != nil || !found {
 		http.Redirect(w, r, "/account?error="+url.QueryEscape("that sign-in has expired, please try again"), http.StatusFound)
 		return
+	}
+	if !startedHere {
+		log.Info("a sign-in started on a node without the state cookie was let through")
 	}
 
 	claims, err := a.exchange(p, code)
@@ -223,12 +317,17 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if acc != nil && acc.PasswordHash != "" {
-			// A password account nobody verified the email of: whoever
-			// signed up with it may not be the person now proving they
-			// own the address. The provider sign-in wins - the password
-			// is cleared (a new one can be set from the account page).
+			// A password account for this email: whoever signed up with
+			// it may not be the person now proving they own the address.
+			// The provider sign-in wins - the password is cleared (a new
+			// one can be set from the account page).
+			// Not linked unless cleared: the old password would go on
+			// working on the linked account. Nothing is changed yet, so
+			// the user can simply try again.
 			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
 				log.Error("could not clear the password of an account being linked:", err)
+				http.Error(w, "could not sign in right now", http.StatusInternalServerError)
+				return
 			}
 			acc.PasswordHash = ""
 		}
@@ -254,6 +353,12 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 				log.Error("could not mark an email verified:", err)
 			}
 			acc.EmailVerified = true
+			// Whoever signed up with this unproven address may still hold
+			// a session: end it, as Reset does. The provider user gets the
+			// fresh cookie set just below.
+			if _, err := a.dao.BumpAccountSessionEpoch(acc.ID); err != nil {
+				log.Error("error ending an account's other sessions:", err)
+			}
 		}
 	}
 	a.setSession(w, r, acc.ID)
@@ -298,13 +403,33 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 // ContinueSetup sends a signed-in browser back to the wizard with a fresh
 // setup token: the last step of "complete your profile" after a provider
 // sign-in that started in the wizard. GET /api/account/continue?return=.
+//
+// Only the account page itself may send the browser here: the Lax cookie
+// rides on any site's link, and that site would pick where the token goes
+// (an address on the same LAN) or the app flow's PKCE challenge.
 func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, accountID string) {
+	if !a.sameOriginNavigation(r) {
+		log.Info("refused a cross-site /api/account/continue")
+		http.Error(w, "open this from your account page", http.StatusForbidden)
+		return
+	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
 	if !ok || returnURL == "" {
 		http.Error(w, ErrInvalidReturn.Error(), http.StatusBadRequest)
 		return
 	}
 	http.Redirect(w, r, a.afterSignIn(accountID, returnURL), http.StatusFound)
+}
+
+// sameOriginNavigation is whether a request was started by one of the
+// bridge's own pages: Sec-Fetch-Site where the browser sends it, else the
+// Referer (older Safari).
+func (a *Accounts) sameOriginNavigation(r *http.Request) bool {
+	if s := r.Header.Get("Sec-Fetch-Site"); s != "" {
+		return s == "same-origin"
+	}
+	ref, err := url.Parse(r.Header.Get("Referer"))
+	return err == nil && ref.Scheme == "https" && strings.EqualFold(ref.Host, a.tldHost())
 }
 
 // exchange turns the code into verified id_token claims.

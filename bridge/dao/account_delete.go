@@ -4,6 +4,7 @@ package dao
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/alonsovidales/otc/log"
@@ -127,7 +128,9 @@ type AccountExportDomain struct {
 	BytesOut int64 `json:"bytes_out_90d"`
 }
 
-// ExportAccount gathers AccountExport for accountID.
+// ExportAccount gathers AccountExport for accountID. Any error fails the
+// whole export: a file missing a domain or reporting zero for a count it
+// couldn't read would look complete.
 func (dao *Dao) ExportAccount(accountID string) (*AccountExport, error) {
 	acc, err := dao.GetAccount(accountID)
 	if err != nil || acc == nil {
@@ -138,48 +141,66 @@ func (dao *Dao) ExportAccount(accountID string) (*AccountExport, error) {
 	a.ID, a.Email, a.Name, a.Surname, a.Country = acc.ID, acc.Email, acc.Name, acc.Surname, acc.Country
 	a.Created, a.LastSeen, a.FreeUntil, a.Password = acc.Created, acc.LastSeen, acc.FreeUntil, acc.PasswordHash != ""
 
-	rows, err := dao.db.Query("select `provider` from `account_logins` where `account_id` = ?", accountID)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var p string
-		if err := rows.Scan(&p); err == nil {
+	if err := func() error {
+		rows, err := dao.db.Query("select `provider` from `account_logins` where `account_id` = ?", accountID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var p string
+			if err := rows.Scan(&p); err != nil {
+				return err
+			}
 			out.SignIns = append(out.SignIns, p)
 		}
-	}
-	rows.Close()
-
-	rows, err = dao.db.Query("select `domain`, `created`, `disabled`, `last_client_at` from `devices` where `account_id` = ?", accountID)
-	if err != nil {
+		return rows.Err()
+	}(); err != nil {
 		return nil, err
 	}
-	for rows.Next() {
-		var d AccountExportDomain
-		var created, last sql.NullTime
-		if err := rows.Scan(&d.Domain, &created, &d.Disabled, &last); err != nil {
-			rows.Close()
-			return nil, err
+
+	if err := func() error {
+		rows, err := dao.db.Query("select `domain`, `created`, `disabled`, `last_client_at` from `devices` where `account_id` = ?", accountID)
+		if err != nil {
+			return err
 		}
-		if created.Valid {
-			d.Created = &created.Time
+		defer rows.Close()
+		for rows.Next() {
+			var d AccountExportDomain
+			var created, last sql.NullTime
+			if err := rows.Scan(&d.Domain, &created, &d.Disabled, &last); err != nil {
+				return err
+			}
+			if created.Valid {
+				d.Created = &created.Time
+			}
+			if last.Valid {
+				d.LastClientAt = &last.Time
+			}
+			out.Domains = append(out.Domains, d)
 		}
-		if last.Valid {
-			d.LastClientAt = &last.Time
-		}
-		out.Domains = append(out.Domains, d)
+		return rows.Err()
+	}(); err != nil {
+		return nil, err
 	}
-	rows.Close()
 
 	for i := range out.Domains {
 		d := &out.Domains[i]
 		var apns, fcm, web int
-		_ = dao.db.QueryRow("select count(*) from `push_apns_tokens` where `domain` = ?", d.Domain).Scan(&apns)
-		_ = dao.db.QueryRow("select count(*) from `push_fcm_tokens` where `domain` = ?", d.Domain).Scan(&fcm)
-		_ = dao.db.QueryRow("select count(*) from `push_web_subs` where `domain` = ?", d.Domain).Scan(&web)
+		if err := dao.db.QueryRow("select count(*) from `push_apns_tokens` where `domain` = ?", d.Domain).Scan(&apns); err != nil {
+			return nil, fmt.Errorf("export %s push: %w", d.Domain, err)
+		}
+		if err := dao.db.QueryRow("select count(*) from `push_fcm_tokens` where `domain` = ?", d.Domain).Scan(&fcm); err != nil {
+			return nil, fmt.Errorf("export %s push: %w", d.Domain, err)
+		}
+		if err := dao.db.QueryRow("select count(*) from `push_web_subs` where `domain` = ?", d.Domain).Scan(&web); err != nil {
+			return nil, fmt.Errorf("export %s push: %w", d.Domain, err)
+		}
 		d.PushTokens = apns + fcm + web
-		_ = dao.db.QueryRow("select coalesce(sum(`requests`),0), coalesce(sum(`bytes_in`),0), coalesce(sum(`bytes_out`),0) from `device_metrics` where `domain` = ?",
-			d.Domain).Scan(&d.Requests, &d.BytesIn, &d.BytesOut)
+		if err := dao.db.QueryRow("select coalesce(sum(`requests`),0), coalesce(sum(`bytes_in`),0), coalesce(sum(`bytes_out`),0) from `device_metrics` where `domain` = ?",
+			d.Domain).Scan(&d.Requests, &d.BytesIn, &d.BytesOut); err != nil {
+			return nil, fmt.Errorf("export %s metrics: %w", d.Domain, err)
+		}
 	}
 	return out, nil
 }

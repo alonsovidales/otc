@@ -122,7 +122,10 @@ type Accounts struct {
 	// signups limits account creation per address (issue #163): each is
 	// a bcrypt, and each answer says whether an email has an account.
 	signups *limits.Rate
-	jwks    jwksCache
+	// oauthStarts limits sign-in starts per address: each one inserts an
+	// oauth_states row.
+	oauthStarts *limits.Rate
+	jwks        jwksCache
 }
 
 // Init reads [accounts] from the config: open-registration, and the
@@ -148,6 +151,7 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		failures:         map[string][]time.Time{},
 		signups:          limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour),
 		emailsPerAddr:    limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour),
+		oauthStarts:      limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute),
 	}
 	a.loadProviders()
 	go a.pruneLoop()
@@ -161,6 +165,9 @@ func (a *Accounts) pruneLoop() {
 		if err := a.dao.PruneAccountTokens(); err != nil {
 			log.Error("error pruning account tokens:", err)
 		}
+		a.limiterMu.Lock()
+		a.pruneFailuresLocked(time.Now())
+		a.limiterMu.Unlock()
 	}
 }
 
@@ -225,12 +232,21 @@ func (a *Accounts) session(token string, now time.Time) (accountID string, issue
 	return id, issued, true
 }
 
+// setSession issues a new session cookie. Only ever right after a real
+// authentication (a password, a provider, a reset link): the cookie's age
+// is what the cFreshSignIn checks in SetPassword and ConfirmOwner trust.
 func (a *Accounts) setSession(w http.ResponseWriter, r *http.Request, accountID string) {
-	now := time.Now()
 	epoch, _, err := a.dao.AccountSessionEpoch(accountID)
 	if err != nil {
 		log.Error("error reading an account's session epoch:", err)
 	}
+	a.setSessionAt(w, accountID, epoch)
+}
+
+// setSessionAt is setSession for a caller that already has the account's
+// epoch (a password change, which moved it); the same rule applies.
+func (a *Accounts) setSessionAt(w http.ResponseWriter, accountID string, epoch int) {
+	now := time.Now()
 	http.SetCookie(w, &http.Cookie{
 		Name: cSessionCookie, Value: a.sessionToken(accountID, epoch, now), Path: "/",
 		Expires: now.Add(cSessionTTL), HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
@@ -273,9 +289,14 @@ func (a *Accounts) RequireAuth(next func(w http.ResponseWriter, r *http.Request,
 // lookalikes) the account page shows and the wizard accepts typed by
 // hand, and that sign-in through the wizard hands over directly.
 func (a *Accounts) IssueSetupToken(accountID string) (string, error) {
-	// A device name is only ever registered for a proven email.
+	// A device name is only ever registered for a proven email. A database
+	// error is not "unverified": that sends a verified user looking for an
+	// email instead of trying again.
 	acc, err := a.dao.GetAccount(accountID)
-	if err != nil || acc == nil || !acc.EmailVerified {
+	if err != nil {
+		return "", err
+	}
+	if acc == nil || !acc.EmailVerified {
 		return "", ErrEmailNotVerified
 	}
 	// Issue #175: and only once the terms in force are accepted.
@@ -307,22 +328,39 @@ func NormalizeSetupToken(s string) string {
 	return s
 }
 
-// AccountForSetupToken is the account a live setup token belongs to.
+// AccountForSetupToken is the account a live setup token belongs to; a
+// database error counts as none (LookupSetupToken tells them apart).
 func (a *Accounts) AccountForSetupToken(token string) (accountID string, ok bool) {
+	id, ok, _ := a.LookupSetupToken(token)
+	return id, ok
+}
+
+// LookupSetupToken is the account a live setup token belongs to: ok is
+// false for an unknown or expired code, or an account that hasn't proven
+// its email; err is a database failure, worth "try again", not "sign in".
+func (a *Accounts) LookupSetupToken(token string) (accountID string, ok bool, err error) {
 	token = NormalizeSetupToken(token)
 	if len(token) != cSetupCodeLen {
-		return "", false
+		return "", false, nil
 	}
 	id, found, err := a.dao.AccountForToken(token, cPurposeSetup)
 	if err != nil {
 		log.Error("error looking up a setup token:", err)
-		return "", false
+		return "", false, err
 	}
-	if found && !a.Verified(id) {
-		return "", false
+	if !found {
+		return "", false, nil
+	}
+	verified, err := a.verified(id)
+	if err != nil {
+		log.Error("error looking up a setup token's account:", err)
+		return "", false, err
+	}
+	if !verified {
+		return "", false, nil
 	}
 
-	return id, found
+	return id, true, nil
 }
 
 // ---------------------------------------------------------------------
@@ -371,7 +409,13 @@ func (a *Accounts) loginAllowed(addr string, now time.Time) bool {
 			recent = append(recent, t)
 		}
 	}
-	a.failures[addr] = recent
+	// No entry for an address without recent failures: every caller
+	// passes here, failing or not (a junk body, a database error).
+	if len(recent) == 0 {
+		delete(a.failures, addr)
+	} else {
+		a.failures[addr] = recent
+	}
 
 	return len(recent) < cLoginFailures
 }
@@ -381,7 +425,24 @@ func (a *Accounts) loginFailed(addr string, now time.Time) {
 	defer a.limiterMu.Unlock()
 	a.failures[addr] = append(a.failures[addr], now)
 	if len(a.failures) > 10000 {
-		a.failures = map[string][]time.Time{}
+		// Stale entries first; dropping everything (every lockout with it)
+		// only when 10,000 addresses failed within the window.
+		a.pruneFailuresLocked(now)
+		if len(a.failures) > 10000 {
+			a.failures = map[string][]time.Time{}
+		}
+	}
+}
+
+// pruneFailuresLocked drops the addresses whose failures are all older
+// than the window, which loginAllowed would ignore anyway. The caller
+// holds limiterMu.
+func (a *Accounts) pruneFailuresLocked(now time.Time) {
+	for addr, ts := range a.failures {
+		// Appended in time order: the last one is the newest.
+		if len(ts) == 0 || now.Sub(ts[len(ts)-1]) >= cLoginWindow {
+			delete(a.failures, addr)
+		}
 	}
 }
 
@@ -423,10 +484,17 @@ func accountJSON(acc *dao.Account) map[string]any {
 	}
 }
 
-// signedIn answers a successful sign-up or sign-in: the account, and -
-// with ?for=setup, the wizard's way - a setup token to claim a name with.
+// signedIn answers a successful sign-up or sign-in: a session, the
+// account, and - with ?for=setup, the wizard's way - a setup token to
+// claim a name with.
 func (a *Accounts) signedIn(w http.ResponseWriter, r *http.Request, acc *dao.Account, status int) {
 	a.setSession(w, r, acc.ID)
+	a.answerAccount(w, r, acc, status)
+}
+
+// answerAccount is signedIn without a new session cookie, for a request
+// the current session already authenticated.
+func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *dao.Account, status int) {
 	_ = a.dao.TouchAccount(acc.ID)
 	out := map[string]any{"account": accountJSON(acc)}
 	if r.URL.Query().Get("for") == "setup" {
@@ -543,6 +611,10 @@ var dummyHash = func() string {
 // cSignupsPerHour bounds account creation per address.
 const cSignupsPerHour = 5
 
+// cOAuthStartsPerMinute bounds Google/Apple sign-in starts per address: a
+// person starts one per attempt, a NAT or an office a few more.
+const cOAuthStartsPerMinute = 30
+
 // Login checks an email and password. POST /api/account/login.
 func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
@@ -654,7 +726,9 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return
 	}
-	a.signedIn(w, r, acc, http.StatusOK)
+	// No new cookie: saving a profile is no sign-in, and a fresh cookie
+	// would make any old session pass the recent-sign-in checks.
+	a.answerAccount(w, r, acc, http.StatusOK)
 }
 
 // AcceptTerms records that the signed-in account accepts the terms of use
@@ -713,14 +787,14 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return
 	}
-	if err := a.dao.SetAccountPassword(accountID, string(hash)); err != nil {
+	// One statement: never a new password with the old sessions still on.
+	epoch, err := a.dao.SetAccountPasswordEndingSessions(accountID, string(hash))
+	if err != nil {
+		log.Error("error setting a password:", err)
 		writeError(w, http.StatusInternalServerError, "could not save right now")
 		return
 	}
-	if _, err := a.dao.BumpAccountSessionEpoch(accountID); err != nil {
-		log.Error("error ending an account's other sessions:", err)
-	}
-	a.setSession(w, r, accountID)
+	a.setSessionAt(w, accountID, epoch)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -815,13 +889,21 @@ func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID 
 // SetupTokenInfo tells a wizard whose code it was handed. GET
 // /api/account/setup-token-info?token=. Public: the code is the secret.
 func (a *Accounts) SetupTokenInfo(w http.ResponseWriter, r *http.Request) {
-	id, ok := a.AccountForSetupToken(r.URL.Query().Get("token"))
+	id, ok, err := a.LookupSetupToken(r.URL.Query().Get("token"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not check that setup code right now")
+		return
+	}
 	if !ok {
 		writeError(w, http.StatusNotFound, "that setup code is not valid or has expired")
 		return
 	}
 	acc, err := a.dao.GetAccount(id)
-	if err != nil || acc == nil {
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not check that setup code right now")
+		return
+	}
+	if acc == nil {
 		writeError(w, http.StatusNotFound, "that setup code is not valid or has expired")
 		return
 	}
@@ -872,7 +954,17 @@ func validReturnURL(raw string) (string, bool) {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", false
 	}
-	host := strings.ToLower(u.Hostname())
+	// One trailing dot is the same name, fully qualified ("pit.otc."):
+	// classify what is left, or "evil.com." passes as an unknown TLD.
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	// net.ParseIP only takes canonical addresses, which a browser reads the
+	// same way: the address checked is the one it connects to.
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsPrivate() || ip.IsLoopback() {
+			return raw, true
+		}
+		return "", false
+	}
 	if host == "otc" || host == "otc.local" || strings.HasSuffix(host, ".local") ||
 		strings.HasSuffix(host, ".home.arpa") || strings.HasSuffix(host, ".internal") {
 		return raw, true
@@ -882,15 +974,41 @@ func validReturnURL(raw string) (string, bool) {
 	// answers for it, so no one else can be behind it - as safe as .local.
 	// A private suffix in the public list (github.io) has a dot, and an
 	// ICANN one is a real TLD: neither counts.
-	if suffix, icann := publicsuffix.PublicSuffix(host); !icann && !strings.Contains(suffix, ".") && net.ParseIP(host) == nil {
-		return raw, true
+	if !plainLocalName(host) {
+		return "", false
 	}
-	ip := net.ParseIP(host)
-	if ip != nil && (ip.IsPrivate() || ip.IsLoopback()) {
+	if suffix, icann := publicsuffix.PublicSuffix(host); !icann && !strings.Contains(suffix, ".") {
 		return raw, true
 	}
 
 	return "", false
+}
+
+// plainLocalName is whether host is a plain ASCII name a browser takes as
+// it is. Anything else may become a public host in the browser: Unicode
+// that IDNA maps to one ("evil。com" is evil.com), or a number it reads as
+// an IPv4 address ("1572395042", "0x7f.1", "010.0.0.5").
+func plainLocalName(host string) bool {
+	if host == "" || len(host) > 253 {
+		return false
+	}
+	labels := strings.Split(host, ".")
+	for _, l := range labels {
+		if l == "" {
+			return false
+		}
+		for i := 0; i < len(l); i++ {
+			c := l[i]
+			if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+				return false
+			}
+		}
+	}
+	last := labels[len(labels)-1]
+	if strings.HasPrefix(last, "0x") || strings.Trim(last, "0123456789") == "" {
+		return false
+	}
+	return true
 }
 
 // ReturnAllowed answers whether a provider sign-in may come back to the
@@ -934,16 +1052,25 @@ const (
 // SetMailer gives the account emails a way out (main, after [smtp]).
 func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
 
-// Verified is whether accountID proved its email.
 // HasAcceptedTerms: the account accepted the terms of use in force.
 func (a *Accounts) HasAcceptedTerms(accountID string) bool {
 	acc, err := a.dao.GetAccount(accountID)
 	return err == nil && TermsAccepted(acc)
 }
 
+// Verified is whether accountID proved its email; false on a database
+// error too (verified tells them apart).
 func (a *Accounts) Verified(accountID string) bool {
+	v, _ := a.verified(accountID)
+	return v
+}
+
+func (a *Accounts) verified(accountID string) (bool, error) {
 	acc, err := a.dao.GetAccount(accountID)
-	return err == nil && acc != nil && acc.EmailVerified
+	if err != nil {
+		return false, err
+	}
+	return acc != nil && acc.EmailVerified, nil
 }
 
 func hashEmailToken(t string) string {
@@ -958,6 +1085,14 @@ func (a *Accounts) emailLink(acc *dao.Account, purpose string, ttl time.Duration
 	if a.mailer == nil {
 		return mailer.ErrNotConfigured
 	}
+	return a.sendEmailLink(a.mailer.Send, acc, purpose, ttl, subject, body)
+}
+
+// sendEmailLink is emailLink with the sending passed in. The new link is
+// stored, sent, and only then replaces the older ones: when the send
+// fails, the link already in the inbox keeps working, and the throttle
+// doesn't answer the next "send it again" with an email that never left.
+func (a *Accounts) sendEmailLink(send func(to, subject, body string) error, acc *dao.Account, purpose string, ttl time.Duration, subject, body func(link string) string) error {
 	if last, err := a.dao.LastEmailTokenSent(acc.ID, purpose); err == nil && time.Since(last) < cEmailEvery {
 		return nil // one is on its way already
 	}
@@ -966,11 +1101,23 @@ func (a *Accounts) emailLink(acc *dao.Account, purpose string, ttl time.Duration
 		return err
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw)
-	if err := a.dao.SaveEmailToken(hashEmailToken(token), acc.ID, purpose, ttl); err != nil {
+	h := hashEmailToken(token)
+	created, err := a.dao.AddEmailToken(h, acc.ID, purpose, ttl)
+	if err != nil {
 		return err
 	}
 	link := fmt.Sprintf("https://%s/account#%s=%s", a.tld, purpose, token)
-	return a.mailer.Send(acc.Email, subject(link), body(link))
+	if err := send(acc.Email, subject(link), body(link)); err != nil {
+		if derr := a.dao.DropEmailToken(h); derr != nil {
+			log.Error("could not drop an unsent email link for", acc.ID, ":", derr)
+		}
+		return err
+	}
+	// Only logged: the email is out, and the older links expire anyway.
+	if err := a.dao.KeepNewestEmailToken(h, acc.ID, purpose, created); err != nil {
+		log.Error("could not retire the older email links for", acc.ID, ":", err)
+	}
+	return nil
 }
 
 func greeting(acc *dao.Account) string {
@@ -1100,15 +1247,16 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not reset it right now")
 		return
 	}
-	if err := a.dao.SetAccountPassword(id, string(hash)); err != nil {
+	// One statement: a reset (often for a stolen session) never leaves
+	// the old sessions on.
+	epoch, err := a.dao.SetAccountPasswordEndingSessions(id, string(hash))
+	if err != nil {
+		log.Error("error resetting a password:", err)
 		writeError(w, http.StatusInternalServerError, "could not reset it right now")
 		return
 	}
 	_ = a.dao.SetEmailVerified(id)
-	if _, err := a.dao.BumpAccountSessionEpoch(id); err != nil {
-		log.Error("error ending an account's other sessions:", err)
-	}
-	a.setSession(w, r, id)
+	a.setSessionAt(w, id, epoch)
 	log.Info("password reset for account", id)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

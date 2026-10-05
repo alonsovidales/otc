@@ -3,6 +3,8 @@
 package accounts
 
 import (
+	"database/sql/driver"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -88,6 +90,49 @@ func TestSetupTokenNeedsAVerifiedEmail(t *testing.T) {
 	if _, err := a.IssueSetupToken("acc1"); err != nil {
 		t.Fatalf("a verified account got no setup code: %v", err)
 	}
+	// The database failing is not "confirm your email first".
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(errDBDown)
+	if _, err := a.IssueSetupToken("acc1"); err == nil || err == ErrEmailNotVerified {
+		t.Fatalf("a database error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A wizard checking a setup code while the database fails hears "try
+// again", not that the code is not valid.
+func TestSetupTokenInfoOnADatabaseError(t *testing.T) {
+	info := func(a *Accounts) int {
+		w := httptest.NewRecorder()
+		a.SetupTokenInfo(w, httptest.NewRequest("GET", "/api/account/setup-token-info?token=ABCD-EFGH", nil))
+		return w.Code
+	}
+	tokenRow := func(mock sqlmock.Sqlmock) {
+		mock.ExpectQuery("select `account_id` from `account_tokens`").WithArgs("ABCDEFGH", cPurposeSetup, sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	}
+	a, mock := testAccounts(t)
+	mock.ExpectQuery("select `account_id` from `account_tokens`").WillReturnError(errDBDown)
+	if code := info(a); code != http.StatusInternalServerError {
+		t.Errorf("token lookup failing: %d", code)
+	}
+	tokenRow(mock)
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(errDBDown)
+	if code := info(a); code != http.StatusInternalServerError {
+		t.Errorf("account lookup failing: %d", code)
+	}
+	tokenRow(mock)
+	verifiedRow(mock, "acc1", false)
+	if code := info(a); code != http.StatusNotFound {
+		t.Errorf("an unverified account's code: %d", code)
+	}
+	tokenRow(mock)
+	verifiedRow(mock, "acc1", true)
+	verifiedRow(mock, "acc1", true)
+	if code := info(a); code != http.StatusOK {
+		t.Errorf("a good code: %d", code)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
 	}
@@ -158,11 +203,10 @@ func TestChangingThePasswordNeedsTheCurrentOne(t *testing.T) {
 		t.Fatalf("wrong current password: %d, want 401", w.Code)
 	}
 
+	// The password and the epoch move in one statement, which also hands
+	// back the new epoch (LAST_INSERT_ID).
 	accountRow(mock, string(hash))
-	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("update `accounts` set `session_epoch` = `session_epoch` \\+ 1").WillReturnResult(sqlmock.NewResult(0, 1))
-	epochRow(mock, 1) // read back by the bump
-	epochRow(mock, 1) // the new cookie for this session
+	mock.ExpectExec(cSetPasswordEndingSessions).WillReturnResult(sqlmock.NewResult(1, 1))
 	w = httptest.NewRecorder()
 	a.SetPassword(w, httptest.NewRequest("PUT", "/api/account/password", strings.NewReader(`{"password":"new-password","current":"old-password"}`)), "acc1")
 	if w.Code != http.StatusOK {
@@ -170,6 +214,54 @@ func TestChangingThePasswordNeedsTheCurrentOne(t *testing.T) {
 	}
 	if !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=acc1|1|") {
 		t.Errorf("this session didn't get a cookie for the new epoch: %q", w.Header().Get("Set-Cookie"))
+	}
+
+	// That write failing changed nothing: an honest 500, no cookie.
+	accountRow(mock, string(hash))
+	mock.ExpectExec(cSetPasswordEndingSessions).WillReturnError(errDBDown)
+	w = httptest.NewRecorder()
+	a.SetPassword(w, httptest.NewRequest("PUT", "/api/account/password", strings.NewReader(`{"password":"new-password","current":"old-password"}`)), "acc1")
+	if w.Code != http.StatusInternalServerError || w.Header().Get("Set-Cookie") != "" {
+		t.Errorf("a failed change: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+const cSetPasswordEndingSessions = "update `accounts` set `password_hash` = \\?, `session_epoch` = LAST_INSERT_ID\\(`session_epoch` \\+ 1\\)"
+
+// A reset sets the password, proves the email and ends every other
+// session; this browser's new cookie carries the new epoch. When the write
+// fails it says so, instead of an ok that leaves the old sessions alive.
+func TestResetEndsTheOtherSessions(t *testing.T) {
+	expectToken := func(mock sqlmock.Sqlmock) {
+		mock.ExpectBegin()
+		mock.ExpectQuery("from `account_email_tokens`").WithArgs(hashEmailToken("tok"), cPurposeReset, sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+		mock.ExpectExec("delete from `account_email_tokens`").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+	}
+	reset := func(a *Accounts) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		a.Reset(w, httptest.NewRequest("POST", "/api/account/reset", strings.NewReader(`{"token":"tok","password":"new-password"}`)))
+		return w
+	}
+
+	a, mock := testAccounts(t)
+	expectToken(mock)
+	mock.ExpectExec(cSetPasswordEndingSessions).WithArgs(sqlmock.AnyArg(), "acc1").WillReturnResult(sqlmock.NewResult(5, 1))
+	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	w := reset(a)
+	if w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=acc1|5|") {
+		t.Errorf("reset: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
+	}
+
+	expectToken(mock)
+	mock.ExpectExec(cSetPasswordEndingSessions).WillReturnError(errDBDown)
+	w = reset(a)
+	if w.Code != http.StatusInternalServerError || w.Header().Get("Set-Cookie") != "" {
+		t.Errorf("a failed reset: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -189,3 +281,112 @@ func TestFirstPasswordNeedsAFreshSignIn(t *testing.T) {
 		t.Fatalf("an hour-old sign-in set a first password: %d", w.Code)
 	}
 }
+
+// Saving the profile is no sign-in: it must not give an old session a new
+// cookie, which would pass the 15-minute check for a first password or for
+// deleting the account.
+func TestSavingTheProfileKeepsTheSessionAge(t *testing.T) {
+	a, mock := testAccounts(t)
+	accountRow(mock, "")
+	mock.ExpectExec("update `accounts` set `name` = \\?").WillReturnResult(sqlmock.NewResult(0, 1))
+	accountRow(mock, "")
+	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+	w := httptest.NewRecorder()
+	a.UpdateProfile(w, httptest.NewRequest("PUT", "/api/account/me", strings.NewReader(`{"name":"A","surname":"B","country":"ES"}`)), "acc1")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"account"`) {
+		t.Fatalf("profile saved: %d %s", w.Code, w.Body)
+	}
+	if c := w.Header().Get("Set-Cookie"); c != "" {
+		t.Errorf("saving the profile issued a session cookie: %q", c)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// The login limiter keeps entries only for addresses with recent
+// failures: a caller that never failed (or failed long ago) leaves none,
+// and a sweep keeps an address that is locked out right now.
+func TestLoginLimiterKeepsOnlyRecentFailures(t *testing.T) {
+	a, _ := testAccounts(t)
+	now := time.Now()
+	if !a.loginAllowed("198.51.100.1", now) || len(a.failures) != 0 {
+		t.Fatalf("an address with no failures left an entry: %v", a.failures)
+	}
+	a.failures["198.51.100.2"] = []time.Time{now.Add(-time.Hour), now.Add(-30 * time.Minute)}
+	if !a.loginAllowed("198.51.100.2", now) || len(a.failures) != 0 {
+		t.Fatalf("stale failures left an entry: %v", a.failures)
+	}
+
+	for i := 0; i < cLoginFailures; i++ {
+		a.loginFailed("198.51.100.3", now)
+	}
+	a.failures["198.51.100.4"] = []time.Time{now.Add(-2 * cLoginWindow)}
+	a.pruneFailuresLocked(now)
+	if _, ok := a.failures["198.51.100.4"]; ok {
+		t.Error("the sweep kept an address whose failures are all stale")
+	}
+	if a.loginAllowed("198.51.100.3", now) {
+		t.Error("the sweep lifted a lockout in force")
+	}
+
+	// Past the cap, stale entries go before anyone's lockout does.
+	for i := 0; i < 10000; i++ {
+		a.failures[fmt.Sprintf("stale-%d", i)] = []time.Time{now.Add(-time.Hour)}
+	}
+	a.loginFailed("198.51.100.5", now)
+	if a.loginAllowed("198.51.100.3", now) || len(a.failures) != 2 {
+		t.Errorf("the cap dropped a lockout in force (%d entries left)", len(a.failures))
+	}
+}
+
+// An email link replaces the older ones only once it has been sent: a
+// failed send leaves the link already in the inbox working, and drops its
+// own, so "send it again" right after really sends.
+func TestEmailLinkReplacesOnlyOnceSent(t *testing.T) {
+	acc := &dao.Account{ID: "acc1", Email: "a@b.c"}
+	subject := func(string) string { return "s" }
+	body := func(link string) string { return link }
+	noneSent := func(mock sqlmock.Sqlmock) {
+		mock.ExpectQuery("select max\\(`created`\\) from `account_email_tokens`").WithArgs("acc1", cPurposeVerify).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(nil))
+	}
+	var stored string
+	a, mock := testAccounts(t)
+
+	noneSent(mock)
+	mock.ExpectExec("insert into `account_email_tokens`").WithArgs(hashCapture{&stored}, "acc1", cPurposeVerify, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `account_email_tokens` where `token_hash` = \\?").WithArgs(storedArg{&stored}).WillReturnResult(sqlmock.NewResult(0, 1))
+	fail := func(to, subject, body string) error { return errDBDown }
+	if err := a.sendEmailLink(fail, acc, cPurposeVerify, cVerifyTTL, subject, body); err == nil {
+		t.Fatal("a failed send reported success")
+	}
+
+	noneSent(mock)
+	mock.ExpectExec("insert into `account_email_tokens`").WithArgs(hashCapture{&stored}, "acc1", cPurposeVerify, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("delete from `account_email_tokens` where `account_id` = \\? and `purpose` = \\? and `token_hash` <> \\? and `created` < \\?").
+		WithArgs("acc1", cPurposeVerify, storedArg{&stored}, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	var sentLink string
+	ok := func(to, subject, body string) error { sentLink = body; return nil }
+	if err := a.sendEmailLink(ok, acc, cPurposeVerify, cVerifyTTL, subject, body); err != nil {
+		t.Fatal(err)
+	}
+	if _, tok, _ := strings.Cut(sentLink, "#verify="); hashEmailToken(tok) != stored {
+		t.Errorf("the link sent (%q) is not the one stored", sentLink)
+	}
+
+	// One sent a minute ago: nothing new.
+	mock.ExpectQuery("select max\\(`created`\\) from `account_email_tokens`").
+		WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(time.Now().Add(-time.Minute)))
+	if err := a.sendEmailLink(fail, acc, cPurposeVerify, cVerifyTTL, subject, body); err != nil {
+		t.Fatal(err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// storedArg matches the value a hashCapture recorded earlier.
+type storedArg struct{ v *string }
+
+func (s storedArg) Match(v driver.Value) bool { return v == *s.v }
