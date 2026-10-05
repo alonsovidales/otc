@@ -1000,9 +1000,19 @@ final class SyncModel: ObservableObject {
             syncLog.info("two-way \(folder.remotePath, privacy: .public): listing answered in \(Date().timeIntervalSince(listingStart), format: .fixed(precision: 1))s")
             var remoteByRelative: [String: Msg_File] = [:]
             if case .respListOfFiles(let lof) = resp.payload {
+                var outside = 0
                 for file in lof.files {
-                    let relative = file.path.hasPrefix(remotePrefix) ? String(file.path.dropFirst(remotePrefix.count)) : file.path
+                    // The device keeps paths as clients sent them: one
+                    // like "<prefix>../../x" would be written outside the
+                    // folder here, so only paths inside it are taken.
+                    guard let relative = SyncPaths.safeRelative(file.path, under: remotePrefix) else {
+                        outside += 1
+                        continue
+                    }
                     remoteByRelative[relative] = file
+                }
+                if outside > 0 {
+                    syncLog.error("two-way \(folder.remotePath, privacy: .public): \(outside) device entries outside the folder ignored")
                 }
             }
 
@@ -1025,7 +1035,10 @@ final class SyncModel: ObservableObject {
             // comparison entirely: treating it as "not here" would fetch
             // (and overwrite) something that is here, just unreadable.
             loadSyncedIfNeeded(folder.id)
-            let lastSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
+            let storedSynced = lastSyncedByRemoteFolder[folder.id] ?? [:]
+            // A record written before paths were checked may hold one
+            // that leads outside the folder: it leaves with the next save.
+            let lastSynced = storedSynced.filter { SyncPaths.isSafeRelative($0.key) }
             var localHashes: [String: String] = [:]
             var unreadable: Set<String> = []
             // Only here, not on the device and never synced: an upload
@@ -1202,7 +1215,7 @@ final class SyncModel: ObservableObject {
                         for rest in actions[i...] {
                             if let prior = lastSynced[rest.relative] { newSynced[rest.relative] = prior } else { newSynced.removeValue(forKey: rest.relative) }
                         }
-                        if newSynced != lastSynced { saveSynced(folder.id, newSynced) }
+                        if newSynced != storedSynced { saveSynced(folder.id, newSynced) }
                         lastSyncedByRemoteFolder[folder.id] = newSynced
                         updateRemoteState(folder.id, .error("Device offline - will resume"))
                         saveHashCache(folder.id)
@@ -1211,6 +1224,13 @@ final class SyncModel: ObservableObject {
                     updateRemoteState(folder.id, .scanning(progress: Double(max(bytesDone, 0)) / Double(totalBytes), currentFile: "\(alreadyAgree + i + 1)/\(folderCount) · " + (action.relative as NSString).lastPathComponent))
                     defer { bytesDone += bytes(action.relative) }
                     let localURL = folder.localURL.appendingPathComponent(action.relative)
+                    // Second line behind safeRelative: nothing a pass does
+                    // lands outside the folder.
+                    guard localURL.standardizedFileURL.path.hasPrefix(localRoot + "/") else {
+                        syncLog.error("two-way \(folder.remotePath, privacy: .public): \(action.relative, privacy: .public) is outside the folder - skipped")
+                        if let prior = lastSynced[action.relative] { newSynced[action.relative] = prior } else { newSynced.removeValue(forKey: action.relative) }
+                        continue
+                    }
                     let remotePath = remotePrefix + action.relative
                     do {
                         switch action.kind {
@@ -1247,7 +1267,7 @@ final class SyncModel: ObservableObject {
                 }
             }
 
-            if newSynced != lastSynced { saveSynced(folder.id, newSynced) }
+            if newSynced != storedSynced { saveSynced(folder.id, newSynced) }
             lastSyncedByRemoteFolder[folder.id] = newSynced
             // The guard's note stays on the folder until the next pass, so
             // the owner learns the device had lost those files.
