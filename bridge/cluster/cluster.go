@@ -16,6 +16,7 @@ import (
 	"crypto/subtle"
 	"math/rand/v2"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -224,8 +225,8 @@ func (c *Cluster) Locate(domain string) (string, bool) {
 }
 
 // PublishDrop tells every node, this one included, to close its
-// connections to domains: released, deleted, or given a new identity.
-// A node on a release without SubscribeDrops ignores it.
+// connections to domains: released or deleted. A node on a release
+// without SubscribeDrops ignores it.
 func (c *Cluster) PublishDrop(domains ...string) error {
 	if c == nil || len(domains) == 0 {
 		return nil
@@ -240,18 +241,36 @@ func (c *Cluster) PublishDrop(domains ...string) error {
 	return err
 }
 
-// SubscribeDrops calls drop with every domain PublishDrop names, from any
-// node, for as long as the process runs. go-redis resubscribes after a
-// lost connection; what was published meanwhile is lost, which each
-// node's periodic check of its devices against the database makes up for.
-func (c *Cluster) SubscribeDrops(drop func(domain string)) {
+// PublishReplaced tells every node, this one included, to close its
+// connections to domain except owner's: domain was given owner as its new
+// identity, and owner's device may register on a node before the message
+// gets there. The message is "domain<TAB>owner" (a domain has no tab); a
+// node that took it for a bare domain would find no pool by that name and
+// close nothing, which its periodic check makes up for.
+func (c *Cluster) PublishReplaced(domain, owner string) error {
+	if c == nil {
+		return nil
+	}
+	ctx, cancel := c.ctx()
+	defer cancel()
+	return c.rdb.Publish(ctx, keyDrop, domain+"\t"+owner).Err()
+}
+
+// SubscribeDrops calls drop for every message PublishDrop and
+// PublishReplaced send, from any node, for as long as the process runs:
+// keep is the owner whose connections stay, "" for none. go-redis
+// resubscribes after a lost connection; what was published meanwhile is
+// lost, which each node's periodic check of its devices against the
+// database makes up for.
+func (c *Cluster) SubscribeDrops(drop func(domain, keep string)) {
 	if c == nil {
 		return
 	}
 	ps := c.rdb.Subscribe(context.Background(), keyDrop)
 	go func() {
 		for m := range ps.Channel() {
-			drop(m.Payload)
+			domain, keep, _ := strings.Cut(m.Payload, "\t")
+			drop(domain, keep)
 		}
 	}()
 }

@@ -82,13 +82,14 @@ func TestNilCluster(t *testing.T) {
 	}
 }
 
-// A drop published by one node reaches every node, itself included.
+// A drop published by one node reaches every node, itself included; a
+// replaced identity's says whose connections stay.
 func TestDropReachesEveryNode(t *testing.T) {
 	a, b, mr := twoNodes(t)
 	got := make(chan string, 4)
 	for _, c := range []*Cluster{a, b} {
 		node := c.Node()
-		c.SubscribeDrops(func(d string) { got <- node + " " + d })
+		c.SubscribeDrops(func(d, keep string) { got <- node + " " + d + " keep=" + keep })
 	}
 	for i := 0; mr.PubSubNumSub(keyDrop)[keyDrop] < 2; i++ {
 		if i == 100 {
@@ -96,26 +97,40 @@ func TestDropReachesEveryNode(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	expect := func(want ...string) {
+		t.Helper()
+		seen := map[string]bool{}
+		for len(seen) < len(want) {
+			select {
+			case m := <-got:
+				seen[m] = true
+			case <-time.After(2 * time.Second):
+				t.Fatalf("drops delivered: %v", seen)
+			}
+		}
+		for _, w := range want {
+			if !seen[w] {
+				t.Fatalf("drops delivered: %v, want %q", seen, w)
+			}
+		}
+	}
 	if err := a.PublishDrop("cala.off-the.cloud"); err != nil {
 		t.Fatal(err)
 	}
-	seen := map[string]bool{}
-	for len(seen) < 2 {
-		select {
-		case m := <-got:
-			seen[m] = true
-		case <-time.After(2 * time.Second):
-			t.Fatalf("drops delivered: %v", seen)
-		}
+	expect("bridge1 cala.off-the.cloud keep=", "bridge2 cala.off-the.cloud keep=")
+	if err := b.PublishReplaced("pit.off-the.cloud", "new-owner"); err != nil {
+		t.Fatal(err)
 	}
-	if !seen["bridge1 cala.off-the.cloud"] || !seen["bridge2 cala.off-the.cloud"] {
-		t.Fatalf("drops delivered: %v", seen)
-	}
+	expect("bridge1 pit.off-the.cloud keep=new-owner", "bridge2 pit.off-the.cloud keep=new-owner")
+
 	var none *Cluster
 	if err := none.PublishDrop("x"); err != nil {
 		t.Fatal(err)
 	}
-	none.SubscribeDrops(func(string) { t.Fatal("a nil cluster delivered a drop") })
+	if err := none.PublishReplaced("x", "o"); err != nil {
+		t.Fatal(err)
+	}
+	none.SubscribeDrops(func(string, string) { t.Fatal("a nil cluster delivered a drop") })
 }
 
 // When a device on both nodes goes away, both count down and find it

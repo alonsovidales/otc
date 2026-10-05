@@ -675,7 +675,13 @@ func (mg *Manager) SetCluster(c *cluster.Cluster) {
 	mg.dirty = make(chan string, 4096)
 	go mg.clusterSync()
 	// Outside clusterSync: closing relays must never hold up the claims.
-	c.SubscribeDrops(mg.dropPool)
+	c.SubscribeDrops(func(domain, keep string) {
+		if keep == "" {
+			mg.dropPool(domain)
+		} else {
+			mg.dropOtherOwners(domain, keep)
+		}
+	})
 }
 
 // markDirty asks clusterSync to bring domain's claim up to date. Never
@@ -1198,15 +1204,40 @@ func (mg *Manager) evictOtherOwners(domain string, pool *bridgePool, owner strin
 	if pool == nil {
 		return 0
 	}
-	if n := mg.dropRelays(domain, func(r *deviceRelay) bool { return r.owner != owner }); n > 0 {
-		log.Info("closed", n, "connections of a replaced identity for", domain)
-	}
+	mg.dropOtherOwners(domain, owner)
 	return pool.size()
 }
 
-// DropDomains is dropPool for each domain (an account's, when it is
-// deleted; one whose identity was replaced) - on every node of the
-// cluster, which holds connections from the same device too.
+// dropOtherOwners closes domain's relays registered by any owner but
+// owner: those of the identity owner replaced.
+func (mg *Manager) dropOtherOwners(domain, owner string) {
+	if n := mg.dropRelays(domain, func(r *deviceRelay) bool { return r.owner != owner }); n > 0 {
+		log.Info("closed", n, "connections of a replaced identity for", domain)
+	}
+}
+
+// DropReplacedIdentity closes domain's connections but those of newOwner,
+// the identity it was just given, on every node of the cluster: the old
+// device's are authenticated once, when they registered, and would go on
+// relaying. newOwner's are kept because its device registers as soon as
+// it is told, possibly before a node gets the message.
+func (mg *Manager) DropReplacedIdentity(domain, newOwner string) {
+	if mg == nil {
+		return
+	}
+	mg.dropOtherOwners(domain, newOwner)
+	if mg.cluster.Enabled() {
+		go func() {
+			if err := mg.cluster.PublishReplaced(domain, newOwner); err != nil {
+				log.Error("cluster: could not tell the other nodes to drop the replaced identity of", domain, ":", err)
+			}
+		}()
+	}
+}
+
+// DropDomains is dropPool for each domain (released, or an account's,
+// when it is deleted) - on every node of the cluster, which holds
+// connections from the same device too.
 func (mg *Manager) DropDomains(domains []string) {
 	if mg == nil {
 		return
