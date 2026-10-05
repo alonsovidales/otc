@@ -1331,9 +1331,18 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 				return nil, false, err
 			}
 		case forceOverride:
-			mg.DelFile(session, path)
-			if _, err = mg.dao.StoreNewFile(file, cloudID); err != nil {
+			// In place, not a delete and a new row: the path's kept
+			// versions stay (see dao.OverrideFile).
+			oldHash, err := mg.dao.OverrideFile(file, cloudID)
+			if err != nil {
 				return nil, false, err
+			}
+			if oldHash != "" && oldHash != hash {
+				// The new row is committed: the old content is only
+				// cleaned up.
+				if err := mg.removeBlobIfUnused(oldHash); err != nil {
+					log.Error("could not remove overridden content", oldHash, ":", err)
+				}
 			}
 		default:
 			return nil, false, errors.New("Duplicated file")
@@ -1852,13 +1861,20 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		if !forceOverride {
 			return nil, errors.New("Duplicated file")
 		}
-		// Not under the lock: DelFile takes the locks of the hashes it
-		// may remove, and one of them could share this hash's stripe.
-		if err := mg.DelFile(session, path); err != nil {
+		// In place, keeping the path's versions, as UploadFile's override.
+		var oldHash string
+		if err := mg.withBlob(hash, func() (err error) {
+			oldHash, err = mg.dao.OverrideFile(file, cloudID)
+			return err
+		}); err != nil {
 			return nil, err
 		}
-		if err := mg.withBlob(hash, func() error { _, err := mg.dao.StoreNewFile(file, cloudID); return err }); err != nil {
-			return nil, err
+		// Not under the lock: removeBlobIfUnused takes the old hash's,
+		// which could share this hash's stripe.
+		if oldHash != "" && oldHash != hash {
+			if err := mg.removeBlobIfUnused(oldHash); err != nil {
+				log.Error("could not remove overridden content", oldHash, ":", err)
+			}
 		}
 	}
 

@@ -9,9 +9,11 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/go-sql-driver/mysql"
 )
 
 // A connection's unfinished uploads go when it closes - their temp files
@@ -102,5 +104,49 @@ func TestUploadOfProcessedContentIsNotProcessedAgain(t *testing.T) {
 		os.Remove(blobPath(hash))
 		os.Remove(blobPath(hash) + "_thumbnail")
 		db.Close()
+	}
+}
+
+// Overriding a file (the desktop app always uploads with override) in a
+// folder that is no longer upload only keeps the versions it had - it
+// used to delete them all, and their content.
+func TestOverrideKeepsThePathsVersions(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	newHash, oldHash := strings.Repeat("1", 64), strings.Repeat("2", 64)
+	if err := os.WriteFile(blobPath(newHash), []byte("content"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(blobPath(newHash))
+	cols := []string{"hash", "mime", "created", "modified", "path", "size"}
+	now := time.Now()
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db)}
+	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = \\?").WithArgs(newHash).
+		WillReturnRows(sqlmock.NewRows(cols).AddRow(newHash, "text/plain", now, now, "/other/a.txt", 7))
+	mock.ExpectExec("insert into `files`").WillReturnError(&mysql.MySQLError{Number: 1062})
+	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = \\?").WithArgs("/backup/a.txt").
+		WillReturnRows(sqlmock.NewRows(cols).AddRow(oldHash, "text/plain", now, now, "/backup/a.txt", 5))
+	mock.ExpectQuery("select `path` from `upload_only_folders`").WillReturnRows(sqlmock.NewRows([]string{"path"}))
+	mock.ExpectBegin()
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").
+		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(oldHash))
+	mock.ExpectQuery("select count\\(\\*\\) from `files` where `hash` = \\? for update").
+		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	mock.ExpectQuery("select count\\(\\*\\) from `file_versions` where `hash` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1)) // an old version of this path
+	mock.ExpectExec("update `files` set").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	// The replaced content is still a version's: its blob stays.
+	mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
+		WithArgs(oldHash, oldHash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+
+	f, err := mg.LinkFile(ses, "/backup/a.txt", newHash, true, nil, nil, "")
+	if err != nil || f.Hash != newHash {
+		t.Fatalf("LinkFile = %+v, %v", f, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err) // a delete from file_versions would show up here
 	}
 }
