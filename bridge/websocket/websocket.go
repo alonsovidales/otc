@@ -998,6 +998,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	defer wg.Wait()
 
 	inFlight := make(chan struct{}, cMaxInFlight)
+	// conn is closed on every way out of here except a registered device's,
+	// whose relay owns it from then on: a refused registration, a read
+	// error or an undecodable first frame used to leave the socket open
+	// with nothing reading it (CLOSE_WAIT until a GC finalizer). Deferred
+	// after wg.Wait so it runs first: closing unblocks a relay goroutine
+	// stuck writing to a client that stopped reading.
+	handedOff := false
+	defer func() {
+		if !handedOff {
+			conn.Close()
+		}
+	}()
 
 	for {
 		// Small until the client is paired with a device (its first
@@ -1197,6 +1209,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// can evict that exact entry from the pool.
 					var relay *deviceRelay
 					relay = newDeviceRelay(conn, func() { mg.onDeviceConnectionDied(domain, relay) })
+					handedOff = true
 
 					// Re-check under the write lock (rather than trusting
 					// the ok/pool snapshot read above) so two connections
@@ -1235,7 +1248,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					log.Error("error responding, closing the connection:", err)
 					conn.Close()
 				}
-				// After the connection is created, we leave it open and return
+				// Only a successful registration leaves conn open (handedOff,
+				// to its relay); a refused one is closed on the way out.
 				return
 
 			case *pb.ReqEnvelope_ReqRotateBridgeSecret:
@@ -1513,7 +1527,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				return
 
 			default:
-				defer conn.Close()
+				// conn is closed by handedOff's defer: one deferred here
+				// piled up per message from a client retrying an offline
+				// device on the same socket.
 				// Issue #93: a disabled additional user (issue #90) has its
 				// own process actually stopped, so its pool would just look
 				// like any other offline device below - checked first so a

@@ -89,3 +89,47 @@ func TestRegistrationDBErrorIsNotAnInvalidSecret(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// A refused registration, and a first frame that isn't a protobuf, close
+// the socket: nothing reads it afterwards, and it used to sit open.
+func TestRefusedRegistrationAndBadFirstFrameCloseTheSocket(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `owner_uuid`, `secret` from `devices` where `domain` = \\?").
+		WillReturnRows(sqlmock.NewRows([]string{"owner_uuid", "secret"}).AddRow("someone-else", "other"))
+	mock.ExpectExec("insert into `auth_events`").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mg := &Manager{dao: dao.NewWithDB(db), bridges: map[string]*bridgePool{}}
+	dial, _ := newTestBridge(t, mg)
+
+	c := dial()
+	if err := c.WriteMessage(gorilla.BinaryMessage, registerFrame(t, "pit.otc", "owner-uuid", "secret")); err != nil {
+		t.Fatal(err)
+	}
+	if resp := readResp(t, c); resp.ErrorMessage != "Invalid Secret" {
+		t.Fatalf("got %q, want Invalid Secret", resp.ErrorMessage)
+	}
+	expectClosed(t, c)
+
+	c = dial()
+	if err := c.WriteMessage(gorilla.BinaryMessage, []byte{0xff, 0xff, 0xff}); err != nil {
+		t.Fatal(err)
+	}
+	expectClosed(t, c)
+}
+
+func expectClosed(t *testing.T, c *gorilla.Conn) {
+	t.Helper()
+	c.SetReadDeadline(time.Now().Add(3 * time.Second))
+	_, _, err := c.ReadMessage()
+	if err == nil {
+		t.Fatal("got a message, want the socket closed")
+	}
+	var ne interface{ Timeout() bool }
+	if errors.As(err, &ne) && ne.Timeout() {
+		t.Fatal("the socket was left open")
+	}
+}
