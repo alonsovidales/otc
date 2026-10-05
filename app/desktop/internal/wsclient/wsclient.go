@@ -231,10 +231,14 @@ func (c *Client) dial(gen int64) {
 		c.signedIn = false
 		c.failAllLocked(err)
 		c.mu.Unlock()
-		_ = conn.Close()
+		// Reported before the close: that wakes the read loop, whose
+		// "use of closed network connection" would otherwise reach
+		// OnDisconnect first - connectOnce takes the first answer, and a
+		// wrong password showed as a socket error.
 		if c.OnAuthFailed != nil {
 			c.OnAuthFailed(err.Error(), ae.RetryAfter)
 		}
+		_ = conn.Close()
 		if c.OnDisconnect != nil {
 			c.OnDisconnect(err)
 		}

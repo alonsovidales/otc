@@ -246,3 +246,64 @@ func TestStaleDialFailureIsIgnored(t *testing.T) {
 		t.Fatalf("stale failure reported %d time(s), connected %v", n, c.IsConnected())
 	}
 }
+
+// A rejected password is the first thing reported: closing the socket
+// wakes the read loop, whose read error used to reach OnDisconnect first
+// at times - and connectOnce (otc-sync ls, the remote folder picker) takes
+// the first answer, so a wrong password showed as a socket error.
+func TestAuthFailureIsReportedFirst(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubDER, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	up := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		for {
+			_, data, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			req := &pb.ReqEnvelope{}
+			if proto.Unmarshal(data, req) != nil {
+				return
+			}
+			resp := &pb.RespEnvelope{Id: req.Id, Payload: &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: false, ErrorMsg: "wrong password"}}}
+			if _, ok := req.Payload.(*pb.ReqEnvelope_ReqGetPubKey); ok {
+				resp.Payload = &pb.RespEnvelope_RespPubKey{RespPubKey: &pb.PubKey{PublicKey: pubDER}}
+			}
+			b, _ := proto.Marshal(resp)
+			if c.WriteMessage(websocket.BinaryMessage, b) != nil {
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	for i := 0; i < 20; i++ {
+		c := New()
+		c.Configure("ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", "test", "secret")
+		first := make(chan string, 4)
+		c.OnAuthFailed = func(msg string, _ int) { first <- "auth: " + msg }
+		c.OnDisconnect = func(err error) {
+			if err != nil {
+				first <- "disconnect: " + err.Error()
+			}
+		}
+		c.Connect()
+		select {
+		case got := <-first:
+			if got != "auth: wrong password" {
+				t.Fatalf("attempt %d: first report %q, want the rejected password", i, got)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("no report")
+		}
+		c.Disconnect()
+	}
+}
