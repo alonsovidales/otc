@@ -371,6 +371,114 @@ func TestDidSendFriendshipReqAcceptsWhenFriendshipRecordExists(t *testing.T) {
 	}
 }
 
+// The friendship secret is what AuthAsFriend accepts: the list a client
+// reads must not carry it.
+func TestFriendshipsListLeavesOutTheSecret(t *testing.T) {
+	ses := newTestAuthenticatedSession(t)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("from `social_friendship`").WillReturnRows(
+		sqlmock.NewRows([]string{"status", "name", "image", "text", "sent", "domain", "secret", "latest_sync", "notifications_started", "leaving"}).
+			AddRow("accepted", "Ana", []byte{}, "", false, "ana.otc", "s3cret", nil, false, false))
+
+	ch := &connHandler{mg: &Manager{social: social.Init(dao.NewWithDB(db), nil, nil, nil, nil)}}
+	ch.setSession(ses)
+	resp, _ := ch.processAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqFriendshipsList{ReqFriendshipsList: &pb.FriendshipsList{}},
+	})
+	list, ok := resp.Payload.(*pb.RespEnvelope_RespFriendships)
+	if !ok {
+		t.Fatalf("expected a RespFriendships payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
+	}
+	if len(list.RespFriendships.Friendships) != 1 {
+		t.Fatalf("expected 1 friendship, got %d", len(list.RespFriendships.Friendships))
+	}
+	f := list.RespFriendships.Friendships[0]
+	if f.Secret != "" {
+		t.Error("expected the secret to be blanked")
+	}
+	if f.OriginProfile.GetDomain() != "ana.otc" {
+		t.Errorf("expected the rest of the row to be kept, got domain %q", f.OriginProfile.GetDomain())
+	}
+}
+
+// A new password that is too short comes back as an Ack every client shows,
+// not a bare error ("Unexpected response").
+func TestChangeKeyAcksAShortNewPassword(t *testing.T) {
+	ses := newTestAuthenticatedSession(t)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa.GenerateKey: %v", err)
+	}
+	ch := &connHandler{mg: &Manager{}, privKey: priv}
+	ch.setSession(ses)
+	enc := func(s string) []byte {
+		c, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &priv.PublicKey, []byte(s), nil)
+		if err != nil {
+			t.Fatalf("EncryptOAEP: %v", err)
+		}
+		return c
+	}
+	resp, _ := ch.processAuthRequest(&pb.ReqEnvelope{
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqChangeKey{ReqChangeKey: &pb.ChangeKey{OldKey: enc("test-password"), NewKey: enc("short")}},
+	})
+	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+	if !ok {
+		t.Fatalf("expected a RespAck payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
+	}
+	if ack.RespAck.Ok || ack.RespAck.Code != "password_too_short" || ack.RespAck.ErrorMsg == "" {
+		t.Errorf("expected Ok=false, Code=password_too_short and a message, got %+v", ack.RespAck)
+	}
+}
+
+// A first password that is too short, on a brand-new vault, is answered
+// with the reason and is not a failed guess: repeating it never locks the
+// address out.
+func TestAuthAcksAShortFirstPasswordWithoutCountingIt(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa.GenerateKey: %v", err)
+	}
+	const addr = "198.51.100.7"
+	t.Cleanup(func() { session.Attempts.Reset(addr) })
+	ch := &connHandler{mg: &Manager{dao: dao.NewWithDB(db)}, privKey: priv, remoteAddr: addr}
+
+	for i := 0; i < session.MaxAuthAttempts; i++ {
+		mock.ExpectQuery("select count\\(\\*\\) from `vault`").WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
+		key, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &priv.PublicKey, []byte("short"), nil)
+		if err != nil {
+			t.Fatalf("EncryptOAEP: %v", err)
+		}
+		resp, _ := ch.processNonAuthRequest(&pb.ReqEnvelope{
+			Id:      int32(i + 1),
+			Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Key: key, Create: true}},
+		})
+		ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
+		if !ok {
+			t.Fatalf("expected a RespAck payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
+		}
+		if ack.RespAck.Ok || ack.RespAck.Code != "password_too_short" {
+			t.Fatalf("attempt %d: expected Ok=false, Code=password_too_short, got %+v", i+1, ack.RespAck)
+		}
+	}
+	if _, blocked := session.Attempts.Blocked(addr); blocked {
+		t.Error("a too-short first password must not count toward the lockout")
+	}
+	if ch.getSession() != nil {
+		t.Error("expected no session")
+	}
+}
+
 // newTestAuthenticatedSession builds a real *session.Session the same way
 // a successful ReqAuth would (vault creation, Argon2id, the lot) via a
 // mocked "brand new device" vault, so issue #101's token handlers below

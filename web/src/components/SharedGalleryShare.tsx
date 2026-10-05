@@ -20,6 +20,11 @@ const defaultDescription = () => {
   return `Shared Media ${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+// A poll that fails (the socket dropped, the device or bridge is
+// reconnecting) is retried with a growing delay, about two minutes in all,
+// before the dialog gives up on the copy.
+const MAX_POLL_FAILS = 12;
+
 const EXPIRY = [
   { hours: 24, label: "1 day" },
   { hours: 168, label: "7 days" },
@@ -40,9 +45,15 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
 
   useEffect(() => {
     (async () => {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqPreviewSharedGallery", reqPreviewSharedGallery: { source: src } };
-      });
+      let resp: RespEnvelope;
+      try {
+        resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+          (e as any).payload = { $case: "reqPreviewSharedGallery", reqPreviewSharedGallery: { source: src } };
+        });
+      } catch {
+        if (alive.current) setError("Could not look at what to share.");
+        return;
+      }
       if (!alive.current) return;
       if (resp.payload?.$case === "respSharedGalleryPreview") setPreview(resp.payload.respSharedGalleryPreview);
       else setError(resp.errorMessage || "Could not look at what to share.");
@@ -52,28 +63,52 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
 
   const start = async () => {
     setError(null);
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqCreateSharedGallery", reqCreateSharedGallery: { source: src, description: description.trim() || defaultDescription(), ttlHours: ttl, lowRes } };
-    });
+    let resp: RespEnvelope;
+    try {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqCreateSharedGallery", reqCreateSharedGallery: { source: src, description: description.trim() || defaultDescription(), ttlHours: ttl, lowRes } };
+      });
+    } catch {
+      // Not retried: the device may have started the copy before the
+      // socket dropped, and a second one would take the space again.
+      if (alive.current) setError("Could not start sharing.");
+      return;
+    }
     if (resp.payload?.$case !== "respSharedGalleryJob") {
       setError(resp.errorMessage || "Could not start sharing.");
       return;
     }
     let j = resp.payload.respSharedGalleryJob;
     setJob(j);
+    // A poll that throws used to end here, leaving the dialog on
+    // "Copying" with no way to close it while the device finished the
+    // copy - and the link, shown only this once, was lost. The device
+    // keeps a finished job for an hour, so the same job is asked again.
+    let fails = 0;
     while (alive.current && !j.finished) {
-      await new Promise(r => setTimeout(r, 700));
-      const r: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqGetSharedGalleryJob", reqGetSharedGalleryJob: { jobId: j.jobId } };
-      });
+      await new Promise(r => setTimeout(r, fails ? Math.min(1000 * 2 ** (fails - 1), 10000) : 700));
+      if (!alive.current) return;
+      let r: RespEnvelope;
+      try {
+        r = await useWS.request((e: Partial<ReqEnvelope>) => {
+          (e as any).payload = { $case: "reqGetSharedGalleryJob", reqGetSharedGalleryJob: { jobId: j.jobId } };
+        });
+      } catch {
+        if (++fails >= MAX_POLL_FAILS) {
+          if (alive.current) setError("Lost track of the copy.");
+          return;
+        }
+        continue;
+      }
+      fails = 0;
       if (r.payload?.$case !== "respSharedGalleryJob") {
-        setError(r.errorMessage || "Lost track of the copy.");
+        if (alive.current) setError(r.errorMessage || "Lost track of the copy.");
         return;
       }
       j = r.payload.respSharedGalleryJob;
       if (alive.current) setJob(j);
     }
-    if (j.error) setError(j.error);
+    if (alive.current && j.error) setError(j.error);
   };
 
   const copy = async () => {

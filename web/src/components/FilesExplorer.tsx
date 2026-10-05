@@ -63,9 +63,9 @@ const INLINE_MIME = /^(application\/pdf|text\/plain|text\/csv|text\/markdown|app
 function canOpenInline(name: string) { return INLINE_EXT.test(name); }
 function safeToOpen(mime: string) { return INLINE_MIME.test(mime || ""); }
 
-function downloadBytes(bytes: Uint8Array, name: string) {
+function downloadBytes(parts: Uint8Array[], name: string) {
   // octet-stream: saved, never rendered, whatever the file is.
-  const url = bytesToURL(bytes, "application/octet-stream");
+  const url = blobURL(parts, "application/octet-stream");
   const a = document.createElement("a");
   a.href = url;
   a.download = name;
@@ -74,8 +74,73 @@ function downloadBytes(bytes: Uint8Array, name: string) {
 }
 
 function bytesToURL(bytes: Uint8Array, mime = "application/octet-stream") {
-  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+  return blobURL([bytes], mime);
 }
+
+function blobURL(parts: Uint8Array[], type: string) {
+  return URL.createObjectURL(new Blob(parts as BlobPart[], { type }));
+}
+
+// Points a tab opened for the click at the file. The tab keeps using the
+// URL after it loads (a reload, the PDF viewer's own Save), so it is
+// released once the tab is closed rather than after a set time.
+function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
+  const url = blobURL(parts, mime);
+  tab.location.href = url;
+  const t = window.setInterval(() => {
+    if (tab.closed) { URL.revokeObjectURL(url); window.clearInterval(t); }
+  }, 5000);
+}
+
+// A file in pieces of at most 4 MB (ReadFile), as the sync clients read
+// it. GetFile answers with the whole file in one message: the device holds
+// about three times the file in memory while every other download waits
+// behind it, and past the bridge's message limit the download just fails.
+// Its original bytes and mime, or null if the device stopped answering.
+//
+// Each piece looks the path up again, so a file replaced while it is read
+// (a sync client overriding it, a new version in an upload-only folder)
+// would join the old content's start to the new one's end. A piece of
+// other content starts the read over once, for the new content, as the
+// whole-file GetFile always gave one version.
+const cReadChunk = 4 << 20;
+const cChanged = Symbol("changed");
+async function readAll(path: string, hash = ""): Promise<{ parts: Uint8Array[]; mime: string } | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const got = await readOnce(path, hash);
+    if (got !== cChanged) return got;
+  }
+  return null;
+}
+async function readOnce(path: string, hash: string): Promise<{ parts: Uint8Array[]; mime: string } | null | typeof cChanged> {
+  const parts: Uint8Array[] = [];
+  let mime = "";
+  let content = "";
+  let offset = 0;
+  let total = -1;
+  while (total < 0 || offset < total) {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = { $case: "reqReadFile", reqReadFile: { path, hash, offset: BigInt(offset), length: cReadChunk } };
+    });
+    if (resp.payload?.$case !== "respFileChunk") return null;
+    const chunk = resp.payload.respFileChunk;
+    if (total < 0) {
+      mime = chunk.mime;
+      content = chunk.hash;
+    } else if (chunk.hash !== content || Number(chunk.size) !== total) {
+      return cChanged;
+    }
+    total = Number(chunk.size);
+    if (chunk.data.length === 0 && offset < total) return null;
+    parts.push(chunk.data);
+    offset += chunk.data.length;
+  }
+  return { parts, mime };
+}
+
+// What the device converts for display (HEIC to JPEG, see GetFile's
+// isHeicFile) still comes through GetFile, converted, as it always has.
+const isHeicName = (name: string) => /\.heic$/i.test(name);
 
 function joinPath(base: string, leaf: string) {
   const b = base.endsWith("/") ? base.slice(0, -1) : base;
@@ -114,7 +179,7 @@ export default function FilesExplorer({
 
   // Issue #132: the versions pop-up - which file it is for and the older
   // versions the device listed (newest first), or null when closed.
-  const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; versions: PbFile[] } | null>(null);
+  const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; mime: string; versions: PbFile[] } | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(false);
 
   // Image viewer
@@ -212,13 +277,19 @@ export default function FilesExplorer({
       const f = files[i];
       setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "sending" } : u)));
       try {
-        // As with the whole-file ReqUploadFile this replaced, any reply
-        // counts as "done", even an error one (such as "Duplicated file"
-        // for a name already in a normal folder); only an upload that
-        // throws (the socket closed, or the device stopped taking pieces)
-        // shows "failed". Reporting error replies as failed is a separate,
-        // visible change left for its own release.
-        await uploadFile(joinPath(path, f.name), f, false);
+        // The device refuses with a reply, not a dropped request: a file
+        // edited and dropped onto its own name ("Duplicated file"), or a
+        // failed disk write. The listing still shows the old file by that
+        // name, so a "Done" here would say the new content was kept. An
+        // upload that throws (the socket closed, or the device stopped
+        // taking pieces) lands in the catch below.
+        const resp: RespEnvelope = await uploadFile(joinPath(path, f.name), f, false);
+        if (resp.error || resp.payload?.$case !== "respFile") {
+          failed++;
+          setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "failed" } : u)));
+          console.error("Upload failed for", f.name, resp.errorMessage);
+          continue;
+        }
 
         setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "done" } : u)));
       } catch (err) {
@@ -270,8 +341,8 @@ export default function FilesExplorer({
     setOpeningPath(f.path);
 
     // Issue #72: open a blank tab synchronously, in the same tick as the
-    // click, for a non-image - a tab opened later, after the GetFile
-    // await below resolves, reads to the browser as unrelated to the
+    // click, for a non-image - a tab opened later, after the fetch
+    // below resolves, reads to the browser as unrelated to the
     // click that "caused" it, and gets popup-blocked. Filling in its
     // location once the content's actually in hand still shows the
     // browser's native viewer for anything it can render (PDFs chief among
@@ -279,9 +350,28 @@ export default function FilesExplorer({
     // unconditionally, for every non-image type.
     const opensInline = !isImg(f) && canOpenInline(leafName(f.path));
     const preopenedTab = opensInline ? window.open("", "_blank") : null;
+    // No handle back into the app for whatever the file links to (a link
+    // in a PDF could otherwise point this tab at a fake sign-in page).
+    // Not "noopener": that returns null, and the tab is still needed here.
+    if (preopenedTab) preopenedTab.opener = null;
 
     try {
       const fullPath = f.path.includes("/") ? f.path : joinPath(path, f.path);
+      if (!isImg(f) && !isHeicName(f.path)) {
+        const got = await readAll(fullPath);
+        if (!got) {
+          preopenedTab?.close();
+          return;
+        }
+        // The device's own reading of the content decides, as below.
+        if (preopenedTab && safeToOpen(got.mime)) {
+          showInTab(preopenedTab, got.parts, got.mime);
+        } else {
+          preopenedTab?.close();
+          downloadBytes(got.parts, leafName(f.path));
+        }
+        return;
+      }
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: fullPath } };
       });
@@ -296,11 +386,11 @@ export default function FilesExplorer({
       if (isImg(f) && safeToOpen(mime)) {
         setViewer({ name: leafName(f.path), url: bytesToURL(bytes, mime) });
       } else if (preopenedTab && safeToOpen(mime)) {
-        preopenedTab.location.href = bytesToURL(bytes, mime);
+        showInTab(preopenedTab, [bytes], mime);
       } else {
         // Anything else - and a blocked popup - is downloaded.
         preopenedTab?.close();
-        downloadBytes(bytes, leafName(f.path));
+        downloadBytes([bytes], leafName(f.path));
       }
     } catch {
       preopenedTab?.close();
@@ -362,13 +452,13 @@ export default function FilesExplorer({
   const openVersions = async (f: PbFile) => {
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
     setVersionsLoading(true);
-    setVersionsOf({ path: full, name: leafName(full), versions: [] });
+    setVersionsOf({ path: full, name: leafName(full), mime: f.mime, versions: [] });
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqListFileVersions", reqListFileVersions: { path: full } };
       });
       if (resp.payload?.$case === "respFileVersions") {
-        setVersionsOf({ path: full, name: leafName(full), versions: resp.payload.respFileVersions.versions });
+        setVersionsOf({ path: full, name: leafName(full), mime: f.mime, versions: resp.payload.respFileVersions.versions });
       }
     } finally {
       setVersionsLoading(false);
@@ -376,12 +466,19 @@ export default function FilesExplorer({
   };
 
   // A version downloads by its hash; the current one is the row itself.
-  const downloadVersion = async (full: string, hash: string, name: string) => {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: full, hash } };
-    });
-    if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) return;
-    const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+  const downloadVersion = async (full: string, hash: string, name: string, mime: string) => {
+    let url: string;
+    if (isHeicName(name) || mime.toLowerCase() === "image/heic") {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: full, hash } };
+      });
+      if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) return;
+      url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+    } else {
+      const got = await readAll(full, hash);
+      if (!got) return;
+      url = blobURL(got.parts, got.mime);
+    }
     const a = document.createElement("a");
     a.href = url;
     a.download = name;
@@ -431,6 +528,18 @@ export default function FilesExplorer({
   const uploadsPct = uploads.length ? Math.round((uploadsDone / uploads.length) * 100) : 0;
 
   // ---- rows prepared for display ----
+  const rows = useMemo(() => listing.map((f) => ({
+    k: rowKey(f),
+    name: f.path === ".." ? ".." : leafName(f.path),
+    isDir: isDir(f),
+    size: f.size,
+    created: f.created,
+    modified: f.modified,
+    uploadOnly: !!f.uploadOnly,
+    versions: f.versions ?? 0,
+    file: f,
+  })), [listing]);
+
   // -------- grid view ----------
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
   const switchView = (m: ViewMode) => {
@@ -445,18 +554,26 @@ export default function FilesExplorer({
   const thumbsAsked = useRef<Set<string>>(new Set());
   useEffect(() => () => { Object.values(thumbsRef.current).forEach(u => u && URL.revokeObjectURL(u)); }, []);
   const fullPathOf = useCallback((f: PbFile) => (f.path.includes("/") ? f.path : joinPath(path, f.path)), [path]);
-  useEffect(() => {
-    if (viewMode !== "grid") return;
-    const want = listing.filter(f => !isDir(f) && isMedia(f)).map(fullPathOf).filter(p => !thumbsAsked.current.has(p));
-    if (!want.length) return;
-    want.forEach(p => thumbsAsked.current.add(p));
-    let alive = true;
-    (async () => {
-      for (let i = 0; i < want.length && alive; i += cThumbBatch) {
-        const batch = want.slice(i, i + cThumbBatch);
+
+  // Only tiles on or near the screen ask for theirs, as the iOS app does:
+  // a phone's whole library syncs into one folder, and asking for every
+  // photo in it up front sent hundreds of requests and held every result.
+  // One queue, one batch in flight at a time. What is still queued when
+  // the listing changes (Refresh, an upload, another folder) is forgotten,
+  // so the tiles of the next listing ask for it again rather than keep
+  // their type icon until a reload.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const thumbQueue = useRef<string[]>([]);
+  const pumping = useRef(false);
+  const pumpThumbs = useCallback(async () => {
+    if (pumping.current) return;
+    pumping.current = true;
+    try {
+      while (thumbQueue.current.length) {
+        const batch = thumbQueue.current.splice(0, cThumbBatch);
         try {
           const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-            (e as any).payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch } };
+            e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch } };
           });
           const got: Record<string, string> = {};
           if (resp.payload?.$case === "respListOfFiles") {
@@ -471,9 +588,42 @@ export default function FilesExplorer({
           batch.forEach(p => thumbsAsked.current.delete(p)); // tried again on the next visit
         }
       }
-    })();
-    return () => { alive = false; };
-  }, [viewMode, listing, fullPathOf]);
+    } finally {
+      pumping.current = false;
+    }
+  }, []);
+  const wantThumbs = useCallback((paths: string[]) => {
+    for (const p of paths) {
+      if (thumbsAsked.current.has(p)) continue;
+      thumbsAsked.current.add(p);
+      thumbQueue.current.push(p);
+    }
+    void pumpThumbs();
+  }, [pumpThumbs]);
+  useEffect(() => {
+    if (viewMode !== "grid" || loading || !gridRef.current) return;
+    const asked = thumbsAsked.current;
+    // The viewport as the root, 1000px ahead: an ancestor that scrolls
+    // still clips, whichever element it is.
+    const obs = new IntersectionObserver((entries) => {
+      const paths: string[] = [];
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        const el = en.target as HTMLElement;
+        obs.unobserve(el);
+        if (el.dataset.thumb) paths.push(el.dataset.thumb);
+      }
+      if (paths.length) wantThumbs(paths);
+    }, { rootMargin: "1000px 0px" });
+    gridRef.current.querySelectorAll<HTMLElement>("[data-thumb]").forEach(el => {
+      if (!asked.has(el.dataset.thumb!)) obs.observe(el);
+    });
+    return () => {
+      obs.disconnect();
+      thumbQueue.current.forEach(p => asked.delete(p));
+      thumbQueue.current = [];
+    };
+  }, [viewMode, loading, rows, wantThumbs]);
 
   // Photos and videos open in the Images section's own viewer
   // (MediaViewer), paging through this folder's photos and videos.
@@ -487,18 +637,19 @@ export default function FilesExplorer({
     const index = Math.max(0, media.findIndex(x => x.path === f.path));
     setMediaViewer({ items, index });
   };
-
-  const rows = useMemo(() => listing.map((f) => ({
-    k: rowKey(f),
-    name: f.path === ".." ? ".." : leafName(f.path),
-    isDir: isDir(f),
-    size: f.size,
-    created: f.created,
-    modified: f.modified,
-    uploadOnly: !!f.uploadOnly,
-    versions: f.versions ?? 0,
-    file: f,
-  })), [listing]);
+  // The thumbnails as they are now, not as they were when the viewer
+  // opened: with tiles asking only near the screen, paging on reaches
+  // items whose thumbnail lands after that. The grid used to have every
+  // one by then, so the item in view and its neighbours are asked for.
+  const viewerItems = useMemo(
+    () => mediaViewer?.items.map(it => ({ ...it, thumbURL: thumbs[it.path] || undefined })) ?? [],
+    [mediaViewer?.items, thumbs],
+  );
+  useEffect(() => {
+    if (!mediaViewer || viewMode !== "grid") return;
+    const i = mediaViewer.index;
+    wantThumbs(mediaViewer.items.slice(Math.max(0, i - 2), i + 3).map(it => it.path));
+  }, [mediaViewer, viewMode, wantThumbs]);
 
   const lockIcon = (locked: boolean) => (
     <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -618,7 +769,7 @@ export default function FilesExplorer({
       )}
 
       {viewMode === "grid" ? (
-        <div className="fb-grid">
+        <div className="fb-grid" ref={gridRef}>
           {loading && <div className="fb-grid-note">Loading…</div>}
           {!loading && rows.length === 0 && <div className="fb-grid-note">This folder is empty.</div>}
           {!loading && rows.map(r => {
@@ -626,7 +777,8 @@ export default function FilesExplorer({
             const thumb = !r.isDir ? thumbs[full] : undefined;
             return (
               <div className={`fb-tile${sel[r.k] ? " selected" : ""}`} key={r.k}>
-                <button className="fb-tile-art" onClick={() => openEntry(r.file)} disabled={openingPath !== null} title={r.name}>
+                <button className="fb-tile-art" onClick={() => openEntry(r.file)} disabled={openingPath !== null} title={r.name}
+                  data-thumb={!r.isDir && isMedia(r.file) ? full : undefined}>
                   {r.isDir
                     ? <svg className="fb-folder" viewBox="0 0 64 52" aria-hidden="true"><path d="M4 6a4 4 0 0 1 4-4h16l6 6h26a4 4 0 0 1 4 4v34a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" /></svg>
                     : thumb
@@ -725,7 +877,7 @@ export default function FilesExplorer({
 
       {mediaViewer && (
         <MediaViewer
-          items={mediaViewer.items}
+          items={viewerItems}
           index={mediaViewer.index}
           onIndexChange={i => setMediaViewer(v => (v ? { ...v, index: i } : v))}
           onClose={() => setMediaViewer(null)}
@@ -746,13 +898,13 @@ export default function FilesExplorer({
                 <li className="fb-versions-item current">
                   <span className="fb-versions-when">Current</span>
                   <span className="fb-versions-size" />
-                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name)}>Download</button>
+                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name, versionsOf.mime)}>Download</button>
                 </li>
                 {versionsOf.versions.map((v) => (
                   <li key={v.hash} className="fb-versions-item">
                     <span className="fb-versions-when">Replaced {v.modified ? v.modified.toLocaleString() : "—"}</span>
                     <span className="fb-versions-size">{fmtBytes(v.size)}</span>
-                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name)}>Download</button>
+                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime)}>Download</button>
                   </li>
                 ))}
               </ul>

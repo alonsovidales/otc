@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection, clearPersistedToken } from "../net/pwCrypto";
+import { clearPrivateUiState } from "../net/uiState";
 import { pushSupported, isPushSubscribed, enablePush, disablePush, unregisterPushOnSignOut } from "../net/webPush";
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
@@ -247,12 +248,16 @@ export default function SettingsForm() {
   // ---------- Validation ----------
 
   const pwMismatch = newKey.length > 0 && confirmKey.length > 0 && newKey !== confirmKey;
+  // The same 8 the setup wizard and the device ask for: the password is
+  // the only credential for a device reachable through the bridge.
+  const pwTooShort = newKey.length > 0 && newKey.length < 8;
   const canSaveKey = useMemo(() => {
     if (!oldKey || !newKey || !confirmKey) return false;
+    if (pwTooShort) return false;
     if (pwMismatch) return false;
     if (oldKey === newKey) return false;
     return true;
-  }, [oldKey, newKey, confirmKey, pwMismatch]);
+  }, [oldKey, newKey, confirmKey, pwMismatch, pwTooShort]);
 
   // ---------- Actions ----------
 
@@ -280,7 +285,8 @@ export default function SettingsForm() {
         // stashing the new password the way this used to, just rotate a
         // fresh token in, which is what the old savePersistedKey(newKey)
         // was really trying to achieve: don't leave the next reload
-        // holding something stale.
+        // holding something stale. Nor the next reconnect.
+        useWS.passwordChanged(newKey);
         await useWS.refreshSessionToken();
         setOldKey(""); setNewKey(""); setConfirmKey("");
         setStatus({ kind: "success", text: "Password changed." });
@@ -351,6 +357,7 @@ export default function SettingsForm() {
             onChange={(e) => setConfirmKey(e.target.value)}
           />
         </div>
+        {pwTooShort && <div className="sf-note error">Use at least 8 characters.</div>}
         {pwMismatch && <div className="sf-note error">New passwords do not match.</div>}
 
         <button className="sf-btn" disabled={!canSaveKey || savingKey} onClick={() => void changePassword()}>
@@ -534,6 +541,7 @@ export default function SettingsForm() {
               console.error("Could not revoke session tokens on sign out:", err);
             }
             clearPersistedToken();
+            clearPrivateUiState();
             window.location.reload();
           }}
         >

@@ -1650,6 +1650,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 			return resp, true
 		}
 
+		if errors.Is(err, session.ErrPasswordTooShort) {
+			// Choosing the first password, not guessing one: no delay, not
+			// counted toward the lockout, and the reason is said.
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, Code: "password_too_short", ErrorMsg: err.Error()},
+			}
+			return resp, true
+		}
 		if err != nil {
 			// Deliberate delay on a failed auth attempt: was `time.Sleep(1)`,
 			// which is 1 *nanosecond* (time.Sleep takes a Duration, i.e.
@@ -2107,6 +2115,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = fmt.Sprintf("Error reading friendships: %s", err)
 		} else {
 			log.Debug("Sending back list of frnedships", len(friendships))
+			// The secret is the credential AuthAsFriend accepts, for this
+			// device and the friend's alike: it never goes to a client (no
+			// client reads it). Cloned, so a cached row would keep its own.
+			for i, f := range friendships {
+				c := proto.Clone(f).(*pb.Friendship)
+				c.Secret = ""
+				friendships[i] = c
+			}
 			resp.Payload = &pb.RespEnvelope_RespFriendships{
 				RespFriendships: &pb.Friendships{
 					Friendships: friendships,
@@ -2600,7 +2616,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
-		if err != nil {
+		if errors.Is(err, session.ErrPasswordTooShort) {
+			// An Ack, so every client shows the reason: for a bare error
+			// they only say "Unexpected response".
+			resp.Payload = &pb.RespEnvelope_RespAck{
+				RespAck: &pb.Ack{Ok: false, Code: "password_too_short", ErrorMsg: err.Error()},
+			}
+		} else if err != nil {
 			log.Error("error trying to change secret key:", err)
 			resp.Error = true
 			resp.ErrorMessage = err.Error()
