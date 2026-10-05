@@ -210,14 +210,19 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
 
     // MARK: CBCentralManagerDelegate
 
+    // Bluetooth turned off or reset reports only this, never a
+    // disconnect: the link is forgotten here, or the stale peripheral kept
+    // didDiscover from ever reconnecting once it came back, and requests
+    // waited out their 90 s timeout. No cancelPeripheralConnection while
+    // the adapter is off: the link is already gone.
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            if chosen == nil { phase = .scanning }
+            phase = chosen == nil ? .scanning : .lost
             central.scanForPeripherals(withServices: [BLESetupUUID.service], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
-        case .unauthorized: phase = .unauthorized
-        case .poweredOff: phase = .off
-        default: phase = .starting
+        case .unauthorized: forgetLink(); phase = .unauthorized
+        case .poweredOff: forgetLink(); phase = .off
+        default: forgetLink(); phase = .starting
         }
     }
 
@@ -274,11 +279,15 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         dropAndRescan()
     }
 
-    private func dropAndRescan() {
+    private func forgetLink() {
         peripheral = nil
         requestChrc = nil
         responseChrc = nil
-        failAll(BLESetupError.notConnected)
+        failAll(BLESetupError.notConnected) // failAll already clears `partial`
+    }
+
+    private func dropAndRescan() {
+        forgetLink()
         phase = .lost
         if central.state == .poweredOn {
             if chosen == nil { phase = .scanning }
