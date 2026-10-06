@@ -587,6 +587,9 @@ func connectOnce(cfg *config.Config, pw string) (*wsclient.Client, error) {
 		}
 	}
 	ws.Configure(cfg.Domain, cfg.ClientID, pw)
+	// The home network first, as the engine (issue #190); what this
+	// connection learns is not stored, the engine's is.
+	ws.SetLocalEndpoint(engine.LocalEndpointFor(cfg.Domain))
 	ws.Connect()
 	select {
 	case err := <-done:
@@ -626,7 +629,7 @@ func cmdStatus() error {
 
 		return nil
 	}
-	fmt.Printf("sync:      %s (pid %d)\n", st.Status, st.PID)
+	fmt.Printf("sync:      %s (pid %d)\n", engine.StatusLine(*st, cfg.Domain), st.PID)
 	fmt.Printf("storage:   %s\n", st.RaidSummary)
 	printFolders(st)
 
@@ -670,6 +673,7 @@ func cmdSettings(args []string) error {
 		return err
 	}
 	changed := false
+	oldDomain := cfg.Domain
 	if *name != "" {
 		cfg.Domain = config.BridgeDomainForName(*name)
 		changed = true
@@ -680,6 +684,12 @@ func cmdSettings(args []string) error {
 	}
 	if cfg.EnsureClientID() {
 		changed = true
+	}
+	if cfg.Domain != oldDomain {
+		// The old device's home-network endpoint (issue #190).
+		if err := config.ClearLocalEndpoint(); err != nil {
+			return err
+		}
 	}
 	if changed {
 		if err := cfg.Save(); err != nil {
@@ -861,6 +871,9 @@ func cmdDisconnect(args []string) error {
 		return err
 	}
 	if err := config.SavePassword(""); err != nil {
+		return err
+	}
+	if err := config.ClearLocalEndpoint(); err != nil { // issue #190
 		return err
 	}
 	fmt.Println("Disconnected. Connect to a device with: otc-sync settings --name <device> --password-prompt")

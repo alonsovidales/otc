@@ -325,11 +325,14 @@ func (u *ui) apply() {
 	if !same {
 		u.build(want)
 	}
-	u.setTitle(u.status, statusDot(st.Status)+" "+st.Status)
 	// config.json read once per apply (it used to be twice), and never
 	// cached: in viewer mode reading it is how the menu sees a device the
 	// service or the CLI changed.
 	cfg := u.c.Config()
+	// Issue #190: once connected, which way - the home network or the
+	// bridge - in the line that says it is.
+	line := engine.StatusLine(st, cfg.Domain)
+	u.setTitle(u.status, statusDot(st.Status)+" "+line)
 	u.setTitle(u.settings, settingsTitleFor(cfg, cfg.Domain != "" && u.c.Password() != ""))
 	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
 		u.setTitle(u.raid, storageTitle(st))
@@ -351,7 +354,7 @@ func (u *ui) apply() {
 		systray.SetIcon(icons.For(st.Raid))
 		u.lastIcon = st.Raid
 	}
-	if t := "Off The Cloud — " + st.Status; t != u.lastTrayTip {
+	if t := "Off The Cloud — " + line; t != u.lastTrayTip {
 		systray.SetTooltip(t)
 		u.lastTrayTip = t
 	}
@@ -558,6 +561,7 @@ func (u *ui) settingsDialog() {
 	if entered == "" {
 		return
 	}
+	oldDomain := cfg.Domain
 	if strings.Contains(entered, "://") || strings.Contains(entered, ".") {
 		cfg.Domain = entered
 	} else {
@@ -577,6 +581,9 @@ func (u *ui) settingsDialog() {
 
 			return
 		}
+	}
+	if cfg.Domain != oldDomain {
+		_ = config.ClearLocalEndpoint() // the old device's (issue #190)
 	}
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
@@ -631,6 +638,7 @@ func (u *ui) disconnectDialog() {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 		return
 	}
+	_ = config.ClearLocalEndpoint() // and its home-network endpoint (issue #190)
 	if err := u.c.SetPassword(""); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}

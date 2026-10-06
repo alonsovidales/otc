@@ -143,6 +143,7 @@ type Engine struct {
 	remoteRetry  map[string]*time.Timer
 	loopsStarted bool
 	raidStop     chan struct{}
+	netStop      chan struct{} // ends watchNetwork (issue #190)
 	authRetry    *time.Timer
 	// Local content hashes per folder, keyed by path and validated by
 	// size + mtime, so the minute-by-minute two-way poll doesn't re-read
@@ -197,6 +198,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		hashLoaded:    map[string]bool{},
 		onChange:      onChange,
 		hostname:      host,
+		netStop:       make(chan struct{}),
 	}
 	e.migrateFolders(cfg)
 	for _, f := range cfg.Folders {
@@ -211,6 +213,13 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		go e.startSync()
 	}
 	e.ws.OnDisconnect = func(err error) {
+		if errors.Is(err, wsclient.ErrReconnecting) {
+			// A network change (networkChanged): on its way back.
+			e.setStatus("Connecting…")
+			e.stopRaidPolling()
+
+			return
+		}
 		e.mu.Lock()
 		wrongPassword := e.status == "Wrong password" || strings.HasPrefix(e.status, "Too many attempts") || e.status == "Device offline - retrying"
 		e.mu.Unlock()
@@ -219,6 +228,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		}
 		e.stopRaidPolling()
 	}
+	e.ws.OnLocalEndpoint = e.keepLocalEndpoint
 	e.ws.OnUnreachable = func(msg string) {
 		log.Printf("device unreachable: %s", msg)
 		e.setStatus("Device offline - retrying")
@@ -253,12 +263,19 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 }
 
 // Start applies the settings: connect when both halves are there.
-func (e *Engine) Start() { e.applySettings() }
+func (e *Engine) Start() {
+	e.applySettings()
+	go e.watchNetwork(e.netStop)
+}
 
 // Stop closes everything.
 func (e *Engine) Stop() {
 	e.mu.Lock()
 	e.stopped = true
+	if e.netStop != nil {
+		close(e.netStop)
+		e.netStop = nil
+	}
 	for id, w := range e.watchers {
 		w.Stop()
 		delete(e.watchers, id)
@@ -332,6 +349,13 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		e.uploadOnlyOK = map[string]bool{}
 		e.uploadOnlyErr = map[string]string{}
 	}
+	if old.Domain != cfg.Domain {
+		// The old device's home-network endpoint goes with it (issue
+		// #190); under e.mu, as keepLocalEndpoint stores one.
+		if err := config.ClearLocalEndpoint(); err != nil {
+			log.Printf("could not forget the home-network endpoint: %v", err)
+		}
+	}
 	e.mu.Unlock()
 	e.notify()
 	if credsChanged {
@@ -386,6 +410,7 @@ func (e *Engine) applySettings() {
 	if config.Ready(cfg, pw) {
 		e.setStatus("Connecting…")
 		e.ws.Configure(cfg.Domain, cfg.ClientID, pw)
+		e.ws.SetLocalEndpoint(LocalEndpointFor(cfg.Domain))
 		e.ws.Connect()
 	} else {
 		e.ws.Disconnect()
@@ -410,9 +435,13 @@ func (e *Engine) notify() {
 
 // Snapshot is what the UI and state.json show.
 func (e *Engine) Snapshot() config.State {
+	route := e.ws.Route()
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	st := config.State{Status: e.status, Raid: string(e.raid), RaidSummary: e.raid.Summary()}
+	if st.Status == "Connected" {
+		st.Route = string(route)
+	}
 	if d := e.devStatus; d != nil {
 		// The storage path's disk; the OS disk only on a device without one.
 		st.StorageUsed, st.StorageSize = int64(d.RaidUsage), int64(d.RaidSize)

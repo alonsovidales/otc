@@ -78,6 +78,12 @@ desktop); without one, to a file only your user can read under `~/.config/otc-sy
 unlocked). Folders land on the device under `/windows/<computer>/…` and `/linux/<computer>/…`,
 like the Mac's `/mac/<computer>/…`.
 
+At home it doesn't go through off-the.cloud. Once signed in there, it asks the device for its
+home-network address and the fingerprint of the device's own certificate, and from then on tries
+that address first, over TLS that accepts only that certificate; the bridge is used when the device
+doesn't answer at home within a few seconds. The status line says which: "Connected over your home
+network" or "Connected through off-the.cloud".
+
 **The iOS/Android app**
 
 This is used to access all the data, sync photos and documents from your mobile device, Social Network app and much more

@@ -8,6 +8,7 @@
 //
 //	config.json  - device address, the folders, autostart  (mode 0600)
 //	secret       - the password, only when no keyring is available (0600)
+//	local.json   - where the device answers on the home network (0600)
 //	state.json   - written by whichever process runs the sync engine, read
 //	               by `otc-sync status` and by a tray that isn't the engine
 //	lock         - held by the one process allowed to run the engine
@@ -241,8 +242,11 @@ type FolderStatus struct {
 
 // State is state.json.
 type State struct {
-	Status      string `json:"status"` // Connected | Disconnected | Missing domain/password | Not connected
-	Raid        string `json:"raid"`   // ok | degraded | failed | unknown
+	Status string `json:"status"` // Connected | Disconnected | Missing domain/password | Not connected
+	// Route is how a Connected engine reaches the device (issue #190):
+	// "local" (the home network) or "remote" (the configured address).
+	Route       string `json:"route,omitempty"`
+	Raid        string `json:"raid"` // ok | degraded | failed | unknown
 	RaidSummary string `json:"raid_summary"`
 	// The device's load, as its status reports it (units of 1.024 MB):
 	// the storage bar and the CPU/memory pop-up next to RaidSummary.
@@ -344,4 +348,70 @@ func BridgeName(domain string) string {
 	}
 
 	return name
+}
+
+// ---- the home-network endpoint (issue #190) ----------------------------
+
+// LocalEndpoint is what the device at Domain answered to GetLocalEndpoint
+// over a signed-in session: its home-network addresses, TLS port and
+// certificate pin (hex SHA-256 of the DER). It has a file of its own,
+// written by the engine alone, so an edit of config.json by the tray or
+// the command line never carries a stale copy; and it is bound to Domain,
+// so it is never tried for another device.
+type LocalEndpoint struct {
+	Domain     string   `json:"domain"`
+	Addresses  []string `json:"addresses"`
+	Port       int      `json:"port"`
+	CertSHA256 string   `json:"cert_sha256"`
+}
+
+// LoadLocalEndpoint is the endpoint kept for domain; nil when there is
+// none, it can't be read, or it belongs to another device.
+func LoadLocalEndpoint(domain string) *LocalEndpoint {
+	p, err := path("local.json")
+	if err != nil || domain == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
+	ep := &LocalEndpoint{}
+	if json.Unmarshal(raw, ep) != nil || ep.Domain != domain {
+		return nil
+	}
+
+	return ep
+}
+
+// SaveLocalEndpoint replaces the endpoint kept, atomically.
+func SaveLocalEndpoint(ep *LocalEndpoint) error {
+	p, err := path("local.json")
+	if err != nil {
+		return err
+	}
+	raw, err := json.MarshalIndent(ep, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := p + ".tmp"
+	if err := os.WriteFile(tmp, raw, 0o600); err != nil { // perms: rw-------
+		return err
+	}
+
+	return os.Rename(tmp, p)
+}
+
+// ClearLocalEndpoint forgets it: the device said it has none, or it was
+// changed or disconnected.
+func ClearLocalEndpoint() error {
+	p, err := path("local.json")
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	return nil
 }
