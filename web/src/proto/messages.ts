@@ -833,6 +833,13 @@ export interface File {
    */
   uploadOnly: boolean;
   versions: number;
+  /**
+   * Issue #187: the size in bytes, which the int32 `size` can't hold from
+   * 2 GiB on. Devices before release 93 leave it 0, so readers use size64
+   * when it is non-zero and fall back to size. `size` keeps carrying the
+   * int64 wrapped to int32, as before, for apps that only know it.
+   */
+  size64: bigint;
 }
 
 export interface Ack {
@@ -5859,6 +5866,7 @@ function createBaseFile(): File {
     content: undefined,
     uploadOnly: false,
     versions: 0,
+    size64: 0n,
   };
 }
 
@@ -5890,6 +5898,12 @@ export const File: MessageFns<File> = {
     }
     if (message.versions !== 0) {
       writer.uint32(80).int32(message.versions);
+    }
+    if (message.size64 !== 0n) {
+      if (BigInt.asIntN(64, message.size64) !== message.size64) {
+        throw new globalThis.Error("value provided for field message.size64 of type int64 too large");
+      }
+      writer.uint32(88).int64(message.size64);
     }
     return writer;
   },
@@ -5973,6 +5987,14 @@ export const File: MessageFns<File> = {
           message.versions = reader.int32();
           continue;
         }
+        case 11: {
+          if (tag !== 88) {
+            break;
+          }
+
+          message.size64 = reader.int64() as bigint;
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5993,6 +6015,7 @@ export const File: MessageFns<File> = {
       content: isSet(object.content) ? bytesFromBase64(object.content) : undefined,
       uploadOnly: isSet(object.uploadOnly) ? globalThis.Boolean(object.uploadOnly) : false,
       versions: isSet(object.versions) ? globalThis.Number(object.versions) : 0,
+      size64: isSet(object.size64) ? BigInt(object.size64) : 0n,
     };
   },
 
@@ -6025,6 +6048,9 @@ export const File: MessageFns<File> = {
     if (message.versions !== 0) {
       obj.versions = Math.round(message.versions);
     }
+    if (message.size64 !== 0n) {
+      obj.size64 = message.size64.toString();
+    }
     return obj;
   },
 
@@ -6042,6 +6068,7 @@ export const File: MessageFns<File> = {
     message.content = object.content ?? undefined;
     message.uploadOnly = object.uploadOnly ?? false;
     message.versions = object.versions ?? 0;
+    message.size64 = object.size64 ?? 0n;
     return message;
   },
 };

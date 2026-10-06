@@ -1186,6 +1186,12 @@ public nonisolated struct Msg_File: Sendable {
 
   public var versions: Int32 = 0
 
+  /// Issue #187: the size in bytes, which the int32 `size` can't hold from
+  /// 2 GiB on. Devices before release 93 leave it 0, so readers use size64
+  /// when it is non-zero and fall back to size. `size` keeps carrying the
+  /// int64 wrapped to int32, as before, for apps that only know it.
+  public var size64: Int64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -7521,7 +7527,7 @@ nonisolated extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7538,6 +7544,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       case 8: try { try decoder.decodeSingularBytesField(value: &self._content) }()
       case 9: try { try decoder.decodeSingularBoolField(value: &self.uploadOnly) }()
       case 10: try { try decoder.decodeSingularInt32Field(value: &self.versions) }()
+      case 11: try { try decoder.decodeSingularInt64Field(value: &self.size64) }()
       default: break
       }
     }
@@ -7575,6 +7582,9 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if self.versions != 0 {
       try visitor.visitSingularInt32Field(value: self.versions, fieldNumber: 10)
     }
+    if self.size64 != 0 {
+      try visitor.visitSingularInt64Field(value: self.size64, fieldNumber: 11)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7588,6 +7598,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if lhs._content != rhs._content {return false}
     if lhs.uploadOnly != rhs.uploadOnly {return false}
     if lhs.versions != rhs.versions {return false}
+    if lhs.size64 != rhs.size64 {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

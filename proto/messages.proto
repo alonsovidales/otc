@@ -408,6 +408,11 @@ message File {
   // the file has (see ListFileVersions).
   bool upload_only = 9;
   int32 versions = 10;
+  // Issue #187: the size in bytes, which the int32 `size` can't hold from
+  // 2 GiB on. Devices before release 93 leave it 0, so readers use size64
+  // when it is non-zero and fall back to size. `size` keeps carrying the
+  // int64 wrapped to int32, as before, for apps that only know it.
+  int64 size64 = 11;
 }
 
 message Ack {

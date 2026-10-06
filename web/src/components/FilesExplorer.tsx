@@ -235,6 +235,7 @@ export default function FilesExplorer({
           content: undefined,
           uploadOnly: false,
           versions: 0,
+          size64: 0n,
         };
         // Don’t add .. at root
         const files = p === "/" ? lof.files : [up, ...lof.files];
