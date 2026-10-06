@@ -39,6 +39,7 @@ import (
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
+	"github.com/alonsovidales/otc/raidwatch"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
 	"github.com/alonsovidales/otc/social"
@@ -310,6 +311,20 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 			if err := dao.AddUpdateNotification(title, a.Summary+" Install it from Settings."); err != nil {
 				log.Error("could not add the update notification:", err)
 			}
+		})
+	}
+
+	// A disk of the mirror that stops working: an Alert and a push naming
+	// the USB port it is in, and another once the mirror is whole again.
+	// The one device error that is pushed - the others never are (#64).
+	if sup != nil && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
+		go raidwatch.Watch(cfg.GetStr("otc", "storage-path"), raidwatch.Notify{
+			Alert: func(title, detail string) {
+				if err := dao.AddStorageNotification(title, detail); err != nil {
+					log.Error("could not add the storage notification:", err)
+				}
+			},
+			Push: func(title, body string) { ps.Notify(title, body, push.Target{}) },
 		})
 	}
 

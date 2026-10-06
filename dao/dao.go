@@ -2004,6 +2004,15 @@ func (dao *Dao) AddUpdateNotification(title, detail string) error {
 	return err
 }
 
+// AddStorageNotification tells the owner a disk of the mirror stopped
+// working, or that the mirror is whole again (raidwatch): an Error row of
+// its own, never grouped with other errors, so it isn't buried in them.
+func (dao *Dao) AddStorageNotification(title, detail string) error {
+	_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Error', 'This device', '', ?, ?, 1)",
+		uuid.New(), title, detail)
+	return err
+}
+
 // errorNotificationWindow is how long a group of errors stays open
 // (issue #64): an error within this much of the group's first one joins
 // it rather than adding a row of its own.

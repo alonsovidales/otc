@@ -112,7 +112,8 @@ With this you can access all your data and social network from any browser just 
 **Recommended Hardware**
 ========================
 - 1x [Raspberry Pi 5 with 8GB or RAM](https://www.raspberrypi.com/products/raspberry-pi-5/)
-- 2x USB MicroSD card readers
+- 2x USB MicroSD card readers, plugged into the Pi 5's two blue (USB 3) ports: they are the fast
+  ones, and if a card fails the device tells you which port it is in (top or bottom)
 - 2x MicroSD Cards of the same size for storage
 - 1x MicroSD card to host the OS in the RaspberryPi
 - 1x [Power Supply](https://www.raspberrypi.com/products/27w-power-supply/) (Use something of at least 27W since the consumption is quite high when processing images)
@@ -166,7 +167,8 @@ an "old image": whatever you flash installs today's release.
 2. Flash it to a MicroSD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/): choose
    "Use custom", pick the downloaded `.img.xz` file, select your card, and write. Don't use Imager's
    own `Customisation` step - the wizard handles WiFi and identity itself.
-3. Plug in the USB disks you want to use (two for RAID1), put the card in the Pi and power it on.
+3. Plug in the USB disks you want to use (two for RAID1) into the two blue USB ports, put the card
+   in the Pi and power it on.
    After a minute it announces itself over Bluetooth. Set it up from your phone with the app (iOS
    or Android): on the welcome screen tap **Set up a new device**. The app finds the Pi over
    Bluetooth and runs the wizard right there; your phone stays on its own WiFi. Already signed

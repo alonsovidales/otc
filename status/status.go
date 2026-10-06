@@ -11,6 +11,7 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/raidwatch"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 	"golang.org/x/sys/unix"
@@ -162,7 +163,7 @@ func GetStatus() (st *pb.Status, err error) {
 		// a parallel notification path just for this one case.
 		statusErrors = append(statusErrors, &pb.StatusErrors{
 			StatusErrorCode: pb.StatusErrorCode_MissingDisk,
-			Message:         "RAID array degraded: only " + strconv.Itoa(int(raid.devicesActive)) + " of " + strconv.Itoa(int(raid.devicesTotal)) + " disks active",
+			Message:         degradedMessage(raid),
 		})
 	}
 
@@ -184,4 +185,14 @@ func GetStatus() (st *pb.Status, err error) {
 	}
 
 	return
+}
+
+// degradedMessage names the disk that stopped working when raidwatch
+// knows where it was plugged in.
+func degradedMessage(raid raidInfo) string {
+	msg := "RAID array degraded: only " + strconv.Itoa(int(raid.devicesActive)) + " of " + strconv.Itoa(int(raid.devicesTotal)) + " disks active"
+	if what := raidwatch.Missing(); what != "" {
+		msg += " - " + what + " stopped working"
+	}
+	return msg
 }

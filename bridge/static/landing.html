@@ -275,11 +275,11 @@
           <button class="install-tab" role="tab" id="tab-script" aria-selected="false" aria-controls="panel-script" type="button">Install script</button>
         </div>
         <div class="install-panel on" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
-          <div class="install-req">For a <strong>Raspberry Pi 5 with at least 8 GB of RAM</strong>, a MicroSD card for the system and, optionally, two USB disks for RAID-1. Use the <strong>official Raspberry Pi 27 W USB-C power supply</strong> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed.</div>
+          <div class="install-req">For a <strong>Raspberry Pi 5 with at least 8 GB of RAM</strong>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <strong>two blue USB ports</strong>. Use the <strong>official Raspberry Pi 27 W USB-C power supply</strong> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed.</div>
           <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ Download the image (≈ 530 MB)</a>
           <ol>
             <li><strong>Flash it</strong> to the MicroSD card with <a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a>: "Use custom", pick the file, write. Skip Imager's own customisation step.</li>
-            <li><strong>Plug in</strong> the disks, insert the card and power the Pi on. After a minute it announces itself over Bluetooth.</li>
+            <li><strong>Plug in</strong> the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth.</li>
             <li><strong>Set it up from your phone</strong> with the app (iOS or Android): on the welcome screen tap <strong>Set up a new device</strong>. It finds the Pi over Bluetooth and runs the setup right there - your phone stays on its own WiFi. It asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes.</li>
             <li><strong>Sign in</strong> when it's done: the app connects to the new device by itself with the password you chose, or open <code>https://&lt;name&gt;.off-the.cloud</code> in a browser.</li>
           </ol>
@@ -507,7 +507,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         <div class="faq">
           <details open>
             <summary>Do I need to buy special hardware?</summary>
-            <p>A Raspberry Pi 5 (8GB) with two micro-SD cards for RAID-1 storage, a power supply, and an active cooler — all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list.</p>
+            <p>A Raspberry Pi 5 (8GB) with two micro-SD cards for RAID-1 storage, in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails), a power supply, and an active cooler — all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list.</p>
           </details>
           <details>
             <summary>What is "the Bridge", and do I need it?</summary>

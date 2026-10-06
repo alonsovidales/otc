@@ -290,7 +290,7 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   within five minutes of an open Error row joins it (`details` gains a line, `occurrences`
   goes up, the row is unread again) rather than adding a row; `files_manager.alert` is the
   one call site helper. The clients show one line per row and the full list on hover (web)
-  or tap (iOS/Android). Never push-notify these. `AddErrorNotification` is serialised in-process,
+  or tap (iOS/Android). Never push-notify these - the one exception is `raidwatch`'s disk failure below. `AddErrorNotification` is serialised in-process,
   and a group's `details` stop growing at 60000 bytes (later errors still count). The device DSN
   has `interpolateParams=true` (the provisioning DSNs in `dao/provisioning.go` don't).
 - `files_manager` — file storage, hashing, dedup on disk. Content is keyed by hash, and the
@@ -415,6 +415,15 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   grid by its decoded first tile (`checkHeifGrid`). Decode stills through `decodeStill`
   (upload processing and the shared-gallery preview): ffmpeg only for what Go can't read, never
   for anything `checkImageSize` refuses (issue #188) - ffmpeg would decode it anyway, unbounded.
+- `raidwatch` — a disk of the mirror (md0) that stops working: an Alert of its own
+  (`dao.AddStorageNotification`, an ungrouped Error row) and a push naming the USB port it is in ("the
+  disk in the top blue USB port"), once per failure (`<storage>/.raid-alerted`), and another once the
+  mirror is whole again; the status line names it too (`raidwatch.Missing`). Read from sysfs, no root:
+  where each disk is plugged in is recorded while the array is healthy (`<storage>/.raid-members.json`),
+  since a failed reader usually vanishes. Main instance only. The Pi 5 has one USB controller per blue
+  port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
+  the startup log names each disk's port. The root `raid_watch.py` still drives the LEDs and re-adds a
+  replacement. Disks go in the two blue USB ports (README, website).
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
 - `modelserver` — issue #167: the primary instance loads RAM++ and the face models once and
