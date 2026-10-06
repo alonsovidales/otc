@@ -8,9 +8,6 @@
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<!-- A device on the home LAN is reached over plain ws://http:// by IP or
-		     .local name; everything off the LAN (the bridge, Tailscale) is TLS.
-		     Scoped to local networking rather than disabling ATS outright. -->
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
@@ -20,9 +17,5 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Used to set up a new Off The Cloud device next to you, before it has joined your WiFi.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Off The Cloud connects to your own device on your home network to sync photos and files.</string>
 </dict>
 </plist>
