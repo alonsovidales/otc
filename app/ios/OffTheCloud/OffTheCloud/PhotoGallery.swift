@@ -334,6 +334,7 @@ final class PhotoGalleryVM: ObservableObject {
         searchGeneration += 1
         let myGeneration = searchGeneration
         loading = false
+        morePendingAt = nil // an ask from the old grid's tiles, not this one's
         endReached = false
         token = ""
         items = []
@@ -545,6 +546,10 @@ final class PhotoGalleryVM: ObservableObject {
         // searchGeneration's doc comment.
         searchGeneration += 1
         loading = false
+        // An ask from the previous selection's tiles: its index means
+        // nothing against the new items, and would pull a page nobody
+        // scrolled to.
+        morePendingAt = nil
         endReached = false
         token = ""
         items = []
