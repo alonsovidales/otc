@@ -34,7 +34,9 @@ object ChunkedDownload {
      * place once complete. [keepGoing] is asked after each piece; false
      * stops the download (CancellationException) and nothing is left.
      */
-    suspend fun download(path: String, hash: String, dest: File, keepGoing: () -> Boolean = { true }): Meta = withContext(Dispatchers.IO) {
+    suspend fun download(path: String, hash: String, dest: File, keepGoing: () -> Boolean = { true }): Meta = OTCConnection.transfer { downloadTo(path, hash, dest, keepGoing) }
+
+    private suspend fun downloadTo(path: String, hash: String, dest: File, keepGoing: () -> Boolean): Meta = withContext(Dispatchers.IO) {
         val part = File(dest.parentFile, dest.name + ".part")
         var done = false
         try {

@@ -2,6 +2,7 @@
 package cloud.offthe.otc
 
 import android.app.Application
+import cloud.offthe.otc.net.NetworkWatch
 import cloud.offthe.otc.push.FCMPush
 
 // Process-wide context for the singletons that need one (SecretsStore's
@@ -13,6 +14,8 @@ class OTCApp : Application() {
         instance = this
         // Issue #125: before any push can arrive.
         FCMPush.createChannel(this)
+        // Issue #190: a network change may change the way to the device.
+        NetworkWatch.start(this)
     }
 
     companion object {

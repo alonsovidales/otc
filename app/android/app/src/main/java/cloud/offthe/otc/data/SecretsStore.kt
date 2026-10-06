@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.net.HomeEndpoint
 import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import java.util.UUID
 class SecretsStore private constructor(
     endpoint: String, password: String, deviceId: String,
     wifiOnly: Boolean, includeVideos: Boolean, downloadFromCloud: Boolean,
+    home: Pair<String, HomeEndpoint>?,
 ) {
     private val _endpoint = MutableStateFlow(endpoint)
     private val _password = MutableStateFlow(password)
@@ -47,6 +49,23 @@ class SecretsStore private constructor(
 
     val isConfigured: Boolean get() = _endpoint.value.isNotEmpty() && _password.value.isNotEmpty()
 
+    // Issue #190: where the device answers on the home network, with the
+    // endpoint it was learnt through - only ever used for that endpoint.
+    @Volatile private var home: Pair<String, HomeEndpoint>? = home
+
+    /** The home endpoint the device gave while signed in through [endpointURL], if any. */
+    fun homeEndpoint(endpointURL: String): HomeEndpoint? = home?.takeIf { it.first == endpointURL }?.second
+
+    fun saveHomeEndpoint(endpointURL: String, ep: HomeEndpoint) {
+        home = endpointURL to ep
+        secure().edit().putString("home_for", endpointURL).putString("home_endpoint", ep.encode()).apply()
+    }
+
+    fun clearHomeEndpoint() {
+        home = null
+        secure().edit().remove("home_for").remove("home_endpoint").apply()
+    }
+
     /**
      * Log Out (SettingsView, as on iOS): forget the connection and wipe
      * everything this phone holds about the device - the secrets, the
@@ -57,6 +76,7 @@ class SecretsStore private constructor(
     fun logOut() {
         val ctx = OTCApp.instance
         secure().edit().clear().apply()
+        home = null
         plain().edit().clear().apply()
         ctx.getSharedPreferences("otc_sync", Context.MODE_PRIVATE).edit().clear().apply()
         for (dir in listOf(ctx.cacheDir, ctx.filesDir)) dir.listFiles()?.forEach { it.deleteRecursively() }
@@ -76,6 +96,9 @@ class SecretsStore private constructor(
             clearPendingSetup()
             clearLastDevice()
         }
+        // Another device, or another way to it: the home endpoint learnt
+        // through the old one isn't this one's.
+        if (normalizedEndpoint(secure().getString("endpoint", "") ?: "") != endpointURLString) clearHomeEndpoint()
         secure().edit()
             .putString("endpoint", _endpoint.value)
             .putString("password", _password.value)
@@ -157,6 +180,7 @@ class SecretsStore private constructor(
                 wifiOnly = p.getBoolean("wifiOnly", false),
                 includeVideos = p.getBoolean("includeVideos", true),
                 downloadFromCloud = p.getBoolean("downloadFromCloud", true),
+                home = s.getString("home_for", null)?.let { f -> HomeEndpoint.decode(s.getString("home_endpoint", null))?.let { f to it } },
             )
         }
 

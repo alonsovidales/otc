@@ -120,6 +120,8 @@ fun SettingsView(secrets: SecretsStore) {
     val wifiOnly by secrets.wifiOnly.collectAsState()
     val includeVideos by secrets.includeVideos.collectAsState()
     val downloadFromCloud by secrets.downloadFromCloud.collectAsState()
+    val signedIn by OTCConnection.authenticated.collectAsState()
+    val route by OTCConnection.route.collectAsState()
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
     var confirmLogout by remember { mutableStateOf(false) }
     // Issue #180: the shared links list (SharedLinksView.kt).
@@ -219,6 +221,7 @@ fun SettingsView(secrets: SecretsStore) {
                 var editPassword by remember(password) { mutableStateOf(password) }
                 ConnectionEndpointFields(endpoint = editEndpoint, onEndpointChange = { editEndpoint = it })
                 PasswordField(editPassword, "Password") { editPassword = it }
+                routeLine(signedIn, route, endpoint)?.let { Caption(it) }
                 Caption("Device ID: $deviceId")
                 RowButton("Save Connection") {
                     secrets.setEndpoint(editEndpoint); secrets.setPassword(editPassword)
@@ -271,6 +274,15 @@ fun SettingsView(secrets: SecretsStore) {
             dismissButton = { TextButton(onClick = { device.setReprocessConfirm(null) }) { Text("Cancel") } },
         )
     }
+}
+
+/** Issue #190: which way the app reaches the device, worded as in the other apps; nothing while not connected. */
+private fun routeLine(signedIn: Boolean, route: OTCConnection.Route?, endpoint: String): String? {
+    if (!signedIn || route == null) return null
+    if (route == OTCConnection.Route.HOME) return "Connected over your home network"
+    val host = try { java.net.URI(SecretsStore.normalizedEndpoint(endpoint)).host } catch (e: Exception) { null } ?: endpoint
+    val bridge = SecretsStore.bridgeDomain
+    return "Connected through " + if (host == bridge || host.endsWith(".$bridge")) bridge else host
 }
 
 @Composable

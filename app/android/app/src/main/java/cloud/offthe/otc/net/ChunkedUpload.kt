@@ -62,7 +62,7 @@ object ChunkedUpload {
         modified: Timestamp? = null,
         cloudId: String? = null,
         sha256: String? = null,
-    ): RespEnvelope {
+    ): RespEnvelope = OTCConnection.transfer {
         val begin = BeginUpload.newBuilder().setPath(path).setSize(size).setForceOverride(forceOverride)
         created?.let { begin.setCreated(it) }
         modified?.let { begin.setModified(it) }
@@ -108,7 +108,7 @@ object ChunkedUpload {
         val hash = sha256 ?: hex(md!!.digest())
         val resp = OTCConnection.request { it.setReqFinishUpload(FinishUpload.newBuilder().setUploadId(uploadId).setSha256(hash)) }
         if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "FinishUpload failed" })
-        return resp
+        resp
     }
 
     private fun check(resp: RespEnvelope, want: RespEnvelope.PayloadCase, what: String) {

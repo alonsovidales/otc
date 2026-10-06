@@ -89,8 +89,12 @@ object PhotoSync {
         if (gen == generation && wgen == watermarkGen) lastSyncMs = ms
     }
 
-    fun runForegroundAsync() {
-        scope.launch { try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") } }
+    /** [after]: a route check to wait for first (issue #190), so the sync goes the way it picks. */
+    fun runForegroundAsync(after: Job? = null) {
+        scope.launch {
+            after?.join()
+            try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") }
+        }
     }
 
     /** Log Out: stop the sync in progress. */
@@ -243,6 +247,8 @@ object PhotoSync {
         val gen = generation
         val wgen = watermarkGen
         val cacheEpoch = AssetSyncCache.epoch()
+        // Issue #190: no route switch while a sync runs.
+        OTCConnection.transferStarted()
         try {
             if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return }
             val secrets = SecretsStore.loadOrCreate()
@@ -323,6 +329,7 @@ object PhotoSync {
             if (gen == generation) AssetSyncCache.flush(cacheEpoch)
             // Before releasing the flag, so the next run's handle isn't wiped.
             if (currentSync === job) currentSync = null
+            OTCConnection.transferEnded()
             syncing.set(false)
         }
     }

@@ -2,8 +2,11 @@
 package cloud.offthe.otc.net
 
 import android.os.SystemClock
+import android.util.Log
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.Auth
+import cloud.offthe.otc.proto.GetLocalEndpoint
 import cloud.offthe.otc.proto.GetPubKey
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
@@ -12,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
@@ -21,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -32,9 +37,18 @@ import javax.net.ssl.SSLException
 // screen goes through OTCConnection.request(...), which connects and
 // authenticates on first use, re-authenticates after a drop, and retries
 // a request once end-to-end if anything in that path fails.
+//
+// Issue #190: when the device gave its home-network endpoint (GetLocalEndpoint,
+// asked after every sign-in through the configured endpoint), every connect
+// first tries the device itself at home, over TLS pinned to its own
+// certificate, and only then the configured endpoint (the bridge) as before.
 object OTCConnection {
+    private const val TAG = "OTC/Connection"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val ws = WSClient().also { c -> c.onDisconnect = { handleDisconnect() } }
+    // The socket requests go through: a new one for every connection
+    // attempt, since the home-network race opens several at once and a
+    // route switch signs in on the next before this one is let go.
+    @Volatile private var ws = WSClient()
 
     private val _authenticated = MutableStateFlow(false)
     private val _lastError = MutableStateFlow<String?>(null)
@@ -47,10 +61,34 @@ object OTCConnection {
     /** Set whenever connecting or signing in fails; MainView shows the connection form while set. */
     val connectionFailed: StateFlow<Boolean> = _connectionFailed
 
+    /** Issue #190: which way the socket in use reaches the device; BRIDGE is the configured endpoint, whatever it is. */
+    enum class Route { HOME, BRIDGE }
+    private val _route = MutableStateFlow<Route?>(null)
+    /** Meaningful while [authenticated] (Settings shows it). */
+    val route: StateFlow<Route?> = _route
+
+    /** The device's own origin (https://<address>:<port>), its pin and the network it is reached over. */
+    class Home(val origin: String, val pin: ByteArray, val via: HomeNetwork.Via)
+    /** Set while the home route is in use: media URLs resolve against it (MediaStream). */
+    @Volatile var home: Home? = null
+        private set
+
     // Non-null exactly while a connect is running (cleared by its own
     // completion), so handleDisconnect's check means what it says.
     @Volatile private var connectJob: Deferred<Unit>? = null
     private val connectLock = Any()
+    // The rest are guarded by connectLock. A route switch in progress
+    // (reconsiderRoute), at most one.
+    private var switchJob: Job? = null
+    // Bumped by invalidate(): a sign-in from before neither stores what the
+    // device said about its home network over the new settings nor swaps
+    // its socket in.
+    private var configGen = 0
+    // Uploads, downloads in pieces and photo syncs running (transfer()).
+    private var transfers = 0
+    // A home sign-in that hangs gives way to the bridge; Argon2id on a busy
+    // device takes seconds, not this.
+    private const val homeSignInMs = 15_000L
     private var backoffMs = 1_000L
     private const val maxBackoffMs = 30_000L
 
@@ -71,20 +109,42 @@ object OTCConnection {
     class RequestError(message: String) : IOException(message)
 
     suspend fun request(build: (ReqEnvelope.Builder) -> Unit): RespEnvelope = withContext(Dispatchers.IO) {
+        var used: WSClient? = null
         try {
             ensureConnected()
-            ws.request(build)
+            ws.also { used = it }.request(build)
         } catch (e: CancellationException) {
             // The caller went away (a closed screen, a cancelled search): the
             // connection is fine, and signing in again would cost the device
             // an Argon2id derivation for nothing.
             throw e
         } catch (e: Exception) {
-            _authenticated.value = false
+            // Not when a route switch retired the socket under it: the one
+            // in use is fine, and the retry goes there.
+            if (used == null || used === ws) _authenticated.value = false
             ensureConnected()
             ws.request(build)
         }
     }
+
+    /**
+     * Issue #190: an upload, a download in pieces or a photo sync. A
+     * chunked upload belongs to the socket it began on (the device drops it
+     * with that connection), so the route isn't switched while one runs:
+     * the next reconnect picks it instead.
+     */
+    inline fun <T> transfer(block: () -> T): T {
+        transferStarted()
+        try {
+            return block()
+        } finally {
+            transferEnded()
+        }
+    }
+
+    /** [transfer] in two halves, for a run whose start and end are apart (the photo sync); always paired. */
+    @PublishedApi internal fun transferStarted() { synchronized(connectLock) { transfers++ } }
+    @PublishedApi internal fun transferEnded() { synchronized(connectLock) { transfers-- } }
 
     /** Connects and authenticates if not already; concurrent callers share the one attempt. */
     suspend fun ensureConnected() {
@@ -112,8 +172,13 @@ object OTCConnection {
     fun invalidate() {
         // An attempt still running dials the old address, and close() is
         // about to cancel its socket under it.
-        synchronized(connectLock) { connectJob?.cancel(); connectJob = null }
+        synchronized(connectLock) {
+            connectJob?.cancel(); connectJob = null
+            switchJob?.cancel(); switchJob = null
+            configGen++
+        }
         ws.close()
+        home = null
         _authenticated.value = false
         backoffMs = 1_000L
         // An explicit retry or new credentials: try at once.
@@ -147,8 +212,28 @@ object OTCConnection {
         authRejection?.let { r ->
             if (r.credKey == credKey && SystemClock.elapsedRealtime() < r.notBeforeMs) throw RequestError(r.message)
         }
+        val gen = synchronized(connectLock) { configGen }
+
+        // A socket still open (a request on it timed out): signed in again
+        // where it is, as before.
+        val open = ws
+        if (open.connected) {
+            signInOrFail(open, password, deviceId, credKey)
+            currentCoroutineContext().ensureActive()
+            signedIn()
+            if (_route.value != Route.HOME) refreshHomeEndpoint(open, url, gen)
+            return
+        }
+
+        secrets.homeEndpoint(url)?.let { ep -> if (signInAtHome(ep, password, deviceId, credKey)) return }
+
+        // Through the configured endpoint, as always. The socket is the
+        // current one from the start, so a connect that fails schedules the
+        // backoff retry (handleDisconnect).
+        val c = WSClient()
+        install(c, Route.BRIDGE, null)
         try {
-            ws.connect(url)
+            c.connect(url)
         } catch (e: Exception) {
             // Dropped by invalidate(): no "Canceled" on the card.
             currentCoroutineContext().ensureActive()
@@ -156,55 +241,130 @@ object OTCConnection {
             _connectionFailed.value = true
             throw e
         }
-        try {
-            val pubKeyResp = ws.request { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
-            if (pubKeyResp.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
-                var msg = "Unable to fetch the connection's public key"
-                if (pubKeyResp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) {
-                    val ack = pubKeyResp.respAck
-                    if (ack.errorMsg.isNotEmpty()) msg = ack.errorMsg
-                    _statusCode.value = ack.code.ifEmpty { null }
-                }
-                _lastError.value = msg
-                throw RequestError(msg)
-            }
-            val encrypted = PwCrypto.encryptPassword(password, pubKeyResp.respPubKey.publicKey.toByteArray())
-            val auth = Auth.newBuilder()
-                .setUuid(deviceId)
-                .setKey(ByteString.copyFrom(encrypted))
-                .setCreate(false)
-                .build()
-            val resp = ws.request { it.setReqAuth(auth) }
-            val ok = resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok
-            if (!ok) {
-                var rejectedForMs: Long? = null
-                val msg = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) {
-                    val ack = resp.respAck
-                    _statusCode.value = ack.code.ifEmpty { null }
-                    // The device's own verdict on the password; the bridge's
-                    // (device_unreachable, account_disabled) keeps today's retries.
-                    if (ack.code.isEmpty()) rejectedForMs = authBackoffMs
-                    else if (ack.code == "too_many_attempts") rejectedForMs = maxOf((ack.retryAfterSeconds + 1) * 1_000L, authBackoffMs)
-                    ack.errorMsg
-                } else "Authentication failed"
-                _lastError.value = msg
-                if (rejectedForMs != null) {
-                    authRejection = AuthRejection(credKey, msg, SystemClock.elapsedRealtime() + rejectedForMs)
-                    authBackoffMs = minOf(authBackoffMs * 2, maxAuthBackoffMs)
-                }
-                throw RequestError(msg)
-            }
+        signInOrFail(c, password, deviceId, credKey)
+        currentCoroutineContext().ensureActive()
+        signedIn()
+        refreshHomeEndpoint(c, url, gen)
+    }
+
+    /**
+     * Issue #190: every stored address at once, the pin checked before a
+     * byte is sent, then the usual sign-in. true once signed in there;
+     * false to go through the configured endpoint instead. Throws only
+     * when the device itself turned the password down - the bridge would
+     * say the same, and count one more failure.
+     */
+    private suspend fun signInAtHome(ep: HomeEndpoint, password: String, deviceId: String, credKey: String): Boolean {
+        val vias = NetworkWatch.homeRoutes()
+        if (vias.isEmpty()) return false
+        val opened = try {
+            HomeNetwork.open(ep, vias)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            // Dropped by invalidate(): the socket ws holds now may already be
-            // the next attempt's, so leave it, and the card, alone.
+            null
+        }
+        if (opened == null) {
+            Log.i(TAG, "the home network didn't answer: through the bridge")
+            return false
+        }
+        val c = opened.socket
+        var kept = false
+        try {
+            var timedOut = true
+            val refusal = try {
+                withTimeoutOrNull(homeSignInMs) { signIn(c, password, deviceId).also { timedOut = false } }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.i(TAG, "signing in over the home network failed ($e): through the bridge")
+                return false
+            }
+            if (timedOut) {
+                Log.i(TAG, "signing in over the home network timed out: through the bridge")
+                return false
+            }
+            if (refusal != null) {
+                if (!refusal.auth || refusal.ack == null) return false
+                currentCoroutineContext().ensureActive()
+                record(refusal, credKey)
+                _connectionFailed.value = true
+                throw RequestError(refusal.message)
+            }
+            currentCoroutineContext().ensureActive()
+            // Dropped right after signing in: the bridge, rather than a dead socket.
+            if (!c.connected) return false
+            install(c, Route.HOME, Home(HomeNetwork.origin(opened.address, ep.port), ep.certSha256, opened.via))
+            kept = true
+            signedIn()
+            Log.i(TAG, "signed in over the home network")
+            return true
+        } finally {
+            if (!kept) c.close()
+        }
+    }
+
+    // What answered instead of signing us in: GetPubKey's or Auth's reply.
+    private class Refusal(val message: String, val ack: Ack?, val auth: Boolean)
+
+    /** GetPubKey, then Auth with the password sealed to that key. null once signed in; throws when the socket fails. */
+    private suspend fun signIn(c: WSClient, password: String, deviceId: String): Refusal? {
+        val pubKeyResp = c.request { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
+        if (pubKeyResp.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
+            val ack = if (pubKeyResp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) pubKeyResp.respAck else null
+            return Refusal(ack?.errorMsg?.ifEmpty { null } ?: "Unable to fetch the connection's public key", ack, auth = false)
+        }
+        val encrypted = PwCrypto.encryptPassword(password, pubKeyResp.respPubKey.publicKey.toByteArray())
+        val auth = Auth.newBuilder()
+            .setUuid(deviceId)
+            .setKey(ByteString.copyFrom(encrypted))
+            .setCreate(false)
+            .build()
+        val resp = c.request { it.setReqAuth(auth) }
+        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok) return null
+        val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
+        return Refusal(ack?.errorMsg ?: "Authentication failed", ack, auth = true)
+    }
+
+    /** [signIn] on the configured endpoint's socket: any failure goes on the card and closes it. */
+    private suspend fun signInOrFail(c: WSClient, password: String, deviceId: String, credKey: String) {
+        val refusal = try {
+            signIn(c, password, deviceId)
+        } catch (e: Exception) {
+            // Dropped by invalidate(): leave the card alone.
             currentCoroutineContext().ensureActive()
             // A handshake that failed holds a bridge pool slot for nothing: close it.
-            ws.close()
+            c.close()
             if (_lastError.value == null) _lastError.value = describe(e)
             _connectionFailed.value = true
             throw e
         }
-        currentCoroutineContext().ensureActive()
+        if (refusal != null) {
+            currentCoroutineContext().ensureActive()
+            c.close()
+            record(refusal, credKey)
+            _connectionFailed.value = true
+            throw RequestError(refusal.message)
+        }
+    }
+
+    private fun record(r: Refusal, credKey: String) {
+        r.ack?.let { _statusCode.value = it.code.ifEmpty { null } }
+        _lastError.value = r.message
+        val ack = r.ack ?: return
+        if (!r.auth) return
+        // The device's own verdict on the password; the bridge's
+        // (device_unreachable, account_disabled) keeps today's retries.
+        val rejectedForMs = when (ack.code) {
+            "" -> authBackoffMs
+            "too_many_attempts" -> maxOf((ack.retryAfterSeconds + 1) * 1_000L, authBackoffMs)
+            else -> return
+        }
+        authRejection = AuthRejection(credKey, r.message, SystemClock.elapsedRealtime() + rejectedForMs)
+        authBackoffMs = minOf(authBackoffMs * 2, maxAuthBackoffMs)
+    }
+
+    private fun signedIn() {
         _lastError.value = null
         _statusCode.value = null
         _connectionFailed.value = false
@@ -216,6 +376,141 @@ object OTCConnection {
         // device set up (or reinstalled) while the app was running would
         // otherwise never learn this phone's token.
         cloud.offthe.otc.push.FCMPush.registerKnown(cloud.offthe.otc.OTCApp.instance)
+    }
+
+    /** Makes [c] the socket requests go through; only its own drop reconnects. */
+    private fun install(c: WSClient, route: Route, h: Home?) {
+        c.onDisconnect = { if (ws === c) handleDisconnect() }
+        ws = c
+        home = h
+        _route.value = route
+    }
+
+    /**
+     * Issue #190: after a sign-in through the configured endpoint, where
+     * does the device answer at home? Stored with the endpoint; a device
+     * from before #190 ("unknown_payload") or with no way in at home
+     * ("local_unavailable") clears it, and no answer keeps it.
+     */
+    private fun refreshHomeEndpoint(c: WSClient, url: String, gen: Int) {
+        scope.launch {
+            val resp = try {
+                c.request { it.setReqGetLocalEndpoint(GetLocalEndpoint.getDefaultInstance()) }
+            } catch (e: Exception) {
+                return@launch
+            }
+            val answer = HomeNetwork.answer(resp)
+            synchronized(connectLock) {
+                if (gen != configGen) return@launch
+                val secrets = SecretsStore.loadOrCreate()
+                when (answer) {
+                    is HomeNetwork.Answer.Store -> secrets.saveHomeEndpoint(url, answer.endpoint)
+                    HomeNetwork.Answer.Forget -> secrets.clearHomeEndpoint()
+                    HomeNetwork.Answer.Keep -> {}
+                }
+            }
+        }
+    }
+
+    /**
+     * Issue #190: the phone changed networks, or the app came back to the
+     * foreground. At home, over to the device itself; away, off a home
+     * socket that no longer reaches it. Make before break: the socket in
+     * use stays until the next one has signed in. Not while a transfer
+     * runs - the next reconnect picks the route then - nor while
+     * connecting, which tries the home network first anyway. The check
+     * running, if any, for the caller to wait on.
+     */
+    fun reconsiderRoute(): Job? {
+        synchronized(connectLock) {
+            switchJob?.takeIf { it.isActive }?.let { return it }
+            if (!_authenticated.value || transfers > 0 || connectJob != null) return null
+            return scope.launch {
+                try {
+                    switchRoute()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "route switch failed: $e")
+                }
+            }.also { switchJob = it }
+        }
+    }
+
+    private suspend fun switchRoute() {
+        val secrets = SecretsStore.loadOrCreate()
+        val url = secrets.endpointURLString
+        val password = secrets.password.value
+        val deviceId = secrets.deviceId.value
+        val gen = synchronized(connectLock) { configGen }
+        val old = ws
+        val from = _route.value ?: return
+        // Nothing stored: the configured endpoint is the only way.
+        val ep = secrets.homeEndpoint(url) ?: return
+        val vias = NetworkWatch.homeRoutes()
+        val opened = if (vias.isEmpty()) null else HomeNetwork.open(ep, vias)
+        if (from == Route.HOME) {
+            if (opened != null) {
+                // Still at home: the socket in use stays.
+                opened.socket.close()
+                return
+            }
+            val c = WSClient()
+            var kept = false
+            try {
+                c.connect(url)
+                if (signIn(c, password, deviceId) != null) return
+                kept = swap(old, c, gen, Route.BRIDGE, null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return
+            } finally {
+                if (!kept) c.close()
+            }
+            if (!kept) return
+            Log.i(TAG, "left the home network: through the bridge")
+            refreshHomeEndpoint(c, url, gen)
+        } else {
+            if (opened == null) return
+            val c = opened.socket
+            var kept = false
+            try {
+                var timedOut = true
+                val refusal = withTimeoutOrNull(homeSignInMs) { signIn(c, password, deviceId).also { timedOut = false } }
+                if (timedOut || refusal != null) return
+                kept = swap(old, c, gen, Route.HOME, Home(HomeNetwork.origin(opened.address, ep.port), ep.certSha256, opened.via))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return
+            } finally {
+                if (!kept) c.close()
+            }
+            if (kept) Log.i(TAG, "at home: over the home network")
+        }
+    }
+
+    // Only if nothing changed meanwhile: new settings, a reconnect, a
+    // transfer that started, a socket that died while signing in.
+    private fun swap(old: WSClient, c: WSClient, gen: Int, route: Route, h: Home?): Boolean {
+        synchronized(connectLock) {
+            if (gen != configGen || ws !== old || !_authenticated.value || transfers > 0 || connectJob != null || !c.connected) return false
+            install(c, route, h)
+        }
+        retire(old)
+        return true
+    }
+
+    // The socket a switch replaced: what it still has in flight is answered
+    // there (retried on the next socket, a request could run twice), then
+    // it goes. Nothing new is sent on it.
+    private fun retire(old: WSClient) {
+        scope.launch {
+            val until = SystemClock.elapsedRealtime() + 10 * 60_000L
+            while (old.pending > 0 && old.connected && SystemClock.elapsedRealtime() < until) delay(500)
+            old.close()
+        }
     }
 
     /** What the auth gate compares: a hash, so no second copy of the password is kept. */

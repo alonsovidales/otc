@@ -3,6 +3,7 @@ package cloud.offthe.otc.net
 
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -24,12 +25,12 @@ import kotlin.coroutines.resumeWithException
 // responses by envelope id. OkHttp delivers listener callbacks on its own
 // threads, so every access to the waiters map goes through the mutex -
 // the same reason the Swift version is an actor.
-class WSClient {
-    private val client = OkHttpClient.Builder()
-        .pingInterval(30, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS) // long-lived socket
-        .build()
-
+//
+// One per connection attempt (issue #190): the home-network race opens
+// several at once, and a route switch signs in on the next socket before
+// the one in use goes. [client] is the bridge's, or one pinned to the
+// device's own certificate (HomeNetwork).
+class WSClient(private val client: OkHttpClient = defaultClient) {
     // socket and gen are guarded by the waiters monitor, like the map.
     private var socket: WebSocket? = null
     @Volatile var connected = false
@@ -42,14 +43,23 @@ class WSClient {
     // them on its own threads) can't fail the new one's requests or close it.
     private var gen = 0
 
-    private companion object {
+    companion object {
         // As the macOS client and otc-sync: long enough for ApplyUpdate and a
         // 4 MiB chunk on a slow link, but a request can no longer hang forever.
-        const val requestTimeoutMs = 30 * 60_000L
+        private const val requestTimeoutMs = 30 * 60_000L
+
+        /** Every socket's, to the configured endpoint; one pool and dispatcher for all. */
+        val defaultClient: OkHttpClient = OkHttpClient.Builder()
+            .pingInterval(30, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS) // long-lived socket
+            .build()
     }
 
+    /** Requests sent and not answered yet. */
+    val pending: Int get() = synchronized(waiters) { waiters.size }
+
     /** Fired once, when the socket breaks. The owner reconnects; this class never retries. */
-    var onDisconnect: (() -> Unit)? = null
+    @Volatile var onDisconnect: (() -> Unit)? = null
 
     suspend fun connect(url: String) {
         if (connected) return
@@ -96,7 +106,14 @@ class WSClient {
         })
         val replaced = synchronized(waiters) { (gen != myGen).also { if (!it) socket = ws } }
         if (replaced) ws.cancel()
-        opened.await()
+        try {
+            opened.await()
+        } catch (e: CancellationException) {
+            // A dropped attempt (invalidate(), or a race another address
+            // won) must not open behind its caller's back.
+            close()
+            throw e
+        }
     }
 
     /**
