@@ -130,7 +130,7 @@ func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
 	}
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	for search := 0; search < 3; search++ {
+	for search := 0; search < 5; search++ {
 		rows := sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"})
 		for i := 0; i < total; i++ {
 			rows.AddRow(hash(i), "image/jpeg", time.Now(), time.Now(), fmt.Sprintf("/p/%d.jpg", i), 1)
@@ -175,6 +175,12 @@ func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
 	}
 	if files, _ := search("", 0); len(files) != 30 {
 		t.Errorf("no limit gave %d photos, want 30", len(files))
+	}
+	if files, _ := search("", -5); len(files) != 30 {
+		t.Errorf("a negative limit gave %d photos, want 30", len(files))
+	}
+	if files, _ := search("", 30); len(files) != 30 {
+		t.Errorf("a limit equal to the default gave %d photos, want 30", len(files))
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err) // one query for each new search, none for a page
