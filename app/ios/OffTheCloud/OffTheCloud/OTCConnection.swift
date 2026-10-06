@@ -86,6 +86,11 @@ final class OTCConnection: ObservableObject {
     private var connectedEndpoint = ""
     private var routeCheck: Task<Void, Never>?
     private var networkSettle: Task<Void, Never>?
+    /// Issue #190: home attempts after a sign-in through the endpoint, and
+    /// how many have been made (see scheduleHomeRetry).
+    private var homeRetry: Task<Void, Never>?
+    private var homeRetries = 0
+    private static let homeRetryMax = 5
     /// A route check that a connect, a transfer or requests in flight put
     /// off: made once the connect or the last transfer is over.
     /// NWPathMonitor reports a change only once, so a dropped one left the
@@ -178,6 +183,8 @@ final class OTCConnection: ObservableObject {
     /// assuming the old session is still good.
     func invalidate() {
         Task { await ws.close() }
+        homeRetry?.cancel()
+        homeRetry = nil
         authenticated = false
         generation &+= 1
         recheckPending = false
@@ -328,6 +335,29 @@ final class OTCConnection: ObservableObject {
 
         connected(home: nil, endpoint: secrets.endpointURLString)
         refreshLocalEndpoint(for: secrets.endpointURLString, stored: stored, gen: gen)
+        scheduleHomeRetry(first: true)
+    }
+
+    /// Issue #190: on the bridge with a home endpoint stored and Wi-Fi or a
+    /// wired network up, the home network is tried again: 30 s after a
+    /// sign-in through the endpoint, then every 2 minutes, at most 5
+    /// times. A home attempt that found nothing at a cold start (the Wi-Fi
+    /// waking, the device busy) otherwise kept the phone on the bridge at
+    /// home until the next foreground or network change; the Mac retries
+    /// the same way.
+    private func scheduleHomeRetry(first: Bool) {
+        homeRetry?.cancel()
+        if first { homeRetries = 0 }
+        guard homeRetries < Self.homeRetryMax else { return }
+        let gen = generation
+        homeRetry = Task {
+            try? await Task.sleep(for: .seconds(first ? 30 : 120))
+            guard !Task.isCancelled, gen == self.generation else { return }
+            self.homeRetries += 1
+            guard self.authenticated, self.homeLink == nil, !NetworkWatch.shared.onlyCellular else { return }
+            await self.reconsiderRoute()
+            if self.homeLink == nil, gen == self.generation { self.scheduleHomeRetry(first: false) }
+        }
     }
 
     /// GetPubKey, then Auth with the password sealed to that key, over the

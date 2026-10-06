@@ -80,6 +80,10 @@ object OTCConnection {
     // The rest are guarded by connectLock. A route switch in progress
     // (reconsiderRoute), at most one.
     private var switchJob: Job? = null
+    // Issue #190: home attempts after a sign-in through the bridge, and
+    // how many have been made (see scheduleHomeRetry).
+    private var homeRetryJob: Job? = null
+    private var homeRetries = 0
     // Bumped by invalidate(): a sign-in from before neither stores what the
     // device said about its home network over the new settings nor swaps
     // its socket in.
@@ -93,6 +97,9 @@ object OTCConnection {
     // A home sign-in that hangs gives way to the bridge; Argon2id on a busy
     // device takes seconds, not this.
     private const val homeSignInMs = 15_000L
+    private const val homeRetryFirstMs = 30_000L
+    private const val homeRetryEveryMs = 120_000L
+    private const val homeRetryMax = 5
     private var backoffMs = 1_000L
     private const val maxBackoffMs = 30_000L
 
@@ -192,6 +199,7 @@ object OTCConnection {
         synchronized(connectLock) {
             connectJob?.cancel(); connectJob = null
             switchJob?.cancel(); switchJob = null
+            homeRetryJob?.cancel(); homeRetryJob = null
             recheckPending = false
             configGen++
         }
@@ -263,6 +271,36 @@ object OTCConnection {
         currentCoroutineContext().ensureActive()
         signedIn()
         refreshHomeEndpoint(c, url, gen)
+        scheduleHomeRetry(first = true)
+    }
+
+    /**
+     * Issue #190: on the bridge with a home endpoint stored and a Wi-Fi or
+     * wired network up, the home network is tried again: 30 s after a
+     * sign-in through the bridge, then every 2 minutes, at most 5 times. A
+     * home attempt that found nothing at a cold start (the Wi-Fi waking,
+     * the device busy) otherwise kept the phone on the bridge at home for
+     * as long as the app stayed open; the Mac retries the same way.
+     */
+    private fun scheduleHomeRetry(first: Boolean) {
+        synchronized(connectLock) {
+            homeRetryJob?.cancel()
+            if (first) homeRetries = 0
+            if (homeRetries >= homeRetryMax) return
+            val gen = configGen
+            homeRetryJob = scope.launch {
+                delay(if (first) homeRetryFirstMs else homeRetryEveryMs)
+                synchronized(connectLock) {
+                    if (gen != configGen) return@launch
+                    homeRetries++
+                }
+                if (_route.value != Route.BRIDGE || !_authenticated.value) return@launch
+                val secrets = SecretsStore.loadOrCreate()
+                if (secrets.homeEndpoint(secrets.endpointURLString) == null || NetworkWatch.homeRoutes().isEmpty()) return@launch
+                reconsiderRoute()?.join()
+                if (_route.value == Route.BRIDGE) scheduleHomeRetry(first = false)
+            }
+        }
     }
 
     /**
