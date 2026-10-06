@@ -6,6 +6,13 @@ text to people who care about security and want a NAS of their own. Keep claims 
 apps do: the relay terminates TLS, so never say it "cannot read" traffic, and the bridge does
 have accounts. The Play listing (`docs/play-store/README.md`) follows the iOS one.
 
+
+**Availability** (set 2026-10-06, the same Europe as Play; the bridge runs in France): the EU 27,
+Iceland, Norway, the United Kingdom, Switzerland, Albania, Bosnia and Herzegovina, Kosovo,
+Montenegro, North Macedonia, Serbia and Ukraine - 38 in all (Apple has no Liechtenstein; Play
+has no Montenegro or Kosovo). Both platforms release automatically once approved. The EU trader
+status (Digital Services Act) is declared under Business.
+
 ## iOS
 
 **Promotional text** (170):
