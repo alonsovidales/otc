@@ -739,6 +739,16 @@ SQL
     ALTER TABLE social_publication_comment_likes ADD UNIQUE INDEX IF NOT EXISTS comment_like_once (comment_uuid, friend_domain);
     UPDATE social_publications_comments c SET likes = (SELECT COUNT(*) FROM social_publication_comment_likes l WHERE l.comment_uuid = c.uuid);
 SQL
+    # Release 93 (issue #187): sizes of 2 GiB or more wrapped in an int.
+    # MODIFY keeps the index on files.size and changes nothing on a column
+    # that is already BIGINT; the device corrects the sizes stored wrapped
+    # once, from the blobs, and records it in sizes_backfilled.
+    mysql "$db" <<'SQL'
+    ALTER TABLE files MODIFY `size` BIGINT NOT NULL;
+    ALTER TABLE file_versions MODIFY `size` BIGINT NOT NULL;
+    ALTER TABLE social_publications_files MODIFY `size` BIGINT NOT NULL;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS sizes_backfilled TINYINT(1) NOT NULL DEFAULT 0;
+SQL
     # Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
     # the face recognition block above.
     mysql "$db" <<'SQL'

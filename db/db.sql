@@ -23,7 +23,7 @@ create table files
   `created` datetime not null,
   `modified` datetime not null,
   `path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, -- exact: issue #172
-  `size` int not null,
+  `size` bigint not null, -- bytes; an int, which wrapped from 2 GiB on, before release 93 (issue #187)
   -- The photo library's own identifier for the asset this row came from
   -- (release 7): iOS's PHCloudIdentifier, the same on every device signed
   -- into the owner's iCloud account. Set on upload/link, and attached to
@@ -65,7 +65,7 @@ create table file_versions
   `path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, -- exact: issue #172
   `hash` varchar(64) not null,
   `mime` varchar(150) not null,
-  `size` int not null,
+  `size` bigint not null, -- issue #187, as files.size
   `created` datetime not null,
   `modified` datetime not null,
   `replaced` datetime not null,
@@ -186,7 +186,7 @@ create table social_publications_files
   `mime` varchar(150) not null,
   `created` datetime not null,
   `modified` datetime not null,
-  `size` int not null,
+  `size` bigint not null, -- issue #187, as files.size
 
   key (`hash`),
   key (`uuid`),
@@ -246,7 +246,10 @@ create table settings
   -- model), for search. On by default; like face recognition it only
   -- affects what is processed while it is on. Place tags from the
   -- photo's own location data are added either way.
-  `image_tagging_enabled` tinyint(1) not null default 1
+  `image_tagging_enabled` tinyint(1) not null default 1,
+  -- Issue #187: the one-off correction of sizes stored wrapped to an int
+  -- before release 93 has run (files_manager/size_backfill.go).
+  `sizes_backfilled` tinyint(1) not null default 0
 ) engine=InnoDB;
 
 create table profile
