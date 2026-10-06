@@ -539,7 +539,10 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [chips, selectedPeople, token, loading, endReached, pageFailed, resetRetry]
+    // activeGroup too: without it, opening or leaving a group reused the
+    // fetchPage of an earlier render, and its first page searched the
+    // previous group (or the whole library).
+    [chips, selectedPeople, activeGroup?.id, token, loading, endReached, pageFailed, resetRetry]
   );
 
   // Issue #77: the date scrubber's "jump to date" - a reset exactly like
