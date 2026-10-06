@@ -93,7 +93,7 @@ final class DevicePhotoPickerVM: ObservableObject {
                   case .respListOfFiles(let lof) = resp.payload else { return }
             let page = lof.files
                 .filter { !$0.mime.hasPrefix("video/") }
-                .map { Item(id: "\($0.path)#\($0.hash)#\($0.size)", path: $0.path,
+                .map { Item(id: "\($0.path)#\($0.hash)#\($0.fileSize)", path: $0.path,
                             thumbData: $0.hasContent ? $0.content : nil) }
             // Decoded off the main thread, at tile size, before the tiles
             // first draw (see GridThumbCache).

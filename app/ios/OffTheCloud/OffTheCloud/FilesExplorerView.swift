@@ -61,12 +61,18 @@ private func leafName(_ full: String) -> String {
     full.split(separator: "/").last.map(String.init) ?? full
 }
 
+extension Msg_File {
+    /// Issue #187: the size in bytes. Devices before release 93 leave
+    /// size64 at 0 and send only the int32 size, which wraps from 2 GiB on.
+    var fileSize: Int64 { size64 != 0 ? size64 : Int64(size) }
+}
+
 struct FileRow: Identifiable {
     var id: String { path }
     let path: String
     let name: String
     let isDir: Bool
-    let size: Int32
+    let size: Int64
     let created: Date?
     let modified: Date?
     // Issue #132: inside (or itself) an upload-only folder, and how many
@@ -166,7 +172,7 @@ final class FilesExplorerViewModel: ObservableObject {
                         path: f.path,
                         name: f.path == ".." ? ".." : leafName(f.path),
                         isDir: isDirFile(f),
-                        size: f.size,
+                        size: f.fileSize,
                         created: f.hasCreated ? f.created.date : nil,
                         modified: f.hasModified ? f.modified.date : nil,
                         uploadOnly: f.uploadOnly,
@@ -593,7 +599,7 @@ struct FilesExplorerView: View {
                                 VStack(alignment: .leading) {
                                     Text(row.name).lineLimit(1)
                                     if !row.isDir {
-                                        Text(formatBytes(row.size)).font(.caption2).foregroundColor(.secondary)
+                                        Text(formatByteCount(row.size)).font(.caption2).foregroundColor(.secondary)
                                     }
                                 }
                                 Spacer()
@@ -720,7 +726,7 @@ struct FilesExplorerView: View {
                                 HStack {
                                     Text("Current").fontWeight(.semibold)
                                     Spacer()
-                                    Text(formatBytes(row.size)).foregroundColor(.secondary)
+                                    Text(formatByteCount(row.size)).foregroundColor(.secondary)
                                 }
                             }
                             if vm.versionsLoading {
@@ -733,7 +739,7 @@ struct FilesExplorerView: View {
                                     HStack {
                                         Text("Replaced \(v.hasModified ? v.modified.date.formatted(date: .abbreviated, time: .shortened) : "—")")
                                         Spacer()
-                                        Text(formatBytes(v.size)).foregroundColor(.secondary)
+                                        Text(formatByteCount(v.fileSize)).foregroundColor(.secondary)
                                     }
                                 }
                             }
@@ -966,14 +972,6 @@ struct FilesExplorerView: View {
                     .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
                 }
             }
-    }
-
-    private func formatBytes(_ n: Int32) -> String {
-        let bytes = Double(n)
-        if bytes >= Double(1 << 30) { return String(format: "%.1f GB", bytes / Double(1 << 30)) }
-        if bytes >= Double(1 << 20) { return String(format: "%.1f MB", bytes / Double(1 << 20)) }
-        if bytes >= Double(1 << 10) { return String(format: "%.1f KB", bytes / Double(1 << 10)) }
-        return "\(n) B"
     }
 }
 

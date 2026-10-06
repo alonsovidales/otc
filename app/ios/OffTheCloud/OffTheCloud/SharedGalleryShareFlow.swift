@@ -18,8 +18,8 @@
 import SwiftUI
 import UIKit
 
-/// Bytes the way the rest of the app shows them (FilesExplorerView's
-/// formatBytes), for the 64-bit sizes a gallery or a link can reach.
+/// Bytes as the app shows them: a file's size (Files, its versions) and
+/// what a gallery or a link holds, all 64-bit.
 func formatByteCount(_ n: Int64) -> String {
     let bytes = Double(n)
     if bytes >= Double(1 << 30) { return String(format: "%.1f GB", bytes / Double(1 << 30)) }

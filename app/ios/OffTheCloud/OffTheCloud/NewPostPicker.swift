@@ -192,7 +192,7 @@ final class NewPostPickerVM: ObservableObject {
             guard case .respListOfFiles(let lof) = resp.payload else { return }
             var newItems: [Item] = []
             for f in lof.files {
-                newItems.append(Item(id: "\(f.path)#\(f.hash)#\(f.size)", path: f.path, thumbData: f.hasContent ? f.content : nil, isVideo: f.mime.hasPrefix("video/")))
+                newItems.append(Item(id: "\(f.path)#\(f.hash)#\(f.fileSize)", path: f.path, thumbData: f.hasContent ? f.content : nil, isVideo: f.mime.hasPrefix("video/")))
             }
             // Decoded off the main thread, at tile size, before the tiles
             // first draw (see GridThumbCache).

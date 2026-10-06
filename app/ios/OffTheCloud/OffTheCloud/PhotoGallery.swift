@@ -701,12 +701,12 @@ final class PhotoGalleryVM: ObservableObject {
 
             var newItems: [Item] = []
             for f in lof.files {
-                let id = "\(f.path)#\(f.hash)#\(f.size)"
+                let id = "\(f.path)#\(f.hash)#\(f.fileSize)"
                 newItems.append(Item(
                     id: id,
                     path: f.path,
                     mime: f.mime,
-                    size: Int(f.size),
+                    size: Int(f.fileSize),
                     thumbData: f.hasContent ? f.content : nil,
                     localURL: nil,
                     isLocalOnly: false
