@@ -31,33 +31,44 @@ entries for the iOS app; change both together.
 ## Store listing
 
 - **App name** (30): `Off The Cloud`
+Audience: amateur photographers and families who take a lot of photos. The text speaks to them
+first (full-quality originals, finding a photo, sharing with family) and keeps the device and
+privacy details to the end.
+
 - **Short description** (80):
-  `Your photos and files on your own device at home, not someone else's cloud.`
+  `Every family photo in full quality, kept at home, not in someone else's cloud.`
 - **Full description**:
 
-  > Off The Cloud keeps your photos, videos and files on a small device in your home: a
-  > Raspberry Pi with two mirrored disks running our open-source server. Nothing is stored on our
-  > servers.
+  > Off The Cloud is a home for your photos: every shot from your phone and your camera, kept in
+  > full quality on a small device in your own home instead of a company's cloud. No storage plan
+  > to outgrow, no compression, no one else looking through your family's pictures.
   >
-  > This app is how you use that device from your phone:
+  > Made for people who take a lot of photos:
   >
-  > - Back up your phone's photos and videos automatically, in the background.
-  > - Browse, search and share your library from anywhere. Search by what is in a photo, by place,
-  >   or by person (face recognition is optional and off by default).
-  > - Browse and upload files, with folders that keep earlier versions.
-  > - Share an album as a link that expires, without the people you share with needing an account.
-  > - A private social feed with your friends' own devices: posts, comments and likes go from
-  >   device to device, never through a company's servers.
+  > - Every photo and video on your phone backed up automatically, in the background, as the
+  >   original.
+  > - Your camera's files too, RAW included, in folders that keep earlier versions.
+  > - Find any picture in seconds: search by what is in it, where it was taken, or who is in it
+  >   (face recognition is optional and off by default).
+  > - See each photo's camera details, and where it was taken on a map.
+  > - Share an album with grandparents and friends as a link that expires. They open it in their
+  >   browser, with no account or app, and can download the originals.
+  > - A private feed for family and friends: posts, comments and likes go from device to device,
+  >   never through a company's servers.
+  > - At home, photos and videos move over your own Wi-Fi, so a whole holiday backs up quickly
+  >   instead of crawling over the internet.
   > - Set up a new device over Bluetooth, straight from the app.
-  > - At home, the app talks to your device directly over your own Wi-Fi, so backups, big files
-  >   and videos move at local-network speed instead of crossing the internet.
   >
-  > Everything you upload is encrypted at rest on your device. When you are away from home the
-  > app reaches it through our relay over an encrypted connection; the relay stores none of your
-  > content. Prefer that nothing passes through us? Use it at home, through Tailscale Funnel, or
-  > with a relay of your own.
+  > Your photos stay yours. They are encrypted on your device and mirrored on two disks, so one
+  > disk failing loses nothing. Away from home the app reaches your device through our relay over
+  > an encrypted connection, and the relay keeps none of your photos. Prefer that nothing passes
+  > through us? Use it at home, through Tailscale Funnel, or with a relay of your own.
   >
-  > Off The Cloud needs an Off The Cloud device. The server and the apps are open source (AGPL).
+  > Off The Cloud needs an Off The Cloud device: a Raspberry Pi with two disks running our
+  > open-source server. The server and the apps are open source (AGPL).
+
+- **Release notes** (first release):
+  `The first Off The Cloud for Android: back up every family photo in full quality to your own device at home, find any picture in seconds, and share albums with the people you love.`
 
 - **Category**: Photography (alternatively Productivity). **Tags**: backup, photos, storage.
 - **Contact email**: the owner's support address. **Website**: `https://off-the.cloud`.
