@@ -114,8 +114,10 @@ func TestSharedLinkAndGalleryKnown(t *testing.T) {
 	}
 }
 
-// A file of 2 GiB or more has a wrapped size in its row; the budget goes
-// by its blob instead. Anything smaller reserves what the row says.
+// A row stored before release 93 for a file of 2 GiB or more holds its
+// size wrapped; until the size backfill has run, the budget goes by the
+// blob for those. A row with the real size (issue #187) is taken as it is,
+// and anything smaller reserves what the row says.
 func TestBudgetSizeSurvivesTheInt32Size(t *testing.T) {
 	galleryTestEnv(t)
 	big, small := strings.Repeat("7", 64), strings.Repeat("8", 64)
@@ -127,17 +129,28 @@ func TestBudgetSizeSurvivesTheInt32Size(t *testing.T) {
 	if err := os.Truncate(blobPath(big), content); err != nil { // sparse
 		t.Fatal(err)
 	}
-	if got := budgetSize(&pb.File{Hash: big, Size: int32(content)}); got != content {
+	mg := &Manager{}
+	if got := mg.budgetSize(&pb.File{Hash: big, Size: int32(content)}); got != content {
 		t.Errorf("a 3 GiB file reserves %d bytes, want %d", got, content)
 	}
 	if err := os.WriteFile(blobPath(small), make([]byte, 100), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(blobPath(small))
-	if got := budgetSize(&pb.File{Hash: small, Size: 50}); got != 50 {
+	if got := mg.budgetSize(&pb.File{Hash: small, Size: 50}); got != 50 {
 		t.Errorf("a small file reserves %d, want the row's 50", got)
 	}
-	if got := budgetSize(&pb.File{Hash: strings.Repeat("9", 64), Size: 70}); got != 70 {
+	if got := mg.budgetSize(&pb.File{Hash: strings.Repeat("9", 64), Size: 70}); got != 70 {
 		t.Errorf("a missing blob reserves %d, want the row's 70", got)
+	}
+	five := &pb.File{Hash: strings.Repeat("9", 64)}
+	dao.SetFileSize(five, 5<<30)
+	if got := mg.budgetSize(five); got != 5<<30 {
+		t.Errorf("a 5 GiB row reserves %d, want its size", got)
+	}
+	// Once the backfill has run every row is right: no blob is looked at.
+	mg.sizesBackfilled.Store(true)
+	if got := mg.budgetSize(&pb.File{Hash: big, Size: 50}); got != 50 {
+		t.Errorf("after the backfill a row of 50 reserves %d", got)
 	}
 }

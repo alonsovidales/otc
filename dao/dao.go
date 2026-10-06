@@ -336,7 +336,7 @@ func (dao *Dao) AddTags(file *pb.File, tags []imagestagger.RAMTag) {
 func (dao *Dao) StoreNewFile(file *pb.File, cloudID string) (duplicated bool, err error) {
 	_, err = dao.db.Exec(
 		"insert into `files` (`hash`, `mime`, `created`, `modified`, `path`, `size`, `cloud_id`) values (?, ?, ?, ?, ?, ?, ?)",
-		file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Path, file.Size,
+		file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Path, FileSize(file),
 		sql.NullString{String: cloudID, Valid: cloudID != ""})
 
 	if err != nil {
@@ -390,14 +390,16 @@ func (dao *Dao) FindCloudIDs(ids []string) (map[string]string, error) {
 
 func (dao *Dao) GetFileByHash(hash string) (file *pb.File, err error) {
 	var created, modified time.Time
+	var size int64
 	log.Debug("Get file SQL:", hash)
 	file = new(pb.File)
 	err = dao.db.QueryRow(
 		"select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = ?", hash).
-		Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size)
+		Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size)
 
 	file.Created = timestamppb.New(created)
 	file.Modified = timestamppb.New(modified)
+	SetFileSize(file, size)
 
 	return
 }
@@ -424,14 +426,16 @@ func (dao *Dao) GetTags() (tags []string, err error) {
 
 func (dao *Dao) GetFileByPath(path string) (file *pb.File, err error) {
 	var created, modified time.Time
+	var size int64
 	log.Debug("Get file SQL:", path)
 	file = new(pb.File)
 	err = dao.db.QueryRow(
 		"select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = ?", path).
-		Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size)
+		Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size)
 
 	file.Created = timestamppb.New(created)
 	file.Modified = timestamppb.New(modified)
+	SetFileSize(file, size)
 
 	return
 }
@@ -556,7 +560,7 @@ func (dao *Dao) ReplaceFileKeepingVersion(file *pb.File, cloudID string) error {
 		return err
 	}
 	if _, err = tx.Exec("update `files` set `hash` = ?, `mime` = ?, `size` = ?, `created` = ?, `modified` = ?, `cloud_id` = coalesce(?, `cloud_id`) where `path` = ?",
-		file.Hash, file.Mime, file.Size, file.Created.AsTime(), file.Modified.AsTime(),
+		file.Hash, file.Mime, FileSize(file), file.Created.AsTime(), file.Modified.AsTime(),
 		sql.NullString{String: cloudID, Valid: cloudID != ""}, file.Path); err != nil {
 		return err
 	}
@@ -575,11 +579,13 @@ func (dao *Dao) GetFileVersions(path string) (files []*pb.File, err error) {
 	for rows.Next() {
 		f := &pb.File{Path: path}
 		var created, replaced time.Time
-		if err := rows.Scan(&f.Hash, &f.Mime, &f.Size, &created, &replaced); err != nil {
+		var size int64
+		if err := rows.Scan(&f.Hash, &f.Mime, &size, &created, &replaced); err != nil {
 			return nil, err
 		}
 		f.Created = timestamppb.New(created)
 		f.Modified = timestamppb.New(replaced)
+		SetFileSize(f, size)
 		files = append(files, f)
 	}
 
@@ -590,10 +596,12 @@ func (dao *Dao) GetFileVersions(path string) (files []*pb.File, err error) {
 func (dao *Dao) GetFileVersion(path, hash string) (file *pb.File, err error) {
 	file = &pb.File{Path: path}
 	var created, replaced time.Time
+	var size int64
 	err = dao.db.QueryRow("select `hash`, `mime`, `size`, `created`, `replaced` from `file_versions` where `path` = ? and `hash` = ? order by `replaced` desc limit 1", path, hash).
-		Scan(&file.Hash, &file.Mime, &file.Size, &created, &replaced)
+		Scan(&file.Hash, &file.Mime, &size, &created, &replaced)
 	file.Created = timestamppb.New(created)
 	file.Modified = timestamppb.New(replaced)
+	SetFileSize(file, size)
 
 	return
 }
@@ -735,11 +743,13 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 	for rows.Next() {
 		file := new(pb.File)
 		var created, modified time.Time
-		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size); err != nil {
+		var size int64
+		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size); err != nil {
 			return nil, err
 		}
 		file.Created = timestamppb.New(created)
 		file.Modified = timestamppb.New(modified)
+		SetFileSize(file, size)
 		files = append(files, file)
 	}
 	if err := rows.Err(); err != nil {
@@ -909,7 +919,7 @@ func (dao *Dao) NewSocialPublication(pubUuid, text, originDomain string, ownPubl
 		log.Debug("Inserting file in publication", file.Hash)
 		_, err = tx.Exec(
 			"insert into `social_publications_files` (`pos`, `uuid`, `hash`, `mime`, `created`, `modified`, `size`) values (?, ?, ?, ?, ?, ?, ?)",
-			i, pubUuid, file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Size)
+			i, pubUuid, file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), FileSize(file))
 		if err != nil {
 			return
 		}
@@ -1295,11 +1305,13 @@ func (dao *Dao) GetSocialPublicationFiles(uuid string) (files []*pb.File, err er
 	for rowFiles.Next() {
 		spFile := new(pb.File)
 		var created, modified time.Time
-		if err := rowFiles.Scan(&spFile.Hash, &spFile.Mime, &created, &modified, &spFile.Size); err != nil {
+		var size int64
+		if err := rowFiles.Scan(&spFile.Hash, &spFile.Mime, &created, &modified, &size); err != nil {
 			return nil, err
 		}
 		spFile.Created = timestamppb.New(created)
 		spFile.Modified = timestamppb.New(modified)
+		SetFileSize(spFile, size)
 		files = append(files, spFile)
 	}
 	if err := rowFiles.Err(); err != nil {
@@ -1356,11 +1368,13 @@ func (dao *Dao) GetSocialPublicationsFiles(uuids []string) (files map[string][]*
 		var pubUuid string
 		spFile := new(pb.File)
 		var created, modified time.Time
-		if err := rowFiles.Scan(&pubUuid, &spFile.Hash, &spFile.Mime, &created, &modified, &spFile.Size); err != nil {
+		var size int64
+		if err := rowFiles.Scan(&pubUuid, &spFile.Hash, &spFile.Mime, &created, &modified, &size); err != nil {
 			return nil, err
 		}
 		spFile.Created = timestamppb.New(created)
 		spFile.Modified = timestamppb.New(modified)
+		SetFileSize(spFile, size)
 		files[pubUuid] = append(files[pubUuid], spFile)
 	}
 
@@ -2513,7 +2527,8 @@ func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, grou
 	for rows.Next() {
 		file := new(pb.File)
 		var created, modified time.Time
-		dest := []any{&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size}
+		var size int64
+		dest := []any{&file.Hash, &file.Mime, &created, &modified, &file.Path, &size}
 		if len(tags) > 0 {
 			var score float64
 			dest = append(dest, &score)
@@ -2523,6 +2538,7 @@ func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, grou
 		}
 		file.Created = timestamppb.New(created)
 		file.Modified = timestamppb.New(modified)
+		SetFileSize(file, size)
 		files = append(files, file)
 	}
 	return files, rows.Err()
@@ -2827,11 +2843,13 @@ func (dao *Dao) ListMediaForReprocess(afterHash string, limit int) (files []*pb.
 	for rows.Next() {
 		file := new(pb.File)
 		var created, modified time.Time
-		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &file.Size); err != nil {
+		var size int64
+		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size); err != nil {
 			return nil, err
 		}
 		file.Created = timestamppb.New(created)
 		file.Modified = timestamppb.New(modified)
+		SetFileSize(file, size)
 		files = append(files, file)
 	}
 	return files, rows.Err()

@@ -118,6 +118,9 @@ type Manager struct {
 	// held by the pass running, faceMigDone set once one succeeded.
 	faceMigMu   sync.Mutex
 	faceMigDone atomic.Bool
+	// sizesBackfilled is set once every row's size is known to be right
+	// (size_backfill.go); until then budgetSize also checks the blob.
+	sizesBackfilled atomic.Bool
 
 	// reprocessing guards issue #73's full-library reprocess job - true
 	// only while a goroutine started by *this process* is actively working
@@ -269,6 +272,8 @@ func (mg *Manager) initRest() *Manager {
 	// the websocket and the API only after Init returns.
 	mg.sweepOrphanedStorage()
 	go mg.sweepOrphanFaces()
+	// Issue #187: once, the sizes of 2 GiB or more stored wrapped.
+	go mg.backfillSizes()
 
 	return mg
 }
@@ -784,7 +789,9 @@ func (mg *Manager) Thumbnails(ses *session.Session, paths []string) []*pb.File {
 			break
 		}
 		total += len(thumb)
-		out = append(out, &pb.File{Path: f.Path, Hash: f.Hash, Mime: f.Mime, Size: f.Size, Content: thumb})
+		t := &pb.File{Path: f.Path, Hash: f.Hash, Mime: f.Mime, Content: thumb}
+		dao.SetFileSize(t, dao.FileSize(f))
+		out = append(out, t)
 	}
 	return out
 }
@@ -1066,7 +1073,7 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		done()
 	} else {
 		// Issue #166: read whole for its metadata, within the budget.
-		release := mg.ReserveBytes(budgetSize(file))
+		release := mg.ReserveBytes(mg.budgetSize(file))
 		var content []byte
 		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
 		if err == nil {
@@ -1323,8 +1330,8 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 		Path:     path,
 		Mime:     mime,
 		Hash:     hash,
-		Size:     int32(size),
 	}
+	dao.SetFileSize(file, size)
 
 	duplicated, err := mg.dao.StoreNewFile(file, cloudID)
 	if err != nil {
@@ -1864,8 +1871,8 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 		Path:     path,
 		Mime:     existing.Mime,
 		Hash:     hash,
-		Size:     existing.Size,
 	}
+	dao.SetFileSize(file, dao.FileSize(existing))
 
 	var duplicated bool
 	if err := mg.withBlob(hash, func() (err error) {

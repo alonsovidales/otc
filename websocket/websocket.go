@@ -222,6 +222,10 @@ func (mg *Manager) ActiveConnections() int64 {
 	return mg.activeConns.Load()
 }
 
+// fileSize is dao.FileSize, reachable where a parameter named dao hides
+// the package.
+var fileSize = dao.FileSize
+
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup *supervisor.Supervisor, staticPath string) (mg *Manager) {
 	log.Debug("Init Websocket")
 	st, err := settings.Init(dao)
@@ -312,7 +316,7 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 		filesManager.SetVideoSource(func(ses *session.Session, file *pb.File) (string, func(), error) {
 			token, _, err := mg.media.Store().Issue(mediastream.Resource{
 				Kind: mediastream.KindLibraryFile, Path: file.Path, Hash: file.Hash,
-				Mime: file.Mime, Size: int64(file.Size), Keys: ses,
+				Mime: file.Mime, Size: fileSize(file), Keys: ses,
 			})
 			if err != nil {
 				return "", func() {}, err
@@ -1257,7 +1261,7 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 			Path: req.Path,
 			Hash: file.Hash,
 			Mime: file.Mime,
-			Size: int64(file.Size),
+			Size: dao.FileSize(file),
 			Keys: ses,
 		}
 
@@ -1914,9 +1918,9 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 			resp.Error = true
 			resp.ErrorMessage = "media not available"
 		} else {
-			resp.Payload = &pb.RespEnvelope_RespFile{
-				RespFile: &pb.File{Hash: req.Hash, Mime: mime, Content: content, Size: int32(len(content))},
-			}
+			media := &pb.File{Hash: req.Hash, Mime: mime, Content: content}
+			dao.SetFileSize(media, int64(len(content)))
+			resp.Payload = &pb.RespEnvelope_RespFile{RespFile: media}
 		}
 
 	case *pb.ReqEnvelope_ReqGetSocialPublicationFiles:

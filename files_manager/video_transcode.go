@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/gabriel-vasile/mimetype"
@@ -235,14 +236,15 @@ func BuildTransientFile(content []byte) *pb.File {
 	sum := sha256.Sum256(content)
 	hash := hex.EncodeToString(sum[:])
 	now := timestamppb.Now()
-	return &pb.File{
+	file := &pb.File{
 		Created:  now,
 		Modified: now,
 		Mime:     mimeType.String(),
 		Hash:     hash,
-		Size:     int32(len(content)),
 		Content:  content,
 	}
+	dao.SetFileSize(file, int64(len(content)))
+	return file
 }
 
 // GenerateVideoThumbnail extracts a representative frame from raw video

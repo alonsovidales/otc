@@ -121,3 +121,33 @@ func TestTamperingIsDetected(t *testing.T) {
 		t.Error("random bytes were taken for a segmented file")
 	}
 }
+
+// Issue #187: the size backfill reads a blob's content size from its size
+// on disk, so PlainSize must invert EncryptedSize, 2 GiB and up included,
+// and agree with what NewReader reports.
+func TestPlainSize(t *testing.T) {
+	for _, plain := range []int64{0, 1, SegmentSize - 1, SegmentSize, SegmentSize + 1, 1<<31 - 1, 1 << 31, 3 << 30, 5<<30 + 12345, 40 * SegmentSize} {
+		got, err := PlainSize(EncryptedSize(plain))
+		if err != nil || got != plain {
+			t.Errorf("PlainSize(EncryptedSize(%d)) = %d, %v", plain, got, err)
+		}
+	}
+	// Sizes no segmented file can have: shorter than a header and a tag,
+	// or a last segment too short for its tag.
+	for _, enc := range []int64{0, int64(HeaderSize), int64(HeaderSize + TagSize - 1), int64(HeaderSize+sealedSize) + TagSize - 1} {
+		if n, err := PlainSize(enc); err == nil {
+			t.Errorf("PlainSize(%d) = %d, want an error", enc, n)
+		}
+	}
+	aead := testAEAD(t)
+	for _, size := range []int{0, 5, SegmentSize, 2*SegmentSize + 7} {
+		enc := seal(t, aead, make([]byte, size))
+		r, err := NewReader(bytes.NewReader(enc), int64(len(enc)), aead)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n, err := PlainSize(int64(len(enc))); err != nil || n != r.Size() {
+			t.Errorf("size %d: PlainSize %d, %v; Reader.Size %d", size, n, err, r.Size())
+		}
+	}
+}

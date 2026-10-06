@@ -62,7 +62,7 @@ func TestStoreFriendFileKeepsAThumbnailInUse(t *testing.T) {
 	fr, mock := friendFrom(t, "x.off-the.cloud")
 	// The friend's word for the size is not what gets counted: the
 	// thumbnail and the media as they are on this disk are.
-	file := &pb.File{Hash: validHash, Content: []byte("thumb"), Size: 1}
+	file := &pb.File{Hash: validHash, Content: []byte("thumb"), Size: 1, Size64: 1 << 40}
 	ok, wrote, err := fr.storeFriendFile("p1", file, dir)
 	if err != nil || !ok || !wrote {
 		t.Fatalf("got %v, %v, %v", ok, wrote, err)
@@ -70,8 +70,8 @@ func TestStoreFriendFileKeepsAThumbnailInUse(t *testing.T) {
 	if b, _ := os.ReadFile(filepath.Join(dir, validHash+"_thumbnail")); string(b) != "thumb" {
 		t.Fatalf("thumbnail not stored: %q", b)
 	}
-	if file.Size != int32(len("thumb")+len("media")) {
-		t.Fatalf("size %d, want what is on disk", file.Size)
+	if n := len("thumb") + len("media"); file.Size64 != int64(n) || file.Size != int32(n) {
+		t.Fatalf("size %d (%d), want what is on disk", file.Size64, file.Size)
 	}
 
 	mock.ExpectQuery("select count\\(\\*\\) from `social_publications_files` where `hash` = \\?").WithArgs(validHash).

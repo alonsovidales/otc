@@ -26,6 +26,7 @@ import (
 
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/exifinfo"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/mediastream"
@@ -163,7 +164,7 @@ func (mg *Manager) PreviewSharedGallery(src *pb.SharedGallerySource) (*pb.Shared
 	var total int64
 	var videos int32
 	for _, f := range files {
-		total += int64(f.Size)
+		total += dao.FileSize(f)
 		if strings.HasPrefix(f.Mime, "video/") {
 			videos++
 		}
@@ -218,7 +219,7 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 	}
 	var total int64
 	for _, f := range files {
-		total += int64(f.Size)
+		total += dao.FileSize(f)
 	}
 	job := &galleryJob{state: &pb.SharedGalleryJob{JobId: uuid.NewString(), Total: int32(len(files)), BytesTotal: total}}
 	galleryJobs.Lock()
@@ -299,7 +300,7 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 	man := galleryManifest{Description: description, LowRes: lowRes, Created: now.Unix(), Expires: now.Add(ttl).Unix()}
 	var stored int64
 	for i, f := range files {
-		item := galleryItem{Name: filepath.Base(f.Path), Mime: f.Mime, Size: int64(f.Size)}
+		item := galleryItem{Name: filepath.Base(f.Path), Mime: f.Mime, Size: dao.FileSize(f)}
 		if f.Created != nil {
 			item.Taken = f.Created.AsTime().Unix()
 		}
@@ -327,7 +328,7 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 				stored += n
 			}
 			man.Items = append(man.Items, item)
-			job.update(func(s *pb.SharedGalleryJob) { s.Done = int32(i + 1); s.BytesDone += int64(f.Size) })
+			job.update(func(s *pb.SharedGalleryJob) { s.Done = int32(i + 1); s.BytesDone += dao.FileSize(f) })
 			continue
 		}
 		n, err := copyBlob(ses, f.Hash, galleryFile(id, i, pb.GetSharedGalleryItem_ORIGINAL), keys)
@@ -364,7 +365,7 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 			}
 		}
 		man.Items = append(man.Items, item)
-		job.update(func(s *pb.SharedGalleryJob) { s.Done = int32(i + 1); s.BytesDone += int64(f.Size) })
+		job.update(func(s *pb.SharedGalleryJob) { s.Done = int32(i + 1); s.BytesDone += dao.FileSize(f) })
 	}
 	raw, _ := json.Marshal(man)
 	n, err := writeSealed(filepath.Join(dir, "manifest"), raw, keys)
@@ -430,7 +431,7 @@ func fileSize(p string) int64 {
 // long side and turned the way the photo is meant to be seen (its EXIF
 // orientation, as thumbnails do) - HEIC the way the library shows it.
 func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, image.Image, error) {
-	release := mg.ReserveBytes(budgetSize(f) * cDownloadCopies)
+	release := mg.ReserveBytes(mg.budgetSize(f) * cDownloadCopies)
 	defer release()
 	content, err := blobstore.ReadAll(blobPath(f.Hash), ses)
 	if err != nil {

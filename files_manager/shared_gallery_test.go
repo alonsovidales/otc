@@ -34,6 +34,7 @@ import (
 var (
 	galleryEnvOnce sync.Once
 	galleryStorage string
+	galleryPosts   string // [otc] unenc-storage-path
 )
 
 // galleryTestEnv points [otc] storage-path at a temporary folder and gives
@@ -48,9 +49,11 @@ func galleryTestEnv(t *testing.T) (string, *session.Session) {
 			t.Fatal(err)
 		}
 		galleryStorage = filepath.Join(dir, "storage") + "/"
+		galleryPosts = filepath.Join(dir, "posts") + "/"
 		os.MkdirAll(galleryStorage, 0o750)
+		os.MkdirAll(galleryPosts, 0o750)
 		os.MkdirAll(filepath.Join(dir, "etc"), 0o750)
-		os.WriteFile(filepath.Join(dir, "etc", "otc_gallerytest.ini"), []byte("[otc]\nstorage-path="+galleryStorage+"\n[tagger]\nmax-images-search=2\n"), 0o600)
+		os.WriteFile(filepath.Join(dir, "etc", "otc_gallerytest.ini"), []byte("[otc]\nstorage-path="+galleryStorage+"\nunenc-storage-path="+galleryPosts+"\n[tagger]\nmax-images-search=2\n"), 0o600)
 		wd, _ := os.Getwd()
 		os.Chdir(dir)
 		err = cfg.Init("otc", "gallerytest")

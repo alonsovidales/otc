@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/alonsovidales/otc/blobstore"
+	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -92,13 +93,14 @@ func fileMeta(path string) (*pb.File, error) {
 		return nil, err
 	}
 	now := timestamppb.Now()
-	return &pb.File{
+	file := &pb.File{
 		Created:  now,
 		Modified: now,
 		Mime:     mt.String(),
 		Hash:     hex.EncodeToString(h.Sum(nil)),
-		Size:     int32(n),
-	}, nil
+	}
+	dao.SetFileSize(file, n)
+	return file, nil
 }
 
 // copyPlaintext decrypts the blob of hash into dst (0600), a segment at a

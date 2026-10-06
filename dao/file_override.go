@@ -34,7 +34,7 @@ func (dao *Dao) OverrideFile(file *pb.File, cloudID string) (oldHash string, err
 	if err == sql.ErrNoRows {
 		if _, err = tx.Exec(
 			"insert into `files` (`hash`, `mime`, `created`, `modified`, `path`, `size`, `cloud_id`) values (?, ?, ?, ?, ?, ?, ?)",
-			file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Path, file.Size, cloud); err != nil {
+			file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Path, FileSize(file), cloud); err != nil {
 			return "", err
 		}
 		return "", tx.Commit()
@@ -58,7 +58,7 @@ func (dao *Dao) OverrideFile(file *pb.File, cloudID string) (oldHash string, err
 		}
 	}
 	if _, err = tx.Exec("update `files` set `hash` = ?, `mime` = ?, `size` = ?, `created` = ?, `modified` = ?, `cloud_id` = ? where `path` = ?",
-		file.Hash, file.Mime, file.Size, file.Created.AsTime(), file.Modified.AsTime(), cloud, file.Path); err != nil {
+		file.Hash, file.Mime, FileSize(file), file.Created.AsTime(), file.Modified.AsTime(), cloud, file.Path); err != nil {
 		return "", err
 	}
 

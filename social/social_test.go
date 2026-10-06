@@ -82,7 +82,7 @@ func TestShouldCompressForSocial(t *testing.T) {
 	cases := []struct {
 		name string
 		mime string
-		size int
+		size int64
 		want bool
 	}{
 		{"small video stays as-is", "video/mp4", 5 * 1024 * 1024, false},
@@ -92,6 +92,8 @@ func TestShouldCompressForSocial(t *testing.T) {
 		{"oversized quicktime video gets compressed", "video/quicktime", 15 * 1024 * 1024, true},
 		{"large image is never touched", "image/jpeg", 20 * 1024 * 1024, false},
 		{"empty mime is never touched", "", 20 * 1024 * 1024, false},
+		// Issue #187: a 3 GiB video's int32 size was negative.
+		{"a 3 GiB video gets compressed", "video/mp4", 3 << 30, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

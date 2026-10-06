@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/go-sql-driver/mysql"
 )
@@ -148,5 +149,55 @@ func TestOverrideKeepsThePathsVersions(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err) // a delete from file_versions would show up here
+	}
+}
+
+// Issue #187: a 3 GiB upload or link is stored with its real size, and
+// the files it answers with - and the Files grid's - carry it in size64
+// and wrapped in size, as before, for the apps that only read that.
+func TestLargeSizesReachTheRowAndBothFields(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	const size = int64(3) << 30
+	const wrapped = int32(-1 << 30)
+	hash := strings.Repeat("5", 64)
+	if err := os.WriteFile(blobPath(hash), []byte("content"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(blobPath(hash))
+	if err := blobstore.WriteBytes(blobPath(hash)+"_thumbnail", ses, []byte("thumb")); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(blobPath(hash) + "_thumbnail")
+	cols := []string{"hash", "mime", "created", "modified", "path", "size"}
+	now := time.Now()
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db)}
+	mock.ExpectExec("insert into `files`").
+		WithArgs(hash, "video/mp4", sqlmock.AnyArg(), sqlmock.AnyArg(), "/v.mp4", size, sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	f, write, err := mg.registerUpload(ses, "/v.mp4", hash, "video/mp4", size, false, nil, nil, "")
+	if err != nil || !write || f.Size64 != size || f.Size != wrapped {
+		t.Fatalf("upload: %+v, %v, %v", f, write, err)
+	}
+
+	mock.ExpectQuery("from `files` where `hash` = \\?").WithArgs(hash).
+		WillReturnRows(sqlmock.NewRows(cols).AddRow(hash, "video/mp4", now, now, "/v.mp4", size))
+	mock.ExpectExec("insert into `files`").
+		WithArgs(hash, "video/mp4", sqlmock.AnyArg(), sqlmock.AnyArg(), "/copy.mp4", size, sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	if f, err = mg.LinkFile(ses, "/copy.mp4", hash, false, nil, nil, ""); err != nil || f.Size64 != size || f.Size != wrapped {
+		t.Fatalf("link: %+v, %v", f, err)
+	}
+
+	mock.ExpectQuery("from `files` where `path` = \\?").WithArgs("/v.mp4").
+		WillReturnRows(sqlmock.NewRows(cols).AddRow(hash, "video/mp4", now, now, "/v.mp4", size))
+	grid := mg.Thumbnails(ses, []string{"/v.mp4"})
+	if len(grid) != 1 || grid[0].Size64 != size || grid[0].Size != wrapped {
+		t.Fatalf("grid: %+v", grid)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

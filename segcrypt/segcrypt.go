@@ -157,6 +157,29 @@ type Reader struct {
 	cacheSet bool
 }
 
+// layout is how many segments an encrypted file of encSize bytes holds,
+// and how much content.
+func layout(encSize int64) (segments, plain int64, err error) {
+	if encSize < int64(HeaderSize+TagSize) {
+		return 0, 0, ErrFormat
+	}
+	body := encSize - int64(HeaderSize)
+	segments = (body + sealedSize - 1) / sealedSize
+	plain = body - segments*TagSize
+	if plain < 0 || (segments > 1 && body-(segments-1)*sealedSize < TagSize) {
+		return 0, 0, ErrFormat
+	}
+	return segments, plain, nil
+}
+
+// PlainSize is the size of the content of an encrypted file of encSize
+// bytes on disk (EncryptedSize's inverse): what NewReader's Size reports,
+// without a key or reading the file.
+func PlainSize(encSize int64) (int64, error) {
+	_, plain, err := layout(encSize)
+	return plain, err
+}
+
 // NewReader reads the header of the encrypted file r (of encSize bytes).
 func NewReader(r io.ReaderAt, encSize int64, aead cipher.AEAD) (*Reader, error) {
 	if encSize < int64(HeaderSize+TagSize) {
@@ -169,11 +192,9 @@ func NewReader(r io.ReaderAt, encSize int64, aead cipher.AEAD) (*Reader, error) 
 	if !IsSegmented(header) {
 		return nil, ErrFormat
 	}
-	body := encSize - int64(HeaderSize)
-	segments := (body + sealedSize - 1) / sealedSize
-	plain := body - segments*TagSize
-	if plain < 0 || (segments > 1 && body-(segments-1)*sealedSize < TagSize) {
-		return nil, ErrFormat
+	segments, plain, err := layout(encSize)
+	if err != nil {
+		return nil, err
 	}
 	return &Reader{r: r, aead: aead, header: header, segments: segments, size: plain}, nil
 }

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -318,7 +317,7 @@ func RemovePartialWrites(dir string) {
 // Images are unaffected regardless of size - they're already distributed
 // via their own thumbnail plus an on-demand hi-res fetch, not a wholesale
 // copy of the original like a video's full playback would be.
-func shouldCompressForSocial(mime string, size int) bool {
+func shouldCompressForSocial(mime string, size int64) bool {
 	return strings.HasPrefix(mime, "video/") && size > cSocialVideoSizeLimit
 }
 
@@ -455,7 +454,7 @@ func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoT
 // loaded: ffmpeg streams the stored file, or it is decrypted straight into
 // place (issue #166).
 func (sc *Social) publishVideo(ses *session.Session, file *pb.File, trim *pb.VideoTrim, unencDir string) (*pb.File, bool, error) {
-	downscale := shouldCompressForSocial(file.Mime, int(file.Size))
+	downscale := shouldCompressForSocial(file.Mime, dao.FileSize(file))
 	var tr *filesmanager.TrimRange
 	if shouldTrimForSocial(file.Mime, trim) {
 		tr = &filesmanager.TrimRange{Start: trim.StartSecs, End: trim.EndSecs}
@@ -1043,7 +1042,7 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 // storeFriendFile writes one file of a friend's post to dir: its thumbnail
 // and then, unless it is already here, its media. ok is false for a file
 // that can't be stored here at all; wrote is whether anything was written
-// for it; err is a failed thumbnail write. file.Size becomes what the file
+// for it; err is a failed thumbnail write. file's size becomes what the file
 // takes on this disk, thumbnail included: the size the friend states is
 // only its word, and the storage limit for friends' posts (issue #153)
 // adds these up.
@@ -1090,11 +1089,12 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 	// dropping the publication entirely over one large file.
 	unencPath := filepath.Join(dir, file.Hash)
 	if info, statErr := os.Stat(unencPath); statErr == nil {
-		file.Size = storedSize(stored + info.Size())
+		dao.SetFileSize(file, stored+info.Size())
 		return true, wrote, nil // already have it (a re-sync, or shared with another post)
 	}
-	// Held until the file is written: it is read whole, then copied.
-	release := fr.sc.filesmanager.ReserveFriendMedia(int64(file.Size))
+	// Held until the file is written: it is read whole, then copied. A
+	// friend before release 93 sends only the int32 size.
+	release := fr.sc.filesmanager.ReserveFriendMedia(dao.FileSize(file))
 	media, mediaErr := fr.getPublicationMedia(pubUuid, file.Hash)
 	if mediaErr != nil {
 		log.Error("could not fetch media", file.Hash, "for publication", pubUuid, "from",
@@ -1106,16 +1106,8 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 		wrote = true
 	}
 	release()
-	file.Size = storedSize(stored)
+	dao.SetFileSize(file, stored)
 	return true, wrote, nil
-}
-
-// storedSize is n as a file row's size, which is an int32.
-func storedSize(n int64) int32 {
-	if n > math.MaxInt32 {
-		return math.MaxInt32
-	}
-	return int32(n)
 }
 
 // socialHashInUse is whether a post here has a file with hash; when that

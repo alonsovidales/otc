@@ -150,7 +150,7 @@ func (mg *Manager) ReserveForDownload(path, versionHash string) func() {
 	if err != nil || file == nil {
 		return func() {}
 	}
-	sz := budgetSize(file)
+	sz := mg.budgetSize(file)
 	need := sz * cDownloadCopies
 	// Issue #168: a HEIC is served converted to JPEG, and the decode is what
 	// costs memory, not the file: ~1.3 bits a pixel, so a 2 MB iPhone photo
@@ -182,14 +182,18 @@ func (mg *Manager) SharedGalleryKnown(id, secret string) bool {
 	return err == nil
 }
 
-// budgetSize is how many bytes of content f holds, for the budget. The
-// files row keeps the size as int32, so it wraps for content of 2 GiB or
-// more: negative at 2-4 GiB (which reserved nothing at all), a small
-// positive number above that. The blob on disk is the content plus 16
-// bytes a MiB (segcrypt), so its size is used when the column can't hold
-// it; anything smaller reserves exactly what the row says, as before.
-func budgetSize(f *pb.File) int64 {
-	n := int64(f.Size)
+// budgetSize is how many bytes of content f holds, for the budget: the
+// row's size (issue #187). Until the size backfill has run, a row stored
+// before release 93 for content of 2 GiB or more still holds the size
+// wrapped to int32 - negative at 2-4 GiB, which reserved nothing - so a
+// size an int32 could hold is checked against the blob on disk (the
+// content plus 16 bytes a MiB, segcrypt) and the blob's used when it is
+// larger than MaxInt32.
+func (mg *Manager) budgetSize(f *pb.File) int64 {
+	n := dao.FileSize(f)
+	if n > math.MaxInt32 || mg.sizesBackfilled.Load() {
+		return n
+	}
 	if fi, err := os.Stat(blobPath(f.Hash)); err == nil && fi.Size() > math.MaxInt32 {
 		n = fi.Size()
 	}
