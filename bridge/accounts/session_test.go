@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -43,11 +44,11 @@ func TestSessionEndsWhenTheEpochMoves(t *testing.T) {
 	token := a.sessionToken("acc1", 3, time.Now())
 
 	epochRow(mock, 3)
-	if id, ok := a.AccountFromRequest(withCookie(httptest.NewRequest("GET", "/", nil), token)); !ok || id != "acc1" {
+	if id, ok, _ := a.AccountFromRequest(withCookie(httptest.NewRequest("GET", "/", nil), token)); !ok || id != "acc1" {
 		t.Fatalf("a current session was refused: %q %v", id, ok)
 	}
 	epochRow(mock, 4) // a password change or "sign out everywhere" since
-	if _, ok := a.AccountFromRequest(withCookie(httptest.NewRequest("GET", "/", nil), token)); ok {
+	if _, ok, _ := a.AccountFromRequest(withCookie(httptest.NewRequest("GET", "/", nil), token)); ok {
 		t.Fatal("a session from before the epoch moved still works")
 	}
 }
@@ -56,7 +57,7 @@ func TestOldFormatSessionIsRefused(t *testing.T) {
 	a, _ := testAccounts(t)
 	payload := "acc1|" + "9999999999"
 	token := payload + "." + sign(a.secret, payload)
-	if _, ok := a.AccountFromRequest(withCookie(httptest.NewRequest("GET", "/", nil), token)); ok {
+	if _, ok, _ := a.AccountFromRequest(withCookie(httptest.NewRequest("GET", "/", nil), token)); ok {
 		t.Fatal("a cookie without an epoch was accepted")
 	}
 }
@@ -390,3 +391,24 @@ func TestEmailLinkReplacesOnlyOnceSent(t *testing.T) {
 type storedArg struct{ v *string }
 
 func (s storedArg) Match(v driver.Value) bool { return v == *s.v }
+
+// Issue #189: a database error reading the session epoch is "try again"
+// (500), not a signed-in account told it is signed out.
+func TestSessionDatabaseErrorIsTryAgain(t *testing.T) {
+	a, mock := testAccounts(t)
+	token := a.sessionToken("acc1", 3, time.Now())
+
+	mock.ExpectQuery("select `session_epoch` from `accounts`").WillReturnError(errors.New("driver: bad connection"))
+	if _, ok, err := a.AccountFromRequest(withCookie(httptest.NewRequest("GET", "/", nil), token)); ok || err == nil {
+		t.Fatalf("got ok=%v err=%v, want the database error", ok, err)
+	}
+
+	mock.ExpectQuery("select `session_epoch` from `accounts`").WillReturnError(errors.New("driver: bad connection"))
+	rec := httptest.NewRecorder()
+	a.RequireAuth(func(http.ResponseWriter, *http.Request, string) {
+		t.Error("the handler ran without a checked session")
+	})(rec, withCookie(httptest.NewRequest("GET", "/api/account/me", nil), token))
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("RequireAuth: %d %s, want 500", rec.Code, rec.Body.String())
+	}
+}

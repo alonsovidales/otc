@@ -651,6 +651,13 @@ contact/claim cooldown (`releaseCooldown`).
 
 ### Bridge accounts (`bridge/accounts`, issue #124)
 
+A database error in a sign-in or setup check is "try again" (500), never a refusal (issue #189):
+`session` / `AccountFromRequest` return it (`RequireAuth` answers 500, a claim with a session
+too), `LookupSetupToken` tells "no such code" from an error (claims with a setup code, and
+name-available's `yours`/`online`), and `accountAddDomain` reads the account once. The setup
+wizard passes the bridge's own error answers through (`bridge_answer`), and a typed code is only
+"not valid or has expired" when the bridge said so (a 5xx is a 502 "try again").
+
 Every domain registered on the bridge belongs to an account (`devices.account_id`). The package
 owns identity and sessions: email+password sign-up/sign-in (bcrypt, per-address throttling),
 Google and Apple as plain OpenID Connect authorization-code flows in `oidc.go` (no SDK: the
@@ -931,8 +938,7 @@ exists. Optional items skipped: device - no `IsContentHash` guard in `mediastrea
 write deadlines or immutable asset headers in its own HTTP server (`api/`), `cloud_id` kept by
 `ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components, `cMaxInFlight` (32)
 requests before sign-in and `wsframe`'s first 4 MiB (`cFree`) outside the frame budget; bridge - no `interpolateParams`,
-`claimName`'s setup-token path and `accountAddDomain` still read a database error as "no account" /
-"unverified", `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
+`admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the
 Mac, no request timeout in iOS `WSClient`, no `usePageRetry` in Social's feed or

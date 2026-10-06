@@ -519,6 +519,20 @@ def bridge_get(path, token=None):
         return r.status, json.loads(r.read().decode() or "{}")
 
 
+def bridge_answer(path, token=None):
+    """bridge_get, but the bridge's error answers come back as (status,
+    data), as bridge_post's do, for the page to show (issue #189: a 500
+    "could not check that name right now" read as "could not reach").
+    Only a bridge that can't be reached raises."""
+    try:
+        return bridge_get(path, token)
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read().decode() or "{}")
+        except Exception:  # noqa: BLE001
+            return e.code, {}
+
+
 def bridge_post(path, body):
     data = json.dumps(body).encode()
     req = urllib.request.Request(f"https://{CONFIG['bridge']}{path}", data=data, method="POST",
@@ -572,12 +586,19 @@ def account_sign_in(action, body):
 
 
 def setup_token_owner(token):
-    """Who a typed setup code belongs to, or None."""
+    """Who a typed setup code belongs to: (status, data). 200 with the
+    account, 404 for a code the bridge doesn't know (or has expired), and
+    502 with a "try again" message when the bridge couldn't answer
+    (issue #189: a failed check read as an invalid code)."""
     try:
-        status, data = bridge_get("/api/account/setup-token-info?token=" + urllib.parse.quote(token))
-    except Exception:  # noqa: BLE001
-        return None
-    return data if status == 200 else None
+        status, data = bridge_answer("/api/account/setup-token-info?token=" + urllib.parse.quote(token))
+    except Exception as e:  # noqa: BLE001
+        return 502, {"error": f"could not reach {CONFIG['bridge']}: {e}"}
+    if status == 200:
+        return 200, data
+    if status >= 500:
+        return 502, {"error": data.get("error") or "could not check that setup code right now - try again"}
+    return 404, {"error": "that setup code is not valid or has expired"}
 
 
 def db_query(sql):
@@ -957,8 +978,10 @@ class Handler(BaseHTTPRequestHandler):
                 # With the account's setup code, a taken name also says
                 # whether it is this account's own and if that device is
                 # online (the page warns before moving it).
-                status, data = bridge_get("/api/name-available?name=" + urllib.parse.quote(name),
-                                          load_state().get("setup_token"))
+                status, data = bridge_answer("/api/name-available?name=" + urllib.parse.quote(name),
+                                             load_state().get("setup_token"))
+                if status != 200 and not data.get("error"):
+                    data = {"error": "could not check that name right now - try again"}
                 self.send_json(status, data)
             except Exception as e:  # noqa: BLE001
                 self.send_json(502, {"error": f"could not reach {CONFIG['bridge']}: {e}"})
@@ -1031,9 +1054,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if action == "code":
                 token = str(body.get("setup_token", "")).strip()
-                who = setup_token_owner(token)
-                if not who:
-                    self.send_json(404, {"error": "that setup code is not valid or has expired"})
+                status, who = setup_token_owner(token)
+                if status != 200:
+                    self.send_json(status, who)
                     return
                 update_state({"skip_bridge": False, "setup_token": token, "account_email": who.get("email", "")})
                 self.send_json(200, {"email": who.get("email", "")})

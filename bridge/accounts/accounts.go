@@ -220,16 +220,23 @@ func (a *Accounts) verifySession(token string, now time.Time) (accountID string,
 
 // session is the account a cookie signs in, provided the account's
 // sessions haven't been ended since it was issued.
-func (a *Accounts) session(token string, now time.Time) (accountID string, issued time.Time, ok bool) {
+// err is a database failure reading the account's session epoch: "try
+// again", never "signed out" (issue #189) - a signed-in account told to
+// sign in, or a claim made without its account.
+func (a *Accounts) session(token string, now time.Time) (accountID string, issued time.Time, ok bool, err error) {
 	id, epoch, issued, ok := a.verifySession(token, now)
 	if !ok {
-		return "", time.Time{}, false
+		return "", time.Time{}, false, nil
 	}
 	current, found, err := a.dao.AccountSessionEpoch(id)
-	if err != nil || !found || current != epoch {
-		return "", time.Time{}, false
+	if err != nil {
+		log.Error("error reading an account's session epoch:", err)
+		return "", time.Time{}, false, err
 	}
-	return id, issued, true
+	if !found || current != epoch {
+		return "", time.Time{}, false, nil
+	}
+	return id, issued, true, nil
 }
 
 // setSession issues a new session cookie. Only ever right after a real
@@ -258,21 +265,25 @@ func (a *Accounts) clearSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // AccountFromRequest is the signed-in account, if the request carries a
-// live session cookie.
-func (a *Accounts) AccountFromRequest(r *http.Request) (accountID string, ok bool) {
-	c, err := r.Cookie(cSessionCookie)
-	if err != nil {
-		return "", false
+// live session cookie; err is a database failure checking it.
+func (a *Accounts) AccountFromRequest(r *http.Request) (accountID string, ok bool, err error) {
+	c, cerr := r.Cookie(cSessionCookie)
+	if cerr != nil {
+		return "", false, nil
 	}
 
-	id, _, ok := a.session(c.Value, time.Now())
-	return id, ok
+	id, _, ok, err := a.session(c.Value, time.Now())
+	return id, ok, err
 }
 
 // RequireAuth wraps a handler so it only runs for a signed-in account.
 func (a *Accounts) RequireAuth(next func(w http.ResponseWriter, r *http.Request, accountID string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := a.AccountFromRequest(r)
+		id, ok, err := a.AccountFromRequest(r)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not check your sign-in right now - try again")
+			return
+		}
 		if !ok {
 			writeError(w, http.StatusUnauthorized, "not signed in")
 			return
@@ -326,13 +337,6 @@ func NormalizeSetupToken(s string) string {
 	s = strings.NewReplacer(" ", "", "-", "", "‑", "").Replace(s)
 
 	return s
-}
-
-// AccountForSetupToken is the account a live setup token belongs to; a
-// database error counts as none (LookupSetupToken tells them apart).
-func (a *Accounts) AccountForSetupToken(token string) (accountID string, ok bool) {
-	id, ok, _ := a.LookupSetupToken(token)
-	return id, ok
 }
 
 // LookupSetupToken is the account a live setup token belongs to: ok is
@@ -778,7 +782,10 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 	} else if c, err := r.Cookie(cSessionCookie); err != nil {
 		writeError(w, http.StatusUnauthorized, "sign in again to set a password")
 		return
-	} else if _, issued, ok := a.session(c.Value, now); !ok || now.Sub(issued) > cFreshSignIn {
+	} else if _, issued, ok, err := a.session(c.Value, now); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save right now")
+		return
+	} else if !ok || now.Sub(issued) > cFreshSignIn {
 		writeError(w, http.StatusUnauthorized, "sign in again (with Google or Apple) to set a password")
 		return
 	}
@@ -829,7 +836,12 @@ func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountI
 		writeError(w, http.StatusUnauthorized, "sign in again (with Google or Apple), then delete the account within 15 minutes")
 		return false
 	}
-	if _, issued, ok := a.session(c.Value, now); !ok || now.Sub(issued) > cFreshSignIn {
+	_, issued, ok, err := a.session(c.Value, now)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not check your sign-in right now - try again")
+		return false
+	}
+	if !ok || now.Sub(issued) > cFreshSignIn {
 		writeError(w, http.StatusUnauthorized, "sign in again (with Google or Apple), then delete the account within 15 minutes")
 		return false
 	}
@@ -1051,19 +1063,6 @@ const (
 
 // SetMailer gives the account emails a way out (main, after [smtp]).
 func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
-
-// HasAcceptedTerms: the account accepted the terms of use in force.
-func (a *Accounts) HasAcceptedTerms(accountID string) bool {
-	acc, err := a.dao.GetAccount(accountID)
-	return err == nil && TermsAccepted(acc)
-}
-
-// Verified is whether accountID proved its email; false on a database
-// error too (verified tells them apart).
-func (a *Accounts) Verified(accountID string) bool {
-	v, _ := a.verified(accountID)
-	return v
-}
 
 func (a *Accounts) verified(accountID string) (bool, error) {
 	acc, err := a.dao.GetAccount(accountID)

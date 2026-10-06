@@ -614,9 +614,21 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 			token = strings.TrimPrefix(auth, "Bearer ")
 		}
-		if accountID, ok := api.accounts.AccountForSetupToken(token); ok {
+		// A database error is "try again": read as "not yours", the
+		// wizard would call the account's own name someone else's.
+		accountID, ok, err := api.accounts.LookupSetupToken(token)
+		if err != nil {
+			writeJSONErr(w, http.StatusInternalServerError, "could not check that name right now")
+			return
+		}
+		if ok {
 			owner, _, err := api.dao.DomainAccount(api.deviceDomain(name))
-			yours := err == nil && owner == accountID
+			if err != nil {
+				log.Error("error checking whose name", name, "is:", err)
+				writeJSONErr(w, http.StatusInternalServerError, "could not check that name right now")
+				return
+			}
+			yours := owner == accountID
 			out["yours"] = yours
 			if yours && api.websocket != nil {
 				out["online"] = api.websocket.IsOnline(api.deviceDomain(name))
@@ -772,12 +784,19 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refu
 		token = strings.TrimPrefix(auth, "Bearer ")
 	}
 	if token != "" {
-		if id, ok := api.accounts.AccountForSetupToken(token); ok {
-			return id, "", nil
+		// A database error is "try again" (500), not login_required for a
+		// code that may well be good.
+		id, ok, err := api.accounts.LookupSetupToken(token)
+		if err != nil || !ok {
+			return "", "", err
 		}
-		return "", "", nil
+		return id, "", nil
 	}
-	if id, ok := api.accounts.AccountFromRequest(r); ok {
+	id, ok, err := api.accounts.AccountFromRequest(r)
+	if err != nil {
+		return "", "", err
+	}
+	if ok {
 		acc, err := api.dao.GetAccount(id)
 		if err != nil {
 			log.Error("error loading the account behind a claim:", err)
@@ -856,11 +875,19 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 // and shown once, for the installer's environment file. POST
 // /api/account/domains {name}.
 func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
-	if !api.accounts.Verified(accountID) {
+	// One read, as claimAccount's: a database error is "try again", not a
+	// verified account told to confirm its email or accept the terms.
+	acc, err := api.dao.GetAccount(accountID)
+	if err != nil {
+		log.Error("error loading the account adding a name:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
+		return
+	}
+	if acc == nil || !acc.EmailVerified {
 		writeJSONErr(w, http.StatusForbidden, cConfirmEmailFirst)
 		return
 	}
-	if !api.accounts.HasAcceptedTerms(accountID) {
+	if !accounts.TermsAccepted(acc) {
 		writeJSONErr(w, http.StatusForbidden, cAcceptTermsFirst)
 		return
 	}

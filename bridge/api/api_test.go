@@ -648,3 +648,77 @@ func TestSetupBeaconIsLimitedPerAddress(t *testing.T) {
 		t.Errorf("unexpected DB activity: %v", err)
 	}
 }
+
+// Issue #189: with a setup code, a database error is "try again" (500) -
+// not a good code read as no account (login_required), nor the account's
+// own name read as someone else's; the account page adding a name, too.
+// The refusals for an unverified account or old terms stay as they were.
+func TestSetupTokenDatabaseErrorsAreTryAgain(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	d := dao.NewWithDB(db)
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: d, accounts: accounts.Init(d, []byte("test session secret"), "off-the.cloud"), lastClaimByAddr: map[string]time.Time{}}
+	broken := errors.New("driver: bad connection")
+	tokenQuery := "select `account_id` from `account_tokens`"
+
+	mock.ExpectQuery(tokenQuery).WillReturnError(broken)
+	req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
+		`{"name":"newpi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))
+	req.Header.Set("Authorization", "Bearer ABCD-2345")
+	req.RemoteAddr = "203.0.113.9:1111"
+	rec := httptest.NewRecorder()
+	api.claimName(rec, req)
+	if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "could not reserve") {
+		t.Errorf("claim, code lookup failed: %d %s, want 500", rec.Code, rec.Body.String())
+	}
+
+	ask := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/name-available?name=pit", nil)
+		req.Header.Set("Authorization", "Bearer ABCD-2345")
+		rec := httptest.NewRecorder()
+		api.nameAvailable(rec, req)
+		return rec
+	}
+	taken := func() {
+		mock.ExpectQuery("select 1 from `devices` where `domain` = \\?").
+			WithArgs("pit.off-the.cloud").WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+	}
+	taken()
+	mock.ExpectQuery(tokenQuery).WillReturnError(broken)
+	if rec := ask(); rec.Code != http.StatusInternalServerError {
+		t.Errorf("name check, code lookup failed: %d %s, want 500", rec.Code, rec.Body.String())
+	}
+	// The code is good, but whose the name is can't be read.
+	taken()
+	mock.ExpectQuery(tokenQuery).WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	accountRow(mock, true, accounts.TermsVersion)
+	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnError(broken)
+	if rec := ask(); rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "yours") {
+		t.Errorf("name check, owner lookup failed: %d %s, want 500", rec.Code, rec.Body.String())
+	}
+
+	add := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/account/domains", strings.NewReader(`{"name":"newpi"}`))
+		rec := httptest.NewRecorder()
+		api.accountAddDomain(rec, req, "acc1")
+		return rec
+	}
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(broken)
+	if rec := add(); rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "could not register") {
+		t.Errorf("add a name, account lookup failed: %d %s, want 500", rec.Code, rec.Body.String())
+	}
+	accountRow(mock, false, accounts.TermsVersion)
+	if rec := add(); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "confirm your email") {
+		t.Errorf("add a name, unverified: %d %s, want 403", rec.Code, rec.Body.String())
+	}
+	accountRow(mock, true, "2020-01-01")
+	if rec := add(); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "terms of use") {
+		t.Errorf("add a name, old terms: %d %s, want 403", rec.Code, rec.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
