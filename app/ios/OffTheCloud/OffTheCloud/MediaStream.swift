@@ -19,7 +19,11 @@
 //  in a single round trip and streaming would add one (this call) before
 //  any bytes moved. A nil result is therefore a normal answer meaning
 //  "fetch it the old way", not a failure.
+//
+//  Issue #190: on the home network the URL is one of HomeMediaLoader's,
+//  and a player must be built from `asset(for:)` to play it.
 
+import AVFoundation
 import Foundation
 
 enum MediaStream {
@@ -83,6 +87,12 @@ enum MediaStream {
     }
 
     @MainActor static func absolute(_ path: String) async -> URL? {
+        // Issue #190: a token is good whichever way it was asked for, so it
+        // goes the way the connection does - at home straight to the
+        // device, over the pinned session.
+        if let home = OTCConnection.shared.homeLink {
+            return HomeMediaLoader.url(path: path, link: home)
+        }
         var components: URLComponents
         if let cachedBase {
             components = cachedBase
@@ -101,5 +111,16 @@ enum MediaStream {
         components.path = path
 
         return components.url
+    }
+
+    /// The asset a player of a URL from here is built from: AVPlayer can
+    /// fetch a bridge URL itself, but a home-network one only through
+    /// HomeMediaLoader.
+    nonisolated static func asset(for url: URL) -> AVURLAsset {
+        HomeMediaLoader.asset(for: url)
+    }
+
+    nonisolated static func player(for url: URL) -> AVPlayer {
+        AVPlayer(playerItem: AVPlayerItem(asset: asset(for: url)))
     }
 }

@@ -1452,7 +1452,8 @@ private struct PostCard: View {
     /// already there and never blocks for them.
     private static func preparedPlayer(for url: URL, muted: Bool) async -> AVPlayer {
         await Task.detached(priority: .userInitiated) {
-            let asset = AVURLAsset(url: url)
+            // A downloaded file:// URL comes back as a plain AVURLAsset.
+            let asset = MediaStream.asset(for: url)
             // Best-effort: an asset that can't answer still plays (or
             // still fails) exactly as it did before, just without the
             // head start.

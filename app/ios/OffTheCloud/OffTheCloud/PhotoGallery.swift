@@ -1088,7 +1088,7 @@ final class PhotoGalleryVM: ObservableObject {
         if let streamURL = await MediaStream.url(forPath: it.path) {
             guard stillOpen() else { return }
             print("[video] streaming \(it.path) from \(streamURL.absoluteString)")
-            let player = AVPlayer(url: streamURL)
+            let player = MediaStream.player(for: streamURL)
             Self.logFailure(of: player, what: "stream")
             self.videoPlayer = player
             return
