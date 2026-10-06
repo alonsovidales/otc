@@ -14,3 +14,9 @@ The Play Store wants Android screenshots with a ratio of at most 2:1; those are 
 Retaking them: see "the iOS simulator" in CLAUDE.md (idb, `simctl status_bar … override --time 9:41`).
 Never give the simulator photo access while it is signed in to a device: its sample photos would be
 uploaded.
+
+`screenshots-mac/` holds the Mac App Store screenshots (2560 × 1600): the menu bar app on a plain
+desktop, connected to Pit over the home network - a folder uploading, Settings open, and the
+"Add a folder" chooser. Taken on the Mac mini with `screencapture`, cropped from the right half of
+the 5K screen; the sample folder `~/Pictures/Holidays 2026` held re-encoded copies of Pit's photos
+so they really uploaded.
