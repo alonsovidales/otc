@@ -15,6 +15,14 @@ typealias Auth        = Msg_Auth
 typealias ListOfFiles = Msg_ListOfFiles
 // ========================================================================
 
+extension FileMsg {
+    /// A device file's size in bytes (issue #187), as the device's
+    /// dao.FileSize and otc-sync's fileSize: size64, or the int32 size from
+    /// a device before release 93, which leaves size64 at 0 (and wraps a
+    /// size of 2 GiB or more, as it always has).
+    var fileSize: Int64 { size64 != 0 ? size64 : Int64(size) }
+}
+
 final class WSClient {
 
     // MARK: Public callbacks

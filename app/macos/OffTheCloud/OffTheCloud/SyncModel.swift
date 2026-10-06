@@ -1449,10 +1449,10 @@ final class SyncModel: ObservableObject {
                 let bothHaveContent = localHash != nil && remoteHash != nil
                 if remoteWins {
                     if conflict && bothHaveContent, let remoteHash {
-                        actions.append((relative, .downloadKeepLocal, Int(remoteFile?.size ?? 0), remoteHash))
+                        actions.append((relative, .downloadKeepLocal, Int(remoteFile?.fileSize ?? 0), remoteHash))
                         newSynced[relative] = remoteHash
                     } else if let remoteHash {
-                        actions.append((relative, .download, Int(remoteFile?.size ?? 0), remoteHash))
+                        actions.append((relative, .download, Int(remoteFile?.fileSize ?? 0), remoteHash))
                         newSynced[relative] = remoteHash
                     } else {
                         actions.append((relative, .deleteLocal, 0, nil))
@@ -1503,7 +1503,7 @@ final class SyncModel: ObservableObject {
                 // Sizes from the check above, not every file looked at again
                 // on the main actor.
                 func bytes(_ relative: String) -> Int64 {
-                    localSizes[relative] ?? Int64(remoteByRelative[relative]?.size ?? 0)
+                    localSizes[relative] ?? remoteByRelative[relative]?.fileSize ?? 0
                 }
                 let folderPaths = Set(localByRelative.keys).union(remoteByRelative.keys)
                 let folderCount = max(folderPaths.count, actions.count)
