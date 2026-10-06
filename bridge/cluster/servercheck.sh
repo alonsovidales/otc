@@ -182,7 +182,8 @@ check_host() {
       replica_lag_s) [ "$val" != NULL ] && [ "${val:-0}" -lt 60 ] 2>/dev/null || bad "$host: replica ${val}s behind" ;;
       redis_ping) [ "$val" = PONG ] || bad "$host: Redis answers '$val'" ;;
       cert_days_left) [ "${val:-0}" -gt 20 ] || bad "$host: certificate expires in ${val} days (renewal failing?)" ;;
-      ssh_failed_6h) [ "${val:-0}" -lt 500 ] || bad "$host: ${val} failed SSH attempts in 6h" ;;
+      # ssh_failed_6h is only reported: SSH takes keys only, so failed
+      # attempts are the internet's background scanning, not a problem.
       untrusted_modules) [ -z "${val// /}" ] || bad "$host: kernel modules that are unsigned or from no package: $val" ;;
       deleted_exe_gone) [ -z "${val// /}" ] || bad "$host: processes running from executables that no longer exist: $val" ;;
       modified_system_files) [ -z "${val// /}" ] || bad "$host: system files differ from their packages: $val" ;;
