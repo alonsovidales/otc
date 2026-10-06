@@ -62,7 +62,13 @@ struct RootView: View {
                 // after being suspended" - PhotoSync's own isSyncing guard
                 // makes this a no-op if a photo-library-change-triggered
                 // sync (or the cold-launch one) is already in flight.
-                Task { try? await PhotoSync.shared.runForeground() }
+                // Issue #190: the route first - back home, the sync goes
+                // over the home network rather than holding the bridge
+                // route for as long as it runs.
+                Task {
+                    await OTCConnection.shared.reconsiderRoute()
+                    try? await PhotoSync.shared.runForeground()
+                }
                 // Issue #183: a no-op while already polling; after a
                 // background stint it asks again straight away.
                 updateAlert.startPolling()

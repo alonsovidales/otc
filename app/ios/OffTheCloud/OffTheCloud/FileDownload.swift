@@ -38,6 +38,9 @@ enum FileDownload {
     /// to `dest`, replacing it. Returns the file's mime and size.
     @discardableResult
     static func download(path: String, hash: String = "", mime: String = "", to dest: URL) async throws -> (mime: String, size: Int64) {
+        // Issue #190: no route switch while this runs.
+        TransferActivity.shared.begin()
+        defer { TransferActivity.shared.end() }
         if isConvertedByGetFile(path: path, mime: mime) {
             return try await getFile(path: path, hash: hash, to: dest)
         }

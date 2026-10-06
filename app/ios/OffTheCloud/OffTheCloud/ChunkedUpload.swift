@@ -50,6 +50,9 @@ extension OTCConnection {
             NSError(domain: "ChunkedUpload", code: -1,
                     userInfo: [NSLocalizedDescriptionKey: message])
         }
+        // Issue #190: no route switch while this runs.
+        TransferActivity.shared.begin()
+        defer { TransferActivity.shared.end() }
 
         let size: Int64
         var fileHandle: FileHandle?

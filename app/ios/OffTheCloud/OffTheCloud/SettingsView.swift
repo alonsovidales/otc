@@ -298,6 +298,8 @@ struct SettingsView: View {
     @EnvironmentObject var notifications: NotificationsModel
     @StateObject private var device = DeviceSettingsViewModel()
     @StateObject private var status = StatusViewModel()
+    // Issue #190: the route line under Connection.
+    @ObservedObject private var connection = OTCConnection.shared
     @State private var confirmLogout = false
 
     var body: some View {
@@ -435,6 +437,12 @@ struct SettingsView: View {
                     // Issue #121: name for the bridge, or a custom address.
                     ConnectionEndpointFields(endpoint: $secrets.endpoint)
                     SecureField("Password", text: $secrets.password)
+                    // Issue #190: which way the app reaches the device now.
+                    if let route = connection.route {
+                        Label(route.description, systemImage: route == .home ? "house" : "cloud")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Text("Device ID: \(secrets.deviceId)")
                         .font(.caption)
                         .foregroundColor(.secondary)

@@ -418,6 +418,9 @@ final class PhotoSync: NSObject {
             return
         }
         defer { endSync() }
+        // Issue #190: no route switch while a sync runs.
+        TransferActivity.shared.begin()
+        defer { TransferActivity.shared.end() }
         let sync = Task { try await self.syncOnce(gen: gen) }
         setCurrentSync(sync, gen: gen)
         defer { setCurrentSync(nil, gen: gen) }

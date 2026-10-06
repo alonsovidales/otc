@@ -20,6 +20,9 @@ actor WSClient {
     private var task: URLSessionWebSocketTask?
     private let session: URLSession
     private(set) var connected = false
+    /// The socket came from adopt(): the home network's, never reused to
+    /// reach the endpoint.
+    private var adopted = false
     private var nextId: Int32 = 1
     private var waiters = [Int32: (Result<Msg_RespEnvelope, Error>) -> Void]()
 
@@ -39,20 +42,54 @@ actor WSClient {
         onDisconnect = cb
     }
 
+    /// The default is 1 MiB, which a file listing for a few thousand
+    /// photos blows straight past — every receive then fails with
+    /// "Message too long" and the connection never gets anywhere. Match
+    /// the macOS client's generous cap.
+    static let maxMessageSize = 1000 * 1024 * 1024
+
     func connect(url: URL) async throws {
         print("Trynig to connect to: \(url)")
-        if let task, task.state == .running { return }
+        if let task, task.state == .running {
+            if !adopted { return }
+            close()
+        }
         let t = session.webSocketTask(with: url)
-        // The default is 1 MiB, which a file listing for a few thousand
-        // photos blows straight past — every receive then fails with
-        // "Message too long" and the connection never gets anywhere. Match
-        // the macOS client's generous cap.
-        t.maximumMessageSize = 1000 * 1024 * 1024
+        t.maximumMessageSize = Self.maxMessageSize
         task = t
+        adopted = false
         t.resume()
         connected = true
         print("Connected!!!")
         listen(on: t)
+    }
+
+    /// Issue #190: close(), only while `t` is still the socket in use.
+    func close(ifCurrent t: URLSessionWebSocketTask) {
+        if task === t { close() }
+    }
+
+    /// Issue #190: takes over a socket whose handshake has already
+    /// completed (the home network's, from PinnedSession.race) in place of
+    /// whatever this held.
+    func adopt(_ t: URLSessionWebSocketTask) {
+        close()
+        task = t
+        adopted = true
+        connected = true
+        listen(on: t)
+    }
+
+    /// Issue #190: whether the socket still answers, after a network
+    /// change that may have taken the home network away under it.
+    func ping(within seconds: TimeInterval) async -> Bool {
+        guard connected, let t = task else { return false }
+        let once = PingOnce()
+        return await withCheckedContinuation { cont in
+            once.start(cont)
+            t.sendPing { error in once.finish(error == nil) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + seconds) { once.finish(false) }
+        }
     }
 
     /// Fails what is still waiting here itself: the cancelled socket's
@@ -160,5 +197,21 @@ actor WSClient {
         if let cb = waiters.removeValue(forKey: id) {
             cb(.failure(error))
         }
+    }
+}
+
+/// Resumes a ping's wait once: with the pong, or false at the deadline.
+private final class PingOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cont: CheckedContinuation<Bool, Never>?
+
+    func start(_ c: CheckedContinuation<Bool, Never>) { lock.withLock { cont = c } }
+
+    func finish(_ ok: Bool) {
+        let c: CheckedContinuation<Bool, Never>? = lock.withLock {
+            defer { cont = nil }
+            return cont
+        }
+        c?.resume(returning: ok)
     }
 }

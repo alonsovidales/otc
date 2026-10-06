@@ -140,6 +140,7 @@ final class SecretsStore: ObservableObject {
     func logOut() {
         Keychain.delete(key: "endpoint")
         Keychain.delete(key: "password")
+        LocalEndpoint.clear()
         // device_id is replaced in place below, never deleted: a reader
         // landing in between would make (and save) an id of its own.
         Self.clearPendingSetup()
@@ -211,6 +212,9 @@ final class SecretsStore: ObservableObject {
         }
         Keychain.saveString(key: "endpoint", value: endpoint)
         Keychain.saveString(key: "password", value: password)
+        // Issue #190: the home-network endpoint belongs to the endpoint it
+        // was learned on; another device or address starts without one.
+        LocalEndpoint.clear(unlessFor: endpointURLString)
         // Not device_id: only loadOrCreate and logOut set it, and both save
         // it. A store built while the Keychain was locked holds a
         // throwaway id that must not replace the real one here.
