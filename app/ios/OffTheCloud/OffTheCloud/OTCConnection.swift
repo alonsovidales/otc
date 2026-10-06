@@ -51,14 +51,19 @@ final class OTCConnection: ObservableObject {
         /// owner's own.
         case remote(host: String)
 
-        /// Settings' one line. Worded as on Android.
+        /// Settings' one line. Worded as on Android and macOS.
         var description: String {
             switch self {
             case .home:
                 return "Connected over your home network"
             case .remote(let host):
+                // An endpoint whose URL has no host name.
+                guard !host.isEmpty else { return "Connected through the configured address" }
+                // Host names aren't case-sensitive: "Cala.Off-The.Cloud"
+                // is the bridge too.
                 let bridge = SecretsStore.bridgeDomain
-                return "Connected through \(host == bridge || host.hasSuffix("." + bridge) ? bridge : host)"
+                let h = host.lowercased()
+                return "Connected through \(h == bridge || h.hasSuffix("." + bridge) ? bridge : host)"
             }
         }
     }
@@ -66,6 +71,9 @@ final class OTCConnection: ObservableObject {
     /// The home-network address this connection went to (issue #190), nil
     /// through the endpoint. Media URLs go the same way (MediaStream).
     private(set) var homeLink: HomeLink?
+    /// The network the home connection was made over: while the phone is
+    /// still on it, a live home socket stays (see checkRoute).
+    private var homeNetwork: NetworkWatch.LocalNetwork?
 
     private let ws = WSClient()
     private var connectTask: Task<Void, Error>?
@@ -78,6 +86,12 @@ final class OTCConnection: ObservableObject {
     private var connectedEndpoint = ""
     private var routeCheck: Task<Void, Never>?
     private var networkSettle: Task<Void, Never>?
+    /// A route check that a connect, a transfer or requests in flight put
+    /// off: made once the connect or the last transfer is over.
+    /// NWPathMonitor reports a change only once, so a dropped one left the
+    /// app on the bridge at home - over mobile data, which iOS doesn't move
+    /// to Wi-Fi - until the next foreground.
+    private var recheckPending = false
     private var backoffSeconds: TimeInterval = 1
     private let maxBackoffSeconds: TimeInterval = 30
 
@@ -109,6 +123,9 @@ final class OTCConnection: ObservableObject {
         }
         NetworkWatch.shared.start { [weak self] in
             Task { @MainActor [weak self] in self?.networkChanged() }
+        }
+        TransferActivity.shared.setOnIdle { [weak self] in
+            Task { @MainActor [weak self] in self?.recheckIfPending() }
         }
     }
 
@@ -146,9 +163,13 @@ final class OTCConnection: ObservableObject {
             try await existing.value
             return
         }
-        let task = Task { try await self.connectAndAuth() }
+        let gen = generation
+        let task = Task { try await self.connectAndAuth(gen: gen) }
         connectTask = task
-        defer { connectTask = nil }
+        defer {
+            if connectTask == task { connectTask = nil }
+            recheckIfPending()
+        }
         try await task.value
     }
 
@@ -159,6 +180,7 @@ final class OTCConnection: ObservableObject {
         Task { await ws.close() }
         authenticated = false
         generation &+= 1
+        recheckPending = false
         backoffSeconds = 1
         // An explicit retry or new credentials: try at once.
         authRejection = nil
@@ -177,9 +199,20 @@ final class OTCConnection: ObservableObject {
         connectionFailed = false
     }
 
+    /// Thrown by a connect that Save Connection or Log Out overtook
+    /// (invalidate): whatever it was doing belongs to settings that are
+    /// gone.
+    private static let superseded = NSError(domain: "OTCConnection", code: 4, userInfo: [
+        NSLocalizedDescriptionKey: "The connection settings changed; try again.",
+    ])
+
+    /// `gen`: `generation` when this connect was decided on. Once
+    /// invalidate() bumps it, the connect stops at its next step: it must
+    /// not sign in to the old device, nor store what it says about the
+    /// home network, after the user changed device or logged out.
     /// `raced`: a home-network socket a route check already opened (see
     /// checkRoute), signed in over instead of racing again.
-    private func connectAndAuth(raced: (link: HomeLink, task: URLSessionWebSocketTask)? = nil) async throws {
+    private func connectAndAuth(gen: Int, raced: (link: HomeLink, task: URLSessionWebSocketTask)? = nil) async throws {
         // Read off the main actor: this class is @MainActor, and
         // loadOrCreate() does three synchronous Keychain reads, which are
         // slow the first time a process wakes the keychain daemon. Doing
@@ -190,6 +223,10 @@ final class OTCConnection: ObservableObject {
             let secrets = SecretsStore.loadOrCreate()
             return (secrets, LocalEndpoint.stored(for: secrets.endpointURLString))
         }.value
+        guard gen == generation else {
+            raced?.task.cancel()
+            throw Self.superseded
+        }
         // Normalized (scheme and /ws filled in) - see
         // SecretsStore.normalizedEndpoint for why the stored value can't
         // be dialled as typed.
@@ -210,11 +247,29 @@ final class OTCConnection: ObservableObject {
         // the device's certificate matched the pin; then the sign-in below
         // runs over it exactly as through the bridge.
         var home = raced
+        // A raced socket belongs to the connection the route check looked
+        // at. Another saved endpoint is another device: its password must
+        // not go there.
+        if let raced, raced.link.endpoint.endpoint != secrets.endpointURLString {
+            raced.task.cancel()
+            home = nil
+        }
         if home == nil, let stored, !NetworkWatch.shared.onlyCellular {
             home = await PinnedSession.forPin(stored.pin).race(stored)
+            guard gen == generation else {
+                home?.task.cancel()
+                throw Self.superseded
+            }
         }
         if let home {
-            await ws.adopt(home.task)
+            // A route switch replaces a live socket: what is still in
+            // flight on it gets a moment to finish rather than being sent
+            // again on this one (see checkRoute).
+            await ws.adopt(home.task, drain: 3)
+            guard gen == generation else {
+                await ws.close(ifCurrent: home.task)
+                throw Self.superseded
+            }
             let before = (lastError, statusCode)
             // A socket that opened and then stalls must not hold every
             // request: closing it fails the sign-in, which then goes
@@ -227,11 +282,14 @@ final class OTCConnection: ObservableObject {
             defer { watchdog.cancel() }
             do {
                 try await signIn(secrets, credKey: credKey)
+                // The catch below closes it.
+                guard gen == generation else { throw Self.superseded }
                 print("[home] signed in over the home network at \(home.link.address)")
                 connected(home: home.link, endpoint: secrets.endpointURLString)
                 return
             } catch {
                 await ws.close()
+                guard gen == generation else { throw Self.superseded }
                 // The device's own verdict on the password: the bridge
                 // would only hear the same one and count another failure.
                 if Self.isPasswordVerdict(error) {
@@ -246,6 +304,7 @@ final class OTCConnection: ObservableObject {
         do {
             try await ws.connect(url: url)
         } catch {
+            guard gen == generation else { throw Self.superseded }
             lastError = Self.describe(error)
             connectionFailed = true
             throw error
@@ -253,8 +312,11 @@ final class OTCConnection: ObservableObject {
 
         do {
             try await signIn(secrets, credKey: credKey)
+            // The catch below closes it.
+            guard gen == generation else { throw Self.superseded }
         } catch {
             await ws.close()
+            guard gen == generation else { throw Self.superseded }
             // Any failure on the way in, not just the two the bridge names:
             // a refused handshake or an unreachable host arrives here as a
             // URLSession error with nothing set above, and the owner
@@ -265,7 +327,7 @@ final class OTCConnection: ObservableObject {
         }
 
         connected(home: nil, endpoint: secrets.endpointURLString)
-        refreshLocalEndpoint(for: secrets.endpointURLString, stored: stored)
+        refreshLocalEndpoint(for: secrets.endpointURLString, stored: stored, gen: gen)
     }
 
     /// GetPubKey, then Auth with the password sealed to that key, over the
@@ -359,15 +421,17 @@ final class OTCConnection: ObservableObject {
         connectedEndpoint = endpoint
         authenticated = true
         homeLink = home
-        route = home != nil ? .home : .remote(host: URL(string: endpoint)?.host ?? endpoint)
+        homeNetwork = home != nil ? NetworkWatch.shared.localNetwork : nil
+        route = home != nil ? .home : .remote(host: URL(string: endpoint)?.host ?? "")
         registerPushToken()
     }
 
     /// Issue #190: after every sign-in through the endpoint, asks the
     /// device where it is on the home network, for the next connect. Over
-    /// this socket only, never a reconnect of its own.
-    private func refreshLocalEndpoint(for endpoint: String, stored: LocalEndpoint?) {
-        let gen = generation
+    /// this socket only, never a reconnect of its own. `gen`: the
+    /// connect's own, so an answer for settings changed since it began is
+    /// dropped.
+    private func refreshLocalEndpoint(for endpoint: String, stored: LocalEndpoint?, gen: Int) {
         Task {
             let resp: Msg_RespEnvelope
             do {
@@ -405,20 +469,37 @@ final class OTCConnection: ObservableObject {
 
     /// A network change, or the app back in the foreground. A connection
     /// through the endpoint moves to the home network when the device
-    /// answers there now; one on the home network that stopped answering
-    /// (the phone left home) reconnects - home first, then the endpoint.
-    /// Only while nothing is uploading, downloading or syncing: switching
-    /// would cut that off, so it waits for the next natural reconnect.
+    /// answers there now; one on the home network whose network is gone
+    /// and that stopped answering (the phone left home) reconnects - home
+    /// first, then the endpoint. Not while connecting, nor while anything
+    /// is uploading, downloading or syncing: switching would cut that off.
+    /// The check is then made once the connect or the last transfer is
+    /// over.
     func reconsiderRoute() async {
         if let routeCheck {
             await routeCheck.value
             return
         }
-        guard authenticated, connectTask == nil, !TransferActivity.shared.busy else { return }
+        if connectTask != nil || TransferActivity.shared.busy {
+            recheckPending = true
+            return
+        }
+        recheckPending = false
+        // Not signed in and not connecting: the next connect tries the
+        // home network first anyway.
+        guard authenticated else { return }
         let check = Task { await self.checkRoute() }
         routeCheck = check
         await check.value
         routeCheck = nil
+    }
+
+    /// The route check put off for a connect or a transfer, now that it
+    /// is over.
+    private func recheckIfPending() {
+        guard recheckPending else { return }
+        recheckPending = false
+        Task { await reconsiderRoute() }
     }
 
     private func checkRoute() async {
@@ -438,7 +519,16 @@ final class OTCConnection: ObservableObject {
         case .nothing:
             return
         case .pingHome:
-            if await ws.ping(within: 2) { return }
+            // Home on a live socket over a network the phone is still on:
+            // stay, as Android and macOS do. A ping is answered only when
+            // the device reads its next frame, which a busy one (a large
+            // upload, a burst of thumbnails) puts off for seconds; a missed
+            // budget used to move the phone onto the bridge at home.
+            // Leaving that network breaks the socket, and its drop
+            // reconnects (handleDisconnect).
+            if let net = homeNetwork, let now = NetworkWatch.shared.localNetwork, net.continues(in: now),
+               await ws.connected { return }
+            if await ws.ping(within: 5) { return }
             guard stillIdle() else { return }
             print("[home] \(homeLink?.address ?? "the home network") stopped answering; reconnecting")
             await reconnect(over: nil)
@@ -446,6 +536,16 @@ final class OTCConnection: ObservableObject {
             guard let stored, let won = await PinnedSession.forPin(stored.pin).race(stored) else { return }
             guard stillIdle() else {
                 won.task.cancel()
+                return
+            }
+            // Switching closes the socket in use, and a request it cuts
+            // off is sent again on the new one - after the device may have
+            // acted on it already (a like toggled back, a comment posted
+            // twice). Only with nothing in flight; otherwise after the
+            // next connect or transfer, or on the next change.
+            guard await ws.waitIdle(within: 2), stillIdle() else {
+                won.task.cancel()
+                recheckPending = true
                 return
             }
             print("[home] the device answers on the home network at \(won.link.address); moving there")
@@ -457,12 +557,15 @@ final class OTCConnection: ObservableObject {
     /// wait for it - over `raced` when given, else from scratch.
     private func reconnect(over raced: (link: HomeLink, task: URLSessionWebSocketTask)?) async {
         authenticated = false
+        let gen = generation
         let task = Task {
             if raced == nil { await self.ws.close() }
-            try await self.connectAndAuth(raced: raced)
+            try await self.connectAndAuth(gen: gen, raced: raced)
         }
         connectTask = task
-        defer { connectTask = nil }
+        defer {
+            if connectTask == task { connectTask = nil }
+        }
         _ = try? await task.value
     }
 

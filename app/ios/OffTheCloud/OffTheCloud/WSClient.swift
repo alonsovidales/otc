@@ -69,10 +69,26 @@ actor WSClient {
         if task === t { close() }
     }
 
+    /// Issue #190: waits up to `seconds` for no request to be waiting for
+    /// its answer; whether none is. A route switch replaces the socket,
+    /// and a request it cuts off is sent again on the new one, after the
+    /// device may have acted on it already. A socket that breaks fails its
+    /// requests, so it is idle too.
+    func waitIdle(within seconds: TimeInterval) async -> Bool {
+        let deadline = Date() + seconds
+        while !waiters.isEmpty {
+            guard Date() < deadline else { return false }
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { return false }
+        }
+        return true
+    }
+
     /// Issue #190: takes over a socket whose handshake has already
     /// completed (the home network's, from PinnedSession.race) in place of
-    /// whatever this held.
-    func adopt(_ t: URLSessionWebSocketTask) {
+    /// whatever this held. What is still waiting on a live old socket gets
+    /// up to `drain` seconds to be answered there first.
+    func adopt(_ t: URLSessionWebSocketTask, drain: TimeInterval = 0) async {
+        if drain > 0 { _ = await waitIdle(within: drain) }
         close()
         task = t
         adopted = true

@@ -25,7 +25,8 @@ enum HomeNetwork {
     /// What a network change or a return to the foreground does.
     enum Check: Equatable {
         case nothing
-        /// On the home network: reconnect unless it still answers.
+        /// On the home network: reconnect unless the phone is still on
+        /// the network it connected over, or the socket still answers.
         case pingHome
         /// Through the endpoint: move home if the device answers there.
         case tryHome
@@ -404,6 +405,29 @@ final class NetworkWatch: @unchecked Sendable {
         let types = p.availableInterfaces.map(\.type)
         return !types.isEmpty && types.allSatisfy { $0 == .cellular }
     }
+
+    /// The Wi-Fi or wired network the phone is on, told apart as on
+    /// macOS: by its interfaces and gateways (another Wi-Fi has another
+    /// router). Tunnels and cellular are left out.
+    struct LocalNetwork: Equatable, Sendable {
+        let interfaces: Set<String>
+        let gateways: Set<String>
+
+        /// `now` is still this network: one of its interfaces is up, and
+        /// one of its gateways when both have any.
+        func continues(in now: LocalNetwork) -> Bool {
+            guard !interfaces.isDisjoint(with: now.interfaces) else { return false }
+            return gateways.isEmpty || now.gateways.isEmpty || !gateways.isDisjoint(with: now.gateways)
+        }
+    }
+
+    /// nil while the path isn't known, or has no Wi-Fi or wired interface.
+    var localNetwork: LocalNetwork? {
+        guard let p = lock.withLock({ path }), p.status == .satisfied else { return nil }
+        let names = Set(p.availableInterfaces.filter { $0.type == .wifi || $0.type == .wiredEthernet }.map(\.name))
+        guard !names.isEmpty else { return nil }
+        return LocalNetwork(interfaces: names, gateways: Set(p.gateways.map { "\($0)" }))
+    }
 }
 
 /// Issue #190: uploads, downloads and photo syncs in progress. Switching
@@ -413,8 +437,22 @@ final class TransferActivity: @unchecked Sendable {
     static let shared = TransferActivity()
     private let lock = NSLock()
     private var count = 0
+    /// Runs as the last one ends: a route check put off for it is made
+    /// then.
+    private var onIdle: (@Sendable () -> Void)?
 
     var busy: Bool { lock.withLock { count > 0 } }
     func begin() { lock.withLock { count += 1 } }
-    func end() { lock.withLock { count -= 1 } }
+
+    func end() {
+        let idle: (@Sendable () -> Void)? = lock.withLock {
+            count -= 1
+            return count == 0 ? onIdle : nil
+        }
+        idle?()
+    }
+
+    func setOnIdle(_ cb: @escaping @Sendable () -> Void) {
+        lock.withLock { onIdle = cb }
+    }
 }

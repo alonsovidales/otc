@@ -1306,6 +1306,11 @@ private struct PostCard: View {
                 if videoEnded {
                     Button {
                         videoEnded = false
+                        if videoPlayerIsStale {
+                            dropVideoPlayer()
+                            loadAndPlayVideo(file)
+                            return
+                        }
                         player.seek(to: .zero)
                         player.play()
                     } label: {
@@ -1372,12 +1377,31 @@ private struct PostCard: View {
     /// is what turns sound on.
     private func autoplayIfVideo(_ file: Msg_File) {
         guard file.mime.hasPrefix("video/") else { return }
+        if videoPlayerIsStale { dropVideoPlayer() }
         if let player = videoPlayer {
             player.isMuted = feedAudio.muted
             player.play()
             return
         }
         loadAndPlayVideo(file)
+    }
+
+    /// Issue #190: a streaming player that can't play any more. One
+    /// built at home streams from the device's home address, out of reach
+    /// once the app connects another way, and a failed one (a token past
+    /// its hour too) stays failed. Dropped, a URL for the route in use is
+    /// asked for. A downloaded file is never stale.
+    private var videoPlayerIsStale: Bool {
+        guard let player = videoPlayer, let url = videoPlaybackURL, !url.isFileURL else { return false }
+        if player.currentItem?.status == .failed { return true }
+        return HomeMediaLoader.httpsURL(url) != nil && OTCConnection.shared.homeLink == nil
+    }
+
+    private func dropVideoPlayer() {
+        videoPlayer?.pause()
+        videoPlayer = nil
+        videoPlaybackURL = nil
+        videoEnded = false
     }
 
     private func loadAndPlayVideo(_ file: Msg_File) {
