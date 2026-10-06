@@ -144,3 +144,4 @@
 98	-	c574f23f042d8dbead26e608b25c815066da2f39aa590b85704b55f29a22277e	The public profile page no longer shows a Follow button that did nothing.	72fcb4e69ea871d8f7d282a2a9c9d474d6eb50dd3a33fafed4957529d8143a0d
 99	-	5410aa23ec30f863f45dc997f2705832cccd2e77113f7dc50a8100db1df77512	Hovering the upload-only lock shows what it does straight away.	d019ea316b531add375682f06bdab14e4633a7313944e6af2205d316b43296f9
 100	-	7b37482c1e723994ae226c5a2889b3571d1b472ea9d8f229f048c8542c45508f	Alerts and push notifications when a storage disk stops working, naming its USB port. The lock's tooltip shows at once.	5be5aba3d08c0acc72f08e652658fb14ecb0e885d748336e5bb9303e22da52fb
+101	-	df19b1f3140bd0bf6b4bd92f4d720c38b7632c31f76ce411f0f984dbefbf491f	Swapping both storage cards for bigger ones now grows the storage by itself.	10d23e43511cec04ddf8bf1e48f70ecca3979b08c20b534fb4d644693af3a863
