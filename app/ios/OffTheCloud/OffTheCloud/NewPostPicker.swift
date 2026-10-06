@@ -183,6 +183,11 @@ final class NewPostPickerVM: ObservableObject {
                 var sp = Msg_SearchPhotos()
                 sp.tags = self.chips
                 sp.token = overrideToken ?? self.token ?? ""
+                // A new search (switching to Synced, a tag added or
+                // removed) gets a small first page so the grid paints
+                // quickly; scrolling on, the full size (see
+                // cFirstPhotoPageLimit).
+                if sp.token.isEmpty { sp.limit = cFirstPhotoPageLimit }
                 // Issue #60: the composer offers videos alongside photos,
                 // unlike the Photo Gallery's own search.
                 sp.includeVideos = true

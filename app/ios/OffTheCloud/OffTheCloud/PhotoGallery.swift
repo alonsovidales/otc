@@ -20,6 +20,12 @@ typealias ShareFilesLinkMsg = Msg_ShareFilesLink
 typealias DownloadSharedMsg = Msg_DownloadSharedLink
 typealias AckMsg            = Msg_Ack
 
+/// SearchPhotos.limit for the request that starts a photo search (no
+/// token): a small first page paints quickly over a slow upload. Pages
+/// that continue the token send none and get the device's own size; a
+/// device before release 97 ignores it and answers its default, 30.
+let cFirstPhotoPageLimit: Int32 = 12
+
 // MARK: - ViewModel (iOS only)
 @MainActor
 final class PhotoGalleryVM: ObservableObject {
@@ -569,7 +575,7 @@ final class PhotoGalleryVM: ObservableObject {
         // tiles left the grid permanently stuck. Remember the ask instead
         // and let the in-flight fetch pick it up when it lands.
         guard !loading else {
-            morePending = true
+            morePendingAt = max(morePendingAt ?? idx, idx)
             return
         }
 
@@ -608,9 +614,10 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
-    /// Set when a tile asked for more while a fetch was already running,
-    /// so the fetch that lands can honour it (see loadMoreIfNeeded).
-    private var morePending = false
+    /// The furthest tile (its index) that asked for more while a fetch was
+    /// already running, so the fetch that lands can honour it (see
+    /// loadMoreIfNeeded).
+    private var morePendingAt: Int?
 
     /// How many consecutive pages that add nothing to tolerate before
     /// giving up, so a device that keeps restarting the same search can
@@ -636,11 +643,18 @@ final class PhotoGalleryVM: ObservableObject {
             // one.
             if myGeneration == searchGeneration {
                 loading = false
-                if morePending, !endReached {
-                    morePending = false
-                    // Detached from this call so the defer isn't waiting
-                    // on another round trip.
-                    Task { await self.fetchUntilProgress() }
+                if let at = morePendingAt, !endReached {
+                    morePendingAt = nil
+                    // Only if that tile is still near the end. Every tile
+                    // of a small first page asks at once, and the page
+                    // that just landed moved the end well past them;
+                    // honouring them anyway pulled a third page nobody
+                    // had scrolled to.
+                    if at >= items.count - 12 {
+                        // Detached from this call so the defer isn't
+                        // waiting on another round trip.
+                        Task { await self.fetchUntilProgress() }
+                    }
                 }
             }
         }
@@ -674,6 +688,9 @@ final class PhotoGalleryVM: ObservableObject {
                 // videos unbrowsable from the app entirely.
                 sp.includeVideos = true
                 sp.token = requestToken
+                // A search starting here (a filter, the scrubber's jump)
+                // gets a small first page; scrolling on, the full size.
+                if requestToken.isEmpty { sp.limit = cFirstPhotoPageLimit }
                 // Lets the device resume where this grid actually is if
                 // it no longer holds the token (see SearchPhotos.have).
                 sp.have = Int32(self.items.count)

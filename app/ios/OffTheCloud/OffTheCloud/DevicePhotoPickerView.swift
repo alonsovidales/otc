@@ -83,6 +83,10 @@ final class DevicePhotoPickerVM: ObservableObject {
                 var req = Msg_ReqEnvelope()
                 var sp = Msg_SearchPhotos()
                 sp.token = pageToken
+                // A new search (opening, or another chip) gets a small
+                // first page so the grid paints quickly; scrolling on, the
+                // full size (see cFirstPhotoPageLimit).
+                if pageToken.isEmpty { sp.limit = cFirstPhotoPageLimit }
                 sp.groupID = group
                 // A profile photo can't be a video.
                 sp.includeVideos = false
