@@ -60,9 +60,21 @@ type LocalEndpoint struct {
 	Pin       []byte // SHA-256 of the certificate's DER bytes
 }
 
+// isHomeIP is whether ip is an address the device lists: private IPv4
+// (10/8, 172.16/12, 192.168/16) or IPv6 ULA (fc00::/7), which leaves out
+// loopback, link-local and unspecified too. A tampered answer (or a
+// hand-edited local.json) naming a public address then can't make the
+// internet the "home network".
+func isHomeIP(ip net.IP) bool {
+	return ip.IsPrivate()
+}
+
+// homeIP is isHomeIP; the tests also let their devices listen on loopback.
+var homeIP = isHomeIP
+
 // NewLocalEndpoint keeps the usable part of what the device (or the
-// store) says: IP literals only (nothing to resolve), a port, and a pin
-// of the right length. Nil when nothing usable is left.
+// store) says: home-network IP literals only (nothing to resolve), a
+// port, and a pin of the right length. Nil when nothing usable is left.
 func NewLocalEndpoint(addresses []string, port int, pin []byte) *LocalEndpoint {
 	if port <= 0 || port > 65535 || len(pin) != sha256.Size {
 		return nil
@@ -71,7 +83,7 @@ func NewLocalEndpoint(addresses []string, port int, pin []byte) *LocalEndpoint {
 	seen := map[string]bool{}
 	for _, a := range addresses {
 		ip := net.ParseIP(a)
-		if ip == nil || seen[ip.String()] || len(ep.Addresses) == maxLocalAddresses {
+		if ip == nil || !homeIP(ip) || seen[ip.String()] || len(ep.Addresses) == maxLocalAddresses {
 			continue
 		}
 		seen[ip.String()] = true
@@ -234,14 +246,6 @@ func (c *Client) Route() Route {
 	}
 
 	return c.route
-}
-
-// Pending is how many requests are waiting for their answer.
-func (c *Client) Pending() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	return len(c.waiters)
 }
 
 // ErrReconnecting is what OnDisconnect gets for a Reconnect.

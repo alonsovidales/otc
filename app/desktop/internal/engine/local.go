@@ -212,10 +212,13 @@ func (e *Engine) watchNetwork(stop <-chan struct{}) {
 }
 
 // networkChanged chooses the route again - the computer may have come
-// home, or left - unless something is being transferred: that finishes
-// where it is, and the next reconnect chooses. Without a home-network
-// endpoint (a device before issue #190) there is no other route, and
-// nothing changes.
+// home, or left - unless something is being transferred (a folder pass
+// or the change queue, as syncInFlight on macOS): that finishes where it
+// is, and the next reconnect chooses. A request alone, such as the RAID
+// poll, is no transfer: one left unanswered on a connection that died
+// unnoticed would keep the client there until TCP gives up. Without a
+// home-network endpoint (a device before issue #190) there is no other
+// route, and nothing changes.
 func (e *Engine) networkChanged() {
 	e.mu.Lock()
 	ready := !e.stopped && config.Ready(e.cfg, e.password)
@@ -224,7 +227,7 @@ func (e *Engine) networkChanged() {
 	if !ready || !e.ws.HasLocalEndpoint() {
 		return
 	}
-	if busy || e.ws.Pending() > 0 {
+	if busy {
 		log.Printf("the network changed during a transfer: the route is chosen again at the next reconnect")
 
 		return

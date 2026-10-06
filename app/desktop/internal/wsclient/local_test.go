@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -27,6 +28,13 @@ import (
 
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
+
+// The tests' devices listen on loopback, which a real endpoint never
+// names (isHomeIP); anything else is filtered as in the app.
+func TestMain(m *testing.M) {
+	homeIP = func(ip net.IP) bool { return ip.IsLoopback() || isHomeIP(ip) }
+	os.Exit(m.Run())
+}
 
 // deviceCert is a certificate like the device's own (lantls): self-signed
 // ECDSA P-256, CN otc-lan.
@@ -248,7 +256,22 @@ func TestLocalEndpointKeepsOnlyWhatIsUsable(t *testing.T) {
 	if NewLocalEndpoint([]string{"otc.local", ""}, 8443, pin) != nil {
 		t.Error("an endpoint without an IP address was kept")
 	}
-	ep := NewLocalEndpoint([]string{"192.168.1.5", "evil.example", "192.168.1.5", "fd12:3456::7"}, 8443, pin)
+	// Only what the device lists: a tampered answer can't make a public
+	// address the home network.
+	if NewLocalEndpoint([]string{"203.0.113.7", "2001:db8::7", "100.101.102.103"}, 8443, pin) != nil {
+		t.Error("an endpoint with only public or Tailscale addresses was kept")
+	}
+	for _, a := range []string{"127.0.0.1", "::1", "169.254.1.2", "fe80::1", "0.0.0.0", "::", "8.8.8.8", "100.64.0.1"} {
+		if isHomeIP(net.ParseIP(a)) {
+			t.Errorf("%s counts as a home-network address", a)
+		}
+	}
+	for _, a := range []string{"10.1.2.3", "172.16.0.1", "172.31.255.254", "192.168.50.2", "fd12:3456::7", "fc00::1"} {
+		if !isHomeIP(net.ParseIP(a)) {
+			t.Errorf("%s doesn't count as a home-network address", a)
+		}
+	}
+	ep := NewLocalEndpoint([]string{"192.168.1.5", "evil.example", "203.0.113.7", "192.168.1.5", "fd12:3456::7"}, 8443, pin)
 	if !ep.Equal(NewLocalEndpoint([]string{"fd12:3456::7", "192.168.1.5"}, 8443, pin)) {
 		t.Error("the same addresses in another order are another endpoint")
 	}

@@ -156,15 +156,11 @@ func TestNetworkChangeWaitsForTransfers(t *testing.T) {
 		t.Fatal(err)
 	}
 	pubDER, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	closed := ln.Addr().(*net.TCPAddr).Port
-	ln.Close()
-	// Home never answers: every connection goes through this "bridge".
-	ep := wsclient.NewLocalEndpoint([]string{"127.0.0.1"}, closed, make([]byte, 32))
-	var conns atomic.Int32
+	// Home never answers (a private address nothing serves; an endpoint
+	// can't name loopback): every connection goes through this "bridge",
+	// each after the home try's budget at most.
+	ep := wsclient.NewLocalEndpoint([]string{"10.255.255.1"}, 8443, make([]byte, 32))
+	var conns, held atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
 		if err != nil {
@@ -189,6 +185,12 @@ func TestNetworkChangeWaitsForTransfers(t *testing.T) {
 				resp.Payload = &pb.RespEnvelope_RespLocalEndpoint{RespLocalEndpoint: &pb.LocalEndpoint{
 					Addresses: ep.Addresses, Port: int32(ep.Port), CertSha256: ep.Pin,
 				}}
+			case *pb.ReqEnvelope_ReqGetStatus:
+				// Never answered, as on a connection that died unnoticed:
+				// the RAID poll stays in flight.
+				held.Add(1)
+
+				continue
 			}
 			b, _ := proto.Marshal(resp)
 			if c.WriteMessage(websocket.BinaryMessage, b) != nil {
@@ -205,7 +207,7 @@ func TestNetworkChangeWaitsForTransfers(t *testing.T) {
 
 	waitFor := func(what string, ok func() bool) {
 		t.Helper()
-		deadline := time.Now().Add(10 * time.Second)
+		deadline := time.Now().Add(15 * time.Second)
 		for !ok() {
 			if time.Now().After(deadline) {
 				t.Fatalf("timed out waiting for %s", what)
@@ -230,15 +232,27 @@ func TestNetworkChangeWaitsForTransfers(t *testing.T) {
 	e.mu.Lock()
 	delete(e.folderBusy, "f")
 	e.mu.Unlock()
-	// The RAID poll may be in flight at the first try: that counts as busy.
-	for try := 0; try < 20 && conns.Load() < 2; try++ {
-		e.networkChanged()
-		time.Sleep(250 * time.Millisecond)
+	// Requests left unanswered - the RAID poll and one more - are no
+	// transfer: one change is enough, and they fail rather than hang.
+	waitFor("the RAID poll", func() bool { return held.Load() >= 1 })
+	cut := make(chan error, 1)
+	go func() {
+		_, err := e.request(func(r *pb.ReqEnvelope) { r.Payload = &pb.ReqEnvelope_ReqGetStatus{ReqGetStatus: &pb.GetStatus{}} })
+		cut <- err
+	}()
+	waitFor("the request", func() bool { return held.Load() >= 2 })
+	e.networkChanged()
+	waitFor("the reconnection", func() bool {
+		return conns.Load() == 2 && e.ws.IsConnected() && e.Snapshot().Status == "Connected"
+	})
+	select {
+	case err := <-cut:
+		if err == nil {
+			t.Fatal("the request in flight got an answer it was never sent")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the request in flight was left hanging")
 	}
-	if conns.Load() != 2 {
-		t.Fatalf("%d connections after an idle network change, want 2", conns.Load())
-	}
-	waitFor("the reconnection", func() bool { return e.ws.IsConnected() && e.Snapshot().Status == "Connected" })
 
 	// No home-network endpoint (a device before #190): nothing changes.
 	e.ws.SetLocalEndpoint(nil)
