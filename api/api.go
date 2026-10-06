@@ -55,8 +55,10 @@ func newServer(addr string, h http.Handler) *http.Server {
 }
 
 // Init Initializes the API and starts listening on the specified ports serving
-// both the HTTP API and the static content
-func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao *dao.Dao, staticPath string, httpPort, httpsPort int, cert, key string) (api *API, sslAPI *API) {
+// both the HTTP API and the static content. lanTLSPort (issue #190) serves
+// the same over TLS with the certificate kept in storagePath; 0 serves
+// nothing there.
+func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao *dao.Dao, staticPath string, httpPort, httpsPort int, cert, key string, lanTLSPort int, storagePath string) (api *API, sslAPI *API) {
 	api = &API{
 		websocket:     webSocket,
 		filesManager:  filesManager,
@@ -82,6 +84,10 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 			}
 		}()
 	}
+
+	// Issue #190: what GetLocalEndpoint reports; nil (unavailable) when
+	// the listener couldn't start.
+	webSocket.SetLocalEndpoint(api.startLocalTLS(lanTLSPort, storagePath))
 
 	// Issue #38: also listen on plain port 80, best-effort. iOS/Android/
 	// Windows all probe a well-known URL over port 80 to detect a captive

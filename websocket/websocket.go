@@ -32,6 +32,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
+	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/mediastream"
 	"github.com/alonsovidales/otc/network"
@@ -197,6 +198,9 @@ type Manager struct {
 		mu             sync.Mutex
 		running, dirty bool
 	}
+	// Issue #190: the home-network TLS listener GetLocalEndpoint reports
+	// (see SetLocalEndpoint).
+	local atomic.Pointer[lantls.Endpoint]
 }
 
 // startBackfillOnce kicks off the missing-thumbnail repair the first
@@ -3100,6 +3104,19 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 		log.Info("logs sent to the project for support")
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+
+	// Issue #190: where the apps reach this device at home, over TLS
+	// pinned to its own certificate. Owner sessions only, as everything in
+	// this switch: the addresses are the owner's home network.
+	case *pb.ReqEnvelope_ReqGetLocalEndpoint:
+		local, err := ch.mg.localEndpoint()
+		if err != nil {
+			resp.Error = true
+			resp.ErrorCode = cCodeLocalUnavailable
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespLocalEndpoint{RespLocalEndpoint: local}
 
 	// Issue #182: the owner takes the device off the bridge.
 	case *pb.ReqEnvelope_ReqDisableBridge:

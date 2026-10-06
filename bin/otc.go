@@ -12,6 +12,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/hardening"
+	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/supervisor"
@@ -187,15 +188,25 @@ func main() {
 
 	webSocket := websocket.Init(cfg.GetStr("otc-api", "base-url"), dao, filesManager, sup, cfg.GetStr("otc-api", "static"))
 
+	// Issue #190: the apps' pinned TLS port on the home network, beside the
+	// HTTP port unless [otc-api] lan-tls-port names another.
+	httpPort := int(cfg.GetInt("otc-api", "port"))
+	lanTLSPort, err := lantls.Port(cfg.GetStr("otc-api", "lan-tls-port"), httpPort)
+	if err != nil {
+		log.Error("no home-network TLS listener (the apps stay on the bridge):", err)
+	}
+
 	api.Init(
 		filesManager,
 		webSocket,
 		dao,
 		cfg.GetStr("otc-api", "static"),
-		int(cfg.GetInt("otc-api", "port")),
+		httpPort,
 		int(cfg.GetInt("otc-api", "ssl-port")),
 		cfg.GetStr("otc-api", "ssl-cert"),
-		cfg.GetStr("otc-api", "ssl-key"))
+		cfg.GetStr("otc-api", "ssl-key"),
+		lanTLSPort,
+		cfg.GetStr("otc", "storage-path"))
 
 	log.Info("System started...")
 	c := make(chan os.Signal, 1)

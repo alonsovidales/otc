@@ -439,6 +439,10 @@ port=8080
 ssl-port=443
 ssl-cert=
 ssl-key=
+# Issue #190: the apps reach the device at home over TLS on this port, with
+# a self-signed certificate they pin (made on the first start and kept in
+# <storage-path>/.lan-tls/). Defaults to port + 363 (8443) if omitted.
+lan-tls-port=8443
 
 [mysql]
 user=otc
