@@ -219,6 +219,19 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   its own key and read the password at sign-in. The owner reviewed this on 2026-10-05 and accepts
   it - the bridge nodes are the owner's own and `servercheck.sh` watches them; pinning a device
   identity was judged not viable. Reviews should not raise it again.
+- File sizes (issue #187): `File.size64` (int64, field 11) is a file's size in bytes; `File.size`
+  keeps that size wrapped to int32, exactly what it carried before, for the apps already in the
+  stores. Devices before release 93 leave `size64` at 0, so every reader takes `size64` when it is
+  non-zero and falls back to the signed `size`. Device: set a `pb.File`'s size only through
+  `dao.SetFileSize(f, n)` and read it with `dao.FileSize(f)` - never set `Size` alone, and never
+  scan a size column into the int32 field (a BIGINT above MaxInt32 fails the whole scan;
+  websocket's `Init` has a `fileSize` alias because its `dao` parameter hides the package).
+  Clients read it through one helper each: web `fileSize()` (`web/src/net/fileSize.ts`; ts-proto
+  makes `size64` a required bigint, so a hand-built File literal needs `size64: 0n`), iOS
+  `Msg_File.fileSize` (`formatByteCount(Int64)` for display), Android `net/FileSize.kt`
+  (`byteSize`, and `sizeMatches(local)`, which compares the wrapped `local.toInt()` with `size`
+  only when `size64` is unset - PhotoSync's size shortcut), the Mac's `FileMsg.fileSize`
+  (`WSClient.swift`) and otc-sync's `engine.fileSize`. Never read `.size` of a File directly.
 
 ### Device-side package layout (root Go module)
 
@@ -345,8 +358,15 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   photo). A post's video is never loaded: `ExportVideoForPost` re-encodes it from the loopback
   stream straight into the posts' directory (named by hash) or decrypts the original there a
   segment at a time, one transcode at a time (`transcodeSlots`, taken before the stream token);
-  a post's photos are read one at a time, within the budget. `budgetSize` sizes a file by its blob
-  once that is 2 GiB or more (`File.size` is int32 and wraps). `checkImageSize` also bounds a HEIC
+  a post's photos are read one at a time, within the budget. `budgetSize` uses the row's int64 size and
+  looks at the blob only until the size backfill below has run. Since release 93 (`93.sh`, and
+  `install.sh` `apply_schema_migrations`) the size columns of `files`, `file_versions` and
+  `social_publications_files` are BIGINT; `files_manager/size_backfill.go` corrects, once and in
+  the background at start until `settings.sizes_backfilled` is set, the rows stored wrapped (or,
+  for friends' posts in release 92, clamped) before it: only blobs over MaxInt32, content size from
+  the size on disk via `segcrypt.PlainSize` (no key needed), own and friends' post files from their
+  copies in `unenc-storage-path`; it waits for the BIGINT columns, and a pass with an error is
+  retried at the next start. `checkImageSize` also bounds a HEIC
   grid by its decoded first tile (`checkHeifGrid`), and upload processing never hands an
   `errImageTooLarge` file to ffmpeg.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
@@ -447,7 +467,7 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   relay socket clears the deadlines once registered.
   **Friend post sync** (`social.updateFriendEvents`): a file whose hash fails `dao.IsContentHash`
   is dropped (`NewSocialPublication` refuses one too, storing a post and its files in one
-  transaction); the size recorded is what the files take on this disk; media is pulled under
+  transaction); the size recorded is what the files take on this disk (int64; release 92 clamped it to MaxInt32); media is pulled under
   `ReserveFriendMedia` (3x the declared size, waiting at most 2 min) and written by
   `writeFileAtomic`. A transport failure (`errFriendTransport`, including the bridge answering
   `device_unreachable`/`account_disabled` for the friend) or a failed thumbnail write stops the page
@@ -903,10 +923,7 @@ since every reconnect dials the stored values; `PhotoSync.hasPermission()` must 
 `mediaPermissions()`. iOS unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with
 `-only-testing:OffTheCloudTests`.
 
-**Known gaps left by the 2026-10 hardening pass.** `File.size` is int32 on the wire and `int` in
-`files`, `file_versions` and `social_publications_files`: files of 2 GiB or more show a wrong size
-(only the memory budget uses the blob size; widening needs proto, client and ALTER TABLE changes).
-`network/network.go` `RequestJoin` writes `wifi_join_request.json` with a plain `os.WriteFile`, not
+**Known gaps left by the 2026-10 hardening pass.** `network/network.go` `RequestJoin` writes `wifi_join_request.json` with a plain `os.WriteFile`, not
 temp + fsync + rename. iOS `FileDownload` falls back to `GetFile` only on `error_code =
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
