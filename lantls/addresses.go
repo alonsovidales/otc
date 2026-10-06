@@ -11,6 +11,11 @@ import (
 // a phone on it is next to the device, not on the home network.
 const cHotspotIface = "uap0"
 
+// hotspotNet is the setup hotspot's network, pinned in
+// scripts/network_setup.py (ipv4.addresses). Left out whatever interface
+// carries it: without the virtual AP the hotspot runs on wlan0 itself.
+var hotspotNet = mustCIDR("10.42.0.0/24")
+
 // tailnetV6 is Tailscale's IPv6 range, inside the ULA block; its IPv4 one
 // (100.64.0.0/10) isn't private and never passes.
 var tailnetV6 = mustCIDR("fd7a:115c:a1e0::/48")
@@ -54,7 +59,7 @@ func Addresses() ([]string, error) {
 }
 
 func filterAddresses(ifs []iface) []string {
-	var hotspot []*net.IPNet
+	hotspot := []*net.IPNet{hotspotNet}
 	for _, i := range ifs {
 		if i.Name != cHotspotIface {
 			continue

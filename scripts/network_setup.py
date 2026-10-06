@@ -383,7 +383,8 @@ def ensure_ap_mode():
     # pinned (rather than left to NM's own shared-mode default, which
     # happens to also be 10.42.0.1/24 today but isn't a documented
     # guarantee) so it's certain to match write_captive_dns_config's
-    # wildcard target above.
+    # wildcard target above, and lantls/addresses.go, which keeps this
+    # network out of the home-network addresses the apps are given.
     # 2.4GHz channel 6, which every phone can see - unless the hotspot has
     # its own interface and the client side is connected, in which case
     # the one radio forces both onto the client's channel.

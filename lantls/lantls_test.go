@@ -245,6 +245,22 @@ func TestFilterAddresses(t *testing.T) {
 	}
 }
 
+// Without the virtual AP the setup hotspot runs on wlan0 itself
+// (scripts/network_setup.py), with no uap0 to learn its subnet from.
+func TestFilterAddressesLeavesOutTheHotspotOnWlan0(t *testing.T) {
+	up := net.FlagUp | net.FlagBroadcast | net.FlagMulticast
+	ifs := []iface{
+		{"eth0", up, []net.Addr{ipNet(t, "192.168.1.10/24")}},
+		{"wlan0", up, []net.Addr{ipNet(t, "10.42.0.1/24")}},
+	}
+
+	got := filterAddresses(ifs)
+
+	if want := []string{"192.168.1.10"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 func TestAddressesReadsTheInterfaces(t *testing.T) {
 	saved := interfaces
 	t.Cleanup(func() { interfaces = saved })
