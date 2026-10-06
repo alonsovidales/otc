@@ -104,6 +104,7 @@ import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.gridCellPx
 import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.common.rememberTileThumb
+import cloud.offthe.otc.ui.gallery.FIRST_PHOTO_PAGE_LIMIT
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -211,7 +212,14 @@ class NewPostPickerViewModel : ViewModel() {
         _state.update { it.copy(loading = true) }
         try {
             val chips = _state.value.chips
-            val resp = OTCConnection.request { it.setReqSearchPhotos(SearchPhotos.newBuilder().addAllTags(chips).setToken(overrideToken ?: token ?: "").setIncludeVideos(true)) }
+            val requestToken = overrideToken ?: token ?: ""
+            val resp = OTCConnection.request {
+                val sp = SearchPhotos.newBuilder().addAllTags(chips).setToken(requestToken).setIncludeVideos(true)
+                // A new search (Synced, a tag added or removed) gets a small
+                // first page; scrolling on, the device's own size.
+                if (requestToken.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
+                it.setReqSearchPhotos(sp)
+            }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return
             val lof = resp.respListOfFiles
             ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })

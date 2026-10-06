@@ -59,7 +59,9 @@ import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.gridCellPx
 import cloud.offthe.otc.ui.common.rememberTileThumb
+import cloud.offthe.otc.ui.gallery.FIRST_PHOTO_PAGE_LIMIT
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -88,6 +90,9 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     var generation by remember { mutableIntStateOf(0) }
     var fetching by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    // Pages that failed in a row, so the grid's filling asks again after a
+    // pause, twice at most, rather than in a tight loop.
+    var failures by remember { mutableIntStateOf(0) }
 
     suspend fun loadPage() {
         val t = token ?: return
@@ -96,10 +101,14 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
         loading = true
         try {
             val resp = OTCConnection.request { e ->
-                e.setReqSearchPhotos(SearchPhotos.newBuilder().setGroupId(groupId).setIncludeVideos(false).setToken(t).setHave(items.size))
+                val sp = SearchPhotos.newBuilder().setGroupId(groupId).setIncludeVideos(false).setToken(t).setHave(items.size)
+                // A new search (opening, another chip) gets a small first
+                // page; scrolling on, the device's own size.
+                if (t.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
+                e.setReqSearchPhotos(sp)
             }
             if (mine != generation) return
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = "Could not load your photos."; return }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = "Could not load your photos."; failures += 1; return }
             val lof = resp.respListOfFiles
             ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })
             if (mine != generation) return
@@ -107,8 +116,9 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
             items = items + lof.filesList.filter { it.path !in seen }
                 .map { f -> PickItem(f.path, if (f.hasContent()) "${f.path}#${f.hash}#${f.byteSize}" else null) }
             token = lof.token.ifEmpty { null }
+            failures = 0
         } catch (e: Exception) {
-            if (mine == generation) error = "Could not load your photos."
+            if (mine == generation) { error = "Could not load your photos."; failures += 1 }
         } finally {
             if (mine == generation) loading = false
         }
@@ -117,7 +127,7 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     fun selectGroup(id: String) {
         if (id == groupId) return
         generation += 1
-        groupId = id; items = emptyList(); token = ""; loading = false; error = null
+        groupId = id; items = emptyList(); token = ""; loading = false; error = null; failures = 0
         scope.launch { loadPage() }
     }
 
@@ -138,9 +148,17 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
 
     // Near the end of the grid (and nothing in flight): fetch the next page.
     // Re-evaluated when a page lands, so a short first page keeps filling.
+    // The page is launched apart from this effect: loadPage sets loading,
+    // one of its keys, and the restart cancelled the request it had just
+    // sent (shown as "Could not load your photos.", then asked again).
     val grid = rememberLazyGridState()
     val nearEnd by remember { derivedStateOf { (grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= items.size - 12 } }
-    LaunchedEffect(nearEnd, loading, token, generation) { if (nearEnd && !loading && token != null && items.isNotEmpty()) loadPage() }
+    LaunchedEffect(nearEnd, loading, token, generation) {
+        if (nearEnd && !loading && token != null && items.isNotEmpty() && failures <= 2) {
+            if (failures > 0) delay(failures * 1500L)
+            scope.launch { loadPage() }
+        }
+    }
 
     LaunchedEffect(Unit) {
         launch {

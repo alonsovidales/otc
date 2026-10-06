@@ -50,6 +50,12 @@ import java.io.File
 import java.util.Calendar
 import java.util.UUID
 
+// SearchPhotos.limit for the request that starts a photo search (no
+// token): a small first page paints quickly over a slow upload. Pages that
+// continue the token send none and get the device's own size; a device
+// before release 97 ignores it and answers its default, 30.
+const val FIRST_PHOTO_PAGE_LIMIT = 12
+
 // Port of PhotoGalleryVM (PhotoGallery.swift). Tag chips, the person
 // filter (issue #52, AND semantics), image groups (issue #115), the date
 // scrubber (issue #77), a search generation counter that discards stale
@@ -125,7 +131,9 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     private var token: String? = null
     private var searchGeneration = 0
     private var searchJob: Job? = null
-    private var morePending = false
+    // The furthest tile (its index) that asked for more while a page was
+    // loading, so the page that lands can honour it.
+    private var morePendingAt: Int? = null
     private val maxPagesWithoutProgress = 12
     private val maxFetchRetries = 2
     // Files viewer: a fixed list (no search, no paging), and what to do
@@ -202,6 +210,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         searchGeneration += 1
         val mine = searchGeneration
         token = ""
+        morePendingAt = null
         _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selected = emptySet()) }
         fetchPage(overrideToken = "", beforeMs = before)
         if (mine == searchGeneration) _state.update { it.copy(placeholderCount = null) }
@@ -330,6 +339,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         if (fixedList) return
         searchGeneration += 1
         token = ""
+        morePendingAt = null
         _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selected = emptySet(), scrubFrac = null, placeholderCount = null) }
         val buckets = viewModelScope.launch { loadDateBuckets() }
         fetchPage(overrideToken = "")
@@ -341,7 +351,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         if (item == null || st.endReached || fixedList) return
         val idx = st.items.indexOf(item)
         if (idx < 0 || idx < st.items.size - 12) return
-        if (st.loading) { morePending = true; return }
+        if (st.loading) { morePendingAt = maxOf(morePendingAt ?: idx, idx); return }
         fetchUntilProgress()
     }
 
@@ -374,6 +384,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             val resp = try {
                 OTCConnection.request { e ->
                     val sp = SearchPhotos.newBuilder().addAllTags(tags).addAllPersonIds(people).setGroupId(group).setIncludeVideos(true).setToken(requestToken).setHave(have)
+                    // A search starting here (opening, a filter, the
+                    // scrubber's jump) gets a small first page; scrolling
+                    // on, the device's own size.
+                    if (requestToken.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
                     if (beforeMs != null) sp.before = Timestamp.newBuilder().setSeconds(beforeMs / 1000).build()
                     e.setReqSearchPhotos(sp)
                 }
@@ -395,7 +409,13 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         } finally {
             if (mine == searchGeneration) {
                 _state.update { it.copy(loading = false) }
-                if (morePending && !_state.value.endReached) { morePending = false; viewModelScope.launch { fetchUntilProgress() } }
+                // Only if that tile is still near the end: every tile of a
+                // small first page asks at once, and the page that just
+                // landed moved the end well past them - honouring them
+                // anyway pulled a third page nobody had scrolled to.
+                val at = morePendingAt
+                morePendingAt = null
+                if (at != null && !_state.value.endReached && at >= _state.value.items.size - 12) viewModelScope.launch { fetchUntilProgress() }
             }
         }
     }
