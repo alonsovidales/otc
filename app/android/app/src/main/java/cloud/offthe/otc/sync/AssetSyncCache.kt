@@ -21,11 +21,17 @@ object AssetSyncCache {
     }
     private var dirty = 0
     private const val flushBatchSize = 25
+    // Bumped by clear(): a sync that began before Log Out finishes its
+    // in-flight uploads after the wipe, and must not write their hashes
+    // (or flush the map) into the next device's empty cache.
+    private var epoch = 0
+
+    @Synchronized fun epoch(): Int = epoch
 
     @Synchronized fun hash(id: String): String? = cache[id]
 
-    @Synchronized fun record(id: String, hash: String) {
-        if (cache[id] == hash) return
+    @Synchronized fun record(id: String, hash: String, since: Int = epoch) {
+        if (since != epoch || cache[id] == hash) return
         cache[id] = hash
         // Every write is the whole map: a fixed batch made a first sync of a
         // big library O(n^2) in bytes written. At most ~5% of the entries are
@@ -34,10 +40,11 @@ object AssetSyncCache {
         if (++dirty >= maxOf(flushBatchSize, cache.size / 20)) flushLocked()
     }
 
-    @Synchronized fun flush() = flushLocked()
+    @Synchronized fun flush(since: Int = epoch) { if (since == epoch) flushLocked() }
 
     /** Log Out: another device knows none of these hashes. */
     @Synchronized fun clear() {
+        epoch++
         cache.clear()
         dirty = 0
         file.delete()

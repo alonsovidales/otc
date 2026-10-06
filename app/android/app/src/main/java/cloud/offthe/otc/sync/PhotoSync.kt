@@ -93,7 +93,9 @@ object PhotoSync {
     }
 
     /** Log Out: stop the sync in progress. */
-    fun cancel() { generation++; currentSync?.cancel() }
+    // Under the watermark lock: once it returns, no run is between its
+    // generation check and its watermark write.
+    fun cancel() { synchronized(watermarkLock) { generation++ }; currentSync?.cancel() }
 
     fun fetchNewAssets(includeVideos: Boolean, sinceMs: Long, limit: Int = 0, newestFirst: Boolean = false): List<Asset> {
         val cr = OTCApp.instance.contentResolver
@@ -165,7 +167,9 @@ object PhotoSync {
      * composer, which has no listing ([known] empty). [known]: the target
      * folder's files by path.
      */
-    suspend fun uploadIfNeeded(asset: Asset, targetDir: String, known: Map<String, PbFile> = emptyMap()): String {
+    suspend fun uploadIfNeeded(
+        asset: Asset, targetDir: String, known: Map<String, PbFile> = emptyMap(), cacheEpoch: Int = AssetSyncCache.epoch(),
+    ): String {
         val cleanName = asset.name.replace("/", "_")
         val path = "$targetDir$cleanName"
         val alt = altPath(targetDir, cleanName, asset.id)
@@ -191,7 +195,7 @@ object PhotoSync {
                 asset.size == 0L || asset.size.toInt() == there.size -> true
                 else -> digestOf(asset).also { digest = it }.sha256 == there.hash // a stale SIZE?
             }
-            if (mine) { digest?.let { AssetSyncCache.record(cacheKey, it.sha256) }; return path }
+            if (mine) { digest?.let { AssetSyncCache.record(cacheKey, it.sha256, cacheEpoch) }; return path }
             target = alt
         }
 
@@ -225,7 +229,7 @@ object PhotoSync {
             if (!already) already = hasFile(hash)
             send(alt)
         }
-        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) { AssetSyncCache.record(cacheKey, hash); return target }
+        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) { AssetSyncCache.record(cacheKey, hash, cacheEpoch); return target }
         throw IllegalStateException(resp.errorMessage.ifEmpty { "Upload failed" })
     }
 
@@ -237,6 +241,7 @@ object PhotoSync {
         currentSync = job
         val gen = generation
         val wgen = watermarkGen
+        val cacheEpoch = AssetSyncCache.epoch()
         try {
             if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return }
             val secrets = SecretsStore.loadOrCreate()
@@ -274,7 +279,7 @@ object PhotoSync {
                         async {
                             try {
                                 UploadModel.step(asset.name, position - 1, assets.size)
-                                uploadIfNeeded(asset, targetDir, known)
+                                uploadIfNeeded(asset, targetDir, known, cacheEpoch)
                                 true
                             } catch (e: CancellationException) {
                                 throw e // Log Out: no watermark past what was cut short
@@ -314,7 +319,7 @@ object PhotoSync {
         } finally {
             // Also when stopped (WorkManager, a dropped device): what was
             // hashed isn't hashed again. Not after Log Out wiped it.
-            if (gen == generation) AssetSyncCache.flush()
+            if (gen == generation) AssetSyncCache.flush(cacheEpoch)
             // Before releasing the flag, so the next run's handle isn't wiped.
             if (currentSync === job) currentSync = null
             syncing.set(false)
