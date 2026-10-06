@@ -265,6 +265,7 @@ func (c *Client) Reconnect() bool {
 	c.gen++
 	gen := c.gen
 	c.backoff = initialBackoff
+	c.skipLocal = false // a new network is worth another try at home
 	c.failAllLocked(ErrReconnecting)
 	c.mu.Unlock()
 	if conn != nil {

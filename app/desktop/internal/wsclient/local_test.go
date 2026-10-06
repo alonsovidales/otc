@@ -419,9 +419,18 @@ func TestStalledHomeSignInFallsBackToTheBridge(t *testing.T) {
 	url := bridgeServer(t, bridge)
 
 	c := New()
-	connected(t, c, url, ep)
+	n := connected(t, c, url, ep)
 	if c.Route() != RouteRemote || homeConns.Load() != 1 || !c.HasLocalEndpoint() {
 		t.Fatalf("route %q, home tried %d times, kept %v", c.Route(), homeConns.Load(), c.HasLocalEndpoint())
+	}
+	// A network change tries home again, and ends on the bridge again.
+	c.Reconnect()
+	deadline := time.Now().Add(10 * time.Second)
+	for n.Load() < 2 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if n.Load() != 2 || homeConns.Load() != 2 || c.Route() != RouteRemote {
+		t.Fatalf("after Reconnect: connected %d times, home tried %d times, route %q", n.Load(), homeConns.Load(), c.Route())
 	}
 }
 
