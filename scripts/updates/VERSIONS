@@ -143,3 +143,4 @@
 97	-	842b8963c56c6e51c59e37ccc4436e4787baadbdb9425ca1bbb8c4599b4b2803	At home the apps connect to the device directly over your Wi-Fi (#190), and photo grids show their first photos sooner.	01698c971a4501857c2efaaa1c67b4244373ee8e1a5880c9af6c529116e55497
 98	-	c574f23f042d8dbead26e608b25c815066da2f39aa590b85704b55f29a22277e	The public profile page no longer shows a Follow button that did nothing.	72fcb4e69ea871d8f7d282a2a9c9d474d6eb50dd3a33fafed4957529d8143a0d
 99	-	5410aa23ec30f863f45dc997f2705832cccd2e77113f7dc50a8100db1df77512	Hovering the upload-only lock shows what it does straight away.	d019ea316b531add375682f06bdab14e4633a7313944e6af2205d316b43296f9
+100	-	7b37482c1e723994ae226c5a2889b3571d1b472ea9d8f229f048c8542c45508f	Alerts and push notifications when a storage disk stops working, naming its USB port. The lock's tooltip shows at once.	5be5aba3d08c0acc72f08e652658fb14ecb0e885d748336e5bb9303e22da52fb
