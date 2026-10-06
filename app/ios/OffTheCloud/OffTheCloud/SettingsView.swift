@@ -313,20 +313,72 @@ struct SettingsView: View {
                 // only place this was reachable at all).
                 ProfileEditorSection()
 
-                UsersManagementSection()
+                Section(header: Text("Status")) {
+                    StatusSectionContent(vm: status)
+                }
 
-                Section(
-                    header: Text("People"),
-                    footer: Text("Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.")
-                ) {
-                    Toggle(
-                        "Face Recognition",
-                        isOn: Binding(
-                            get: { device.faceRecognitionEnabled },
-                            set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
-                        )
-                    )
-                    .disabled(device.savingFaceRecognition)
+                // Issue #122: the only place upload progress is shown. There
+                // used to be a hairline over every tab as well (issue #14);
+                // a background sync isn't worth announcing everywhere.
+                if upload.totalPending > 0 || upload.isUploading {
+                    Section(header: Text("Uploads")) {
+                        UploadDetail(upload: upload)
+                    }
+                }
+
+                // Issue #180: galleries and zip links shared from Images
+                // and Files - when they expire, how often they were opened,
+                // and a delete that stops them working.
+                Section(header: Text("Sharing")) {
+                    NavigationLink("Shared Links") { SharedLinksView() }
+                }
+
+                // Issue #94: in-place updates. Renders nothing on a
+                // non-primary instance - see UpdateSection.
+                UpdateSection()
+                    .id(Self.updateSectionID)
+
+                Section(header: Text("Change Password")) {
+                    SecureField("Current password", text: $device.oldKey)
+                    SecureField("New password", text: $device.newKey)
+                    SecureField("Confirm new password", text: $device.confirmKey)
+                    Button(device.savingKey ? "Changing…" : "Change Password") {
+                        Task { await device.changePassword(secrets: secrets) }
+                    }
+                    .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
+                }
+
+                Section(header: Text("Sync Options")) {
+                    Toggle("Wi-Fi only", isOn: $secrets.wifiOnly)
+                    Toggle("Include videos", isOn: $secrets.includeVideos)
+                    Toggle("Sync from iCloud", isOn: $secrets.downloadFromiCloud)
+                    Button("Authorize Photos Access") {
+                        Task { _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite) }
+                    }
+                }
+
+                Section(footer: Text("Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.")) {
+                    Button("Sync Now") {
+                        Task {
+                            secrets.persist()
+                            try? await PhotoSync.shared.runForeground()
+                        }
+                    }
+                    Button("Sync All") {
+                        Task {
+                            secrets.persist()
+                            // The watermark PhotoSync syncs from - cleared,
+                            // so the run below starts at the beginning
+                            // (it used to be set to now here, which made
+                            // this button sync nothing at all).
+                            UserDefaults.standard.removeObject(forKey: "lastSyncDate")
+                            try? await PhotoSync.shared.runForeground()
+                        }
+                    }
+                    Button("Sync From Now") {
+                        secrets.persist()
+                        PhotoSync.shared.syncFromNow()
+                    }
                 }
 
                 Section(
@@ -342,6 +394,50 @@ struct SettingsView: View {
                     )
                     .disabled(device.savingImageTagging)
                 }
+
+                Section(
+                    header: Text("People"),
+                    footer: Text("Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.")
+                ) {
+                    Toggle(
+                        "Face Recognition",
+                        isOn: Binding(
+                            get: { device.faceRecognitionEnabled },
+                            set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
+                        )
+                    )
+                    .disabled(device.savingFaceRecognition)
+                }
+
+                Section(header: Text("Connection")) {
+                    // Issue #121: name for the bridge, or a custom address.
+                    ConnectionEndpointFields(endpoint: $secrets.endpoint)
+                    SecureField("Password", text: $secrets.password)
+                    // Issue #190: which way the app reaches the device now.
+                    if let route = connection.route {
+                        Label(route.description, systemImage: route == .home ? "house" : "cloud")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Text("Device ID: \(secrets.deviceId)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Button("Save Connection") {
+                        secrets.persist()
+                        OTCConnection.shared.invalidate()
+                    }
+                    Button("Log Out", role: .destructive) {
+                        confirmLogout = true
+                    }
+                }
+
+                // Issue #80: Tailscale Funnel as an alternative to the
+                // bridge. Primary-only too - see TailscaleSection.
+                TailscaleSection()
+
+                BridgeAccountSection()
+
+                UsersManagementSection()
 
                 Section(
                     header: Text("Reprocess Media"),
@@ -393,105 +489,10 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(header: Text("Change Password")) {
-                    SecureField("Current password", text: $device.oldKey)
-                    SecureField("New password", text: $device.newKey)
-                    SecureField("Confirm new password", text: $device.confirmKey)
-                    Button(device.savingKey ? "Changing…" : "Change Password") {
-                        Task { await device.changePassword(secrets: secrets) }
-                    }
-                    .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
-                }
-
-                // Issue #80: Tailscale Funnel as an alternative to the
-                // bridge. Primary-only too - see TailscaleSection.
-                TailscaleSection()
-                BridgeAccountSection()
-
-                // Issue #180: galleries and zip links shared from Images
-                // and Files - when they expire, how often they were opened,
-                // and a delete that stops them working.
-                Section(header: Text("Sharing")) {
-                    NavigationLink("Shared Links") { SharedLinksView() }
-                }
-
-                Section(header: Text("Status")) {
-                    StatusSectionContent(vm: status)
-                }
-
                 // The device's logs, live, with Share and "Send to us".
                 // Renders nothing on a non-primary instance - see
                 // LogsSection.
                 LogsSection()
-
-                // Issue #122: the only place upload progress is shown. There
-                // used to be a hairline over every tab as well (issue #14);
-                // a background sync isn't worth announcing everywhere.
-                if upload.totalPending > 0 || upload.isUploading {
-                    Section(header: Text("Uploads")) {
-                        UploadDetail(upload: upload)
-                    }
-                }
-
-                Section(header: Text("Connection")) {
-                    // Issue #121: name for the bridge, or a custom address.
-                    ConnectionEndpointFields(endpoint: $secrets.endpoint)
-                    SecureField("Password", text: $secrets.password)
-                    // Issue #190: which way the app reaches the device now.
-                    if let route = connection.route {
-                        Label(route.description, systemImage: route == .home ? "house" : "cloud")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Text("Device ID: \(secrets.deviceId)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Button("Save Connection") {
-                        secrets.persist()
-                        OTCConnection.shared.invalidate()
-                    }
-                    Button("Log Out", role: .destructive) {
-                        confirmLogout = true
-                    }
-                }
-
-                Section(header: Text("Sync Options")) {
-                    Toggle("Wi-Fi only", isOn: $secrets.wifiOnly)
-                    Toggle("Include videos", isOn: $secrets.includeVideos)
-                    Toggle("Sync from iCloud", isOn: $secrets.downloadFromiCloud)
-                    Button("Authorize Photos Access") {
-                        Task { _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite) }
-                    }
-                }
-
-                Section(footer: Text("Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.")) {
-                    Button("Sync Now") {
-                        Task {
-                            secrets.persist()
-                            try? await PhotoSync.shared.runForeground()
-                        }
-                    }
-                    Button("Sync All") {
-                        Task {
-                            secrets.persist()
-                            // The watermark PhotoSync syncs from - cleared,
-                            // so the run below starts at the beginning
-                            // (it used to be set to now here, which made
-                            // this button sync nothing at all).
-                            UserDefaults.standard.removeObject(forKey: "lastSyncDate")
-                            try? await PhotoSync.shared.runForeground()
-                        }
-                    }
-                    Button("Sync From Now") {
-                        secrets.persist()
-                        PhotoSync.shared.syncFromNow()
-                    }
-                }
-
-                // Issue #94: in-place updates. Renders nothing on a
-                // non-primary instance - see UpdateSection.
-                UpdateSection()
-                    .id(Self.updateSectionID)
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Settings". Still .inline so there's no big empty

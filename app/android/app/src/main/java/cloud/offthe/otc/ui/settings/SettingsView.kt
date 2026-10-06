@@ -142,13 +142,45 @@ fun SettingsView(secrets: SecretsStore) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             ProfileEditorSection()
-            UsersManagementSection()
 
-            Section("People", "Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.") {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Face Recognition", Modifier.weight(1f))
-                    Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })
+            Section("Status") { StatusSectionContent(status) }
+
+            if (upload.totalPending > 0 || upload.isUploading) {
+                Section("Uploads") {
+                    Text(if (upload.isUploading) "Uploading ${upload.currentName}" else "Waiting", style = MaterialTheme.typography.bodyMedium)
+                    LinearProgressIndicator(progress = { upload.progress }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Caption("${upload.totalPending} pending")
+                        Spacer(Modifier.weight(1f))
+                        RowButton(if (upload.isPaused) "Resume" else "Pause") { UploadModel.togglePause() }
+                    }
                 }
+            }
+
+            Section("Sharing", "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.") {
+                RowButton("Shared Links") { showSharedLinks = true }
+            }
+
+            UpdateSection()
+
+            Section("Change Password") {
+                PasswordField(dst.oldKey, "Current password", device::setOldKey)
+                PasswordField(dst.newKey, "New password", device::setNewKey)
+                PasswordField(dst.confirmKey, "Confirm new password", device::setConfirmKey)
+                RowButton(if (dst.savingKey) "Changing…" else "Change Password", enabled = !dst.savingKey && dst.oldKey.isNotEmpty() && dst.newKey.isNotEmpty()) { scope.launch { device.changePassword(secrets) } }
+            }
+
+            Section("Sync Options") {
+                ToggleRow("Wi-Fi only", wifiOnly, secrets::setWifiOnly)
+                ToggleRow("Include videos", includeVideos, secrets::setIncludeVideos)
+                ToggleRow("Sync from cloud", downloadFromCloud, secrets::setDownloadFromCloud)
+                RowButton("Authorize Photos Access") { permission.launch(mediaPermissions()) }
+            }
+
+            Section("Sync", "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.") {
+                RowButton("Sync Now") { secrets.persist(); PhotoSync.runForegroundAsync() }
+                RowButton("Sync All") { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
+                RowButton("Sync From Now") { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
             }
 
             Section("Image Tagging", "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.") {
@@ -157,6 +189,37 @@ fun SettingsView(secrets: SecretsStore) {
                     Switch(checked = dst.imageTaggingEnabled, enabled = !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
                 }
             }
+
+            Section("People", "Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.") {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Face Recognition", Modifier.weight(1f))
+                    Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })
+                }
+            }
+
+            Section("Connection") {
+                // Edits stay here until Save Connection: a reconnect (a socket
+                // drop while typing) dials the store's values. Keyed on the
+                // saved ones, so a password change or leaving the bridge still
+                // shows up in the fields.
+                var editEndpoint by remember(endpoint) { mutableStateOf(endpoint) }
+                var editPassword by remember(password) { mutableStateOf(password) }
+                ConnectionEndpointFields(endpoint = editEndpoint, onEndpointChange = { editEndpoint = it })
+                PasswordField(editPassword, "Password") { editPassword = it }
+                routeLine(signedIn, route, endpoint)?.let { Caption(it) }
+                Caption("Device ID: $deviceId")
+                RowButton("Save Connection") {
+                    secrets.setEndpoint(editEndpoint); secrets.setPassword(editPassword)
+                    secrets.persist(); OTCConnection.invalidate()
+                }
+                RowButton("Log Out", destructive = true) { confirmLogout = true }
+            }
+
+            TailscaleSection()
+
+            BridgeAccountSection(secrets)
+
+            UsersManagementSection()
 
             Section("Reprocess Media", "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.") {
                 when (dst.reprocessStatus) {
@@ -184,66 +247,6 @@ fun SettingsView(secrets: SecretsStore) {
                 }
             }
 
-            Section("Sharing", "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.") {
-                RowButton("Shared Links") { showSharedLinks = true }
-            }
-
-            Section("Change Password") {
-                PasswordField(dst.oldKey, "Current password", device::setOldKey)
-                PasswordField(dst.newKey, "New password", device::setNewKey)
-                PasswordField(dst.confirmKey, "Confirm new password", device::setConfirmKey)
-                RowButton(if (dst.savingKey) "Changing…" else "Change Password", enabled = !dst.savingKey && dst.oldKey.isNotEmpty() && dst.newKey.isNotEmpty()) { scope.launch { device.changePassword(secrets) } }
-            }
-
-            TailscaleSection()
-            BridgeAccountSection(secrets)
-
-            Section("Status") { StatusSectionContent(status) }
-
-            if (upload.totalPending > 0 || upload.isUploading) {
-                Section("Uploads") {
-                    Text(if (upload.isUploading) "Uploading ${upload.currentName}" else "Waiting", style = MaterialTheme.typography.bodyMedium)
-                    LinearProgressIndicator(progress = { upload.progress }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Caption("${upload.totalPending} pending")
-                        Spacer(Modifier.weight(1f))
-                        RowButton(if (upload.isPaused) "Resume" else "Pause") { UploadModel.togglePause() }
-                    }
-                }
-            }
-
-            Section("Connection") {
-                // Edits stay here until Save Connection: a reconnect (a socket
-                // drop while typing) dials the store's values. Keyed on the
-                // saved ones, so a password change or leaving the bridge still
-                // shows up in the fields.
-                var editEndpoint by remember(endpoint) { mutableStateOf(endpoint) }
-                var editPassword by remember(password) { mutableStateOf(password) }
-                ConnectionEndpointFields(endpoint = editEndpoint, onEndpointChange = { editEndpoint = it })
-                PasswordField(editPassword, "Password") { editPassword = it }
-                routeLine(signedIn, route, endpoint)?.let { Caption(it) }
-                Caption("Device ID: $deviceId")
-                RowButton("Save Connection") {
-                    secrets.setEndpoint(editEndpoint); secrets.setPassword(editPassword)
-                    secrets.persist(); OTCConnection.invalidate()
-                }
-                RowButton("Log Out", destructive = true) { confirmLogout = true }
-            }
-
-            Section("Sync Options") {
-                ToggleRow("Wi-Fi only", wifiOnly, secrets::setWifiOnly)
-                ToggleRow("Include videos", includeVideos, secrets::setIncludeVideos)
-                ToggleRow("Sync from cloud", downloadFromCloud, secrets::setDownloadFromCloud)
-                RowButton("Authorize Photos Access") { permission.launch(mediaPermissions()) }
-            }
-
-            Section("Sync", "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.") {
-                RowButton("Sync Now") { secrets.persist(); PhotoSync.runForegroundAsync() }
-                RowButton("Sync All") { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
-                RowButton("Sync From Now") { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
-            }
-
-            UpdateSection()
             if (isPrimary) {
                 Section("Logs", "What the device and its updates write down as they run - live, to read, share or send to us when something goes wrong.") {
                     RowButton("Logs") { showLogs = true }
