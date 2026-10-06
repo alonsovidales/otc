@@ -62,6 +62,34 @@ enum SyncPaths {
         return hasHiddenComponent((path as NSString).lastPathComponent)
     }
 
+    /// After a two-way pass, the folders its local deletions left empty go
+    /// too. The device has no empty folders - a folder there is only the
+    /// files under it - so a folder deleted there used to leave its whole
+    /// tree here, empty but "synced". From each folder a deleted file was
+    /// in, up to (not including) `root`: removed while it holds nothing but
+    /// Finder's .DS_Store, which is never synced. rmdir only removes an
+    /// empty folder, so a file that arrives meanwhile keeps it. As
+    /// otc-sync's removeEmptiedDirs. Returns how many went.
+    @discardableResult
+    static func removeEmptiedFolders(_ folders: Set<String>, root: String) -> Int {
+        var removed = 0
+        // Deepest first, so a parent is judged after its children went.
+        for start in folders.sorted(by: { $0.count > $1.count }) {
+            var dir = start
+            while dir.hasPrefix(root + "/") {
+                guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir),
+                      names.allSatisfy({ $0 == ".DS_Store" }) else { break }
+                for name in names {
+                    try? FileManager.default.removeItem(atPath: (dir as NSString).appendingPathComponent(name))
+                }
+                guard rmdir(dir) == 0 else { break }
+                removed += 1
+                dir = (dir as NSString).deletingLastPathComponent
+            }
+        }
+        return removed
+    }
+
     private static func hasHiddenComponent(_ relative: String) -> Bool {
         var atStart = true
         for byte in relative.utf8 {

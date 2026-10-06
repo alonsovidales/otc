@@ -879,7 +879,9 @@ device entry is used only under the folder's prefix and through `safeRelative` (
 a Character split). Hidden paths and `.otc-part` files stay out of two-way sync and the backup
 watcher on both sides (`notSynced` / `isExcludedFromSync`). Two-way actions run local deletes first
 and re-check the local file's size and mtime just before acting (`stillAsScanned` /
-`localMatches`). An unreadable directory is never a deleted one: paths under it keep their baseline
+`localMatches`). The device has no empty folders, so the folders a pass's local deletions emptied
+are removed after it (`removeEmptiedDirs` / `SyncPaths.removeEmptiedFolders`): up to, never including,
+the synced folder, only while they hold nothing but a `.DS_Store`, with rmdir semantics. An unreadable directory is never a deleted one: paths under it keep their baseline
 and get no action (otc-sync reports "N file(s) could not be read"). Backups run one pass per
 folder, watched changes one upload at a time per folder (`drainChanges`), and a pass stops when its
 folder is removed or the device changes. `SetUploadOnly` is re-sent until acknowledged, and that

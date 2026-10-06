@@ -1550,6 +1550,9 @@ final class SyncModel: ObservableObject {
             // for the other three kinds.
             var actions: [(relative: String, kind: ActionKind, size: Int, hash: String?)] = []
             var newSynced = lastSynced
+            // The folders local deletions emptied: removed after the pass
+            // (SyncPaths.removeEmptiedFolders).
+            var emptiedFolders = Set<String>()
 
             for relative in allRelativePaths {
                 if unreadable.contains(relative) { continue }
@@ -1685,6 +1688,7 @@ final class SyncModel: ObservableObject {
                         for rest in actions[i...] {
                             if let prior = lastSynced[rest.relative] { newSynced[rest.relative] = prior } else { newSynced.removeValue(forKey: rest.relative) }
                         }
+                        SyncPaths.removeEmptiedFolders(emptiedFolders, root: folder.localURL.standardizedFileURL.path)
                         if newSynced != storedSynced || syncedUnsaved.contains(folder.id) { saveSynced(folder.id, newSynced) }
                         lastSyncedByRemoteFolder[folder.id] = newSynced
                         updateRemoteState(folder.id, .error("Device offline - will resume"))
@@ -1746,6 +1750,7 @@ final class SyncModel: ObservableObject {
                                 throw NSError(domain: "sync.delete", code: 2, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not deleted"])
                             }
                             try FileManager.default.trashItem(at: localURL, resultingItemURL: nil)
+                            emptiedFolders.insert(localURL.deletingLastPathComponent().standardizedFileURL.path)
                         }
                     } catch {
                         // Revert this one path back to its pre-reconcile
@@ -1761,6 +1766,10 @@ final class SyncModel: ObservableObject {
                 }
             }
 
+            let removedFolders = SyncPaths.removeEmptiedFolders(emptiedFolders, root: folder.localURL.standardizedFileURL.path)
+            if removedFolders > 0 {
+                syncLog.info("two-way \(folder.remotePath, privacy: .public): removed \(removedFolders) folder(s) left empty by deletions on the device")
+            }
             if newSynced != storedSynced || syncedUnsaved.contains(folder.id) { saveSynced(folder.id, newSynced) }
             lastSyncedByRemoteFolder[folder.id] = newSynced
             // The guard's note stays on the folder until the next pass, so

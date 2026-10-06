@@ -1517,6 +1517,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 	}
 
+	// The folders local deletions emptied: removed after the pass (see
+	// removeEmptiedDirs).
+	emptied := map[string]bool{}
 	for i, a := range actions {
 		if !e.stillSyncing(f.ID, domainAtStart) {
 			log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
@@ -1525,6 +1528,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		// As reconcile(): a dropped link ends the pass; what's left keeps
 		// its baseline and goes on reconnect.
 		if !e.ws.IsConnected() {
+			removeEmptiedDirs(emptied, f.LocalPath)
 			for _, rest := range actions[i:] {
 				if prior, ok := last[rest.relative]; ok {
 					newSynced[rest.relative] = prior
@@ -1608,6 +1612,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			if err = stillAsScanned(a.relative, localPath); err == nil {
 				err = os.Remove(localPath)
 			}
+			if err == nil {
+				emptied[filepath.Dir(localPath)] = true
+			}
 		}
 		if err != nil {
 			// Back to the baseline for this path so a transient failure is
@@ -1625,6 +1632,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 	}
 
+	if n := removeEmptiedDirs(emptied, f.LocalPath); n > 0 {
+		log.Printf("%s: removed %d folder(s) left empty by deletions on the device", f.RemotePath, n)
+	}
 	e.mu.Lock()
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
@@ -2073,6 +2083,57 @@ func safeRelative(rel string) bool {
 // enumerateFiles and the Mac's .skipsHiddenFiles) and its own partial
 // downloads. rel is relative to the folder, so a folder that itself sits
 // under a dot directory is still synced.
+// removeEmptiedDirs: after a two-way pass, the folders its local
+// deletions left empty go too. The device has no empty folders - a folder
+// there is only the files under it - so a folder deleted there used to
+// leave its whole tree here, empty but "synced". From each folder a
+// deleted file was in, up to (not including) root: removed while it holds
+// nothing but a Finder .DS_Store, which is never synced. os.Remove only
+// removes an empty folder, so a file that arrives meanwhile keeps it. As
+// the Mac's SyncPaths.removeEmptiedFolders. Returns how many went.
+func removeEmptiedDirs(dirs map[string]bool, root string) int {
+	root = filepath.Clean(root)
+	starts := make([]string, 0, len(dirs))
+	for d := range dirs {
+		starts = append(starts, filepath.Clean(d))
+	}
+	// Deepest first, so a parent is judged after its children went.
+	sort.Slice(starts, func(i, j int) bool { return len(starts[i]) > len(starts[j]) })
+	removed := 0
+	for _, dir := range starts {
+		for {
+			if rel, err := filepath.Rel(root, dir); err != nil || rel == "." || !filepath.IsLocal(rel) {
+				break
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				break
+			}
+			onlyJunk := true
+			for _, en := range entries {
+				if en.Name() != ".DS_Store" {
+					onlyJunk = false
+
+					break
+				}
+			}
+			if !onlyJunk {
+				break
+			}
+			for _, en := range entries {
+				_ = os.Remove(filepath.Join(dir, en.Name()))
+			}
+			if os.Remove(dir) != nil {
+				break
+			}
+			removed++
+			dir = filepath.Dir(dir)
+		}
+	}
+
+	return removed
+}
+
 func notSynced(rel string) bool {
 	return isHidden(rel) || strings.HasSuffix(rel, ".otc-part")
 }
