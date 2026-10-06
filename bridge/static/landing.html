@@ -499,6 +499,10 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <p>Your device isn't directly reachable from the internet by default. The Bridge is an optional relay service that lets your own apps and friends reach your device from outside your home network — without it, OTC still works fully at home, you'd just need your own port-forwarding/static IP setup to reach it remotely. Use the contact form below to request Bridge access.</p>
           </details>
           <details>
+            <summary>Is it as fast as a cloud service?</summary>
+            <p>At home it's usually much faster. The iPhone, Android, Mac and Windows/Linux apps connect straight to your device over your own Wi-Fi or network, so backups, big uploads and videos move at local-network speed. A cloud service has to push every file through your home internet connection, whose upload speed is often a small fraction of your Wi-Fi's. Away from home, the apps go through the Bridge as usual. The home connection is encrypted and checked against your device's own key, so nothing is ever sent to a machine pretending to be yours.</p>
+          </details>
+          <details>
             <summary>Is my data actually private?</summary>
             <p>Your files are encrypted at rest, and the encryption key is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't explicitly approved as a friend. AI photo tagging also runs locally on the device — your photos never leave it to be tagged.</p>
           </details>

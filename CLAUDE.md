@@ -232,6 +232,46 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   (`byteSize`, and `sizeMatches(local)`, which compares the wrapped `local.toInt()` with `size`
   only when `size64` is unset - PhotoSync's size shortcut), the Mac's `FileMsg.fileSize`
   (`WSClient.swift`) and otc-sync's `engine.fileSize`. Never read `.size` of a File directly.
+- Photo search pages (2026-10-06): `SearchPhotos.limit` (field 8) is the most photos a page may
+  hold. Every grid (web, iOS, Android: Images, the composer, the profile photo picker) sends 12 on
+  the request that starts a search (no token) so the first page paints fast over a slow upload,
+  and no limit when continuing with a token. The device answers min(limit, its default `[tagger]
+  max-images-search`, 30), never more. Older devices ignore it. Grids that start a new search
+  bump a search generation, so a page from the old search lands nowhere.
+- Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
+  connection; anywhere else, or on any failure, through the bridge as before.
+  - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)
+    in `<storage-path>/.lan-tls/` (0700/0600), created once and NEVER regenerated: the apps hold
+    its pin, SHA-256 of the leaf DER. `api/local_tls.go` serves the same mux (`/ws`, `/media/`,
+    static) over TLS 1.2+, HTTP/1.1 only, on `[otc-api] lan-tls-port` (default HTTP port + 363:
+    8443, or 8444 for a child on 8081). `GetLocalEndpoint` (owner sessions only, in
+    `processAuthRequest`) answers `LocalEndpoint{addresses, port, cert_sha256}`. Addresses are
+    private IPv4 and ULA on up interfaces, never loopback, link-local, the setup hotspot (uap0 and
+    10.42.0.0/24, pinned in `network_setup.py`; change both together), Tailscale or docker. It
+    answers `local_unavailable` when there is no listener or address (the apps then forget the
+    endpoint) and a bare error until `api.Init` has wired it. Older devices answer
+    `unknown_payload`.
+  - Apps (iOS `HomeNetwork.swift`, Android `net/HomeNetwork.kt` + `NetworkWatch.kt`, macOS
+    `LocalRoute.swift`, otc-sync `wsclient/local.go`): after a sign-in through the configured
+    address they ask `GetLocalEndpoint` and keep it bound to that address. Keychain / otc_secrets /
+    `<config dir>/local.json` (0600). They keep only RFC 1918 or ULA literals (at most 8), drop it on
+    `unknown_payload`/`local_unavailable`, and keep it on any other error. Every connect races all
+    addresses as `wss://<addr>:<port>/ws` within 2.5 s, accepting ONLY a leaf certificate whose DER
+    SHA-256 equals the pin; then sign-in runs as usual (GetPubKey + the RSA-sealed password: safe
+    once the pin matched, and it works with the internet down). Route re-checks happen on a network
+    change, the foreground (Mac: the popover, at most every 120 s) and a wake, never while a
+    transfer runs (`TransferActivity` / `OTCConnection.transfer {}` / `folderBusy`). A check put
+    off is recorded and runs after. Settings shows "Connected over your home network" or
+    "Connected through off-the.cloud".
+  - Video: `/media/<token>` is relative, so the base follows the route. Android plays through
+    ExoPlayer on the pinned OkHttp client; iOS streams local media through an
+    `AVAssetResourceLoader` on a custom scheme over the pinned URLSession, and bridge media plays as
+    before. Never add a trust-all path outside the pinned clients (Play flags a verifier that
+    always returns true). The web can't pin a self-signed key and stays on the bridge (or
+    `http://otc.local:8080` at home).
+  - Checked live on 2026-10-06 against Pit: endpoint 192.168.50.201:8443; a wrong pin was refused
+    before anything was sent; sign-in over the home network took 0.3 s; a 4 MB range of a video
+    returned HTTP 206 in 1.1 s.
 
 ### Device-side package layout (root Go module)
 
