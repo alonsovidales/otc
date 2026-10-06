@@ -36,7 +36,7 @@ first (full-quality originals, finding a photo, sharing with family) and keeps t
 privacy details to the end.
 
 - **Short description** (80):
-  `Every family photo in full quality, kept at home, not in someone else's cloud.`
+  `Every family photo in full quality, at home, shared only with who you choose.`
 - **Full description**:
 
   > Off The Cloud is a home for your photos: every shot from your phone and your camera, kept in
