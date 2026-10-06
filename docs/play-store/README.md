@@ -49,6 +49,8 @@ entries for the iOS app; change both together.
   > - A private social feed with your friends' own devices: posts, comments and likes go from
   >   device to device, never through a company's servers.
   > - Set up a new device over Bluetooth, straight from the app.
+  > - At home, the app talks to your device directly over your own Wi-Fi, so backups, big files
+  >   and videos move at local-network speed instead of crossing the internet.
   >
   > Everything you upload is encrypted at rest on your device. When you are away from home the
   > app reaches it through our relay over an encrypted connection; the relay stores none of your
@@ -80,7 +82,9 @@ Answers as the app works today. Play counts data as "collected" when it leaves t
 a server the user owns, unless one of Play's exemptions applies. Check each answer against the
 current Play Console wording before submitting.
 
-- **Encrypted in transit**: yes, TLS on both legs. It is not end-to-end: the relay decrypts and
+- **Encrypted in transit**: yes. At home the app connects straight to the device over TLS
+  pinned to the device's own certificate (#190), so nothing passes through us. Away from home it
+  is TLS on both legs through the relay, which is not end-to-end: the relay decrypts and
   re-encrypts, so content is readable in its memory while it passes, though never stored. The
   device password is end-to-end (RSA-OAEP to the device's key). `/privacy` says this plainly.
 - **Users can request deletion**: content is deleted on the user's own device. The account is
