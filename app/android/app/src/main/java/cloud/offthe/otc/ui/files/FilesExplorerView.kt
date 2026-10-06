@@ -479,6 +479,11 @@ fun FilesExplorerView(initialPath: String) {
     var refreshing by remember { mutableStateOf(false) }
     // Issue #180: "Share as gallery" on a folder - what is being shared.
     var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
+    // The lock (issue #132): a tap asks first, saying what upload only
+    // does - there is no hover tooltip here as on the web - and a lock that
+    // only marks something explains itself.
+    var lockPrompt by remember { mutableStateOf<FileRow?>(null) }
+    var lockInfo by remember { mutableStateOf<String?>(null) }
     val selectedFolder = st.selected.singleOrNull()?.let { p -> st.rows.firstOrNull { it.path == p && it.isDir && it.path != ".." } }
 
     // Photos and videos open in the Images section's viewer, its own
@@ -553,6 +558,7 @@ fun FilesExplorerView(initialPath: String) {
                             onOpen = { openRow(row) },
                             onToggle = { vm.toggleSelect(row.path) },
                             onVersions = { scope.launch { vm.openVersions(row) } },
+                            onLock = { lockPrompt = row },
                         )
                     }
                 } else LazyColumn(Modifier.fillMaxSize()) {
@@ -593,13 +599,13 @@ fun FilesExplorerView(initialPath: String) {
                                 }
                             }
                             if (row.path != ".." && row.isDir) {
-                                IconButton(onClick = { scope.launch { vm.toggleUploadOnly(row) } }, modifier = Modifier.size(36.dp)) {
+                                IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
                                     Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
                                         if (row.uploadOnly) "Clear upload only" else "Make upload only",
                                         tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             } else if (row.uploadOnly) {
-                                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                                Box(Modifier.size(36.dp).clip(CircleShape).clickable { lockInfo = UploadOnlyText.FILE_INFO }, contentAlignment = Alignment.Center) {
                                     Icon(Icons.Default.Lock, "In an upload-only folder", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                 }
                             }
@@ -657,6 +663,23 @@ fun FilesExplorerView(initialPath: String) {
         )
     }
     gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
+    lockPrompt?.let { row ->
+        AlertDialog(
+            onDismissRequest = { lockPrompt = null },
+            title = { Text(UploadOnlyText.promptTitle(row.name, row.uploadOnly)) },
+            text = { Text(if (row.uploadOnly) UploadOnlyText.CLEAR_MESSAGE else UploadOnlyText.MAKE_MESSAGE) },
+            confirmButton = {
+                TextButton(onClick = { lockPrompt = null; scope.launch { vm.toggleUploadOnly(row) } }) {
+                    Text(if (row.uploadOnly) "Allow deletions" else "Make upload only")
+                }
+            },
+            dismissButton = { TextButton(onClick = { lockPrompt = null }) { Text("Cancel") } },
+        )
+    }
+    lockInfo?.let {
+        AlertDialog(onDismissRequest = { lockInfo = null }, title = { Text("Upload only") }, text = { Text(it) },
+            confirmButton = { TextButton(onClick = { lockInfo = null }) { Text("OK") } })
+    }
     if (st.confirmDeleteSelected) {
         val n = st.selected.size
         AlertDialog(
@@ -680,7 +703,7 @@ fun FilesExplorerView(initialPath: String) {
 @Composable
 private fun FileGridCell(
     row: FileRow, selected: Boolean, opening: Boolean, thumb: ImageBitmap?,
-    onOpen: () -> Unit, onToggle: () -> Unit, onVersions: () -> Unit,
+    onOpen: () -> Unit, onToggle: () -> Unit, onVersions: () -> Unit, onLock: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         Box(
@@ -711,8 +734,10 @@ private fun FileGridCell(
                     Text("${row.versions}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
+            // No long-press menu here: a tap on the lock offers to clear it.
             if (row.isDir && row.uploadOnly) {
-                Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), CircleShape),
+                Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onLock),
                     contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Lock, "Upload only", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                 }
@@ -731,6 +756,16 @@ private fun FileGridCell(
         Text(row.name, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
+}
+
+/** What the upload-only lock says (issue #132). The same words as iOS's
+ *  UploadOnlyText and the web lock's tooltip. */
+private object UploadOnlyText {
+    fun promptTitle(name: String, uploadOnly: Boolean) =
+        if (uploadOnly) "Allow deletions in \u201C$name\u201D again?" else "Make \u201C$name\u201D upload only?"
+    const val MAKE_MESSAGE = "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups."
+    const val CLEAR_MESSAGE = "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay."
+    const val FILE_INFO = "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
 }
 
 private fun queryDisplayName(context: Context, uri: Uri): String? =

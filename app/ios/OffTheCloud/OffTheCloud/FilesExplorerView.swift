@@ -510,6 +510,11 @@ struct FilesExplorerView: View {
     @State private var showImporter = false
     // Issue #180: set to start the "Share as Gallery" flow.
     @State private var gallerySource: Msg_SharedGallerySource?
+    // The lock (issue #132): a tap asks first, saying what upload only
+    // does - there is no hover tooltip here as on the web - and a lock that
+    // only marks something explains itself.
+    @State private var lockPrompt: FileRow?
+    @State private var lockInfo: String?
     // List or grid ("list"/"grid"), remembered across launches - the web and
     // Android explorers keep theirs under the same key.
     @AppStorage("files.viewMode") private var viewMode = "list"
@@ -620,7 +625,7 @@ struct FilesExplorerView: View {
                                 }
                                 if row.path != ".." && row.isDir {
                                     Button {
-                                        Task { await vm.toggleUploadOnly(row) }
+                                        lockPrompt = row
                                     } label: {
                                         Image(systemName: row.uploadOnly ? "lock.fill" : "lock.open")
                                             .foregroundColor(row.uploadOnly ? .accentColor : .secondary)
@@ -630,8 +635,14 @@ struct FilesExplorerView: View {
                                     .buttonStyle(.plain)
                                     .accessibilityLabel(row.uploadOnly ? "Clear upload only" : "Make upload only")
                                 } else if row.uploadOnly {
-                                    Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
-                                        .accessibilityLabel("In an upload-only folder")
+                                    Button {
+                                        lockInfo = UploadOnlyText.fileInfo
+                                    } label: {
+                                        Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("In an upload-only folder")
                                 }
                             }
                             .contentShape(Rectangle())
@@ -751,6 +762,21 @@ struct FilesExplorerView: View {
                 }
             }
         }
+        .alert(
+            lockPrompt.map { UploadOnlyText.promptTitle(name: $0.name, uploadOnly: $0.uploadOnly) } ?? "",
+            isPresented: Binding(get: { lockPrompt != nil }, set: { if !$0 { lockPrompt = nil } }),
+            presenting: lockPrompt
+        ) { row in
+            Button(row.uploadOnly ? "Allow Deletions" : "Make Upload Only") { Task { await vm.toggleUploadOnly(row) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { row in
+            Text(row.uploadOnly ? UploadOnlyText.clearMessage : UploadOnlyText.makeMessage)
+        }
+        .alert("Upload only", isPresented: Binding(get: { lockInfo != nil }, set: { if !$0 { lockInfo = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(lockInfo ?? "")
+        }
         .confirmationDialog(
             "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",
             isPresented: $vm.confirmDeleteSelected,
@@ -836,7 +862,7 @@ struct FilesExplorerView: View {
                     Label("Share as Gallery", systemImage: "photo.on.rectangle.angled")
                 }
                 Button {
-                    Task { await vm.toggleUploadOnly(row) }
+                    lockPrompt = row
                 } label: {
                     Label(row.uploadOnly ? "Clear upload only" : "Make upload only", systemImage: row.uploadOnly ? "lock.open" : "lock")
                 }
@@ -934,15 +960,21 @@ struct FilesExplorerView: View {
                 }
             }
             .overlay(alignment: .topTrailing) {
-                // The lock itself is toggled from the long-press menu here.
+                // The lock itself is toggled from the long-press menu here;
+                // a tap on it says what it means.
                 if row.isDir && row.uploadOnly && row.path != ".." {
-                    Image(systemName: "lock.fill")
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
-                        .padding(5)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .padding(5)
-                        .accessibilityLabel("Upload only")
+                    Button {
+                        lockInfo = UploadOnlyText.folderInfo
+                    } label: {
+                        Image(systemName: "lock.fill")
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
+                            .padding(5)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .padding(5)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Upload only")
                 }
             }
             .overlay(alignment: .bottomLeading) {
@@ -989,6 +1021,18 @@ struct FilesExplorerView: View {
 /// Wrapping it here, plus an explicit Done item wired to onDismiss rather
 /// than relying on that auto-detection alone, makes sure the button is
 /// always there regardless.
+/// What the upload-only lock says (issue #132). The same words as
+/// Android's UploadOnlyText and the web lock's tooltip.
+enum UploadOnlyText {
+    static func promptTitle(name: String, uploadOnly: Bool) -> String {
+        uploadOnly ? "Allow deletions in \u{201C}\(name)\u{201D} again?" : "Make \u{201C}\(name)\u{201D} upload only?"
+    }
+    static let makeMessage = "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups."
+    static let clearMessage = "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay."
+    static let folderInfo = "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
+    static let fileInfo = "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+}
+
 private struct QuickLookView: UIViewControllerRepresentable {
     let url: URL
     let onDismiss: () -> Void
