@@ -70,6 +70,9 @@ privacy details to the end.
 - **Release notes** (first release):
   `The first Off The Cloud for Android: back up every family photo in full quality to your own device at home, find any picture in seconds, and share albums with the people you love.`
 
+- **Countries** (production, set 2026-10-06; the bridge runs in France): the EU 27, Iceland,
+  Liechtenstein, Norway, the United Kingdom, Switzerland, Albania, Bosnia & Herzegovina, North
+  Macedonia, Serbia and Ukraine - 37 in all. Montenegro and Kosovo are not in Play's list.
 - **Category**: Photography (alternatively Productivity). **Tags**: backup, photos, storage.
 - **Contact email**: the owner's support address. **Website**: `https://off-the.cloud`.
 - **Privacy policy URL**: `https://off-the.cloud/privacy` (issue #175). The same page serves the
