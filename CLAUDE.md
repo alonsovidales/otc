@@ -111,7 +111,8 @@ recognition checkbox, unticked. The wizard writes them to a root-only tmpfs JSON
 (`OTC_SETUP_PROFILE_FILE`), and `install.sh` feeds it to `otc <env> init-profile` (`bin/otc.go`)
 before the owner password - empty fields keep the defaults, and all of it can be changed later in
 Settings. On Android the setup WebView needs its `WebChromeClient.onShowFileChooser` for the
-picture field; WKWebView handles file inputs itself. Several devices can be set up at once from several phones: each advertises
+picture field; WKWebView handles file inputs itself on iOS, but on macOS only through a
+`WKUIDelegate` (`runOpenPanelWith`, an `NSOpenPanel` for images - without it "Choose File" does nothing). Several devices can be set up at once from several phones: each advertises
 `OTC <id>` (`device_id()`: the last 4 hex digits of the Pi serial), the setup page shows that ID
 with a "Blink its light" link (`/api/identify` flashes the ACT LED for 15 s), and the apps list
 every device found in the first 2.5 s when there is more than one (strongest signal first),

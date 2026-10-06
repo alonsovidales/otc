@@ -34,6 +34,7 @@ import CryptoKit
 import SwiftUI
 import WebKit
 import AppKit
+import UniformTypeIdentifiers
 
 enum BLESetupUUID {
     static let service = CBUUID(string: "0F7C5E70-0B1E-4B8A-9C2D-5E7A1C0D0001")
@@ -487,6 +488,28 @@ final class BLESetupNavigationGuard: NSObject, WKNavigationDelegate {
     }
 }
 
+/// The profile picture's "Choose File": unlike iOS, WKWebView on macOS
+/// shows no file picker by itself - without this the button does nothing.
+/// Images only, for the setup page itself.
+extension BLESetupNavigationGuard: WKUIDelegate {
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        guard frame.isMainFrame, frame.securityOrigin.protocol == BLESetupSchemeHandler.scheme else {
+            return completionHandler(nil)
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.allowedContentTypes = [.image]
+        let done: (NSApplication.ModalResponse) -> Void = { completionHandler($0 == .OK ? panel.urls : nil) }
+        if let window = webView.window {
+            panel.beginSheetModal(for: window, completionHandler: done)
+        } else {
+            panel.begin(completionHandler: done)
+        }
+    }
+}
+
 struct BLESetupWebView: NSViewRepresentable {
     let transport: BLESetupTransport
 
@@ -500,6 +523,7 @@ struct BLESetupWebView: NSViewRepresentable {
         config.userContentController.add(BLESetupPasswordHandler(transport: transport), contentWorld: .page, name: "otcPassword")
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
+        view.uiDelegate = context.coordinator
         view.underPageBackgroundColor = NSColor(red: 0.118, green: 0.122, blue: 0.133, alpha: 1) // the wizard's own background
         view.load(URLRequest(url: URL(string: "\(BLESetupSchemeHandler.scheme)://device/")!))
         return view
