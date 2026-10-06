@@ -452,10 +452,9 @@ func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, ima
 		}
 	} else {
 		var err error
-		if img, err = decodeImage(content); err != nil {
-			if img, err = decodeWithFFmpeg(content); err != nil {
-				return nil, nil, err
-			}
+		// Not through ffmpeg when it is too large to decode (issue #188).
+		if img, err = decodeStill(content, f.Path); err != nil {
+			return nil, nil, err
 		}
 		if ex, err := extractExif(content, f.Mime, f.Path); err == nil && ex != nil {
 			img = applyOrientation(img, ex.Orientation)

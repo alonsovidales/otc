@@ -4,6 +4,7 @@ package filesmanager
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/jpeg"
 	"os"
@@ -67,5 +68,36 @@ func TestExtractVideoFramesFromAVeryShortClip(t *testing.T) {
 	frames, err := extractVideoFrames(clip, 4)
 	if err != nil || len(frames) == 0 {
 		t.Fatalf("extractVideoFrames on a 0.05 s clip: %d frames, %v", len(frames), err)
+	}
+}
+
+// What checkImageSize refuses never reaches ffmpeg (issue #188), which
+// would decode it anyway, unbounded; what Go can't read still does.
+func TestDecodeStillKeepsTooLargeImagesFromFFmpeg(t *testing.T) {
+	calls := 0
+	orig := stillFFmpeg
+	stillFFmpeg = func([]byte) (image.Image, error) {
+		calls++
+		return image.NewRGBA(image.Rect(0, 0, 1, 1)), nil
+	}
+	t.Cleanup(func() { stillFFmpeg = orig })
+
+	for name, content := range map[string][]byte{
+		"a 400 MP PNG header": pngHeader(20000, 20000),
+		"a HEIC grid bomb":    heicGrid(t, 200, 200, 100, 100),
+	} {
+		if _, err := decodeStill(content, name); !errors.Is(err, errImageTooLarge) {
+			t.Errorf("%s: got %v, want errImageTooLarge", name, err)
+		}
+	}
+	if calls != 0 {
+		t.Fatalf("a too-large image was handed to ffmpeg %d time(s)", calls)
+	}
+
+	if img, err := decodeStill([]byte("a format Go has no decoder for"), "odd.bin"); err != nil || img == nil {
+		t.Fatalf("an unreadable image should fall back to ffmpeg: %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("ffmpeg was called %d time(s) for an unreadable image, want 1", calls)
 	}
 }

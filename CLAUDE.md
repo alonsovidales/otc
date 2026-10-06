@@ -367,8 +367,9 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   the size on disk via `segcrypt.PlainSize` (no key needed), own and friends' post files from their
   copies in `unenc-storage-path`; it waits for the BIGINT columns, and a pass with an error is
   retried at the next start. `checkImageSize` also bounds a HEIC
-  grid by its decoded first tile (`checkHeifGrid`), and upload processing never hands an
-  `errImageTooLarge` file to ffmpeg.
+  grid by its decoded first tile (`checkHeifGrid`). Decode stills through `decodeStill`
+  (upload processing and the shared-gallery preview): ffmpeg only for what Go can't read, never
+  for anything `checkImageSize` refuses (issue #188) - ffmpeg would decode it anyway, unbounded.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
 - `modelserver` — issue #167: the primary instance loads RAM++ and the face models once and
@@ -929,8 +930,7 @@ temp + fsync + rename. iOS `FileDownload` falls back to `GetFile` only on `error
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines or immutable asset headers in its own HTTP server (`api/`), `cloud_id` kept by
 `ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components, `cMaxInFlight` (32)
-requests before sign-in and `wsframe`'s first 4 MiB (`cFree`) outside the frame budget, and the
-gallery preview still hands any image it can't decode to ffmpeg; bridge - no `interpolateParams`,
+requests before sign-in and `wsframe`'s first 4 MiB (`cFree`) outside the frame budget; bridge - no `interpolateParams`,
 `claimName`'s setup-token path and `accountAddDomain` still read a database error as "no account" /
 "unverified", `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;

@@ -8,6 +8,7 @@ import (
 	"compress/flate"
 	"database/sql/driver"
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
 	"image"
 	"image/color"
@@ -589,5 +590,27 @@ func TestGalleryCacheIsBounded(t *testing.T) {
 	}
 	if mg.galleryCache["aaaa"] != nil || mg.galleryCache[strings.Repeat(string(rune('a'+cGalleryCacheMax+2)), 4)] == nil {
 		t.Error("evicted the wrong manifest")
+	}
+}
+
+// A photo too large to decode gets no preview, and isn't handed to ffmpeg
+// to decode anyway, unbounded (issue #188); the gallery is still made.
+func TestGalleryPreviewKeepsTooLargeImagesFromFFmpeg(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	calls := 0
+	orig := stillFFmpeg
+	stillFFmpeg = func([]byte) (image.Image, error) {
+		calls++
+		return image.NewRGBA(image.Rect(0, 0, 1, 1)), nil
+	}
+	t.Cleanup(func() { stillFFmpeg = orig })
+
+	mg := &Manager{sharedLinkTTL: time.Hour}
+	f := libraryFile(t, ses, "panorama-400mp.png", "image/png", pngHeader(20000, 20000))
+	if _, _, err := mg.galleryPreview(ses, f); !errors.Is(err, errImageTooLarge) {
+		t.Fatalf("got %v, want errImageTooLarge", err)
+	}
+	if calls != 0 {
+		t.Fatalf("the too-large photo was handed to ffmpeg %d time(s)", calls)
 	}
 }

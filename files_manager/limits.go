@@ -62,6 +62,31 @@ func decodeImage(b []byte) (image.Image, error) {
 	return img, err
 }
 
+// stillFFmpeg is decodeWithFFmpeg; a variable so tests can tell whether
+// decodeStill reached it.
+var stillFFmpeg = decodeWithFFmpeg
+
+// decodeStill is decodeImage, then ffmpeg for what Go's decoders can't
+// read - JPEG 2000, Photoshop, camera RAW (DNG), a JPEG cut short or with
+// a damaged marker. Never for anything checkImageSize refuses (issue
+// #188): ffmpeg would decode it anyway, out of process and unbounded (its
+// own HEIC grid reading included), taking the memory the limit keeps -
+// too large, and also a HEIF grid that doesn't match its header. When
+// ffmpeg fails too, the decoder's own error is returned; path is only for
+// the log.
+func decodeStill(content []byte, path string) (image.Image, error) {
+	img, err := decodeImage(content)
+	if err == nil || errors.Is(err, errImageTooLarge) || checkImageSize(content) != nil {
+		return img, err
+	}
+	fallback, ffErr := stillFFmpeg(content)
+	if ffErr != nil {
+		log.Debug("ffmpeg could not decode", path, "either:", ffErr)
+		return nil, err
+	}
+	return fallback, nil
+}
+
 // command is exec.CommandContext with a deadline; the returned cancel must
 // be called once the command is done.
 func command(timeout time.Duration, name string, args ...string) (*exec.Cmd, context.CancelFunc) {
