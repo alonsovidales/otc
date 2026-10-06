@@ -368,6 +368,12 @@ message SearchPhotos {
   // exactly like they combine with each other - which is what keeps
   // search and scrolling working unchanged inside a group.
   string group_id = 7;
+  // The most photos this page may hold. A grid asks for a small first
+  // page so it paints quickly over a slow upload, and continues with the
+  // device's own size. 0 (unset, and all a device before release 97 sees)
+  // means the device's default ([tagger] max-images-search, 30); the
+  // device never returns more than its default.
+  int32 limit = 8;
 }
 
 message ListOfFiles {

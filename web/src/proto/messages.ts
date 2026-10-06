@@ -784,6 +784,14 @@ export interface SearchPhotos {
    * search and scrolling working unchanged inside a group.
    */
   groupId: string;
+  /**
+   * The most photos this page may hold. A grid asks for a small first
+   * page so it paints quickly over a slow upload, and continues with the
+   * device's own size. 0 (unset, and all a device before release 97 sees)
+   * means the device's default ([tagger] max-images-search, 30); the
+   * device never returns more than its default.
+   */
+  limit: number;
 }
 
 export interface ListOfFiles {
@@ -5374,7 +5382,16 @@ export const BridgeSendLogs: MessageFns<BridgeSendLogs> = {
 };
 
 function createBaseSearchPhotos(): SearchPhotos {
-  return { tags: [], token: "", includeVideos: false, personIds: [], before: undefined, have: 0, groupId: "" };
+  return {
+    tags: [],
+    token: "",
+    includeVideos: false,
+    personIds: [],
+    before: undefined,
+    have: 0,
+    groupId: "",
+    limit: 0,
+  };
 }
 
 export const SearchPhotos: MessageFns<SearchPhotos> = {
@@ -5399,6 +5416,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.groupId !== "") {
       writer.uint32(58).string(message.groupId);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(64).int32(message.limit);
     }
     return writer;
   },
@@ -5466,6 +5486,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.groupId = reader.string();
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.limit = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5486,6 +5514,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
       before: isSet(object.before) ? fromJsonTimestamp(object.before) : undefined,
       have: isSet(object.have) ? globalThis.Number(object.have) : 0,
       groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
     };
   },
 
@@ -5512,6 +5541,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     if (message.groupId !== "") {
       obj.groupId = message.groupId;
     }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
     return obj;
   },
 
@@ -5527,6 +5559,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.before = object.before ?? undefined;
     message.have = object.have ?? 0;
     message.groupId = object.groupId ?? "";
+    message.limit = object.limit ?? 0;
     return message;
   },
 };
