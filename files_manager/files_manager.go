@@ -848,6 +848,11 @@ func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byt
 	return blobstore.ReadAll(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash), session)
 }
 
+// maxImagesSearch is how many photos a search page holds by default,
+// [tagger] max-images-search; a variable so tests can use the real 30
+// rather than the test config's 2.
+var maxImagesSearch = func() int { return int(cfg.GetInt("tagger", "max-images-search")) }
+
 // includeVideos (issue #60) only affects the no-filters case below - a
 // tag- or person-filtered search already includes videos regardless
 // (dao.SearchMedia only applies the images-only filter when browsing with
@@ -867,7 +872,11 @@ func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byt
 // once and cached (see the tokenFound branch below), treating a jump as a
 // brand new search targeting a narrower result set reuses that same
 // mechanism instead of needing one of its own.
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32) (files []*pb.File, token string, err error) {
+// limit (SearchPhotos.limit) makes this page smaller than the device's
+// default, never larger; 0 is the default. A grid's first page asks for a
+// few photos so it paints quickly over a slow upload, and what's left
+// stays behind the token, so the next page continues where it ended.
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	tokenFound := false
 	// files is all[off:]: what the token (or the new search) has left.
@@ -933,7 +942,10 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 	// results instead, so it stays full; a later search (the gallery's
 	// refresh) picks the file up once it's ready. A missing thumbnail is
 	// a plain failed read here, not a scan of the whole result set.
-	toReturn := int(cfg.GetInt("tagger", "max-images-search"))
+	toReturn := maxImagesSearch()
+	if limit > 0 && int(limit) < toReturn {
+		toReturn = int(limit)
+	}
 	page := make([]*pb.File, 0, toReturn)
 	next := 0
 	for ; next < len(files) && len(page) < toReturn; next++ {

@@ -91,7 +91,7 @@ func TestImageSearchPagesThroughItsToken(t *testing.T) {
 	var got []string
 	token := ""
 	for page := 0; page < 3; page++ {
-		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0)
+		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,5 +109,74 @@ func TestImageSearchPagesThroughItsToken(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err) // one query for every page
+	}
+}
+
+// A limit (SearchPhotos.limit) shrinks only the page that asks for it: the
+// rest stays behind the token, and the pages after it, sent without one,
+// are the device's own size. A limit over that size, or none, gets it.
+func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	orig := maxImagesSearch
+	maxImagesSearch = func() int { return 30 }
+	t.Cleanup(func() { maxImagesSearch = orig })
+
+	const total = 45
+	hash := func(i int) string { return fmt.Sprintf("%064x", 0x100+i) }
+	for i := 0; i < total; i++ {
+		if err := blobstore.WriteBytes(blobPath(hash(i))+"_thumbnail", ses, []byte("thumb")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	for search := 0; search < 3; search++ {
+		rows := sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"})
+		for i := 0; i < total; i++ {
+			rows.AddRow(hash(i), "image/jpeg", time.Now(), time.Now(), fmt.Sprintf("/p/%d.jpg", i), 1)
+		}
+		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
+	}
+	mg := &Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)}
+	search := func(token string, limit int32) ([]*pb.File, string) {
+		t.Helper()
+		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, limit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return files, next
+	}
+
+	var got []string
+	token := ""
+	for i, want := range []struct {
+		limit int32
+		size  int
+	}{{12, 12}, {0, 30}, {0, 3}} {
+		files, next := search(token, want.limit)
+		if len(files) != want.size {
+			t.Fatalf("page %d (limit %d) has %d photos, want %d", i, want.limit, len(files), want.size)
+		}
+		for _, f := range files {
+			got = append(got, f.Path)
+		}
+		if token = next; (token == "") != (i == 2) {
+			t.Fatalf("page %d: token %q", i, token)
+		}
+	}
+	for i, p := range got {
+		if p != fmt.Sprintf("/p/%d.jpg", i) {
+			t.Fatalf("photo %d is %s: the pages skip or repeat", i, p)
+		}
+	}
+
+	if files, _ := search("", 50); len(files) != 30 {
+		t.Errorf("a limit over the default gave %d photos, want 30", len(files))
+	}
+	if files, _ := search("", 0); len(files) != 30 {
+		t.Errorf("no limit gave %d photos, want 30", len(files))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err) // one query for each new search, none for a page
 	}
 }
