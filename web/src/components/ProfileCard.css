@@ -59,17 +59,6 @@
 
 .pc-actions { display: flex; justify-content: flex-end; }
 
-.pc-follow {
-  border: 0;
-  background: var(--ember);
-  color: var(--ember-ink);
-  font-weight: 600;
-  padding: 10px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.pc-follow:disabled { opacity: .6; cursor: default; }
-
 .pc-save {
   border: 0;
   background: var(--ember);

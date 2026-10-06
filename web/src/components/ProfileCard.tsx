@@ -32,7 +32,6 @@ export default function ProfileCard({ authenticated }: Props) {
   // UI state
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
-  const [following, setFollowing] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -92,22 +91,12 @@ export default function ProfileCard({ authenticated }: Props) {
     setImgUrl(url);
   };
 
-  const canFollow = useMemo(() => {
-    if (following) return false;
-    return true;
-  }, [authenticated, saving]);
-
   const canSave = useMemo(() => {
     if (!authenticated) return false;
     if (saving) return false;
     // Minimal validation: name can be empty if you want; enforce what you need:
     return true;
   }, [authenticated, saving]);
-
-  const followUser = async () => {
-    setFollowing(true);
-    alert('Not implemented...');
-  };
 
   const saveProfile = async () => {
     if (!canSave) return;
@@ -169,11 +158,6 @@ export default function ProfileCard({ authenticated }: Props) {
               {error && <div className="pc-status error">{error}</div>}
             </>
           )}
-          <div className="pc-actions">
-            <button className="pc-follow" disabled={!canFollow} onClick={() => void followUser()}>
-              {following ? "Following…" : "Follow"}
-            </button>
-          </div>
         </div>
       </div>
     );
