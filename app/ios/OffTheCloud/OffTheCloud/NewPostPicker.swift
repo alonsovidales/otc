@@ -70,6 +70,9 @@ final class NewPostPickerVM: ObservableObject {
     @Published var loading = false
     @Published var endReached = false
     private var token: String? = nil
+    // Bumped when the grid starts over (source, tags), so a page still in
+    // flight for the old one lands nowhere (as Android's searchGeneration).
+    private var searchGeneration = 0
     private var localAssets: PHFetchResult<PHAsset>?
     private var localLoadedCount = 0
     // SwiftUI can call .onAppear more than once for the same view instance
@@ -148,6 +151,7 @@ final class NewPostPickerVM: ObservableObject {
     }
 
     func resetAndLoadFirstPage() async {
+        searchGeneration += 1
         loading = false
         endReached = false
         items = []
@@ -166,17 +170,24 @@ final class NewPostPickerVM: ObservableObject {
     func loadMoreIfNeeded(current item: Item?) async {
         guard let item, !loading, !endReached else { return }
         if let idx = items.firstIndex(of: item), idx >= items.count - 12 {
-            switch source {
-            case .synced: await fetchPage()
-            case .phone: await loadLocalPage()
+            // Its own task, not the asking tile's: with a 12-photo first
+            // page that tile is the first one, and scrolling it away
+            // cancelled the page, with no later tile left to ask again.
+            let src = source
+            Task {
+                switch src {
+                case .synced: await self.fetchPage()
+                case .phone: await self.loadLocalPage()
+                }
             }
         }
     }
 
     private func fetchPage(overrideToken: String? = nil) async {
         guard !loading, !endReached else { return }
+        let mine = searchGeneration
         loading = true
-        defer { loading = false }
+        defer { if mine == searchGeneration { loading = false } }
         do {
             let resp = try await ws.request { e in
                 var req = Msg_ReqEnvelope()
@@ -202,7 +213,7 @@ final class NewPostPickerVM: ObservableObject {
             // Decoded off the main thread, at tile size, before the tiles
             // first draw (see GridThumbCache).
             await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PickTile.side)
-            guard source == .synced else { return }
+            guard mine == searchGeneration, source == .synced else { return }
             let existing = Set(items.map(\.id))
             let filtered = newItems.filter { !existing.contains($0.id) }
             if !filtered.isEmpty { items.append(contentsOf: filtered) }
@@ -218,8 +229,9 @@ final class NewPostPickerVM: ObservableObject {
             print("[phonepick] loadLocalPage skipped: loading=\(loading) endReached=\(endReached)")
             return
         }
+        let mine = searchGeneration
         loading = true
-        defer { loading = false }
+        defer { if mine == searchGeneration { loading = false } }
 
         let fetchResult: PHFetchResult<PHAsset>
         if let existing = localAssets {
@@ -263,6 +275,7 @@ final class NewPostPickerVM: ObservableObject {
             if let thumb = await PhoneThumb.request(asset) { GridThumbCache.store(thumb, id: id) }
             newItems.append(Item(id: id, path: "", asset: asset, isVideo: asset.mediaType == .video))
         }
+        guard mine == searchGeneration else { return }
         items.append(contentsOf: newItems)
         localLoadedCount = end
         endReached = (localLoadedCount >= total)

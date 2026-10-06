@@ -117,9 +117,18 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // A failed page is asked for again after a pause, not at once forever.
   const { tick: retryTick, failed: pageFailed, reset: resetRetry, ready: retryReady } = usePageRetry();
 
+  // Bumped when the grid starts over (a tag added or removed), so a page
+  // still in flight for the old search lands nowhere, as in PhotoGallery
+  // and the apps' composers.
+  const searchGenRef = useRef(0);
+
   const fetchPage = useCallback(
-    async (overrideToken?: string | null) => {
-      if (loading || endReached) return;
+    async (overrideToken?: string | null, force = false) => {
+      // force: a new search starts even while the old one's page is in
+      // flight (its loading flag would otherwise refuse it, and the grid
+      // stayed empty for the new tags).
+      if (!force && (loading || endReached)) return;
+      const myGen = searchGenRef.current;
       const sendToken = overrideToken ?? token ?? "";
       setLoading(true);
       try {
@@ -137,6 +146,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             },
           };
         });
+        if (myGen !== searchGenRef.current) return;
         if (resp.payload?.$case !== "respListOfFiles") { pageFailed(); return; }
         const lof = resp.payload.respListOfFiles!;
         const nextToken = lof.token || null;
@@ -160,9 +170,9 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         // No connection, or the request failed outright: retried after a
         // pause (usePageRetry).
         console.warn("Composer library page failed:", err);
-        pageFailed();
+        if (myGen === searchGenRef.current) pageFailed();
       } finally {
-        setLoading(false);
+        if (myGen === searchGenRef.current) setLoading(false);
       }
     },
     [chips, token, loading, endReached, pageFailed, resetRetry]
@@ -186,12 +196,13 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
 
   useEffect(() => {
     resetRetry();
+    searchGenRef.current += 1;
     (async () => {
       setItems([]);
       mapRef.current = new Map();
       setToken(null);
       setEndReached(false);
-      await fetchPage("");
+      await fetchPage("", true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chips]);
