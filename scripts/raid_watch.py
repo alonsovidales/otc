@@ -101,6 +101,9 @@ CONFIG = {
         "sgdisk": "/usr/sbin/sgdisk",  # optional
         "lsblk": "/bin/lsblk",
         "wipefs": "/sbin/wipefs",
+        "blockdev": "/sbin/blockdev",
+        "dumpe2fs": "/sbin/dumpe2fs",
+        "resize2fs": "/sbin/resize2fs",
     },
 }
 
@@ -361,6 +364,77 @@ def add_member(raid_dev, new_dev):
     return run([CONFIG["paths"]["mdadm"], "--add", raid_dev, new_dev])
 
 # ----------------------------
+# Growing onto bigger cards
+# ----------------------------
+# More storage: swap one card for a bigger one (it is added and rebuilt
+# like any replacement, above), wait for the mirror to be complete, then
+# the other. Once every member has room beyond what the array uses, the
+# array grows to the smaller of them (mdadm --grow --size=max) and the
+# ext4 on it follows (resize2fs, online). Never while degraded or
+# rebuilding, never smaller; a failed step is retried with a backoff.
+GROW_MARGIN = 256 * 1024 * 1024  # less room than this is not worth a grow
+GROW_CHECK_S = 600
+
+def sysfs_int(path):
+    try:
+        with open(path) as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+def member_room(raid_name, dev):
+    """Bytes a member can hold for the array: its size less md's data
+    offset (the superblock and bitmap before the data)."""
+    size = size_of(dev)
+    offset = sysfs_int(f"/sys/block/{raid_name}/md/dev-{os.path.basename(dev)}/offset")
+    return size - (offset * 512 if offset is not None else 256 * 1024 * 1024)
+
+def array_room(raid_name):
+    """Bytes the array uses of each member now."""
+    kib = sysfs_int(f"/sys/block/{raid_name}/md/component_size")
+    return kib * 1024 if kib is not None else None
+
+def needs_grow(raid_name, members, raid_disks=2):
+    """The array can grow: every slot holds an up-to-date member, and the
+    smallest has more room than the array uses."""
+    if len(members) != raid_disks or any("active sync" not in m["state"] for m in members.values()):
+        return False
+    used = array_room(raid_name)
+    if not used:
+        return False
+    room = min(member_room(raid_name, m["device"]) for m in members.values())
+    return room - used > GROW_MARGIN
+
+def grow_array(raid_dev):
+    """mdadm --grow --size=max; an mdadm that refuses with an internal
+    bitmap gets it dropped for the grow and put back."""
+    mdadm = CONFIG["paths"]["mdadm"]
+    r = run([mdadm, "--grow", raid_dev, "--size=max"])
+    if r.returncode != 0 and "bitmap" in ((r.stderr or "") + (r.stdout or "")).lower():
+        run([mdadm, "--grow", raid_dev, "--bitmap=none"])
+        r = run([mdadm, "--grow", raid_dev, "--size=max"])
+        run([mdadm, "--grow", raid_dev, "--bitmap=internal"])
+    return r
+
+def fs_needs_resize(raid_dev):
+    """The ext4 on the array is smaller than the array."""
+    if run([CONFIG["paths"]["lsblk"], "-ndo", "FSTYPE", raid_dev]).stdout.strip() != "ext4":
+        return False
+    try:
+        dev_bytes = int(run([CONFIG["paths"]["blockdev"], "--getsize64", raid_dev]).stdout.strip())
+    except ValueError:
+        return False
+    out = run([CONFIG["paths"]["dumpe2fs"], "-h", raid_dev]).stdout
+    count = re.search(r"^Block count:\s*(\d+)", out, re.M)
+    bsize = re.search(r"^Block size:\s*(\d+)", out, re.M)
+    if not count or not bsize:
+        return False
+    return dev_bytes - int(count.group(1)) * int(bsize.group(1)) > GROW_MARGIN
+
+def resize_fs(raid_dev):
+    return run([CONFIG["paths"]["resize2fs"], raid_dev])
+
+# ----------------------------
 # First-time storage bootstrap (issue #38/#39)
 # ----------------------------
 def _fail_bootstrap(msg):
@@ -609,6 +683,10 @@ def main():
     # (disk, size) -> {"next_try": monotonic, "delay": s, "err": stderr}
     failed_adds = {}
     setup_retry = {"key": None, "next_try": 0.0, "delay": 0}
+    # Growing onto bigger cards, with its own backoff per step.
+    # Looked at every GROW_CHECK_S only: it reads the disks (lsblk,
+    # dumpe2fs), and a healthy array's disks are left to rest.
+    grow_retry = {"check": 0.0, "array": 0.0, "array_delay": 0, "fs": 0.0, "fs_delay": 0}
 
     try:
         while True:
@@ -756,6 +834,32 @@ def main():
                     failed_adds.clear()
             else:
                 failed_adds.clear()
+
+            # Bigger cards: grow the array, then its filesystem (above
+            # GROW_MARGIN). Only once the mirror is complete and settled.
+            mono = time.monotonic()
+            if array_present and "degraded" not in state and not rebuilding and mono >= grow_retry["check"]:
+                grow_retry["check"] = mono + GROW_CHECK_S
+                if mono >= grow_retry["array"] and needs_grow(raid_name, members):
+                    print(f"[raid-watch] Every disk has room to spare: growing {raid_dev}")
+                    r = grow_array(raid_dev)
+                    if r.returncode != 0:
+                        grow_retry["array_delay"] = next_delay(grow_retry["array_delay"], 3600)
+                        grow_retry["array"] = mono + grow_retry["array_delay"]
+                        print(f"[raid-watch] mdadm --grow failed: {(r.stderr or '').strip()} (will retry in {grow_retry['array_delay']}s)")
+                    else:
+                        grow_retry["array_delay"] = 0
+                        print(f"[raid-watch] {raid_dev} grown; the new space is being mirrored")
+                if mono >= grow_retry["fs"] and fs_needs_resize(raid_dev):
+                    print(f"[raid-watch] Growing the filesystem on {raid_dev}")
+                    r = resize_fs(raid_dev)
+                    if r.returncode != 0:
+                        grow_retry["fs_delay"] = next_delay(grow_retry["fs_delay"], 3600)
+                        grow_retry["fs"] = mono + grow_retry["fs_delay"]
+                        print(f"[raid-watch] resize2fs failed: {(r.stderr or '').strip()} (will retry in {grow_retry['fs_delay']}s)")
+                    else:
+                        grow_retry["fs_delay"] = 0
+                        print(f"[raid-watch] Filesystem on {raid_dev} grown")
 
             time.sleep(CONFIG["poll_s"])
 

@@ -423,7 +423,10 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   since a failed reader usually vanishes. Main instance only. The Pi 5 has one USB controller per blue
   port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
   the startup log names each disk's port. The root `raid_watch.py` still drives the LEDs and re-adds a
-  replacement. Disks go in the two blue USB ports (README, website).
+  replacement. More storage: swap the cards for bigger ones one at a time (each is added and
+  rebuilt like a replacement); once every member has room to spare, `raid_watch.py` grows md0
+  (`mdadm --grow --size=max`) and the ext4 on it (`resize2fs`, online), checked every 10 minutes, never
+  while degraded or rebuilding (tested on loop devices in the Lima VM). Disks go in the two blue USB ports (README, website).
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section).
 - `modelserver` — issue #167: the primary instance loads RAM++ and the face models once and

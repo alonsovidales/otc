@@ -510,6 +510,10 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <p>A Raspberry Pi 5 (8GB) with two micro-SD cards for RAID-1 storage, in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails), a power supply, and an active cooler — all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list.</p>
           </details>
           <details>
+            <summary>How do I get more storage?</summary>
+            <p>Swap the two cards for bigger ones, one at a time, while the device keeps running. Take out one card and put in a bigger one, at least as large as the one you took out: the device copies everything onto it by itself (anything already on the new card is erased). You get an alert that a disk stopped working, which is expected here, and another, "Both storage disks are working again", when the copy is done; that can take a few hours for a large card. Only then do the same with the other card. Once both cards are bigger, the device grows its storage to the size of the smaller one by itself, within about ten minutes, without stopping. Your files stay available the whole time, but while a copy runs they are on one card only, so never take out the second card before the first copy has finished.</p>
+          </details>
+          <details>
             <summary>What is "the Bridge", and do I need it?</summary>
             <p>Your device isn't directly reachable from the internet by default. The Bridge is an optional relay service that lets your own apps and friends reach your device from outside your home network — without it, OTC still works fully at home, you'd just need your own port-forwarding/static IP setup to reach it remotely. Use the contact form below to request Bridge access.</p>
           </details>
