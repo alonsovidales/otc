@@ -50,13 +50,25 @@ type Client struct {
 	// (switched off, offline): not a wrong password - the client keeps
 	// retrying with backoff and signs in once the device is back.
 	OnUnreachable func(msg string)
+	// OnLocalEndpoint reports a change in what the device at domain (as
+	// given to Configure) says about its home-network endpoint (issue
+	// #190): one to keep, or nil to forget the one kept. Not called when
+	// the question went unanswered.
+	OnLocalEndpoint func(domain string, ep *LocalEndpoint)
 
 	mu       sync.Mutex
+	domain   string
 	url      string
 	clientID string
 	password string
-	conn     *websocket.Conn
-	open     bool
+	// local is tried before url on every dial (SetLocalEndpoint, or
+	// learnt), except the one after a sign-in there failed (skipLocal);
+	// route is the signed-in connection's.
+	local     *LocalEndpoint
+	skipLocal bool
+	route     Route
+	conn      *websocket.Conn
+	open      bool
 	// signedIn: the device accepted the password on this socket.
 	// IsConnected is both - an open socket still signing in used to count,
 	// so a folder's first ListFiles raced the Auth and got "not
@@ -82,6 +94,11 @@ func New() *Client {
 func (c *Client) Configure(domain, clientID, password string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if domain != c.domain {
+		c.local = nil // another device's
+		c.skipLocal = false
+	}
+	c.domain = domain
 	d := strings.TrimSpace(domain)
 	if strings.Contains(d, "://") {
 		c.url = d
@@ -155,7 +172,26 @@ func (c *Client) currentLocked(gen int64, conn *websocket.Conn) bool {
 func (c *Client) dial(gen int64) {
 	c.mu.Lock()
 	u := c.url
+	local := c.local.clone()
+	if c.skipLocal {
+		local = nil
+		c.skipLocal = false
+	}
 	c.mu.Unlock()
+	// Issue #190: the home network first, where the device has given one.
+	if local != nil {
+		conn, lu, err := dialLocal(context.Background(), local)
+		if err == nil {
+			log.Printf("connected over the home network (%s)", lu)
+			c.run(gen, conn, RouteLocal)
+
+			return
+		}
+		log.Printf("the device did not answer on the home network, connecting through the configured address: %v", err)
+		if !c.current(gen, nil) {
+			return
+		}
+	}
 	parsed, err := url.Parse(u)
 	if err != nil {
 		if c.OnDisconnect != nil && c.current(gen, nil) {
@@ -174,6 +210,11 @@ func (c *Client) dial(gen int64) {
 
 		return
 	}
+	c.run(gen, conn, RouteRemote)
+}
+
+// run signs in on a fresh socket and, once it is in, announces it.
+func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 	conn.SetReadLimit(maxMessageSize)
 
 	c.mu.Lock()
@@ -190,7 +231,13 @@ func (c *Client) dial(gen int64) {
 
 	go c.readLoop(conn, gen)
 
-	err = c.auth(gen, conn)
+	ctx := context.Background()
+	if route == RouteLocal {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, localSignInTO)
+		defer cancel()
+	}
+	err := c.auth(ctx, gen, conn)
 	var ue *UnreachableError
 	if errors.As(err, &ue) {
 		// The bridge is up, the device isn't: say so and close - the read
@@ -209,6 +256,16 @@ func (c *Client) dial(gen int64) {
 		// dropping mid sign-in (a busy device, another folder's upload
 		// filling the link). Reporting that as a wrong password stopped
 		// the client for good; close and let the read loop reconnect.
+		// One that failed at home goes through the configured address
+		// next: a home route that connects but can't sign in must not
+		// keep the client from the one that works.
+		if route == RouteLocal {
+			c.mu.Lock()
+			if c.currentLocked(gen, nil) {
+				c.skipLocal = true
+			}
+			c.mu.Unlock()
+		}
 		_ = conn.Close()
 
 		return
@@ -245,6 +302,13 @@ func (c *Client) dial(gen int64) {
 
 		return
 	}
+	if route == RouteRemote {
+		if lconn, lu := c.learnLocal(gen, conn); lconn != nil {
+			c.moveLocal(gen, conn, lconn, lu)
+
+			return
+		}
+	}
 	c.mu.Lock()
 	if !c.currentLocked(gen, conn) {
 		// Superseded while signing in: not this client's connection any
@@ -256,17 +320,40 @@ func (c *Client) dial(gen int64) {
 	}
 	c.backoff = initialBackoff
 	c.signedIn = true
+	c.route = route
 	c.mu.Unlock()
 	if c.OnConnect != nil {
 		c.OnConnect()
 	}
 }
 
+// moveLocal swaps a connection signed in at the configured address, on
+// which nothing else was sent, for lconn on the home network, and signs
+// in there. The old one is closed unreported: its attempt is superseded.
+func (c *Client) moveLocal(gen int64, conn, lconn *websocket.Conn, lu string) {
+	c.mu.Lock()
+	if !c.currentLocked(gen, conn) || !c.autoRecon {
+		c.mu.Unlock()
+		_ = lconn.Close()
+
+		return
+	}
+	c.gen++
+	ngen := c.gen
+	c.conn = nil
+	c.open = false
+	c.failAllLocked(errSuperseded)
+	c.mu.Unlock()
+	_ = conn.Close()
+	log.Printf("the device is on this network: moving to %s", lu)
+	c.run(ngen, lconn, RouteLocal)
+}
+
 // errSuperseded ends a sign-in whose attempt is no longer the client's.
 var errSuperseded = errors.New("connection replaced")
 
-func (c *Client) auth(gen int64, conn *websocket.Conn) error {
-	pk, err := c.Request(context.Background(), func(r *pb.ReqEnvelope) {
+func (c *Client) auth(ctx context.Context, gen int64, conn *websocket.Conn) error {
+	pk, err := c.Request(ctx, func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqGetPubKey{ReqGetPubKey: &pb.GetPubKey{}}
 	})
 	if err != nil {
@@ -292,7 +379,7 @@ func (c *Client) auth(gen int64, conn *websocket.Conn) error {
 	if err != nil {
 		return err
 	}
-	resp, err := c.Request(context.Background(), func(r *pb.ReqEnvelope) {
+	resp, err := c.Request(ctx, func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Uuid: id, Key: enc, Create: false}}
 	})
 	if err != nil {
