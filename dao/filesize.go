@@ -2,7 +2,11 @@
 
 package dao
 
-import pb "github.com/alonsovidales/otc/proto/generated"
+import (
+	"math"
+
+	pb "github.com/alonsovidales/otc/proto/generated"
+)
 
 // SetFileSize gives f the size n in both of its fields (issue #187):
 // size64 holds it, and the int32 size keeps what it has always carried, n
@@ -101,6 +105,38 @@ func (dao *Dao) OwnPublicationHashes() (hashes []string, err error) {
 func (dao *Dao) SetOwnPublicationSize(hash string, n int64) (int64, error) {
 	res, err := dao.db.Exec("update `social_publications_files` f join `social_publications` p on p.`uuid` = f.`uuid` "+
 		"set f.`size` = ? where f.`hash` = ? and p.`own_publication` = 1 and f.`size` <> ?", n, hash, n)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// ClampedFriendPublicationHashes is every hash with a file in a friend's
+// post whose size is MaxInt32: release 92 clamped what such a file takes
+// on this disk to that (social.storeFriendFile).
+func (dao *Dao) ClampedFriendPublicationHashes() (hashes []string, err error) {
+	rows, err := dao.db.Query("select distinct f.`hash` from `social_publications_files` f "+
+		"join `social_publications` p on p.`uuid` = f.`uuid` where p.`own_publication` = 0 and f.`size` = ?", int64(math.MaxInt32))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var h string
+		if err := rows.Scan(&h); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, h)
+	}
+	return hashes, rows.Err()
+}
+
+// SetFriendPublicationSize gives the files with this hash in friends'
+// posts the size n, what they take on this disk, and says how many rows
+// it changed.
+func (dao *Dao) SetFriendPublicationSize(hash string, n int64) (int64, error) {
+	res, err := dao.db.Exec("update `social_publications_files` f join `social_publications` p on p.`uuid` = f.`uuid` "+
+		"set f.`size` = ? where f.`hash` = ? and p.`own_publication` = 0 and f.`size` <> ?", n, hash, n)
 	if err != nil {
 		return 0, err
 	}

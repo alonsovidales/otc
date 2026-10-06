@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,6 +50,17 @@ func expectBackfillPending(mock sqlmock.Sqlmock, wideColumns int) {
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(wideColumns))
 }
 
+// expectClampedFriendFiles expects the listing of friends' post files
+// release 92 stored at MaxInt32, answering hashes.
+func expectClampedFriendFiles(mock sqlmock.Sqlmock, hashes ...string) {
+	rows := sqlmock.NewRows([]string{"hash"})
+	for _, h := range hashes {
+		rows.AddRow(h)
+	}
+	mock.ExpectQuery("select distinct f.`hash` from `social_publications_files` f join `social_publications` p .* where p.`own_publication` = 0 and f.`size` = \\?").
+		WithArgs(int64(math.MaxInt32)).WillReturnRows(rows)
+}
+
 // Issue #187: a blob larger than MaxInt32 gives its content's size to
 // every row of its hash; smaller, missing and unsegmented blobs are left
 // alone, as are friends' posts. Hashes are read a page at a time, and the
@@ -90,6 +102,7 @@ func TestBackfillSizesCorrectsWrappedRows(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(post).AddRow(smallPost))
 	mock.ExpectExec("update `social_publications_files` f join `social_publications` p .* set f.`size` = \\? where f.`hash` = \\? and p.`own_publication` = 1 and f.`size` <> \\?").
 		WithArgs(int64(5<<30), post, int64(5<<30)).WillReturnResult(sqlmock.NewResult(0, 1))
+	expectClampedFriendFiles(mock)
 	mock.ExpectExec("update `settings` set `sizes_backfilled` = 1").WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mg.backfillSizes()
@@ -139,11 +152,57 @@ func TestBackfillSizesWaitsForTheMigrationAndRetriesFailures(t *testing.T) {
 		WillReturnError(errors.New("lock wait timeout"))
 	mock.ExpectQuery("select distinct f.`hash` from `social_publications_files`").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}))
+	expectClampedFriendFiles(mock)
 	mg.backfillSizes()
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err) // a sizes_backfilled update would be unexpected
 	}
 	if mg.sizesBackfilled.Load() {
 		t.Error("a failed pass counted as done")
+	}
+}
+
+// Release 92 stored a friend's post file at most MaxInt32: one whose media
+// and thumbnail take more here gets their size, in friends' posts only;
+// one that fits, or whose files are gone, is left alone.
+func TestBackfillSizesCorrectsClampedFriendFiles(t *testing.T) {
+	galleryTestEnv(t)
+	big, edge, small, gone := strings.Repeat("e1", 32), strings.Repeat("e2", 32), strings.Repeat("e3", 32), strings.Repeat("e4", 32)
+	for name, n := range map[string]int64{
+		big: 3 << 30, big + "_thumbnail": 10,
+		edge: math.MaxInt32 - 5, edge + "_thumbnail": 10, // only the two together don't fit
+		small: 100, small + "_thumbnail": 10,
+	} {
+		path := filepath.Join(galleryPosts, name)
+		if err := os.WriteFile(path, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Remove(path) })
+		if err := os.Truncate(path, n); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	mg, mock := backfillMock(t)
+	expectBackfillPending(mock, 3)
+	mock.ExpectQuery("select `hash` from `files`").WillReturnRows(sqlmock.NewRows([]string{"hash"}))
+	mock.ExpectQuery("select distinct f.`hash` from `social_publications_files` .* where p.`own_publication` = 1").
+		WillReturnRows(sqlmock.NewRows([]string{"hash"}))
+	expectClampedFriendFiles(mock, big, edge, small, gone)
+	for _, f := range []struct {
+		hash string
+		n    int64
+	}{{big, 3<<30 + 10}, {edge, math.MaxInt32 + 5}} {
+		mock.ExpectExec("update `social_publications_files` f join `social_publications` p .* set f.`size` = \\? where f.`hash` = \\? and p.`own_publication` = 0 and f.`size` <> \\?").
+			WithArgs(f.n, f.hash, f.n).WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	mock.ExpectExec("update `settings` set `sizes_backfilled` = 1").WillReturnResult(sqlmock.NewResult(0, 1))
+
+	mg.backfillSizes()
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	if !mg.sizesBackfilled.Load() {
+		t.Error("a finished backfill was not noted")
 	}
 }

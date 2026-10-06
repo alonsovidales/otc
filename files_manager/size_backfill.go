@@ -96,6 +96,29 @@ func (mg *Manager) backfillSizes() {
 		}
 	}
 
+	// Release 92 stored what a friend's post file takes on this disk
+	// clamped to MaxInt32. Fetched media is under 1 GiB, but media already
+	// here (an own post of the same content) can be larger: such a row
+	// gets the size storeFriendFile now stores, for the friends' posts
+	// limit (#153).
+	hashes, err = mg.dao.ClampedFriendPublicationHashes()
+	if err != nil {
+		log.Error("size backfill: error listing friends' posts' files:", err)
+		return
+	}
+	for _, h := range hashes {
+		n, ok, err := friendFileSize(filepath.Join(postsDir, h))
+		if err == nil && ok {
+			var changed int64
+			changed, err = mg.dao.SetFriendPublicationSize(h, n)
+			fixed += changed
+		}
+		if err != nil {
+			log.Error("size backfill: friend's post file", h, ":", err)
+			failed = true
+		}
+	}
+
 	if fixed > 0 {
 		log.Info("size backfill: corrected the size of", fixed, "row(s) of 2 GiB or more")
 	}
@@ -123,6 +146,26 @@ func largeFileSize(path string) (n int64, ok bool, err error) {
 		return 0, false, nil
 	}
 	return fi.Size(), true, nil
+}
+
+// friendFileSize is what the friend's post file at path takes on this
+// disk, media and thumbnail, when an int32 can't hold it; ok is false when
+// it can.
+func friendFileSize(path string) (n int64, ok bool, err error) {
+	for _, p := range []string{path, path + "_thumbnail"} {
+		fi, err := os.Stat(p)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return 0, false, err
+		}
+		n += fi.Size()
+	}
+	if n <= math.MaxInt32 {
+		return 0, false, nil
+	}
+	return n, true, nil
 }
 
 // blobContentSize is the content size of the encrypted blob at path when
