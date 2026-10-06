@@ -1,0 +1,20 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+.tip-layer {
+  position: fixed;
+  z-index: 10000;
+  transform: translate(-50%, -100%);
+  width: max-content;
+  max-width: 280px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ink-3);
+  color: var(--mist);
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  white-space: normal;
+}
+.tip-layer.below { transform: translate(-50%, 0); }

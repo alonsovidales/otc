@@ -800,7 +800,8 @@ export default function FilesExplorer({
                 )}
                 {r.name !== ".." && r.isDir && (
                   <button className={`fb-lock fb-tile-lock${r.uploadOnly ? " on" : ""}`} onClick={() => void toggleUploadOnly(r.file)}
-                    title={r.uploadOnly ? "Upload only. Click to clear." : "Make upload only"} aria-pressed={r.uploadOnly}>
+                    data-tip={r.uploadOnly ? "Upload only. Click to clear." : "Make upload only"}
+                    aria-label={r.uploadOnly ? "Clear upload only" : "Make upload only"} aria-pressed={r.uploadOnly}>
                     {lockIcon(r.uploadOnly)}
                   </button>
                 )}
@@ -848,7 +849,7 @@ export default function FilesExplorer({
                   <button
                     className={`fb-lock${r.uploadOnly ? " on" : ""}`}
                     onClick={() => void toggleUploadOnly(r.file)}
-                    title={r.uploadOnly ? "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear." : "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version"}
+                    data-tip={r.uploadOnly ? "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear." : "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version"}
                     aria-label={r.uploadOnly ? "Clear upload only" : "Make upload only"}
                     aria-pressed={r.uploadOnly}
                   >
@@ -856,7 +857,7 @@ export default function FilesExplorer({
                   </button>
                 )}
                 {!r.isDir && r.uploadOnly && (
-                  <span className="fb-lock on static" title="In an upload-only folder: cannot be deleted">{lockIcon(true)}</span>
+                  <span className="fb-lock on static" data-tip="In an upload-only folder: cannot be deleted" role="img" aria-label="In an upload-only folder: cannot be deleted">{lockIcon(true)}</span>
                 )}
                 {!r.isDir && r.versions > 0 && (
                   <button className="fb-versions" onClick={() => void openVersions(r.file)} title="Older versions of this file">
