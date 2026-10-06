@@ -140,3 +140,4 @@
 94	-	7d6276feeef07601c6fb4370dbd616ee904a057ffe14a040fb1472a5026db1a4	Sharing a gallery with a very large photo no longer strains the device (#188).	d25a36b6d7a63659aa421064e780144c3a8785df8bb9d8b673e3879783b29a8e
 95	-	a5b8a04c2678fed9dd6876aa40936f8de2cfa2cf9052ca2479ae697d27495440	Device setup says "try again" when the bridge has a hiccup, instead of an invalid code or name (#189).	4869139349b4d8d122ff3245fffe70d623cb506dbf4b16324ffeab23582265c7
 96	-	ec5cbe1ab8bec93831e5d99bdc09ab7151db80040c520e08cbf7648f6099b8f5	Unlocking a folder inside a locked folder now says which folder to unlock (#186).	ef33f07fb0d9971dbeeec1d96c43ee36ce5effd419dd40131ea35d9de16b4626
+97	-	842b8963c56c6e51c59e37ccc4436e4787baadbdb9425ca1bbb8c4599b4b2803	At home the apps connect to the device directly over your Wi-Fi (#190), and photo grids show their first photos sooner.	01698c971a4501857c2efaaa1c67b4244373ee8e1a5880c9af6c529116e55497
