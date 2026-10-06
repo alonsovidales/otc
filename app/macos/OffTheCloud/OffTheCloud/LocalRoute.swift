@@ -57,7 +57,7 @@ struct LocalEndpoint: Codable, Equatable {
     /// the URL.
     init?(domain: String, addresses: [String], port: Int, pin: Data) {
         // A handful at most: each is a connection attempt at once.
-        let ips = Array(addresses.filter(Self.isIPLiteral).prefix(Self.maxAddresses))
+        let ips = Array(addresses.filter(Self.isHomeAddress).prefix(Self.maxAddresses))
         guard !domain.isEmpty, !ips.isEmpty, (1...65535).contains(port), pin.count == 32 else { return nil }
         self.domain = domain
         self.addresses = ips
@@ -67,9 +67,19 @@ struct LocalEndpoint: Codable, Equatable {
 
     static let maxAddresses = 8
 
-    private static func isIPLiteral(_ s: String) -> Bool {
+    /// A home-network IP literal only (RFC 1918, IPv6 ULA), as the device
+    /// lists them and as iOS, Android and otc-sync check: a name would be
+    /// looked up, and a public address is no home network.
+    static func isHomeAddress(_ s: String) -> Bool {
         guard !s.isEmpty, s.allSatisfy({ $0.isHexDigit || $0 == "." || $0 == ":" }) else { return false }
-        return IPv4Address(s) != nil || IPv6Address(s) != nil
+        if let v4 = IPv4Address(s) {
+            let b = [UInt8](v4.rawValue)
+            return b[0] == 10 || (b[0] == 172 && b[1] & 0xf0 == 16) || (b[0] == 192 && b[1] == 168)
+        }
+        if let v6 = IPv6Address(s) {
+            return v6.rawValue[v6.rawValue.startIndex] & 0xfe == 0xfc
+        }
+        return false
     }
 
     /// The same addresses (in any order), port and pin: nothing new to try.

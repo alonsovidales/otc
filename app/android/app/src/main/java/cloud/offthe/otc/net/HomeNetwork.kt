@@ -42,18 +42,26 @@ class HomeEndpoint(val addresses: List<String>, val port: Int, val certSha256: B
 
         /** Only usable answers: IP literals (no name to look up), a real port, a 32-byte pin. */
         fun valid(addresses: List<String>, port: Int, pin: ByteArray): HomeEndpoint? {
-            val ok = addresses.map { it.trim() }.filter { isIPLiteral(it) }.distinct()
+            val ok = addresses.map { it.trim() }.filter { isHomeAddress(it) }.distinct()
             if (ok.isEmpty() || port !in 1..65535 || pin.size != 32) return null
             return HomeEndpoint(ok, port, pin)
         }
 
         private val ipv6 = Regex("""^[0-9A-Fa-f:.]+$""")
 
-        private fun isIPLiteral(a: String) = if (a.contains(':')) {
-            // OkHttp's parser checks the address itself.
-            ipv6.matches(a) && "https://[$a]/".toHttpUrlOrNull() != null
+        // A home-network IP literal only (RFC 1918, IPv6 ULA fc00::/7), as
+        // the device lists them and as iOS, macOS and otc-sync check: a name
+        // would be looked up, and a public address is no home network.
+        internal fun isHomeAddress(a: String): Boolean = if (a.contains(':')) {
+            // OkHttp's parser checks the address itself; the first group
+            // ("" before "::") holds the top byte.
+            ipv6.matches(a) && "https://[$a]/".toHttpUrlOrNull() != null &&
+                (a.substringBefore(':').ifEmpty { "0" }.toIntOrNull(16) ?: 0).let { (it shr 8) and 0xfe == 0xfc }
         } else {
-            a.split('.').let { p -> p.size == 4 && p.all { o -> o.length in 1..3 && o.all { it in '0'..'9' } && o.toInt() <= 255 } }
+            a.split('.').let { p ->
+                p.size == 4 && p.all { o -> o.length in 1..3 && o.all { it in '0'..'9' } && o.toInt() <= 255 } &&
+                    p[0].toInt().let { b0 -> val b1 = p[1].toInt(); b0 == 10 || (b0 == 172 && b1 and 0xf0 == 16) || (b0 == 192 && b1 == 168) }
+            }
         }
     }
 }
