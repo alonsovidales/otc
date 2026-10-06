@@ -280,9 +280,12 @@ fun SettingsView(secrets: SecretsStore) {
 private fun routeLine(signedIn: Boolean, route: OTCConnection.Route?, endpoint: String): String? {
     if (!signedIn || route == null) return null
     if (route == OTCConnection.Route.HOME) return "Connected over your home network"
-    val host = try { java.net.URI(SecretsStore.normalizedEndpoint(endpoint)).host } catch (e: Exception) { null } ?: endpoint
+    val host = try { java.net.URI(SecretsStore.normalizedEndpoint(endpoint)).host } catch (e: Exception) { null }
+    if (host.isNullOrEmpty()) return "Connected through the configured address"
+    // Host names aren't case-sensitive; "Cala.Off-The.Cloud" is the bridge too, as on macOS.
+    val h = host.lowercase()
     val bridge = SecretsStore.bridgeDomain
-    return "Connected through " + if (host == bridge || host.endsWith(".$bridge")) bridge else host
+    return "Connected through " + if (h == bridge || h.endsWith(".$bridge")) bridge else host
 }
 
 @Composable

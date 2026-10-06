@@ -86,6 +86,10 @@ object OTCConnection {
     private var configGen = 0
     // Uploads, downloads in pieces and photo syncs running (transfer()).
     private var transfers = 0
+    // A route check that a transfer or a connect put off: made once that
+    // is over. NetworkWatch reports a change only once, so a dropped one
+    // left the app on the bridge at home until the next resume.
+    private var recheckPending = false
     // A home sign-in that hangs gives way to the bridge; Argon2id on a busy
     // device takes seconds, not this.
     private const val homeSignInMs = 15_000L
@@ -144,7 +148,13 @@ object OTCConnection {
 
     /** [transfer] in two halves, for a run whose start and end are apart (the photo sync); always paired. */
     @PublishedApi internal fun transferStarted() { synchronized(connectLock) { transfers++ } }
-    @PublishedApi internal fun transferEnded() { synchronized(connectLock) { transfers-- } }
+    @PublishedApi internal fun transferEnded() {
+        val recheck = synchronized(connectLock) {
+            transfers--
+            (transfers == 0 && recheckPending).also { if (it) recheckPending = false }
+        }
+        if (recheck) scope.launch { reconsiderRoute() }
+    }
 
     /** Connects and authenticates if not already; concurrent callers share the one attempt. */
     suspend fun ensureConnected() {
@@ -153,7 +163,14 @@ object OTCConnection {
             val job = synchronized(connectLock) {
                 connectJob ?: scope.async { connectAndAuth() }.also { d ->
                     connectJob = d
-                    d.invokeOnCompletion { synchronized(connectLock) { if (connectJob === d) connectJob = null } }
+                    d.invokeOnCompletion {
+                        val recheck = synchronized(connectLock) {
+                            if (connectJob !== d) return@synchronized false
+                            connectJob = null
+                            recheckPending.also { recheckPending = false }
+                        }
+                        if (recheck) scope.launch { reconsiderRoute() }
+                    }
                 }
             }
             try {
@@ -175,6 +192,7 @@ object OTCConnection {
         synchronized(connectLock) {
             connectJob?.cancel(); connectJob = null
             switchJob?.cancel(); switchJob = null
+            recheckPending = false
             configGen++
         }
         ws.close()
@@ -417,14 +435,21 @@ object OTCConnection {
      * foreground. At home, over to the device itself; away, off a home
      * socket that no longer reaches it. Make before break: the socket in
      * use stays until the next one has signed in. Not while a transfer
-     * runs - the next reconnect picks the route then - nor while
-     * connecting, which tries the home network first anyway. The check
-     * running, if any, for the caller to wait on.
+     * runs, nor while connecting (which may have tried the home network
+     * before this change): the check is made once the last transfer ends
+     * or the connect is over. The check running, if any, for the caller
+     * to wait on.
      */
     fun reconsiderRoute(): Job? {
         synchronized(connectLock) {
             switchJob?.takeIf { it.isActive }?.let { return it }
-            if (!_authenticated.value || transfers > 0 || connectJob != null) return null
+            if (transfers > 0 || connectJob != null) {
+                recheckPending = true
+                return null
+            }
+            recheckPending = false
+            // Not signed in and not connecting: the next connect tries the home network first.
+            if (!_authenticated.value) return null
             return scope.launch {
                 try {
                     switchRoute()
@@ -444,10 +469,16 @@ object OTCConnection {
         val deviceId = secrets.deviceId.value
         val gen = synchronized(connectLock) { configGen }
         val old = ws
+        val h = home
         val from = _route.value ?: return
         // Nothing stored: the configured endpoint is the only way.
         val ep = secrets.homeEndpoint(url) ?: return
         val vias = NetworkWatch.homeRoutes()
+        // Home on a live socket over a network the phone is still on: stay,
+        // as macOS does on a wake. A probe that missed its budget on a busy
+        // device or LAN would otherwise move it onto the bridge at home.
+        // Leaving that network kills the socket, and its drop reconnects.
+        if (from == Route.HOME && old.connected && h != null && vias.any { it.key == h.via.key }) return
         val opened = if (vias.isEmpty()) null else HomeNetwork.open(ep, vias)
         if (from == Route.HOME) {
             if (opened != null) {
