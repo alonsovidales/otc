@@ -20,6 +20,9 @@ const thumbURL = (f: MsgFile) => {
   const b = f.content as unknown as Uint8Array | undefined;
   return b && b.byteLength ? URL.createObjectURL(new Blob([b], { type: "image/jpeg" })) : "";
 };
+// A search's first page is small so the grid paints quickly over a slow
+// upload; the pages after it get the device's own size (see PhotoGallery).
+const cFirstPagePhotos = 12;
 
 export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   const [groups, setGroups] = useState<ImageGroup[]>([]);
@@ -56,13 +59,18 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   const fetchPage = useCallback(async (fresh: boolean) => {
     if (!fresh && (busy.current || done)) return;
     const my = fresh ? ++gen.current : gen.current;
+    // No token (a new group, or a first page that failed) starts a search.
+    const sendToken = fresh ? "" : token;
     busy.current = true;
     setLoading(true);
     try {
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = {
           $case: "reqSearchPhotos",
-          reqSearchPhotos: { tags: [], personIds: [], groupId: group, includeVideos: false, token: fresh ? "" : token },
+          reqSearchPhotos: {
+            tags: [], personIds: [], groupId: group, includeVideos: false, token: sendToken,
+            limit: sendToken ? 0 : cFirstPagePhotos,
+          },
         };
       });
       if (my !== gen.current || resp.payload?.$case !== "respListOfFiles") return;
@@ -101,7 +109,8 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
 
   // A page that doesn't fill the grid leaves nothing to scroll, so the
   // sentinel never "comes into view" again and loading stopped there (a
-  // device answers 5-30 photos a page): keep going until it is full.
+  // device answers 5-30 photos a page, and the first asks for only 12):
+  // keep going until it is full.
   useEffect(() => {
     const g = gridRef.current;
     if (!g || loading || done || items.length === 0) return;

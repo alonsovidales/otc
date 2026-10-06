@@ -28,6 +28,9 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
 const tileThumb = (f: MsgFile) => bytesToURL(f.content, "image/jpeg");
 const fileKey = (f: MsgFile, idx?: number) =>
   `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${fileSize(f)}#${idx ?? -1}`;
+// A search's first page is small so the grid paints quickly over a slow
+// upload; the pages after it get the device's own size (see PhotoGallery).
+const cFirstPagePhotos = 12;
 
 type Props = {
   onCancel: () => void;
@@ -117,6 +120,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   const fetchPage = useCallback(
     async (overrideToken?: string | null) => {
       if (loading || endReached) return;
+      const sendToken = overrideToken ?? token ?? "";
       setLoading(true);
       try {
         const resp: RespEnvelope = await useWS.request(e => {
@@ -124,7 +128,13 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             $case: "reqSearchPhotos",
             // includeVideos (issue #60): the composer offers videos
             // alongside photos, unlike the Photo Gallery's own search.
-            reqSearchPhotos: { tags: chips, token: overrideToken ?? token ?? "", includeVideos: true },
+            // No token starts a search: a small first page.
+            reqSearchPhotos: {
+              tags: chips,
+              token: sendToken,
+              includeVideos: true,
+              limit: sendToken ? 0 : cFirstPagePhotos,
+            },
           };
         });
         if (resp.payload?.$case !== "respListOfFiles") { pageFailed(); return; }
@@ -167,13 +177,12 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     }
   }, []);
 
+  // Only the tag list: the chips effect below also runs on mount and loads
+  // the first page. Fetching it here too sent a second first page right
+  // behind it, doubling what a slow upload carried before anything showed.
   useEffect(() => {
-    (async () => {
-      await loadTags();
-      await fetchPage("");
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void loadTags();
+  }, [loadTags]);
 
   useEffect(() => {
     resetRetry();

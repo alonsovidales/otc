@@ -28,6 +28,12 @@ type Token = string | null;
 // counts as scrubbing rather than the start of a scroll.
 const cScrubEngagePx = 8;
 
+// A search's first page asks for only this many photos (SearchPhotos.limit):
+// a full page of ~30 thumbnails took 5-45 s over a slow home upload, and the
+// grid stayed empty all that time. The pages after it, sent with the token,
+// get the device's own size; a device before release 97 answers 30 anyway.
+const cFirstPagePhotos = 12;
+
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -463,6 +469,7 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
       // a full reload reset everything fresh.
       if (!force && (loading || endReached)) return;
       const myGen = searchGenRef.current;
+      const sendToken = overrideToken ?? token ?? "";
       setLoading(true);
       try {
         const resp: RespEnvelope = await useWS.request(e => {
@@ -478,7 +485,11 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
               // where only the social composer opted in), which left a
               // device's videos with nowhere to be browsed at all.
               includeVideos: true,
-              token: overrideToken ?? token ?? "",
+              token: sendToken,
+              // Without a token this starts a search (a filter, the date
+              // jump, or a retry of a first page that failed): a small
+              // page, see cFirstPagePhotos. With one, 0: the device's size.
+              limit: sendToken ? 0 : cFirstPagePhotos,
               // Lets the device resume where this grid actually is if it
               // no longer holds the token (see SearchPhotos.have) -
               // otherwise it starts the search over and hands back
@@ -670,7 +681,10 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
         // re-creates this observer when it is).
         if (!loading && !endReached && retryReady()) fetchPage();
       },
-      { root: null, rootMargin: "600px 0px 0px 0px" }
+      // Bottom margin, so the next page starts while the sentinel is still
+      // below the fold - after a small first page that is only a few rows
+      // down. (It used to be a top margin, which did nothing here.)
+      { root: null, rootMargin: "0px 0px 600px 0px" }
     );
     observerRef.current = obs;
     obs.observe(node);
