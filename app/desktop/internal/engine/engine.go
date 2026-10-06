@@ -618,6 +618,18 @@ func baseName(p string) string {
 	return p
 }
 
+// fileSize is a device file's size in bytes (issue #187), as the device's
+// dao.FileSize: size64, or the int32 size from a device before release
+// 93, which leaves size64 at 0 (and wraps a size of 2 GiB or more, as
+// it always has).
+func fileSize(f *pb.File) int64 {
+	if n := f.GetSize64(); n != 0 {
+		return n
+	}
+
+	return int64(f.GetSize())
+}
+
 // ---- orchestration -------------------------------------------------------
 
 func (e *Engine) startSync() {
@@ -1449,7 +1461,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		if ok {
 			n = fi.Size()
 		} else if rf := remoteByRel[rel]; rf != nil {
-			n = int64(rf.Size)
+			n = fileSize(rf)
 		}
 		sizes[rel] = n
 		return n
