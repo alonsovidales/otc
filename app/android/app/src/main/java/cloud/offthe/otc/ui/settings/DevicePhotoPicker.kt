@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.byteSize
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
@@ -100,11 +101,11 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
             if (mine != generation) return
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = "Could not load your photos."; return }
             val lof = resp.respListOfFiles
-            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() })
+            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })
             if (mine != generation) return
             val seen = items.map { it.path }.toSet()
             items = items + lof.filesList.filter { it.path !in seen }
-                .map { f -> PickItem(f.path, if (f.hasContent()) "${f.path}#${f.hash}#${f.size}" else null) }
+                .map { f -> PickItem(f.path, if (f.hasContent()) "${f.path}#${f.hash}#${f.byteSize}" else null) }
             token = lof.token.ifEmpty { null }
         } catch (e: Exception) {
             if (mine == generation) error = "Could not load your photos."

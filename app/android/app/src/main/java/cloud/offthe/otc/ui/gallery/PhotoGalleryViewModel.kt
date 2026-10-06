@@ -12,6 +12,7 @@ import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.byteSize
 import cloud.offthe.otc.proto.AddToImageGroup
 import cloud.offthe.otc.proto.CreateImageGroup
 import cloud.offthe.otc.proto.DelFile
@@ -61,7 +62,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     // thumbKey: the thumbnail's bytes in ThumbStore (the item's id), null
     // when the device sent none. preview: an already decoded placeholder
     // (the Files grid's thumbnail), used when there are no thumb bytes.
-    data class Item(val id: String, val path: String, val mime: String, val size: Int, val thumbKey: String?, val preview: Bitmap? = null)
+    data class Item(val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?, val preview: Bitmap? = null)
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
     data class PendingMerge(val target: Person, val source: Person)
 
@@ -380,10 +381,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             if (mine != searchGeneration) return false
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return false
             val lof = resp.respListOfFiles
-            val withThumb = lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() }
+            val withThumb = lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() }
             ThumbStore.putAll(withThumb)
             if (mine != searchGeneration) return false
-            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.size}".let { id -> Item(id, f.path, f.mime, f.size, if (f.hasContent()) id else null) } }
+            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.byteSize}".let { id -> Item(id, f.path, f.mime, f.byteSize, if (f.hasContent()) id else null) } }
             _state.update { st ->
                 val existing = st.items.map { it.id }.toSet()
                 st.copy(items = st.items + newItems.filter { it.id !in existing })

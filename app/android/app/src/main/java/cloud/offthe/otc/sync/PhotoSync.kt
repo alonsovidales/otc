@@ -15,6 +15,7 @@ import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.sizeMatches
 import cloud.offthe.otc.proto.HasFile
 import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.File as PbFile
@@ -191,8 +192,8 @@ object PhotoSync {
             val cached = AssetSyncCache.hash(cacheKey)
             val mine = when {
                 cached != null -> cached == there.hash
-                // Size before reading anything; toInt() wraps like the device's int32.
-                asset.size == 0L || asset.size.toInt() == there.size -> true
+                // Size before reading anything (wrapped against an older device's int32).
+                asset.size == 0L || there.sizeMatches(asset.size) -> true
                 else -> digestOf(asset).also { digest = it }.sha256 == there.hash // a stale SIZE?
             }
             if (mine) { digest?.let { AssetSyncCache.record(cacheKey, it.sha256, cacheEpoch) }; return path }

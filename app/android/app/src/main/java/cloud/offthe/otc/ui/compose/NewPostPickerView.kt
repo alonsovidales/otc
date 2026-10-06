@@ -92,6 +92,7 @@ import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.byteSize
 import cloud.offthe.otc.proto.GetTags
 import cloud.offthe.otc.proto.NewSocialPublication
 import cloud.offthe.otc.proto.RespEnvelope
@@ -213,8 +214,8 @@ class NewPostPickerViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqSearchPhotos(SearchPhotos.newBuilder().addAllTags(chips).setToken(overrideToken ?: token ?: "").setIncludeVideos(true)) }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return
             val lof = resp.respListOfFiles
-            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.size}" to f.content.toByteArray() })
-            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.size}".let { id -> Item(id, f.path, thumbKey = if (f.hasContent()) id else null, isVideo = f.mime.startsWith("video/")) } }
+            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })
+            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.byteSize}".let { id -> Item(id, f.path, thumbKey = if (f.hasContent()) id else null, isVideo = f.mime.startsWith("video/")) } }
             _state.update { st -> val existing = st.items.map { it.id }.toSet(); st.copy(items = st.items + newItems.filter { it.id !in existing }) }
             token = lof.token.ifEmpty { null }
             _state.update { it.copy(endReached = token == null) }

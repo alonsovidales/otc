@@ -58,6 +58,7 @@ import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.byteSize
 import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.GetFile
@@ -147,7 +148,7 @@ private fun leafName(full: String) = full.split('/').lastOrNull { it.isNotEmpty(
 
 // uploadOnly/versions: issue #132 - inside (or itself) an upload-only
 // folder, and how many older versions the device keeps for the file.
-data class FileRow(val path: String, val name: String, val isDir: Boolean, val size: Int, val raw: PbFile,
+data class FileRow(val path: String, val name: String, val isDir: Boolean, val size: Long, val raw: PbFile,
                    val uploadOnly: Boolean = false, val versions: Int = 0)
 
 class FilesExplorerViewModel(initialPath: String) : ViewModel() {
@@ -211,7 +212,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                 val files = resp.respListOfFiles.filesList.toMutableList()
                 if (path != "/") files.add(0, PbFile.newBuilder().setMime("inode/directory").setPath("..").build())
                 val rows = files.map { f ->
-                    FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.size, f, f.uploadOnly, f.versions)
+                    FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions)
                 }
                 _state.update { it.copy(rows = rows, selected = emptySet(), thumbGen = it.thumbGen + 1) }
             } else if (resp.error) {
@@ -579,7 +580,7 @@ fun FilesExplorerView(initialPath: String) {
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(row.name, maxLines = 1)
-                                if (!row.isDir) Text(formatBytes(row.size.toLong()), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (!row.isDir) Text(formatBytes(row.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             // Issue #132: the versions badge opens the pop-up;
                             // the lock on a folder toggles upload only, on a
@@ -640,14 +641,14 @@ fun FilesExplorerView(initialPath: String) {
                     Spacer(Modifier.size(8.dp))
                     Row(Modifier.fillMaxWidth().clickable { scope.launch { vm.openVersion(context, row, "") } }.padding(vertical = 8.dp)) {
                         Text("Current", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Text(formatBytes(row.size.toLong()), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatBytes(row.size), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (st.versionsLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     versions.forEach { v ->
                         Row(Modifier.fillMaxWidth().clickable { scope.launch { vm.openVersion(context, row, v.hash) } }.padding(vertical = 8.dp)) {
                             Text("Replaced " + (if (v.hasModified()) DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(v.modified.seconds * 1000)) else "—"),
                                 modifier = Modifier.weight(1f))
-                            Text(formatBytes(v.size.toLong()), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(formatBytes(v.byteSize), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
