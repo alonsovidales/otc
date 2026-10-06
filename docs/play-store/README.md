@@ -55,6 +55,8 @@ privacy details to the end.
   >   browser, with no account or app, and can download the originals.
   > - A private feed for family and friends: posts, comments and likes go from device to device,
   >   never through a company's servers.
+  > - One device for the whole family: give everyone at home their own account, with their own
+  >   photo backup, library and password, each encrypted with its own key.
   > - At home, photos and videos move over your own Wi-Fi, so a whole holiday backs up quickly
   >   instead of crawling over the internet.
   > - Set up a new device over Bluetooth, straight from the app.

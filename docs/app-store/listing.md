@@ -17,7 +17,7 @@ status (Digital Services Act) is declared under Business.
 
 **Promotional text** (170):
 
-> Every photo you take, kept in full quality on your own device at home. Find any shot in seconds and share albums only with the people you choose.
+> Every photo in full quality on your own device at home, with an account for everyone in the family. Find any shot in seconds and share only with who you choose.
 
 **Keywords** (100):
 
@@ -40,6 +40,11 @@ SHARE WITH THE PEOPLE YOU CHOOSE
 • Share an album with grandparents and friends as a link that expires. They open it in their browser, with no account or app, and can download the originals
 • A private feed for family and friends: photos, videos, likes and comments, kept on your devices and theirs, never on ours
 • No ads, no ranking, no strangers: just the people you added, in the order they posted
+
+ONE DEVICE FOR THE WHOLE FAMILY
+• Give everyone at home their own account on the same device: their own photo backup, library and password
+• Each account is encrypted with its own password, so everyone's photos stay private from the others
+• Family members can be friends in the private feed and share photos with each other
 
 FAST AT HOME
 At home the app talks to your device directly over your own Wi-Fi, so a whole holiday's photos and videos back up quickly instead of crawling over the internet.
@@ -77,6 +82,7 @@ BUILT FOR PEOPLE WHO CARE WHERE THEIR DATA LIVES
 • Away from home it goes through our relay over TLS. The relay stores none of your files, and you can run your own relay instead
 • Device updates are signed, and your device checks the signature before installing anything
 • Open source (AGPL): the device software and the apps are on GitHub, so you can check what they do
+• Separate accounts for family or flatmates on the same device, each with its own storage, database and password, and its files encrypted with that password
 
 THREE WAYS TO SYNC A FOLDER
 • Backup: new and changed files go up, nothing is ever deleted on the device, and earlier versions are kept
