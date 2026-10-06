@@ -7,6 +7,7 @@ import CryptoKit
 import SwiftProtobuf
 import AppKit   // <- for NSOpenPanel
 import CoreServices // <- for FSEventStreamEventFlags constants
+import Network
 import os
 
 /// The unified log, so what a reconcile decided can be read back with
@@ -123,6 +124,8 @@ final class SyncModel: ObservableObject {
     @Published var folders: [TrackedFolder] = []
     @Published var remoteFolders: [RemoteFolder] = []
     @Published var overallStatus: String = "Not connected"
+    /// Issue #190: how the app reached the device, while connected.
+    @Published var route: ConnectionRoute?
 
     // Issue #69: the device's RAID, for the menu bar icon. Polled while
     // connected (see pollRaidStatus); .unknown until the first answer and
@@ -146,6 +149,16 @@ final class SyncModel: ObservableObject {
     private let ws = WSClient()
     private var settings: SettingsStore?
     private var cancellables: Set<AnyCancellable> = []
+
+    // Issue #190: a network change (another Wi-Fi, the Mac back home) or a
+    // wake can make the home route available or take it away. The
+    // monitor's first answer is only the starting point; after that,
+    // changes are let settle for routeCheckDelay.
+    private let pathMonitor = NWPathMonitor()
+    private var pathKey: String?
+    private var routeCheckTask: Task<Void, Never>?
+    private var wakeObserver: NSObjectProtocol?
+    private static let routeCheckDelay: Duration = .seconds(3)
 
     private var folderWatchers: [UUID: FolderWatcher] = [:]
     // Last-known-synced hash per folder, keyed by the file's *remote* path
@@ -468,10 +481,11 @@ final class SyncModel: ObservableObject {
         restoreRemoteFolders()
         migrateLocalFolders()
 
-        ws.onConnect = { [weak self] in
+        ws.onConnect = { [weak self] route in
             Task { @MainActor in
                 guard let self else { return }
                 self.overallStatus = "Connected"
+                self.route = route
                 self.startRaidPolling()
                 // Folders left in an error while the link was down (their
                 // retry finds no connection and gives up) go again now,
@@ -491,18 +505,21 @@ final class SyncModel: ObservableObject {
                 if self?.overallStatus != "Wrong password", self?.overallStatus != "Device offline - retrying" {
                     self?.overallStatus = "Disconnected"
                 }
+                self?.route = nil
                 self?.stopRaidPolling()
             }
         }
         ws.onUnreachable = { [weak self] _ in
             Task { @MainActor in
                 self?.overallStatus = "Device offline - retrying"
+                self?.route = nil
                 self?.stopRaidPolling()
             }
         }
         ws.onAuthFailed = { [weak self] message, retryAfter in
             Task { @MainActor in
                 guard let self else { return }
+                self.route = nil
                 self.stopRaidPolling()
                 if let retryAfter {
                     // Locked out for guessing, not necessarily wrong: say
@@ -520,6 +537,78 @@ final class SyncModel: ObservableObject {
                 }
             }
         }
+
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let key = Self.pathKey(path)
+            let up = path.status == .satisfied
+            Task { @MainActor [weak self] in self?.pathChanged(key, up: up) }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "sync.path"))
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.scheduleRouteCheck(wake: true) }
+        }
+    }
+
+    // MARK: - Home network route (issue #190)
+
+    /// What a network change is told apart by: the physical interfaces
+    /// and the gateways (another Wi-Fi has another router, a VPN another
+    /// gateway). Tunnels coming and going (iCloud Private Relay and the
+    /// like) are left out, or each would reconnect.
+    private nonisolated static func pathKey(_ path: NWPath) -> String {
+        let interfaces = path.availableInterfaces
+            .filter { $0.type == .wifi || $0.type == .wiredEthernet || $0.type == .cellular }
+            .map { "\($0.name)/\($0.type)" }.joined(separator: ",")
+        let gateways = path.gateways.map { "\($0)" }.joined(separator: ",")
+        return "\(path.status)|\(interfaces)|\(gateways)"
+    }
+
+    /// With no network there is nothing to switch to; its return is
+    /// another change.
+    private func pathChanged(_ key: String, up: Bool) {
+        defer { pathKey = key }
+        guard let old = pathKey, old != key else { return }
+        guard up else { routeCheckTask?.cancel(); return }
+        scheduleRouteCheck(wake: false)
+    }
+
+    /// A wake only matters when not already home: a home connection that
+    /// slept is either fine or reconnects by itself.
+    private func scheduleRouteCheck(wake: Bool) {
+        routeCheckTask?.cancel()
+        routeCheckTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.routeCheckDelay)
+            guard !Task.isCancelled, let self else { return }
+            if wake, self.route == .home { return }
+            self.switchRouteIfIdle()
+        }
+    }
+
+    /// Reconnects, home network first, but only between transfers: a
+    /// switch would cut an upload or a pass short. One that is running
+    /// keeps its connection, and the next reconnect picks the route.
+    private func switchRouteIfIdle() {
+        guard settings?.ready == true else { return }
+        guard !syncInFlight else {
+            syncLog.info("network changed during a transfer: staying on this connection")
+            return
+        }
+        if ws.reconnectForRoute() {
+            overallStatus = "Connecting…"
+        }
+    }
+
+    /// An upload, a download or a pass under way.
+    private var syncInFlight: Bool {
+        !foldersBusy.isEmpty || !remoteFoldersBusy.isEmpty || !foldersSettingUp.isEmpty || !changeWorkers.isEmpty
+    }
+
+    /// Settings' status line: once connected, which way (issue #190).
+    var connectionStatus: String {
+        guard overallStatus == "Connected", let route, let domain = settings?.domain else { return overallStatus }
+        return ConnectionRoute.label(route, domain: domain)
     }
 
     // MARK: Bind settings / auto-sync
@@ -554,6 +643,9 @@ final class SyncModel: ObservableObject {
                         self.ws.connect()
                         self.startSync()
                     } else {
+                        // Disconnect: the home endpoint goes with the
+                        // address.
+                        self.ws.forgetLocalEndpoint()
                         self.ws.disconnect()
                         self.overallStatus = "Missing domain/password"
                     }
@@ -585,6 +677,7 @@ final class SyncModel: ObservableObject {
     func disconnect() {
         folders.forEach(removeFolder)
         remoteFolders.forEach(removeRemoteFolder)
+        ws.forgetLocalEndpoint()
         settings?.apply(domain: "", password: "")
     }
 

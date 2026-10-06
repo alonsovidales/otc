@@ -148,6 +148,15 @@ enum Keychain {
         }
         return nil
     }
+
+    static func delete(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecAttrService as String: "OffTheCloud"
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
 }
 
 /// SMAppService is macOS 13+'s way for an app to start itself at login -

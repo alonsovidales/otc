@@ -477,7 +477,9 @@ struct SettingsInlineView: View {
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(deviceLabel).font(.callout)
-                Text(sync.overallStatus).font(.footnote).foregroundStyle(.secondary)
+                // Issue #190: "Connected over your home network" or
+                // "Connected through off-the.cloud".
+                Text(sync.connectionStatus).font(.footnote).foregroundStyle(.secondary)
             }
             Spacer()
             if sync.overallStatus != "Connected" {
