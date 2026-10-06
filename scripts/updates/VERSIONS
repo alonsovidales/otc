@@ -142,3 +142,4 @@
 96	-	ec5cbe1ab8bec93831e5d99bdc09ab7151db80040c520e08cbf7648f6099b8f5	Unlocking a folder inside a locked folder now says which folder to unlock (#186).	ef33f07fb0d9971dbeeec1d96c43ee36ce5effd419dd40131ea35d9de16b4626
 97	-	842b8963c56c6e51c59e37ccc4436e4787baadbdb9425ca1bbb8c4599b4b2803	At home the apps connect to the device directly over your Wi-Fi (#190), and photo grids show their first photos sooner.	01698c971a4501857c2efaaa1c67b4244373ee8e1a5880c9af6c529116e55497
 98	-	c574f23f042d8dbead26e608b25c815066da2f39aa590b85704b55f29a22277e	The public profile page no longer shows a Follow button that did nothing.	72fcb4e69ea871d8f7d282a2a9c9d474d6eb50dd3a33fafed4957529d8143a0d
+99	-	5410aa23ec30f863f45dc997f2705832cccd2e77113f7dc50a8100db1df77512	Hovering the upload-only lock shows what it does straight away.	d019ea316b531add375682f06bdab14e4633a7313944e6af2205d316b43296f9
