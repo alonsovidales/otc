@@ -199,8 +199,10 @@ type Manager struct {
 		running, dirty bool
 	}
 	// Issue #190: the home-network TLS listener GetLocalEndpoint reports
-	// (see SetLocalEndpoint).
-	local atomic.Pointer[lantls.Endpoint]
+	// (see SetLocalEndpoint). localSet tells a nil local (no listener)
+	// from one api hasn't set yet.
+	local    atomic.Pointer[lantls.Endpoint]
+	localSet atomic.Bool
 }
 
 // startBackfillOnce kicks off the missing-thumbnail repair the first
@@ -3112,7 +3114,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		local, err := ch.mg.localEndpoint()
 		if err != nil {
 			resp.Error = true
-			resp.ErrorCode = cCodeLocalUnavailable
+			// Not known yet at startup says nothing about the endpoint:
+			// no code, so the apps keep the one they hold.
+			if !errors.Is(err, errLocalNotYet) {
+				resp.ErrorCode = cCodeLocalUnavailable
+			}
 			resp.ErrorMessage = err.Error()
 			break
 		}

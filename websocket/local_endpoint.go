@@ -15,6 +15,10 @@ import (
 // they stored and stay on the bridge.
 const cCodeLocalUnavailable = "local_unavailable"
 
+// errLocalNotYet answers GetLocalEndpoint between websocket.Init, which
+// starts the bridge pool, and api.Init setting the endpoint.
+var errLocalNotYet = errors.New("this device is still starting its home-network listener")
+
 // localAddresses lists the home-network addresses; replaced in tests.
 var localAddresses = lantls.Addresses
 
@@ -23,11 +27,15 @@ var localAddresses = lantls.Addresses
 // by then, through the bridge pool, hence the atomic.
 func (mg *Manager) SetLocalEndpoint(ep *lantls.Endpoint) {
 	mg.local.Store(ep)
+	mg.localSet.Store(true)
 }
 
 // localEndpoint answers GetLocalEndpoint, or says why there is nothing to
 // answer.
 func (mg *Manager) localEndpoint() (*pb.LocalEndpoint, error) {
+	if !mg.localSet.Load() {
+		return nil, errLocalNotYet
+	}
 	ep := mg.local.Load()
 	if !ep.Serving() {
 		return nil, errors.New("this device has no home-network listener")

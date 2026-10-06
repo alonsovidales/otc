@@ -97,6 +97,26 @@ func TestGetLocalEndpointRefusedToAFriend(t *testing.T) {
 	}
 }
 
+// Asked before api has set the endpoint (the bridge pool is already up
+// then): an error with no code, so the apps keep the endpoint they hold.
+func TestGetLocalEndpointBeforeTheListenerIsKnown(t *testing.T) {
+	fakeLocalAddresses(t, []string{"192.168.1.10"}, nil)
+	ch := &connHandler{mg: &Manager{}}
+	ch.setSession(newTestAuthenticatedSession(t))
+
+	resp, closeConn := ch.processMessage(localEndpointReq())
+
+	if resp == nil || !resp.Error || resp.ErrorCode != "" || resp.Payload != nil {
+		t.Errorf("expected an error with no code and no payload, got %+v", resp)
+	}
+	if resp != nil && resp.ErrorMessage == "unknown payload" {
+		t.Error("Android reads that message as a device from before the request")
+	}
+	if closeConn {
+		t.Error("the connection must stay open")
+	}
+}
+
 func TestGetLocalEndpointUnavailable(t *testing.T) {
 	stopped := lantls.NewEndpoint(8443, testPin)
 	stopped.Stop()
