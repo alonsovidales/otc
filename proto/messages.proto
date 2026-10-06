@@ -1772,6 +1772,26 @@ message RespStaticAsset {
   string content_type = 2;
 }
 
+// Issue #190: how an app reaches the device on the home network instead of
+// through the bridge. Owner sessions only, asked after signing in through
+// the bridge; answers with LocalEndpoint. A device before this release
+// answers error_code "unknown_payload", and one that can't be reached that
+// way (no TLS listener, no home-network address) "local_unavailable":
+// either way the app forgets what it stored and stays on the bridge.
+message GetLocalEndpoint {}
+
+message LocalEndpoint {
+  // The device's private IPv4 and IPv6 ULA addresses, bare (an IPv6 one
+  // goes in brackets in a URL): wss://<address>:<port>/ws, and media at
+  // https://<address>:<port>/media/<token>.
+  repeated string addresses = 1;
+  int32 port = 2;
+  // SHA-256 of the DER bytes of the device's self-signed certificate: the
+  // only certificate an app accepts on these addresses, whatever its name
+  // or issuer, checked before anything is sent.
+  bytes cert_sha256 = 3;
+}
+
 message ReqEnvelope {
   int32 id = 1;
   oneof payload {
@@ -1917,6 +1937,8 @@ message ReqEnvelope {
     GetLogs req_get_logs = 130;
     SendLogs req_send_logs = 131;
     BridgeSendLogs req_bridge_send_logs = 132;
+    // Issue #190: the home-network endpoint.
+    GetLocalEndpoint req_get_local_endpoint = 133;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2013,5 +2035,7 @@ message RespEnvelope {
     SharedGallery resp_shared_gallery = 63;
     SharedLinks resp_shared_links = 64;
     Logs resp_logs = 65;
+    // Issue #190.
+    LocalEndpoint resp_local_endpoint = 66;
   }
 }

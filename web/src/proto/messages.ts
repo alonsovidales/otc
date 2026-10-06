@@ -2430,6 +2430,33 @@ export interface RespStaticAsset {
   contentType: string;
 }
 
+/**
+ * Issue #190: how an app reaches the device on the home network instead of
+ * through the bridge. Owner sessions only, asked after signing in through
+ * the bridge; answers with LocalEndpoint. A device before this release
+ * answers error_code "unknown_payload", and one that can't be reached that
+ * way (no TLS listener, no home-network address) "local_unavailable":
+ * either way the app forgets what it stored and stays on the bridge.
+ */
+export interface GetLocalEndpoint {
+}
+
+export interface LocalEndpoint {
+  /**
+   * The device's private IPv4 and IPv6 ULA addresses, bare (an IPv6 one
+   * goes in brackets in a URL): wss://<address>:<port>/ws, and media at
+   * https://<address>:<port>/media/<token>.
+   */
+  addresses: string[];
+  port: number;
+  /**
+   * SHA-256 of the DER bytes of the device's self-signed certificate: the
+   * only certificate an app accepts on these addresses, whatever its name
+   * or issuer, checked before anything is sent.
+   */
+  certSha256: Uint8Array;
+}
+
 export interface ReqEnvelope {
   id: number;
   payload?:
@@ -2600,6 +2627,9 @@ export interface ReqEnvelope {
     | { $case: "reqSendLogs"; reqSendLogs: SendLogs }
     | { $case: "reqBridgeSendLogs"; reqBridgeSendLogs: BridgeSendLogs }
     | //
+    /** Issue #190: the home-network endpoint. */
+    { $case: "reqGetLocalEndpoint"; reqGetLocalEndpoint: GetLocalEndpoint }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2719,6 +2749,9 @@ export interface RespEnvelope {
     | { $case: "respSharedGallery"; respSharedGallery: SharedGallery }
     | { $case: "respSharedLinks"; respSharedLinks: SharedLinks }
     | { $case: "respLogs"; respLogs: Logs }
+    | //
+    /** Issue #190. */
+    { $case: "respLocalEndpoint"; respLocalEndpoint: LocalEndpoint }
     | undefined;
 }
 
@@ -19195,6 +19228,143 @@ export const RespStaticAsset: MessageFns<RespStaticAsset> = {
   },
 };
 
+function createBaseGetLocalEndpoint(): GetLocalEndpoint {
+  return {};
+}
+
+export const GetLocalEndpoint: MessageFns<GetLocalEndpoint> = {
+  encode(_: GetLocalEndpoint, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetLocalEndpoint {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetLocalEndpoint();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetLocalEndpoint {
+    return {};
+  },
+
+  toJSON(_: GetLocalEndpoint): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetLocalEndpoint>, I>>(base?: I): GetLocalEndpoint {
+    return GetLocalEndpoint.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetLocalEndpoint>, I>>(_: I): GetLocalEndpoint {
+    const message = createBaseGetLocalEndpoint();
+    return message;
+  },
+};
+
+function createBaseLocalEndpoint(): LocalEndpoint {
+  return { addresses: [], port: 0, certSha256: new Uint8Array(0) };
+}
+
+export const LocalEndpoint: MessageFns<LocalEndpoint> = {
+  encode(message: LocalEndpoint, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.addresses) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.port !== 0) {
+      writer.uint32(16).int32(message.port);
+    }
+    if (message.certSha256.length !== 0) {
+      writer.uint32(26).bytes(message.certSha256);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LocalEndpoint {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseLocalEndpoint();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.addresses.push(reader.string());
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.port = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.certSha256 = reader.bytes();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): LocalEndpoint {
+    return {
+      addresses: globalThis.Array.isArray(object?.addresses)
+        ? object.addresses.map((e: any) => globalThis.String(e))
+        : [],
+      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      certSha256: isSet(object.certSha256) ? bytesFromBase64(object.certSha256) : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: LocalEndpoint): unknown {
+    const obj: any = {};
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    if (message.port !== 0) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.certSha256.length !== 0) {
+      obj.certSha256 = base64FromBytes(message.certSha256);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<LocalEndpoint>, I>>(base?: I): LocalEndpoint {
+    return LocalEndpoint.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<LocalEndpoint>, I>>(object: I): LocalEndpoint {
+    const message = createBaseLocalEndpoint();
+    message.addresses = object.addresses?.map((e) => e) || [];
+    message.port = object.port ?? 0;
+    message.certSha256 = object.certSha256 ?? new Uint8Array(0);
+    return message;
+  },
+};
+
 function createBaseReqEnvelope(): ReqEnvelope {
   return { id: 0, payload: undefined };
 }
@@ -19551,6 +19721,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         break;
       case "reqBridgeSendLogs":
         BridgeSendLogs.encode(message.payload.reqBridgeSendLogs, writer.uint32(1058).fork()).join();
+        break;
+      case "reqGetLocalEndpoint":
+        GetLocalEndpoint.encode(message.payload.reqGetLocalEndpoint, writer.uint32(1066).fork()).join();
         break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
@@ -20723,6 +20896,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 133: {
+          if (tag !== 1066) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetLocalEndpoint",
+            reqGetLocalEndpoint: GetLocalEndpoint.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -21142,6 +21326,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqSendLogs", reqSendLogs: SendLogs.fromJSON(object.reqSendLogs) }
         : isSet(object.reqBridgeSendLogs)
         ? { $case: "reqBridgeSendLogs", reqBridgeSendLogs: BridgeSendLogs.fromJSON(object.reqBridgeSendLogs) }
+        : isSet(object.reqGetLocalEndpoint)
+        ? { $case: "reqGetLocalEndpoint", reqGetLocalEndpoint: GetLocalEndpoint.fromJSON(object.reqGetLocalEndpoint) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -21408,6 +21594,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqSendLogs = SendLogs.toJSON(message.payload.reqSendLogs);
     } else if (message.payload?.$case === "reqBridgeSendLogs") {
       obj.reqBridgeSendLogs = BridgeSendLogs.toJSON(message.payload.reqBridgeSendLogs);
+    } else if (message.payload?.$case === "reqGetLocalEndpoint") {
+      obj.reqGetLocalEndpoint = GetLocalEndpoint.toJSON(message.payload.reqGetLocalEndpoint);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -22444,6 +22632,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetLocalEndpoint": {
+        if (object.payload?.reqGetLocalEndpoint !== undefined && object.payload?.reqGetLocalEndpoint !== null) {
+          message.payload = {
+            $case: "reqGetLocalEndpoint",
+            reqGetLocalEndpoint: GetLocalEndpoint.fromPartial(object.payload.reqGetLocalEndpoint),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -22690,6 +22887,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respLogs":
         Logs.encode(message.payload.respLogs, writer.uint32(522).fork()).join();
+        break;
+      case "respLocalEndpoint":
+        LocalEndpoint.encode(message.payload.respLocalEndpoint, writer.uint32(530).fork()).join();
         break;
     }
     return writer;
@@ -23272,6 +23472,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respLogs", respLogs: Logs.decode(reader, reader.uint32()) };
           continue;
         }
+        case 66: {
+          if (tag !== 530) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respLocalEndpoint",
+            respLocalEndpoint: LocalEndpoint.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -23435,6 +23646,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respSharedLinks", respSharedLinks: SharedLinks.fromJSON(object.respSharedLinks) }
         : isSet(object.respLogs)
         ? { $case: "respLogs", respLogs: Logs.fromJSON(object.respLogs) }
+        : isSet(object.respLocalEndpoint)
+        ? { $case: "respLocalEndpoint", respLocalEndpoint: LocalEndpoint.fromJSON(object.respLocalEndpoint) }
         : undefined,
     };
   },
@@ -23567,6 +23780,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respSharedLinks = SharedLinks.toJSON(message.payload.respSharedLinks);
     } else if (message.payload?.$case === "respLogs") {
       obj.respLogs = Logs.toJSON(message.payload.respLogs);
+    } else if (message.payload?.$case === "respLocalEndpoint") {
+      obj.respLocalEndpoint = LocalEndpoint.toJSON(message.payload.respLocalEndpoint);
     }
     return obj;
   },
@@ -24058,6 +24273,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       case "respLogs": {
         if (object.payload?.respLogs !== undefined && object.payload?.respLogs !== null) {
           message.payload = { $case: "respLogs", respLogs: Logs.fromPartial(object.payload.respLogs) };
+        }
+        break;
+      }
+      case "respLocalEndpoint": {
+        if (object.payload?.respLocalEndpoint !== undefined && object.payload?.respLocalEndpoint !== null) {
+          message.payload = {
+            $case: "respLocalEndpoint",
+            respLocalEndpoint: LocalEndpoint.fromPartial(object.payload.respLocalEndpoint),
+          };
         }
         break;
       }
