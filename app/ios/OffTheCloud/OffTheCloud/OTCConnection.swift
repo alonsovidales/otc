@@ -446,6 +446,12 @@ final class OTCConnection: ObservableObject {
             case .store(let ep) where ep != stored:
                 print("[home] the device is at \(ep.addresses) port \(ep.port) on the home network")
                 ep.save()
+                // Tried now, as on the Mac and in otc-sync: otherwise a
+                // phone that stays on the home Wi-Fi with the app open
+                // moved home only at its next foreground or network
+                // change. reconsiderRoute waits for a connect or a
+                // transfer still running.
+                Task { await self.reconsiderRoute() }
             case .clear where stored != nil:
                 print("[home] the device can't be reached on the home network any more: \(resp.errorCode)")
                 LocalEndpoint.clear()

@@ -418,15 +418,25 @@ object OTCConnection {
                 return@launch
             }
             val answer = HomeNetwork.answer(resp)
-            synchronized(connectLock) {
+            val learnt = synchronized(connectLock) {
                 if (gen != configGen) return@launch
                 val secrets = SecretsStore.loadOrCreate()
                 when (answer) {
-                    is HomeNetwork.Answer.Store -> secrets.saveHomeEndpoint(url, answer.endpoint)
-                    HomeNetwork.Answer.Forget -> secrets.clearHomeEndpoint()
-                    HomeNetwork.Answer.Keep -> {}
+                    is HomeNetwork.Answer.Store -> {
+                        val before = secrets.homeEndpoint(url)
+                        secrets.saveHomeEndpoint(url, answer.endpoint)
+                        before?.encode() != answer.endpoint.encode()
+                    }
+                    HomeNetwork.Answer.Forget -> { secrets.clearHomeEndpoint(); false }
+                    HomeNetwork.Answer.Keep -> false
                 }
             }
+            // A new or changed endpoint is tried now, as on the Mac and in
+            // otc-sync: otherwise a phone that stays on the home Wi-Fi
+            // with the app open moved home only at its next foreground or
+            // network change. reconsiderRoute waits for a connect or a
+            // transfer still running.
+            if (learnt) reconsiderRoute()
         }
     }
 
