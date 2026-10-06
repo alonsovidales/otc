@@ -93,6 +93,8 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     // Pages that failed in a row, so the grid's filling asks again after a
     // pause, twice at most, rather than in a tight loop.
     var failures by remember { mutableIntStateOf(0) }
+    // A page that then comes through takes this away (not a failed pick's).
+    val pageError = "Could not load your photos."
 
     suspend fun loadPage() {
         val t = token ?: return
@@ -108,7 +110,7 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
                 e.setReqSearchPhotos(sp)
             }
             if (mine != generation) return
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = "Could not load your photos."; failures += 1; return }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = pageError; failures += 1; return }
             val lof = resp.respListOfFiles
             ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })
             if (mine != generation) return
@@ -117,8 +119,9 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
                 .map { f -> PickItem(f.path, if (f.hasContent()) "${f.path}#${f.hash}#${f.byteSize}" else null) }
             token = lof.token.ifEmpty { null }
             failures = 0
+            if (error == pageError) error = null
         } catch (e: Exception) {
-            if (mine == generation) { error = "Could not load your photos."; failures += 1 }
+            if (mine == generation) { error = pageError; failures += 1 }
         } finally {
             if (mine == generation) loading = false
         }

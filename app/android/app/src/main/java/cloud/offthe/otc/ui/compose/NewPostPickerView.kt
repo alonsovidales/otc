@@ -147,6 +147,9 @@ class NewPostPickerViewModel : ViewModel() {
     private val _state = MutableStateFlow(State())
     val state = _state
     private var token: String? = null
+    // Bumped when the grid starts over (source, tags), so a page still in
+    // flight for the old one lands nowhere.
+    private var searchGeneration = 0
     private var localAssets: List<PhotoSync.Asset>? = null
     private var localLoadedCount = 0
     private var didAppear = false
@@ -193,6 +196,7 @@ class NewPostPickerViewModel : ViewModel() {
     }
 
     suspend fun resetAndLoadFirstPage() {
+        searchGeneration += 1
         _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selectedOrder = emptyList()) }
         when (_state.value.source) {
             Source.SYNCED -> { token = ""; fetchPage(overrideToken = "") }
@@ -200,15 +204,20 @@ class NewPostPickerViewModel : ViewModel() {
         }
     }
 
-    suspend fun loadMoreIfNeeded(item: Item?) {
+    fun loadMoreIfNeeded(item: Item?) {
         val st = _state.value
         if (item == null || st.loading || st.endReached) return
         val idx = st.items.indexOf(item)
-        if (idx >= 0 && idx >= st.items.size - 12) when (st.source) { Source.SYNCED -> fetchPage(); Source.PHONE -> loadLocalPage() }
+        if (idx < 0 || idx < st.items.size - 12) return
+        // In the ViewModel's scope, not the asking tile's: with a 12-photo
+        // first page that tile is the first one, and scrolling it away
+        // cancelled the page, with nothing left to ask again.
+        viewModelScope.launch { when (st.source) { Source.SYNCED -> fetchPage(); Source.PHONE -> loadLocalPage() } }
     }
 
     private suspend fun fetchPage(overrideToken: String? = null) {
         if (_state.value.loading || _state.value.endReached) return
+        val mine = searchGeneration
         _state.update { it.copy(loading = true) }
         try {
             val chips = _state.value.chips
@@ -220,16 +229,18 @@ class NewPostPickerViewModel : ViewModel() {
                 if (requestToken.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
                 it.setReqSearchPhotos(sp)
             }
+            if (mine != searchGeneration) return
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return
             val lof = resp.respListOfFiles
             ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })
+            if (mine != searchGeneration) return
             val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.byteSize}".let { id -> Item(id, f.path, thumbKey = if (f.hasContent()) id else null, isVideo = f.mime.startsWith("video/")) } }
             _state.update { st -> val existing = st.items.map { it.id }.toSet(); st.copy(items = st.items + newItems.filter { it.id !in existing }) }
             token = lof.token.ifEmpty { null }
             _state.update { it.copy(endReached = token == null) }
         } catch (_: Exception) {
         } finally {
-            _state.update { it.copy(loading = false) }
+            if (mine == searchGeneration) _state.update { it.copy(loading = false) }
         }
     }
 
@@ -285,13 +296,16 @@ class NewPostPickerViewModel : ViewModel() {
     /** Issue #49: the camera roll, newest first, thumbnails from MediaStore. */
     private suspend fun loadLocalPage() {
         if (_state.value.loading || _state.value.endReached) return
+        val mine = searchGeneration
         _state.update { it.copy(loading = true) }
         try {
             if (!PhotoSync.hasPermission()) {
                 _state.update { it.copy(alert = "Photos access is needed to pick from your phone.", endReached = true) }
                 return
             }
-            val all = localAssets ?: withContext(Dispatchers.IO) { PhotoSync.fetchNewAssets(includeVideos = true, sinceMs = 0, newestFirst = true) }.also { localAssets = it }
+            val all = localAssets ?: withContext(Dispatchers.IO) { PhotoSync.fetchNewAssets(includeVideos = true, sinceMs = 0, newestFirst = true) }
+            if (mine != searchGeneration) return
+            localAssets = all
             if (localLoadedCount >= all.size) { _state.update { it.copy(endReached = true) }; return }
             val end = minOf(localLoadedCount + localPageSize, all.size)
             val newItems = (localLoadedCount until end).map { i -> all[i].let { a -> Item("local#${a.id}", "", asset = a, isVideo = a.isVideo) } }
@@ -299,7 +313,7 @@ class NewPostPickerViewModel : ViewModel() {
             localLoadedCount = end
             _state.update { it.copy(endReached = localLoadedCount >= all.size) }
         } finally {
-            _state.update { it.copy(loading = false) }
+            if (mine == searchGeneration) _state.update { it.copy(loading = false) }
         }
     }
 
