@@ -36,6 +36,7 @@ import (
 	_ "image/gif"
 	"image/jpeg"
 	_ "image/jpeg"
+	"slices"
 
 	// Thumbnails for more than JPEG/PNG: without these decoders every GIF,
 	// WebP, BMP and TIFF failed as "image: unknown format".
@@ -461,9 +462,54 @@ func (mg *Manager) isUploadOnly(path string, isDir bool) (bool, error) {
 	return underUploadOnly(path, isDir, folders), nil
 }
 
-// SetUploadOnly flags or clears a folder (issue #132).
+// LockedByParentError is SetUploadOnly's refusal to clear a folder inside
+// another upload-only folder (issue #186): the outer one still covers it,
+// so clearing it changed nothing - and used to answer ok, leaving the lock
+// on with no word. Parent is the nearest flagged folder above it; OwnFlag,
+// that the folder is flagged itself too, so it stays locked once Parent is
+// unlocked and needs unlocking after it.
+type LockedByParentError struct {
+	Folder, Parent string
+	OwnFlag        bool
+}
+
+func (e *LockedByParentError) Error() string {
+	name := filepath.Base(strings.TrimSuffix(e.Folder, "/"))
+	parent := strings.TrimSuffix(e.Parent, "/")
+	if e.OwnFlag {
+		return fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s first, then %s", name, parent, parent, name)
+	}
+	return fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s to unlock it", name, parent, parent)
+}
+
+// SetUploadOnly flags or clears a folder (issue #132). Clearing one that a
+// flagged folder above it still covers is refused with LockedByParentError,
+// and changes nothing.
 func (mg *Manager) SetUploadOnly(path string, on bool) error {
-	return mg.dao.SetUploadOnlyFolder(folderPath(path), on)
+	folder := folderPath(path)
+	if !on {
+		folders, err := mg.dao.GetUploadOnlyFolders()
+		if err != nil {
+			return err
+		}
+		if parent := nearestUploadOnlyAbove(folder, folders); parent != "" {
+			return &LockedByParentError{Folder: folder, Parent: parent, OwnFlag: slices.Contains(folders, folder)}
+		}
+	}
+	return mg.dao.SetUploadOnlyFolder(folder, on)
+}
+
+// nearestUploadOnlyAbove is the innermost of folders strictly containing
+// folder (both with their trailing slash), or "".
+func nearestUploadOnlyAbove(folder string, folders []string) string {
+	nearest := ""
+	for _, f := range folders {
+		if f != folder && strings.HasPrefix(folder, f) && len(f) > len(nearest) {
+			nearest = f
+		}
+	}
+
+	return nearest
 }
 
 // FileVersions lists a path's older versions (issue #132), newest first.

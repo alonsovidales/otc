@@ -286,7 +286,11 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   keeps any versions; only `DelFile` deletes them. `ListFiles` annotates every entry
   with `upload_only` and `versions`, `ListFileVersions` lists them, and `GetFile.hash` serves
   one. The web, iOS and Android explorers show the lock on folders (a toggle, `SetUploadOnly`)
-  and the versions badge that opens the pop-up.
+  and the versions badge that opens the pop-up. Unlocking a folder that a flagged folder above it
+  still covers is refused and changes nothing (issue #186: it used to answer ok with the lock
+  still on): `LockedByParentError`, error code `locked_by_parent`, a message naming the nearest
+  flagged folder above ("unlock /Photos to unlock it", or "first, then Trip" when the folder has
+  its own flag too); every explorer shows an error reply's message.
   **Storage format and chunked transfers** (security advisory on memory exhaustion, releases 40-42):
   every blob and thumbnail is encrypted in 1 MiB segments (`segcrypt`: header `OTS1` + a 7-byte
   nonce prefix, each segment AES-GCM with nonce prefix|index|last-flag and the header as AAD -

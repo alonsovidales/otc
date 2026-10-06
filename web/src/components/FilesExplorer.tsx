@@ -444,9 +444,13 @@ export default function FilesExplorer({
   // it. Everything under it (and its lock) follows on the next listing.
   const toggleUploadOnly = async (f: PbFile) => {
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
-    await useWS.request((e: Partial<ReqEnvelope>) => {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqSetUploadOnly", reqSetUploadOnly: { path: full, uploadOnly: !f.uploadOnly } };
     });
+    // Issue #186: a folder inside another upload-only one can't be
+    // unlocked on its own; the device says which folder to unlock, as the
+    // apps show it. Silently reloading left the lock on with no word.
+    if (resp.error) alert(resp.errorMessage || "Could not update the folder.");
     await loadList(path);
   };
 

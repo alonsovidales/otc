@@ -2363,7 +2363,15 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		log.Debug("Set upload only:", p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly)
 		if err := ch.mg.filesManager.SetUploadOnly(p.ReqSetUploadOnly.Path, p.ReqSetUploadOnly.UploadOnly); err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error updating the folder: %s", err)
+			var locked *filesmanager.LockedByParentError
+			if errors.As(err, &locked) {
+				// Issue #186: said as it is - every client shows the
+				// message of an error reply.
+				resp.ErrorCode = "locked_by_parent"
+				resp.ErrorMessage = err.Error()
+			} else {
+				resp.ErrorMessage = fmt.Sprintf("error updating the folder: %s", err)
+			}
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
