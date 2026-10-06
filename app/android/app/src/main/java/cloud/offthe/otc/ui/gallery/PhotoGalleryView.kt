@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.proto.SharedGallerySource
 import cloud.offthe.otc.ui.share.SharedGalleryShareFlow
 import androidx.compose.material3.CircularProgressIndicator
@@ -102,7 +103,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.Person
@@ -592,7 +592,7 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
     val video = if (isCurrent) st.videoUrl else null
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (video != null) {
-            val player = remember(video) { ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(video)); prepare(); playWhenReady = true } }
+            val player = remember(video) { MediaStream.player(context, video).apply { setMediaItem(MediaItem.fromUri(video)); prepare(); playWhenReady = true } }
             DisposableEffect(video) { onDispose { player.release() } }
             AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
             return@Box

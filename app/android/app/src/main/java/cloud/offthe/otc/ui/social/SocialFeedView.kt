@@ -460,7 +460,7 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                     tmp.writeBytes(resp.respFile.content.toByteArray())
                     tmp.toURI().toString()
                 } ?: return@launch
-                val p = ExoPlayer.Builder(context).build().apply {
+                val p = MediaStream.player(context, url).apply {
                     setMediaItem(MediaItem.fromUri(url)); volume = if (muted) 0f else 1f; prepare(); playWhenReady = true
                     addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(state: Int) { if (state == Player.STATE_ENDED) ended = true }
