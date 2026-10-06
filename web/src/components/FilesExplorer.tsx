@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { uploadFile } from "../net/upload";
+import { fileSize } from "../net/fileSize";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -533,7 +534,7 @@ export default function FilesExplorer({
     k: rowKey(f),
     name: f.path === ".." ? ".." : leafName(f.path),
     isDir: isDir(f),
-    size: f.size,
+    size: fileSize(f),
     created: f.created,
     modified: f.modified,
     uploadOnly: !!f.uploadOnly,
@@ -904,7 +905,7 @@ export default function FilesExplorer({
                 {versionsOf.versions.map((v) => (
                   <li key={v.hash} className="fb-versions-item">
                     <span className="fb-versions-when">Replaced {v.modified ? v.modified.toLocaleString() : "—"}</span>
-                    <span className="fb-versions-size">{fmtBytes(v.size)}</span>
+                    <span className="fb-versions-size">{fmtBytes(fileSize(v))}</span>
                     <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime)}>Download</button>
                   </li>
                 ))}

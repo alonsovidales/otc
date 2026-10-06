@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { uploadFile } from "../net/upload";
+import { fileSize } from "../net/fileSize";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
@@ -26,7 +27,7 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
 // A library tile's thumbnail - see the comment where the grid draws it.
 const tileThumb = (f: MsgFile) => bytesToURL(f.content, "image/jpeg");
 const fileKey = (f: MsgFile, idx?: number) =>
-  `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${f.size || 0}#${idx ?? -1}`;
+  `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${fileSize(f)}#${idx ?? -1}`;
 
 type Props = {
   onCancel: () => void;

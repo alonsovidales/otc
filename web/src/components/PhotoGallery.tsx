@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { RespEnvelope, File as MsgFile, TagsList, Person, ImageGroup } from "../proto/messages";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
+import { fileSize } from "../net/fileSize";
 import './PhotoGallery.css';
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
@@ -38,7 +39,7 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
 // A grid tile's thumbnail - always a JPEG, see isVideoFile.
 const thumbOf = (f: MsgFile) => bytesToURL(f.content);
 const fileKey = (f: MsgFile, idx?: number) =>
-  `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${f.size || 0}#${idx ?? -1}`;
+  `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${fileSize(f)}#${idx ?? -1}`;
 
 // ===========================================================================
 
