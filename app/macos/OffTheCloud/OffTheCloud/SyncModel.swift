@@ -157,8 +157,22 @@ final class SyncModel: ObservableObject {
     private let pathMonitor = NWPathMonitor()
     private var pathKey: String?
     private var routeCheckTask: Task<Void, Never>?
+    /// routeCheckTask is a network change's: a wake meanwhile mustn't turn
+    /// it into a wake's, which does nothing while the route is home.
+    private var pathCheckPending = false
     private var wakeObserver: NSObjectProtocol?
     private static let routeCheckDelay: Duration = .seconds(3)
+    // On the bridge with a home endpoint, opening the popover (the Mac's
+    // coming to the foreground) looks for the device at home, at most
+    // once per homeProbeInterval. A home endpoint whose first try failed
+    // is looked for again homeRetryDelay later, once nothing is in flight.
+    private var lastHomeProbe: ContinuousClock.Instant?
+    private var homeRetryTask: Task<Void, Never>?
+    private static let homeProbeInterval: Duration = .seconds(120)
+    private static let homeRetryDelay: Duration = .seconds(60)
+    /// Listings the remote-folder picker is waiting for: a route switch
+    /// would fail them with "Cancelled".
+    private var listingsInFlight = 0
 
     private var folderWatchers: [UUID: FolderWatcher] = [:]
     // Last-known-synced hash per folder, keyed by the file's *remote* path
@@ -516,6 +530,9 @@ final class SyncModel: ObservableObject {
                 self?.stopRaidPolling()
             }
         }
+        ws.onHomeMissed = { [weak self] in
+            Task { @MainActor [weak self] in self?.scheduleHomeRetry() }
+        }
         ws.onAuthFailed = { [weak self] message, retryAfter in
             Task { @MainActor in
                 guard let self else { return }
@@ -570,18 +587,66 @@ final class SyncModel: ObservableObject {
     private func pathChanged(_ key: String, up: Bool) {
         defer { pathKey = key }
         guard let old = pathKey, old != key else { return }
-        guard up else { routeCheckTask?.cancel(); return }
+        guard up else {
+            routeCheckTask?.cancel()
+            pathCheckPending = false
+            return
+        }
         scheduleRouteCheck(wake: false)
     }
 
     /// A wake only matters when not already home: a home connection that
-    /// slept is either fine or reconnects by itself.
+    /// slept is either fine or reconnects by itself. A network change
+    /// wins whichever comes first: Wi-Fi rejoining another network just
+    /// before the wake notification left a dead home socket still "home".
     private func scheduleRouteCheck(wake: Bool) {
+        let wake = wake && !pathCheckPending
+        pathCheckPending = !wake
         routeCheckTask?.cancel()
         routeCheckTask = Task { [weak self] in
             try? await Task.sleep(for: Self.routeCheckDelay)
             guard !Task.isCancelled, let self else { return }
+            self.pathCheckPending = false
             if wake, self.route == .home { return }
+            self.switchRouteIfIdle()
+        }
+    }
+
+    /// The popover opened: the Mac's coming to the foreground. The Local
+    /// Network prompt answered since, or a home listener back, is found
+    /// without waiting for a network change.
+    func popoverOpened() {
+        if let last = lastHomeProbe, ContinuousClock.now - last < Self.homeProbeInterval { return }
+        probeHomeThenSwitch()
+    }
+
+    /// Waits for nothing to be in flight, then looks for the device at home
+    /// once.
+    private func scheduleHomeRetry() {
+        homeRetryTask?.cancel()
+        homeRetryTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.homeRetryDelay)
+                guard !Task.isCancelled, let self, self.route == .bridge else { return }
+                if !self.syncInFlight {
+                    self.probeHomeThenSwitch()
+                    return
+                }
+            }
+        }
+    }
+
+    /// On the bridge with a home endpoint: reconnects, home first, only
+    /// once the device has answered there, so away from home the bridge
+    /// connection isn't touched and "Connecting…" never shows.
+    private func probeHomeThenSwitch() {
+        guard settings?.ready == true, overallStatus == "Connected", route == .bridge,
+              !syncInFlight, ws.hasLocalEndpoint else { return }
+        lastHomeProbe = .now
+        Task { [weak self] in
+            guard let self, await self.ws.probeHome() else { return }
+            guard self.overallStatus == "Connected", self.route == .bridge else { return }
+            syncLog.info("the device answers on the home network: connecting there")
             self.switchRouteIfIdle()
         }
     }
@@ -600,9 +665,13 @@ final class SyncModel: ObservableObject {
         }
     }
 
-    /// An upload, a download or a pass under way.
+    /// An upload, a download, a pass or a picker's listing under way.
+    /// Unlike otc-sync, not every pending request: the RAID poll ignores a
+    /// failure, and one sent on a dead home socket would wait there for
+    /// the 30-minute timeout, holding the Mac on it.
     private var syncInFlight: Bool {
         !foldersBusy.isEmpty || !remoteFoldersBusy.isEmpty || !foldersSettingUp.isEmpty || !changeWorkers.isEmpty
+            || listingsInFlight > 0
     }
 
     /// Settings' status line: once connected, which way (issue #190).
@@ -792,6 +861,8 @@ final class SyncModel: ObservableObject {
         // server) breaks the *next* listing one level down, which is
         // exactly why navigation looked stuck after one level.
         let normalized = path.hasSuffix("/") ? path : path + "/"
+        listingsInFlight += 1
+        defer { listingsInFlight -= 1 }
         let resp = try await ws.request { req in
             var lf = ListFiles()
             lf.path = normalized

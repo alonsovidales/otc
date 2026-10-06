@@ -45,6 +45,11 @@ final class WSClient {
     /// a wrong password: the client keeps retrying with backoff and signs
     /// in once the device is back. Same as otc-sync's OnUnreachable.
     var onUnreachable: ((String) -> Void)?
+    /// A home endpoint just learnt didn't answer, and this connection went
+    /// through the bridge instead (issue #190). Once per endpoint learnt:
+    /// macOS's Local Network prompt, still unanswered, refuses that first
+    /// try, and nothing else would try again until a network change.
+    var onHomeMissed: (() -> Void)?
 
     // MARK: Internal state
     private var conn: NWConnection?
@@ -163,6 +168,30 @@ final class WSClient {
             skipHomeOnce = false
             startConnecting()
             return true
+        }
+    }
+
+    /// A home endpoint is stored for the configured address.
+    var hasLocalEndpoint: Bool { queue.sync { local != nil } }
+
+    /// Whether the device answers on the home network right now, pinned as
+    /// always, without touching the current connection: a WebSocket that
+    /// opens is closed again at once. Away from home nothing shows.
+    func probeHome() async -> Bool {
+        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            queue.async { [weak self] in
+                guard let self, let local = self.local, !local.urls.isEmpty else {
+                    cont.resume(returning: false)
+                    return
+                }
+                // The race keeps itself alive until it is decided, and
+                // calls this once.
+                LocalRace(queue: self.queue) { winner in
+                    winner?.stateUpdateHandler = nil
+                    winner?.cancel()
+                    cont.resume(returning: winner != nil)
+                }.start(urls: local.urls, pin: local.pin)
+            }
         }
     }
 
@@ -531,15 +560,19 @@ final class WSClient {
                         }
                         if switched { return }
                     }
-                    let current = self.queue.sync { () -> Bool in
+                    let (current, missedHome) = self.queue.sync { () -> (Bool, Bool) in
                         // Open still: a socket that dropped while the
                         // device was asked is already reconnecting.
-                        guard self.conn === conn, self.isOpen else { return false }
+                        guard self.conn === conn, self.isOpen else { return (false, false) }
                         self.backoffSeconds = 1; self.signedIn = true
+                        let missed = route == .bridge && self.triedNewHome
                         self.triedNewHome = false
-                        return true
+                        return (true, missed)
                     }
-                    if current { self.onConnect?(route) }
+                    if current {
+                        if missedHome { self.onHomeMissed?() }
+                        self.onConnect?(route)
+                    }
                 } else {
                     self.failAuth("The device rejected the password", retryAfter: nil, on: conn)
                 }

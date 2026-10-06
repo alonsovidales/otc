@@ -167,6 +167,8 @@ struct PopoverView: View {
             // alerts are titled, and must stay in front of the wizard).
             if let w = note.object as? NSWindow, w !== wizard.window, !w.styleMask.contains(.titled) {
                 wizard.bringToFront()
+                // Issue #190: the home network, if it answers now.
+                sync.popoverOpened()
             }
         }
     }
