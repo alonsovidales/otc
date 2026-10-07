@@ -33,6 +33,9 @@ import SharedGalleryView from "./components/SharedGalleryView";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
+// The pages that lay out their own top (their headers' spacing, sticky bars).
+const cOwnTopTabs: TabKey[] = ["PhotoGallery", "People", "Collections"];
+
 function App() {
   const cfg = window.__OTC_CONFIG!;
   // Anonymous visitors have no tab switcher at all (TopTabs only renders
@@ -422,7 +425,9 @@ function App() {
       )}
       <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}${menuSlides ? " menu-slides" : ""}`}>
       {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
-      <main>
+      {/* Images, People and Collections space their own headers; every
+          other page starts a gap below the top bar's line. */}
+      <main className={cOwnTopTabs.includes(tab) ? undefined : "main-gap"}>
         {/* Issue #84: "Profile" is only ever the anonymous-visitor landing
             page now - the editable form moved into Settings, and
             Friendships (what this used to show once signed in) has its

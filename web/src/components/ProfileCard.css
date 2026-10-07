@@ -7,7 +7,8 @@
   border-radius: 12px;
   background: var(--panel);
   align-items: start;
-  margin: auto;
+  /* The visitor's page: centred, and 16px from a phone's edges. */
+  margin: 0 max(16px, calc((100% - 600px) / 2));
   max-width: 600px;
 }
 

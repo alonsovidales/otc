@@ -5,7 +5,13 @@
 
 /* The window scrolls, not main: an overflow here made main the container
    sticky elements measure from, which pushed the photos' search bar down
-   by --topbar-h over the first row of photos (release 103). */
+   by --topbar-h over the first row of photos (release 103). Its top
+   margin went with it: the pages that don't space their own top take it
+   back as padding. */
+main.main-gap { padding-top: 24px; }
+@media (max-width: 599px) {
+  main.main-gap { padding-top: 16px; }
+}
 
 /* Issue #104 follow-up: the shared-link download is a page of its own with
    nothing else on it, so centre the indicator rather than leaving it in
