@@ -49,3 +49,14 @@ export const SettingsIcon = ({ size }: P) => (
 export const StorageIcon = ({ size }: P) => (
   <Svg size={size}><rect x="3.5" y="4.5" width="17" height="6" rx="1.5" /><rect x="3.5" y="13.5" width="17" height="6" rx="1.5" /><path d="M7 7.5h.01M7 16.5h.01" /></Svg>
 );
+
+export const CollectionsIcon = ({ size }: P) => (
+  // A photo with another behind it: photos put together.
+  <Svg size={size}><path d="M7.5 4.5h10a3 3 0 0 1 3 3v10" /><rect x="3.5" y="7.5" width="13" height="13" rx="2" /><circle cx="8" cy="11.5" r="1.3" /><path d="m4 19 4-4 3 3 2-2 3.5 3.5" /></Svg>
+);
+
+export const PeopleIcon = ({ size }: P) => (
+  // A face in a viewfinder: the faces found in the photos (Friends is
+  // the two people).
+  <Svg size={size}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10.5" r="2.8" /><path d="M7.5 17.5c.8-2.2 2.5-3.3 4.5-3.3s3.7 1.1 4.5 3.3" /></Svg>
+);
