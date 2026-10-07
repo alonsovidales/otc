@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cloud.offthe.otc.proto.ImageGroup
+import cloud.offthe.otc.ui.HiddenPageHeading
 import cloud.offthe.otc.ui.common.NavIcons
 import cloud.offthe.otc.ui.common.circlePath
 import cloud.offthe.otc.ui.common.gridCellPx
@@ -113,10 +114,9 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
     BackHandler { onShowPhotos() }
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerLow).padding(start = 20.dp, end = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) { Text("Collections", style = MaterialTheme.typography.titleLarge) }
+        // The menu names the page, as the web's does: no title on screen,
+        // only for TalkBack.
+        HiddenPageHeading("Collections")
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {

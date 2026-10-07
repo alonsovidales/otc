@@ -214,18 +214,30 @@ class StatusViewModel : ViewModel() {
     val state = MutableStateFlow(State())
     private var poll: Job? = null
     private var pollMs = 0L
+    // When the last ask went out (elapsed realtime), so a restarted poll
+    // doesn't ask again sooner than its period.
+    private var askedAt = 0L
 
-    /** Asks every [periodMs] (Settings: 5 s; the wide layout's menu more slowly); a new period restarts the poll. */
+    /**
+     * Asks every [periodMs] (Settings: 5 s; the wide layout's menu more
+     * slowly); a new period restarts the poll, its first ask a period after
+     * the last one (at once if that is past).
+     */
     fun start(periodMs: Long = 5000) {
         if (poll != null && periodMs == pollMs) return
         poll?.cancel()
         pollMs = periodMs
-        poll = viewModelScope.launch { while (isActive) { fetch(); delay(periodMs) } }
+        poll = viewModelScope.launch {
+            val wait = if (askedAt == 0L) 0L else askedAt + periodMs - android.os.SystemClock.elapsedRealtime()
+            if (wait > 0) delay(wait)
+            while (isActive) { fetch(); delay(periodMs) }
+        }
     }
 
     fun stop() { poll?.cancel(); poll = null }
 
     private suspend fun fetch() {
+        askedAt = android.os.SystemClock.elapsedRealtime()
         try {
             val resp = OTCConnection.request { it.setReqGetStatus(GetStatus.getDefaultInstance()) }
             if (resp.error) state.update { it.copy(errorText = resp.errorMessage, status = null) }

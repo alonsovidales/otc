@@ -34,6 +34,7 @@ struct NotificationsListView: View {
     // Issue #64: which error rows show their full list of errors - a tap
     // toggles it, the phone's counterpart of the web's hover.
     @State private var expandedErrors: Set<String> = []
+    @Environment(\.wideLayout) private var wide
 
     var body: some View {
         NavigationStack {
@@ -105,6 +106,12 @@ struct NotificationsListView: View {
                 }
             }
             .navigationTitle("Notifications")
+            // The wide layout's menu names the page, as the web's does:
+            // no title bar there (AppMenu.swift).
+            .toolbar(wide ? .hidden : .automatic, for: .navigationBar)
+            .overlay(alignment: .topLeading) {
+                if wide { HiddenPageHeading(title: "Alerts") }
+            }
         }
         .task { await model.openPanel() }
     }

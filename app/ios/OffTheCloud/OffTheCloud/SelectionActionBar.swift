@@ -75,7 +75,8 @@ struct SelectionActionBar: View {
                 item("Download", symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
                     .disabled(count == 0)
                 if let onGroup {
-                    item("Add to collection", symbol: "rectangle.stack.badge.plus", action: onGroup)
+                    // The web's own drawing: a collection with a plus.
+                    item("Add to collection", symbol: "", icon: .addToCollection, action: onGroup)
                         .disabled(count == 0)
                 }
                 item("Delete", symbol: "trash", tint: .red, action: onDelete)
@@ -94,6 +95,7 @@ struct SelectionActionBar: View {
     private func item(
         _ title: String,
         symbol: String,
+        icon: NavIcon? = nil,
         tint: Color = .accentColor,
         busy: Bool = false,
         action: @escaping () -> Void
@@ -105,6 +107,8 @@ struct SelectionActionBar: View {
                 ZStack {
                     if busy {
                         ProgressView()
+                    } else if let icon {
+                        NavIconView(icon, size: 24)
                     } else {
                         Image(systemName: symbol).font(.system(size: 20))
                     }
@@ -125,8 +129,9 @@ struct SelectionActionBar: View {
 
 /// The tab bar's own look where the OS provides it, and a close-enough
 /// capsule everywhere else - the deployment target is older than Liquid
-/// Glass, so this can't simply assume it.
-private struct CapsuleBarBackground: ViewModifier {
+/// Glass, so this can't simply assume it. People's selection bar
+/// (PeopleView.swift) wears it too.
+struct CapsuleBarBackground: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {

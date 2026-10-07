@@ -29,7 +29,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if secrets.isConfigured {
-                MainView()
+                MainView(deviceID: secrets.deviceId)
                     .environmentObject(secrets)
                     .environmentObject(upload)
                     .environmentObject(notifications)

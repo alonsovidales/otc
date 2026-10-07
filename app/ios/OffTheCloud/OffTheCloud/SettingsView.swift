@@ -158,6 +158,8 @@ final class DeviceSettingsViewModel: ObservableObject {
             if case .respSettings(let s) = resp.payload {
                 faceRecognitionEnabled = s.faceRecognitionEnabled
                 imageTaggingEnabled = s.imageTaggingEnabled
+                // People shows only while it is on (FaceRecognition.swift).
+                FaceRecognition.shared.set(s.faceRecognitionEnabled)
             }
         } catch { /* leave blank - the rest of the screen still works */ }
     }
@@ -171,6 +173,8 @@ final class DeviceSettingsViewModel: ObservableObject {
             let resp = try await ws.request { $0.payload = .reqSetFaceRecognitionEnabled(req) }
             if case .respAck(let ack) = resp.payload, ack.ok {
                 faceRecognitionEnabled = enabled
+                // People comes and goes at once.
+                FaceRecognition.shared.set(enabled)
             } else {
                 // Revert the optimistic toggle - see the Toggle binding below.
                 faceRecognitionEnabled = !enabled
@@ -498,6 +502,9 @@ struct SettingsView: View {
             // screen "Settings". Still .inline so there's no big empty
             // title bar left behind.
             .navigationBarTitleDisplayMode(.inline)
+            // That bar shows nothing, so an iPad window's controls would
+            // lie over the first section (AppMenu.swift).
+            .modifier(ScrollClearsWindowControls())
             .overlay(alignment: .top) {
                 if let toast = device.toast {
                     Text(toast)
@@ -622,6 +629,8 @@ enum AppLogOut {
             UpdateAlertModel.shared.reset()
             UploadModel.shared.reset()
             SocialFeedViewModel.shared.reset()
+            FaceRecognition.shared.reset()
+            FilesNav.shared.reset()
             OTCConnection.shared.reset()
             MediaStream.reset()
             SyncScheduler.cancel()

@@ -105,6 +105,7 @@ import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.RenamePerson
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.ui.HiddenPageHeading
 import cloud.offthe.otc.ui.common.NAV_STROKE
 import cloud.offthe.otc.ui.common.NavIcons
 import cloud.offthe.otc.ui.common.OTCTextField
@@ -460,7 +461,8 @@ private val Danger = Color(0xFFE53935)
  * The People page, in place of Images' grid. [onOpenPhotos]: a face was
  * tapped (the gallery already searches for that person): show the photos.
  * [onBack]: back to Images - the system back, and the arrow in the page's
- * bar unless [showBack] is false (the wide layout, whose menu has Images).
+ * bar. [showBack] false is the wide layout, whose menu has Images and names
+ * the page: no bar at all then, but the selection's.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -501,17 +503,19 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                 onClose = { vm.clearSelection() }, onMerge = { vm.askMerge() },
                 onDelete = { vm.askDelete(selPeople.map { it.id }) },
             )
-        } else {
+        } else if (showBack) {
             Row(
-                Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerLow).padding(start = if (showBack) 4.dp else 20.dp, end = 16.dp),
+                Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerLow).padding(start = 4.dp, end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (showBack) {
-                    IconButton(onClick = onBack) { Icon(PeopleIcons.Back, "Back to photos") }
-                    Spacer(Modifier.width(4.dp))
-                }
+                IconButton(onClick = onBack) { Icon(PeopleIcons.Back, "Back to photos") }
+                Spacer(Modifier.width(4.dp))
                 Text("People", style = MaterialTheme.typography.titleLarge)
             }
+        } else {
+            // The wide layout's menu names the page, as the web's does: no
+            // title on screen, only for TalkBack.
+            HiddenPageHeading("People")
         }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -525,7 +529,8 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                     val cellPx = gridCellPx(constraints.maxWidth, density, 12.dp, 8.dp, minSize = 112.dp)
                     val face = with(density) { (cellPx.toDp() - 16.dp).coerceIn(72.dp, 112.dp) }
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(112.dp), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 80.dp),
+                        // Wide, no bar above: the web's 24 from the top bar.
+                        columns = GridCells.Adaptive(112.dp), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = if (showBack || selecting) 16.dp else 24.dp, bottom = 80.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(20.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {

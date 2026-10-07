@@ -7,6 +7,7 @@ import MapKit
 import CryptoKit
 import AVKit
 import ImageIO
+import Combine
 
 // MARK: - Proto typealiases (rename if your generated names differ)
 typealias ReqEnvelope       = Msg_ReqEnvelope
@@ -51,24 +52,47 @@ final class PhotoGalleryVM: ObservableObject {
     // UI state
     @Published var tags: [String] = []
     @Published var chips: [String] = []
-    @Published var queryInput: String = ""
 
-    // Issue #52 follow-up: person filter, next to the tag search bar
-    // rather than a separate People screen. Selecting more than one person
-    // means AND, not OR - see dao.SearchMedia on the backend: a photo must
-    // contain a face matched to *every* person selected, not just one.
-    @Published var allPeople: [Msg_Person] = []
+    // Issue #52 follow-up: the person filter. People are picked in the
+    // search (TopSearch.swift) and show as chips over it. Selecting more
+    // than one person means AND, not OR - see dao.SearchMedia on the
+    // backend: a photo must contain a face matched to *every* person
+    // selected, not just one. Loaded, and offered, only while face
+    // recognition is on (FaceRecognition.swift).
+    @Published var allPeople: [Msg_Person] = [] {
+        didSet { faceCache.removeAll() }
+    }
     @Published var selectedPeople: [String] = []
-    @Published var editingPersonID: String? = nil
-    @Published var editingPersonName: String = ""
+    // People's faces, decoded from their cover thumbnails as the search
+    // and the chips first show them.
+    private var faceCache: [String: UIImage] = [:]
+    private var facesWatch: AnyCancellable?
+    // When the tags and people were last fetched: a search that ends a
+    // while later fetches them again (new photos bring new ones), so the
+    // next search has them and nothing moves while picking.
+    private var libraryFetchedAt = Date()
+    /// A listing of the people has come back since face recognition was
+    /// last turned on: the People page shows them rather than its
+    /// placeholder faces.
+    @Published private(set) var peopleLoaded = false
 
     // Issue #115: image groups, which the app calls collections. A group is
     // one more filter on the same search (SearchPhotos.group_id), which is
     // what keeps tags, people, the date scrubber and paging all working
     // unchanged inside one - activeGroup just rides along in every request.
     @Published var groups: [Msg_ImageGroup] = []
+    /// A listing of the collections has come back: the Collections page
+    /// shows them rather than its placeholder cards.
+    @Published private(set) var groupsLoaded = false
     @Published var activeGroup: Msg_ImageGroup? = nil
     @Published var showGroups = false
+    /// The People page as a sheet over Images (a narrow window; a wide
+    /// one's menu shows it as a page of its own). Here rather than in the
+    /// view so that turning the phone can move it between the two.
+    @Published var showPeople = false
+    /// What the People page is in the middle of (picked faces, a merge or
+    /// a delete being asked about), kept here for the same reason.
+    let peoplePage = PeoplePageState()
     // The selection bar's "Add to collection" flow: pick an existing group,
     // or name a new one.
     @Published var showGroupPicker = false
@@ -77,15 +101,6 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var showRenameGroup = false
     @Published var renameGroupName = ""
     @Published var confirmDeleteGroup = false
-
-    // Issue #74: merge two people the model split into separate identities.
-    // A second, narrower "pick mode" layered on the person strip, distinct
-    // from selectedPeople (that's the search filter, a different thing
-    // people already multi-select for AND-search - conflating the two
-    // would make clicking a person while merging also change the filter).
-    @Published var mergeTargetID: String? = nil
-    @Published var pendingMerge: PendingMerge? = nil
-    struct PendingMerge { let target: Msg_Person; let source: Msg_Person }
 
     // Issue #77: the date scrubber. Only meaningful against date order - a
     // tag search sorts by relevance (dao.SearchMedia switches to "order by
@@ -227,6 +242,14 @@ final class PhotoGalleryVM: ObservableObject {
     init(deviceID: String, localPhotosFolder: URL?) {
         self.deviceID = deviceID
         self.localFolder = localPhotosFolder
+        // Face recognition turned on: its people, for the search. Turned
+        // off: nobody to search for any more.
+        facesWatch = FaceRecognition.shared.$enabled
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] on in
+                Task { @MainActor in self?.faceRecognitionChanged(on == true) }
+            }
     }
 
     // The Files section opens its photos and videos in this same viewer:
@@ -253,11 +276,69 @@ final class PhotoGalleryVM: ObservableObject {
 
     func onAppearInitial() {
         guard !fixedList else { return }
+        libraryAsked = true
         Task {
             await loadTags()
-            await loadPeople()
+            if FaceRecognition.shared.isOn { await loadPeople() }
             await resetAndLoadFirstPage()
         }
+    }
+
+    private func faceRecognitionChanged(_ on: Bool) {
+        guard !fixedList else { return }
+        if on {
+            Task { await loadPeople() }
+            return
+        }
+        allPeople = []
+        peopleLoaded = false
+        if !selectedPeople.isEmpty {
+            selectedPeople = []
+            restartSearch()
+        }
+    }
+
+    private var libraryAsked = false
+
+    /// The tags and people for the search, once, without the photos: the
+    /// wide layout's top bar searches from any section, before Images
+    /// has ever been shown.
+    func loadLibraryOnce() {
+        guard !fixedList, !libraryAsked else { return }
+        libraryAsked = true
+        libraryFetchedAt = Date()
+        Task {
+            await loadTags()
+            if FaceRecognition.shared.isOn { await loadPeople() }
+        }
+    }
+
+    /// The search ended: the tags and people are fetched again if the last
+    /// time was a while ago (the web's refreshIfStale).
+    func refreshLibraryIfStale() {
+        guard !fixedList, Date().timeIntervalSince(libraryFetchedAt) > 5 * 60 else { return }
+        libraryFetchedAt = Date()
+        Task {
+            await loadTags()
+            if FaceRecognition.shared.isOn { await loadPeople() }
+        }
+    }
+
+    /// The search's clear button: no tags, no people (an open collection
+    /// stays open, as on the web).
+    func clearSearch() {
+        guard !chips.isEmpty || !selectedPeople.isEmpty else { return }
+        chips = []
+        selectedPeople = []
+        restartSearch()
+    }
+
+    /// A person's face, as the search and its chips show it.
+    func face(for p: Msg_Person) -> UIImage? {
+        if let img = faceCache[p.id] { return img }
+        guard !p.coverThumbnail.isEmpty, let img = UIImage(data: p.coverThumbnail) else { return nil }
+        faceCache[p.id] = img
+        return img
     }
 
     func addChip(_ t: String) {
@@ -348,33 +429,165 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     // MARK: People (issue #52 follow-up)
-    private func loadPeople() async {
-        guard let resp = try? await ws.request({ e in
-            var req = ReqEnvelope()
-            req.payload = .reqListPeople(.init())
-            e = req
-        }) else { return }
-        if case .respPeople(let p) = resp.payload { allPeople = p.people }
+
+    /// Asks the device for its people: for the search, and every time the
+    /// People page opens (new faces are found as photos arrive). True once
+    /// they are here.
+    @discardableResult
+    func loadPeople() async -> Bool {
+        guard let resp = try? await peopleRequest(.reqListPeople(.init())) else { return false }
+        // Turned off while the list was on its way: nobody to offer.
+        guard FaceRecognition.shared.isOn, case .respPeople(let p) = resp.payload else { return false }
+        allPeople = p.people
+        peopleLoaded = true
+        return true
+    }
+
+    /// Images picked in the wide layout's menu: the whole library, as the
+    /// web's showAll - whatever was searched for, and an open collection,
+    /// are left.
+    func showAll() {
+        guard !chips.isEmpty || !selectedPeople.isEmpty || activeGroup != nil else { return }
+        chips = []
+        selectedPeople = []
+        activeGroup = nil
+        restartSearch()
+    }
+
+    /// One person's photos, from the People page: a new search, as the
+    /// web's showPerson - no tags, no other people, no open collection.
+    func showPerson(_ id: String) {
+        chips = []
+        selectedPeople = [id]
+        activeGroup = nil
+        restartSearch()
+    }
+
+    /// Sends one of People's requests (the list, a name, a merge, a
+    /// deletion). Tests answer them in the device's place.
+    var peopleRequest: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
+        try await OTCConnection.shared.request { $0.payload = payload }
+    }
+
+    /// How a request the device answers with an Ack went.
+    enum AckResult { case ok, refused, unanswered }
+
+    private func ack(_ payload: Msg_ReqEnvelope.OneOf_Payload) async -> AckResult {
+        guard let resp = try? await peopleRequest(payload) else { return .unanswered }
+        if case .respAck(let a) = resp.payload, a.ok { return .ok }
+        return .refused
+    }
+
+    /// Names a person, or takes the name off ("" - RenamePerson also gives
+    /// an unnamed person their first name).
+    func renamePerson(_ id: String, to name: String) async -> AckResult {
+        var r = Msg_RenamePerson()
+        r.id = id
+        r.name = name
+        let res = await ack(.reqRenamePerson(r))
+        if res == .ok, let i = allPeople.firstIndex(where: { $0.id == id }) { allPeople[i].name = name }
+        return res
+    }
+
+    enum MergeResult { case merged, nameNotSaved, notMerged, unanswered }
+
+    /// Issue #74: folds the others into the face kept - one person the
+    /// face matching split in several. A name the kept face lacks is given
+    /// to it first: merged first and named after, a failed rename would
+    /// lose a name whose only owner was just merged away. This way round a
+    /// failure loses nothing (the web's PeopleView does the same).
+    func mergePeople(keep: Msg_Person, sources: [String], name: String) async -> MergeResult {
+        guard !sources.isEmpty else { return .notMerged }
+        if !name.isEmpty && name != PeopleOrder.tidy(keep.name) {
+            switch await renamePerson(keep.id, to: name) {
+            case .ok: break
+            case .refused: return .nameNotSaved
+            case .unanswered: return .unanswered
+            }
+        }
+        var m = Msg_MergePeople()
+        m.targetID = keep.id
+        m.sourceIds = sources
+        switch await ack(.reqMergePeople(m)) {
+        case .ok:
+            forgetPeople(Set(sources))
+            // The kept face's count has grown, and the order with it
+            // (issue #75): asked again rather than added up here.
+            Task { await loadPeople() }
+            return .merged
+        case .refused: return .notMerged
+        case .unanswered: return .unanswered
+        }
+    }
+
+    /// One DeletePerson per person, a few at a time. Their photos stay;
+    /// the faces matched to them go. `progress` hears of each answer.
+    func deletePeople(_ ids: [String], progress: @escaping () -> Void) async -> (deleted: Set<String>, unanswered: Int) {
+        var deleted = Set<String>()
+        var unanswered = 0
+        await withTaskGroup(of: (String, AckResult).self) { group in
+            var next = 0
+            func add() {
+                guard next < ids.count else { return }
+                let id = ids[next]
+                next += 1
+                group.addTask { @MainActor in
+                    var d = Msg_DeletePerson()
+                    d.id = id
+                    return (id, await self.ack(.reqDeletePerson(d)))
+                }
+            }
+            for _ in 0..<min(3, ids.count) { add() }
+            while let (id, res) = await group.next() {
+                if res == .ok { deleted.insert(id) } else if res == .unanswered { unanswered += 1 }
+                progress()
+                add()
+            }
+        }
+        if !deleted.isEmpty {
+            forgetPeople(deleted)
+            Task { await loadPeople() }
+        }
+        return (deleted, unanswered)
+    }
+
+    /// Merged away or deleted: off the list at once, before it comes
+    /// again, and no longer narrowing Images.
+    private func forgetPeople(_ ids: Set<String>) {
+        allPeople.removeAll { ids.contains($0.id) }
+        let filtered = selectedPeople.filter { !ids.contains($0) }
+        if filtered.count != selectedPeople.count {
+            selectedPeople = filtered
+            restartSearch()
+        }
     }
 
     // MARK: Image groups (issue #115)
-    func loadGroups() async {
+    /// false: the device didn't answer with the list.
+    @discardableResult
+    func loadGroups() async -> Bool {
         guard let resp = try? await ws.request({ e in
             var req = ReqEnvelope()
             req.payload = .reqListImageGroups(.init())
             e = req
-        }) else { return }
-        if case .respImageGroups(let g) = resp.payload {
-            groups = g.groups
-            // Keep the chip's name/count fresh if the open group changed.
-            if let open = activeGroup, let fresh = g.groups.first(where: { $0.id == open.id }) {
-                activeGroup = fresh
-            }
+        }) else { return false }
+        guard case .respImageGroups(let g) = resp.payload else { return false }
+        groups = g.groups
+        groupsLoaded = true
+        // Keep the chip's name/count fresh if the open group changed.
+        if let open = activeGroup, let fresh = g.groups.first(where: { $0.id == open.id }) {
+            activeGroup = fresh
         }
+        return true
     }
 
+    /// A collection's photos, from Collections (the wide layout's page or
+    /// Images' sheet): a new search, as the web's openGroup - the tags and
+    /// people searched for before go, and can be added again inside it.
     func openGroup(_ g: Msg_ImageGroup) {
         showGroups = false
+        chips = []
+        selectedPeople = []
         activeGroup = g
         restartSearch()
     }
@@ -471,71 +684,6 @@ final class PhotoGalleryVM: ObservableObject {
             selectedPeople.append(id)
         }
         restartSearch()
-    }
-
-    func startRenamePerson(_ p: Msg_Person) {
-        editingPersonID = p.id
-        editingPersonName = p.name
-    }
-
-    func commitRenamePerson(_ id: String) async {
-        let name = editingPersonName.trimmingCharacters(in: .whitespacesAndNewlines)
-        editingPersonID = nil
-        var req = Msg_RenamePerson()
-        req.id = id
-        req.name = name
-        guard let resp = try? await ws.request({ e in
-            var envelope = ReqEnvelope()
-            envelope.payload = .reqRenamePerson(req)
-            e = envelope
-        }) else { return }
-        if case .respAck(let ack) = resp.payload, ack.ok {
-            if let idx = allPeople.firstIndex(where: { $0.id == id }) { allPeople[idx].name = name }
-        }
-    }
-
-    func deletePerson(_ id: String) async {
-        var req = Msg_DeletePerson()
-        req.id = id
-        guard let resp = try? await ws.request({ e in
-            var envelope = ReqEnvelope()
-            envelope.payload = .reqDeletePerson(req)
-            e = envelope
-        }) else { return }
-        if case .respAck(let ack) = resp.payload, ack.ok {
-            allPeople.removeAll { $0.id == id }
-            selectedPeople.removeAll { $0 == id }
-        }
-    }
-
-    // Tapping a person's avatar while merge-picking is active merges
-    // instead of toggling the search filter - see mergeTargetID's own doc
-    // comment. Mirrors web's pickMergeTarget in PhotoGallery.tsx.
-    func pickMergeTarget(_ p: Msg_Person) {
-        if mergeTargetID == p.id {
-            mergeTargetID = nil // tapped the target again - cancel picking
-            return
-        }
-        guard let target = allPeople.first(where: { $0.id == mergeTargetID }) else { return }
-        mergeTargetID = nil
-        pendingMerge = PendingMerge(target: target, source: p)
-    }
-
-    func confirmMerge() async {
-        guard let merge = pendingMerge else { return }
-        pendingMerge = nil
-        var req = Msg_MergePeople()
-        req.targetID = merge.target.id
-        req.sourceIds = [merge.source.id]
-        guard let resp = try? await ws.request({ e in
-            var envelope = ReqEnvelope()
-            envelope.payload = .reqMergePeople(req)
-            e = envelope
-        }) else { return }
-        if case .respAck(let ack) = resp.payload, ack.ok {
-            selectedPeople.removeAll { $0 == merge.source.id }
-            await loadPeople() // re-sort by the merged face count (issue #75) rather than patch counts by hand
-        }
     }
 
     // MARK: Paging
@@ -1303,15 +1451,23 @@ final class PhotoGalleryVM: ObservableObject {
 // MARK: - SwiftUI View (iOS)
 
 struct PhotoGalleryView: View {
-    @StateObject private var vm: PhotoGalleryVM
-
-    @State private var showSuggest = false
+    // MainView's, as is the search: the wide layout's top bar searches,
+    // and its menu's People and Collections pages show, the same library
+    // (AppMenu.swift), and turning the phone keeps all of it.
+    @ObservedObject var vm: PhotoGalleryVM
+    @ObservedObject var search: TopSearchModel
+    @ObservedObject private var faces = FaceRecognition.shared
+    @ObservedObject private var filesNav = FilesNav.shared
+    // A wide window: the search is in the top bar and People and
+    // Collections are in the menu, so this view shows neither - only an
+    // open collection's chip, and the photos.
+    @Environment(\.wideLayout) private var wide
+    @FocusState private var searchFocused: Bool
     // Issue #180: set to start the "Share as Gallery" flow - one for the
     // view itself (the open group's chip), one for the groups sheet, which
     // has to present the flow from inside itself.
     @State private var gallerySource: Msg_SharedGallerySource?
     @State private var groupsSheetGallerySource: Msg_SharedGallerySource?
-    @State private var personPendingDelete: String? = nil
     // Issue #123: as many columns as fit, so the grid uses the whole width
     // on an iPad (six on an 11-inch, more in landscape) instead of the
     // fixed three that only ever made sense on a phone - and still
@@ -1321,147 +1477,18 @@ struct PhotoGalleryView: View {
     // which has since become an overlay on the grid's edge instead.)
     private let cols = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 1)]
 
-    init(deviceID: String, localPhotosFolder: URL?) {
-        _vm = StateObject(wrappedValue: PhotoGalleryVM(deviceID: deviceID, localPhotosFolder: localPhotosFolder))
+    init(vm: PhotoGalleryVM, search: TopSearchModel) {
+        self.vm = vm
+        self.search = search
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Chips + search
-            VStack(alignment: .leading, spacing: 6) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(vm.chips, id: \.self) { chip in
-                            HStack(spacing: 6) {
-                                Text(chip)
-                                Button("×") { vm.removeChip(chip) }
-                            }
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(Color.blue.opacity(0.15))
-                            .clipShape(Capsule())
-                        }
-                    }.padding(.horizontal, 8)
-                }
-                HStack(spacing: 8) {
-                    TextField("Type a tag…", text: $vm.queryInput, onEditingChanged: { showSuggest = $0 }) {
-                        acceptCurrentQuery()
-                    }
-                    .textFieldStyle(.roundedBorder)
-
-                    Button("Search") { acceptCurrentQuery() }
-                    // Issue #115: the groups list.
-                    Button {
-                        Task { await vm.loadGroups() }
-                        vm.showGroups = true
-                    } label: {
-                        Image(systemName: "photo.stack")
-                    }
-                    .accessibilityLabel("Collections")
-                }
-                .padding(.horizontal, 8)
-
-                // Issue #115: the open group, as a chip - tap the name to
-                // rename it, × to leave it. Everything else in this bar
-                // keeps working inside it.
-                if let g = vm.activeGroup {
-                    HStack(spacing: 6) {
-                        Image(systemName: "photo.stack").font(.caption)
-                        Button(g.name) {
-                            vm.renameGroupName = g.name
-                            vm.showRenameGroup = true
-                        }
-                        .buttonStyle(.plain)
-                        Text("· \(g.fileCount)").foregroundStyle(.secondary).font(.caption)
-                        // Issue #180: the group as a gallery behind a link.
-                        Button {
-                            gallerySource = .group(g.id)
-                        } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
-                        .accessibilityLabel("Share as Gallery")
-                        Button {
-                            vm.confirmDeleteGroup = true
-                        } label: { Image(systemName: "trash").font(.caption) }
-                        .accessibilityLabel("Delete collection")
-                        .foregroundStyle(.red)
-                        Button("×") { vm.leaveGroup() }
-                    }
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Color.orange.opacity(0.15))
-                    .clipShape(Capsule())
-                    .padding(.horizontal, 8)
-                }
-
-                if showSuggest, !suggestions.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(suggestions, id: \.self) { s in
-                            Button { acceptSuggestion(s) } label: {
-                                HStack { Text(s); Spacer() }
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.vertical, 6).padding(.horizontal, 10)
-                            .background(Color.secondary.opacity(0.08))
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal, 8)
-                }
-
-                // Issue #52 follow-up: person filter, right next to the tag
-                // search bar - combines with tags on the same search (e.g.
-                // a person plus the "dogs" tag), and picking more than one
-                // person means photos containing all of them, not just one.
-                if !vm.allPeople.isEmpty {
-                    Divider().padding(.horizontal, 8)
-                    // Issue #74: while merge-picking is active, tapping a
-                    // person's avatar below merges instead of toggling the
-                    // search filter - see mergeTargetID's own doc comment.
-                    if let targetID = vm.mergeTargetID {
-                        // Precomputed rather than inlined into the Text -
-                        // an unrelated type-check timeout elsewhere in
-                        // this same body started tripping once enough
-                        // other view code was added nearby, and pulling
-                        // this particular double-lookup-plus-ternary out
-                        // of the ViewBuilder expression is what resolved it.
-                        let targetName = vm.allPeople.first(where: { $0.id == targetID })?.name
-                        let displayName = (targetName?.isEmpty == false) ? targetName! : "Unnamed"
-                        HStack(spacing: 4) {
-                            Text("Merging into \(displayName) — tap another person to merge them in.")
-                            Button("Cancel") { vm.mergeTargetID = nil }
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                    }
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: 12) {
-                            ForEach(vm.allPeople, id: \.id) { person in
-                                PersonFilterChip(
-                                    person: person,
-                                    isSelected: vm.selectedPeople.contains(person.id),
-                                    isMergeTarget: vm.mergeTargetID == person.id,
-                                    isEditing: vm.editingPersonID == person.id,
-                                    editingName: $vm.editingPersonName,
-                                    onTap: {
-                                        if vm.mergeTargetID != nil {
-                                            vm.pickMergeTarget(person)
-                                        } else {
-                                            vm.togglePerson(person.id)
-                                        }
-                                    },
-                                    onStartRename: { vm.startRenamePerson(person) },
-                                    onCommitRename: { Task { await vm.commitRenamePerson(person.id) } },
-                                    onMerge: { vm.mergeTargetID = person.id },
-                                    onDelete: { personPendingDelete = person.id }
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                    }
-                }
-                // Nothing renders at all when there's no one to filter by
-                // yet - no explanatory hint needed.
+            // The search (TopSearch.swift), its chips, and the open
+            // collection - only the last on a wide window.
+            if !wide || vm.activeGroup != nil {
+                header
             }
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
 
             // Grid - while the date scrubber has a target bucket (dragging,
             // or the jump it triggered still in flight), placeholder
@@ -1554,10 +1581,43 @@ struct PhotoGalleryView: View {
                     }
                 }
             }
+            // The search's suggestions, over the photos while something is
+            // typed.
+            .overlay {
+                if panelShown && !wide {
+                    TopSearchPanel(
+                        suggestions: actions.suggestions(),
+                        typed: search.typed,
+                        alreadyIn: vm.chips.contains { FoldedText($0).text == FoldedText(search.typed).text },
+                        selectedPeople: vm.selectedPeople,
+                        face: vm.face(for:),
+                        onPick: actions.pick,
+                        moved: search.moved
+                    )
+                }
+            }
+        }
+        .onChange(of: searchFocused) { _, focused in
+            if focused { search.open = true }
+        }
+        // Sheets on a narrow window only: a wide one's menu has these as
+        // pages (MainView moves one over when the window changes).
+        .sheet(isPresented: Binding(get: { vm.showPeople && !wide }, set: { vm.showPeople = $0 })) {
+            NavigationStack {
+                PeopleView(vm: vm, onOpenPhotos: { vm.showPeople = false }, onClose: { vm.showPeople = false })
+            }
+        }
+        // Face recognition turned off (here in Settings, or on the web):
+        // no People to show.
+        .onChange(of: faces.isOn) { _, on in
+            if !on { vm.showPeople = false }
+        }
+        .onChange(of: search.query) { _, _ in
+            if searchFocused && !search.typed.isEmpty { search.open = true }
         }
         // Issue #115: the groups list - a picture on the left, like the
         // notifications rows.
-        .sheet(isPresented: $vm.showGroups) {
+        .sheet(isPresented: Binding(get: { vm.showGroups && !wide }, set: { vm.showGroups = $0 })) {
             NavigationStack {
                 List {
                     if vm.groups.isEmpty {
@@ -1576,7 +1636,7 @@ struct PhotoGalleryView: View {
                                     RoundedRectangle(cornerRadius: 6)
                                         .fill(Color.secondary.opacity(0.15))
                                         .frame(width: 44, height: 44)
-                                        .overlay(Image(systemName: "photo.stack"))
+                                        .overlay(NavIconView(.collections, size: 24).foregroundStyle(.secondary))
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(g.name).foregroundStyle(.primary)
@@ -1653,26 +1713,6 @@ struct PhotoGalleryView: View {
             Button("Cancel", role: .cancel) {}
         }
         .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
-        .confirmationDialog(
-            "Delete this person? This removes every face matched to them — it can't be undone.",
-            isPresented: Binding(get: { personPendingDelete != nil }, set: { if !$0 { personPendingDelete = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive) {
-                if let id = personPendingDelete { Task { await vm.deletePerson(id) } }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
-        .confirmationDialog(
-            vm.pendingMerge.map {
-                "Merge \($0.source.name.isEmpty ? "Unnamed" : $0.source.name) into \($0.target.name.isEmpty ? "Unnamed" : $0.target.name)? Every photo of \($0.source.name.isEmpty ? "Unnamed" : $0.source.name) will show up under \($0.target.name.isEmpty ? "Unnamed" : $0.target.name) instead — this can't be undone."
-            } ?? "",
-            isPresented: Binding(get: { vm.pendingMerge != nil }, set: { if !$0 { vm.pendingMerge = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button("Merge", role: .destructive) { Task { await vm.confirmMerge() } }
-            Button("Cancel", role: .cancel) { vm.pendingMerge = nil }
-        }
         // Presented once and left up while paging: the previous sheet was
         // keyed by the index, so every swipe dismissed it and presented a
         // new one - the "closes and reopens" the viewer used to do. Full
@@ -1696,24 +1736,197 @@ struct PhotoGalleryView: View {
         }
     }
 
-    // Suggestions
-    private var suggestions: [String] {
-        let q = vm.queryInput.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !q.isEmpty else { return [] }
-        return vm.tags.filter { $0.lowercased().hasPrefix(q) }.prefix(12).map { $0 }
+    // MARK: The header
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !wide {
+                if !vm.chips.isEmpty || !vm.selectedPeople.isEmpty {
+                    chipsRow
+                }
+                searchRow
+            }
+            // Issue #115: the open group, as a chip - tap the name to
+            // rename it, × to leave it. Everything else in this bar
+            // keeps working inside it.
+            if let g = vm.activeGroup {
+                collectionChip(g)
+            }
+        }
+        .padding(.vertical, 8)
+        // The whole width also when only the collection's chip shows.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // An iPad window showing its controls has them over the search
+        // field's start (AppMenu.swift).
+        .modifier(AvoidsWindowControls())
+        .background(.ultraThinMaterial)
     }
-    private func acceptCurrentQuery() {
-        let q = vm.queryInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return }
-        if suggestions.count == 1 { vm.addChip(suggestions[0]) }
-        else { vm.addChip(q) }
-        vm.queryInput = ""
-        showSuggest = false
+
+    private var searchRow: some View {
+        HStack(spacing: 8) {
+            searchField
+            if searchActive {
+                Button("Cancel") { actions.cancel() }
+            } else {
+                // People, as the web's menu has it before
+                // Collections - only while face recognition is on.
+                if faces.isOn {
+                    Button {
+                        vm.showPeople = true
+                    } label: {
+                        NavIconView(.people, size: 24)
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("People")
+                }
+                // Issue #115: the collections list.
+                Button {
+                    Task { await vm.loadGroups() }
+                    vm.showGroups = true
+                } label: {
+                    NavIconView(.collections, size: 24)
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Collections")
+            }
+        }
+        .padding(.horizontal, 8)
     }
-    private func acceptSuggestion(_ s: String) {
-        vm.addChip(s)
-        vm.queryInput = ""
-        showSuggest = false
+
+    private func collectionChip(_ g: Msg_ImageGroup) -> some View {
+        HStack(spacing: 6) {
+            NavIconView(.collections, size: 16)
+            Button(g.name) {
+                vm.renameGroupName = g.name
+                vm.showRenameGroup = true
+            }
+            .buttonStyle(.plain)
+            Text("· \(g.fileCount)").foregroundStyle(.secondary).font(.caption)
+            // Issue #180: the group as a gallery behind a link.
+            Button {
+                gallerySource = .group(g.id)
+            } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
+            .accessibilityLabel("Share as Gallery")
+            Button {
+                vm.confirmDeleteGroup = true
+            } label: { Image(systemName: "trash").font(.caption) }
+            .accessibilityLabel("Delete collection")
+            .foregroundStyle(.red)
+            Button("×") { vm.leaveGroup() }
+                .accessibilityLabel("Close the collection \(g.name)")
+        }
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(Color.orange.opacity(0.15))
+        .clipShape(Capsule())
+        .padding(.horizontal, 8)
+    }
+
+    // MARK: The search (TopSearch.swift)
+
+    /// Something is typed and the panel is up.
+    private var panelShown: Bool { search.open && !search.typed.isEmpty }
+    /// The field has the keyboard, or its panel shows: Cancel ends it.
+    private var searchActive: Bool { searchFocused || panelShown }
+
+    private var actions: TopSearchActions {
+        TopSearchActions(vm: vm, search: search, faces: faces.isOn, filesNav: filesNav, focus: { searchFocused = $0 })
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            NavIconView(.search, size: 18)
+                .foregroundStyle(.secondary)
+            TextField(
+                vm.chips.isEmpty && vm.selectedPeople.isEmpty ? "Search photos and files" : "Search",
+                text: $search.query
+            )
+            .focused($searchFocused)
+            .submitLabel(.search)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .onSubmit { actions.submit() }
+            // A hardware keyboard: the arrows go through the suggestions and
+            // Escape closes them, as on the web.
+            .onKeyPress(.upArrow) { actions.arrow(-1) }
+            .onKeyPress(.downArrow) { actions.arrow(1) }
+            .onKeyPress(.escape) { actions.escape() }
+            .accessibilityLabel("Search photos and files")
+            if !search.query.isEmpty || !vm.chips.isEmpty || !vm.selectedPeople.isEmpty {
+                // Everything typed and picked goes - not an open collection.
+                Button {
+                    actions.clear()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 4)
+        .frame(height: 38)
+        .background(Color(.tertiarySystemFill), in: Capsule())
+        .contentShape(Capsule())
+        .onTapGesture { searchFocused = true }
+    }
+
+    /// What the search narrows Images to: the people, then the tags.
+    private var chipsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(vm.selectedPeople, id: \.self) { pid in
+                    let person = vm.allPeople.first { $0.id == pid }
+                    let name = person.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+                    HStack(spacing: 6) {
+                        Group {
+                            if let person, let img = vm.face(for: person) {
+                                Image(uiImage: img).resizable().scaledToFill()
+                            } else {
+                                Color(.tertiarySystemFill).overlay(NavIconView(.face, size: 16).foregroundStyle(.secondary))
+                            }
+                        }
+                        .frame(width: 24, height: 24)
+                        .clipShape(Circle())
+                        Text(person == nil ? "Person" : (name.isEmpty ? "Unnamed" : name))
+                            .font(.subheadline)
+                            .lineLimit(1)
+                        chipRemove(name.isEmpty ? "Remove this person" : "Remove \(name)") { vm.togglePerson(pid) }
+                    }
+                    .padding(.leading, 3)
+                    .padding(.trailing, 4)
+                    .padding(.vertical, 3)
+                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+                }
+                ForEach(vm.chips, id: \.self) { chip in
+                    HStack(spacing: 4) {
+                        Text(chip).font(.subheadline).lineLimit(1)
+                        chipRemove("Remove \(chip)") { vm.removeChip(chip) }
+                    }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 4)
+                    .padding(.vertical, 3)
+                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+                }
+            }
+            .padding(.horizontal, 8)
+        }
+    }
+
+    private func chipRemove(_ label: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private func openPath(_ p: String) {
@@ -1731,72 +1944,6 @@ struct PhotoGalleryView: View {
 }
 
 // MARK: - UI pieces (iOS)
-
-// Issue #52 follow-up: one person in the Photo Gallery's search bar - tap
-// the avatar to toggle it as a filter, tap the name to rename, trash to
-// delete. Replaces the standalone People tab/screen.
-private struct PersonFilterChip: View {
-    let person: Msg_Person
-    let isSelected: Bool
-    // Issue #74: distinct from isSelected (the search-filter state) - this
-    // person is the currently-picked merge target, shown with its own
-    // dashed highlight so the two states never look the same.
-    let isMergeTarget: Bool
-    let isEditing: Bool
-    @Binding var editingName: String
-    let onTap: () -> Void
-    let onStartRename: () -> Void
-    let onCommitRename: () -> Void
-    let onMerge: () -> Void
-    let onDelete: () -> Void
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Button(action: onTap) {
-                Group {
-                    if let img = UIImage(data: person.coverThumbnail) {
-                        Image(uiImage: img).resizable().scaledToFill()
-                    } else {
-                        Color.gray.opacity(0.2).overlay(Image(systemName: "person.fill"))
-                    }
-                }
-                .frame(width: 44, height: 44)
-                .clipShape(Circle())
-                .overlay(
-                    Circle().stroke(
-                        isMergeTarget ? Color.red : (isSelected ? Color.accentColor : .clear),
-                        style: StrokeStyle(lineWidth: 3, dash: isMergeTarget ? [3, 2] : [])
-                    )
-                )
-            }
-            .buttonStyle(.plain)
-
-            if isEditing {
-                TextField("Name", text: $editingName, onCommit: onCommitRename)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.caption2)
-                    .frame(width: 60)
-            } else {
-                Button(action: onStartRename) {
-                    Text(person.name.isEmpty ? "Unnamed" : person.name)
-                        .font(.caption2)
-                        .lineLimit(1)
-                        .frame(maxWidth: 60)
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack(spacing: 8) {
-                Button(action: onMerge) {
-                    Image(systemName: "link").font(.system(size: 9)).foregroundStyle(.secondary)
-                }
-                Button(action: onDelete) {
-                    Image(systemName: "trash").font(.system(size: 9)).foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-}
 
 private struct PhotoTile: View {
     let item: PhotoGalleryVM.Item

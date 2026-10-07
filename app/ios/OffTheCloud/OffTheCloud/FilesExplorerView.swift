@@ -82,6 +82,23 @@ struct FileRow: Identifiable {
     let raw: Msg_File
 }
 
+extension FileRow {
+    /// A file as the device lists it (a full path, as SearchFiles gives).
+    init(file f: Msg_File) {
+        self.init(
+            path: f.path,
+            name: f.path == ".." ? ".." : leafName(f.path),
+            isDir: isDirFile(f),
+            size: f.fileSize,
+            created: f.hasCreated ? f.created.date : nil,
+            modified: f.hasModified ? f.modified.date : nil,
+            uploadOnly: f.uploadOnly,
+            versions: f.versions,
+            raw: f
+        )
+    }
+}
+
 @MainActor
 final class FilesExplorerViewModel: ObservableObject {
     private let ws = OTCConnection.shared
@@ -152,34 +169,27 @@ final class FilesExplorerViewModel: ObservableObject {
     init(initialPath: String) { self.path = initialPath }
 
     func load() async {
+        // The folder this listing is for: one that comes back after the
+        // screen moved on (the search sending it to another folder while
+        // the first listing was on its way) is dropped.
+        let asked = path
         loading = true
-        defer { loading = false }
+        defer { if asked == path { loading = false } }
         error = nil
         var req = Msg_ListFiles()
-        req.path = path
+        req.path = asked
         do {
             let resp = try await ws.request { $0.payload = .reqListFiles(req) }
+            guard asked == path else { return }
             if case .respListOfFiles(let lof) = resp.payload {
                 var files = lof.files
-                if path != "/" {
+                if asked != "/" {
                     var up = Msg_File()
                     up.mime = "inode/directory"
                     up.path = ".."
                     files.insert(up, at: 0)
                 }
-                rows = files.map { f in
-                    FileRow(
-                        path: f.path,
-                        name: f.path == ".." ? ".." : leafName(f.path),
-                        isDir: isDirFile(f),
-                        size: f.fileSize,
-                        created: f.hasCreated ? f.created.date : nil,
-                        modified: f.hasModified ? f.modified.date : nil,
-                        uploadOnly: f.uploadOnly,
-                        versions: f.versions,
-                        raw: f
-                    )
-                }
+                rows = files.map(FileRow.init(file:))
                 selected.removeAll()
             } else if resp.error {
                 error = resp.errorMessage.isEmpty ? "Failed to list path" : resp.errorMessage
@@ -187,7 +197,111 @@ final class FilesExplorerViewModel: ObservableObject {
                 error = "Unexpected response"
             }
         } catch {
+            guard asked == path else { return }
             self.error = error.localizedDescription
+        }
+    }
+
+    /// Shows a folder and waits for its listing (the search's pick).
+    func show(_ dir: String) async {
+        path = normPath(dir)
+        await load()
+    }
+
+    // MARK: The search's "Search documents" (TopSearch.swift)
+
+    /// Every file and folder whose path holds a text, as SearchFiles finds
+    /// them - at most searchLimit - listed over the folder, which stays as
+    /// it was underneath. Only the last search asked for lands.
+    struct SearchResults {
+        enum State: Equatable {
+            case loading
+            case done
+            case failed(String, retry: Bool)
+        }
+        let text: String
+        var state: State
+        var files: [Msg_File]
+    }
+    static let searchLimit = 50
+    @Published var results: SearchResults?
+    /// The results' photos and videos by their thumbnails.
+    @Published private(set) var resultThumbs: [String: FileThumb] = [:]
+    private var searchSeq = 0
+
+    func startSearch(_ text: String) async {
+        searchSeq += 1
+        let mine = searchSeq
+        results = SearchResults(text: text, state: .loading, files: [])
+        resultThumbs = [:]
+        var req = Msg_SearchFiles()
+        req.query = text
+        req.limit = Int32(Self.searchLimit)
+        let resp: Msg_RespEnvelope
+        do {
+            resp = try await ws.request { $0.payload = .reqSearchFiles(req) }
+        } catch {
+            guard mine == searchSeq else { return }
+            results?.state = .failed("The search didn't reach the device. Check the connection and try again.", retry: true)
+            return
+        }
+        let tooOld = resp.error && resp.errorCode == "unknown_payload"
+        // The search stops offering it on such a device.
+        if tooOld { FilesNav.shared.deviceCantSearchFiles() }
+        guard mine == searchSeq else { return }
+        if case .respListOfFiles(let lof) = resp.payload {
+            results = SearchResults(text: text, state: .done, files: lof.files)
+            await loadResultThumbs(lof.files, seq: mine)
+        } else if tooOld {
+            results?.state = .failed("This device can't search its files yet. Update it in Settings.", retry: false)
+        } else {
+            results?.state = .failed(resp.errorMessage.isEmpty ? "The device didn't answer the search." : resp.errorMessage, retry: true)
+        }
+    }
+
+    /// Back to the folder.
+    func closeResults() {
+        guard results != nil else { return }
+        searchSeq += 1
+        results = nil
+        resultThumbs = [:]
+    }
+
+    /// The results' photos and videos, 24 to a request as the grid asks.
+    private func loadResultThumbs(_ files: [Msg_File], seq: Int) async {
+        var media = files.filter { !isDirFile($0) && isMediaFile($0) }.map(\.path)
+        while !media.isEmpty, seq == searchSeq {
+            let batch = Array(media.prefix(24))
+            media.removeFirst(batch.count)
+            var req = Msg_GetThumbnails()
+            req.paths = batch
+            guard let resp = try? await ws.request({ $0.payload = .reqGetThumbnails(req) }),
+                  case .respListOfFiles(let lof) = resp.payload else { return }
+            let got = lof.files.map { (path: $0.path, data: $0.content) }
+            let decoded = await Task.detached(priority: .userInitiated) {
+                got.map { ($0.path, $0.data, Self.decodeTile($0.data)) }
+            }.value
+            guard seq == searchSeq else { return }
+            for (path, data, img) in decoded {
+                if let img { resultThumbs[path] = FileThumb(image: img, data: data) }
+            }
+        }
+    }
+
+    /// The results' photos and videos, for the viewer.
+    func resultViewerItems() -> [PhotoGalleryVM.Item] {
+        (results?.files ?? []).filter { !isDirFile($0) && isMediaFile($0) }.map { f in
+            let thumb = resultThumbs[f.path]
+            return PhotoGalleryVM.Item(
+                id: "\(f.path)#\(f.hash)#\(f.fileSize)",
+                path: f.path,
+                mime: f.mime,
+                size: Int(f.fileSize),
+                thumbData: thumb?.data,
+                localURL: nil,
+                isLocalOnly: false,
+                thumbImage: thumb?.image
+            )
         }
     }
 
@@ -518,6 +632,10 @@ struct FilesExplorerView: View {
     // List or grid ("list"/"grid"), remembered across launches - the web and
     // Android explorers keep theirs under the same key.
     @AppStorage("files.viewMode") private var viewMode = "list"
+    // The Images search sends Files to a folder, a file in it, or a list
+    // of results (TopSearch.swift's FilesNav).
+    @ObservedObject private var nav = FilesNav.shared
+    @State private var handledRequest: UUID?
     // Selection is managed here rather than with List(selection:) +
     // EditButton(): that pairing needs the row's tap to be the List's own
     // selection-toggle handling, and this view also needs a tap to open
@@ -536,148 +654,156 @@ struct FilesExplorerView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                HStack {
-                    TextField("/path/", text: $pathField, onCommit: { vm.navigate(to: pathField) })
-                        .textFieldStyle(.roundedBorder)
-                        .autocapitalization(.none)
-                    if vm.loading { ProgressView() }
-                    // Shows the mode a tap switches to, like Files/Photos.
-                    Button {
-                        viewMode = viewMode == "grid" ? "list" : "grid"
-                    } label: {
-                        Image(systemName: viewMode == "grid" ? "list.bullet" : "square.grid.2x2")
-                            .frame(width: 28, height: 28)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel(viewMode == "grid" ? "Show as list" : "Show as grid")
-                }
-                .padding([.horizontal, .top])
-
-                if let error = vm.error {
-                    Text(error).font(.caption).foregroundColor(.red).padding(.horizontal)
-                }
-
-                if viewMode == "grid" {
-                    grid
+                // The search's "Search documents": its results over the
+                // folder, which stays as it was underneath.
+                if let results = vm.results {
+                    resultsView(results)
                 } else {
-                    List {
-                        ForEach(vm.rows) { row in
-                            HStack {
-                                // The row's own checkbox, always there - see the
-                                // note on selection at the top of this view.
-                                // Issue #116: directories are selectable too -
-                                // the device expands one to every file under it
-                                // for share/download/delete (see
-                                // files_manager.resolvePaths). Only ".." has
-                                // none, being navigation rather than a thing;
-                                // it keeps the width so names stay aligned.
-                                if row.path != ".." {
-                                    Button {
-                                        if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
-                                        else { vm.selected.insert(row.path) }
-                                    } label: {
-                                        Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
-                                            .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
-                                            .frame(width: 28, height: 28)
-                                            .contentShape(Rectangle())
-                                    }
-                                    // .plain: inside a List a default Button
-                                    // claims the whole row's tap, and the row
-                                    // tap below has to stay "open".
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel(vm.selected.contains(row.path) ? "Deselect" : "Select")
-                                } else {
-                                    Color.clear.frame(width: 28, height: 28)
-                                }
-                                // Issue #71: a spinner in place of the row's own
-                                // icon while its GetFile round trip is in
-                                // flight - the only feedback a tap used to get
-                                // was however long that took, which just
-                                // looked stuck.
-                                if vm.openingPath == row.path {
-                                    ProgressView().frame(width: 20)
-                                } else {
-                                    Image(systemName: row.isDir ? "folder.fill" : (isImgFile(row.raw) ? "photo" : "doc"))
-                                        .foregroundColor(row.isDir ? .accentColor : .secondary)
-                                        .frame(width: 20)
-                                }
-                                VStack(alignment: .leading) {
-                                    Text(row.name).lineLimit(1)
-                                    if !row.isDir {
-                                        Text(formatByteCount(row.size)).font(.caption2).foregroundColor(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                // Issue #132: the versions badge opens the
-                                // sheet; the lock on a folder toggles upload
-                                // only, on a file it just says it is inside one.
-                                if !row.isDir && row.versions > 0 {
-                                    Button {
-                                        Task { await vm.openVersions(row) }
-                                    } label: {
-                                        Label("\(row.versions)", systemImage: "clock.arrow.circlepath")
-                                            .font(.caption)
-                                            .padding(.horizontal, 8).padding(.vertical, 3)
-                                            .background(Color.secondary.opacity(0.15), in: Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
-                                }
-                                if row.path != ".." && row.isDir {
-                                    Button {
-                                        lockPrompt = row
-                                    } label: {
-                                        Image(systemName: row.uploadOnly ? "lock.fill" : "lock.open")
-                                            .foregroundColor(row.uploadOnly ? .accentColor : .secondary)
-                                            .frame(width: 28, height: 28)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel(row.uploadOnly ? "Clear upload only" : "Make upload only")
-                                } else if row.uploadOnly {
-                                    Button {
-                                        lockInfo = UploadOnlyText.fileInfo
-                                    } label: {
-                                        Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("In an upload-only folder")
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture { tap(row) }
-                            // Long-press: see rowMenu.
-                            .contextMenu { rowMenu(row) }
+                    HStack {
+                        TextField("/path/", text: $pathField, onCommit: { vm.navigate(to: pathField) })
+                            .textFieldStyle(.roundedBorder)
+                            .autocapitalization(.none)
+                        if vm.loading { ProgressView() }
+                        // Shows the mode a tap switches to, like Files/Photos.
+                        Button {
+                            viewMode = viewMode == "grid" ? "list" : "grid"
+                        } label: {
+                            Image(systemName: viewMode == "grid" ? "list.bullet" : "square.grid.2x2")
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
                         }
+                        .accessibilityLabel(viewMode == "grid" ? "Show as list" : "Show as grid")
                     }
-                    .listStyle(.plain)
-                    // Issue #51: pull down to re-list this directory - files
-                    // arrive from other clients (the Mac app, another phone)
-                    // while this screen sits open, and nothing else re-reads it.
-                    .refreshable { await vm.load() }
-                }
+                    .padding([.horizontal, .top])
+                    // Clear of an iPad window's controls (AppMenu.swift).
+                    .modifier(AvoidsWindowControls())
 
-                // Always shown here, unlike Images: Upload acts on the
-                // folder being browsed, not on a selection, so it needs
-                // somewhere to live when nothing is selected - and this is
-                // where the rest of the actions are. Share/Download/Delete
-                // grey out until something is ticked.
-                SelectionActionBar(
-                    count: vm.selected.count,
-                    busy: vm.preparing,
-                    onShare: { Task { await vm.shareSelected() } },
-                    onDownload: { Task { await vm.downloadSelected() } },
-                    onDelete: {
-                        if vm.selectionUploadOnly {
-                            vm.showToast("The selection is in an upload-only folder and cannot be deleted")
-                        } else {
-                            vm.confirmDeleteSelected = true
+                    if let error = vm.error {
+                        Text(error).font(.caption).foregroundColor(.red).padding(.horizontal)
+                    }
+
+                    if viewMode == "grid" {
+                        grid
+                    } else {
+                        List {
+                            ForEach(vm.rows) { row in
+                                HStack {
+                                    // The row's own checkbox, always there - see the
+                                    // note on selection at the top of this view.
+                                    // Issue #116: directories are selectable too -
+                                    // the device expands one to every file under it
+                                    // for share/download/delete (see
+                                    // files_manager.resolvePaths). Only ".." has
+                                    // none, being navigation rather than a thing;
+                                    // it keeps the width so names stay aligned.
+                                    if row.path != ".." {
+                                        Button {
+                                            if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
+                                            else { vm.selected.insert(row.path) }
+                                        } label: {
+                                            Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
+                                                .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
+                                                .frame(width: 28, height: 28)
+                                                .contentShape(Rectangle())
+                                        }
+                                        // .plain: inside a List a default Button
+                                        // claims the whole row's tap, and the row
+                                        // tap below has to stay "open".
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(vm.selected.contains(row.path) ? "Deselect" : "Select")
+                                    } else {
+                                        Color.clear.frame(width: 28, height: 28)
+                                    }
+                                    // Issue #71: a spinner in place of the row's own
+                                    // icon while its GetFile round trip is in
+                                    // flight - the only feedback a tap used to get
+                                    // was however long that took, which just
+                                    // looked stuck.
+                                    if vm.openingPath == row.path {
+                                        ProgressView().frame(width: 20)
+                                    } else {
+                                        Image(systemName: row.isDir ? "folder.fill" : (isImgFile(row.raw) ? "photo" : "doc"))
+                                            .foregroundColor(row.isDir ? .accentColor : .secondary)
+                                            .frame(width: 20)
+                                    }
+                                    VStack(alignment: .leading) {
+                                        Text(row.name).lineLimit(1)
+                                        if !row.isDir {
+                                            Text(formatByteCount(row.size)).font(.caption2).foregroundColor(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    // Issue #132: the versions badge opens the
+                                    // sheet; the lock on a folder toggles upload
+                                    // only, on a file it just says it is inside one.
+                                    if !row.isDir && row.versions > 0 {
+                                        Button {
+                                            Task { await vm.openVersions(row) }
+                                        } label: {
+                                            Label("\(row.versions)", systemImage: "clock.arrow.circlepath")
+                                                .font(.caption)
+                                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                                .background(Color.secondary.opacity(0.15), in: Capsule())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
+                                    }
+                                    if row.path != ".." && row.isDir {
+                                        Button {
+                                            lockPrompt = row
+                                        } label: {
+                                            Image(systemName: row.uploadOnly ? "lock.fill" : "lock.open")
+                                                .foregroundColor(row.uploadOnly ? .accentColor : .secondary)
+                                                .frame(width: 28, height: 28)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(row.uploadOnly ? "Clear upload only" : "Make upload only")
+                                    } else if row.uploadOnly {
+                                        Button {
+                                            lockInfo = UploadOnlyText.fileInfo
+                                        } label: {
+                                            Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("In an upload-only folder")
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture { tap(row) }
+                                // Long-press: see rowMenu.
+                                .contextMenu { rowMenu(row) }
+                            }
                         }
-                    },
-                    onUpload: { showImporter = true }
-                )
-                .padding(.vertical, 8)
+                        .listStyle(.plain)
+                        // Issue #51: pull down to re-list this directory - files
+                        // arrive from other clients (the Mac app, another phone)
+                        // while this screen sits open, and nothing else re-reads it.
+                        .refreshable { await vm.load() }
+                    }
+
+                    // Always shown here, unlike Images: Upload acts on the
+                    // folder being browsed, not on a selection, so it needs
+                    // somewhere to live when nothing is selected - and this is
+                    // where the rest of the actions are. Share/Download/Delete
+                    // grey out until something is ticked.
+                    SelectionActionBar(
+                        count: vm.selected.count,
+                        busy: vm.preparing,
+                        onShare: { Task { await vm.shareSelected() } },
+                        onDownload: { Task { await vm.downloadSelected() } },
+                        onDelete: {
+                            if vm.selectionUploadOnly {
+                                vm.showToast("The selection is in an upload-only folder and cannot be deleted")
+                            } else {
+                                vm.confirmDeleteSelected = true
+                            }
+                        },
+                        onUpload: { showImporter = true }
+                    )
+                    .padding(.vertical, 8)
+                }
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Files", and the path field above already shows where
@@ -693,6 +819,12 @@ struct FilesExplorerView: View {
             }
         }
         .task { await vm.load() }
+        // A request already waiting when Files is first shown comes too:
+        // the publisher starts with what it holds. Taken on the next turn,
+        // not while the view is being updated.
+        .onReceive(nav.$pending.compactMap { $0 }.receive(on: RunLoop.main)) { handle($0) }
+        // Files picked in the wide layout's menu: the folder, not results.
+        .onChange(of: nav.leftSearch) { _, _ in vm.closeResults() }
         .sharedGalleryShareFlow(source: $gallerySource)
         .onChange(of: vm.path) { _, newValue in pathField = newValue }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
@@ -803,6 +935,196 @@ struct FilesExplorerView: View {
                 delete: { viewer.deleteCurrentPhoto() }
             )
         }
+    }
+
+    // MARK: The search (TopSearch.swift)
+
+    /// What the search sent Files to do: show a folder, open a file in it
+    /// as a tap there would (a photo or video once the folder is listed, to
+    /// page through its photos and videos; a document at once), or list
+    /// every file and folder a text finds.
+    private func handle(_ request: FilesNav.Request) {
+        nav.take(request)
+        // Once each, however often the publisher hands it over.
+        guard handledRequest != request.id else { return }
+        handledRequest = request.id
+        switch request.kind {
+        case .search(let text):
+            guard !text.isEmpty else { return }
+            Task { await vm.startSearch(text) }
+        case .folder(let dir, let file):
+            vm.closeResults()
+            let row = file.map(FileRow.init(file:))
+            if let row, !vm.isMedia(row), !row.isDir {
+                Task { await vm.open(row) }
+            }
+            Task {
+                await vm.show(dir)
+                guard let file, let row, vm.isMedia(row) else { return }
+                // Somewhere else by now: not over that.
+                guard vm.path == normPath(dir), vm.results == nil else { return }
+                let items = vm.viewerItems()
+                viewer.onDeleted = { _ in Task { await vm.load() } }
+                if let start = items.firstIndex(where: { $0.path == file.path }) {
+                    viewer.showFiles(items, startAt: start)
+                } else {
+                    // Not in the listing (it failed, or the file went): the file alone.
+                    viewer.showFiles([PhotoGalleryVM.Item(
+                        id: "\(file.path)#\(file.hash)", path: file.path, mime: file.mime,
+                        size: Int(file.fileSize), thumbData: nil, localURL: nil, isLocalOnly: false
+                    )], startAt: 0)
+                }
+            }
+        }
+    }
+
+    /// Where Back goes: the folder under the results.
+    private var folderLabel: String {
+        vm.path == "/" ? "Files" : leafName(vm.path)
+    }
+
+    private func resultsView(_ r: FilesExplorerViewModel.SearchResults) -> some View {
+        let q = FoldedText(r.text)
+        let count = r.files.count
+        return VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Button {
+                    vm.closeResults()
+                } label: {
+                    Label("Back to \(folderLabel)", systemImage: "arrow.left")
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                        // A finger's worth of height, not just the text's.
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                Text("Files matching \u{201C}\(r.text)\u{201D}")
+                    .font(.title3.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                // Its line kept while searching, so the list doesn't move.
+                Text(r.state == .done && count > 0
+                     ? (count == FilesExplorerViewModel.searchLimit
+                        ? "Showing the first \(count) results"
+                        : "\(count) \(count == 1 ? "result" : "results")")
+                     : " ")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .modifier(AvoidsWindowControls())
+
+            switch r.state {
+            case .loading:
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Searching…").foregroundStyle(.secondary)
+                }
+                .padding()
+                Spacer()
+            case .failed(let message, let retry):
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(message).foregroundStyle(.secondary)
+                    if retry {
+                        Button("Try Again") { Task { await vm.startSearch(r.text) } }
+                            .buttonStyle(.bordered)
+                    }
+                }
+                .padding()
+                Spacer()
+            case .done where r.files.isEmpty:
+                Text("No files match \u{201C}\(r.text)\u{201D}.")
+                    .foregroundStyle(.secondary)
+                    .padding()
+                Spacer()
+            case .done:
+                List {
+                    ForEach(r.files, id: \.path) { f in
+                        resultRow(f, q: q)
+                    }
+                }
+                .listStyle(.plain)
+                .refreshable { await vm.startSearch(r.text) }
+            }
+        }
+    }
+
+    private func resultRow(_ f: Msg_File, q: FoldedText) -> some View {
+        let row = FileRow(file: f)
+        let (name, dir) = FilePaths.parts(f.path)
+        let nameSpan = SearchMatch.match(FoldedText(name), q)?.span
+        let dirSpan = nameSpan == nil ? SearchMatch.match(FoldedText(dir), q)?.span : nil
+        let thumb = vm.isMedia(row) ? vm.resultThumbs[f.path]?.image : nil
+        return HStack(spacing: 12) {
+            ZStack {
+                if vm.openingPath == f.path {
+                    ProgressView()
+                } else if row.isDir {
+                    Image(systemName: "folder.fill")
+                        .font(.title2)
+                        .foregroundColor(.accentColor)
+                } else if let thumb {
+                    Color.clear
+                        .overlay(Image(uiImage: thumb).resizable().scaledToFill())
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(alignment: .bottomLeading) {
+                            if vm.isVideo(row) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 7))
+                                    .foregroundColor(.white)
+                                    .padding(4)
+                                    .background(Color.black.opacity(0.55), in: Circle())
+                                    .padding(2)
+                            }
+                        }
+                } else {
+                    FileTypeIcon(name: row.name)
+                }
+            }
+            .frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(SearchMatch.marked(name, nameSpan)).lineLimit(1).truncationMode(.middle)
+                // Long folders lose their start, not the end nearest the file.
+                Text(SearchMatch.marked(dir, dirSpan))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+            }
+            Spacer(minLength: 0)
+            if !row.isDir {
+                Text(formatByteCount(row.size)).font(.caption2).foregroundColor(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { openFound(f) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name), \(FoundKind(f).word) in \(dir)")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    /// A found folder opens in Files; a photo or video in the viewer,
+    /// paging through the results' photos and videos; anything else as a
+    /// tap on it in its folder would.
+    private func openFound(_ f: Msg_File) {
+        let row = FileRow(file: f)
+        if row.isDir {
+            vm.closeResults()
+            vm.navigate(to: FilePaths.asFolder(f.path))
+            return
+        }
+        guard vm.openingPath == nil else { return }
+        if vm.isMedia(row) {
+            let items = vm.resultViewerItems()
+            guard let start = items.firstIndex(where: { $0.path == f.path }) else { return }
+            let text = vm.results?.text ?? ""
+            // A delete from the viewer asks the device again.
+            viewer.onDeleted = { _ in Task { await vm.startSearch(text) } }
+            viewer.showFiles(items, startAt: start)
+            return
+        }
+        Task { await vm.open(row) }
     }
 
     /// The open item's grid thumbnail, standing in for save/share until

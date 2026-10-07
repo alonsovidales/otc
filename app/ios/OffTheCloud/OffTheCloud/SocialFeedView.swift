@@ -87,6 +87,9 @@ final class SocialFeedViewModel: ObservableObject {
     // this before deciding "genuinely nothing in social, fall back to
     // Images" instead of racing a launch-time snapshot of an empty cache.
     @Published private(set) var hasLoadedOnce = false
+    /// One more for every "New post" in the wide layout's top bar
+    /// (AppMenu.swift), which opens the composer here.
+    @Published var composeRequests = 0
     private var endReached = false
 
     private var pollTask: Task<Void, Never>?
@@ -469,8 +472,16 @@ struct SocialFeedView: View {
     // Issue #84: Friendships used to be its own top-level tab - now a
     // sheet presented from here instead, left of "+" (same arrangement as
     // the web app's own header button), so it isn't reachable when there's
-    // nothing to actually apply a friendship to yet.
-    @State private var showingFriendships = false
+    // nothing to actually apply a friendship to yet. MainView's, so that
+    // turning the phone moves it to the wide layout's Friends page and
+    // back. A wide window has Friends in its menu instead (AppMenu.swift):
+    // no button here, and a friend-request alert opens that page.
+    @Binding var showingFriendships: Bool
+    @Environment(\.wideLayout) private var wide
+
+    init(showingFriendships: Binding<Bool>) {
+        _showingFriendships = showingFriendships
+    }
     /// The feed's visible height: the scroll view less the navigation and
     /// tab bars and anything else on its safe area. Every post's media is
     /// kept inside it (rule 1, see cFeedMaxAspect). nil until the first
@@ -488,7 +499,13 @@ struct SocialFeedView: View {
     // it scrolls away with everything else once the user starts reading -
     // same "collapses as you engage" feel as Instagram/Twitter's own
     // wordmark header.
+    // A wide window's top bar has the logo already (AppMenu.swift).
+    @ViewBuilder
     private var logoHeader: some View {
+        if !wide { logoRow }
+    }
+
+    private var logoRow: some View {
         HStack {
             Image("OTCLogo")
                 .resizable()
@@ -667,14 +684,19 @@ struct SocialFeedView: View {
             // button instead of level with it.
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            // A wide window: "New post" is in the top bar, as on the web,
+            // and Friends in the menu - nothing left for this bar.
+            .toolbar(wide ? .hidden : .automatic, for: .navigationBar)
             .toolbar {
                 // Issue #84: left of "+", matching the web header's own
                 // arrangement (button, then "+").
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showingFriendships = true } label: {
-                        Image(systemName: "person.2")
+                if !wide {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button { showingFriendships = true } label: {
+                            Image(systemName: "person.2")
+                        }
+                        .accessibilityLabel("Friends")
                     }
-                    .accessibilityLabel("Friends")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     // Outline circle + orange tint, matching the web
@@ -690,12 +712,13 @@ struct SocialFeedView: View {
                 }
             }
         }
+        .onChange(of: vm.composeRequests) { _, _ in showingPicker = true }
         .sheet(isPresented: $showingPicker) {
             NewPostPickerView {
                 Task { await vm.loadFeed() }
             }
         }
-        .sheet(isPresented: $showingFriendships) {
+        .sheet(isPresented: Binding(get: { showingFriendships && !wide }, set: { showingFriendships = $0 })) {
             FriendshipsView()
         }
         // Issue #78/#84: a tapped like/comment notification opens that post
@@ -708,6 +731,8 @@ struct SocialFeedView: View {
                 Task { await vm.openPost(pubUuid: pubUuid, commentUuid: commentUuid) }
                 notifications.pendingDeepLink = nil
             case .friendRequests:
+                // A wide window: MainView opens the Friends page.
+                guard !wide else { break }
                 showingFriendships = true
                 notifications.pendingDeepLink = nil
             case .updates, nil:

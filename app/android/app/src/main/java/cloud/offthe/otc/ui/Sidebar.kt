@@ -657,6 +657,17 @@ fun MenuButton(expanded: Boolean, onClick: () -> Unit, modifier: Modifier = Modi
     ) { Icon(NavIcons.Menu, null, Modifier.size(24.dp), tint = colors.text) }
 }
 
+/**
+ * A page's name for TalkBack alone, where the wide layout's menu already
+ * names the page on screen (the web keeps such a heading for screen
+ * readers; iOS HiddenPageHeading). Put it in a Box over the page: it takes
+ * no room.
+ */
+@Composable
+fun HiddenPageHeading(title: String, modifier: Modifier = Modifier) {
+    Box(modifier.size(1.dp).semantics { heading(); contentDescription = title })
+}
+
 /** A separate line the width of the bar, under it (the web's border-bottom: var(--line)). */
 @Composable
 fun Hairline(modifier: Modifier = Modifier) {

@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,6 +29,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,9 +57,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -74,6 +80,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -509,6 +517,9 @@ private fun PersonPic(p: Person?, sizeDp: Int) {
  * hanging from the field in the top bar as the web's does on a window
  * that wide - a card [dropdownWidth] wide at [dropdownOffset] in the box,
  * no dimming, and a tap anywhere else in the box ends the search.
+ * [riseTo]: how high above the box (its y there, negative above it) the
+ * dropdown may rise when the keyboard leaves too little room under the
+ * field - a phone turned sideways (dropdownPlace).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -516,8 +527,20 @@ fun TopSearchPanel(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, options: SearchOptions,
     modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {},
     dropdown: Boolean = false, dropdownOffset: IntOffset = IntOffset.Zero, dropdownWidth: Dp = 0.dp,
+    riseTo: Int? = null,
 ) {
     val focus = LocalFocusManager.current
+    // A swipe through the matches puts the keyboard away (all of them show
+    // then); the search stays open - as on iOS.
+    val keyboard = LocalSoftwareKeyboardController.current
+    val keyboardAwayOnDrag = remember(keyboard) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) keyboard?.hide()
+                return Offset.Zero
+            }
+        }
+    }
     val typed = search.query.trim()
     val q = FilesNav.fold(typed).text
     if (!search.open || q.isEmpty()) return
@@ -526,10 +549,10 @@ fun TopSearchPanel(
         pick(o, search, gallery, onShowPhotos)
         focus.clearFocus()
     }
+    val keyboardUp = WindowInsets.isImeVisible
     // The dropdown's own back, registered as it opens, so it comes before
     // the page under it (People's, Collections') - the keyboard's first.
     if (dropdown) {
-        val keyboardUp = WindowInsets.isImeVisible
         BackHandler(enabled = !keyboardUp) {
             search.close()
             gallery.refreshListsIfStale()
@@ -543,6 +566,13 @@ fun TopSearchPanel(
     // The row to search the documents: first when no tag or person matches.
     val docsFirst = tags.isEmpty() && people.isEmpty()
     val alreadyIn = st.chips.any { FilesNav.fold(it).text == q }
+    // A new query, or a new first row (the tags arrived after the files,
+    // say), starts at the top: the list would otherwise keep the row that
+    // was first in sight, wherever it moved to, and the best matches go
+    // out of sight above it.
+    val list = rememberLazyListState()
+    val firstKey = options.options.firstOrNull()?.key
+    LaunchedEffect(q, firstKey) { if (list.firstVisibleItemIndex != 0 || list.firstVisibleItemScrollOffset != 0) list.scrollToItem(0) }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         Box(
@@ -555,17 +585,16 @@ fun TopSearchPanel(
         )
         Surface(
             if (dropdown) {
-                // Under the field, as wide as it (320 at least), and no
-                // taller than 640 or 70% of the room left (the keyboard's
-                // already taken out of it).
-                Modifier.offset { dropdownOffset }.width(dropdownWidth.coerceAtLeast(320.dp).coerceAtMost(maxWidth))
-                    .heightIn(max = minOf(640.dp, (maxHeight - with(LocalDensity.current) { dropdownOffset.y.toDp() } - 8.dp).coerceAtLeast(120.dp)))
+                // Under the field (or risen over it while typing on a short
+                // window), as wide as it (320 at least).
+                Modifier.dropdownPlace(dropdownOffset, riseTo.takeIf { keyboardUp })
+                    .width(dropdownWidth.coerceAtLeast(320.dp).coerceAtMost(maxWidth))
                     .border(1.dp, colors.outlineVariant, RoundedCornerShape(16.dp))
             } else Modifier.fillMaxWidth(),
             shape = if (dropdown) RoundedCornerShape(16.dp) else RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
             color = colors.surfaceContainer, tonalElevation = 3.dp, shadowElevation = 8.dp,
         ) {
-            LazyColumn(contentPadding = PaddingValues(top = 4.dp, bottom = 8.dp)) {
+            LazyColumn(Modifier.nestedScroll(keyboardAwayOnDrag), state = list, contentPadding = PaddingValues(top = 4.dp, bottom = 8.dp)) {
                 fun section(title: String) = item(key = "h:$title") { SectionHead(title) }
                 if (tags.isNotEmpty()) {
                     section("Things")
@@ -622,6 +651,33 @@ fun TopSearchPanel(
             }
         }
     }
+}
+
+/** Less room than this under the field, the keyboard up: the dropdown rises (dropdownPlace). */
+private val ROOMY = 200.dp
+
+/**
+ * The dropdown's place in its box: at [at], under the field, as tall as
+ * its rows up to 640dp or the room left down there (the keyboard's already
+ * taken out of the box; 120dp at least). With the keyboard up and less
+ * than [ROOMY] under the field - a phone turned sideways, where the
+ * keyboard takes most of the window - it would sit under the keyboard
+ * instead: there it may rise over the top bar, field included, as high as
+ * [riseTo], with its foot just above the keyboard, so the matches stay in
+ * sight and in reach while typing (the keyboard's strip still shows the
+ * word). It rises only as far as its rows need, and goes back under the
+ * field with the keyboard.
+ */
+private fun Modifier.dropdownPlace(at: IntOffset, riseTo: Int?) = layout { measurable, constraints ->
+    val gap = 8.dp.roundToPx()
+    val below = constraints.maxHeight - at.y - gap
+    val top = riseTo?.takeIf { below < ROOMY.roundToPx() }
+    val room = if (top != null) constraints.maxHeight - gap - top else below.coerceAtLeast(120.dp.roundToPx())
+    val panel = measurable.measure(constraints.copy(minHeight = 0, maxHeight = minOf(640.dp.roundToPx(), room).coerceAtLeast(0)))
+    val y = if (top != null) minOf(at.y, constraints.maxHeight - gap - panel.height).coerceAtLeast(top) else at.y
+    // Its size within the box's (one taller would be centred on it,
+    // shifting it up), the panel itself drawn where it goes.
+    layout(constraints.constrainWidth(panel.width), constraints.constrainHeight(panel.height)) { panel.place(at.x, y) }
 }
 
 @Composable

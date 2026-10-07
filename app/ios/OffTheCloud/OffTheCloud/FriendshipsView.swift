@@ -165,6 +165,13 @@ struct FriendshipsView: View {
     // Issue #84: this is a sheet presented from Social now, not a tab of
     // its own - it needs its own way to close, same as NewPostPickerView.
     @Environment(\.dismiss) private var dismiss
+    /// false: a page of the wide layout's menu (AppMenu.swift), which has
+    /// nothing to close.
+    private let showsDone: Bool
+
+    init(showsDone: Bool = true) {
+        self.showsDone = showsDone
+    }
 
     var body: some View {
         NavigationStack {
@@ -245,9 +252,17 @@ struct FriendshipsView: View {
             // used to supply "Profile" for free.
             .navigationTitle("Friends")
             .navigationBarTitleDisplayMode(.inline)
+            // The wide layout's page: its menu names it, as the web's
+            // does, so no title bar.
+            .toolbar(showsDone ? .automatic : .hidden, for: .navigationBar)
+            .overlay(alignment: .topLeading) {
+                if !showsDone { HiddenPageHeading(title: "Friends") }
+            }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                if showsDone {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
             }
             .overlay(alignment: .top) {

@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -263,12 +266,15 @@ fun MainView(secrets: SecretsStore) {
         val menuStatus: StatusViewModel = viewModel(key = "menuStatus")
         val statusState by menuStatus.state.collectAsState()
         // The storage is read every 30 s while the menu shows, every 5 s
-        // while its details (CPU, memory) are open, as the web's 5 s.
+        // while its details (CPU, memory) are open, as the web's 5 s - and
+        // until a first answer comes, so a failed first ask (the connection
+        // still coming up) doesn't leave the gauge empty for 30 s.
         val detailsShown = storageDetails && (layout == MenuLayout.FULL || drawerOpen)
-        LaunchedEffect(wide, detailsShown, lifecycle) {
+        val haveStatus = statusState.status != null
+        LaunchedEffect(wide, detailsShown, haveStatus, lifecycle) {
             if (!wide) { menuStatus.stop(); return@LaunchedEffect }
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                menuStatus.start(if (detailsShown) 5_000L else 30_000L)
+                menuStatus.start(if (detailsShown || !haveStatus) 5_000L else 30_000L)
                 try { awaitCancellation() } finally { menuStatus.stop() }
             }
         }
@@ -289,8 +295,10 @@ fun MainView(secrets: SecretsStore) {
             }
             go(s)
         }
-        // The field's place in the window, for the panel hanging from it.
+        // The field's place in the window, for the panel hanging from it,
+        // and where the page starts (under the top bar), in the window too.
         var fieldBounds by remember { mutableStateOf(Rect.Zero) }
+        var contentTop by remember { mutableStateOf(0f) }
 
         Scaffold(topBar = {
             // Nothing at all when there is nothing to show: an empty bar
@@ -325,9 +333,11 @@ fun MainView(secrets: SecretsStore) {
                             // Files picked in the tab bar: whatever search
                             // results show, back to the folder (as the web's menu).
                             if (t.section == Section.Files) FilesNav.leaveFilesSearch()
-                            // The tab already showing keeps what it shows
-                            // (Images' People page, say).
-                            if (section.tab != t.section) go(t.section)
+                            // Another tab, or the tab already showing from
+                            // one of its pages (Images' People page): the
+                            // tab's own root, as Android's tabs do. The root
+                            // itself, tapped again, stays as it is.
+                            if (section != t.section) go(t.section)
                         },
                         icon = {
                             if (t.section == Section.Alerts && unread > 0) {
@@ -339,7 +349,7 @@ fun MainView(secrets: SecretsStore) {
                 }
             }
         }) { pad ->
-            Box(Modifier.fillMaxSize().padding(pad).consumeWindowInsets(pad)) {
+            Box(Modifier.fillMaxSize().padding(pad).consumeWindowInsets(pad).onGloballyPositioned { contentTop = it.positionInRoot().y }) {
                 // A cutout or a side navigation bar (a phone turned sideways)
                 // is kept clear of; the menu takes the room at the left.
                 Row(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
@@ -399,25 +409,6 @@ fun MainView(secrets: SecretsStore) {
                         revealStorage = revealStorage, onStorageRevealed = { revealStorage = false },
                     )
                 }
-                // The search's panel, hanging from the top bar's field over
-                // the menu and the page.
-                if (wide && gallery != null && search != null && gst != null) {
-                    var origin by remember { mutableStateOf(Offset.Zero) }
-                    val density = LocalDensity.current
-                    Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInRoot() }.imePadding()) {
-                        val options = rememberSearchOptions(search, gst)
-                        TopSearchPanel(
-                            search, gallery, gst, options,
-                            onShowPhotos = { if (section != Section.Images) go(Section.Images) },
-                            dropdown = true,
-                            dropdownOffset = IntOffset(
-                                (fieldBounds.left - origin.x).roundToInt(),
-                                (fieldBounds.bottom - origin.y + with(density) { 6.dp.toPx() }).roundToInt(),
-                            ),
-                            dropdownWidth = with(density) { fieldBounds.width.toDp() },
-                        )
-                    }
-                }
                 val code = statusCode
                 val context = androidx.compose.ui.platform.LocalContext.current
                 Box(Modifier.fillMaxSize().imePadding()) {
@@ -427,6 +418,38 @@ fun MainView(secrets: SecretsStore) {
                         ConnectionProblemView(secrets = secrets, onLeave = { e, p -> logOut(context, secrets, unregisterPush = false, keepDevice = true, lastDevice = e to p) })
                     }
                 }
+            }
+        }
+        // The search's panel, hanging from the top bar's field over the
+        // menu and the page. It is laid over the whole Scaffold, not in its
+        // page, so that on a short window it can rise over the top bar
+        // (TopSearchPanel's riseTo); the taps that end the search are still
+        // caught under the top bar only, so the field and the menu button
+        // keep theirs. The device's unreachable and connection cards go
+        // over it as before: no panel while one of them shows.
+        if (wide && gallery != null && search != null && gst != null && statusCode == null && !showConnectionProblem) {
+            var origin by remember { mutableStateOf(Offset.Zero) }
+            val density = LocalDensity.current
+            // As high as the panel may rise: just under the status bar.
+            val ceiling = WindowInsets.statusBars.getTop(density) + with(density) { 4.dp.roundToPx() }
+            Box(
+                Modifier.fillMaxSize().padding(top = with(density) { contentTop.toDp() })
+                    .onGloballyPositioned { origin = it.positionInRoot() }
+                    // Above the keyboard, or the navigation bar without it.
+                    .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom)),
+            ) {
+                val options = rememberSearchOptions(search, gst)
+                TopSearchPanel(
+                    search, gallery, gst, options,
+                    onShowPhotos = { if (section != Section.Images) go(Section.Images) },
+                    dropdown = true,
+                    dropdownOffset = IntOffset(
+                        (fieldBounds.left - origin.x).roundToInt(),
+                        (fieldBounds.bottom - origin.y + with(density) { 6.dp.toPx() }).roundToInt(),
+                    ),
+                    dropdownWidth = with(density) { fieldBounds.width.toDp() },
+                    riseTo = (ceiling - origin.y).roundToInt(),
+                )
             }
         }
     }

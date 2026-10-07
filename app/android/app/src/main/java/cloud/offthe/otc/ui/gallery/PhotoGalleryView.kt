@@ -89,6 +89,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -167,6 +168,13 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     // The search (TopSearch.kt): its field here, its panel over the grid.
     val search: TopSearchViewModel = viewModel(key = "topsearch")
     val options = rememberSearchOptions(search, st)
+    // The Collections sheet over the photos ends the search, as going to
+    // Collections does (MainView's go) - the only way here with it still
+    // open is the wide Collections page turned narrow, the section kept;
+    // its panel and field would stay in use behind the sheet. Ahead of the
+    // field below, so that the field doesn't take the focus back for it.
+    val focus = LocalFocusManager.current
+    LaunchedEffect(showGroups) { if (showGroups && search.open) { search.close(); focus.clearFocus() } }
     // The People page (PeopleView.kt), shown in place of the photos while
     // face recognition is on; it goes with it.
     val faces by FaceRecognition.enabled.collectAsState()
