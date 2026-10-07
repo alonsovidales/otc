@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
@@ -63,7 +62,7 @@ fun SelectionActionBar(
                 Item("Share", Icons.Default.Share, busy = busy == SelectionActionTask.SHARE, enabled = count > 0 && busy == null, onClick = onShare, modifier = Modifier.weight(1f))
                 if (onGallery != null) Item("Share as gallery", Icons.Default.PhotoLibrary, enabled = busy == null, onClick = onGallery, modifier = Modifier.weight(1f))
                 Item("Download", Icons.Default.Download, busy = busy == SelectionActionTask.DOWNLOAD, enabled = count > 0 && busy == null, onClick = onDownload, modifier = Modifier.weight(1f))
-                if (onGroup != null) Item("Add to collection", Icons.Default.LibraryAdd, enabled = count > 0 && busy == null, onClick = onGroup, modifier = Modifier.weight(1f))
+                if (onGroup != null) Item("Add to collection", NavIcons.AddToCollection, enabled = count > 0 && busy == null, onClick = onGroup, modifier = Modifier.weight(1f))
                 Item("Delete", Icons.Default.Delete, tint = Color(0xFFE53935), enabled = count > 0 && busy == null, onClick = onDelete, modifier = Modifier.weight(1f))
             }
         }

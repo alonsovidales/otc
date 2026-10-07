@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import cloud.offthe.otc.MainActivity
+import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
@@ -16,6 +17,7 @@ import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.common.ThumbCache
 import cloud.offthe.otc.ui.common.ThumbStore
+import cloud.offthe.otc.ui.files.FilesNav
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -47,6 +49,8 @@ fun logOut(
         // reached anyway - and retire the push token either way.
         FCMPush.unregister(context.applicationContext, tellDevice = unregisterPush)
         NotificationsModel.reset()
+        FaceRecognition.reset()
+        FilesNav.reset()
         UploadModel.reset()
         SocialFeedViewModel.reset()
         OTCConnection.reset()

@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
@@ -63,6 +64,59 @@ fun OTCTextField(
                 visualTransformation = visualTransformation,
                 interactionSource = interaction,
                 placeholder = hint?.let { h ->
+                    { androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalTextStyle provides textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) { h() } }
+                },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),
+                container = {
+                    OutlinedTextFieldDefaults.Container(
+                        enabled = enabled, isError = false, interactionSource = interaction,
+                        shape = MaterialTheme.shapes.small, focusedBorderThickness = 1.5.dp, unfocusedBorderThickness = 1.dp,
+                    )
+                },
+            )
+        },
+    )
+}
+
+/**
+ * The same field over a [TextFieldValue], for a caller that places the
+ * cursor or selection itself (a name field that opens with its text
+ * selected, so typing replaces it).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OTCTextField(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: @Composable (() -> Unit)? = null,
+    singleLine: Boolean = false,
+    enabled: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.heightIn(min = 36.dp),
+        enabled = enabled,
+        singleLine = singleLine,
+        textStyle = textStyle,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        interactionSource = interaction,
+        decorationBox = { inner ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = value.text,
+                innerTextField = inner,
+                enabled = enabled,
+                singleLine = singleLine,
+                visualTransformation = VisualTransformation.None,
+                interactionSource = interaction,
+                placeholder = placeholder?.let { h ->
                     { androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalTextStyle provides textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) { h() } }
                 },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),

@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
@@ -17,7 +18,6 @@ import cloud.offthe.otc.proto.AddToImageGroup
 import cloud.offthe.otc.proto.CreateImageGroup
 import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.DeleteImageGroup
-import cloud.offthe.otc.proto.DeletePerson
 import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.GetFileInfo
@@ -25,10 +25,8 @@ import cloud.offthe.otc.proto.GetTags
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.ListPeople
-import cloud.offthe.otc.proto.MergePeople
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.RenameImageGroup
-import cloud.offthe.otc.proto.RenamePerson
 import cloud.offthe.otc.proto.ReqPhotoDateBuckets
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
@@ -56,6 +54,10 @@ import java.util.UUID
 // before release 97 ignores it and answers its default, 30.
 const val FIRST_PHOTO_PAGE_LIMIT = 12
 
+// How old the tag and people lists may get before a search that ends
+// fetches them again.
+private const val LISTS_REFRESH_MS = 5 * 60_000L
+
 // Port of PhotoGalleryVM (PhotoGallery.swift). Tag chips, the person
 // filter (issue #52, AND semantics), image groups (issue #115, which the
 // app calls collections), the date scrubber (issue #77), a search
@@ -65,24 +67,25 @@ const val FIRST_PHOTO_PAGE_LIMIT = 12
 // The same view model also drives the viewer opened from the Files section
 // (showFiles): a separate instance holding just that folder's photos and
 // videos, with no search or paging.
-class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
+class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleStore {
     // thumbKey: the thumbnail's bytes in ThumbStore (the item's id), null
     // when the device sent none. preview: an already decoded placeholder
     // (the Files grid's thumbnail), used when there are no thumb bytes.
     data class Item(val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?, val preview: Bitmap? = null)
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
-    data class PendingMerge(val target: Person, val source: Person)
 
     data class State(
         val tags: List<String> = emptyList(),
         val chips: List<String> = emptyList(),
+        // Everyone the device found (ListPeople: most photos first), for
+        // the search and the People page; peopleLoaded once a list came.
         val allPeople: List<Person> = emptyList(),
+        val peopleLoaded: Boolean = false,
         val selectedPeople: List<String> = emptyList(),
-        val editingPersonId: String? = null,
         val groups: List<ImageGroup> = emptyList(),
+        // A list of collections came (the Collections page's skeleton until then).
+        val groupsLoaded: Boolean = false,
         val activeGroup: ImageGroup? = null,
-        val mergeTargetId: String? = null,
-        val pendingMerge: PendingMerge? = null,
         val dateBuckets: List<DateBucket> = emptyList(),
         val scrubFrac: Float? = null,
         val placeholderCount: Int? = null,
@@ -154,7 +157,79 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     }
 
     fun onAppearInitial() = viewModelScope.launch {
+        watchFaceRecognition()
+        listsAsked = true
         loadTags(); loadPeople(); resetAndLoadFirstPage()
+    }
+
+    // The search in the wide layout's top bar (MainView) works from any
+    // section, before Images was ever opened: its tags and people are
+    // fetched once for it then. Images' own first appearance fetches them
+    // too, with its photos.
+    private var listsAsked = false
+    fun loadListsOnce() {
+        if (listsAsked) return
+        listsAsked = true
+        watchFaceRecognition()
+        viewModelScope.launch {
+            loadTags()
+            if (FaceRecognition.enabled.value == true) loadPeople()
+        }
+    }
+
+    /**
+     * Images picked in the wide layout's menu: the whole library, as the
+     * web's menu does (photoFilter.showAll) - whatever was searched for, and
+     * an open collection, are left. Nothing to leave, nothing reloads.
+     */
+    fun showAll() {
+        val st = _state.value
+        if (st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeGroup == null) return
+        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = null) }
+        restartSearch()
+    }
+
+    // People in the search exist only while face recognition is on
+    // (FaceRecognition): turned on, the people are fetched; turned off,
+    // nobody is searched for any more. Started once, by the Images grid
+    // (not the Files viewer's instance).
+    private var watchingFaces = false
+    private fun watchFaceRecognition() {
+        if (watchingFaces) return
+        watchingFaces = true
+        viewModelScope.launch {
+            var was = FaceRecognition.enabled.value
+            FaceRecognition.enabled.collect { on ->
+                if (on == was) return@collect
+                was = on
+                if (on == true) { loadPeople(); listsFetchedAt = System.currentTimeMillis() }
+                if (on == false && _state.value.selectedPeople.isNotEmpty()) {
+                    _state.update { it.copy(selectedPeople = emptyList()) }
+                    restartSearch()
+                }
+            }
+        }
+    }
+
+    // New photos bring new tags and faces. The lists are fetched again when
+    // a search ends, if the last time was a while ago: current for the next
+    // one, and nothing moves under the finger while picking.
+    private var listsFetchedAt = System.currentTimeMillis()
+    fun refreshListsIfStale() {
+        if (System.currentTimeMillis() - listsFetchedAt < LISTS_REFRESH_MS) return
+        listsFetchedAt = System.currentTimeMillis()
+        viewModelScope.launch {
+            loadTags()
+            if (FaceRecognition.enabled.value == true) loadPeople()
+        }
+    }
+
+    /** The search field's clear button: tags and people go, an open collection stays. */
+    fun clearSearch() {
+        val st = _state.value
+        if (st.chips.isEmpty() && st.selectedPeople.isEmpty()) return
+        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList()) }
+        restartSearch()
     }
 
     private fun restartSearch() {
@@ -177,7 +252,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
     private suspend fun loadTags() {
         try {
             val resp = OTCConnection.request { it.setReqGetTags(GetTags.getDefaultInstance()) }
-            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_TAGS_LIST) _state.update { it.copy(tags = resp.respTagsList.tagsList) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_TAGS_LIST) {
+                _state.update { it.copy(tags = resp.respTagsList.tagsList) }
+                listsFetchedAt = System.currentTimeMillis()
+            }
         } catch (_: Exception) {}
     }
 
@@ -217,24 +295,37 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         if (mine == searchGeneration) _state.update { it.copy(placeholderCount = null) }
     }
 
-    private suspend fun loadPeople() {
+    /** The people, asked again: true once the device's list is in. */
+    override suspend fun loadPeople(): Boolean {
         try {
             val resp = OTCConnection.request { it.setReqListPeople(ListPeople.getDefaultInstance()) }
-            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_PEOPLE) _state.update { it.copy(allPeople = resp.respPeople.peopleList) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_PEOPLE) {
+                _state.update { it.copy(allPeople = resp.respPeople.peopleList, peopleLoaded = true) }
+                return true
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (_: Exception) {}
+        return false
     }
 
-    suspend fun loadGroups() {
+    /** The collections, asked again: true once the device's list is in (groupsLoaded). */
+    suspend fun loadGroups(): Boolean {
         try {
             val resp = OTCConnection.request { it.setReqListImageGroups(ListImageGroups.getDefaultInstance()) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_IMAGE_GROUPS) {
                 val gs = resp.respImageGroups.groupsList
-                _state.update { st -> st.copy(groups = gs, activeGroup = st.activeGroup?.let { open -> gs.firstOrNull { it.id == open.id } ?: open }) }
+                _state.update { st -> st.copy(groups = gs, groupsLoaded = true, activeGroup = st.activeGroup?.let { open -> gs.firstOrNull { it.id == open.id } ?: open }) }
+                return true
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (_: Exception) {}
+        return false
     }
 
-    fun openGroup(g: ImageGroup) { _state.update { it.copy(activeGroup = g) }; restartSearch() }
+    /** A collection's photos: a new search, the tags and people gone (the web's openGroup). */
+    fun openGroup(g: ImageGroup) { _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = g) }; restartSearch() }
     fun leaveGroup() { _state.update { it.copy(activeGroup = null) }; restartSearch() }
 
     suspend fun renameActiveGroup(newName: String) {
@@ -291,49 +382,23 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         restartSearch()
     }
 
-    fun startRenamePerson(p: Person) = _state.update { it.copy(editingPersonId = p.id) }
-
-    suspend fun commitRenamePerson(id: String, rawName: String) {
-        val name = rawName.trim()
-        _state.update { it.copy(editingPersonId = null) }
-        try {
-            val r = OTCConnection.request { it.setReqRenamePerson(RenamePerson.newBuilder().setId(id).setName(name)) }
-            if (r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok) {
-                _state.update { st -> st.copy(allPeople = st.allPeople.map { if (it.id == id) it.toBuilder().setName(name).build() else it }) }
-            }
-        } catch (_: Exception) {}
+    /** One person's photos, from the People page: a new search (the web's showPerson). */
+    fun showPerson(id: String) {
+        _state.update { it.copy(chips = emptyList(), selectedPeople = listOf(id), activeGroup = null) }
+        restartSearch()
     }
 
-    suspend fun deletePerson(id: String) {
-        try {
-            val r = OTCConnection.request { it.setReqDeletePerson(DeletePerson.newBuilder().setId(id)) }
-            if (r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok) {
-                _state.update { st -> st.copy(allPeople = st.allPeople.filter { it.id != id }, selectedPeople = st.selectedPeople - id) }
-            }
-        } catch (_: Exception) {}
+    /** A name the device took (PeopleView): the search and the chips have it at once. */
+    override fun renamePersonLocally(id: String, name: String) {
+        _state.update { st -> st.copy(allPeople = st.allPeople.map { if (it.id == id) it.toBuilder().setName(name).build() else it }) }
     }
 
-    fun setMergeTarget(id: String?) = _state.update { it.copy(mergeTargetId = id) }
-
-    fun pickMergeTarget(p: Person) {
-        val st = _state.value
-        if (st.mergeTargetId == p.id) { _state.update { it.copy(mergeTargetId = null) }; return }
-        val target = st.allPeople.firstOrNull { it.id == st.mergeTargetId } ?: return
-        _state.update { it.copy(mergeTargetId = null, pendingMerge = PendingMerge(target, p)) }
-    }
-
-    fun cancelMerge() = _state.update { it.copy(pendingMerge = null) }
-
-    suspend fun confirmMerge() {
-        val m = _state.value.pendingMerge ?: return
-        _state.update { it.copy(pendingMerge = null) }
-        try {
-            val r = OTCConnection.request { it.setReqMergePeople(MergePeople.newBuilder().setTargetId(m.target.id).addSourceIds(m.source.id)) }
-            if (r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok) {
-                _state.update { st -> st.copy(selectedPeople = st.selectedPeople - m.source.id) }
-                loadPeople()
-            }
-        } catch (_: Exception) {}
+    /** People merged away or deleted (PeopleView): gone from the list, and from the search. */
+    override fun forgetPeople(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        val searched = _state.value.selectedPeople.any { it in ids }
+        _state.update { st -> st.copy(allPeople = st.allPeople.filter { it.id !in ids }, selectedPeople = st.selectedPeople - ids) }
+        if (searched) restartSearch()
     }
 
     suspend fun resetAndLoadFirstPage() {

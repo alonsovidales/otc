@@ -28,6 +28,7 @@ import cloud.offthe.otc.proto.ReqSetupTailscale
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RespUserMetrics
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
+import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.proto.SetImageTaggingEnabled
 import cloud.offthe.otc.proto.StartReprocess
 import cloud.offthe.otc.proto.Status
@@ -153,6 +154,8 @@ class DeviceSettingsViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS) {
                 state.update { it.copy(faceRecognitionEnabled = resp.respSettings.faceRecognitionEnabled, imageTaggingEnabled = resp.respSettings.imageTaggingEnabled) }
+                // The one place the rest of the app reads it from (People in the search).
+                FaceRecognition.set(resp.respSettings.faceRecognitionEnabled)
             }
         } catch (_: Exception) {}
     }
@@ -162,6 +165,8 @@ class DeviceSettingsViewModel : ViewModel() {
         try {
             val resp = OTCConnection.request { it.setReqSetFaceRecognitionEnabled(SetFaceRecognitionEnabled.newBuilder().setEnabled(enabled)) }
             if (!resp.ackOk()) { state.update { it.copy(faceRecognitionEnabled = !enabled) }; toast(resp.ackError("Update failed")) }
+            // Acknowledged: People comes or goes at once, everywhere.
+            else FaceRecognition.set(enabled)
         } catch (e: Exception) { state.update { it.copy(faceRecognitionEnabled = !enabled) }; toast("Error updating this setting") }
         finally { state.update { it.copy(savingFaceRecognition = false) } }
     }
@@ -208,10 +213,14 @@ class StatusViewModel : ViewModel() {
     data class State(val status: Status? = null, val errorText: String? = null)
     val state = MutableStateFlow(State())
     private var poll: Job? = null
+    private var pollMs = 0L
 
-    fun start() {
-        if (poll != null) return
-        poll = viewModelScope.launch { while (isActive) { fetch(); delay(5000) } }
+    /** Asks every [periodMs] (Settings: 5 s; the wide layout's menu more slowly); a new period restarts the poll. */
+    fun start(periodMs: Long = 5000) {
+        if (poll != null && periodMs == pollMs) return
+        poll?.cancel()
+        pollMs = periodMs
+        poll = viewModelScope.launch { while (isActive) { fetch(); delay(periodMs) } }
     }
 
     fun stop() { poll?.cancel(); poll = null }

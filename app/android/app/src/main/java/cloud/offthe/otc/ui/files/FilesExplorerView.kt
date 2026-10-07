@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.net.ChunkedDownload
@@ -93,6 +94,8 @@ import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.ui.text.font.FontWeight
 import cloud.offthe.otc.proto.ListFileVersions
 import cloud.offthe.otc.proto.SetUploadOnly
+import cloud.offthe.otc.proto.SearchFiles
+import cloud.offthe.otc.ui.gallery.isUnknownPayload
 import java.text.DateFormat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -118,6 +121,13 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import cloud.offthe.otc.ui.gallery.ImageModal
 import cloud.offthe.otc.ui.gallery.PhotoGalleryViewModel
 import java.util.Date
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 
 // Port of FilesExplorerView.swift: path navigation, per-row checkboxes,
 // upload from the phone, share/download/delete of the selection, and
@@ -145,6 +155,21 @@ private fun normPath(p: String): String {
     return s
 }
 private fun leafName(full: String) = full.split('/').lastOrNull { it.isNotEmpty() } ?: full
+// A file as SearchFiles or the Images search found it (its path is whole).
+private fun isMediaFile(f: PbFile) = !isDir(f) && (isImg(f) || isVideo(f) || f.path.endsWith(".heic", ignoreCase = true))
+private fun foundRow(f: PbFile) = FileRow(f.path, leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions)
+
+/**
+ * The Images search's "Search documents" (FilesNav.searchInFiles): every
+ * file and folder whose path holds [text], as SearchFiles finds them - at
+ * most SEARCH_LIMIT, the most it answers - listed over the folder, which
+ * stays as it was for the way back. An error says what went wrong, and
+ * whether trying again may help.
+ */
+data class SearchResults(val text: String, val phase: Phase, val files: List<PbFile> = emptyList(), val error: String? = null, val retry: Boolean = true) {
+    enum class Phase { LOADING, DONE, ERROR }
+}
+private const val SEARCH_LIMIT = 50
 
 // uploadOnly/versions: issue #132 - inside (or itself) an upload-only
 // folder, and how many older versions the device keeps for the file.
@@ -172,6 +197,10 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         // Bumped by load(): tiles ask again for thumbnails that failed, as a
         // reload or pull-to-refresh always did.
         val thumbGen: Int = 0,
+        // The folder the rows are the listing of (null until one arrives).
+        val listedPath: String? = null,
+        // The search's results, shown over the folder; null: the folder.
+        val results: SearchResults? = null,
     )
 
     companion object {
@@ -205,30 +234,100 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     val path get() = _state.value.path
 
     suspend fun load() {
+        // The folder asked for: a listing that comes back after another
+        // folder was opened (the search opening one as Files appears) is
+        // not that folder's, and is dropped.
+        val p = path
         _state.update { it.copy(loading = true, error = null) }
         try {
-            val resp = OTCConnection.request { it.setReqListFiles(ListFiles.newBuilder().setPath(path)) }
+            val resp = OTCConnection.request { it.setReqListFiles(ListFiles.newBuilder().setPath(p)) }
+            if (path != p) return
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
                 val files = resp.respListOfFiles.filesList.toMutableList()
-                if (path != "/") files.add(0, PbFile.newBuilder().setMime("inode/directory").setPath("..").build())
+                if (p != "/") files.add(0, PbFile.newBuilder().setMime("inode/directory").setPath("..").build())
                 val rows = files.map { f ->
                     FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions)
                 }
-                _state.update { it.copy(rows = rows, selected = emptySet(), thumbGen = it.thumbGen + 1) }
+                _state.update { it.copy(rows = rows, selected = emptySet(), thumbGen = it.thumbGen + 1, listedPath = p) }
             } else if (resp.error) {
+                if (mediaToOpen?.first == p) mediaToOpen = null
                 _state.update { it.copy(error = resp.errorMessage.ifEmpty { "Failed to list path" }) }
             } else {
                 _state.update { it.copy(error = "Unexpected response") }
             }
         } catch (e: Exception) {
-            _state.update { it.copy(error = e.message ?: "Error") }
+            if (path == p) _state.update { it.copy(error = e.message ?: "Error") }
         } finally {
-            _state.update { it.copy(loading = false) }
+            if (path == p) _state.update { it.copy(loading = false) }
         }
     }
 
+    // A photo or video the search picked (its folder, and the file): opened
+    // in the viewer once that folder's listing is in, to page through it.
+    var mediaToOpen: Pair<String, PbFile>? = null
+
+    private var searchSeq = 0
+
+    /** The search's "Search documents": the results, shown over the folder. Only the last search asked for lands. */
+    fun startSearch(text: String) {
+        val mine = ++searchSeq
+        _state.update { it.copy(results = SearchResults(text, SearchResults.Phase.LOADING)) }
+        viewModelScope.launch {
+            fun fail(error: String, retry: Boolean = true) {
+                if (mine == searchSeq) _state.update { it.copy(results = SearchResults(text, SearchResults.Phase.ERROR, error = error, retry = retry)) }
+            }
+            val resp = try {
+                OTCConnection.request { it.setReqSearchFiles(SearchFiles.newBuilder().setQuery(text).setLimit(SEARCH_LIMIT)) }
+            } catch (e: Exception) {
+                fail("The search didn't reach the device. Check the connection and try again.")
+                return@launch
+            }
+            // The Images search stops offering it on such a device.
+            if (resp.isUnknownPayload()) FilesNav.deviceCantSearchFiles()
+            if (mine != searchSeq) return@launch
+            when {
+                resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES -> {
+                    val files = resp.respListOfFiles.filesList
+                    _state.update { it.copy(results = SearchResults(text, SearchResults.Phase.DONE, files)) }
+                    resultThumbnails(files)
+                }
+                resp.isUnknownPayload() -> fail("This device can't search its files yet. Update it in Settings.", retry = false)
+                else -> fail(resp.errorMessage.ifEmpty { "The device didn't answer the search." })
+            }
+        }
+    }
+
+    /** Back to the folder. */
+    fun closeResults() {
+        if (_state.value.results == null) return
+        searchSeq++
+        _state.update { it.copy(results = null) }
+    }
+
+    /** The results' photos and videos, by their thumbnails: asked for together, 24 paths at a time. */
+    private suspend fun resultThumbnails(files: List<PbFile>) {
+        val want = files.filter { isMediaFile(it) && thumbCache.get(it.path + "\u0000" + it.hash) == null }
+        for (batch in want.chunked(THUMB_BATCH)) {
+            try {
+                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { f -> f.path })) }
+                if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) continue
+                val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
+                withContext(Dispatchers.Default) {
+                    for (f in batch) byPath[f.path]?.let { decodeBitmap(it.content.toByteArray(), maxSide = 512) }?.let { thumbCache.put(f.path + "\u0000" + f.hash, it.asImageBitmap()) }
+                }
+                _state.update { it.copy(thumbs = thumbCache.snapshot()) }
+            } catch (_: Exception) {}
+        }
+    }
+
+    /** A result's thumbnail, if it has one by now. */
+    fun resultThumbKey(f: PbFile) = f.path + "\u0000" + f.hash
+
     fun navigate(newPath: String) {
-        _state.update { it.copy(path = normPath(newPath)) }
+        val p = normPath(newPath)
+        // A photo the search picked waits for its own folder only.
+        if (mediaToOpen?.first != p) mediaToOpen = null
+        _state.update { it.copy(path = p) }
         launchLoad()
     }
 
@@ -505,6 +604,72 @@ fun FilesExplorerView(initialPath: String) {
         viewer.showFiles(items, media.indexOf(row)) { vm.launchLoad() }
     }
 
+    // Kept here, not in the lists: the folder keeps its place while search
+    // results show over it.
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
+
+    // The Images search sent Files here (FilesNav): to a folder, and maybe
+    // to a file in it, opened as a tap on it would; or to the files and
+    // folders a text finds. A document opens at once; a photo or video
+    // waits for its folder's listing, to page through the folder.
+    val request by FilesNav.pending.collectAsState()
+    LaunchedEffect(request) {
+        val r = request ?: return@LaunchedEffect
+        FilesNav.take(r)
+        when (r) {
+            is FilesRequest.Search -> if (r.text.isNotEmpty()) vm.startSearch(r.text)
+            FilesRequest.Leave -> vm.closeResults()
+            is FilesRequest.Show -> {
+                vm.closeResults()
+                val dir = normPath(r.dir)
+                val f = r.file
+                vm.mediaToOpen = if (f != null && isMediaFile(f)) dir to f else null
+                vm.navigate(dir)
+                listState.requestScrollToItem(0)
+                gridState.requestScrollToItem(0)
+                if (f != null && !isMediaFile(f)) scope.launch { vm.open(context, foundRow(f)) }
+            }
+        }
+    }
+    // On every listing (thumbGen): the folder listed again, with the same
+    // rows, when the search picks a photo in the folder already open.
+    LaunchedEffect(st.listedPath, st.thumbGen) {
+        val (dir, file) = vm.mediaToOpen ?: return@LaunchedEffect
+        if (st.listedPath != dir) return@LaunchedEffect
+        vm.mediaToOpen = null
+        val media = st.rows.filter { isMedia(it) }
+        val row = media.firstOrNull { vm.fullPath(it) == file.path }
+        // Not in the listing (the file went): the file alone.
+        if (row != null) openRow(row)
+        else viewer.showFiles(listOf(PhotoGalleryViewModel.Item("${file.path}#${file.hash}#${file.byteSize}", file.path, file.mime, file.byteSize, null)), 0) { vm.launchLoad() }
+    }
+    // The system back leaves the results for the folder.
+    BackHandler(enabled = st.results != null) { vm.closeResults() }
+
+    // A found folder opens in Files; a photo or video in the viewer, paging
+    // through the results' photos and videos; anything else as a tap on it
+    // in its folder would.
+    fun openFound(f: PbFile) {
+        val results = st.results ?: return
+        if (isDir(f)) {
+            vm.closeResults()
+            vm.navigate(normPath(f.path))
+            listState.requestScrollToItem(0)
+            gridState.requestScrollToItem(0)
+            return
+        }
+        if (isMediaFile(f)) {
+            val media = results.files.filter { isMediaFile(it) }
+            val items = media.map { x ->
+                PhotoGalleryViewModel.Item("${x.path}#${x.hash}#${x.byteSize}", x.path, x.mime, x.byteSize, null, st.thumbs[vm.resultThumbKey(x)]?.asAndroidBitmap())
+            }
+            viewer.showFiles(items, maxOf(0, media.indexOf(f))) { vm.startSearch(results.text) }
+            return
+        }
+        if (st.openingPath == null) scope.launch { vm.open(context, foundRow(f)) }
+    }
+
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
         for (uri in uris) {
             scope.launch(Dispatchers.IO) {
@@ -515,7 +680,11 @@ fun FilesExplorerView(initialPath: String) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        val results = st.results
+        if (results != null) SearchResultsView(
+            results, folderLabel = if (st.path == "/") "Files" else leafName(st.path), thumbs = st.thumbs, openingPath = st.openingPath,
+            thumbKey = vm::resultThumbKey, onBack = { vm.closeResults() }, onRetry = { vm.startSearch(results.text) }, onOpen = ::openFound,
+        ) else Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OTCTextField(
                     value = pathField, onValueChange = { pathField = it }, singleLine = true, label = { Text("/path/") },
@@ -537,7 +706,7 @@ fun FilesExplorerView(initialPath: String) {
                 modifier = Modifier.weight(1f),
             ) {
                 if (st.grid) LazyVerticalGrid(
-                    GridCells.Adaptive(104.dp), Modifier.fillMaxSize(),
+                    GridCells.Adaptive(104.dp), Modifier.fillMaxSize(), state = gridState,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -561,7 +730,7 @@ fun FilesExplorerView(initialPath: String) {
                             onLock = { lockPrompt = row },
                         )
                     }
-                } else LazyColumn(Modifier.fillMaxSize()) {
+                } else LazyColumn(Modifier.fillMaxSize(), state = listState) {
                     items(st.rows, key = { it.path }) { row ->
                         val selected = row.path in st.selected
                         Row(
@@ -756,6 +925,93 @@ private fun FileGridCell(
         Text(row.name, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
+}
+
+/**
+ * The search's results over the folder: a way back to it, what was
+ * searched for and how many were found, and each file or folder with the
+ * folder it is in (the part the text matched in bold).
+ */
+@Composable
+private fun SearchResultsView(
+    results: SearchResults, folderLabel: String, thumbs: Map<String, ImageBitmap>, openingPath: String?,
+    thumbKey: (PbFile) -> String, onBack: () -> Unit, onRetry: () -> Unit, onOpen: (PbFile) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val q = remember(results.text) { FilesNav.fold(results.text).text }
+    val found = remember(results) { results.files.map { it to FilesNav.foundParts(it.path, q) } }
+    Column(Modifier.fillMaxSize()) {
+        TextButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 4.dp)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Back to $folderLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text("Files matching \u201C${results.text}\u201D", style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 16.dp))
+        // Its line kept while searching, so the list doesn't move.
+        Text(
+            if (results.phase == SearchResults.Phase.DONE && found.isNotEmpty())
+                (if (found.size == SEARCH_LIMIT) "Showing the first $SEARCH_LIMIT results" else "${found.size} ${if (found.size == 1) "result" else "results"}")
+            else "",
+            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+        when (results.phase) {
+            SearchResults.Phase.LOADING -> Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+                Text("Searching\u2026", color = colors.onSurfaceVariant)
+            }
+            SearchResults.Phase.ERROR -> Column(Modifier.padding(16.dp)) {
+                Text(results.error ?: "", color = colors.error)
+                if (results.retry) TextButton(onClick = onRetry) { Text("Try again") }
+            }
+            SearchResults.Phase.DONE -> if (found.isEmpty()) {
+                Text("No files match \u201C${results.text}\u201D.", color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+            }
+        }
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
+            items(found, key = { it.first.path }) { (f, parts) ->
+                val dir = isDir(f)
+                val thumb = if (isMediaFile(f)) thumbs[thumbKey(f)] else null
+                Row(
+                    Modifier.fillMaxWidth().clickable(enabled = openingPath == null) { onOpen(f) }.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceContainerLow), contentAlignment = Alignment.Center) {
+                        when {
+                            dir -> Icon(Icons.Default.Folder, null, Modifier.size(28.dp), tint = colors.primary)
+                            thumb != null -> Image(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            else -> FileTypeIcon(parts.name, Modifier.fillMaxSize().padding(5.dp))
+                        }
+                        if (thumb != null && isVideo(f)) {
+                            Box(Modifier.align(Alignment.BottomStart).padding(3.dp).size(16.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape),
+                                contentAlignment = Alignment.Center) { Icon(Icons.Default.PlayArrow, "Video", tint = Color.White, modifier = Modifier.size(11.dp)) }
+                        }
+                        if (openingPath == f.path) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(marked(parts.name, parts.nameSpan), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // Long folders lose their start, not the end nearest the file.
+                        Text(marked(parts.dir, parts.dirSpan, colors.onSurface), style = MaterialTheme.typography.bodySmall,
+                            color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.StartEllipsis)
+                    }
+                    if (!dir) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(formatBytes(f.byteSize), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A found name or folder with the part the text matched in bold. */
+private fun marked(text: String, span: Span?, markColor: Color? = null) = buildAnnotatedString {
+    if (span == null || span.first < 0 || span.last >= text.length) { append(text); return@buildAnnotatedString }
+    append(text.substring(0, span.first))
+    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = markColor ?: Color.Unspecified)) { append(text.substring(span.first, span.last + 1)) }
+    append(text.substring(span.last + 1))
 }
 
 /** What the upload-only lock says (issue #132). The same words as iOS's

@@ -165,7 +165,7 @@ class FriendshipsViewModel : ViewModel() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendshipsView(onDone: () -> Unit) {
+fun FriendshipsView(onDone: (() -> Unit)?) {
     val vm: FriendshipsViewModel = viewModel()
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
@@ -173,8 +173,13 @@ fun FriendshipsView(onDone: () -> Unit) {
 
     // Shown in a sheet, which already sits below the status bar: no insets
     // of its own (they left a status bar's worth of gap under the handle).
+    // The wide layout shows it as a page of its own, reached from its menu
+    // (MainView): no Done there ([onDone] null).
     Scaffold(contentWindowInsets = WindowInsets(0), topBar = {
-        TopAppBar(title = { Text("Friends") }, navigationIcon = { TextButton(onClick = onDone) { Text("Done") } }, windowInsets = WindowInsets(0))
+        TopAppBar(
+            title = { Text("Friends") }, windowInsets = WindowInsets(0),
+            navigationIcon = { if (onDone != null) TextButton(onClick = onDone) { Text("Done") } },
+        )
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {

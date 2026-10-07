@@ -120,6 +120,7 @@ import java.io.File
 import java.util.UUID
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.activity.compose.BackHandler
 
 // Port of SocialFeedView.swift: the feed, PostCard, likers sheet, video
 // autoplay (issue #114) with a shared mute preference, carousel paging
@@ -158,23 +159,40 @@ object FeedAudio {
     var muted by mutableStateOf(true)
 }
 
+/**
+ * The feed. [friendsOpen]: Friends (FriendshipsView) shows - a sheet over
+ * the feed, or in the wide layout (MainView, [wide]) a page in its place,
+ * since its menu has Friends; [onFriendsOpen] opens and closes it (the
+ * section MainView keeps). Wide, the feed has no bar of its own: the
+ * menu has Friends, the top bar the logo and New post, which
+ * [onRegisterOpenComposer] hands the composer's opener to (null when the
+ * feed goes), as the web's Social does.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SocialFeedView() {
+fun SocialFeedView(
+    wide: Boolean = false, friendsOpen: Boolean = false, onFriendsOpen: (Boolean) -> Unit = {},
+    onRegisterOpenComposer: ((() -> Unit)?) -> Unit = {},
+) {
     val vm = SocialFeedViewModel
     val st by vm.state.collectAsState()
     val deepLink by NotificationsModel.pendingDeepLink.collectAsState()
     val scope = rememberCoroutineScope()
     var showingPicker by remember { mutableStateOf(false) }
-    var showingFriendships by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    // The bar the posts scroll under: none when wide.
+    val barHeight = if (wide) 0.dp else feedTopBarHeight
 
+    DisposableEffect(Unit) {
+        onRegisterOpenComposer { showingPicker = true }
+        onDispose { onRegisterOpenComposer(null) }
+    }
     LaunchedEffect(deepLink) {
         when (val l = deepLink) {
             is NotificationsModel.DeepLink.Post -> { vm.openPost(l.pubUuid, l.commentUuid); NotificationsModel.consumeDeepLink() }
-            is NotificationsModel.DeepLink.FriendRequests -> { showingFriendships = true; NotificationsModel.consumeDeepLink() }
+            is NotificationsModel.DeepLink.FriendRequests -> { onFriendsOpen(true); NotificationsModel.consumeDeepLink() }
             null -> {}
         }
     }
@@ -184,9 +202,37 @@ fun SocialFeedView() {
         // The bar is over the feed, not above it: land the post's header
         // just under the bar (the cap keeps its whole media below it), not
         // under the bar at the feed's top.
-        if (idx >= 0) listState.animateScrollToItem(idx + 1, -with(density) { feedTopBarHeight.roundToPx() })
+        if (idx >= 0) listState.animateScrollToItem(idx + 1, -with(density) { barHeight.roundToPx() })
         vm.consumeScrollTarget()
     }
+
+    // Wide: Friends is a page in the feed's place (the feed keeps its
+    // place under it); the system back returns to the feed.
+    if (wide && friendsOpen) {
+        BackHandler { onFriendsOpen(false) }
+        FriendshipsView(onDone = null)
+    } else Feed(wide, st, listState, barHeight, refreshing, { refreshing = it }, onFriends = { onFriendsOpen(true) }, onNewPost = { showingPicker = true })
+
+    if (showingPicker) {
+        NewPostPickerView(onDismiss = { showingPicker = false }, onPosted = { scope.launch { vm.loadFeed() } })
+    }
+    if (friendsOpen && !wide) {
+        // Fully open: half a sheet cut the list off, on the Fold's wide
+        // screen right at the first friend.
+        ModalBottomSheet(onDismissRequest = { onFriendsOpen(false) }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 400.dp)) { FriendshipsView(onDone = { onFriendsOpen(false) }) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Feed(
+    wide: Boolean, st: SocialFeedViewModel.State, listState: LazyListState, barHeight: Dp, refreshing: Boolean, setRefreshing: (Boolean) -> Unit,
+    onFriends: () -> Unit, onNewPost: () -> Unit,
+) {
+    val vm = SocialFeedViewModel
+    val scope = rememberCoroutineScope()
 
     // MainView's Scaffold already keeps the tabs below the status bar, so
     // this bar must not pad for it again (it did, and the masthead sat
@@ -203,41 +249,43 @@ fun SocialFeedView() {
     Scaffold(contentWindowInsets = WindowInsets(0), topBar = {
         // Issue #81 (as on iOS): the bar itself carries no title - the logo
         // is the feed's first row, so it scrolls away once reading starts.
-        TopAppBar(
+        if (!wide) TopAppBar(
             title = {},
             windowInsets = WindowInsets(0),
             expandedHeight = feedTopBarHeight,
             colors = TopAppBarDefaults.topAppBarColors(containerColor = if (underBar) solidBar else Color.Transparent),
             actions = {
-                IconButton(onClick = { showingFriendships = true }) { Icon(Icons.Default.Group, "Friends") }
-                IconButton(onClick = { showingPicker = true }) { Icon(Icons.Outlined.AddCircleOutline, "New post", tint = Ember) }
+                IconButton(onClick = onFriends) { Icon(Icons.Default.Group, "Friends") }
+                IconButton(onClick = onNewPost) { Icon(Icons.Outlined.AddCircleOutline, "New post", tint = Ember) }
             },
         )
     }) { pad ->
         // Not padded for the bar: the content starts under it (see above).
         BoxWithConstraints(Modifier.padding(bottom = pad.calculateBottomPadding()).fillMaxSize()) {
-            val postCap = rememberPostCap(if (constraints.hasBoundedHeight) maxHeight else LocalConfiguration.current.screenHeightDp.dp)
+            val postCap = rememberPostCap(if (constraints.hasBoundedHeight) maxHeight else LocalConfiguration.current.screenHeightDp.dp, barHeight)
             when {
                 // Issue #22: a real loading state while the first fetch is in
                 // flight, distinct from "genuinely no posts" - both under the
                 // same masthead as the feed itself.
                 st.posts.isEmpty() && st.loading -> Column(Modifier.fillMaxSize()) {
-                    LogoHeader()
+                    LogoHeader(wide)
                     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
                         CircularProgressIndicator(); Spacer(Modifier.height(8.dp)); Text("Loading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 st.posts.isEmpty() -> Column(Modifier.fillMaxSize()) {
-                    LogoHeader()
-                    EmptyFeed { showingPicker = true }
+                    LogoHeader(wide)
+                    EmptyFeed(onNewPost)
                 }
                 else -> PullToRefreshBox(
                     isRefreshing = refreshing,
-                    onRefresh = { scope.launch { refreshing = true; vm.loadFeed(); refreshing = false } },
+                    onRefresh = { scope.launch { setRefreshing(true); vm.loadFeed(); setRefreshing(false) } },
                     modifier = Modifier.fillMaxSize(),
+                    // A window wider than the feed has it in the middle.
+                    contentAlignment = Alignment.TopCenter,
                 ) {
-                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().widthIn(max = feedMaxWidthDp.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        item { LogoHeader() }
+                    LazyColumn(state = listState, modifier = Modifier.widthIn(max = feedMaxWidthDp.dp).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        item { LogoHeader(wide) }
                         itemsIndexed(st.posts, key = { _, p -> p.uuid }) { idx, post ->
                             LaunchedEffect(post.uuid) { vm.loadMoreIfNeeded(post) }
                             PostCard(
@@ -264,21 +312,16 @@ fun SocialFeedView() {
         }
     }
 
-    if (showingPicker) {
-        NewPostPickerView(onDismiss = { showingPicker = false }, onPosted = { scope.launch { vm.loadFeed() } })
-    }
-    if (showingFriendships) {
-        // Fully open: half a sheet cut the list off, on the Fold's wide
-        // screen right at the first friend.
-        ModalBottomSheet(onDismissRequest = { showingFriendships = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            Box(Modifier.fillMaxWidth().heightIn(min = 400.dp)) { FriendshipsView(onDone = { showingFriendships = false }) }
-        }
-    }
 }
 
-/** The OTCLogo masthead: 28dp high at the leading edge, like the iOS logoHeader (issue #126). */
+/**
+ * The OTCLogo masthead: 28dp high at the leading edge, like the iOS
+ * logoHeader (issue #126). [wide]: the top bar has the logo, and the feed
+ * starts with a little room instead.
+ */
 @Composable
-private fun LogoHeader() {
+private fun LogoHeader(wide: Boolean) {
+    if (wide) { Spacer(Modifier.height(8.dp)); return }
     // 48dp, the top bar's height: level with its icons.
     Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Image(
@@ -317,12 +360,12 @@ private fun EmptyFeed(onNewPost: () -> Unit) {
  * split screen) is taken as it comes.
  */
 @Composable
-private fun rememberPostCap(feedHeight: Dp): Dp {
+private fun rememberPostCap(feedHeight: Dp, barHeight: Dp): Dp {
     val imeShown = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val config = LocalConfiguration.current
     val lastWithoutIme = remember(config.screenWidthDp, config.screenHeightDp, config.orientation) { arrayOfNulls<Dp>(1) }
     val height = lastWithoutIme[0]?.takeIf { imeShown } ?: feedHeight.also { if (!imeShown) lastWithoutIme[0] = it }
-    return height - feedTopBarHeight - mediaCapMargin
+    return height - barHeight - mediaCapMargin
 }
 
 private data class LikersTarget(val isPublication: Boolean, val uuid: String)

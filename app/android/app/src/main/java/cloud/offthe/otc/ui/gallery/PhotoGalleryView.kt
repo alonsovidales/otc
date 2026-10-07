@@ -14,7 +14,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -44,27 +43,21 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.proto.SharedGallerySource
 import cloud.offthe.otc.ui.share.SharedGalleryShareFlow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,6 +77,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,8 +91,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -109,7 +101,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.proto.FileExifInfo
-import cloud.offthe.otc.proto.Person
+import cloud.offthe.otc.ui.common.NavIcons
 import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.ThumbStore
@@ -122,11 +114,22 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.math.abs
 
-// Port of PhotoGalleryView (PhotoGallery.swift): chips + tag search,
-// the person strip (rename/merge/delete), the group chip and sheet, the
+// Port of PhotoGalleryView (PhotoGallery.swift): the search (TopSearch.kt:
+// tags, people and files, as the web's top bar), the People button and page
+// (PeopleView.kt, while face recognition is on), the group chip and sheet, the
 // adaptive grid with long-press selection, the date scrubber overlay,
 // the selection bar and the full-screen viewer with share/save/delete
 // and the EXIF panel (issue #41).
+//
+// The wide layout (MainView, a window 600dp or more across) has the search
+// in its top bar and People and Collections in its menu: Images there is
+// the grid alone (with an open collection's bar), and People and
+// Collections are pages of their own in its place (CollectionsView.kt) -
+// still drawn from here, so the grid and its scroll stay put under them,
+// and a rotation or a fold between the two layouts keeps both.
+
+/** What the Images section shows: the photos, or the People or Collections page over them. */
+enum class GalleryPage { PHOTOS, PEOPLE, COLLECTIONS }
 
 // Full size: the viewer's placeholder, until the full image arrives. Tiles
 // use rememberTileThumb (decoded off the main thread, to the tile's size).
@@ -138,16 +141,21 @@ private fun rememberThumb(key: String?): Bitmap? {
     return remember(bytes) { bytes?.let { decodeBitmap(it) } }
 }
 
+/**
+ * Images. [page]: the photos, People (shown in their place on any width)
+ * or Collections (a sheet over the photos when narrow, the page in their
+ * place when [wide]); [onPage] moves between them - the section MainView
+ * keeps, so the wide menu and a change of layout know it too.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhotoGalleryView(deviceId: String) {
+fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage = GalleryPage.PHOTOS, onPage: (GalleryPage) -> Unit = {}) {
     val vm: PhotoGalleryViewModel = viewModel(key = "gallery") { PhotoGalleryViewModel(deviceId) }
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var query by remember { mutableStateOf("") }
-    var showSuggest by remember { mutableStateOf(false) }
-    var showGroups by remember { mutableStateOf(false) }
+    // Narrow: Collections is the sheet of collections over the photos.
+    val showGroups = page == GalleryPage.COLLECTIONS && !wide
     var showGroupPicker by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf<String?>(null) }
     var renameGroupName by remember { mutableStateOf<String?>(null) }
@@ -155,50 +163,56 @@ fun PhotoGalleryView(deviceId: String) {
     // Issue #180: "Share as gallery" on a group - what is being shared.
     var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
-    var personPendingDelete by remember { mutableStateOf<String?>(null) }
-    var editingPersonName by remember { mutableStateOf("") }
     val gridState = rememberLazyGridState()
+    // The search (TopSearch.kt): its field here, its panel over the grid.
+    val search: TopSearchViewModel = viewModel(key = "topsearch")
+    val options = rememberSearchOptions(search, st)
+    // The People page (PeopleView.kt), shown in place of the photos while
+    // face recognition is on; it goes with it.
+    val faces by FaceRecognition.enabled.collectAsState()
+    val showPeople = page == GalleryPage.PEOPLE
+    LaunchedEffect(faces) { if (faces != true && showPeople) onPage(GalleryPage.PHOTOS) }
 
     LaunchedEffect(Unit) { vm.onAppearInitial() }
 
-    val suggestions = remember(query, st.tags) {
-        val q = query.trim().lowercase()
-        if (q.isEmpty()) emptyList() else st.tags.filter { it.lowercase().startsWith(q) }.take(12)
-    }
-    fun acceptQuery() {
-        val q = query.trim()
-        if (q.isEmpty()) return
-        vm.addChip(if (suggestions.size == 1) suggestions[0] else q)
-        query = ""
-        showSuggest = false
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        // Chips + search bar
-        Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(vertical = 8.dp)) {
-            if (st.chips.isNotEmpty()) {
-                Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    st.chips.forEach { chip -> Chip(chip, Color(0x262196F3)) { vm.removeChip(chip) } }
+    if (showPeople && faces == true) {
+        PeopleView(
+            vm,
+            onOpenPhotos = { onPage(GalleryPage.PHOTOS); scope.launch { gridState.scrollToItem(0) } },
+            onBack = { onPage(GalleryPage.PHOTOS) },
+            showBack = !wide,
+        )
+    } else if (page == GalleryPage.COLLECTIONS && wide) {
+        CollectionsView(
+            vm,
+            onOpen = { onPage(GalleryPage.PHOTOS); scope.launch { gridState.scrollToItem(0) } },
+            onShowPhotos = { onPage(GalleryPage.PHOTOS) },
+        )
+    } else Column(Modifier.fillMaxSize()) {
+        // Wide, the search is in the top bar and People and Collections in
+        // the menu: only an open collection's bar is left up here.
+        if (!wide || st.activeGroup != null) Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(top = if (wide) 2.dp else 8.dp, bottom = 8.dp)) {
+            if (!wide) Row(Modifier.padding(start = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                TopSearchField(search, vm, st, options, Modifier.weight(1f))
+                // The ways into People and collections, as the web's menu
+                // has them (Images, People, Collections); the tooltips name
+                // the icons for sighted users too.
+                if (faces == true) {
+                    val people: PeopleViewModel = viewModel(key = "people")
+                    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text("People") } }, state = rememberTooltipState()) {
+                        IconButton(onClick = { people.enter(); onPage(GalleryPage.PEOPLE) }) { Icon(NavIcons.People, "People") }
+                    }
                 }
-            }
-            Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                OTCTextField(
-                    value = query, onValueChange = { query = it; showSuggest = true }, singleLine = true, placeholder = { Text("Type a tag…") },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { acceptQuery() }), modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = { acceptQuery() }) { Text("Search") }
-                // The only way into collections; the tooltip names the icon for sighted users too.
                 TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text("Collections") } }, state = rememberTooltipState()) {
-                    IconButton(onClick = { scope.launch { vm.loadGroups() }; showGroups = true }) { Icon(Icons.Default.CollectionsBookmark, "Collections") }
+                    IconButton(onClick = { onPage(GalleryPage.COLLECTIONS) }) { Icon(NavIcons.Collections, "Collections") }
                 }
             }
             st.activeGroup?.let { g ->
                 Row(
-                    Modifier.padding(horizontal = 8.dp).background(Color(0x26FF9800), CircleShape).padding(horizontal = 10.dp, vertical = 5.dp),
+                    Modifier.padding(start = 8.dp, top = 6.dp).background(Color(0x26FF9800), CircleShape).padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.CollectionsBookmark, null, Modifier.size(14.dp))
+                    Icon(NavIcons.Collections, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(g.name, Modifier.clickable { renameGroupName = g.name })
                     Text(" · ${g.fileCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -210,41 +224,6 @@ fun PhotoGalleryView(deviceId: String) {
                     Icon(Icons.Default.Delete, "Delete collection", Modifier.size(16.dp).clickable { confirmDeleteGroup = true }, tint = Color(0xFFE53935))
                     Spacer(Modifier.width(6.dp))
                     Text("×", Modifier.clickable { vm.leaveGroup() })
-                }
-            }
-            if (showSuggest && suggestions.isNotEmpty()) {
-                Column(Modifier.padding(horizontal = 8.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14808080))) {
-                    suggestions.forEach { s ->
-                        Text(s, Modifier.fillMaxWidth().clickable { vm.addChip(s); query = ""; showSuggest = false }.padding(10.dp, 6.dp))
-                    }
-                }
-            }
-            if (st.allPeople.isNotEmpty()) {
-                HorizontalDivider(Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-                st.mergeTargetId?.let { tid ->
-                    val name = st.allPeople.firstOrNull { it.id == tid }?.name?.ifEmpty { null } ?: "Unnamed"
-                    Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "Merging into $name — tap another person to merge them in.",
-                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = { vm.setMergeTarget(null) }) { Text("Cancel") }
-                    }
-                }
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top,
-                ) {
-                    st.allPeople.forEach { p ->
-                        PersonFilterChip(
-                            person = p, isSelected = p.id in st.selectedPeople, isMergeTarget = st.mergeTargetId == p.id,
-                            isEditing = st.editingPersonId == p.id, editingName = editingPersonName, onEditingNameChange = { editingPersonName = it },
-                            onTap = { if (st.mergeTargetId != null) vm.pickMergeTarget(p) else vm.togglePerson(p.id) },
-                            onStartRename = { editingPersonName = p.name; vm.startRenamePerson(p) },
-                            onCommitRename = { scope.launch { vm.commitRenamePerson(p.id, editingPersonName) } },
-                            onMerge = { vm.setMergeTarget(p.id) }, onDelete = { personPendingDelete = p.id },
-                        )
-                    }
                 }
             }
         }
@@ -291,33 +270,37 @@ fun PhotoGalleryView(deviceId: String) {
                     )
                 }
             }
+            // Wide, the panel hangs from the top bar's field (MainView).
+            if (!wide) TopSearchPanel(search, vm, st, options)
         }
     }
 
     // Sheets & dialogs
     if (showGroups) {
-        ModalBottomSheet(onDismissRequest = { showGroups = false }) {
+        // Asked again each time it opens (covers and counts change).
+        LaunchedEffect(Unit) { vm.loadGroups() }
+        ModalBottomSheet(onDismissRequest = { onPage(GalleryPage.PHOTOS) }) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Collections", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { showGroups = false }) { Text("Done") }
+                    TextButton(onClick = { onPage(GalleryPage.PHOTOS) }) { Text("Done") }
                 }
                 if (st.groups.isEmpty()) Text("No collections yet — select some pictures and choose Add to collection.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 st.groups.forEach { g ->
-                    Row(Modifier.fillMaxWidth().clickable { showGroups = false; vm.openGroup(g) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { onPage(GalleryPage.PHOTOS); vm.openGroup(g) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         val cover = rememberTileThumb(
                             if (g.coverThumbnail.isEmpty) null else "g:${g.id}:${g.coverThumbnail.hashCode()}",
                             with(LocalDensity.current) { 44.dp.roundToPx() },
                         ) { g.coverThumbnail.toByteArray() }
                         if (cover != null) Image(cover.asImageBitmap(), null, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
-                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.CollectionsBookmark, null) }
+                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(NavIcons.Collections, null) }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(g.name)
                             Text("${g.fileCount} ${if (g.fileCount == 1) "picture" else "pictures"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(onClick = {
-                            showGroups = false
+                            onPage(GalleryPage.PHOTOS)
                             gallerySource = SharedGallerySource.newBuilder().setGroupId(g.id).build()
                         }) { Icon(Icons.Default.Share, "Share as gallery", tint = MaterialTheme.colorScheme.primary) }
                     }
@@ -359,34 +342,11 @@ fun PhotoGalleryView(deviceId: String) {
             onConfirm = { confirmDeleteSelected = false; vm.deleteSelected() }, onDismiss = { confirmDeleteSelected = false },
         )
     }
-    personPendingDelete?.let { id ->
-        ConfirmDialog(
-            "Delete this person?", "This removes every face matched to them — it can't be undone.", "Delete",
-            onConfirm = { personPendingDelete = null; scope.launch { vm.deletePerson(id) } }, onDismiss = { personPendingDelete = null },
-        )
-    }
-    st.pendingMerge?.let { m ->
-        val s = m.source.name.ifEmpty { "Unnamed" }
-        val t = m.target.name.ifEmpty { "Unnamed" }
-        ConfirmDialog(
-            "Merge $s into $t?", "Every photo of $s will show up under $t instead — this can't be undone.", "Merge",
-            onConfirm = { scope.launch { vm.confirmMerge() } }, onDismiss = { vm.cancelMerge() },
-        )
-    }
     st.alert?.let {
         AlertDialog(onDismissRequest = { vm.dismissAlert() }, text = { Text(it) }, confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text("OK") } })
     }
 
     if (st.openIndex != null) ImageModal(vm, st)
-}
-
-@Composable
-private fun Chip(text: String, bg: Color, onRemove: () -> Unit) {
-    Row(Modifier.background(bg, CircleShape).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text)
-        Spacer(Modifier.width(6.dp))
-        Text("×", Modifier.clickable(onClick = onRemove))
-    }
 }
 
 @Composable
@@ -414,43 +374,6 @@ fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfi
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = Color(0xFFE53935)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
-}
-
-@Composable
-private fun PersonFilterChip(
-    person: Person, isSelected: Boolean, isMergeTarget: Boolean, isEditing: Boolean, editingName: String, onEditingNameChange: (String) -> Unit,
-    onTap: () -> Unit, onStartRename: () -> Unit, onCommitRename: () -> Unit, onMerge: () -> Unit, onDelete: () -> Unit,
-) {
-    // Keyed on the cover's content: a new array every recomposition used to
-    // decode every chip again on each keystroke of a rename.
-    val bmp = rememberTileThumb(
-        if (person.coverThumbnail.isEmpty) null else "p:${person.id}:${person.coverThumbnail.hashCode()}",
-        with(LocalDensity.current) { 44.dp.roundToPx() },
-    ) { person.coverThumbnail.toByteArray() }
-    val ring = if (isMergeTarget) Color.Red else if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Box(Modifier.size(44.dp).clip(CircleShape).border(3.dp, ring, CircleShape).clickable(onClick = onTap), contentAlignment = Alignment.Center) {
-            if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            else Box(Modifier.fillMaxSize().background(Color(0x33808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null) }
-        }
-        if (isEditing) {
-            BasicTextField(
-                value = editingName, onValueChange = onEditingNameChange, singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { onCommitRename() }),
-                textStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurface),
-                modifier = Modifier.width(60.dp).background(Color(0x14808080), RoundedCornerShape(4.dp)).padding(2.dp),
-            )
-        } else {
-            Text(
-                person.name.ifEmpty { "Unnamed" }, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(60.dp).clickable(onClick = onStartRename),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.Link, "Merge", Modifier.size(12.dp).clickable(onClick = onMerge), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Icon(Icons.Default.Delete, "Delete", Modifier.size(12.dp).clickable(onClick = onDelete), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
