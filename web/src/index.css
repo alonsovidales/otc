@@ -51,7 +51,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px 0 10px;
+  /* The menu button's centre lines up with the menu's icons below it (40px
+     in from the left, the rail's middle). */
+  padding: 0 16px 0 18px;
   background: var(--ink);
   border-bottom: 1px solid var(--line);
   z-index: 30;
@@ -74,7 +76,7 @@
 /* Signed in on a wide window the search starts where the page does, past
    the whole menu, as in Google Photos. */
 @media (min-width: 1024px) {
-  .tb-brand.signed-in { width: calc(var(--sidebar-w) - 52px); }
+  .tb-brand.signed-in { width: calc(var(--sidebar-w) - 60px); }
 }
 .tb-logo { height: 38px; width: auto; display: block; margin-left: 4px; }
 .tb-fill { flex: 1; }

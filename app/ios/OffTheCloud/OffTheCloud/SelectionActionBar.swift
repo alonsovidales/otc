@@ -34,9 +34,9 @@ struct SelectionActionBar: View {
     let onShare: () -> Void
     let onDownload: () -> Void
     let onDelete: () -> Void
-    /// Issue #115: "Group" - create a group from the selection or add it
-    /// to one. Only the Images tab has it, so it is optional and absent
-    /// from the bar when not given.
+    /// Issue #115: "Add to collection" - make a collection (an image group)
+    /// from the selection or add it to one. Only the Images tab has it, so
+    /// it is optional and absent from the bar when not given.
     var onGroup: (() -> Void)? = nil
     /// Issue #180: "Gallery" - share the selection as a gallery. Images
     /// only, so optional too (as on Android).
@@ -75,7 +75,7 @@ struct SelectionActionBar: View {
                 item("Download", symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
                     .disabled(count == 0)
                 if let onGroup {
-                    item("Group", symbol: "book", action: onGroup)
+                    item("Add to collection", symbol: "rectangle.stack.badge.plus", action: onGroup)
                         .disabled(count == 0)
                 }
                 item("Delete", symbol: "trash", tint: .red, action: onDelete)
@@ -110,7 +110,8 @@ struct SelectionActionBar: View {
                     }
                 }
                 .frame(height: 22)
-                // "Share as gallery" wraps onto two lines in a full bar.
+                // "Share as gallery" and "Add to collection" wrap onto two
+                // lines in a full bar.
                 Text(title).font(.caption2).multilineTextAlignment(.center).lineLimit(2)
             }
             // Equal shares of the bar, and the whole share is tappable -

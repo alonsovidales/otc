@@ -586,11 +586,23 @@ bridge's Web Push client reaches only public addresses, without redirects.
 
 ### Frontend (`web/`)
 
-React 19 + TypeScript + Vite, routed with `react-router-dom`. The signed-in shell is Google Photos-like: a fixed top bar
-(menu button, logo, the page's action) and a left menu (`Sidebar.tsx`: Images, Groups, Files; Social, Friends;
-Alerts, Settings; storage and mirror health at the foot, details on a click), hidden with the menu button
-(remembered, `otc_menu_open`) and an overlay below 900px; the page still scrolls the window, so sticky and
-fixed elements offset by `--topbar-h`. `web/src/net/` holds the WebSocket/proto
+React 19 + TypeScript + Vite, routed with `react-router-dom`. The signed-in shell is Google Photos-like
+(App.tsx, index.css). A fixed top bar holds the menu button, the logo and the search (`TopSearch.tsx`: chips
+for the open collection, people and tags inside the field; a panel of faces and tags, matches while
+typing). The left menu (`Sidebar.tsx`) lists Images, People, Collections, Files; Sharing: Social, Friends;
+Device: Alerts, Settings; storage at the foot. Three widths: ≥1024px it is whole or a rail of icons with
+labels (menu button, remembered in `otc_menu_open`); 600-1023px always the rail, the button lays the whole
+menu over the page; below that only the overlay. The window scrolls - nothing may give `main` (or another
+ancestor of the pages) an overflow, or `position: sticky` measures from it (release 103's 64px gap) - so
+sticky and fixed things offset by `--topbar-h`, and a page's own fixed bars use `left: var(--content-left)`.
+Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol
+and code keep `ImageGroup`/`groupId`. What Images shows is `photoFilter.ts` (tags, people, open
+collection; a store the search, People and Collections pages and the grid share); the people, collection
+and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
+(`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover
+or long-press, numbered in post order) with a bar over the top bar, dialogs for posting and collections,
+and `DateScrubber.tsx` (a column of years with a mouse, a draggable handle on touch). `People` and
+`Collections` are pages of their own (`PeopleView`, `CollectionsView`). `web/src/net/` holds the WebSocket/proto
 client; `web/src/views/` are top-level routed pages (`SignIn`, `Social`); `web/src/components/` are the
 feature widgets (files explorer, photo gallery, friendships, settings, status, profile, social feed —
 each with a co-located `.css`). Built output (`vite build`) is copied by `make web` into the device's

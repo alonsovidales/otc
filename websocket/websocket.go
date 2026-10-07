@@ -2845,7 +2845,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		log.Debug("Create image group:", name)
 		if name == "" {
 			resp.Error = true
-			resp.ErrorMessage = "a group needs a name"
+			resp.ErrorMessage = "a collection needs a name"
 			break
 		}
 		id, err := ch.mg.dao.CreateImageGroup(name)
@@ -2884,7 +2884,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		log.Info("Rename image group:", p.ReqRenameImageGroup.Id)
 		if name == "" {
 			resp.Error = true
-			resp.ErrorMessage = "a group needs a name"
+			resp.ErrorMessage = "a collection needs a name"
 			break
 		}
 		if err := ch.mg.dao.RenameImageGroup(p.ReqRenameImageGroup.Id, name); err != nil {

@@ -49,9 +49,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleDown
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
@@ -184,14 +184,14 @@ fun PhotoGalleryView(deviceId: String) {
                     keyboardActions = KeyboardActions(onSearch = { acceptQuery() }), modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = { acceptQuery() }) { Text("Search") }
-                IconButton(onClick = { scope.launch { vm.loadGroups() }; showGroups = true }) { Icon(Icons.Default.Book, "Groups") }
+                IconButton(onClick = { scope.launch { vm.loadGroups() }; showGroups = true }) { Icon(Icons.Default.Collections, "Collections") }
             }
             st.activeGroup?.let { g ->
                 Row(
                     Modifier.padding(horizontal = 8.dp).background(Color(0x26FF9800), CircleShape).padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.Book, null, Modifier.size(14.dp))
+                    Icon(Icons.Default.Collections, null, Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(g.name, Modifier.clickable { renameGroupName = g.name })
                     Text(" · ${g.fileCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -200,7 +200,7 @@ fun PhotoGalleryView(deviceId: String) {
                         gallerySource = SharedGallerySource.newBuilder().setGroupId(g.id).build()
                     }, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.Delete, "Delete group", Modifier.size(16.dp).clickable { confirmDeleteGroup = true }, tint = Color(0xFFE53935))
+                    Icon(Icons.Default.Delete, "Delete collection", Modifier.size(16.dp).clickable { confirmDeleteGroup = true }, tint = Color(0xFFE53935))
                     Spacer(Modifier.width(6.dp))
                     Text("×", Modifier.clickable { vm.leaveGroup() })
                 }
@@ -292,10 +292,10 @@ fun PhotoGalleryView(deviceId: String) {
         ModalBottomSheet(onDismissRequest = { showGroups = false }) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Groups", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text("Collections", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     TextButton(onClick = { showGroups = false }) { Text("Done") }
                 }
-                if (st.groups.isEmpty()) Text("No groups yet — select some pictures and choose Group.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (st.groups.isEmpty()) Text("No collections yet — select some pictures and choose Add to collection.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 st.groups.forEach { g ->
                     Row(Modifier.fillMaxWidth().clickable { showGroups = false; vm.openGroup(g) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         val cover = rememberTileThumb(
@@ -303,7 +303,7 @@ fun PhotoGalleryView(deviceId: String) {
                             with(LocalDensity.current) { 44.dp.roundToPx() },
                         ) { g.coverThumbnail.toByteArray() }
                         if (cover != null) Image(cover.asImageBitmap(), null, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
-                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Book, null) }
+                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Collections, null) }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(g.name)
@@ -321,28 +321,28 @@ fun PhotoGalleryView(deviceId: String) {
     if (showGroupPicker) {
         ModalBottomSheet(onDismissRequest = { showGroupPicker = false }) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("Add ${st.selected.size} to a group", style = MaterialTheme.typography.titleMedium)
+                Text("Add ${st.selected.size} to a collection", style = MaterialTheme.typography.titleMedium)
                 st.groups.forEach { g -> TextButton(onClick = { showGroupPicker = false; scope.launch { vm.addSelectionToGroup(g) } }) { Text(g.name) } }
-                TextButton(onClick = { showGroupPicker = false; newGroupName = "" }) { Text("New group…") }
+                TextButton(onClick = { showGroupPicker = false; newGroupName = "" }) { Text("New collection…") }
             }
         }
     }
     newGroupName?.let { name ->
         TextDialog(
-            "New group", "${st.selected.size} ${if (st.selected.size == 1) "picture" else "pictures"} will be added to it.", name, "Group name", "Create",
+            "New collection", "${st.selected.size} ${if (st.selected.size == 1) "picture" else "pictures"} will be added to it.", name, "Collection name", "Create",
             onChange = { newGroupName = it }, onConfirm = { newGroupName = null; scope.launch { vm.createGroupFromSelection(name) } }, onDismiss = { newGroupName = null },
         )
     }
     renameGroupName?.let { name ->
         TextDialog(
-            "Rename group", null, name, "Group name", "Save",
+            "Rename collection", null, name, "Collection name", "Save",
             onChange = { renameGroupName = it }, onConfirm = { renameGroupName = null; scope.launch { vm.renameActiveGroup(name) } }, onDismiss = { renameGroupName = null },
         )
     }
     gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
     if (confirmDeleteGroup) {
         ConfirmDialog(
-            "Delete the group \"${st.activeGroup?.name ?: ""}\"?", "The pictures themselves are kept.", "Delete group",
+            "Delete the collection \"${st.activeGroup?.name ?: ""}\"?", "The pictures themselves are kept.", "Delete collection",
             onConfirm = { confirmDeleteGroup = false; scope.launch { vm.deleteActiveGroup() } }, onDismiss = { confirmDeleteGroup = false },
         )
     }

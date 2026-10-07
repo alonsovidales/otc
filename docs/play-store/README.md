@@ -51,8 +51,8 @@ privacy details to the end.
   > - Find any picture in seconds: search by what is in it, where it was taken, or who is in it
   >   (face recognition is optional and off by default).
   > - See each photo's camera details, and where it was taken on a map.
-  > - Share an album with grandparents and friends as a link that expires. They open it in their
-  >   browser, with no account or app, and can download the originals.
+  > - Share a collection with grandparents and friends as a link that expires. They open it in
+  >   their browser, with no account or app, and can download the originals.
   > - A private feed for family and friends: posts, comments and likes go from device to device,
   >   never through a company's servers.
   > - One device for the whole family: give everyone at home their own account, with their own
@@ -70,7 +70,7 @@ privacy details to the end.
   > open-source server. The server and the apps are open source (AGPL).
 
 - **Release notes** (first release):
-  `The first Off The Cloud for Android: back up every family photo in full quality to your own device at home, find any picture in seconds, and share albums with the people you love.`
+  `The first Off The Cloud for Android: back up every family photo in full quality to your own device at home, find any picture in seconds, and share collections with the people you love.`
 
 - **Countries** (production, set 2026-10-06; the bridge runs in France): the EU 27, Iceland,
   Liechtenstein, Norway, the United Kingdom, Switzerland, Albania, Bosnia & Herzegovina, North

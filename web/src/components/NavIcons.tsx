@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The sidebar's icons: 24px outlines, stroke in currentColor, so they take
-// the item's colour (dim, or the accent when it is the open section).
+// The menu's icons: 24px outlines, stroke in currentColor, so they take
+// the item's colour (dim, or the accent when it is the open section). The
+// People and Collections pages use theirs too.
 
 type P = { size?: number };
 
@@ -20,8 +21,15 @@ export const ImagesIcon = ({ size }: P) => (
   <Svg size={size}><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><circle cx="9" cy="10" r="1.6" /><path d="m4 17 4.5-4.5 3.5 3.5 2.5-2.5L20 18" /></Svg>
 );
 
-export const GroupsIcon = ({ size }: P) => (
-  <Svg size={size}><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5v-15Z" /><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5A2.5 2.5 0 0 1 5 20.5Z" /><path d="M9 7.5h6M9 11h6" /></Svg>
+export const PeopleIcon = ({ size }: P) => (
+  // A face in a viewfinder: the faces found in the photos (Friends is
+  // the two people).
+  <Svg size={size}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10.5" r="2.8" /><path d="M7.5 17.5c.8-2.2 2.5-3.3 4.5-3.3s3.7 1.1 4.5 3.3" /></Svg>
+);
+
+export const CollectionsIcon = ({ size }: P) => (
+  // A photo with another behind it: photos put together.
+  <Svg size={size}><path d="M7.5 4.5h10a3 3 0 0 1 3 3v10" /><rect x="3.5" y="7.5" width="13" height="13" rx="2" /><circle cx="8" cy="11.5" r="1.3" /><path d="m4 19 4-4 3 3 2-2 3.5 3.5" /></Svg>
 );
 
 export const FilesIcon = ({ size }: P) => (
@@ -50,13 +58,5 @@ export const StorageIcon = ({ size }: P) => (
   <Svg size={size}><rect x="3.5" y="4.5" width="17" height="6" rx="1.5" /><rect x="3.5" y="13.5" width="17" height="6" rx="1.5" /><path d="M7 7.5h.01M7 16.5h.01" /></Svg>
 );
 
-export const CollectionsIcon = ({ size }: P) => (
-  // A photo with another behind it: photos put together.
-  <Svg size={size}><path d="M7.5 4.5h10a3 3 0 0 1 3 3v10" /><rect x="3.5" y="7.5" width="13" height="13" rx="2" /><circle cx="8" cy="11.5" r="1.3" /><path d="m4 19 4-4 3 3 2-2 3.5 3.5" /></Svg>
-);
-
-export const PeopleIcon = ({ size }: P) => (
-  // A face in a viewfinder: the faces found in the photos (Friends is
-  // the two people).
-  <Svg size={size}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="10.5" r="2.8" /><path d="M7.5 17.5c.8-2.2 2.5-3.3 4.5-3.3s3.7 1.1 4.5 3.3" /></Svg>
-);
+// Points down: a section that opens below its row.
+export const ChevronIcon = ({ size }: P) => <Svg size={size}><path d="m7 10 5 5 5-5" /></Svg>;

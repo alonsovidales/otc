@@ -1,0 +1,528 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The People page: a title, then the faces as circles with the name and
+   the photo count under them. Every tile is the same height whatever its
+   state (named, "Add a name", the name field), so naming someone moves
+   nothing but that person. */
+.pv-root {
+  box-sizing: border-box;
+  padding: 24px 24px 64px;
+}
+
+.pv-head { margin: 0 0 24px; }
+/* Class rules on purpose: index.css sizes every h1, and another sheet
+   every h2. */
+.pv-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--mist);
+}
+/* Focused only to land somewhere after the person in view was deleted. */
+.pv-title:focus { outline: none; }
+.pv-sub {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mist-dim);
+}
+
+.pv-grid {
+  --pv-face: 112px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 24px 8px;
+}
+
+.pv-person {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: pv-in .2s ease-out both;
+}
+.pv-face-wrap {
+  position: relative;
+  display: block;
+  width: var(--pv-face);
+  height: var(--pv-face);
+}
+
+/* The face: a round button. index.css's ember fill, padding and hover
+   brightness are undone; the picture brightens instead. */
+.pv-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--ink-3);
+  color: var(--mist-dim);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.pv-face:hover { filter: none; }
+.pv-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: filter .15s ease;
+}
+.pv-face-ph {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(160deg, var(--ink-3), var(--ink-2));
+}
+.pv-face:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+@media (hover: hover) {
+  .pv-face:hover img { filter: brightness(1.12); }
+  .pv-face:hover { box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px rgba(234, 242, 239, .22); }
+  /* Picking whom to merge into: the face under the pointer is the choice. */
+  .pv-root.picking .pv-person:not(.is-source) .pv-face:hover {
+    box-shadow: 0 0 0 2px var(--ink), 0 0 0 5px var(--ember);
+  }
+}
+.pv-face:active { transform: scale(.97); }
+.pv-person.is-source .pv-face,
+.pv-person.is-source .pv-face:hover { box-shadow: 0 0 0 3px var(--ink), 0 0 0 6px var(--gold); }
+
+/* "More": a small round button on the face's corner, shown on hover with
+   a mouse and always on a touch screen. Its hit area is 44px. */
+.pv-more {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--ink-2);
+  color: var(--mist);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .4);
+  transition: opacity .15s ease, background-color .15s ease, transform .1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.pv-more::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+}
+.pv-more:hover { filter: none; background: var(--ink-3); }
+.pv-more:active { transform: scale(.92); }
+.pv-more:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.pv-more[aria-expanded="true"] { background: var(--ink-3); }
+@media (hover: hover) and (pointer: fine) {
+  .pv-more { opacity: 0; }
+  .pv-person:hover .pv-more,
+  .pv-person:focus-within .pv-more,
+  .pv-more[aria-expanded="true"] { opacity: 1; }
+}
+
+.pv-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 32px;
+  margin-top: 8px;
+}
+.pv-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--mist);
+  transition: opacity .15s ease;
+}
+.pv-name.pending { opacity: .55; }
+.pv-name.pv-unnamed { font-weight: 400; font-style: italic; color: var(--mist-dim); }
+.pv-addname {
+  position: relative;
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--mist-dim);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-style: italic;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+/* 40px to a finger, without making the row taller. */
+.pv-addname::after {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
+}
+.pv-addname:hover { filter: none; color: var(--mist); background: rgba(234, 242, 239, .06); }
+.pv-addname:focus-visible { outline: 2px solid var(--ember); outline-offset: 0; }
+.pv-name-input {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 168px;
+  height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--ember);
+  border-radius: 8px;
+  background: var(--ink-2);
+  color: var(--mist);
+  font: inherit;
+  font-size: 14px;
+  text-align: center;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 107, 74, .18);
+}
+.pv-name-input::placeholder { color: var(--mist-dim); font-style: italic; }
+.pv-count {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mist-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Loading: the tiles' own shapes, pulsing. */
+.pv-skeleton .pv-face-wrap {
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: pv-pulse 1.4s ease-in-out infinite;
+}
+.pv-bar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 64px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--ink-3);
+  animation: pv-pulse 1.4s ease-in-out infinite;
+}
+.pv-count .pv-bar { width: 44px; height: 8px; }
+.pv-skeleton > li:nth-child(3n + 2) .pv-label .pv-bar { width: 52px; }
+.pv-skeleton > li:nth-child(3n) .pv-label .pv-bar { width: 76px; }
+
+/* Picking whom to merge into: a bar over the top bar, like a selection's. */
+.pv-pickbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 35;
+  box-sizing: border-box;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--ink-2);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .4);
+  animation: pv-drop .18s ease-out;
+}
+.pv-pickbar-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--mist);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.pv-pickbar-text strong { font-weight: 600; color: var(--gold); }
+
+.pv-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--ink-3);
+  color: var(--mist-dim);
+}
+.pv-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pv-avatar-sm { width: 32px; height: 32px; }
+.pv-avatar-lg { width: 64px; height: 64px; }
+
+/* Buttons: pills, 40px high. */
+.pv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 88px;
+  height: 40px;
+  margin: 0;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, filter .15s ease, transform .1s ease;
+}
+.pv-btn:active:not([aria-disabled="true"]) { transform: scale(.97); }
+.pv-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.pv-btn[aria-disabled="true"] { opacity: .6; cursor: default; filter: none; }
+.pv-btn-quiet { background: transparent; border-color: var(--line); color: var(--mist); }
+.pv-btn-quiet:hover { filter: none; background: rgba(234, 242, 239, .06); }
+.pv-btn-quiet[aria-disabled="true"]:hover { background: transparent; }
+.pv-btn-primary { background: var(--ember); color: var(--ember-ink); }
+.pv-btn-primary:hover { filter: brightness(1.08); }
+.pv-btn-danger { min-width: 104px; background: var(--danger); color: var(--ink); }
+.pv-btn-danger:hover { filter: brightness(1.06); }
+
+/* The "more" menu: lives in <body>, positioned by PeopleView.tsx. */
+.pv-menu {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  min-width: 200px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--ink-2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+  transform-origin: top right;
+  animation: pv-menu-in .12s ease-out;
+}
+.pv-menu.up { transform-origin: bottom right; }
+.pv-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--mist);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .1s ease;
+}
+.pv-menu-item svg { flex: none; color: var(--mist-dim); }
+.pv-menu-item:hover { filter: none; background: rgba(234, 242, 239, .08); }
+.pv-menu-item:focus-visible { outline: 2px solid var(--ember); outline-offset: -2px; background: rgba(234, 242, 239, .08); }
+.pv-menu-item:active { background: rgba(234, 242, 239, .12); }
+.pv-menu-item.danger,
+.pv-menu-item.danger svg { color: var(--danger); }
+
+/* Dialogs: a native modal <dialog>, a small card over a dimmed page. */
+.pv-dialog {
+  box-sizing: border-box;
+  width: min(400px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--ink-2);
+  color: var(--mist);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .55);
+  overflow: auto;
+}
+.pv-dialog[open] { animation: pv-pop .18s cubic-bezier(.2, .8, .2, 1); }
+.pv-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+.pv-dialog[open]::backdrop { animation: pv-fade .18s ease-out; }
+.pv-dialog-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+}
+.pv-dialog-card > .pv-avatar,
+.pv-dialog-faces { align-self: center; margin-bottom: 8px; }
+.pv-dialog-faces { display: flex; align-items: flex-start; gap: 8px; }
+.pv-dialog-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 96px;
+}
+.pv-dialog-person > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mist-dim);
+}
+.pv-dialog-arrow { display: grid; place-items: center; height: 64px; color: var(--mist-dim); }
+.pv-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--mist);
+  overflow-wrap: anywhere;
+}
+.pv-dialog-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mist-dim);
+  overflow-wrap: anywhere;
+}
+.pv-dialog-error {
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 20px;
+}
+.pv-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Nothing to show (no faces yet, or the device didn't answer). */
+.pv-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 400px;
+  margin: 48px auto 0;
+  text-align: center;
+}
+.pv-state-art {
+  display: grid;
+  place-items: center;
+  width: 128px;
+  height: 128px;
+  margin-bottom: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 200, 87, .10), rgba(234, 242, 239, .03) 70%);
+  color: var(--mist-dim);
+}
+.pv-art-head { fill: var(--ink-3); }
+.pv-art-spark { fill: var(--gold); stroke: none; }
+.pv-state-title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--mist);
+}
+.pv-state-text {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mist-dim);
+}
+.pv-state-btn { margin-top: 24px; }
+
+/* Snackbar: bottom centre of the page beside the menu. */
+.pv-toast-host {
+  position: fixed;
+  left: var(--content-left, 0px);
+  right: 0;
+  bottom: 24px;
+  z-index: 45;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.pv-toast {
+  max-width: 480px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--mist);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  animation: pv-rise .2s ease-out;
+}
+
+@keyframes pv-in { from { opacity: 0; } }
+@keyframes pv-pulse { 50% { opacity: .5; } }
+@keyframes pv-drop { from { transform: translateY(-100%); } }
+@keyframes pv-menu-in { from { opacity: 0; transform: scale(.96); } }
+@keyframes pv-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes pv-fade { from { opacity: 0; } }
+@keyframes pv-rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* A finger needs bigger rows, and a 16px field keeps iOS from zooming in. */
+@media (pointer: coarse) {
+  .pv-menu-item { height: 48px; }
+  .pv-name-input { font-size: 16px; }
+}
+
+@media (max-width: 599px) {
+  .pv-root { padding: 16px 16px 48px; }
+  .pv-head { margin-bottom: 16px; }
+  .pv-title { font-size: 24px; line-height: 32px; }
+  .pv-grid {
+    --pv-face: 88px;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 16px 4px;
+  }
+  /* Lighter on a small face; the hit area stays 44px. */
+  .pv-more { width: 28px; height: 28px; top: -2px; right: -2px; }
+  .pv-more::before { inset: -8px; }
+  .pv-pickbar { gap: 8px; padding: 0 8px 0 12px; }
+  .pv-pickbar-text { font-size: 14px; }
+  .pv-pickbar .pv-btn { min-width: 0; padding: 0 16px; }
+  .pv-state { margin-top: 32px; }
+  .pv-toast-host { bottom: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-person, .pv-face, .pv-face img, .pv-more, .pv-name, .pv-addname, .pv-btn,
+  .pv-pickbar, .pv-menu, .pv-menu-item, .pv-dialog[open], .pv-dialog[open]::backdrop,
+  .pv-toast, .pv-bar, .pv-skeleton .pv-face-wrap { transition: none; animation: none; }
+  .pv-face:active, .pv-more:active, .pv-btn:active:not([aria-disabled="true"]) { transform: none; }
+}

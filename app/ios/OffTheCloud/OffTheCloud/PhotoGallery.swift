@@ -62,15 +62,15 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var editingPersonID: String? = nil
     @Published var editingPersonName: String = ""
 
-    // Issue #115: image groups (albums). A group is one more filter on the
-    // same search (SearchPhotos.group_id), which is what keeps tags,
-    // people, the date scrubber and paging all working unchanged inside
-    // one - activeGroup just rides along in every request.
+    // Issue #115: image groups, which the app calls collections. A group is
+    // one more filter on the same search (SearchPhotos.group_id), which is
+    // what keeps tags, people, the date scrubber and paging all working
+    // unchanged inside one - activeGroup just rides along in every request.
     @Published var groups: [Msg_ImageGroup] = []
     @Published var activeGroup: Msg_ImageGroup? = nil
     @Published var showGroups = false
-    // The selection bar's "Group" flow: pick an existing group, or name a
-    // new one.
+    // The selection bar's "Add to collection" flow: pick an existing group,
+    // or name a new one.
     @Published var showGroupPicker = false
     @Published var showNewGroupName = false
     @Published var newGroupName = ""
@@ -396,7 +396,7 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqRenameImageGroup(r)
             e = req
         }), case .respAck(let ack) = resp.payload, ack.ok else {
-            alertMessage = "Could not rename the group."; showAlert = true
+            alertMessage = "Could not rename the collection."; showAlert = true
             return
         }
         activeGroup?.name = name
@@ -413,7 +413,7 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqDeleteImageGroup(d)
             e = req
         }), case .respAck(let ack) = resp.payload, ack.ok else {
-            alertMessage = "Could not delete the group."; showAlert = true
+            alertMessage = "Could not delete the collection."; showAlert = true
             return
         }
         groups.removeAll { $0.id == g.id }
@@ -435,12 +435,12 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqCreateImageGroup(c)
             e = req
         }), case .respImageGroup(let r) = resp.payload else {
-            alertMessage = "Could not create the group."; showAlert = true
+            alertMessage = "Could not create the collection."; showAlert = true
             return
         }
         groups.insert(r.group, at: 0)
         selected.removeAll()
-        alertMessage = "Group \"\(name)\" created."; showAlert = true
+        alertMessage = "Collection \"\(name)\" created."; showAlert = true
     }
 
     func addSelectionToGroup(_ g: Msg_ImageGroup) async {
@@ -454,7 +454,7 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqAddToImageGroup(a)
             e = req
         }), case .respAck(let ack) = resp.payload, ack.ok else {
-            alertMessage = "Could not add to the group."; showAlert = true
+            alertMessage = "Could not add to the collection."; showAlert = true
             return
         }
         selected.removeAll()
@@ -1354,9 +1354,9 @@ struct PhotoGalleryView: View {
                         Task { await vm.loadGroups() }
                         vm.showGroups = true
                     } label: {
-                        Image(systemName: "book")
+                        Image(systemName: "photo.stack")
                     }
-                    .accessibilityLabel("Groups")
+                    .accessibilityLabel("Collections")
                 }
                 .padding(.horizontal, 8)
 
@@ -1365,7 +1365,7 @@ struct PhotoGalleryView: View {
                 // keeps working inside it.
                 if let g = vm.activeGroup {
                     HStack(spacing: 6) {
-                        Image(systemName: "book").font(.caption)
+                        Image(systemName: "photo.stack").font(.caption)
                         Button(g.name) {
                             vm.renameGroupName = g.name
                             vm.showRenameGroup = true
@@ -1380,6 +1380,7 @@ struct PhotoGalleryView: View {
                         Button {
                             vm.confirmDeleteGroup = true
                         } label: { Image(systemName: "trash").font(.caption) }
+                        .accessibilityLabel("Delete collection")
                         .foregroundStyle(.red)
                         Button("×") { vm.leaveGroup() }
                     }
@@ -1560,7 +1561,7 @@ struct PhotoGalleryView: View {
             NavigationStack {
                 List {
                     if vm.groups.isEmpty {
-                        Text("No groups yet — select some pictures and choose Group.")
+                        Text("No collections yet — select some pictures and choose Add to collection.")
                             .foregroundStyle(.secondary)
                     }
                     ForEach(vm.groups, id: \.id) { g in
@@ -1575,7 +1576,7 @@ struct PhotoGalleryView: View {
                                     RoundedRectangle(cornerRadius: 6)
                                         .fill(Color.secondary.opacity(0.15))
                                         .frame(width: 44, height: 44)
-                                        .overlay(Image(systemName: "book"))
+                                        .overlay(Image(systemName: "photo.stack"))
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(g.name).foregroundStyle(.primary)
@@ -1602,7 +1603,7 @@ struct PhotoGalleryView: View {
                         }
                     }
                 }
-                .navigationTitle("Groups")
+                .navigationTitle("Collections")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -1612,31 +1613,31 @@ struct PhotoGalleryView: View {
             }
             .sharedGalleryShareFlow(source: $groupsSheetGallerySource)
         }
-        // The selection bar's "Group": pick an existing group or start a new one.
-        .confirmationDialog("Add \(vm.selected.count) to a group", isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
+        // The selection bar's "Add to collection": pick an existing group or start a new one.
+        .confirmationDialog("Add \(vm.selected.count) to a collection", isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
             ForEach(vm.groups, id: \.id) { g in
                 Button(g.name) { Task { await vm.addSelectionToGroup(g) } }
             }
-            Button("New group…") { vm.showNewGroupName = true }
+            Button("New collection…") { vm.showNewGroupName = true }
             Button("Cancel", role: .cancel) {}
         }
-        .alert("New group", isPresented: $vm.showNewGroupName) {
-            TextField("Group name", text: $vm.newGroupName)
+        .alert("New collection", isPresented: $vm.showNewGroupName) {
+            TextField("Collection name", text: $vm.newGroupName)
             Button("Create") { Task { await vm.createGroupFromSelection() } }
             Button("Cancel", role: .cancel) { vm.newGroupName = "" }
         } message: {
             Text("\(vm.selected.count) \(vm.selected.count == 1 ? "picture" : "pictures") will be added to it.")
         }
-        .alert("Rename group", isPresented: $vm.showRenameGroup) {
-            TextField("Group name", text: $vm.renameGroupName)
+        .alert("Rename collection", isPresented: $vm.showRenameGroup) {
+            TextField("Collection name", text: $vm.renameGroupName)
             Button("Save") { Task { await vm.renameActiveGroup() } }
             Button("Cancel", role: .cancel) {}
         }
         .confirmationDialog(
-            "Delete the group \"\(vm.activeGroup?.name ?? "")\"?",
+            "Delete the collection \"\(vm.activeGroup?.name ?? "")\"?",
             isPresented: $vm.confirmDeleteGroup, titleVisibility: .visible
         ) {
-            Button("Delete group", role: .destructive) { Task { await vm.deleteActiveGroup() } }
+            Button("Delete collection", role: .destructive) { Task { await vm.deleteActiveGroup() } }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The pictures themselves are kept.")

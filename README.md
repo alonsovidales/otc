@@ -105,7 +105,7 @@ With this you can access all your data and social network from any browser just 
 
 <img width="800" alt="Social feed in the browser" src="docs/screenshots/web-social.jpg" />
 <img width="800" alt="Images: a tag search alongside the people recognised on the device" src="docs/screenshots/web-images-search.jpg" />
-<img width="800" alt="Image groups (albums): create one from a selection, add to it, open it and keep searching inside" src="docs/screenshots/web-groups.jpg" />
+<img width="800" alt="Collections: create one from a selection, add to it, open it and keep searching inside" src="docs/screenshots/web-groups.jpg" />
 <img width="800" alt="Files: browse, upload by drag and drop, select and share" src="docs/screenshots/web-files.jpg" />
 <img width="800" alt="Notifications" src="docs/screenshots/web-alerts.jpg" />
 
@@ -626,7 +626,7 @@ What the device needs in order to find and organise your files is kept in its da
 
 - file and folder names, types, sizes and dates;
 - the photo tags (including the city and country a photo was taken in), the names you give
-  people and albums, and which photos a person appears in;
+  people and collections, and which photos a person appears in;
 - your posts, comments and alerts, and your friends' names and profiles;
 - each file's SHA-256, which names its encrypted content on disk - so someone who already has a
   particular file can tell whether it is stored there.

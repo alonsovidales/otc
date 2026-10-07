@@ -57,9 +57,10 @@ import java.util.UUID
 const val FIRST_PHOTO_PAGE_LIMIT = 12
 
 // Port of PhotoGalleryVM (PhotoGallery.swift). Tag chips, the person
-// filter (issue #52, AND semantics), image groups (issue #115), the date
-// scrubber (issue #77), a search generation counter that discards stale
-// replies, and the paging that keeps asking until a page adds something.
+// filter (issue #52, AND semantics), image groups (issue #115, which the
+// app calls collections), the date scrubber (issue #77), a search
+// generation counter that discards stale replies, and the paging that
+// keeps asking until a page adds something.
 //
 // The same view model also drives the viewer opened from the Files section
 // (showFiles): a separate instance holding just that folder's photos and
@@ -244,7 +245,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             val r = OTCConnection.request { it.setReqRenameImageGroup(RenameImageGroup.newBuilder().setId(g.id).setName(name)) }
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert("Could not rename the group."); return }
+        if (!ok) { alert("Could not rename the collection."); return }
         val renamed = g.toBuilder().setName(name).build()
         _state.update { st -> st.copy(activeGroup = renamed, groups = st.groups.map { if (it.id == g.id) renamed else it }) }
     }
@@ -255,7 +256,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             val r = OTCConnection.request { it.setReqDeleteImageGroup(DeleteImageGroup.newBuilder().setId(g.id)) }
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert("Could not delete the group."); return }
+        if (!ok) { alert("Could not delete the collection."); return }
         _state.update { st -> st.copy(groups = st.groups.filter { it.id != g.id }) }
         leaveGroup()
     }
@@ -266,10 +267,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
         val paths = _state.value.selected.toList()
         try {
             val r = OTCConnection.request { it.setReqCreateImageGroup(CreateImageGroup.newBuilder().setName(name).addAllPaths(paths)) }
-            if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert("Could not create the group."); return }
+            if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert("Could not create the collection."); return }
             _state.update { st -> st.copy(groups = listOf(r.respImageGroup.group) + st.groups, selected = emptySet()) }
-            alert("Group \"$name\" created.")
-        } catch (e: Exception) { alert("Could not create the group.") }
+            alert("Collection \"$name\" created.")
+        } catch (e: Exception) { alert("Could not create the collection.") }
     }
 
     suspend fun addSelectionToGroup(g: ImageGroup) {
@@ -278,7 +279,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel() {
             val r = OTCConnection.request { it.setReqAddToImageGroup(AddToImageGroup.newBuilder().setGroupId(g.id).addAllPaths(paths)) }
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert("Could not add to the group."); return }
+        if (!ok) { alert("Could not add to the collection."); return }
         _state.update { it.copy(selected = emptySet()) }
         loadGroups()
         if (_state.value.activeGroup?.id == g.id) restartSearch()

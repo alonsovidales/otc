@@ -1,0 +1,214 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The date scrubber (DateScrubber.tsx). Fixed to the window, which is what
+   scrolls: from just under the top bar to just above the bottom edge, over
+   the grid and under the bars, menus and dialogs. Everything on the track
+   is placed by --y, its distance from the track's top. */
+.ds-root {
+  position: fixed;
+  top: calc(var(--topbar-h) + 8px);
+  bottom: 8px;
+  right: 0;
+  z-index: 6;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A label is centred on where its year (or month) starts. With a mouse it
+   ends clear of the marker (4px in, 10px wide, 4px gap). */
+.ds-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ds-label {
+  position: absolute;
+  top: 0;
+  right: 18px;
+  transform: translateY(calc(var(--y) - 50%));
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--mist-dim);
+  white-space: nowrap;
+}
+.ds-label.is-month { font-weight: 400; }
+
+/* The month under the pointer or the drag, beside the track. Gold while
+   scrubbing: that is where the photos will go. */
+.ds-bubble {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 8px);
+  height: 32px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--ink-3);
+  color: var(--mist);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: translateY(calc(var(--y) - 50%));
+  pointer-events: none;
+}
+.ds-root.is-scrubbing .ds-bubble {
+  border-color: transparent;
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+
+/* ---- Mouse or trackpad: a column beside the grid, which leaves room for
+   it. All of it is one click-or-drag target. ---- */
+.ds-fine {
+  width: 56px;
+  border-radius: 12px;
+  cursor: pointer;
+  /* A touchscreen laptop's finger scrubs here rather than scrolling: the
+     column holds no photos to scroll by. */
+  touch-action: none;
+}
+.ds-fine:hover,
+.ds-fine.is-scrubbing { background: var(--panel); }
+.ds-fine:focus { outline: none; }
+.ds-fine:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+/* Where the photos at the top of the screen are. */
+.ds-marker {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  width: 10px;
+  height: 3px;
+  margin-top: -1px;
+  border-radius: 2px;
+  background: var(--gold);
+  transform: translateY(var(--y));
+  pointer-events: none;
+}
+
+/* The pointer's place on the track. */
+.ds-line {
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 4px;
+  height: 1px;
+  background: var(--mist-dim);
+  transform: translateY(var(--y));
+  pointer-events: none;
+}
+.ds-fine.is-scrubbing .ds-line {
+  height: 2px;
+  margin-top: -1px;
+  background: var(--gold);
+}
+
+/* ---- Finger: nothing beside the photos until the page scrolls, then a
+   handle hugging the right edge. Only the handle takes touches; anywhere
+   else a touch scrolls the page. While it is dragged the years show on a
+   dark strip along the track. ---- */
+.ds-touch {
+  width: 96px;
+  pointer-events: none;
+}
+.ds-strip {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px 0 0 16px;
+  background: rgba(26, 26, 26, 0.86);
+  background: color-mix(in srgb, var(--ink-2) 86%, transparent);
+  opacity: 0;
+}
+.ds-touch .ds-labels { opacity: 0; }
+.ds-touch .ds-label {
+  right: 52px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mist);
+}
+.ds-touch .ds-bubble {
+  right: 52px;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  opacity: 0;
+}
+.ds-touch.is-scrubbing .ds-strip,
+.ds-touch.is-scrubbing .ds-labels,
+.ds-touch.is-scrubbing .ds-bubble { opacity: 1; }
+
+/* The hit area is 48x64 around the 40x56 pill. Hidden, it takes no touches,
+   so it never stands in the way of a scroll. */
+.ds-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transform: translateY(calc(var(--y) - 50%));
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+}
+.ds-touch.is-shown .ds-handle,
+.ds-handle:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ds-touch.is-scrubbing .ds-handle { cursor: grabbing; }
+.ds-pill {
+  width: 40px;
+  height: 56px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 28px 0 0 28px;
+  background: var(--ink-2);
+  color: var(--mist);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+.ds-touch.is-scrubbing .ds-pill {
+  background: var(--ink-3);
+  color: var(--gold);
+}
+.ds-handle:focus-visible .ds-pill {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+/* Motion only for those who haven't asked for less. */
+@media (prefers-reduced-motion: no-preference) {
+  .ds-fine { transition: background-color 0.15s ease; }
+  .ds-marker { transition: transform 0.2s ease; }
+  .ds-fine .ds-bubble { animation: ds-appear 0.12s ease; }
+  .ds-strip,
+  .ds-touch .ds-labels { transition: opacity 0.2s ease; }
+  .ds-touch .ds-bubble { transition: opacity 0.15s ease; }
+  .ds-handle { transition: transform 0.18s ease, opacity 0.2s ease; }
+  /* While dragged, the handle stays exactly under the finger. */
+  .ds-touch.is-scrubbing .ds-handle { transition: opacity 0.2s ease; }
+  .ds-pill { transition: background-color 0.15s ease, color 0.15s ease; }
+}
+@keyframes ds-appear {
+  from { opacity: 0; }
+}

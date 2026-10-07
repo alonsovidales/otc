@@ -1,519 +1,292 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// src/components/PhotoGallery.tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// Images: every photo and video on the device as a wall of square tiles,
+// newest first under month titles - or what the top bar's search, a person
+// or an open collection narrows it to (photoFilter.ts). Photos are picked
+// Google Photos style: the circle on a tile (shown on hover), or a long
+// press on a touch screen, then a tap anywhere on a tile. A bar over the
+// top bar then posts them, puts them in a collection, shares or deletes
+// them. A collection is an image group in the protocol (ImageGroup,
+// groupId), so the code says group where it talks to the device.
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref, SyntheticEvent } from "react";
+import { flushSync } from "react-dom";
 import { useWS } from "../net/useWS";
-import type { RespEnvelope, File as MsgFile, TagsList, Person, ImageGroup } from "../proto/messages";
-import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
+import type { DeepPartial, File as MsgFile, ImageGroup, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { fileSize } from "../net/fileSize";
-import './PhotoGallery.css';
+import "./PhotoGallery.css";
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
 import MediaViewer from "./MediaViewer";
+import DateScrubber, { type ScrubBucket } from "./DateScrubber";
+import { CollectionsIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
 import { usePageRetry } from "./usePageRetry";
-
-type Chip = string;
-type Token = string | null;
-
-// ---- helpers ---------------------------------------------------------------
-// Issue #106: a search result's `content` is always a server-generated
-// JPEG thumbnail (files_manager.GetThumbnail), for a video exactly as for
-// a photo - so a thumbnail must never be tagged with the file's own mime.
-// Doing that hands the browser a Blob claiming to be video/mp4 over
-// genuinely-JPEG bytes, and it refuses to render it in an <img> at all.
-// The composer hit precisely this when it started offering videos.
-
-// Issue #113: how far a finger must travel on the date scrubber before it
-// counts as scrubbing rather than the start of a scroll.
-const cScrubEngagePx = 8;
+import { clearSearch, isDateOrdered, isFiltered, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
+import { dropGroupLocally, personLabel, reloadGroups, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 
 // A search's first page asks for only this many photos (SearchPhotos.limit):
 // a full page of ~30 thumbnails took 5-45 s over a slow home upload, and the
 // grid stayed empty all that time. The pages after it, sent with the token,
 // get the device's own size; a device before release 97 answers 30 anyway.
 const cFirstPagePhotos = 12;
+// While the date scrubber is dragged, a month that hasn't loaded shows this
+// many grey tiles at most: enough to read as "a lot", not thousands of nodes.
+const cMaxPlaceholders = 300;
+// Touch: how long a press on a tile takes to select it, and how far the
+// finger may move meanwhile before it counts as the start of a scroll.
+const cLongPressMs = 450;
+const cPressSlopPx = 8;
+// Grey tiles shown while the first page is on its way.
+const cSkeletonTiles = 24;
 
+// Issue #106: a search result's `content` is always a server-generated
+// JPEG thumbnail (files_manager.GetThumbnail), for a video exactly as for a
+// photo - tagging those bytes with the video's own mime made the browser
+// refuse to show them at all.
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
 
-const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
-  if (!content) return "";
-  const u8 = content instanceof Uint8Array ? content : new Uint8Array(content);
-  if (u8.byteLength === 0) return "";
-  return URL.createObjectURL(new Blob([u8], { type: mime }));
+// A tile's thumbnail - always a JPEG, see isVideoFile. Module-level, so
+// useObjectURLs gets the stable `make` it needs.
+const thumbOf = (f: MsgFile) => {
+  const bytes = f.content;
+  if (!bytes || bytes.byteLength === 0) return "";
+  return URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/jpeg" }));
 };
-// A grid tile's thumbnail - always a JPEG, see isVideoFile.
-const thumbOf = (f: MsgFile) => bytesToURL(f.content);
-const fileKey = (f: MsgFile, idx?: number) =>
-  `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${fileSize(f)}#${idx ?? -1}`;
+// The duplicate check for a page (mapRef): the same file at the same place
+// in a page that a restarted search sent again.
+const fileKey = (f: MsgFile, idx: number) =>
+  `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${fileSize(f)}#${idx}`;
+
+// ---- requests --------------------------------------------------------------
+
+type Payload = NonNullable<DeepPartial<ReqEnvelope>["payload"]>;
+
+// A request names only the fields it sets; ws.ts completes the envelope
+// (ReqEnvelope.fromPartial).
+const ask = (payload: Payload): Promise<RespEnvelope> =>
+  useWS.request((e) => { e.payload = payload as ReqEnvelope["payload"]; });
+
+const acked = (r: RespEnvelope) => r.payload?.$case === "respAck" && r.payload.respAck.ok;
+
+// ---- words -----------------------------------------------------------------
+
+const cMonthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const cDayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" });
+const cNumber = new Intl.NumberFormat("en");
+
+/** "2024-03" for a date, in the viewer's time zone. */
+const monthOf = (d?: Date): string | null =>
+  d && !Number.isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : null;
+
+const monthParts = (key: string) => {
+  const [y, m] = key.split("-").map(Number);
+  return { year: y, name: cMonthNames[(m || 1) - 1] };
+};
+/** "March 2024" */
+const monthTitle = (key: string) => {
+  const { year, name } = monthParts(key);
+  return `${name} ${year}`;
+};
+
+/** The months the photos span, from date buckets (newest first): "Mar 2024",
+ *  "Mar – Oct 2024" or "Mar 2024 – Oct 2026". */
+function spanLabel(buckets: ScrubBucket[]): string {
+  if (!buckets.length) return "";
+  const from = monthParts(buckets[buckets.length - 1].month);
+  const to = monthParts(buckets[0].month);
+  const short = (p: { name: string }) => p.name.slice(0, 3);
+  if (from.year === to.year && from.name === to.name) return `${short(to)} ${to.year}`;
+  if (from.year === to.year) return `${short(from)} – ${short(to)} ${to.year}`;
+  return `${short(from)} ${from.year} – ${short(to)} ${to.year}`;
+}
+
+/** "1 item", "1,234 items" */
+const count = (n: number, one: string, many = `${one}s`) => `${cNumber.format(n)} ${n === 1 ? one : many}`;
+
+/** "3 photos", "1 video", "2 photos and 1 video" */
+function whatLabel(files: MsgFile[]): string {
+  const videos = files.filter(isVideoFile).length;
+  const photos = files.length - videos;
+  if (!videos) return count(photos, "photo");
+  if (!photos) return count(videos, "video");
+  return `${count(photos, "photo")} and ${count(videos, "video")}`;
+}
+
+// ---- icons (24px outlines, like NavIcons) -----------------------------------
+
+type IconProps = { size?: number };
+
+function Svg({ size = 24, children }: { size?: number; children: ReactNode }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+const CloseIcon = ({ size }: IconProps) => <Svg size={size}><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></Svg>;
+const CheckIcon = ({ size }: IconProps) => <Svg size={size}><path d="m5.5 12.5 4 4 9-9" /></Svg>;
+const BackIcon = ({ size }: IconProps) => <Svg size={size}><path d="M19 12H5.5M11 6l-6 6 6 6" /></Svg>;
+const PencilIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M4.5 19.5h3.75L18.6 9.15a2.65 2.65 0 0 0-3.75-3.75L4.5 15.75v3.75Z" /><path d="m13.5 6.75 3.75 3.75" /></Svg>
+);
+// A paper plane: send to the feed.
+const PostIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M20.5 3.5 10.75 13.25" /><path d="M20.5 3.5 14.25 20.5l-3.5-7.25L3.5 9.75 20.5 3.5Z" /></Svg>
+);
+// The collection icon (a photo with another behind it) with a plus.
+const AddToCollectionIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M7.5 4.5h10a3 3 0 0 1 3 3v10" /><rect x="3.5" y="7.5" width="13" height="13" rx="2" /><path d="M10 11v6M7 14h6" /></Svg>
+);
+const ShareIcon = ({ size }: IconProps) => (
+  <Svg size={size}><circle cx="17.5" cy="5.5" r="2.5" /><circle cx="6.5" cy="12" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /><path d="m8.7 10.7 6.6-3.9M8.7 13.3l6.6 3.9" /></Svg>
+);
+const TrashIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M4.5 7h15" /><path d="M9.5 7V5.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7" /><path d="M6.5 7l.85 12.1a1.5 1.5 0 0 0 1.5 1.4h6.3a1.5 1.5 0 0 0 1.5-1.4L17.5 7" /><path d="M10 11v5.5M14 11v5.5" /></Svg>
+);
+// A globe: a page on the web.
+const GalleryPageIcon = ({ size }: IconProps) => (
+  <Svg size={size}><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5s1.1-6.1 3.4-8.5Z" /></Svg>
+);
+const LinkIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M10.5 13.5a3.75 3.75 0 0 0 5.3 0l2.95-2.95a3.75 3.75 0 0 0-5.3-5.3l-1.2 1.2" /><path d="M13.5 10.5a3.75 3.75 0 0 0-5.3 0l-2.95 2.95a3.75 3.75 0 0 0 5.3 5.3l1.2-1.2" /></Svg>
+);
+const DownloadIcon = ({ size }: IconProps) => <Svg size={size}><path d="M12 4v11" /><path d="m7.5 10.5 4.5 4.5 4.5-4.5" /><path d="M5 19.5h14" /></Svg>;
+const PlusIcon = ({ size }: IconProps) => <Svg size={size}><path d="M12 5.5v13M5.5 12h13" /></Svg>;
+const ChevronLeftIcon = ({ size }: IconProps) => <Svg size={size}><path d="m14.5 6-6 6 6 6" /></Svg>;
+const ChevronRightIcon = ({ size }: IconProps) => <Svg size={size}><path d="m9.5 6 6 6-6 6" /></Svg>;
+const SearchIcon = ({ size }: IconProps) => <Svg size={size}><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 4.5 4.5" /></Svg>;
+const OfflineIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M7.2 18.5h9.3a4 4 0 0 0 .9-7.9 5.5 5.5 0 0 0-10.3-1.6 4.75 4.75 0 0 0 .1 9.5Z" /><path d="M4 4l16 16" /></Svg>
+);
+const FaceIcon = ({ size }: IconProps) => <Svg size={size}><circle cx="12" cy="9.5" r="3.5" /><path d="M5.5 19.5c1.2-3.2 3.6-4.8 6.5-4.8s5.3 1.6 6.5 4.8" /></Svg>;
+// Filled, so it reads at 12px on any photo.
+const PlayGlyph = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5L7 4.5Z" fill="currentColor" /></svg>
+);
+
+// ---- small hooks -------------------------------------------------------------
+
+// A media query's current answer, kept up to date.
+function useMedia(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatches(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return matches;
+}
 
 // ===========================================================================
 
-// Issue #115: the groups list is opened from the shared header's book
-// button (App.tsx), so its open/closed state is owned there and handed in.
 type PhotoGalleryProps = {
   // An open collection's "back" link: the Collections page.
   onShowCollections: () => void;
-  groupsOpen?: boolean;
-  setGroupsOpen?: (open: boolean) => void;
 };
 
-export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () => {} }: PhotoGalleryProps) {
-  // -------- tags/typeahead --------------------------------------------------
-  const [allTags, setAllTags] = useState<string[]>([]);
-  // Issue #53 follow-up: a reload restores the Photos tab itself now, but
-  // used to still always drop the applied tag search rather than
-  // wherever the user had actually filtered to.
-  const [chips, setChips] = useState<Chip[]>(() => loadPhotoSearchTags());
-  const [input, setInput] = useState("");
-  const [showSuggest, setShowSuggest] = useState(false);
+type DialogState =
+  | { kind: "post" }
+  | { kind: "collect" }
+  | { kind: "delete" }
+  | { kind: "deleteCollection" }
+  // The share link, when the clipboard refused it (a browser that only
+  // allows a copy right after a click, and making the link took longer).
+  | { kind: "link"; link: string };
 
-  const suggestions = useMemo(() => {
-    const q = input.trim().toLowerCase();
-    if (!q) return [];
-    return allTags.filter(t => t.toLowerCase().startsWith(q)).slice(0, 12);
-  }, [allTags, input]);
+type Toast = {
+  id: number;
+  text: string;
+  error?: boolean;
+  // Stays until replaced (work in progress), with a spinner.
+  busy?: boolean;
+  action?: { label: string; run: () => void };
+};
 
-  const addChip = (t: string) => {
-    const tag = t.trim();
-    if (!tag) return;
-    setChips(prev => (prev.includes(tag) ? prev : [...prev, tag]));
-    setInput("");
-    setShowSuggest(false);
-    // search will auto-trigger via chips effect
-  };
-  const removeChip = (t: string) => setChips(prev => prev.filter(x => x !== t));
-
-  // -------- people filter (issue #52 follow-up: lives next to the tag
-  // search bar, not a separate People screen) --------------------------------
-  const [allPeople, setAllPeople] = useState<Person[]>([]);
-  // Multiple people selected means AND, not OR - see dao.SearchMedia on
-  // the backend: a photo must contain a face matched to *every* person
-  // selected here, not just one of them.
-  const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
-  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
-  const [editingPersonName, setEditingPersonName] = useState("");
-  const [confirmDeletePersonId, setConfirmDeletePersonId] = useState<string | null>(null);
-  // Issue #74: merge two people the model split into separate identities
-  // (different angle/lighting missed the same-person threshold). A second,
-  // narrower "pick mode" layered on the person strip rather than reusing
-  // selectedPeople - that state means "search filter", a different thing
-  // people already select multiple of for AND-search, and conflating the
-  // two would make clicking a person while merging also change the filter.
-  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
-  const [pendingMerge, setPendingMerge] = useState<{ target: Person; source: Person } | null>(null);
-  const personThumbURLs = useRef<Map<string, string>>(new Map());
-  // Issue #76: the strip used to wrap onto as many rows as there were
-  // people, pushing the photo grid further down the more faces got
-  // recognized. Collapse it to one row by default and only reveal an
-  // "expand" toggle when there's actually a second row hiding - measured
-  // from the real DOM rather than guessed from a fixed people-per-row
-  // count, since that count depends on the strip's own (responsive) width.
-  const peopleStripRef = useRef<HTMLDivElement>(null);
-  const [peopleExpanded, setPeopleExpanded] = useState(false);
-  const [peopleOverflowing, setPeopleOverflowing] = useState(false);
-  const [peopleRowHeight, setPeopleRowHeight] = useState<number | null>(null);
-
-  const loadPeople = useCallback(async () => {
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = { $case: "reqListPeople", reqListPeople: {} };
-    });
-    if (resp.payload?.$case === "respPeople") {
-      setAllPeople(resp.payload.respPeople.people ?? []);
-    }
-  }, []);
-
-  // -------- image groups (issue #115) --------------------------------------
-  // A group is one more filter on the same search (see SearchPhotos.
-  // group_id), which is what keeps tags, people, the date scrubber and
-  // infinite scroll all working unchanged inside one: activeGroup simply
-  // rides along in every request below and in the deps that restart it.
-  const [groups, setGroups] = useState<ImageGroup[]>([]);
-  // Issue #180: what is being shared as a gallery - a group, or the
-  // selected photos.
-  const [sharing, setSharing] = useState<{ groupId?: string; paths?: string[] } | null>(null);
-  const [activeGroup, setActiveGroup] = useState<ImageGroup | null>(null);
-  const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
-  // The create / add-to picker raised from the selection bar.
-  const [groupPicker, setGroupPicker] = useState<null | { mode: "create"; name: string } | { mode: "add" }>(null);
-  const [groupBusy, setGroupBusy] = useState(false);
-  const groupThumbURLs = useRef<Map<string, string>>(new Map());
-
-  const loadGroups = useCallback(async () => {
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: {} };
-    });
-    if (resp.payload?.$case === "respImageGroups") {
-      const next = resp.payload.respImageGroups.groups ?? [];
-      // Covers are picked at random per listing, so rebuild the object
-      // URLs rather than reuse ones that may now show a different member.
-      groupThumbURLs.current.forEach(u => URL.revokeObjectURL(u));
-      groupThumbURLs.current = new Map();
-      setGroups(next);
-      // Keep the chip's name/count fresh if the open group was renamed or
-      // grew from another client.
-      setActiveGroup(prev => (prev ? next.find(g => g.id === prev.id) ?? prev : prev));
-    }
-  }, []);
-  const groupThumb = (g: ImageGroup) => {
-    const cached = groupThumbURLs.current.get(g.id);
-    if (cached) return cached;
-    const url = bytesToURL(g.coverThumbnail as unknown as Uint8Array);
-    if (url) groupThumbURLs.current.set(g.id, url);
-    return url;
-  };
-  useEffect(() => { if (groupsOpen) void loadGroups(); }, [groupsOpen, loadGroups]);
-
-  const openGroup = (g: ImageGroup) => {
-    setActiveGroup(g);
-    setGroupsOpen(false);
-  };
-  const leaveGroup = () => setActiveGroup(null);
-
-  const commitRenameGroup = async () => {
-    if (!activeGroup || editingGroupName == null) return;
-    const name = editingGroupName.trim();
-    setEditingGroupName(null);
-    if (!name || name === activeGroup.name) return;
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = { $case: "reqRenameImageGroup", reqRenameImageGroup: { id: activeGroup.id, name } };
-    });
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setActiveGroup({ ...activeGroup, name });
-      setGroups(prev => prev.map(g => (g.id === activeGroup.id ? { ...g, name } : g)));
-    }
-  };
-  const deleteActiveGroup = async () => {
-    if (!activeGroup) return;
-    if (!window.confirm(`Delete the group "${activeGroup.name}"? The pictures themselves are kept.`)) return;
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = { $case: "reqDeleteImageGroup", reqDeleteImageGroup: { id: activeGroup.id } };
-    });
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setGroups(prev => prev.filter(g => g.id !== activeGroup.id));
-      setActiveGroup(null);
-    }
-  };
-  // Both take the selection's paths - the device resolves them to hashes.
-  const createGroupFromSelection = async (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setGroupBusy(true);
-    try {
-      const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = { $case: "reqCreateImageGroup", reqCreateImageGroup: { name: trimmed, paths: selOrder } };
-      });
-      if (resp.payload?.$case === "respImageGroup" && resp.payload.respImageGroup.group) {
-        const g = resp.payload.respImageGroup.group;
-        setGroups(prev => [g, ...prev]);
-        setGroupPicker(null);
-        setSelOrder([]);
-      } else {
-        alert(resp.errorMessage || "Could not create the group");
-      }
-    } finally { setGroupBusy(false); }
-  };
-  const addSelectionToGroup = async (g: ImageGroup) => {
-    setGroupBusy(true);
-    try {
-      const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = { $case: "reqAddToImageGroup", reqAddToImageGroup: { groupId: g.id, paths: selOrder } };
-      });
-      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setGroupPicker(null);
-        setSelOrder([]);
-        void loadGroups();
-      } else {
-        alert(resp.errorMessage || "Could not add to the group");
-      }
-    } finally { setGroupBusy(false); }
-  };
-
-  const togglePerson = (id: string) => setSelectedPeople(prev =>
-    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-  );
-
-  const startRenamePerson = (p: Person) => {
-    setEditingPersonId(p.id);
-    setEditingPersonName(p.name);
-  };
-  const commitRenamePerson = async (id: string) => {
-    const name = editingPersonName.trim();
-    setEditingPersonId(null);
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = { $case: "reqRenamePerson", reqRenamePerson: { id, name } };
-    });
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setAllPeople(prev => prev.map(p => (p.id === id ? { ...p, name } : p)));
-    }
-  };
-  const deletePerson = async (id: string) => {
-    setConfirmDeletePersonId(null);
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = { $case: "reqDeletePerson", reqDeletePerson: { id } };
-    });
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setAllPeople(prev => prev.filter(p => p.id !== id));
-      // Only a person the photos are filtered by changes the grid: a new
-      // array either way made the search effect reload every photo.
-      setSelectedPeople(prev => (prev.includes(id) ? prev.filter(x => x !== id) : prev));
-    }
-  };
-  // Clicking a person's avatar while merge-picking is active merges instead
-  // of toggling the search filter (see mergeTargetId's own doc comment) -
-  // this is that branch, invoked from the thumb's onClick below.
-  const pickMergeTarget = (p: Person) => {
-    if (mergeTargetId === p.id) {
-      setMergeTargetId(null); // clicked the target again - cancel picking
-      return;
-    }
-    const target = allPeople.find(x => x.id === mergeTargetId);
-    setMergeTargetId(null);
-    if (target) setPendingMerge({ target, source: p });
-  };
-  const confirmMerge = async () => {
-    if (!pendingMerge) return;
-    const { target, source } = pendingMerge;
-    setPendingMerge(null);
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = {
-        $case: "reqMergePeople",
-        reqMergePeople: { targetId: target.id, sourceIds: [source.id] },
-      };
-    });
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setSelectedPeople(prev => (prev.includes(source.id) ? prev.filter(x => x !== source.id) : prev));
-      await loadPeople(); // re-sort by the merged face count (issue #75) rather than patch counts by hand
-    }
-  };
-  const personThumb = (p: Person) => {
-    const cached = personThumbURLs.current.get(p.id);
-    if (cached) return cached;
-    const url = bytesToURL(p.coverThumbnail as unknown as Uint8Array, "image/jpeg");
-    if (url) personThumbURLs.current.set(p.id, url);
-    return url;
-  };
-  useEffect(() => () => { personThumbURLs.current.forEach(u => URL.revokeObjectURL(u)); }, []);
-
-  // Re-measure whenever the people list changes and whenever the strip's
-  // own width changes (window resize, sidebar toggle, etc.) - a
-  // ResizeObserver rather than a one-shot effect because the wrap point
-  // depends on layout, not just on how many people there are.
-  useEffect(() => {
-    const el = peopleStripRef.current;
-    if (!el) return;
-    const measure = () => {
-      const firstItem = el.querySelector<HTMLElement>(".pg-person");
-      if (!firstItem) { setPeopleOverflowing(false); return; }
-      const rowHeight = firstItem.offsetHeight;
-      setPeopleRowHeight(rowHeight);
-      // scrollHeight is the full, un-clipped content height even while
-      // overflow:hidden + max-height are actively clipping it - that's
-      // exactly what lets this double as both the measurement and the
-      // thing being collapsed.
-      setPeopleOverflowing(el.scrollHeight > rowHeight + 2);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [allPeople]);
+export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
+  const filter = usePhotoFilter();
+  const { tags, personIds, group } = filter;
+  const groupId = group?.id ?? "";
+  const dateOrdered = isDateOrdered(filter);
+  // Below this the selection bar shows icons only, each with a tooltip.
+  const compact = useMedia("(max-width: 899px)");
+  const phone = useMedia("(max-width: 599px)");
 
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
-  const mapRef = useRef<Map<string, MsgFile>>(new Map()); // dedupe
+  const mapRef = useRef<Map<string, MsgFile>>(new Map()); // dedupe, and `have`
   // One object URL per loaded item, freed once it leaves `items` (a new
   // search, a jump to a date, a delete) - see useObjectURLs.
   const thumbFor = useObjectURLs(items, thumbOf);
-  const [token, setToken] = useState<Token>(null);
-  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  // True from the start: the filter effect below starts a search on mount,
+  // so the very first paint shows grey tiles rather than an empty page.
+  const [loading, setLoading] = useState(true);
   const [endReached, setEndReached] = useState(false);
-
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-
-  // -------- date scrubber (issue #77) ----------------------------------------
-  // Per-month counts drive both the scrubber's year ticks and how many
-  // placeholder squares to draw for a month that hasn't loaded yet. Only
-  // meaningful against date order - a tag search sorts by relevance
-  // (dao.SearchMedia switches to "order by score desc" whenever tags are
-  // given), so the scrubber is hidden outright rather than showing ticks
-  // against an order it doesn't actually reflect. A person filter alone is
-  // fine - that keeps the default created-desc order.
-  const [dateBuckets, setDateBuckets] = useState<{ month: string; count: number }[]>([]);
-  // scrubFrac is the live drag position (0=newest/top, 1=oldest/bottom),
-  // null whenever the user isn't actively dragging - drives the thumb/
-  // tooltip only. placeholderCount is separate and outlives the drag: it
-  // stays set (showing black squares in place of the real grid) from the
-  // moment a drag starts until the jump-to-date fetch it triggers actually
-  // resolves, so releasing the thumb doesn't flash an empty grid while the
-  // real thumbnails are still in flight.
-  const [scrubFrac, setScrubFrac] = useState<number | null>(null);
-  const [placeholderCount, setPlaceholderCount] = useState<number | null>(null);
-  const scrubTrackRef = useRef<HTMLDivElement | null>(null);
+  // The last page failed and waits for its retry (usePageRetry).
+  const [pageError, setPageError] = useState(false);
+  const footRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
 
-  const bucketIndex = useMemo(() => {
-    let cum = 0;
-    return dateBuckets.map(b => {
-      const start = cum;
-      cum += b.count;
-      return { month: b.month, count: b.count, start, end: cum };
-    });
-  }, [dateBuckets]);
-  const totalPhotos = bucketIndex.length ? bucketIndex[bucketIndex.length - 1].end : 0;
-  const showScrubber = chips.length === 0 && bucketIndex.length > 0;
-
-  // Needed to thin out year ticks that would otherwise overlap (see
-  // yearTicks below) - the track's height only exists as a CSS percentage
-  // until measured, and thinning has to happen in real pixels. The
-  // scrubber div only exists once showScrubber is true, so this re-runs
-  // when that flips rather than finding a null ref on first render
-  // (before any buckets have loaded).
-  const [trackHeight, setTrackHeight] = useState(0);
-  useEffect(() => {
-    const el = scrubTrackRef.current;
-    if (!el) return;
-    const measure = () => setTrackHeight(el.clientHeight);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [showScrubber]);
-
-  // Ticks: one per year, positioned by cumulative photo count rather than
-  // calendar-uniform spacing, so a drag fraction actually corresponds to
-  // "how far into the library" that year sits (matches Google Photos'
-  // own timeline, where a sparse year takes less track space than a busy
-  // one). A run of sparse years can still land closer together than a
-  // label is tall though - reproduced live as several years' labels
-  // rendering stacked on top of each other, unreadable - so this also
-  // drops any tick that would land within MIN_TICK_GAP_PX of the last
-  // one actually kept, once the track's real height is known.
-  const MIN_TICK_GAP_PX = 14;
-  const yearTicks = useMemo(() => {
-    if (!totalPhotos || !trackHeight) return [];
-    const ticks: { year: string; pct: number }[] = [];
-    let lastYear = "";
-    let lastKeptPx = -Infinity;
-    bucketIndex.forEach(b => {
-      const year = b.month.slice(0, 4);
-      if (year === lastYear) return;
-      lastYear = year;
-      const px = (b.start / totalPhotos) * trackHeight;
-      if (px - lastKeptPx < MIN_TICK_GAP_PX) return;
-      ticks.push({ year, pct: (b.start / totalPhotos) * 100 });
-      lastKeptPx = px;
-    });
-    return ticks;
-  }, [bucketIndex, totalPhotos, trackHeight]);
-
-  const scrubTarget = useMemo(() => {
-    if (scrubFrac == null || !totalPhotos) return null;
-    const idx = scrubFrac * totalPhotos;
-    return bucketIndex.find(b => idx >= b.start && idx < b.end) ?? bucketIndex[bucketIndex.length - 1] ?? null;
-  }, [scrubFrac, bucketIndex, totalPhotos]);
-
-  const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const formatMonthLabel = (month: string) => {
-    const [y, m] = month.split("-").map(Number);
-    return `${MONTH_NAMES[(m || 1) - 1]} ${y}`;
-  };
-
-  const loadDateBuckets = useCallback(async () => {
-    if (chips.length > 0) { setDateBuckets([]); return; }
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = {
-        $case: "reqPhotoDateBuckets",
-        reqPhotoDateBuckets: { tags: [], personIds: selectedPeople, groupId: activeGroup?.id ?? "", includeVideos: true },
-      };
-    });
-    if (resp.payload?.$case === "respPhotoDateBuckets") {
-      setDateBuckets(resp.payload.respPhotoDateBuckets.buckets ?? []);
-    }
-  }, [chips.length, selectedPeople, activeGroup?.id]);
-
-  // -------- modal (hi-res) --------------------------------------------------
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
-  // -------- requests --------------------------------------------------------
-  const loadTags = useCallback(async () => {
-    const resp = await useWS.request(e => {
-      (e as any).payload = { $case: "reqGetTags", reqGetTags: {} };
-    });
-    if (resp.payload?.$case === "respTagsList") {
-      const list = (resp.payload.respTagsList as TagsList).tags ?? [];
-      setAllTags(list);
-    }
-  }, []);
-
-  // Bumped every time chips/selectedPeople trigger a fresh search (see the
-  // effect below) - fetchPage captures the value at call time and checks
-  // it's unchanged before applying its response. Toggling a person filter
-  // (or a tag) twice in quick succession fires two overlapping requests;
-  // without this, whichever *response* happens to land last wins even if
-  // it was for the *older* selection - reproduced live as: click a person
-  // on then off quickly, the avatar shows selected/deselected correctly
-  // but the grid shows the other request's (wrong) results, because that
-  // one's reply simply arrived second.
+  // Bumped by every search that replaces the grid (a filter change, a jump
+  // to a date). fetchPage checks it before applying a reply: toggling a
+  // filter twice quickly fires two overlapping searches, and without this
+  // whichever reply happened to land last won, even the older one's.
   const searchGenRef = useRef(0);
-  // A failed page is asked for again after a pause, not at once forever.
-  const { tick: retryTick, failed: pageFailed, reset: resetRetry, ready: retryReady } = usePageRetry();
+  // A jump's cutoff, for the search it started: if its first page fails,
+  // the retry must start at that month again, not at the newest photo.
+  const beforeRef = useRef<Date | undefined>(undefined);
+  const { tick: retryTick, failed: retryLater, reset: resetRetry, ready: retryReady } = usePageRetry();
+  // Where a shift-click range of the selection starts (an index in items).
+  const anchorRef = useRef<number | null>(null);
 
   const fetchPage = useCallback(
-    async (overrideToken?: Token, force = false, before?: Date) => {
-      // force skips the loading/endReached guard: a deliberate fresh
-      // search (chips just changed) always resets those to false right
-      // before calling this, but that reset and this call happen in the
-      // same tick - React hasn't re-rendered yet, so without `force` this
-      // closure would still see whatever they were for the *previous*
-      // search (e.g. endReached=true from having scrolled to the bottom
-      // of it), silently no-op, and leave the old results on screen until
-      // a full reload reset everything fresh.
+    async (overrideToken?: string, force = false, before?: Date) => {
+      // force skips the loading/endReached guard: a fresh search resets
+      // those right before calling this, in the same tick, so this closure
+      // still sees the previous search's values (endReached after scrolling
+      // to its end) and would otherwise do nothing.
       if (!force && (loading || endReached)) return;
       const myGen = searchGenRef.current;
       const sendToken = overrideToken ?? token ?? "";
+      const failed = () => {
+        retryLater();
+        setPageError(true);
+      };
       setLoading(true);
       try {
-        const resp: RespEnvelope = await useWS.request(e => {
-          (e as any).payload = {
-            $case: "reqSearchPhotos",
-            reqSearchPhotos: {
-              tags: chips,
-              personIds: selectedPeople,
-              // Issue #115: inside a group, only its members.
-              groupId: activeGroup?.id ?? "",
-              // Issue #106: videos belong in the Images section too. They
-              // were excluded when the flag was introduced (issue #60,
-              // where only the social composer opted in), which left a
-              // device's videos with nowhere to be browsed at all.
-              includeVideos: true,
-              token: sendToken,
-              // Without a token this starts a search (a filter, the date
-              // jump, or a retry of a first page that failed): a small
-              // page, see cFirstPagePhotos. With one, 0: the device's size.
-              limit: sendToken ? 0 : cFirstPagePhotos,
-              // Lets the device resume where this grid actually is if it
-              // no longer holds the token (see SearchPhotos.have) -
-              // otherwise it starts the search over and hands back
-              // photos already on screen, which get discarded as
-              // duplicates and look like the library ending early.
-              have: mapRef.current.size,
-              // Issue #77: the date scrubber's "jump to date" - set only
-              // by jumpToDate below, which also forces overrideToken/force
-              // so this always starts a fresh, cutoff-filtered search.
-              before,
-            },
-          };
+        const resp = await ask({
+          $case: "reqSearchPhotos",
+          reqSearchPhotos: {
+            tags,
+            personIds,
+            // Issue #115: inside a collection, only its members.
+            groupId,
+            // Issue #106: videos belong in Images too.
+            includeVideos: true,
+            token: sendToken,
+            // Without a token this starts a search (a filter, a jump, or
+            // the retry of a first page): a small page, see
+            // cFirstPagePhotos. With one, 0: the device's own size.
+            limit: sendToken ? 0 : cFirstPagePhotos,
+            // Lets the device resume where this grid is if it no longer
+            // holds the token (see SearchPhotos.have), instead of starting
+            // over with photos already on screen.
+            have: mapRef.current.size,
+            // Issue #77: the date scrubber's jump - only on the request
+            // that starts the search; the token carries the place after.
+            before: sendToken ? undefined : (before ?? beforeRef.current),
+          },
         });
-        // A newer search superseded this one while it was in flight -
-        // discard rather than let a stale reply clobber current results.
+        // A newer search took over while this one was in flight.
         if (myGen !== searchGenRef.current) return;
-        if (resp.payload?.$case !== "respListOfFiles") { pageFailed(); return; }
+        if (resp.payload?.$case !== "respListOfFiles") { failed(); return; }
 
-        const lof = resp.payload.respListOfFiles!;
-        const nextToken = lof.token || null;
-
-        // dedupe via map
+        const lof = resp.payload.respListOfFiles;
         const map = new Map(mapRef.current);
         const added: MsgFile[] = [];
         (lof.files ?? []).forEach((f, i) => {
@@ -524,654 +297,1468 @@ export default function PhotoGallery({ groupsOpen = false, setGroupsOpen = () =>
           }
         });
         mapRef.current = map;
-        if (added.length) setItems(prev => prev.concat(added));
-
+        if (added.length) setItems((prev) => prev.concat(added));
+        const nextToken = lof.token || null;
         setToken(nextToken);
-        setEndReached(!nextToken); // if no token back, we've reached the end
+        setEndReached(!nextToken);
+        setPageError(false);
         resetRetry();
       } catch (err) {
-        // No connection, or the request failed outright: retried after a
-        // pause (usePageRetry). A superseded search's failure is no one's.
+        // No connection, or the request failed outright: asked again after
+        // a pause (usePageRetry). A superseded search's failure is no one's.
         console.warn("Photo search page failed:", err);
-        if (myGen === searchGenRef.current) pageFailed();
+        if (myGen === searchGenRef.current) failed();
       } finally {
-        // Only this request's own generation may clear loading - a stale
-        // one finishing after a newer search started must not report
-        // "done" for a fetch that isn't actually the current one.
+        // Only the current search may say it is done.
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    // activeGroup too: without it, opening or leaving a group reused the
-    // fetchPage of an earlier render, and its first page searched the
-    // previous group (or the whole library).
-    [chips, selectedPeople, activeGroup?.id, token, loading, endReached, pageFailed, resetRetry]
+    [tags, personIds, groupId, token, loading, endReached, retryLater, resetRetry]
   );
 
-  // Issue #77: the date scrubber's "jump to date" - a reset exactly like
-  // the chips/selectedPeople effect below does for a fresh filter, plus
-  // the `before` cutoff that anchors the fresh search to the target
-  // month's own last instant (so it starts at that month's newest photo
-  // and reads backward from there, same as scrolling there normally
-  // would). placeholderCount is left showing until this resolves (or is
-  // superseded) - cleared here rather than by the caller so a jump that
-  // gets superseded by a *newer* jump/filter change doesn't clear
-  // placeholders that newer request is still relying on.
+  // -------- date buckets and the scrubber (issue #77) -------------------------
+  // Photo counts per month, for the scrubber's track and for how many grey
+  // tiles stand in for a month that hasn't loaded. Only meaningful in date
+  // order: a tag search is sorted by relevance (isDateOrdered).
+  const [dateBuckets, setDateBuckets] = useState<ScrubBucket[]>([]);
+  // Whether any reply has come yet: until then the scrubber may still come.
+  const [bucketsLoaded, setBucketsLoaded] = useState(false);
+  const bucketsRef = useRef<ScrubBucket[]>([]);
+  useEffect(() => { bucketsRef.current = dateBuckets; }, [dateBuckets]);
+  const bucketGenRef = useRef(0);
+  const loadDateBuckets = useCallback(async () => {
+    const gen = ++bucketGenRef.current;
+    if (!dateOrdered) { setDateBuckets([]); return; }
+    try {
+      const resp = await ask({
+        $case: "reqPhotoDateBuckets",
+        reqPhotoDateBuckets: { tags: [], personIds, groupId, includeVideos: true },
+      });
+      // The old list stays until the new one is in, so the scrubber (and
+      // the room the grid keeps for it) doesn't blink on a filter change.
+      if (gen === bucketGenRef.current && resp.payload?.$case === "respPhotoDateBuckets") {
+        setDateBuckets(resp.payload.respPhotoDateBuckets.buckets ?? []);
+        setBucketsLoaded(true);
+      }
+    } catch {
+      // No scrubber this time; the photos themselves still load.
+    }
+  }, [dateOrdered, personIds, groupId]);
+
+  // Grey tiles in place of the grid while the scrubber is dragged and until
+  // the jump it ends with has its photos, so releasing it doesn't flash
+  // whatever was on screen before.
+  const [placeholderCount, setPlaceholderCount] = useState<number | null>(null);
+  const scrubbingRef = useRef(false);
+  const jumpsInFlightRef = useRef(0);
+
+  // The scrubber's jump: a fresh search like a filter change, anchored at
+  // the last instant of `month`, so it starts at that month's newest photo
+  // and reads back from there as scrolling there would. The placeholders
+  // are cleared here, once this search is current and done: a jump
+  // superseded by a newer one leaves them to that one.
   const jumpToDate = useCallback(async (month: string) => {
     const [y, m] = month.split("-").map(Number);
-    const before = new Date(y, m, 0, 23, 59, 59, 999); // last instant of `month`
+    const before = new Date(y, m, 0, 23, 59, 59, 999);
     searchGenRef.current += 1;
     const myGen = searchGenRef.current;
+    beforeRef.current = before;
     resetRetry();
     setItems([]);
     mapRef.current = new Map();
     setToken(null);
     setEndReached(false);
-    // Scrolling to the top already happened in handleScrubMove, the
-    // moment the drag/click started - see its own comment.
+    setPageError(false);
+    anchorRef.current = null;
     try {
       await fetchPage("", true, before);
     } finally {
       if (myGen === searchGenRef.current) setPlaceholderCount(null);
     }
   }, [fetchPage, resetRetry]);
+  const jumpRef = useRef(jumpToDate);
+  useLayoutEffect(() => { jumpRef.current = jumpToDate; });
 
-  const handleScrubMove = (clientY: number) => {
-    const el = scrubTrackRef.current;
-    if (!el || !totalPhotos) return;
-    if (scrubFrac == null) {
-      // First move of a new drag (a plain click/tap counts too, since
-      // pointerdown itself calls this once) - scroll away immediately
-      // rather than waiting for the jump to actually resolve, so the
-      // current cards visibly start moving out of the way the moment you
-      // touch the scrubber, the way Google Photos' own does.
+  // Stable, so the scrubber can keep them in its own effects.
+  const onScrubPreview = useCallback((bucket: ScrubBucket | null) => {
+    if (!bucket) {
+      scrubbingRef.current = false;
+      // A release that jumps keeps its tiles until the photos are in.
+      if (!jumpsInFlightRef.current) setPlaceholderCount(null);
+      return;
+    }
+    if (!scrubbingRef.current) {
+      scrubbingRef.current = true;
+      // Out of the way at once, as Google Photos' own does: the grid's top
+      // comes up under the bar while the finger is still moving.
       gridRef.current?.scrollIntoView({ block: "start" });
     }
-    const rect = el.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
-    setScrubFrac(frac);
-    // No network call here at all - the placeholder count comes straight
-    // out of the already-fetched bucket counts, which is the whole point:
-    // dragging fast across years costs nothing but re-renders.
-    const idx = frac * totalPhotos;
-    const bucket = bucketIndex.find(b => idx >= b.start && idx < b.end) ?? bucketIndex[bucketIndex.length - 1];
-    if (bucket) setPlaceholderCount(bucket.count);
-  };
-  // Issue #113: where a touch started, so a scrub can be told from a
-  // finger that only brushed the strip on its way into a scroll.
-  const scrubStartY = useRef<number | null>(null);
-
-  const onScrubPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    scrubStartY.current = e.clientY;
-    // A mouse click is deliberate - nobody clicks the scrubber by
-    // accident - so it still jumps straight away. A touch has to move
-    // first: pressing down used to jump the grid to the top and scrub
-    // from wherever the finger landed, which is what made brushing this
-    // strip throw the whole library back to the newest photo.
-    if (e.pointerType === "mouse") handleScrubMove(e.clientY);
-  };
-  const onScrubPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (scrubFrac == null) {
-      const start = scrubStartY.current;
-      if (start == null || Math.abs(e.clientY - start) < cScrubEngagePx) return;
-    }
-    handleScrubMove(e.clientY);
-  };
-  const onScrubPointerUp = () => {
-    scrubStartY.current = null;
-    const target = scrubTarget; // capture before clearing scrubFrac below
-    setScrubFrac(null);
-    if (target) void jumpToDate(target.month);
-    else setPlaceholderCount(null);
-  };
-
-  // open the viewer (MediaViewer) on an item
-  const openAt = useCallback((idx: number) => setOpenIdx(idx), []);
-  // The viewer shows the grid's own thumbnail URL while the full size
-  // loads, rather than making another copy of it per render.
-  const viewerOpen = openIdx != null;
-  const viewerItems = useMemo(
-    () => (viewerOpen ? items.map(f => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f) })) : []),
-    [viewerOpen, items, thumbFor]
-  );
-
-  // -------- initial load ----------------------------------------------------
-  // Just the autocomplete tag list - the photo list itself is fetched by
-  // the chips effect below, which also fires on mount (with whatever tags
-  // were persisted from a previous session, per issue #53) so fetching it
-  // here too was pure duplicate work, not just on first load but racing
-  // this effect's own fetchPage against the chips effect's.
-  useEffect(() => {
-    loadTags();
-    loadPeople();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // No request here: the count comes from the buckets already loaded, so
+    // dragging across years costs nothing but renders.
+    setPlaceholderCount(Math.min(bucket.count, cMaxPlaceholders));
   }, []);
 
-  // Fetch fresh whenever chips or the selected people change - including on
-  // mount, for whichever tags (possibly none) were persisted. force=true:
-  // see fetchPage's own comment for why a plain (non-forced) call here
-  // could silently do nothing.
-  useEffect(() => {
-    // Invalidates any still-in-flight fetchPage from the *previous*
-    // selection before this one's own request even goes out - see
-    // searchGenRef's doc comment.
-    searchGenRef.current += 1;
-    resetRetry();
-    (async () => {
-      setItems([]);
-      mapRef.current = new Map();
-      setToken(null);
-      setEndReached(false);
-      await fetchPage("", true);
-    })();
-    savePhotoSearchTags(chips);
-    // A filter change makes any scrub in progress meaningless (its target
-    // bucket was computed against the *previous* filter's counts) - drop
-    // it rather than leave stale placeholders or a thumb positioned
-    // against numbers that no longer apply.
-    setScrubFrac(null);
-    setPlaceholderCount(null);
-    loadDateBuckets();
-  }, [chips, selectedPeople, activeGroup?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onScrubJump = useCallback((month: string) => {
+    if (!scrubbingRef.current) gridRef.current?.scrollIntoView({ block: "start" });
+    scrubbingRef.current = false;
+    const bucket = bucketsRef.current.find((b) => b.month === month);
+    setPlaceholderCount(Math.min(bucket?.count ?? cFirstPagePhotos, cMaxPlaceholders));
+    jumpsInFlightRef.current += 1;
+    void jumpRef.current(month).finally(() => { jumpsInFlightRef.current -= 1; });
+  }, []);
 
-  // -------- infinite scroll: one call at a time -----------------------------
+  // The month at the top of the screen, for the scrubber's "you are here".
+  const [currentMonth, setCurrentMonth] = useState<string | null>(null);
   useEffect(() => {
-    const node = sentinelRef.current;
+    if (!dateOrdered) return;
+    const barHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 64;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const kids = gridRef.current?.children;
+      if (!kids || kids.length === 0) return;
+      // The first tile or month title still below the top bar. Rows run in
+      // document order, so their bottoms only grow: a binary search finds
+      // it in a dozen reads, however long the grid.
+      let lo = 0;
+      let hi = kids.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (kids[mid].getBoundingClientRect().bottom > barHeight) hi = mid;
+        else lo = mid + 1;
+      }
+      const month = (kids[lo] as HTMLElement).dataset.month;
+      if (month) setCurrentMonth(month);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [dateOrdered, items]);
+
+  // -------- a new search whenever the filter changes ------------------------
+  // Tags, people and the open collection, and only those: renaming the open
+  // collection (updateOpenGroup) keeps its id and the photos on screen.
+  // Runs on mount too.
+  useEffect(() => {
+    searchGenRef.current += 1;
+    beforeRef.current = undefined;
+    resetRetry();
+    setItems([]);
+    mapRef.current = new Map();
+    setToken(null);
+    setEndReached(false);
+    setPageError(false);
+    anchorRef.current = null;
+    void fetchPage("", true);
+    // A scrub in progress was measured against the previous filter's months.
+    scrubbingRef.current = false;
+    setPlaceholderCount(null);
+    void loadDateBuckets();
+    window.scrollTo(0, 0);
+  }, [tags, personIds, groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // -------- infinite scroll: one page at a time ------------------------------
+  // Not under the scrubber's grey tiles: those stand in for another month,
+  // and a page now would be of the photos being left.
+  const previewing = placeholderCount != null;
+  useEffect(() => {
+    const node = footRef.current;
     if (!node) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        const ent = entries[0];
-        if (!ent?.isIntersecting) return;
+        if (!entries[0]?.isIntersecting) return;
         // After a failed page, not before its retry is due (retryTick
         // re-creates this observer when it is).
-        if (!loading && !endReached && retryReady()) fetchPage();
+        if (!loading && !endReached && !previewing && retryReady()) void fetchPage();
       },
-      // Bottom margin, so the next page starts while the sentinel is still
-      // below the fold - after a small first page that is only a few rows
-      // down. (It used to be a top margin, which did nothing here.)
+      // The next page starts while the end is still well below the fold.
       { root: null, rootMargin: "0px 0px 600px 0px" }
     );
-    observerRef.current = obs;
     obs.observe(node);
-    return () => {
-      obs.disconnect();
-      observerRef.current = null;
-    };
-  }, [fetchPage, loading, endReached, retryTick, retryReady]);
+    return () => obs.disconnect();
+  }, [fetchPage, loading, endReached, previewing, retryTick, retryReady]);
 
-  // -------- selection bar (issue #48: ordered, not a Set — post order
-  // matches selection order, and can be explicitly fixed up via moveSel
-  // rather than only by deselecting/reselecting everything) ------------------
-  const [selOrder, setSelOrder] = useState<string[]>([]);
-  const toggleSel = (p: string) => setSelOrder(prev =>
-    prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
-  );
-  const moveSel = (p: string, offset: number) => setSelOrder(prev => {
-    const idx = prev.indexOf(p);
-    const newIdx = idx + offset;
-    if (idx < 0 || newIdx < 0 || newIdx >= prev.length) return prev;
-    const next = [...prev];
-    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
-    return next;
-  });
-  const selectedPaths = selOrder;
-
-  const shareInSocial = async () => {
-    if (!selectedPaths.length) return;
-    const caption = window.prompt("Caption:") ?? "";
-    const resp = await useWS.request(e => {
-      (e as any).payload = {
-        $case: "reqNewSocialPublication",
-        reqNewSocialPublication: { text: caption, paths: selectedPaths },
-      };
-    });
-    if (resp.payload?.$case === "respNewSocial" && resp.payload.respNewSocial.uuid) {
-      alert("Shared: " + resp.payload.respNewSocial.uuid);
-      setSelOrder([]);
-    } else {
-      alert("Error publishing");
-    }
+  // "Try again" after a failure, without waiting for the retry's pause.
+  const retryNow = () => {
+    resetRetry();
+    setPageError(false);
+    void fetchPage(items.length ? undefined : "", true);
   };
 
-  // Issue #45: delete every selected photo/video.
-  const deleteSelected = async () => {
-    if (!selectedPaths.length) return;
-    if (!window.confirm(`Delete ${selectedPaths.length} item${selectedPaths.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
-
-    const toDelete = new Set(selectedPaths);
-    for (const path of selectedPaths) {
-      await useWS.request(e => {
-        (e as any).payload = { $case: "reqDelFile", reqDelFile: { path } };
-      });
-    }
-
-    setItems(prev => prev.filter(f => !toDelete.has(f.path)));
-    toDelete.forEach(p => mapRef.current.delete(p));
-    setSelOrder([]);
-    // The modal may be pointing at an item that no longer exists (or whose
-    // index shifted) once the deleted items are filtered out of `items`.
+  // -------- the viewer --------------------------------------------------------
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const openIdxRef = useRef<number | null>(null);
+  const openAt = useCallback((i: number) => {
+    openIdxRef.current = i;
+    setOpenIdx(i);
+  }, []);
+  // Back to the tile that was showing last, keyboard focus included.
+  const closeViewer = useCallback(() => {
+    const i = openIdxRef.current;
+    openIdxRef.current = null;
     setOpenIdx(null);
+    if (i == null) return;
+    requestAnimationFrame(() => {
+      const el = gridRef.current?.querySelector<HTMLElement>(`.pg-tile[data-idx="${i}"] .pg-tile-open`);
+      if (!el) return;
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: "nearest" });
+    });
+  }, []);
+  // The viewer shows the grid's own thumbnail while the full size loads.
+  const viewerOpen = openIdx != null;
+  const viewerItems = useMemo(
+    () => (viewerOpen ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f) })) : []),
+    [viewerOpen, items, thumbFor]
+  );
+
+  // -------- selection (issue #48: ordered - a post shows its photos in the
+  // order they were picked, and the post dialog can change it) ---------------
+  const [sel, setSel] = useState<MsgFile[]>([]);
+  const selecting = sel.length > 0;
+  const selNo = useMemo(() => new Map(sel.map((f, i) => [f.path, i + 1])), [sel]);
+  // The post dialog's thumbnails: a picked photo may have left the grid
+  // since (a jump to another date), so the selection keeps its own.
+  const selThumbFor = useObjectURLs(sel, thumbOf);
+
+  const clearSel = useCallback(() => {
+    setSel([]);
+    anchorRef.current = null;
+  }, []);
+
+  const toggleAt = (idx: number, range: boolean) => {
+    const f = items[idx];
+    if (!f) return;
+    const anchor = anchorRef.current;
+    anchorRef.current = idx;
+    if (range && anchor != null && anchor !== idx && items[anchor]) {
+      const span = anchor < idx ? items.slice(anchor, idx + 1) : items.slice(idx, anchor + 1);
+      setSel((prev) => {
+        const have = new Set(prev.map((x) => x.path));
+        return prev.concat(span.filter((x) => !have.has(x.path)));
+      });
+      return;
+    }
+    setSel((prev) => (prev.some((x) => x.path === f.path) ? prev.filter((x) => x.path !== f.path) : [...prev, f]));
   };
 
-  // Which of the two share actions is currently working, so the button
-  // that was clicked shows the spinner (and both are disabled) rather
-  // than the whole bar going ambiguous.
+  const selectFile = (f: MsgFile, idx: number) => {
+    anchorRef.current = idx;
+    setSel((prev) => (prev.some((x) => x.path === f.path) ? prev : [...prev, f]));
+  };
+
+  const moveSel = useCallback((path: string, offset: number) => setSel((prev) => {
+    const i = prev.findIndex((x) => x.path === path);
+    const j = i + offset;
+    if (i < 0 || j < 0 || j >= prev.length) return prev;
+    const next = [...prev];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  }), []);
+  const unselect = useCallback((path: string) => setSel((prev) => prev.filter((x) => x.path !== path)), []);
+
+  // -------- tiles: clicks, and the long press on touch ------------------------
+  // One set of handlers on the grid rather than on every tile: tiles stay
+  // plain memoized markup, and the press state is the grid's.
+  const pressRef = useRef<{ pointerId: number; x: number; y: number; timer: number; file: MsgFile; idx: number } | null>(null);
+  const pressFiredRef = useRef(false);
+  const suppressClickUntilRef = useRef(0);
+  const pointerTypeRef = useRef("mouse");
+
+  const cancelPress = () => {
+    const p = pressRef.current;
+    if (p) window.clearTimeout(p.timer);
+    pressRef.current = null;
+  };
+  useEffect(() => () => {
+    const p = pressRef.current;
+    if (p) window.clearTimeout(p.timer);
+  }, []);
+
+  const firePress = (f: MsgFile, idx: number) => {
+    pressRef.current = null;
+    pressFiredRef.current = true;
+    selectFile(f, idx);
+    try { navigator.vibrate?.(10); } catch { /* not every device can */ }
+  };
+
+  const tileIndexOf = (target: EventTarget | null): number | null => {
+    if (!(target instanceof Element)) return null;
+    const tile = target.closest<HTMLElement>(".pg-tile[data-idx]");
+    if (!tile) return null;
+    const i = Number(tile.dataset.idx);
+    return Number.isInteger(i) ? i : null;
+  };
+
+  const onGridPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    pointerTypeRef.current = e.pointerType;
+    pressFiredRef.current = false;
+    // A new touch: the click a long press leaves behind came before it, so
+    // a quick tap on the next photo is a tap.
+    suppressClickUntilRef.current = 0;
+    cancelPress();
+    if (e.pointerType === "mouse" || !e.isPrimary) return;
+    const idx = tileIndexOf(e.target);
+    const f = idx == null ? undefined : items[idx];
+    if (idx == null || !f) return;
+    const timer = window.setTimeout(() => firePress(f, idx), cLongPressMs);
+    pressRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, timer, file: f, idx };
+  };
+  const onGridPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const p = pressRef.current;
+    if (p && e.pointerId === p.pointerId && Math.hypot(e.clientX - p.x, e.clientY - p.y) > cPressSlopPx) cancelPress();
+  };
+  // The click that ends a long press must not toggle the photo straight
+  // back (or open it). It follows the release at once, or not at all.
+  const onGridPointerEnd = () => {
+    cancelPress();
+    if (pressFiredRef.current) {
+      pressFiredRef.current = false;
+      suppressClickUntilRef.current = performance.now() + 600;
+    }
+  };
+  const onGridContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (pointerTypeRef.current === "mouse") return;
+    const idx = tileIndexOf(e.target);
+    if (idx == null) return;
+    // Android answers a long press on a picture with its own menu (save,
+    // open in a new tab): here the press selects the photo instead.
+    e.preventDefault();
+    const p = pressRef.current;
+    if (p) {
+      window.clearTimeout(p.timer);
+      firePress(p.file, p.idx);
+    }
+  };
+  const onGridClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (performance.now() < suppressClickUntilRef.current) return;
+    const idx = tileIndexOf(e.target);
+    if (idx == null) return;
+    const onCircle = (e.target as Element).closest(".pg-tile-check") != null;
+    if (onCircle || selecting) toggleAt(idx, e.shiftKey);
+    else openAt(idx);
+  };
+
+  // -------- toasts ------------------------------------------------------------
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastIdRef = useRef(0);
+  const showToast = useCallback((t: Omit<Toast, "id">) => {
+    const id = ++toastIdRef.current;
+    setToast({ ...t, id });
+    return id;
+  }, []);
+  const dismissToast = useCallback((id: number) => setToast((cur) => (cur?.id === id ? null : cur)), []);
+  useEffect(() => {
+    if (!toast || toast.busy) return;
+    const t = window.setTimeout(() => dismissToast(toast.id), toast.action ? 6000 : toast.error ? 5000 : 3000);
+    return () => window.clearTimeout(t);
+  }, [toast, dismissToast]);
+  const toastError = useCallback((text: string) => { showToast({ text, error: true }); }, [showToast]);
+
+  // -------- dialogs, menus and sharing -----------------------------------------
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+  const closeDialog = useCallback(() => setDialog(null), []);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareBtnRef = useRef<HTMLButtonElement>(null);
+  const closeShare = useCallback((refocus: boolean) => {
+    setShareOpen(false);
+    if (refocus) shareBtnRef.current?.focus();
+  }, []);
+  // From the selection bar: an open share menu gives way to the dialog.
+  const openDialog = (d: DialogState) => {
+    setShareOpen(false);
+    setDialog(d);
+  };
+  // Issue #180: what is being shared as a gallery page - the open
+  // collection, or the selected photos.
+  const [sharing, setSharing] = useState<{ groupId?: string; paths?: string[] } | null>(null);
+  // Which share link is being made: the device reads every file and builds
+  // an archive first, which takes seconds, and a second click would start
+  // a second archive (issue #104).
   const [preparing, setPreparing] = useState<null | "link" | "zip">(null);
 
-  const shareOrDownload = async (openAfter: boolean) => {
-    if (!selectedPaths.length || preparing) return;
-    // The device has to read every selected file and build an archive
-    // before there's a link to hand back - seconds for a handful of
-    // photos, during which this button used to look completely inert.
-    setPreparing(openAfter ? "zip" : "link");
+  const makeLink = async (kind: "link" | "zip") => {
+    if (preparing || !sel.length) return;
+    const paths = sel.map((f) => f.path);
+    closeShare(false);
+    setPreparing(kind);
+    const busyId = showToast({ text: kind === "zip" ? "Preparing the ZIP…" : "Preparing the link…", busy: true });
     try {
-      const r1 = await useWS.request(e => {
-        (e as any).payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths: selectedPaths } };
-      });
-      if (r1.payload?.$case !== "respShareLink") { alert("Could not create link"); return; }
-      const link = r1.payload.respShareLink.link;
-      if (openAfter) window.open(link, "_blank");
-      else {
-        await navigator.clipboard?.writeText?.(link);
-        alert("Link copied");
+      const resp = await ask({ $case: "reqShareFilesLink", reqShareFilesLink: { paths } });
+      const link = resp.payload?.$case === "respShareLink" ? resp.payload.respShareLink.link : "";
+      if (!link) {
+        showToast({ text: kind === "zip" ? "Couldn't make the ZIP. Try again." : "Couldn't make the link. Try again.", error: true });
+        return;
       }
+      if (kind === "zip") {
+        // The link's own page downloads the archive. A popup blocker may
+        // refuse a tab opened this long after the click: then a button does.
+        if (window.open(link, "_blank")) dismissToast(busyId);
+        else showToast({ text: "Your ZIP is ready", action: { label: "Download", run: () => { window.open(link, "_blank"); } } });
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast({ text: "Link copied" });
+      } catch {
+        dismissToast(busyId);
+        setDialog({ kind: "link", link });
+      }
+    } catch {
+      showToast({ text: "Couldn't reach your device. Try again.", error: true });
     } finally {
       setPreparing(null);
     }
   };
 
-  // -------- render ----------------------------------------------------------
+  // Issue #45: delete every selected photo and video, one request each.
+  const [deleting, setDeleting] = useState<{ done: number; total: number } | null>(null);
+  const deleteSelected = async (): Promise<string | null> => {
+    const files = sel;
+    if (!files.length) return null;
+    setDeleting({ done: 0, total: files.length });
+    const gone = new Set<string>();
+    let uploadOnly = 0;
+    let failed = 0;
+    for (const f of files) {
+      try {
+        const resp = await ask({ $case: "reqDelFile", reqDelFile: { path: f.path } });
+        if (acked(resp)) gone.add(f.path);
+        else if (resp.errorCode === "upload_only") uploadOnly += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+      setDeleting((d) => (d ? { ...d, done: d.done + 1 } : d));
+    }
+    setDeleting(null);
+    if (gone.size) {
+      setItems((prev) => prev.filter((f) => !gone.has(f.path)));
+      // `have` must count what is on screen, or a search the device
+      // resumes would skip as many photos as were deleted.
+      for (const [k, f] of mapRef.current) if (gone.has(f.path)) mapRef.current.delete(k);
+      // The viewer could point at a photo that's gone or has moved.
+      openIdxRef.current = null;
+      setOpenIdx(null);
+      void loadDateBuckets();
+      // The open collection's count (its header follows the list).
+      if (group) void reloadGroups().catch(() => {});
+    }
+    // What couldn't be deleted stays selected, to try again or keep.
+    setSel((prev) => prev.filter((f) => !gone.has(f.path)));
+    anchorRef.current = null;
+    setDialog(null);
+    const kept = uploadOnly + failed;
+    if (!kept) {
+      showToast({ text: `Deleted ${whatLabel(files)}` });
+    } else if (kept === uploadOnly) {
+      showToast({ text: `${count(kept, "item")} ${kept === 1 ? "is" : "are"} in an upload-only folder and can't be deleted`, error: true });
+    } else {
+      showToast({ text: `${count(kept, "item")} couldn't be deleted. Try again.`, error: true });
+    }
+    return null;
+  };
+
+  const deleteCollection = async (): Promise<string | null> => {
+    if (!group) return null;
+    try {
+      const resp = await ask({ $case: "reqDeleteImageGroup", reqDeleteImageGroup: { id: group.id } });
+      if (!acked(resp)) return "Couldn't delete the collection. Try again.";
+    } catch {
+      return "Couldn't reach your device. Try again.";
+    }
+    // One render for all of it: after the await these would otherwise be
+    // two (the filter's store and App's tab), and the first would search
+    // the whole library on the way out.
+    flushSync(() => {
+      setDialog(null);
+      dropGroupLocally(group.id);
+      leaveGroup();
+      onShowCollections();
+    });
+    return null;
+  };
+
+  const onPosted = () => {
+    setDialog(null);
+    clearSel();
+    showToast({ text: "Posted" });
+  };
+
+  const onCollected = (g: OpenGroup) => {
+    setDialog(null);
+    clearSel();
+    showToast({ text: `Added to “${g.name}”`, action: { label: "View", run: () => openGroup(g) } });
+  };
+
+  // Escape clears the selection - unless something on top of the grid
+  // (the viewer, a dialog, the share menu) is what it should close.
+  const somethingOnTop = openIdx != null || dialog != null || shareOpen || sharing != null;
+  useEffect(() => {
+    if (!selecting || somethingOnTop) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) clearSel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selecting, somethingOnTop, clearSel]);
+
+  // The share menu belongs to the selection bar.
+  useEffect(() => { if (!selecting) setShareOpen(false); }, [selecting]);
+
+  // -------- render ------------------------------------------------------------
+  const gridChildren = useMemo(() => {
+    const out: ReactNode[] = [];
+    const keys = new Set<string>();
+    // A restarted search can send a photo twice: React keys stay unique.
+    const unique = (k: string) => {
+      let key = k;
+      for (let n = 2; keys.has(key); n++) key = `${k}~${n}`;
+      keys.add(key);
+      return key;
+    };
+    let month: string | null = null;
+    items.forEach((f, i) => {
+      const m = monthOf(f.created);
+      if (dateOrdered && m && m !== month) {
+        out.push(<h2 key={unique(`month-${m}`)} className="pg-month" data-month={m}>{monthTitle(m)}</h2>);
+      }
+      if (m) month = m;
+      out.push(
+        <Tile
+          key={unique(`${f.path}#${f.hash}`)}
+          file={f}
+          index={i}
+          month={month ?? ""}
+          thumb={thumbFor(f)}
+          selNo={selNo.get(f.path) ?? 0}
+          selecting={selecting}
+        />
+      );
+    });
+    return out;
+  }, [items, dateOrdered, thumbFor, selNo, selecting]);
+
+  const bucketTotal = dateBuckets.reduce((sum, b) => sum + b.count, 0);
+  const showScrubber = dateOrdered && dateBuckets.length > 0;
+  // Once the first page has failed, its error stays up while the retries
+  // run (the button shows them), rather than flipping back to grey tiles.
+  const firstLoad = items.length === 0 && !pageError && (loading || !endReached);
+
+  let body: ReactNode;
+  if (previewing) {
+    body = (
+      <div className="pg-grid" ref={gridRef} aria-busy="true" aria-label="Loading photos">
+        {Array.from({ length: placeholderCount }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
+      </div>
+    );
+  } else if (firstLoad) {
+    body = (
+      <div className="pg-grid" aria-busy="true" aria-label="Loading photos">
+        {dateOrdered && <div className="pg-month pg-month-skel"><span /></div>}
+        {Array.from({ length: cSkeletonTiles }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
+      </div>
+    );
+  } else if (items.length === 0 && pageError) {
+    body = (
+      <Empty icon={<OfflineIcon size={32} />} title="Can't reach your device" text="Your photos will appear as soon as it answers.">
+        <button type="button" className="pg-btn outline" onClick={retryNow} disabled={loading}>
+          {loading ? <Spinner label="Trying…" /> : "Try again"}
+        </button>
+      </Empty>
+    );
+  } else if (items.length === 0) {
+    if (group && !tags.length && !personIds.length) {
+      body = (
+        <Empty icon={<CollectionsIcon size={32} />} title="This collection is empty" text="Select photos in Images, then choose Add to collection.">
+          <button type="button" className="pg-btn outline" onClick={() => leaveGroup()}>Go to Images</button>
+        </Empty>
+      );
+    } else if (isFiltered(filter)) {
+      body = (
+        <Empty icon={<SearchIcon size={32} />} title="No photos match" text={group ? `Nothing in “${group.name}” matches this search.` : "Try other words, or fewer of them."}>
+          <button type="button" className="pg-btn outline" onClick={() => clearSearch()}>Clear search</button>
+        </Empty>
+      );
+    } else {
+      body = <Empty icon={<ImagesIcon size={32} />} title="No photos yet" text="Photos from the phone and computer apps appear here." />;
+    }
+  } else {
+    body = (
+      <div
+        className="pg-grid"
+        ref={gridRef}
+        onClick={onGridClick}
+        onPointerDown={onGridPointerDown}
+        onPointerMove={onGridPointerMove}
+        onPointerUp={onGridPointerEnd}
+        onPointerCancel={onGridPointerEnd}
+        onContextMenu={onGridContextMenu}
+      >
+        {gridChildren}
+      </div>
+    );
+  }
+
+  // The room for the scrubber is kept from the start of a date-ordered
+  // search, so its arrival doesn't reflow the grid - and dropped once the
+  // device says there are no months to show at all.
+  const keepScrubberRoom = dateOrdered && (!bucketsLoaded || dateBuckets.length > 0);
+  const rootClass = `pg-root${keepScrubberRoom ? " with-scrubber" : ""}${selecting ? " selecting" : ""}`;
+
   return (
-    <div className="pg-root">
-      {/* top search with chips and suggestions */}
-      <div className="pg-search">
-        <div className="pg-chipbar">
-          {/* Issue #115: the open group, as a chip like a tag - its name
-              edits in place, × leaves the group. Everything else in this
-              bar keeps working inside it. */}
-          {activeGroup && (
-            <span className="pg-chip pg-group-chip" title={`${activeGroup.fileCount} in this group`}>
-              <span className="pg-group-chip-icon" aria-hidden="true">📖</span>
-              {editingGroupName != null ? (
-                <input
-                  className="pg-group-name-input"
-                  autoFocus
-                  value={editingGroupName}
-                  onChange={e => setEditingGroupName(e.target.value)}
-                  onBlur={() => void commitRenameGroup()}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") void commitRenameGroup();
-                    if (e.key === "Escape") setEditingGroupName(null);
-                  }}
-                />
-              ) : (
-                <button className="pg-group-chip-name" title="Rename this group" onClick={() => setEditingGroupName(activeGroup.name)}>
-                  {activeGroup.name}
-                </button>
-              )}
-              <button className="pg-chip-x" title="Share this group as a gallery" aria-label="Share this group as a gallery" onClick={() => setSharing({ groupId: activeGroup.id })}>🔗</button>
-              <button className="pg-chip-x" title="Delete this group" onClick={() => void deleteActiveGroup()}>🗑️</button>
-              <button className="pg-chip-x" onClick={leaveGroup} aria-label="Leave group">×</button>
-            </span>
-          )}
-          {chips.map((c) => (
-            <span key={`chip-${c}`} className="pg-chip">
-              {c}
-              <button className="pg-chip-x" onClick={() => removeChip(c)} aria-label={`Remove ${c}`}>×</button>
+    <div className={rootClass}>
+      {group && (
+        <CollectionHeader
+          group={group}
+          span={dateOrdered ? spanLabel(dateBuckets) : ""}
+          compact={phone}
+          onBack={() => {
+            // Leaving it, not just looking away: the search in the top bar
+            // is the whole library again.
+            leaveGroup();
+            onShowCollections();
+          }}
+          onShare={() => setSharing({ groupId: group.id })}
+          onDelete={() => setDialog({ kind: "deleteCollection" })}
+          onError={toastError}
+        />
+      )}
+      {!group && personIds.length > 0 && tags.length === 0 && (
+        <PersonHeader personIds={personIds} total={dateBuckets.length ? bucketTotal : null} />
+      )}
+
+      {body}
+
+      {/* The end of the grid: the next page loads when this nears the
+          screen. Always the same node, which the observer above watches. */}
+      <div className="pg-foot" ref={footRef}>
+        {items.length > 0 && !previewing && (loading
+          ? <Spinner />
+          : pageError && (
+            <span className="pg-foot-error">
+              Couldn't load more photos.
+              <button type="button" className="pg-btn quiet small" onClick={retryNow}>Try again</button>
             </span>
           ))}
-          <input
-            value={input}
-            onChange={(e) => { setInput(e.target.value); setShowSuggest(true); }}
-            onFocus={() => setShowSuggest(true)}
-            onBlur={() => setTimeout(() => setShowSuggest(false), 100)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (suggestions.length === 1) addChip(suggestions[0]);
-                else if (input.trim()) addChip(input.trim());
-              } else if (e.key === "Backspace" && !input && chips.length) {
-                removeChip(chips[chips.length - 1]);
-              }
-            }}
-            placeholder="Type a tag…"
-          />
-        </div>
+      </div>
 
-        {showSuggest && suggestions.length > 0 && (
-          <div className="pg-suggest">
-            {suggestions.map(s => (
-              <div key={`sug-${s}`} className="pg-suggest-item" onMouseDown={() => addChip(s)}>{s}</div>
-            ))}
-          </div>
-        )}
-
-        {/* Issue #52 follow-up: filter by person right here, alongside
-            tags - combines with them on the same search (e.g. a person
-            plus the "dogs" tag), and selecting more than one person means
-            photos containing all of them, not just one. Nothing renders at
-            all when there's no one to filter by yet - no explanatory
-            hint needed. */}
-        {allPeople.length > 0 && (
-          <>
-            {mergeTargetId && (
-              <div className="pg-people-hint pg-merge-hint">
-                Merging into <strong>{allPeople.find(x => x.id === mergeTargetId)?.name || "Unnamed"}</strong> —
-                tap another person below to merge them in, or{" "}
-                <button className="pg-link-btn" onClick={() => setMergeTargetId(null)}>cancel</button>.
-              </div>
-            )}
-            <div
-              className="pg-people-strip"
-              ref={peopleStripRef}
-              style={!peopleExpanded && peopleOverflowing && peopleRowHeight
-                ? { maxHeight: peopleRowHeight, overflow: "hidden" }
-                : undefined}
-            >
-              {allPeople.map(p => {
-                const selected = selectedPeople.includes(p.id);
-                const isMergeTarget = mergeTargetId === p.id;
-                const thumb = personThumb(p);
-                return (
-                  <div key={p.id} className={`pg-person${selected ? " selected" : ""}${isMergeTarget ? " merge-target" : ""}`}>
-                    <button
-                      className="pg-person-thumb"
-                      onClick={() => (mergeTargetId ? pickMergeTarget(p) : togglePerson(p.id))}
-                      title={mergeTargetId ? (isMergeTarget ? "Cancel merge" : `Merge into ${allPeople.find(x => x.id === mergeTargetId)?.name || "Unnamed"}`) : (p.name || "Unnamed")}
-                    >
-                      {thumb ? <img src={thumb} alt={p.name || "Unnamed"} /> : <span className="pg-person-ph">🙂</span>}
-                    </button>
-                    {editingPersonId === p.id ? (
-                      <input
-                        className="pg-person-name-input"
-                        autoFocus
-                        placeholder="Name…"
-                        value={editingPersonName}
-                        onChange={e => setEditingPersonName(e.target.value)}
-                        onBlur={() => void commitRenamePerson(p.id)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter") void commitRenamePerson(p.id);
-                          if (e.key === "Escape") setEditingPersonId(null);
-                        }}
-                      />
-                    ) : (
-                      <button className="pg-person-name" onClick={() => startRenamePerson(p)}>
-                        {p.name || "Unnamed"}
-                      </button>
-                    )}
-                    <div className="pg-person-actions">
-                      <button
-                        className="pg-person-merge"
-                        title="Merge another person into this one"
-                        onClick={() => setMergeTargetId(p.id)}
-                      >
-                        🔗
-                      </button>
-                      <button
-                        className="pg-person-delete"
-                        title="Delete this person"
-                        onClick={() => setConfirmDeletePersonId(p.id)}
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+      {selecting && (
+        <div className="pg-selbar" role="toolbar" aria-label="Selected photos">
+          <button type="button" className="pg-icon-btn" onClick={clearSel} aria-label="Clear selection" data-tip="Clear selection">
+            <CloseIcon />
+          </button>
+          <span className="pg-selbar-count" aria-live="polite">{cNumber.format(sel.length)} selected</span>
+          <div className="pg-selbar-actions">
+            <BarButton compact={compact} label="Post" icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
+            <BarButton compact={compact} label="Add to collection" icon={<AddToCollectionIcon size={22} />} onClick={() => openDialog({ kind: "collect" })} />
+            <div className="pg-share-anchor">
+              <BarButton
+                ref={shareBtnRef}
+                compact={compact}
+                label="Share"
+                icon={preparing ? <Spinner /> : <ShareIcon size={22} />}
+                onClick={() => setShareOpen((v) => !v)}
+                disabled={!!preparing}
+                menu={shareOpen}
+              />
+              {shareOpen && (
+                <ShareMenu
+                  onGallery={() => { closeShare(false); setSharing({ paths: sel.map((f) => f.path) }); }}
+                  onCopyLink={() => void makeLink("link")}
+                  onZip={() => void makeLink("zip")}
+                  onClose={closeShare}
+                />
+              )}
             </div>
-            {peopleOverflowing && (
-              <button
-                className="pg-link-btn pg-people-toggle"
-                onClick={() => setPeopleExpanded(v => !v)}
-              >
-                <span>{peopleExpanded ? "Show less" : `Show all (${allPeople.length})`}</span>
-                <svg
-                  className={`pg-people-toggle-chevron${peopleExpanded ? " expanded" : ""}`}
-                  width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"
-                >
-                  <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+            <BarButton compact={compact} danger label="Delete" icon={<TrashIcon size={22} />} onClick={() => openDialog({ kind: "delete" })} />
+          </div>
+        </div>
+      )}
+
+      {dialog?.kind === "post" && (
+        <PostDialog files={sel} thumbFor={selThumbFor} onMove={moveSel} onRemove={unselect} onCancel={closeDialog} onPosted={onPosted} />
+      )}
+      {dialog?.kind === "collect" && (
+        <CollectDialog files={sel} exclude={groupId} onCancel={closeDialog} onDone={onCollected} />
+      )}
+      {dialog?.kind === "delete" && (
+        <ConfirmDialog
+          title={`Delete ${whatLabel(sel)}?`}
+          text={group
+            ? "They're deleted from your device, not just from this collection. This can't be undone."
+            : "They're deleted from your device for good. This can't be undone."}
+          confirm="Delete"
+          busyText={deleting ? `Deleting ${Math.min(deleting.done + 1, deleting.total)} of ${deleting.total}…` : "Deleting…"}
+          onConfirm={deleteSelected}
+          onCancel={closeDialog}
+        />
+      )}
+      {dialog?.kind === "deleteCollection" && group && (
+        <ConfirmDialog
+          title="Delete collection?"
+          text={<>Delete the collection “{group.name}”? The photos themselves are kept.</>}
+          confirm="Delete"
+          busyText="Deleting…"
+          onConfirm={deleteCollection}
+          onCancel={closeDialog}
+        />
+      )}
+      {dialog?.kind === "link" && <LinkDialog link={dialog.link} onClose={closeDialog} />}
+
+      <div className="pg-toast-wrap" aria-live="polite">
+        {toast && (
+          <div key={toast.id} className={`pg-toast${toast.error ? " error" : ""}${toast.action ? " has-action" : ""}`}>
+            {toast.busy && <Spinner />}
+            <span className="pg-toast-text">{toast.text}</span>
+            {toast.action && (
+              <button type="button" className="pg-toast-action" onClick={() => { toast.action?.run(); dismissToast(toast.id); }}>
+                {toast.action.label}
               </button>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Issue #115: the groups list. Same row shape as the notifications
-          page - a picture on the left, text beside it. */}
-      {groupsOpen && (
-        <div className="pg-groups">
-          <div className="pg-groups-head">
-            <h3>Groups</h3>
-            <button className="pg-close-inline" onClick={() => setGroupsOpen(false)} aria-label="Close">×</button>
-          </div>
-          {groups.length === 0 ? (
-            <p className="pg-groups-empty">No groups yet — select some pictures and choose <strong>Create group</strong>.</p>
-          ) : (
-            <ul className="pg-group-list">
-              {groups.map(g => {
-                const thumb = groupThumb(g);
-                return (
-                  <li key={g.id} className="pg-group-item" onClick={() => openGroup(g)}>
-                    {thumb
-                      ? <img src={thumb} className="pg-group-cover" alt="" />
-                      : <div className="pg-group-cover pg-group-cover-ph">📖</div>}
-                    <span className="pg-group-text">
-                      <span className="pg-group-name">{g.name}</span>
-                      <span className="pg-group-count"> · {g.fileCount} {g.fileCount === 1 ? "picture" : "pictures"}</span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+      {/* The shared viewer (MediaViewer.tsx), also used by Files. */}
+      {openIdx != null && openIdx < items.length && (
+        <MediaViewer items={viewerItems} index={openIdx} onIndexChange={openAt} onClose={closeViewer} />
       )}
 
-      {/* Issue #115: create a group from the selection, or add it to one. */}
-      {groupPicker && (
-        <div className="pg-modal" onClick={() => !groupBusy && setGroupPicker(null)}>
-          <div className="pg-modal-inner pg-person-confirm" onClick={e => e.stopPropagation()}>
-            {groupPicker.mode === "create" ? (
-              <>
-                <p>Name for the new group ({selOrder.length} {selOrder.length === 1 ? "picture" : "pictures"}):</p>
-                <input
-                  className="pg-group-name-input pg-group-name-input-lg"
-                  autoFocus
-                  placeholder="Group name…"
-                  value={groupPicker.name}
-                  onChange={e => setGroupPicker({ mode: "create", name: e.target.value })}
-                  onKeyDown={e => { if (e.key === "Enter") void createGroupFromSelection(groupPicker.name); }}
-                />
-                <div className="pg-modal-actions">
-                  <button className="pg-secondary" onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
-                  <button onClick={() => void createGroupFromSelection(groupPicker.name)} disabled={groupBusy || !groupPicker.name.trim()}>
-                    {groupBusy ? <Spinner label="Creating…" /> : "Create"}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p>Add {selOrder.length} {selOrder.length === 1 ? "picture" : "pictures"} to:</p>
-                {groups.length === 0
-                  ? <p className="pg-groups-empty">There are no groups yet.</p>
-                  : (
-                    <ul className="pg-group-list pg-group-list-pick">
-                      {groups.map(g => {
-                        const thumb = groupThumb(g);
-                        return (
-                          <li key={g.id} className="pg-group-item" onClick={() => !groupBusy && void addSelectionToGroup(g)}>
-                            {thumb
-                              ? <img src={thumb} className="pg-group-cover" alt="" />
-                              : <div className="pg-group-cover pg-group-cover-ph">📖</div>}
-                            <span className="pg-group-text">
-                              <span className="pg-group-name">{g.name}</span>
-                              <span className="pg-group-count"> · {g.fileCount}</span>
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                <div className="pg-modal-actions">
-                  <button className="pg-secondary" onClick={() => setGroupPicker(null)} disabled={groupBusy}>Cancel</button>
-                  <button onClick={() => setGroupPicker({ mode: "create", name: "" })} disabled={groupBusy}>New group…</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {confirmDeletePersonId && (
-        <div className="pg-modal" onClick={() => setConfirmDeletePersonId(null)}>
-          <div className="pg-modal-inner pg-person-confirm" onClick={e => e.stopPropagation()}>
-            <p>Delete this person? This removes every face matched to them — it can't be undone.</p>
-            <div className="pg-modal-actions">
-              <button className="pg-secondary" onClick={() => setConfirmDeletePersonId(null)}>Cancel</button>
-              <button className="pg-danger" onClick={() => void deletePerson(confirmDeletePersonId)}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {pendingMerge && (
-        <div className="pg-modal" onClick={() => setPendingMerge(null)}>
-          <div className="pg-modal-inner pg-person-confirm" onClick={e => e.stopPropagation()}>
-            <p>
-              Merge <strong>{pendingMerge.source.name || "Unnamed"}</strong> into{" "}
-              <strong>{pendingMerge.target.name || "Unnamed"}</strong>? Every photo of{" "}
-              {pendingMerge.source.name || "Unnamed"} will show up under{" "}
-              {pendingMerge.target.name || "Unnamed"} instead — this can't be undone.
-            </p>
-            <div className="pg-modal-actions">
-              <button className="pg-secondary" onClick={() => setPendingMerge(null)}>Cancel</button>
-              <button className="pg-danger" onClick={() => void confirmMerge()}>Merge</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* grid - while the date scrubber has a target bucket (dragging, or
-          the jump it triggered still in flight), placeholder squares
-          stand in for the real grid rather than showing whatever was
-          scrolled to before the jump started. Capped at 300 - a month
-          with thousands of photos doesn't need that many real DOM nodes
-          just to convey "this is a lot of squares". */}
-      <div className="pg-grid" ref={gridRef}>
-        {placeholderCount != null ? (
-          Array.from({ length: Math.min(placeholderCount, 300) }, (_, i) => (
-            <div key={`ph-${i}`} className="pg-cell pg-cell-placeholder" />
-          ))
-        ) : (
-          <>
-            {items.map((f, i) => {
-              const key = fileKey(f, i); // unique key (fixes React warnings)
-              const thumb = thumbFor(f); // always a JPEG thumbnail - see isVideoFile
-              const selIdx = selOrder.indexOf(f.path);
-              return (
-                <div key={key} className="pg-cell">
-                  <label className="pg-check">
-                    <input type="checkbox" checked={selIdx >= 0} onChange={() => toggleSel(f.path)} />
-                  </label>
-                  {/* Issue #48: a numbered badge instead of just a checkmark
-                      shows the post order directly in the grid. */}
-                  {selIdx >= 0 && <span className="pg-order-badge">{selIdx + 1}</span>}
-                  <button className="pg-thumb" title={f.path} onClick={() => openAt(i)}>
-                    <img src={thumb} alt={f.path} loading="lazy" />
-                    {isVideoFile(f) && <span className="pg-video-badge">▶</span>}
-                  </button>
-                </div>
-              );
-            })}
-            <div ref={sentinelRef} style={{ height: 1 }} />
-          </>
-        )}
-      </div>
-
-      {/* Issue #77: Google-Photos-style date scrubber - year ticks always
-          visible, a floating month/year tooltip only while dragging. Fixed
-          to the viewport rather than sized to the grid's own (ever-
-          growing, as pages load) content height, since it represents the
-          whole library's timeline, not just what's currently mounted.
-          (iOS hides its ticks until you touch the scrubber instead - web's
-          own screen is roomier and this read fine always-on, so it stays
-          as it was.) */}
-      {showScrubber && (
-        <div
-          className="pg-scrubber"
-          ref={scrubTrackRef}
-          onPointerDown={onScrubPointerDown}
-          onPointerMove={onScrubPointerMove}
-          onPointerUp={onScrubPointerUp}
-          onPointerCancel={onScrubPointerUp}
-        >
-          {yearTicks.map(t => (
-            <span key={t.year} className="pg-scrubber-tick" style={{ top: `${t.pct}%` }}>{t.year}</span>
-          ))}
-          {scrubTarget && (
-            <>
-              <div className="pg-scrubber-thumb" style={{ top: `${(scrubFrac ?? 0) * 100}%` }} />
-              <div className="pg-scrubber-tooltip" style={{ top: `${(scrubFrac ?? 0) * 100}%` }}>
-                {formatMonthLabel(scrubTarget.month)}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Issue #48: the grid's own order isn't necessarily post order (it's
-          whatever the search/feed returned) - this strip shows the actual
-          order and lets it be fixed up directly. */}
-      {selOrder.length > 0 && (
-        <div className="pg-order-strip">
-          <span className="pg-order-strip-label">Order in post:</span>
-          {selOrder.map((path, idx) => {
-            const item = items.find(it => it.path === path);
-            const thumb = item ? thumbFor(item) : "";
-            return (
-              <div key={path} className="pg-order-thumb">
-                <img src={thumb} alt={path} />
-                <button className="pg-order-remove" title="Remove" onClick={() => toggleSel(path)}>×</button>
-                <div className="pg-order-controls">
-                  <button disabled={idx === 0} onClick={() => moveSel(path, -1)}>‹</button>
-                  <span>{idx + 1}</span>
-                  <button disabled={idx === selOrder.length - 1} onClick={() => moveSel(path, 1)}>›</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* bottom actions */}
-      {selOrder.length > 0 && (
-        <div className="pg-actions">
-          <button onClick={shareInSocial}>Share in social</button>
-          <button onClick={() => setGroupPicker({ mode: "create", name: "" })}>Create group</button>
-          <button onClick={() => { void loadGroups(); setGroupPicker({ mode: "add" }); }}>Add to group</button>
-          <button onClick={() => setSharing({ paths: [...selOrder] })}>Share as gallery</button>
-          <button onClick={() => shareOrDownload(false)} disabled={!!preparing}>
-            {preparing === "link" ? <Spinner label="Preparing…" /> : "Share link"}
-          </button>
-          <button onClick={() => shareOrDownload(true)} disabled={!!preparing}>
-            {preparing === "zip" ? <Spinner label="Preparing ZIP…" /> : "Download as ZIP"}
-          </button>
-          <button className="pg-danger" onClick={() => void deleteSelected()}>Delete</button>
-          <span className="pg-count">{selOrder.length} selected</span>
-        </div>
-      )}
-
-      {/* modal: the shared viewer (MediaViewer.tsx), also used by Files */}
-      {openIdx != null && (
-        <MediaViewer items={viewerItems} index={openIdx} onIndexChange={openAt} onClose={() => setOpenIdx(null)} />
-      )}
-
-      {/* styles */}
-      <style>{`
-      `}</style>
       {sharing && <SharedGalleryShare source={sharing} onClose={() => setSharing(null)} />}
+
+      {showScrubber && (
+        <DateScrubber buckets={dateBuckets} currentMonth={currentMonth} onPreview={onScrubPreview} onJump={onScrubJump} />
+      )}
     </div>
   );
 }
 
+// ---- tiles -----------------------------------------------------------------------
+
+type TileProps = {
+  file: MsgFile;
+  index: number;
+  // "2024-03", for the scrubber's "you are here".
+  month: string;
+  thumb: string;
+  // The place in the selection, from 1; 0 when not selected.
+  selNo: number;
+  // Anything selected: a click anywhere on a tile picks it.
+  selecting: boolean;
+};
+
+// Thumbnails fade in once decoded instead of popping in.
+const markLoaded = (e: SyntheticEvent<HTMLImageElement>) => { e.currentTarget.dataset.loaded = "1"; };
+
+// Plain markup: the grid's own handlers deal with clicks and presses (see
+// onGridClick), so a tile only renders again when what it shows changes.
+const Tile = memo(function Tile({ file, index, month, thumb, selNo, selecting }: TileProps) {
+  const video = isVideoFile(file);
+  const selected = selNo > 0;
+  const when = file.created && !Number.isNaN(file.created.getTime()) ? cDayFormat.format(file.created) : "";
+  return (
+    <div className={`pg-tile${selected ? " selected" : ""}`} data-idx={index} data-month={month || undefined}>
+      <button
+        type="button"
+        className="pg-tile-open"
+        aria-label={`${video ? "Video" : "Photo"}${when ? `, ${when}` : ""}`}
+        aria-pressed={selecting ? selected : undefined}
+      >
+        {thumb
+          ? <img className="pg-tile-img" src={thumb} alt="" loading="lazy" decoding="async" draggable={false} onLoad={markLoaded} />
+          : <span className="pg-tile-missing"><ImagesIcon size={28} /></span>}
+        {video && <span className="pg-tile-video"><PlayGlyph /></span>}
+      </button>
+      {/* Its own button for the keyboard; on a touch screen taps go to the
+          tile underneath (CSS), which picks it once anything is picked. */}
+      <button type="button" className="pg-tile-check" aria-pressed={selected} aria-label="Select" tabIndex={selecting ? -1 : 0}>
+        <span className="pg-tile-circle">{selected ? selNo : <CheckIcon size={16} />}</span>
+      </button>
+    </div>
+  );
+});
+
+// ---- headers ---------------------------------------------------------------------
+
+function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onError }: {
+  group: OpenGroup;
+  // The months its photos span, when known.
+  span: string;
+  // A phone: the actions are icons.
+  compact: boolean;
+  onBack: () => void;
+  onShare: () => void;
+  onDelete: () => void;
+  onError: (text: string) => void;
+}) {
+  const groups = useGroups();
+  // The name and count as the device lists them: renamed or grown in
+  // another tab or on another device, or after photos were deleted here.
+  useEffect(() => {
+    const g = groups.items.find((x) => x.id === group.id);
+    if (g && (g.name !== group.name || g.fileCount !== group.fileCount)) {
+      updateOpenGroup({ id: g.id, name: g.name, fileCount: g.fileCount });
+    }
+  }, [groups.items, group]);
+
+  // Renaming in place: null when not editing.
+  const [draft, setDraft] = useState<string | null>(null);
+  // The new name, shown while the device saves it.
+  const [saving, setSaving] = useState<string | null>(null);
+  // Enter saves and the input then goes away, which can also blur it: one
+  // save, not two.
+  const editingRef = useRef(false);
+
+  const start = () => {
+    editingRef.current = true;
+    setDraft(saving ?? group.name);
+  };
+  const cancel = () => {
+    editingRef.current = false;
+    setDraft(null);
+  };
+  const commit = async () => {
+    if (!editingRef.current) return;
+    editingRef.current = false;
+    const name = (draft ?? "").trim();
+    setDraft(null);
+    if (!name || name === group.name) return;
+    setSaving(name);
+    try {
+      const resp = await ask({ $case: "reqRenameImageGroup", reqRenameImageGroup: { id: group.id, name } });
+      if (acked(resp)) {
+        updateOpenGroup({ ...group, name });
+        renameGroupLocally(group.id, name);
+      } else {
+        onError("Couldn't rename the collection. Try again.");
+      }
+    } catch {
+      onError("Couldn't reach your device to rename the collection.");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const shown = saving ?? group.name;
+  return (
+    <header className="pg-head">
+      <button type="button" className="pg-back" onClick={onBack}>
+        <BackIcon size={20} />
+        Collections
+      </button>
+      <div className="pg-head-row">
+        <div className="pg-head-main">
+          <h1 className="pg-title">
+            {draft != null ? (
+              <input
+                className="pg-title-input"
+                value={draft}
+                autoFocus
+                maxLength={120}
+                aria-label="Collection name"
+                onChange={(e) => setDraft(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={() => void commit()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); void commit(); }
+                  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
+                }}
+              />
+            ) : (
+              <>
+                {/* Click the name to rename it; the pencil is the same for
+                    the keyboard. */}
+                <button type="button" className="pg-title-text" tabIndex={-1} onClick={start}>
+                  <span className="pg-clamp">{shown}</span>
+                </button>
+                <button type="button" className="pg-icon-btn pg-title-edit" onClick={start} aria-label="Rename collection" data-tip="Rename">
+                  <PencilIcon size={20} />
+                </button>
+              </>
+            )}
+          </h1>
+          <p className="pg-sub">{count(group.fileCount, "item")}{span && <> · {span}</>}</p>
+        </div>
+        <div className="pg-head-actions">
+          <button
+            type="button"
+            className={compact ? "pg-icon-btn" : "pg-btn outline"}
+            onClick={onShare}
+            aria-label="Share as gallery"
+            data-tip={compact ? "Share as gallery" : undefined}
+          >
+            <GalleryPageIcon size={20} />
+            {!compact && <span>Share as gallery</span>}
+          </button>
+          <button
+            type="button"
+            className={compact ? "pg-icon-btn danger" : "pg-btn outline danger"}
+            onClick={onDelete}
+            aria-label="Delete collection"
+            data-tip={compact ? "Delete collection" : undefined}
+          >
+            <TrashIcon size={20} />
+            {!compact && <span>Delete collection</span>}
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// One person's photos (or several people's together), opened from the
+// People page or the search.
+function PersonHeader({ personIds, total }: { personIds: string[]; total: number | null }) {
+  const people = usePeople();
+  if (!people.loaded) {
+    // The same height as the header it stands in for: no jump when it comes.
+    return (
+      <header className="pg-head" aria-hidden="true">
+        <div className="pg-head-row">
+          <div className="pg-faces"><span className="pg-face pg-face-blank" /></div>
+          <div className="pg-head-main"><div className="pg-title-skel" /><div className="pg-sub-skel" /></div>
+        </div>
+      </header>
+    );
+  }
+  const picked = personIds
+    .map((id) => people.items.find((p) => p.id === id))
+    .filter((p): p is Person => p != null);
+  if (!picked.length) return null;
+  const names = picked.map(personLabel);
+  const title = names.length <= 2 ? names.join(" & ") : `${names.slice(0, 2).join(", ")} & ${count(names.length - 2, "other")}`;
+  return (
+    <header className="pg-head">
+      <div className="pg-head-row">
+        <div className="pg-faces" aria-hidden="true">
+          {picked.slice(0, 3).map((p) => {
+            const face = people.thumbs.get(p.id);
+            return face
+              ? <img key={p.id} className="pg-face" src={face} alt="" />
+              : <span key={p.id} className="pg-face pg-face-blank"><FaceIcon size={28} /></span>;
+          })}
+        </div>
+        <div className="pg-head-main">
+          <h1 className="pg-title"><span className="pg-clamp">{title}</span></h1>
+          {/* The line is there before the count is: nothing moves when it comes. */}
+          <p className="pg-sub">{total != null ? count(total, "item") : "\u00a0"}</p>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ---- the selection bar -------------------------------------------------------------
+
+// An action of the selection bar: icon and label, or the icon alone with a
+// tooltip on a narrow window.
+function BarButton({ ref, compact, label, icon, onClick, danger = false, disabled = false, menu }: {
+  ref?: Ref<HTMLButtonElement>;
+  compact: boolean;
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  // Set for a button that opens a menu: whether it is open.
+  menu?: boolean;
+}) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={`pg-bar-btn${danger ? " danger" : ""}`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      data-tip={compact ? label : undefined}
+      aria-haspopup={menu === undefined ? undefined : "menu"}
+      aria-expanded={menu}
+    >
+      {icon}
+      <span className="pg-bar-label">{label}</span>
+    </button>
+  );
+}
+
+function ShareMenu({ onGallery, onCopyLink, onZip, onClose }: {
+  onGallery: () => void;
+  onCopyLink: () => void;
+  onZip: () => void;
+  // refocus: give the focus back to the Share button (Escape).
+  onClose: (refocus: boolean) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      onClose(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Up and down move between the items, as in any menu.
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+    e.preventDefault();
+    const all = [...(ref.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
+    if (!all.length) return;
+    const at = all.indexOf(document.activeElement as HTMLElement);
+    const next = e.key === "Home" ? 0
+      : e.key === "End" ? all.length - 1
+      : e.key === "ArrowDown" ? (at + 1) % all.length
+      : (at - 1 + all.length) % all.length;
+    all[next].focus();
+  };
+
+  return (
+    <>
+      {/* Catches the tap that closes the menu, so it doesn't also pick or
+          open the photo under it. Below the bar's own buttons. */}
+      <div className="pg-menu-catcher" aria-hidden="true" onClick={() => onClose(false)} />
+      <div ref={ref} className="pg-menu" role="menu" aria-label="Share" onKeyDown={onKeyDown}>
+        <button type="button" role="menuitem" className="pg-menu-item" onClick={onGallery}>
+          <GalleryPageIcon size={22} />
+          <span className="pg-menu-text"><strong>Share as a gallery page</strong><small>A page anyone with the link can see</small></span>
+        </button>
+        <button type="button" role="menuitem" className="pg-menu-item" onClick={onCopyLink}>
+          <LinkIcon size={22} />
+          <span className="pg-menu-text"><strong>Copy link</strong><small>A link to download them</small></span>
+        </button>
+        <button type="button" role="menuitem" className="pg-menu-item" onClick={onZip}>
+          <DownloadIcon size={22} />
+          <span className="pg-menu-text"><strong>Download ZIP</strong><small>Save them on this device</small></span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ---- dialogs ----------------------------------------------------------------------
+
+const cFocusable = "button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])";
+
+// A small card over the dimmed page. Focus moves into it (to the element
+// marked data-autofocus, else the card) and back when it closes; Tab stays
+// inside; Escape or a click on the dimmed page cancels - except while busy.
+function Modal({ labelledBy, busy = false, wide = false, onClose, children }: {
+  labelledBy: string;
+  busy?: boolean;
+  wide?: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  // A press that starts inside the card (selecting text in a field) and
+  // ends outside it is not a click on the page.
+  const downOnBackdropRef = useRef(false);
+
+  // What had the keyboard's focus before the dialog gets it back on close.
+  // Read on the first render, before a field inside can take it
+  // (autoFocus). After a tap or a click it stays where it falls: a button
+  // focused only by a finger would come back with its tooltip showing.
+  const [returnFocus] = useState(() => {
+    const el = document.activeElement;
+    return el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
+  });
+  useEffect(() => {
+    const card = cardRef.current;
+    if (card && !card.contains(document.activeElement)) {
+      (card.querySelector<HTMLElement>("[data-autofocus]") ?? card).focus();
+    }
+    return () => { if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true }); };
+  }, [returnFocus]);
+
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!busy) onClose();
+      return;
+    }
+    const card = cardRef.current;
+    if (e.key !== "Tab" || !card) return;
+    const all = [...card.querySelectorAll<HTMLElement>(cFocusable)]
+      .filter((el) => !(el as HTMLButtonElement).disabled && el.offsetParent !== null);
+    if (!all.length) { e.preventDefault(); return; }
+    const first = all[0];
+    const last = all[all.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || active === card)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+  };
+
+  return (
+    <div
+      className="pg-dlg-backdrop"
+      onKeyDown={onKeyDown}
+      onPointerDown={(e) => { downOnBackdropRef.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        const fromBackdrop = downOnBackdropRef.current && e.target === e.currentTarget;
+        downOnBackdropRef.current = false;
+        if (fromBackdrop && !busy) onClose();
+      }}
+    >
+      <div ref={cardRef} className={`pg-dlg${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel }: {
+  title: string;
+  text: ReactNode;
+  confirm: string;
+  busyText: string;
+  // Does the work: an error to show in the dialog, or null when done (the
+  // caller closes the dialog then).
+  onConfirm: () => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const titleId = useId();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    const err = await onConfirm();
+    if (err) {
+      setError(err);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal labelledBy={titleId} busy={busy} onClose={onCancel}>
+      <div>
+        <h2 id={titleId} className="pg-dlg-title">{title}</h2>
+        <p className="pg-dlg-text">{text}</p>
+      </div>
+      {error && <p className="pg-dlg-error" role="alert">{error}</p>}
+      <div className="pg-dlg-actions">
+        {/* Focus starts on Cancel: Enter right away keeps everything. */}
+        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy} data-autofocus>Cancel</button>
+        <button type="button" className="pg-btn danger" onClick={() => void run()} disabled={busy} aria-busy={busy}>
+          {busy ? <Spinner label={busyText} /> : confirm}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// "New post": the selected photos in the order the post shows them, a
+// caption, Publish.
+function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
+  files: MsgFile[];
+  thumbFor: (f: MsgFile) => string;
+  onMove: (path: string, offset: number) => void;
+  onRemove: (path: string) => void;
+  onCancel: () => void;
+  onPosted: () => void;
+}) {
+  const titleId = useId();
+  const captionId = useId();
+  const [caption, setCaption] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
+  const stripRef = useRef<HTMLOListElement>(null);
+  // A moved photo keeps the focus on its arrow, wherever it went.
+  const [focusAfterMove, setFocusAfterMove] = useState<{ path: string; dir: -1 | 1 } | null>(null);
+  // A phone's keyboard would cover the photos: the caption waits for a tap there.
+  const typeAtOnce = useMedia("(hover: hover) and (pointer: fine)");
+
+  useLayoutEffect(() => {
+    if (!focusAfterMove) return;
+    const item = stripRef.current?.querySelector<HTMLElement>(`[data-path="${CSS.escape(focusAfterMove.path)}"]`);
+    const btn = item?.querySelector<HTMLButtonElement>(`[data-dir="${focusAfterMove.dir}"]`);
+    const other = item?.querySelector<HTMLButtonElement>(`[data-dir="${-focusAfterMove.dir}"]`);
+    (btn && !btn.disabled ? btn : other)?.focus();
+    item?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    setFocusAfterMove(null);
+  }, [focusAfterMove]);
+
+  const publish = async () => {
+    if (!files.length || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const resp = await ask({
+        $case: "reqNewSocialPublication",
+        reqNewSocialPublication: { text: caption.trim(), paths: files.map((f) => f.path) },
+      });
+      if (resp.payload?.$case === "respNewSocial" && resp.payload.respNewSocial.uuid) {
+        onPosted();
+        return;
+      }
+      setError({ text: "Couldn't publish the post. Try again.", detail: resp.errorMessage || undefined });
+    } catch {
+      setError({ text: "Couldn't reach your device. Check the connection and try again." });
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Modal labelledBy={titleId} busy={busy} wide onClose={onCancel}>
+      <h2 id={titleId} className="pg-dlg-title">New post</h2>
+      {files.length ? (
+        <ol className="pg-strip" ref={stripRef} aria-label="Photos in the post, in order">
+          {files.map((f, i) => {
+            const thumb = thumbFor(f);
+            const what = `${isVideoFile(f) ? "video" : "photo"} ${i + 1}`;
+            return (
+              <li key={f.path} className="pg-strip-item" data-path={f.path}>
+                <div className="pg-strip-thumb">
+                  {thumb ? <img src={thumb} alt="" draggable={false} /> : <ImagesIcon size={24} />}
+                  <span className="pg-strip-no" aria-hidden="true">{i + 1}</span>
+                  {isVideoFile(f) && <span className="pg-strip-video"><PlayGlyph /></span>}
+                </div>
+                <button type="button" className="pg-strip-remove" onClick={() => onRemove(f.path)} aria-label={`Remove ${what}`} data-tip="Remove" disabled={busy}>
+                  <CloseIcon size={16} />
+                </button>
+                <div className="pg-strip-moves">
+                  <button
+                    type="button"
+                    className="pg-strip-btn"
+                    data-dir="-1"
+                    disabled={busy || i === 0}
+                    aria-label={`Move ${what} earlier`}
+                    onClick={() => { onMove(f.path, -1); setFocusAfterMove({ path: f.path, dir: -1 }); }}
+                  >
+                    <ChevronLeftIcon size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    className="pg-strip-btn"
+                    data-dir="1"
+                    disabled={busy || i === files.length - 1}
+                    aria-label={`Move ${what} later`}
+                    onClick={() => { onMove(f.path, 1); setFocusAfterMove({ path: f.path, dir: 1 }); }}
+                  >
+                    <ChevronRightIcon size={20} />
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="pg-dlg-text">No photos left in this post.</p>
+      )}
+      <div className="pg-field">
+        <label className="pg-label" htmlFor={captionId}>Caption</label>
+        <textarea
+          id={captionId}
+          className="pg-input pg-textarea"
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          placeholder="Say something about them (optional)"
+          disabled={busy}
+          data-autofocus={typeAtOnce ? "" : undefined}
+          onKeyDown={(e) => {
+            // Ctrl/Cmd+Enter publishes; Enter alone is a new line.
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void publish(); }
+          }}
+        />
+      </div>
+      {error && (
+        <p className="pg-dlg-error" role="alert">
+          {error.text}
+          {error.detail && <span className="pg-dlg-detail">{error.detail}</span>}
+        </p>
+      )}
+      <div className="pg-dlg-actions">
+        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="button" className="pg-btn primary" onClick={() => void publish()} disabled={busy || !files.length} aria-busy={busy}>
+          {busy ? <Spinner label="Publishing…" /> : "Publish"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// "Add to collection": an existing collection, or a new one named here.
+function CollectDialog({ files, exclude, onCancel, onDone }: {
+  files: MsgFile[];
+  // The open collection: its photos are in it already.
+  exclude: string;
+  onCancel: () => void;
+  onDone: (g: OpenGroup) => void;
+}) {
+  const titleId = useId();
+  const nameId = useId();
+  const groups = useGroups();
+  // Fresh counts (and anything made elsewhere) when the list was loaded
+  // before; useGroups loads it the first time itself.
+  const loadedAtStartRef = useRef(groups.loaded);
+  useEffect(() => {
+    if (loadedAtStartRef.current) void reloadGroups().catch(() => {});
+  }, []);
+  const list = groups.items.filter((g) => g.id !== exclude);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  // What is being saved: "new", or the id of a collection.
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const paths = files.map((f) => f.path);
+  // With nothing to add to, naming a new one is the only thing to do.
+  const showForm = creating || (groups.loaded && list.length === 0);
+
+  const add = async (g: ImageGroup) => {
+    setBusy(g.id);
+    setError(null);
+    try {
+      const resp = await ask({ $case: "reqAddToImageGroup", reqAddToImageGroup: { groupId: g.id, paths } });
+      if (acked(resp)) {
+        void reloadGroups().catch(() => {});
+        onDone({ id: g.id, name: g.name, fileCount: g.fileCount });
+        return;
+      }
+      setError(`Couldn't add them to “${g.name}”. Try again.`);
+    } catch {
+      setError("Couldn't reach your device. Try again.");
+    }
+    setBusy(null);
+  };
+
+  const create = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || busy) return;
+    setBusy("new");
+    setError(null);
+    try {
+      const resp = await ask({ $case: "reqCreateImageGroup", reqCreateImageGroup: { name: trimmed, paths } });
+      const g = resp.payload?.$case === "respImageGroup" ? resp.payload.respImageGroup.group : undefined;
+      if (g) {
+        void reloadGroups().catch(() => {});
+        onDone({ id: g.id, name: g.name, fileCount: g.fileCount });
+        return;
+      }
+      setError("Couldn't create the collection. Try again.");
+    } catch {
+      setError("Couldn't reach your device. Try again.");
+    }
+    setBusy(null);
+  };
+
+  return (
+    <Modal labelledBy={titleId} busy={busy != null} onClose={onCancel}>
+      <div>
+        <h2 id={titleId} className="pg-dlg-title">Add to collection</h2>
+        <p className="pg-dlg-text">{whatLabel(files)}</p>
+      </div>
+      {showForm ? (
+        <form className="pg-field" onSubmit={(e) => { e.preventDefault(); void create(); }}>
+          <label className="pg-label" htmlFor={nameId}>New collection</label>
+          <div className="pg-inline">
+            <input
+              id={nameId}
+              className="pg-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name, like Summer 2026"
+              maxLength={120}
+              autoFocus
+              disabled={busy != null}
+              onKeyDown={(e) => {
+                // Escape leaves the name, not the whole dialog - when
+                // there is a list to go back to.
+                if (e.key === "Escape" && list.length > 0) { e.preventDefault(); e.stopPropagation(); setCreating(false); }
+              }}
+            />
+            <button type="submit" className="pg-btn primary" disabled={!name.trim() || busy != null} aria-busy={busy === "new"}>
+              {busy === "new" ? <Spinner label="Creating…" /> : "Create"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" className="pg-pick pg-pick-new" onClick={() => setCreating(true)} disabled={busy != null} data-autofocus>
+          <span className="pg-pick-cover"><PlusIcon size={22} /></span>
+          <span className="pg-pick-text"><span className="pg-pick-name">New collection…</span></span>
+        </button>
+      )}
+      {!groups.loaded ? (
+        <ul className="pg-pick-list" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="pg-pick pg-pick-skel"><span className="pg-pick-cover" /><span className="pg-pick-text"><span /><span /></span></li>
+          ))}
+        </ul>
+      ) : list.length > 0 && (
+        <ul className="pg-pick-list" aria-label="Collections">
+          {list.map((g) => {
+            const cover = groups.thumbs.get(g.id);
+            return (
+              <li key={g.id}>
+                <button type="button" className="pg-pick" onClick={() => void add(g)} disabled={busy != null}>
+                  {cover
+                    ? <img className="pg-pick-cover" src={cover} alt="" />
+                    : <span className="pg-pick-cover"><CollectionsIcon size={22} /></span>}
+                  <span className="pg-pick-text">
+                    <span className="pg-pick-name">{g.name}</span>
+                    <span className="pg-pick-count">{count(g.fileCount, "item")}</span>
+                  </span>
+                  {busy === g.id && <Spinner />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {error && <p className="pg-dlg-error" role="alert">{error}</p>}
+      <div className="pg-dlg-actions">
+        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy != null}>Cancel</button>
+      </div>
+    </Modal>
+  );
+}
+
+// The share link, for copying by hand (see DialogState's "link").
+function LinkDialog({ link, onClose }: { link: string; onClose: () => void }) {
+  const titleId = useId();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+    } catch {
+      // The field is selected: the system's own copy works.
+    }
+  };
+  return (
+    <Modal labelledBy={titleId} onClose={onClose}>
+      <div>
+        <h2 id={titleId} className="pg-dlg-title">Your link is ready</h2>
+        <p className="pg-dlg-text">Anyone with this link can download these files.</p>
+      </div>
+      <div className="pg-inline">
+        <input className="pg-input" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Link" data-autofocus />
+        <button type="button" className="pg-btn primary" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</button>
+      </div>
+      <div className="pg-dlg-actions">
+        <button type="button" className="pg-btn quiet" onClick={onClose}>Done</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ---- empty states -------------------------------------------------------------------
+
+function Empty({ icon, title, text, children }: { icon: ReactNode; title: string; text: string; children?: ReactNode }) {
+  return (
+    <div className="pg-empty">
+      <div className="pg-empty-art">{icon}</div>
+      <h2 className="pg-empty-title">{title}</h2>
+      <p className="pg-empty-text">{text}</p>
+      {children}
+    </div>
+  );
+}

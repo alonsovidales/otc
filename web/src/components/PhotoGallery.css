@@ -1,161 +1,821 @@
-.pg-root { position: relative; }
-.pg-search { position: sticky; top: var(--topbar-h); z-index: 5; padding: 8px; border-bottom: 1px solid var(--line); background: var(--ink); }
-.pg-chipbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pg-chipbar input { flex: 1; min-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 16px; background: var(--ink-2); color: var(--mist); }
-.pg-search-btn { padding: 6px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--mist); border-radius: 6px; }
-.pg-chip { border: 1px solid var(--gold); color: var(--mist); padding: 2px 8px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; }
-.pg-chip-x { border: 0; background: transparent; color: inherit; cursor: pointer; }
-.pg-suggest { color: var(--mist); position: absolute; z-index: 10; top: 46px; left: 8px; right: 8px; background: var(--ink-2); border: 1px solid var(--line); border-radius: 8px; max-height: 220px; overflow: auto; box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
-.pg-suggest-item { padding: 8px 10px; cursor: pointer; }
-.pg-suggest-item:hover { background: var(--panel); }
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 
-/* Issue #52 follow-up: person filter, next to the tag search bar - a row
-   of small avatars, tap to toggle (multiple = AND, see dao.SearchMedia),
-   with inline rename/delete rather than a separate management screen. */
-.pg-people-strip { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--line); }
-.pg-people-hint { font-size: 12px; color: var(--mist-dim); padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--line); }
-.pg-person { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 64px; }
-.pg-person-thumb { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; padding: 0; border: 2px solid transparent; cursor: pointer; background: var(--ink-2); display: grid; place-items: center; }
-.pg-person-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pg-person.selected .pg-person-thumb { border-color: var(--gold); }
-/* Issue #74: the person currently picked as a merge target gets its own
-   distinct highlight (a dashed ring) so it doesn't read as merely
-   "selected" like the search-filter state above. */
-.pg-person.merge-target .pg-person-thumb { border-style: dashed; border-color: var(--danger); }
-.pg-person-name { border: 0; background: transparent; color: var(--mist); font-size: 11px; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; }
-.pg-person-name-input { width: 100%; text-align: center; font-size: 11px; background: var(--ink-2); color: var(--mist); border: 1px solid var(--gold); border-radius: 6px; padding: 1px 4px; }
-.pg-person-name-input::placeholder { color: var(--mist-dim); }
-.pg-person-actions { display: flex; gap: 6px; }
-.pg-person-merge, .pg-person-delete { border: 0; background: transparent; cursor: pointer; font-size: 10px; opacity: 0.6; padding: 0; }
-.pg-person-merge:hover, .pg-person-delete:hover { opacity: 1; }
-/* The small confirmation dialogs (delete or merge a person, the groups
-   picker): a compact card, not the photo viewer's full-width box. */
-.pg-modal-inner.pg-person-confirm { width: min(92vw, 440px); padding: 20px 22px 18px; gap: 16px; overflow: auto; }
-.pg-person-confirm p { color: var(--mist); margin: 0; line-height: 1.5; }
-.pg-person-confirm .pg-modal-actions button { padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-.pg-person-confirm .pg-modal-actions .pg-secondary { background: transparent; border: 1px solid var(--line); color: var(--mist); }
-.pg-person-confirm .pg-modal-actions .pg-secondary:hover { background: var(--panel); }
-.pg-person-confirm .pg-modal-actions .pg-danger { background: var(--danger); border: 1px solid var(--danger); color: var(--ink); }
-.pg-merge-hint { border-top: 0; padding-top: 0; margin-top: 0; margin-bottom: 4px; }
-.pg-link-btn { border: 0; background: transparent; color: var(--gold); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
-/* Issue #76: the strip itself is collapsed to one row via an inline
-   max-height (computed from the real row height, see PhotoGallery.tsx) -
-   this centers the toggle below it and pairs it with a chevron that
-   flips to point "up" once expanded, rather than relying on the label
-   text alone to say what tapping it does. */
-.pg-people-toggle { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 6px; font-size: 12px; text-decoration: none; }
-.pg-people-toggle-chevron { transition: transform 0.15s ease; }
-.pg-people-toggle-chevron.expanded { transform: rotate(180deg); }
+/* Images (PhotoGallery.tsx): the photo wall, its headers and empty states,
+   the selection bar with its menu and dialogs, and the toasts. The photo
+   viewer's rules are at the end (MediaViewer.tsx imports this file too).
+   The window is what scrolls, so fixed things are placed from the top bar
+   (--topbar-h) and, beside the menu, from --content-left. */
 
-/* Issue #77: the extra right padding leaves room for .pg-scrubber, which
-   sits fixed over the viewport's own right edge rather than inside this
-   grid's flow - reserved unconditionally (not just while it's shown) so
-   the grid's own column count doesn't shift width when a tag search hides
-   it. */
-/* Issue #77: plain 10px all round - the scrubber overlays the grid's own
-   right edge directly (like Google Photos' own does) rather than
-   reserving dedicated space that pushes columns inward. */
-.pg-grid { padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1px; }
-.pg-cell { position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ink-2); }
-.pg-cell-placeholder { background: var(--ink); }
-.pg-check { position: absolute; top: 0px; left: 0px; padding: 2px 6px; border-radius: 6px; }
-.pg-thumb { display: contents; }
-.pg-thumb img { max-width: 120px; max-height: 120px; object-fit: cover; }
-
-/* Date scrubber (issue #77) - fixed to the viewport's own right edge, not
-   sized to the grid's content height, since it represents the whole
-   library's timeline regardless of how much has actually loaded/scrolled
-   into the DOM so far. touch-action:none stops the browser's own
-   scroll/refresh gestures from fighting the drag on touch devices.
-   Wide enough to hold the year labels *inside* the interactive strip,
-   not off to its side - they used to sit outside a narrow edge-only
-   track (via pointer-events:none + right:100%), which looked like the
-   obvious thing to click but did nothing; the actual hit area was a
-   near-invisible sliver past them. Now the whole box is one click/drag
-   target and the labels are just what's drawn inside it. */
-.pg-scrubber {
-  position: fixed;
-  top: calc(var(--topbar-h) + 12px);
-  bottom: 12px;
-  right: 0;
-  width: 64px;
-  touch-action: none;
-  cursor: grab;
-  z-index: 6;
-  /* Dragging over the year labels below otherwise triggers the browser's
-     own text-selection highlight, reproduced live as a blue-highlighted
-     label after a drag. */
-  user-select: none;
+.pg-root {
+  /* Room around and between the tiles. */
+  --pg-pad: 16px;
+  --pg-gap: 4px;
+  /* Hover and press fills, from the text colour like --panel. */
+  --pg-hover: rgba(234, 242, 239, 0.08);
+  --pg-press: rgba(234, 242, 239, 0.14);
+  --pg-gold-tint: rgba(255, 200, 87, 0.14);
+  position: relative;
+  min-height: calc(100vh - var(--topbar-h));
+}
+@media (max-width: 599px) {
+  .pg-root { --pg-pad: 8px; --pg-gap: 2px; }
 }
 
-/* Issue #113: on a touch screen that 64px band is a trap - it carries
-   touch-action: none, so a finger starting a scroll anywhere inside it
-   scrubs the timeline instead of scrolling the grid, which is easy to do
-   by accident and impossible to recover from mid-gesture. Narrowed to
-   the rail itself for touch only; a mouse keeps the generous target,
-   since a pointer can't mis-scroll. The year labels don't move (they're
-   positioned against the same right edge and already have
-   pointer-events: none) - they simply stop being part of the hit area
-   here, which on touch was never the point of them. */
-@media (pointer: coarse) {
-  .pg-scrubber { width: 16px; }
+/* index.css draws every button as an ember pill: these start from nothing. */
+.pg-tile-open, .pg-tile-check, .pg-icon-btn, .pg-btn, .pg-bar-btn, .pg-back, .pg-title-text,
+.pg-menu-item, .pg-pick, .pg-strip-remove, .pg-strip-btn, .pg-toast-action {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.pg-scrubber-tick {
-  position: absolute;
-  right: 14px;
-  /* Readable over the photos the scrubber floats above. */
-  background: rgba(11, 24, 21, 0.72);
-  padding: 1px 5px;
-  border-radius: 6px;
-  transform: translateY(-50%);
-  font-size: 10px;
-  color: var(--mist-dim);
-  white-space: nowrap;
-  pointer-events: none;
+.pg-tile-open:hover, .pg-tile-check:hover, .pg-icon-btn:hover, .pg-btn:hover, .pg-bar-btn:hover, .pg-back:hover,
+.pg-title-text:hover, .pg-menu-item:hover, .pg-pick:hover, .pg-strip-remove:hover, .pg-strip-btn:hover,
+.pg-toast-action:hover {
+  filter: none;
 }
-.pg-scrubber-thumb {
-  position: absolute;
-  right: 2px;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
+
+/* ---- buttons --------------------------------------------------------------- */
+
+.pg-icon-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: var(--gold);
+  display: inline-grid;
+  place-items: center;
+  color: var(--mist);
+  transition: background-color .15s ease, color .15s ease;
+}
+.pg-icon-btn:hover { background: var(--pg-hover); }
+.pg-icon-btn:active { background: var(--pg-press); }
+.pg-icon-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+.pg-icon-btn.danger { color: var(--danger); }
+.pg-icon-btn.danger:hover { background: var(--danger-bg); }
+
+.pg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, filter .15s ease;
+}
+.pg-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pg-btn:disabled { opacity: .5; cursor: default; }
+/* Working, not unavailable: it keeps its colour, with the spinner. */
+.pg-btn[aria-busy="true"]:disabled { opacity: 1; cursor: progress; }
+.pg-btn.primary { background: var(--ember); color: var(--ember-ink); }
+.pg-btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.pg-btn.primary:active:not(:disabled) { filter: brightness(.94); }
+.pg-btn.danger { background: var(--danger); color: var(--ember-ink); }
+.pg-btn.danger:hover:not(:disabled) { filter: brightness(1.06); }
+.pg-btn.danger:active:not(:disabled) { filter: brightness(.94); }
+.pg-btn.quiet { padding: 0 16px; color: var(--mist); }
+.pg-btn.quiet:hover:not(:disabled) { background: var(--pg-hover); }
+.pg-btn.quiet:active:not(:disabled) { background: var(--pg-press); }
+.pg-btn.outline { padding: 0 18px 0 14px; color: var(--mist); border: 1px solid var(--line); }
+.pg-btn.outline:hover:not(:disabled) { background: var(--pg-hover); border-color: rgba(234, 242, 239, .22); }
+.pg-btn.outline:active:not(:disabled) { background: var(--pg-press); }
+.pg-btn.outline.danger { background: none; color: var(--danger); }
+.pg-btn.outline.danger:hover:not(:disabled) { filter: none; background: var(--danger-bg); border-color: rgba(255, 138, 117, .4); }
+.pg-btn.small { height: 32px; padding: 0 12px; font-size: 13px; }
+.pg-btn svg { flex: none; }
+
+/* ---- the grid -------------------------------------------------------------- */
+
+.pg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--pg-gap);
+  padding: 12px var(--pg-pad) 0;
+  /* Brought up under the top bar, not behind it (the scrubber, a jump). */
+  scroll-margin-top: var(--topbar-h);
+}
+@media (max-width: 1023px) {
+  .pg-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+@media (max-width: 599px) {
+  .pg-grid { padding-top: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* With a mouse the date scrubber is a 56px column along the window's right
+   edge (DateScrubber.css): the page keeps out from under it. On a touch
+   screen it is a handle over the photos instead, and needs no room. */
+@media (hover: hover) and (pointer: fine) {
+  .pg-root.with-scrubber .pg-grid,
+  .pg-root.with-scrubber .pg-head { padding-right: 56px; }
+}
+
+/* A month's title, across the whole row, before its first photo. */
+.pg-month {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 20px 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--mist);
+}
+.pg-grid > .pg-month:first-child { padding-top: 4px; }
+@media (max-width: 599px) {
+  .pg-month { padding: 16px 4px 2px; font-size: 14px; }
+  .pg-grid > .pg-month:first-child { padding-top: 4px; }
+}
+
+.pg-tile {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--ink-2);
+  scroll-margin: calc(var(--topbar-h) + 8px) 0 16px;
+  /* A long press selects: no callout, no text selection. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background-color .16s ease;
+}
+.pg-tile-open {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  transition: transform .16s ease, border-radius .16s ease;
+}
+.pg-tile-open:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
+.pg-tile-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.pg-tile-img[data-loaded] { opacity: 1; }
+.pg-tile-missing { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mist-dim); }
+.pg-tile-video {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, .55);
+  color: var(--mist);
   pointer-events: none;
 }
-.pg-scrubber-tooltip {
+
+/* A shade along the top, so the white circle shows on a bright photo. */
+.pg-tile::before {
+  content: "";
   position: absolute;
-  right: 100%;
-  margin-right: 6px;
-  transform: translateY(-50%);
-  padding: 4px 8px;
-  border-radius: 6px;
+  inset: 0 0 auto;
+  height: min(64px, 50%);
+  z-index: 1;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, .45), rgba(0, 0, 0, 0));
+  opacity: 0;
+  transition: opacity .12s ease;
+  pointer-events: none;
+}
+
+/* The selection circle: 44px to hit, 24px to see. */
+.pg-tile-check {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.pg-tile-check:focus-visible { outline: none; }
+.pg-tile-circle {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  border: 2px solid rgba(234, 242, 239, .92);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.pg-tile-check:hover .pg-tile-circle { color: var(--mist); background: rgba(0, 0, 0, .3); }
+.pg-tile-check:focus-visible .pg-tile-circle { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+@media (hover: hover) {
+  .pg-tile:hover .pg-tile-check,
+  .pg-tile:hover::before { opacity: 1; }
+}
+/* Once anything is picked every tile shows its circle. */
+.pg-root.selecting .pg-tile-check,
+.pg-root.selecting .pg-tile::before,
+.pg-tile-check:focus-visible { opacity: 1; }
+/* A touch screen has no hover to show the circle by: a tap goes to the
+   tile, which picks the photo once anything is picked (a long press picks
+   the first). */
+@media (hover: none) {
+  .pg-tile-check { pointer-events: none; }
+}
+
+/* Picked: the photo steps back from the edges, its circle filled with its
+   place in the selection - the order a post shows them in. */
+.pg-tile.selected { background: var(--pg-gold-tint); }
+.pg-tile.selected::before { opacity: 0; }
+.pg-tile.selected .pg-tile-check { opacity: 1; }
+.pg-tile.selected .pg-tile-open { transform: scale(.84); border-radius: 6px; }
+.pg-tile.selected .pg-tile-circle {
+  width: auto;
+  min-width: 24px;
+  padding: 0 6px;
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+
+/* Grey tiles: the first page on its way, or a month the scrubber is on. */
+.pg-tile-skel { animation: pg-pulse 1.6s ease-in-out infinite; }
+.pg-tile-skel:nth-child(3n + 2) { animation-delay: .2s; }
+.pg-tile-skel:nth-child(3n) { animation-delay: .4s; }
+.pg-month-skel span {
+  display: block;
+  width: 140px;
+  height: 14px;
+  margin: 3px 0;
+  border-radius: 7px;
+  background: var(--ink-2);
+  animation: pg-pulse 1.6s ease-in-out infinite;
+}
+
+/* The end of the grid: where the next page is asked for. A fixed height,
+   so the spinner coming and going moves nothing. */
+.pg-foot {
+  box-sizing: border-box;
+  min-height: 72px;
+  padding: 8px var(--pg-pad) 24px;
+  display: grid;
+  place-items: center;
+  color: var(--mist-dim);
+  font-size: 14px;
+}
+.pg-foot-error { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+
+/* ---- empty states ---------------------------------------------------------- */
+
+.pg-empty {
+  box-sizing: border-box;
+  min-height: 55vh;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+.pg-empty-art {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
   background: var(--ink-2);
   border: 1px solid var(--line);
-  color: var(--mist);
-  font-size: 12px;
+  color: var(--mist-dim);
+}
+.pg-empty-title { margin: 0; font-size: 20px; font-weight: 600; line-height: 28px; color: var(--mist); }
+.pg-empty-text { margin: 0; max-width: 360px; font-size: 14px; line-height: 20px; color: var(--mist-dim); }
+.pg-empty .pg-btn { margin-top: 16px; }
+
+/* ---- a collection's or a person's header ----------------------------------- */
+
+.pg-head { padding: 16px var(--pg-pad) 4px; }
+.pg-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 8px;
+  margin: 0 0 4px -8px;
+  border-radius: 999px;
+  font-size: 14px;
   font-weight: 600;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  color: var(--mist-dim);
+  transition: background-color .15s ease, color .15s ease;
+}
+.pg-back:hover { background: var(--pg-hover); color: var(--mist); }
+.pg-back:active { background: var(--pg-press); }
+.pg-back:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+.pg-head-row { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.pg-head-main { flex: 1; min-width: 0; }
+.pg-head-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.pg-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+  color: var(--mist);
+}
+.pg-title-text {
+  min-width: 0;
+  padding: 0 6px;
+  margin-left: -6px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: text;
+  transition: background-color .15s ease;
+}
+/* A long name wraps once, then ends in an ellipsis. */
+.pg-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.pg-title-text:hover { background: var(--pg-hover); }
+.pg-title-edit { width: 36px; height: 36px; color: var(--mist-dim); }
+.pg-title-edit:hover { color: var(--mist); }
+.pg-title-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 6px;
+  margin-left: -6px;
+  border: 0;
+  border-bottom: 2px solid var(--gold);
+  border-radius: 6px 6px 0 0;
+  background: var(--panel);
+  color: var(--mist);
+  font: inherit;
+  outline: none;
+}
+.pg-sub { margin: 2px 0 0; font-size: 14px; line-height: 20px; color: var(--mist-dim); font-variant-numeric: tabular-nums; }
+.pg-title-skel {
+  width: 160px;
+  height: 22px;
+  margin: 7px 0;
+  border-radius: 11px;
+  background: var(--ink-2);
+  animation: pg-pulse 1.6s ease-in-out infinite;
+}
+.pg-sub-skel {
+  width: 72px;
+  height: 12px;
+  margin: 6px 0 4px;
+  border-radius: 6px;
+  background: var(--ink-2);
+  animation: pg-pulse 1.6s ease-in-out infinite;
+}
+.pg-faces { flex: none; display: flex; }
+.pg-face {
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: var(--ink-2);
+  color: var(--mist-dim);
+}
+.pg-face + .pg-face { margin-left: -16px; }
+.pg-face-blank { background: var(--ink-3); }
+@media (max-width: 599px) {
+  .pg-head { padding-top: 8px; }
+  .pg-head-row { gap: 12px; }
+  .pg-head-actions { gap: 0; }
+  .pg-title { font-size: 22px; line-height: 30px; }
+  .pg-title-input { height: 30px; }
+  .pg-face { width: 48px; height: 48px; }
 }
 
-.pg-actions { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; align-items: center; padding: 10px; border-top: 1px solid var(--line); background: rgba(11,24,21,0.96); backdrop-filter: blur(8px); }
-.pg-actions button { padding: 6px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--mist); border-radius: 6px; }
-.pg-count { margin-left: auto; color: var(--mist-dim); }
-.pg-danger { background: var(--danger-bg); border-color: rgba(255,138,117,.4); color: var(--danger); }
+/* ---- the selection bar, over the top bar -------------------------------------- */
 
-/* Issue #48: post order, shown both as a badge on the grid tile itself and
-   as a dedicated reorder strip above the action bar. */
-.pg-order-badge { position: absolute; top: 4px; right: 4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; z-index: 1; }
-.pg-order-strip { position: fixed; left: 0; right: 0; bottom: 46px; display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); background: rgba(11,24,21,0.96); backdrop-filter: blur(8px); overflow-x: auto; }
-.pg-order-strip-label { color: var(--mist-dim); font-size: 13px; white-space: nowrap; }
-.pg-order-thumb { position: relative; flex: 0 0 auto; width: 56px; }
-.pg-order-thumb img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; display: block; }
-.pg-order-remove { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 999px; border: 0; background: var(--ink); color: var(--mist); font-size: 12px; line-height: 1; cursor: pointer; }
-.pg-order-controls { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: var(--mist-dim); margin-top: 2px; }
-.pg-order-controls button { border: 0; background: transparent; color: var(--mist); cursor: pointer; padding: 0 2px; font-size: 13px; }
-.pg-order-controls button:disabled { opacity: 0.3; cursor: default; }
+.pg-selbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 35;
+  box-sizing: border-box;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* The close button sits where the menu button is. */
+  padding: 0 16px 0 10px;
+  background: var(--ink-2);
+  color: var(--mist);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, .4);
+  animation: pg-bar-in .18s ease-out;
+}
+.pg-selbar-count {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.pg-selbar-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.pg-share-anchor { position: relative; display: flex; }
+.pg-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  color: var(--mist);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color .15s ease;
+}
+.pg-bar-btn:hover:not(:disabled),
+.pg-bar-btn[aria-expanded="true"] { background: var(--pg-hover); }
+.pg-bar-btn:active:not(:disabled) { background: var(--pg-press); }
+.pg-bar-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+.pg-bar-btn:disabled { opacity: .6; cursor: default; }
+.pg-bar-btn.danger { color: var(--danger); }
+.pg-bar-btn.danger:hover:not(:disabled) { background: var(--danger-bg); }
+.pg-bar-btn svg, .pg-bar-btn .spinner-wrap { flex: none; }
+.pg-bar-btn .spinner { width: 18px; height: 18px; margin: 2px; }
+@media (max-width: 899px) {
+  .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pg-bar-label { display: none; }
+}
+@media (max-width: 599px) {
+  .pg-selbar { gap: 4px; padding: 0 4px; }
+  .pg-selbar-count { font-size: 16px; }
+  .pg-selbar-actions { gap: 0; }
+}
+
+/* The share menu, under its button. The catcher covers the window under
+   the bar's own content (a negative z-index inside the bar's stacking
+   context), so a tap anywhere else only closes the menu. */
+.pg-menu-catcher { position: fixed; inset: 0; z-index: -1; }
+.pg-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  min-width: 280px;
+  max-width: calc(100vw - 16px);
+  padding: 8px 0;
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .5);
+  transform-origin: top right;
+  animation: pg-menu-in .14s ease-out;
+}
+.pg-menu-item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 20px 8px 16px;
+  text-align: left;
+  color: var(--mist);
+  transition: background-color .12s ease;
+}
+.pg-menu-item svg { flex: none; color: var(--mist-dim); }
+.pg-menu-item:hover { background: var(--pg-hover); }
+.pg-menu-item:active { background: var(--pg-press); }
+.pg-menu-item:focus-visible { outline: none; background: var(--pg-hover); box-shadow: inset 3px 0 0 var(--gold); }
+.pg-menu-text { display: flex; flex-direction: column; min-width: 0; }
+.pg-menu-text strong { font-size: 14px; font-weight: 600; line-height: 20px; }
+.pg-menu-text small { font-size: 12px; line-height: 16px; color: var(--mist-dim); }
+
+/* ---- dialogs ---------------------------------------------------------------- */
+
+.pg-dlg-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .6);
+  overscroll-behavior: contain;
+  animation: pg-fade .15s ease-out;
+}
+.pg-dlg {
+  box-sizing: border-box;
+  width: min(440px, 100%);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: var(--ink-2);
+  color: var(--mist);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .55);
+  animation: pg-pop .16s ease-out;
+}
+.pg-dlg.wide { width: min(560px, 100%); }
+.pg-dlg:focus { outline: none; }
+.pg-dlg-title { margin: 0; font-size: 20px; font-weight: 600; line-height: 28px; }
+.pg-dlg-text { margin: 4px 0 0; font-size: 14px; line-height: 20px; color: var(--mist-dim); }
+.pg-dlg-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 14px;
+  line-height: 20px;
+}
+.pg-dlg-detail { display: block; margin-top: 4px; font-size: 12px; line-height: 16px; color: var(--mist-dim); overflow-wrap: anywhere; }
+.pg-dlg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+@media (max-width: 599px) {
+  .pg-dlg { padding: 20px 16px 16px; }
+}
+
+.pg-field { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.pg-label { font-size: 13px; font-weight: 600; line-height: 16px; color: var(--mist-dim); }
+.pg-inline { display: flex; align-items: center; gap: 8px; }
+.pg-inline .pg-input { flex: 1; min-width: 0; }
+.pg-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--mist);
+  font: inherit;
+  /* 16px: a phone doesn't zoom in on the field. */
+  font-size: 16px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.pg-input::placeholder { color: var(--mist-dim); opacity: .8; }
+.pg-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.pg-input:disabled { opacity: .6; }
+.pg-textarea { height: auto; min-height: 96px; padding: 10px 12px; line-height: 22px; resize: vertical; }
+
+/* The post's photos in order, each with its place, a remove button and
+   arrows to move it (they work on a touch screen and with a keyboard). */
+.pg-strip {
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  margin: 0 -24px;
+  padding: 8px 24px 4px;
+  overflow-x: auto;
+  scroll-padding: 0 24px;
+  scrollbar-width: thin;
+}
+.pg-strip-item { position: relative; flex: none; width: 76px; display: flex; flex-direction: column; gap: 4px; }
+.pg-strip-thumb {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--ink-3);
+  color: var(--mist-dim);
+}
+.pg-strip-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pg-strip-no {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pg-strip-video {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, .55);
+  color: var(--mist);
+}
+.pg-strip-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ink-3);
+  color: var(--mist);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+  transition: color .12s ease, border-color .12s ease;
+}
+/* 40px to hit. */
+.pg-strip-remove::after { content: ""; position: absolute; inset: -6px; }
+.pg-strip-remove:hover:not(:disabled) { color: var(--danger); border-color: rgba(255, 138, 117, .45); }
+.pg-strip-remove:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.pg-strip-remove:disabled { opacity: .5; cursor: default; }
+.pg-strip-moves { display: flex; gap: 4px; }
+.pg-strip-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--mist);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  transition: background-color .12s ease;
+}
+.pg-strip-btn:hover:not(:disabled) { background: var(--pg-hover); }
+.pg-strip-btn:active:not(:disabled) { background: var(--pg-press); }
+.pg-strip-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.pg-strip-btn:disabled { opacity: .3; cursor: default; }
+
+/* "Add to collection": a new one, then the list. */
+.pg-pick {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  text-align: left;
+  color: var(--mist);
+  transition: background-color .12s ease;
+}
+.pg-pick:hover:not(:disabled) { background: var(--pg-hover); }
+.pg-pick:active:not(:disabled) { background: var(--pg-press); }
+.pg-pick:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.pg-pick:disabled { opacity: .6; cursor: default; }
+.pg-pick-new { width: calc(100% + 24px); margin: 0 -12px; }
+.pg-pick-list {
+  list-style: none;
+  margin: -8px -12px 0;
+  padding: 0;
+  max-height: min(45vh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.pg-pick-cover {
+  flex: none;
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: var(--ink-3);
+  color: var(--mist-dim);
+}
+.pg-pick-new .pg-pick-cover { background: none; border: 1.5px dashed rgba(234, 242, 239, .28); color: var(--gold); }
+.pg-pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pg-pick-name { font-size: 15px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-pick-count { font-size: 13px; line-height: 18px; color: var(--mist-dim); }
+.pg-pick .spinner-wrap { flex: none; color: var(--mist-dim); }
+.pg-pick-skel { cursor: default; }
+.pg-pick-skel .pg-pick-text { gap: 8px; }
+.pg-pick-skel .pg-pick-text span { display: block; width: 60%; height: 12px; border-radius: 6px; background: var(--ink-3); }
+.pg-pick-skel .pg-pick-text span + span { width: 30%; }
+.pg-pick-skel .pg-pick-cover,
+.pg-pick-skel .pg-pick-text span { animation: pg-pulse 1.6s ease-in-out infinite; }
+
+/* ---- toasts ------------------------------------------------------------------- */
+
+.pg-toast-wrap {
+  position: fixed;
+  z-index: 70;
+  left: var(--content-left, 0px);
+  right: 0;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.pg-toast {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  max-width: 560px;
+  padding: 4px 16px;
+  border-radius: 8px;
+  background: var(--ink-3);
+  color: var(--mist);
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+  font-size: 14px;
+  line-height: 20px;
+  animation: pg-toast-in .2s ease-out;
+}
+.pg-toast.has-action { padding-right: 8px; }
+.pg-toast.error { border-color: rgba(255, 138, 117, .45); }
+.pg-toast.error::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.pg-toast-text { padding: 10px 0; }
+.pg-toast .spinner-wrap { flex: none; color: var(--mist-dim); }
+.pg-toast-action {
+  flex: none;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color .12s ease;
+}
+.pg-toast-action:hover { background: var(--pg-hover); }
+.pg-toast-action:active { background: var(--pg-press); }
+.pg-toast-action:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+
+/* ---- motion -------------------------------------------------------------------- */
+
+@keyframes pg-fade { from { opacity: 0; } }
+@keyframes pg-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes pg-bar-in { from { transform: translateY(-100%); } }
+@keyframes pg-menu-in { from { opacity: 0; transform: scale(.96); } }
+@keyframes pg-toast-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes pg-pulse { 50% { opacity: .4; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-tile, .pg-tile::before, .pg-tile-open, .pg-tile-img, .pg-tile-check, .pg-tile-circle,
+  .pg-tile-skel, .pg-month-skel span, .pg-title-skel, .pg-sub-skel, .pg-pick-skel .pg-pick-cover, .pg-pick-skel .pg-pick-text span,
+  .pg-selbar, .pg-menu, .pg-dlg-backdrop, .pg-dlg, .pg-toast,
+  .pg-icon-btn, .pg-btn, .pg-bar-btn, .pg-back, .pg-title-text, .pg-menu-item, .pg-pick,
+  .pg-strip-remove, .pg-strip-btn, .pg-toast-action, .pg-input {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ---- the photo viewer (MediaViewer.tsx) -------------------------------------- */
 
 .pg-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }
 /* Issue #130: the box is sized from the viewport and everything inside
@@ -199,25 +859,7 @@
 .pg-nav.left { left: 10px; } .pg-nav.right { right: 10px; }
 .pg-modal-imgwrap { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; touch-action: none; background: var(--ink); }
 .pg-modal-imgwrap img { width: 100%; height: calc(94vh - 45px); object-fit: contain; background: var(--ink); }
-.pg-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* Issue #106: marks a video in the grid. Bottom-left so it never collides
-   with the selection checkbox (top-left) or the post-order badge
-   (top-right); mirrors the composer's own badge. */
-.pg-video-badge {
-  position: absolute;
-  bottom: 6px;
-  left: 6px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  pointer-events: none;
-}
 
 /* The viewer sizes a playing video the same way it sizes a photo - see
    the img rule above. max-height:100% was the bug: a percentage resolves
@@ -247,27 +889,3 @@
   background: var(--ember); color: var(--ember-ink); font-weight: 600; text-decoration: none;
 }
 
-/* Issue #115: image groups. */
-.pg-group-chip { border-color: var(--ember); }
-.pg-group-chip-icon { font-size: 13px; }
-.pg-group-chip-name { border: 0; background: transparent; color: inherit; cursor: text; padding: 0; font: inherit; }
-.pg-group-name-input { font: inherit; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--ink-2); color: var(--mist); min-width: 120px; }
-.pg-group-name-input-lg { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 16px; margin: 6px 0 4px; }
-
-/* The list: same row shape as the notifications page (np-list/np-item),
-   a picture on the left and the text beside it. */
-.pg-groups { padding: 12px; }
-.pg-groups-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.pg-groups-head h3 { margin: 0; color: var(--mist); }
-.pg-close-inline { border: 0; background: transparent; color: var(--mist-dim); font-size: 22px; cursor: pointer; line-height: 1; }
-.pg-groups-empty { color: var(--mist-dim); font-size: 14px; }
-.pg-group-list { list-style: none; margin: 0; padding: 0; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.pg-group-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); cursor: pointer; color: var(--mist); }
-.pg-group-item:last-child { border-bottom: 0; }
-.pg-group-item:hover { background: var(--panel); }
-.pg-group-cover { flex: none; width: 44px; height: 44px; border-radius: 6px; object-fit: cover; }
-.pg-group-cover-ph { display: grid; place-items: center; background: var(--panel); font-size: 20px; }
-.pg-group-text { font-size: 14px; flex: 1; min-width: 0; }
-.pg-group-name { font-weight: 600; }
-.pg-group-count { font-size: 12px; color: var(--mist-dim); white-space: nowrap; }
-.pg-group-list-pick { max-height: 50vh; overflow: auto; margin: 8px 0; }

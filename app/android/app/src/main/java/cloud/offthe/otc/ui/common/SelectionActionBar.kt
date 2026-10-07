@@ -3,6 +3,7 @@ package cloud.offthe.otc.ui.common
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 
 /** Which action is waiting on the device, if any. */
 enum class SelectionActionTask { SHARE, DOWNLOAD }
@@ -61,7 +63,7 @@ fun SelectionActionBar(
                 Item("Share", Icons.Default.Share, busy = busy == SelectionActionTask.SHARE, enabled = count > 0 && busy == null, onClick = onShare, modifier = Modifier.weight(1f))
                 if (onGallery != null) Item("Share as gallery", Icons.Default.PhotoLibrary, enabled = busy == null, onClick = onGallery, modifier = Modifier.weight(1f))
                 Item("Download", Icons.Default.Download, busy = busy == SelectionActionTask.DOWNLOAD, enabled = count > 0 && busy == null, onClick = onDownload, modifier = Modifier.weight(1f))
-                if (onGroup != null) Item("Group", Icons.Default.MenuBook, enabled = count > 0 && busy == null, onClick = onGroup, modifier = Modifier.weight(1f))
+                if (onGroup != null) Item("Add to collection", Icons.Default.LibraryAdd, enabled = count > 0 && busy == null, onClick = onGroup, modifier = Modifier.weight(1f))
                 Item("Delete", Icons.Default.Delete, tint = Color(0xFFE53935), enabled = count > 0 && busy == null, onClick = onDelete, modifier = Modifier.weight(1f))
             }
         }
@@ -73,13 +75,19 @@ private fun Item(
     title: String, icon: ImageVector, tint: Color = MaterialTheme.colorScheme.primary,
     busy: Boolean = false, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
 ) {
-    TextButton(onClick = onClick, enabled = enabled, modifier = modifier) {
+    // Five items share a phone's width: inside TextButton's own 12dp sides a
+    // word as wide as "Download" or "collection" breaks mid-word, so the
+    // label gets nearly the whole slot.
+    TextButton(onClick = onClick, enabled = enabled, modifier = modifier, contentPadding = PaddingValues(horizontal = 2.dp, vertical = 8.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.height(22.dp), contentAlignment = Alignment.Center) {
                 if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Icon(icon, contentDescription = title, tint = if (enabled) tint else tint.copy(alpha = 0.4f))
             }
-            Text(title, style = MaterialTheme.typography.labelSmall, color = if (enabled) tint else tint.copy(alpha = 0.4f), textAlign = TextAlign.Center, maxLines = 2)
+            Text(
+                title, style = MaterialTheme.typography.labelSmall, color = if (enabled) tint else tint.copy(alpha = 0.4f),
+                textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

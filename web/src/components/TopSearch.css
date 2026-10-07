@@ -1,0 +1,425 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The search in the top bar (TopSearch.tsx): a field holding the search's
+   filters as chips and, while it is in use, a panel under it with people
+   and things to pick. It sits in the fixed bar (index.css .topbar, z-index
+   30), so the panel lies over the page; on a phone the panel takes the
+   window's width under the bar, over a dimmed page. */
+
+.ts-root {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 720px;
+  /* Capped on a wide window: what follows in the bar (the page's own
+     action) keeps to the right edge. */
+  margin-right: auto;
+}
+
+/* ---- The field ---- */
+
+.ts-field {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 3px 0 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background-color: var(--ink-3);
+  color: var(--mist);
+  cursor: text;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.ts-field:hover { background-image: linear-gradient(var(--panel), var(--panel)); }
+.ts-field:focus-within,
+.ts-root.is-open .ts-field {
+  background-color: var(--ink-2);
+  background-image: none;
+  border-color: rgba(234, 242, 239, .24);
+}
+
+.ts-glass {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--mist-dim);
+  transition: color .15s ease;
+}
+.ts-field:focus-within .ts-glass { color: var(--mist); }
+
+/* Icon buttons: index.css gives every button an ember fill and padding. */
+.ts-back,
+.ts-clear,
+.ts-chip-x {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--mist-dim);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.ts-back:hover,
+.ts-clear:hover,
+.ts-chip-x:hover { background-color: rgba(234, 242, 239, .1); color: var(--mist); filter: none; }
+.ts-back:active,
+.ts-clear:active,
+.ts-chip-x:active { background-color: rgba(234, 242, 239, .16); }
+.ts-back:focus-visible,
+.ts-clear:focus-visible,
+.ts-chip-x:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; }
+.ts-back,
+.ts-clear { width: 36px; height: 36px; }
+.ts-clear { margin-left: 2px; }
+/* The way out of the search on a phone, where the panel covers the page. */
+.ts-back { display: none; color: var(--mist); }
+
+/* The chips scroll sideways inside the field rather than grow the bar. */
+.ts-chips {
+  flex: 0 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.ts-chips::-webkit-scrollbar { display: none; }
+.ts-chips:empty { display: none; }
+/* Chips scrolled out of sight fade at that end. */
+.ts-chips.fade-l {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 20px);
+  mask-image: linear-gradient(to right, transparent, #000 20px);
+}
+.ts-chips.fade-r {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 20px);
+  mask-image: linear-gradient(to left, transparent, #000 20px);
+}
+.ts-chips.fade-l.fade-r {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+}
+
+.ts-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  max-width: 220px;
+  box-sizing: border-box;
+  padding: 0 4px 0 12px;
+  border: 1px solid rgba(255, 200, 87, .3);
+  border-radius: 8px;
+  background: rgba(255, 200, 87, .12);
+  color: var(--mist);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: default;
+}
+/* A chip alone fits the row, its name cut short, rather than scroll. */
+.ts-chip:only-child { flex-shrink: 1; min-width: 0; }
+.ts-chip.has-pic { padding-left: 3px; }
+.ts-chip.has-icon { padding-left: 8px; }
+.ts-chip-pic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--ink-3);
+  color: var(--mist-dim);
+}
+.ts-chip-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ts-chip-icon { flex: none; display: inline-flex; color: var(--gold); }
+.ts-chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ts-chip-label.is-unnamed { color: var(--mist-dim); }
+.ts-chip-x { width: 24px; height: 24px; margin-left: -2px; }
+
+/* At rest the chips may take most of the field; typing, the text gets
+   room of its own. */
+.ts-input {
+  flex: 1 1 0;
+  min-width: 24px;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--mist);
+  font: inherit;
+  /* 16px or more, or iOS zooms the page in when the field is tapped. */
+  font-size: 16px;
+  text-overflow: ellipsis;
+}
+.ts-field:focus-within .ts-input { min-width: 72px; }
+.ts-input::placeholder { color: var(--mist-dim); opacity: 1; }
+
+/* ---- The panel ---- */
+
+.ts-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  min-width: 320px;
+  max-height: min(70vh, 640px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--ink-2);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .3);
+  color: var(--mist);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234, 242, 239, .2) transparent;
+  animation: ts-drop .14s ease-out;
+}
+.ts-panel:focus { outline: none; }
+@keyframes ts-drop { from { opacity: 0; transform: translateY(-4px); } }
+
+.ts-scrim { display: none; }
+
+.ts-section { padding: 4px 8px; }
+.ts-section + .ts-section { margin-top: 8px; }
+.ts-head {
+  margin: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--mist-dim);
+}
+
+/* Faces: --ts-cols columns (TopSearch.tsx measures how many fit). */
+.ts-faces {
+  display: grid;
+  grid-template-columns: repeat(var(--ts-cols, 6), minmax(0, 1fr));
+  gap: 4px;
+}
+.ts-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 4px 6px;
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s ease;
+}
+.ts-face-pic {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  color: var(--mist-dim);
+  transition: box-shadow .12s ease;
+}
+.ts-face-pic img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+/* In the search: ringed in gold, with a check. */
+.ts-face.is-on .ts-face-pic { box-shadow: 0 0 0 2px var(--ink-2), 0 0 0 4px var(--gold); }
+.ts-tick {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 2px solid var(--ink-2);
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+.ts-face-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+}
+.ts-face-name.is-unnamed { color: var(--mist-dim); }
+.ts-face.is-on .ts-face-name { color: var(--gold); font-weight: 600; }
+.ts-face-all .ts-face-pic { background: rgba(234, 242, 239, .08); color: var(--mist); }
+
+/* People still loading. */
+.ts-face.is-skel { cursor: default; }
+.ts-face.is-skel .ts-face-pic,
+.ts-skel-line { animation: ts-pulse 1.4s ease-in-out infinite; }
+.ts-skel-line { width: 40px; height: 8px; margin: 4px 0; border-radius: 4px; background: var(--ink-3); }
+@keyframes ts-pulse { 50% { opacity: .45; } }
+
+/* Tags to browse, with nothing typed. */
+.ts-tagchips { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 12px 4px; }
+.ts-tagchip {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border: 1px solid rgba(234, 242, 239, .18);
+  border-radius: 8px;
+  color: var(--mist);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+
+/* What matches the typed text, one per row. */
+.ts-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 4px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s ease;
+}
+.ts-row-pic,
+.ts-row-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--mist-dim);
+}
+.ts-row-pic { overflow: hidden; background: var(--ink-3); }
+.ts-row-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ts-row.is-on .ts-row-pic { box-shadow: 0 0 0 2px var(--gold); }
+.ts-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 20px;
+}
+.ts-row-tick { flex: none; display: inline-flex; color: var(--gold); }
+.ts-mark { background: none; color: inherit; font-weight: 700; }
+
+/* The highlight (arrow keys, or the mouse over it), and a press. */
+.ts-face.is-active,
+.ts-row.is-active { background-color: rgba(234, 242, 239, .08); }
+.ts-tagchip.is-active { background-color: rgba(234, 242, 239, .08); border-color: rgba(234, 242, 239, .32); }
+.ts-face:not(.is-skel):active,
+.ts-row:active,
+.ts-tagchip:active { background-color: rgba(234, 242, 239, .14); }
+
+.ts-hint { margin: 10px 20px 8px; font-size: 14px; line-height: 20px; color: var(--mist-dim); }
+.ts-hint em { color: var(--mist); }
+
+/* Read out, not shown. */
+.ts-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- A phone ---- */
+
+@media (max-width: 599px) {
+  .ts-chip { max-width: 168px; }
+  .ts-panel {
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-height: calc(100vh - var(--topbar-h) - 56px);
+    max-height: calc(100dvh - var(--topbar-h) - 56px);
+    border-width: 0 0 1px;
+    border-radius: 0 0 16px 16px;
+  }
+  .ts-scrim {
+    display: block;
+    position: fixed;
+    inset: var(--topbar-h) 0 0;
+    background: rgba(0, 0, 0, .5);
+    touch-action: none;
+    animation: ts-fade .14s ease-out;
+  }
+  .ts-back { display: grid; }
+  .ts-root.is-open .ts-glass { display: none; }
+}
+@keyframes ts-fade { from { opacity: 0; } }
+
+/* ---- Fingers: every target 40px or more ---- */
+
+@media (pointer: coarse) {
+  .ts-back,
+  .ts-clear { width: 40px; height: 40px; }
+  /* A chip's × takes a finger's room: as wide as the chip lets it, and
+     taller than the chip without showing it. Never wider than the chip,
+     or the row would scroll by the overhang. */
+  .ts-chip-x { width: 40px; height: 32px; margin: 0 -4px 0 -8px; border-radius: 8px; }
+  .ts-chip-x::after { content: ""; position: absolute; inset: -4px 0; }
+  .ts-tagchip { height: 40px; }
+  .ts-row { min-height: 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts-field,
+  .ts-glass,
+  .ts-back,
+  .ts-clear,
+  .ts-chip-x,
+  .ts-face,
+  .ts-face-pic,
+  .ts-tagchip,
+  .ts-row { transition: none; }
+  .ts-panel,
+  .ts-scrim,
+  .ts-face.is-skel .ts-face-pic,
+  .ts-skel-line { animation: none; }
+}

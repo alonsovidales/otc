@@ -34,10 +34,10 @@ MADE FOR PEOPLE WHO TAKE A LOT OF PHOTOS
 • Find any picture in seconds: search by what is in it ("beach", "dog", "sunset"), where it was taken, or who is in it
 • Face recognition is off until you turn it on, and runs only on your own device
 • See each photo's camera details, and where it was taken on a map
-• Albums, and a date scrubber to move through years of photos
+• Collections, and a date scrubber to move through years of photos
 
 SHARE WITH THE PEOPLE YOU CHOOSE
-• Share an album with grandparents and friends as a link that expires. They open it in their browser, with no account or app, and can download the originals
+• Share a collection with grandparents and friends as a link that expires. They open it in their browser, with no account or app, and can download the originals
 • A private feed for family and friends: photos, videos, likes and comments, kept on your devices and theirs, never on ours
 • No ads, no ranking, no strangers: just the people you added, in the order they posted
 
