@@ -50,8 +50,11 @@ type Controller interface {
 type folderItem struct {
 	item   *systray.MenuItem
 	remove *systray.MenuItem
-	id     string
-	remote bool
+	// Issue #192: "Kept Out of Images" and the line under it (images.go).
+	images     *systray.MenuItem
+	imagesInfo *systray.MenuItem
+	id         string
+	remote     bool
 }
 
 type ui struct {
@@ -235,8 +238,9 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.folders = nil
 	for _, f := range folders {
 		mi := systray.AddMenuItem(folderTitle(f), "")
+		img, info := addImagesItems(mi)
 		rm := mi.AddSubMenuItem("Remove", "Stop syncing this folder (nothing is deleted)")
-		u.folders = append(u.folders, &folderItem{item: mi, remove: rm, id: f.ID, remote: f.RemotePath != ""})
+		u.folders = append(u.folders, &folderItem{item: mi, remove: rm, images: img, imagesInfo: info, id: f.ID, remote: f.RemotePath != ""})
 	}
 	if len(folders) > 0 {
 		u.empty.Hide()
@@ -306,6 +310,8 @@ func (u *ui) build(folders []config.FolderStatus) {
 					return
 				case <-fi.remove.ClickedCh:
 					u.removeFolder(fi)
+				case <-fi.images.ClickedCh:
+					go u.toggleImages(fi)
 				}
 			}
 		}()
@@ -375,6 +381,7 @@ func (u *ui) apply() {
 	}
 	for i, f := range want {
 		u.setTitle(u.folders[i].item, folderTitle(f))
+		u.applyImages(u.folders[i], f)
 	}
 	// Read every time (a stat, or a registry read), so an entry removed
 	// outside the app shows; only the write is skipped.
@@ -421,7 +428,7 @@ func folderTitle(f config.FolderStatus) string {
 		}
 	}
 
-	return fmt.Sprintf("%s %s — %s", arrow, name, state)
+	return fmt.Sprintf("%s %s — %s%s", arrow, name, state, imagesSuffix(f))
 }
 
 // editConfig is config.json for an edit, or nil - and the reason shown -
@@ -471,11 +478,12 @@ func (u *ui) addBackup_() {
 	if err != nil || dir == "" {
 		return
 	}
+	outOfImages := u.askKeepOutOfImages(filepath.Base(dir))
 	cfg := u.editConfig()
 	if cfg == nil {
 		return
 	}
-	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir, OneWay: true})
+	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir, OneWay: true, OutOfImages: outOfImages})
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}
@@ -491,7 +499,9 @@ Sync a folder from this computer - two ways
 The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes.
 
 Sync a folder from the device - two ways
-Pick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included.`,
+Pick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included.
+
+`+imagesExplainKinds,
 		zenity.Title("Adding a folder"), zenity.Width(520))
 }
 
@@ -500,11 +510,13 @@ func (u *ui) addLocal_() {
 	if err != nil || dir == "" {
 		return
 	}
+	outOfImages := u.askKeepOutOfImages(filepath.Base(dir))
 	cfg := u.editConfig()
 	if cfg == nil {
 		return
 	}
-	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir})
+	// Made two-way by the engine (migrateFolders), the request with it.
+	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir, OutOfImages: outOfImages})
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}
@@ -525,11 +537,12 @@ func (u *ui) addRemote() {
 	if err != nil || dir == "" {
 		return
 	}
+	outOfImages := u.askKeepOutOfImages(baseName(remote))
 	cfg := u.editConfig()
 	if cfg == nil {
 		return
 	}
-	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
+	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir, OutOfImages: outOfImages})
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}

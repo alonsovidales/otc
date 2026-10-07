@@ -78,6 +78,10 @@ final class SyncModel: ObservableObject {
     private struct StoredFolder: Codable {
         let id: UUID
         let bookmark: Data
+        /// Issue #192: a request not yet acknowledged by the device - true
+        /// to keep the folder out of Images, false to show it there again;
+        /// nil (and absent from older data) when there is nothing to send.
+        var outOfImages: Bool? = nil
     }
     private let bookmarksKey = "sync.folders.bookmarks"
 
@@ -85,6 +89,8 @@ final class SyncModel: ObservableObject {
         let id: UUID
         let remotePath: String
         let bookmark: Data
+        /// Issue #192: as StoredFolder's.
+        var outOfImages: Bool? = nil
     }
     private let remoteFoldersKey = "sync.remoteFolders.bookmarks"
 
@@ -225,6 +231,25 @@ final class SyncModel: ObservableObject {
     // logged once, not every pass.
     private var uploadOnlyOK: Set<UUID> = []
     private var uploadOnlyErrors: [UUID: String] = [:]
+
+    // Issue #192: folders kept out of Images (see "Folders kept out of
+    // Images" below). What the device keeps out (ListOutOfImages, each path
+    // with its trailing slash) and whether it can - nil until it has said,
+    // forgotten when the address or password changes.
+    @Published private(set) var outOfImagesFolders: [String]?
+    @Published private(set) var outOfImagesSupported: Bool?
+    /// Each folder's request not yet acknowledged (true keep out, false
+    /// show again), persisted with the folder until the device has it -
+    /// never sent again after that, not even at the next launch.
+    @Published private(set) var outOfImagesPending: [UUID: Bool] = [:]
+    /// The device's refusal of a folder's last request to show it (inside
+    /// a folder kept out), on its row until its next request.
+    @Published private(set) var outOfImagesNotes: [UUID: String] = [:]
+    private var outOfImagesTasks: [UUID: Task<Void, Never>] = [:]
+    private var outOfImagesErrors: [UUID: String] = [:]
+    /// remoteDeviceRoot(), as the last backup pass found it: a row asks for
+    /// its device path on every redraw, and Host's name lookup can be slow.
+    private var deviceRootForImages: String?
 
     // Local content hashes remembered per folder, keyed by full path and
     // validated by size + modification date: a two-way folder is
@@ -481,7 +506,7 @@ final class SyncModel: ObservableObject {
             guard let folder = folders.first(where: { $0.id == item.id }) else { continue }
             let remotePath = remotePathFor(folder.url.path)
             if !remote.contains(where: { $0.id == item.id }) {
-                remote.append(StoredRemoteFolder(id: item.id, remotePath: remotePath, bookmark: item.bookmark))
+                remote.append(StoredRemoteFolder(id: item.id, remotePath: remotePath, bookmark: item.bookmark, outOfImages: item.outOfImages))
                 remoteFolders.append(RemoteFolder(id: item.id, remotePath: remotePath, localURL: folder.url))
             }
         }
@@ -501,6 +526,12 @@ final class SyncModel: ObservableObject {
                 self.overallStatus = "Connected"
                 self.route = route
                 self.startRaidPolling()
+                // Issue #192: what the device keeps out of Images, then the
+                // requests still pending - asked again at every connect,
+                // since updating a device that couldn't restarts it.
+                if self.outOfImagesSupported == false { self.outOfImagesSupported = nil }
+                await self.refreshOutOfImages()
+                self.applyPendingOutOfImages()
                 // Folders left in an error while the link was down (their
                 // retry finds no connection and gives up) go again now,
                 // instead of waiting for the 10-minute pass.
@@ -706,6 +737,11 @@ final class SyncModel: ObservableObject {
                     // next launch, as otc-sync does.
                     self.uploadOnlyOK.removeAll()
                     self.uploadOnlyErrors.removeAll()
+                    // Nor is what it keeps out of Images: asked again.
+                    self.outOfImagesFolders = nil
+                    self.outOfImagesSupported = nil
+                    self.outOfImagesErrors.removeAll()
+                    self.outOfImagesNotes.removeAll()
                     if settings.ready {
                         self.overallStatus = "Connecting…"
                         self.ws.configure(domain: domain, key: key)
@@ -788,8 +824,9 @@ final class SyncModel: ObservableObject {
 
     /// A one-way backup of a folder on this Mac: new and changed files go
     /// to the device, files deleted here are deleted there, and nothing on
-    /// the device ever changes the folder here (reconcile()).
-    func addBackupFolder() {
+    /// the device ever changes the folder here (reconcile()). With
+    /// `outOfImages`, kept out of Images from its first pass (issue #192).
+    func addBackupFolder(outOfImages: Bool = false) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
@@ -801,9 +838,10 @@ final class SyncModel: ObservableObject {
                 let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
                 _ = url.startAccessingSecurityScopedResource()
                 let tf = TrackedFolder(id: UUID(), url: url)
+                if outOfImages { outOfImagesPending[tf.id] = true }
                 folders.append(tf)
                 var stored = existingStored()
-                stored.append(StoredFolder(id: tf.id, bookmark: bookmark))
+                stored.append(StoredFolder(id: tf.id, bookmark: bookmark, outOfImages: outOfImages ? true : nil))
                 persistFolders(bookmarks: stored)
                 if settings?.ready == true {
                     Task { await self.setupFolder(tf) }
@@ -814,7 +852,7 @@ final class SyncModel: ObservableObject {
         }
     }
 
-    func addFolder() {
+    func addFolder(outOfImages: Bool = false) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
@@ -823,7 +861,7 @@ final class SyncModel: ObservableObject {
             // Two-way like every folder: it syncs to this Mac's own place
             // on the device, and with nothing there yet its first pass
             // uploads what the folder holds.
-            addRemoteFolder(remotePath: remotePathFor(url.path), localURL: url)
+            addRemoteFolder(remotePath: remotePathFor(url.path), localURL: url, outOfImages: outOfImages)
         }
     }
 
@@ -837,6 +875,7 @@ final class SyncModel: ObservableObject {
         changeQueues.removeValue(forKey: f.id)
         uploadOnlyOK.remove(f.id)
         uploadOnlyErrors.removeValue(forKey: f.id)
+        forgetOutOfImages(f.id)
 
         dropHashCache(f.id)
         f.url.stopAccessingSecurityScopedResource()
@@ -883,8 +922,9 @@ final class SyncModel: ObservableObject {
 
     /// Called once the user has picked both a remote directory (via
     /// RemoteFolderPickerView) and a local destination (via NSOpenPanel,
-    /// same picker addFolder() uses) for it.
-    func addRemoteFolder(remotePath: String, localURL: URL) {
+    /// same picker addFolder() uses) for it. With `outOfImages`, the
+    /// device folder is kept out of Images before its first pass.
+    func addRemoteFolder(remotePath: String, localURL: URL, outOfImages: Bool = false) {
         do {
             let bookmark = try localURL.bookmarkData(
                 options: [.withSecurityScope],
@@ -894,10 +934,11 @@ final class SyncModel: ObservableObject {
             _ = localURL.startAccessingSecurityScopedResource()
 
             let rf = RemoteFolder(id: UUID(), remotePath: remotePath, localURL: localURL)
+            if outOfImages { outOfImagesPending[rf.id] = true }
             remoteFolders.append(rf)
 
             var stored = existingStoredRemote()
-            stored.append(StoredRemoteFolder(id: rf.id, remotePath: remotePath, bookmark: bookmark))
+            stored.append(StoredRemoteFolder(id: rf.id, remotePath: remotePath, bookmark: bookmark, outOfImages: outOfImages ? true : nil))
             persistRemoteFolders(bookmarks: stored)
 
             if settings?.ready == true, ws.isConnected() {
@@ -920,6 +961,7 @@ final class SyncModel: ObservableObject {
         dropSynced(f.id)
         remoteErrorRetryTasks[f.id]?.cancel()
         remoteErrorRetryTasks.removeValue(forKey: f.id)
+        forgetOutOfImages(f.id)
 
         dropHashCache(f.id)
         f.localURL.stopAccessingSecurityScopedResource()
@@ -1115,7 +1157,12 @@ final class SyncModel: ObservableObject {
         let root = folder.url
         // The computer's name is looked up once per pass, not per file.
         let deviceRoot = remoteDeviceRoot()
+        deviceRootForImages = deviceRoot
         let remotePrefix = remotePathFor(root.path, root: deviceRoot) + "/"
+        // Issue #192: before anything is sent, so a new folder's photos
+        // never reach Images. One request at most: an old or unreachable
+        // device doesn't hold the backup up.
+        await applyOutOfImagesBeforePass(folder.id)
 
         do {
             let resp = try await ws.request { req in
@@ -1334,6 +1381,9 @@ final class SyncModel: ObservableObject {
                     (self.settings?.ready ?? false, self.remoteFolders)
                 }
                 guard ready, self.ws.isConnected() else { continue }
+                // Issue #192: a folder kept out of Images, or shown again,
+                // from the web or a phone shows here within a minute.
+                await self.refreshOutOfImagesPeriodically()
                 for folder in currentFolders {
                     await self.reconcileRemoteFolder(folder)
                 }
@@ -1389,6 +1439,8 @@ final class SyncModel: ObservableObject {
             removeRemoteFolder(folder)
             return
         }
+        // Issue #192: as reconcile() - first, and never holding the pass up.
+        await applyOutOfImagesBeforePass(folder.id)
 
         // Guards against a real prefix-collision risk in the recursive
         // listing below: an unanchored "/subdir" would also match a
@@ -2105,6 +2157,233 @@ final class SyncModel: ObservableObject {
         syncLog.error("backup \(folder.url.path, privacy: .public): \(problem, privacy: .public)")
     }
 
+    // MARK: - Folders kept out of Images (issue #192)
+    //
+    // Photos and videos in a folder kept out of Images still go to the
+    // device and Files shows them, but the device never tags them, searches
+    // them for faces or shows them in Images. Asked for when a folder is
+    // added (AddFolderChooser) or later from its row, and kept with the
+    // folder as a request (outOfImagesPending) that is sent once the
+    // folder's device path exists - at the start of its passes, at connect,
+    // and at once when made from the row - until the device acknowledges
+    // it. Then never again: unlike markUploadOnly it is not sent at every
+    // start, which would undo a change made since from the web or a phone.
+    // As otc-sync's engine/out_of_images.go.
+
+    /// A row's Keep Out / Show confirmed: recorded, and sent now when
+    /// connected.
+    func setOutOfImages(_ id: UUID, keepOut: Bool) {
+        guard outOfImagesDevicePath(id) != nil else { return }
+        outOfImagesPending[id] = keepOut
+        outOfImagesNotes[id] = nil
+        outOfImagesErrors[id] = nil
+        persistOutOfImages(id)
+        if ws.isConnected() { applyOutOfImages(id) }
+    }
+
+    /// How folder `id` stands with Images, for its row.
+    func outOfImagesState(for id: UUID) -> OutOfImagesState {
+        guard let path = outOfImagesDevicePath(id) else { return .unknown }
+        return SyncPaths.outOfImagesState(devicePath: path, folders: outOfImagesFolders,
+                                          pending: outOfImagesPending[id], supported: outOfImagesSupported)
+    }
+
+    /// The folder's device path, with the trailing slash; nil once removed.
+    private func outOfImagesDevicePath(_ id: UUID) -> String? {
+        var path: String
+        if let f = folders.first(where: { $0.id == id }) {
+            let root = deviceRootForImages ?? remoteDeviceRoot()
+            deviceRootForImages = root
+            path = remotePathFor(f.url.path, root: root)
+        } else if let r = remoteFolders.first(where: { $0.id == id }) {
+            path = r.remotePath
+        } else {
+            return nil
+        }
+        // One slash: a backup of a volume's root ends in one already.
+        while path.hasSuffix("/") { path.removeLast() }
+        return path + "/"
+    }
+
+    /// A pass's first step: the folder's pending request, if any - waiting
+    /// for one already under way rather than sending it twice.
+    private func applyOutOfImagesBeforePass(_ id: UUID) async {
+        guard outOfImagesPending[id] != nil, outOfImagesSupported != false else { return }
+        await applyOutOfImages(id).value
+    }
+
+    /// Sends folder `id`'s pending request, or returns the send already
+    /// under way.
+    @discardableResult
+    private func applyOutOfImages(_ id: UUID) -> Task<Void, Never> {
+        if let running = outOfImagesTasks[id] { return running }
+        let task = Task { [weak self] in
+            await self?.sendOutOfImages(id)
+            self?.outOfImagesTasks[id] = nil
+        }
+        outOfImagesTasks[id] = task
+        return task
+    }
+
+    /// Every pending request, at connect.
+    private func applyPendingOutOfImages() {
+        for id in outOfImagesPending.keys { applyOutOfImages(id) }
+    }
+
+    /// Until the device has acknowledged what is pending now. The answer
+    /// decides what happens to the request:
+    /// - ok: cleared - only while it is still the one sent, so a change
+    ///   made meanwhile from the row goes next;
+    /// - unknown_payload (a device before release 108): kept, and the
+    ///   device marked as unable - the row says it needs an update, and
+    ///   the request goes by itself after the update (the next connect);
+    /// - out_of_images_by_parent: dropped, the device's message on the row -
+    ///   it can't be shown until the folder above is;
+    /// - anything else, a dropped link included: kept for the next pass,
+    ///   the error logged once - unless the row changed it while this one
+    ///   was under way: the change goes now (the row's own call found this
+    ///   send running and left it to it).
+    private func sendOutOfImages(_ id: UUID) async {
+        // The value this send is through with (its request failed, or was
+        // refused): it stops there unless the request changes meanwhile.
+        var through: Bool?
+        while let want = outOfImagesPending[id], want != through, outOfImagesSupported != false, ws.isConnected(),
+              let path = outOfImagesDevicePath(id) {
+            guard path != "/" else {
+                // The device's whole library, which it refuses to keep
+                // out: nothing to send, ever.
+                clearOutOfImages(id, sent: want)
+                return
+            }
+            let domain = settings?.domain
+            let answer: Resp?
+            var failure: String?
+            do {
+                answer = try await ws.request { req in
+                    var m = Msg_SetOutOfImages()
+                    m.path = path
+                    m.outOfImages = want
+                    req.payload = .reqSetOutOfImages(m)
+                }
+            } catch {
+                answer = nil
+                failure = error.localizedDescription
+            }
+            // Removed, or another device, meanwhile: the answer isn't
+            // about it.
+            guard outOfImagesDevicePath(id) != nil, settings?.domain == domain else { return }
+            through = want
+            guard let answer else {
+                noteOutOfImagesError(id, path: path, failure ?? "no answer")
+                continue
+            }
+            if Self.isUnknownPayload(answer) {
+                syncLog.notice("the device can't keep folders out of Images yet (it needs an update): \(path, privacy: .public) stays pending")
+                outOfImagesSupported = false
+                outOfImagesFolders = nil
+                return
+            }
+            if answer.error && answer.errorCode == "out_of_images_by_parent" {
+                clearOutOfImages(id, sent: want)
+                outOfImagesNotes[id] = answer.errorMessage
+                outOfImagesErrors[id] = nil
+                // The folder above that keeps it out, for the row.
+                await refreshOutOfImages()
+                continue
+            }
+            if answer.error {
+                noteOutOfImagesError(id, path: path, answer.errorMessage.isEmpty ? "refused" : answer.errorMessage)
+                continue
+            }
+            if outOfImagesSupported != true { outOfImagesSupported = true }
+            outOfImagesErrors[id] = nil
+            outOfImagesNotes[id] = nil
+            clearOutOfImages(id, sent: want)
+            through = nil
+            await refreshOutOfImages()
+            // What is pending now - a change made while this one was under
+            // way - goes next.
+        }
+    }
+
+    /// The device answered `sent`: the request goes, unless it was changed
+    /// meanwhile.
+    private func clearOutOfImages(_ id: UUID, sent: Bool) {
+        guard outOfImagesPending[id] == sent else { return }
+        outOfImagesPending[id] = nil
+        persistOutOfImages(id)
+    }
+
+    /// Writes folder `id`'s request into its stored entry.
+    private func persistOutOfImages(_ id: UUID) {
+        let want = outOfImagesPending[id]
+        var stored = existingStored()
+        if let i = stored.firstIndex(where: { $0.id == id }) {
+            stored[i].outOfImages = want
+            persistFolders(bookmarks: stored)
+            return
+        }
+        var remote = existingStoredRemote()
+        if let i = remote.firstIndex(where: { $0.id == id }) {
+            remote[i].outOfImages = want
+            persistRemoteFolders(bookmarks: remote)
+        }
+    }
+
+    /// A removed folder's request and state go with it.
+    private func forgetOutOfImages(_ id: UUID) {
+        outOfImagesTasks.removeValue(forKey: id)?.cancel()
+        outOfImagesPending[id] = nil
+        outOfImagesNotes[id] = nil
+        outOfImagesErrors[id] = nil
+    }
+
+    /// Logged once per distinct error, not at every pass (as markUploadOnly).
+    private func noteOutOfImagesError(_ id: UUID, path: String, _ problem: String) {
+        guard outOfImagesErrors[id] != problem else { return }
+        outOfImagesErrors[id] = problem
+        syncLog.error("could not keep \(path, privacy: .public) out of Images, or show it there (tried again later): \(problem, privacy: .public)")
+    }
+
+    /// Asks the device which folders it keeps out of Images: at connect,
+    /// after each acknowledged request, and once a minute.
+    private func refreshOutOfImages() async {
+        guard ws.isConnected() else { return }
+        let domain = settings?.domain
+        guard let answer = try? await ws.request({ req in
+            req.payload = .reqListOutOfImages(Msg_ListOutOfImages())
+        }), settings?.domain == domain else { return }
+        if Self.isUnknownPayload(answer) {
+            if outOfImagesSupported != false { outOfImagesSupported = false }
+            outOfImagesFolders = nil
+        } else if !answer.error, case .respOutOfImagesFolders(let list) = answer.payload {
+            if outOfImagesSupported != true { outOfImagesSupported = true }
+            // Published only when it changes: every assignment redraws.
+            if outOfImagesFolders != list.paths { outOfImagesFolders = list.paths }
+            // A refusal to show a folder inside one kept out is about that
+            // folder above: once it is shown (from the web or a phone), the
+            // refusal no longer holds.
+            let stale = outOfImagesNotes.keys.filter { id in
+                if case .keptOutBy = outOfImagesState(for: id) { return false }
+                return true
+            }
+            for id in stale { outOfImagesNotes[id] = nil }
+        }
+    }
+
+    /// The one-minute poll's: not of a device that said it can't (asked
+    /// again at the next connect), nor with no folders to show it on.
+    private func refreshOutOfImagesPeriodically() async {
+        guard outOfImagesSupported != false, !(folders.isEmpty && remoteFolders.isEmpty) else { return }
+        await refreshOutOfImages()
+    }
+
+    /// The device is older than the request: error_code "unknown_payload",
+    /// or before that code existed, the bare message.
+    private nonisolated static func isUnknownPayload(_ resp: Resp) -> Bool {
+        resp.error && (resp.errorCode == "unknown_payload" || resp.errorMessage == "unknown payload")
+    }
+
     private func delete(_ remotePath: String) async throws {
         let resp = try await ws.request { req in
             var d = Msg_DelFile()
@@ -2252,12 +2531,13 @@ final class SyncModel: ObservableObject {
                                                      relativeTo: nil)
                     var updated = stored
                     if let idx = updated.firstIndex(where: { $0.id == item.id }) {
-                        updated[idx] = StoredFolder(id: item.id, bookmark: fresh)
+                        updated[idx] = StoredFolder(id: item.id, bookmark: fresh, outOfImages: item.outOfImages)
                         persistFolders(bookmarks: updated)
                     }
                 }
 
                 restored.append(TrackedFolder(id: item.id, url: url))
+                if let want = item.outOfImages { outOfImagesPending[item.id] = want }
             } catch {
                 print("Failed to resolve bookmark:", error)
             }
@@ -2301,12 +2581,13 @@ final class SyncModel: ObservableObject {
                                                      relativeTo: nil)
                     var updated = stored
                     if let idx = updated.firstIndex(where: { $0.id == item.id }) {
-                        updated[idx] = StoredRemoteFolder(id: item.id, remotePath: item.remotePath, bookmark: fresh)
+                        updated[idx] = StoredRemoteFolder(id: item.id, remotePath: item.remotePath, bookmark: fresh, outOfImages: item.outOfImages)
                         persistRemoteFolders(bookmarks: updated)
                     }
                 }
 
                 restored.append(RemoteFolder(id: item.id, remotePath: item.remotePath, localURL: url))
+                if let want = item.outOfImages { outOfImagesPending[item.id] = want }
             } catch {
                 print("Failed to resolve remote folder bookmark:", error)
             }

@@ -13,6 +13,8 @@
 //	otc-sync backup <dir>          back up a local folder, one way: it is never changed from the device
 //	otc-sync add <dir>             keep a local folder in two-way sync (its first pass uploads)
 //	otc-sync add-remote <remote> <dir>   keep a device folder and a local one in two-way sync
+//	                               (all three take --keep-out-of-images, issue #192)
+//	otc-sync images <id|path> keep-out|show   keep a synced folder out of Images, or show it again
 //	otc-sync remove <id|path>      stop syncing a folder (nothing is deleted)
 //	otc-sync ls [remote path]      browse the device
 //	otc-sync open                  the device's web app in the browser
@@ -94,6 +96,8 @@ func main() {
 		err = cmdAdd(args, true)
 	case "add-remote":
 		err = cmdAddRemote(args)
+	case "images":
+		err = cmdImages(args)
 	case "remove":
 		err = cmdRemove(args)
 	case "disconnect":
@@ -218,13 +222,22 @@ func usage() {
   otc-sync settings --name cala [--password-stdin | --password-prompt]
   otc-sync settings --address ws://192.168.1.10:8080/ws
   otc-sync folders              the folders being synced
-  otc-sync backup <dir>         back up a local folder to the device, one way and upload only:
+  otc-sync backup [--keep-out-of-images] <dir>
+                                back up a local folder to the device, one way and upload only:
                                 new and changed files go up, nothing is ever deleted there,
                                 and nothing done on the device ever changes this folder
-  otc-sync add <dir>            keep a local folder in two-way sync with the device: changes and
+  otc-sync add [--keep-out-of-images] <dir>
+                                keep a local folder in two-way sync with the device: changes and
                                 deletions on either side reach the other (first pass only adds)
-  otc-sync add-remote <remote-path> <dir>
+  otc-sync add-remote [--keep-out-of-images] <remote-path> <dir>
                                 two-way sync between a device folder and a local one
+  otc-sync images <id|path> keep-out|show
+                                keep a synced folder out of Images, or show it there again.
+                                Kept out, its photos and videos aren't tagged, searched for
+                                faces or shown in Images (Files still shows them), and the tags
+                                and faces already found in them are deleted. Shown again, they
+                                are tagged - and searched for faces, if that is on - again.
+                                --keep-out-of-images keeps a folder out when it is added
   otc-sync remove <id|path>     stop syncing a folder (nothing is deleted)
   otc-sync disconnect [--yes]   forget the device: removes every folder (the files stay)
                                 and the device and password, before connecting elsewhere
@@ -649,10 +662,46 @@ func printFolders(st *config.State) {
 	}
 	fmt.Println("folders:")
 	for _, f := range st.Folders {
-		fmt.Printf("  ⬆ %-8s %s  [%s]\n", f.ID, f.Path, engine.Describe(f))
+		fmt.Printf("  ⬆ %-8s %s  [%s]%s\n", f.ID, f.Path, engine.Describe(f), imagesLabel(f))
 	}
 	for _, f := range st.RemoteFolders {
-		fmt.Printf("  ⇅ %-8s %s  ⇄ %s  [%s]\n", f.ID, f.Path, f.RemotePath, engine.Describe(f))
+		fmt.Printf("  ⇅ %-8s %s  ⇄ %s  [%s]%s\n", f.ID, f.Path, f.RemotePath, engine.Describe(f), imagesLabel(f))
+	}
+}
+
+// imagesLabel is how a folder stands with Images (issue #192), after its
+// state; "" when shown, or not known.
+func imagesLabel(f config.FolderStatus) string {
+	label := ""
+	switch engine.ImagesState(f.OutOfImages) {
+	case engine.ImagesKeptOut:
+		label = " (kept out of Images)"
+	case engine.ImagesKeptOutByParent:
+		label = " (kept out of Images by " + f.OutOfImagesBy + ")"
+	case engine.ImagesKeeping:
+		label = " (keeping out of Images…)"
+	case engine.ImagesShowing:
+		label = " (showing in Images…)"
+	case engine.ImagesUnsupported:
+		label = " (" + engine.OutOfImagesNeedsUpdate + ")"
+	}
+	if f.OutOfImagesNote != "" {
+		label += " (" + f.OutOfImagesNote + ")"
+	}
+
+	return label
+}
+
+// pendingImagesLabel is imagesLabel from config.json alone, while the sync
+// isn't running: only a request waiting to be sent is known.
+func pendingImagesLabel(want *bool) string {
+	switch {
+	case want == nil:
+		return ""
+	case *want:
+		return " (keeping out of Images…)"
+	default:
+		return " (showing in Images…)"
 	}
 }
 
@@ -765,10 +814,10 @@ func cmdFolders() error {
 		return nil
 	}
 	for _, f := range cfg.Folders {
-		fmt.Printf("  ⬆ %-8s %s\n", f.ID, f.Path)
+		fmt.Printf("  ⬆ %-8s %s%s\n", f.ID, f.Path, pendingImagesLabel(f.OutOfImages))
 	}
 	for _, f := range cfg.RemoteFolders {
-		fmt.Printf("  ⇅ %-8s %s  ⇄ %s\n", f.ID, f.LocalPath, f.RemotePath)
+		fmt.Printf("  ⇅ %-8s %s  ⇄ %s%s\n", f.ID, f.LocalPath, f.RemotePath, pendingImagesLabel(f.OutOfImages))
 	}
 	fmt.Println("(the sync is not running, so no state is shown)")
 
@@ -791,12 +840,40 @@ func absDir(p string) (string, error) {
 	return abs, nil
 }
 
+// keepOutFlag takes --keep-out-of-images (issue #192) out of args,
+// wherever it is: before or after the folder.
+func keepOutFlag(args []string) (rest []string, outOfImages *bool) {
+	for _, a := range args {
+		if a == "--keep-out-of-images" || a == "-keep-out-of-images" {
+			keep := true
+			outOfImages = &keep
+			continue
+		}
+		rest = append(rest, a)
+	}
+
+	return rest, outOfImages
+}
+
+// addedOutOfImages says what a folder added with --keep-out-of-images
+// gets, and when.
+func addedOutOfImages(outOfImages *bool) {
+	if outOfImages == nil {
+		return
+	}
+	fmt.Println("Kept out of Images: " + engine.OutOfImagesAddCaption)
+	if st, _ := config.LoadState(); st != nil && st.OutOfImagesUnsupported {
+		fmt.Println(engine.OutOfImagesNeedsUpdate + " It is done once the device is updated.")
+	}
+}
+
 func cmdAdd(args []string, oneWay bool) error {
+	args, outOfImages := keepOutFlag(args)
 	if len(args) != 1 {
 		if oneWay {
-			return errors.New("usage: otc-sync backup <dir>")
+			return errors.New("usage: otc-sync backup [--keep-out-of-images] <dir>")
 		}
-		return errors.New("usage: otc-sync add <dir>")
+		return errors.New("usage: otc-sync add [--keep-out-of-images] <dir>")
 	}
 	dir, err := absDir(args[0])
 	if err != nil {
@@ -816,19 +893,21 @@ func cmdAdd(args []string, oneWay bool) error {
 			return fmt.Errorf("%s is already being synced (%s)", dir, f.ID)
 		}
 	}
-	f := config.Folder{ID: config.NewID(), Path: dir, OneWay: oneWay}
+	f := config.Folder{ID: config.NewID(), Path: dir, OneWay: oneWay, OutOfImages: outOfImages}
 	cfg.Folders = append(cfg.Folders, f)
 	if err := cfg.Save(); err != nil {
 		return err
 	}
 	fmt.Printf("added %s as %s\n", dir, f.ID)
+	addedOutOfImages(outOfImages)
 
 	return nil
 }
 
 func cmdAddRemote(args []string) error {
+	args, outOfImages := keepOutFlag(args)
 	if len(args) != 2 {
-		return errors.New("usage: otc-sync add-remote <remote-path> <dir>")
+		return errors.New("usage: otc-sync add-remote [--keep-out-of-images] <remote-path> <dir>")
 	}
 	remote := args[0]
 	if !strings.HasPrefix(remote, "/") {
@@ -845,12 +924,93 @@ func cmdAddRemote(args []string) error {
 	if err != nil {
 		return err
 	}
-	f := config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir}
+	f := config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir, OutOfImages: outOfImages}
 	cfg.RemoteFolders = append(cfg.RemoteFolders, f)
 	if err := cfg.Save(); err != nil {
 		return err
 	}
 	fmt.Printf("added %s ⇄ %s as %s\n", remote, dir, f.ID)
+	addedOutOfImages(outOfImages)
+
+	return nil
+}
+
+// cmdImages is the tray's "Kept Out of Images" checkbox (issue #192): the
+// request goes in config.json, and the sync sends it to the device.
+func cmdImages(args []string) error {
+	const use = "usage: otc-sync images <id|path> keep-out|show"
+	if len(args) != 2 || (args[1] != "keep-out" && args[1] != "show") {
+		return errors.New(use)
+	}
+	keepOut := args[1] == "keep-out"
+	key := args[0]
+	if abs, err := filepath.Abs(key); err == nil {
+		if _, err := os.Stat(abs); err == nil {
+			key = abs
+		}
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	id, path := "", ""
+	for _, f := range cfg.Folders {
+		if f.ID == key || f.Path == key {
+			id, path = f.ID, f.Path
+		}
+	}
+	for _, f := range cfg.RemoteFolders {
+		if f.ID == key || f.LocalPath == key {
+			id, path = f.ID, f.LocalPath
+		}
+	}
+	if id == "" {
+		return fmt.Errorf("no folder matches %q (see: otc-sync folders)", args[0])
+	}
+	name := filepath.Base(path)
+	// What the running sync knows of it, when it runs.
+	st, _ := config.LoadState()
+	running := st != nil && time.Since(st.Updated) <= 30*time.Second
+	if running {
+		for _, f := range append(st.Folders, st.RemoteFolders...) {
+			if f.ID != id {
+				continue
+			}
+			switch state := engine.ImagesState(f.OutOfImages); {
+			case state == engine.ImagesKeptOutByParent && keepOut:
+				// Kept out already, by the folder above.
+				fmt.Printf("%s is already kept out of Images (by %s)\n", name, f.OutOfImagesBy)
+				return nil
+			case state == engine.ImagesKeptOutByParent:
+				// As the tray's checkbox, disabled: the device refuses to show
+				// it until the folder above is shown.
+				return fmt.Errorf("%s is inside %s, which is kept out of Images - show %s in Images first", name, f.OutOfImagesBy, f.OutOfImagesBy)
+			case state == engine.ImagesKeptOut && keepOut:
+				fmt.Printf("%s is already kept out of Images\n", name)
+				return nil
+			case state == engine.ImagesShown && !keepOut:
+				fmt.Printf("%s is already shown in Images\n", name)
+				return nil
+			}
+		}
+	}
+	cfg.SetOutOfImagesRequest(id, keepOut)
+	if err := cfg.Save(); err != nil {
+		return err
+	}
+	if keepOut {
+		fmt.Printf("Keeping %s out of Images. Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.\n", name)
+	} else {
+		fmt.Printf("Showing %s in Images. Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.\n", name)
+	}
+	switch {
+	case running && st.OutOfImagesUnsupported:
+		fmt.Println(engine.OutOfImagesNeedsUpdate + " It is done once the device is updated.")
+	case running:
+		fmt.Println("The sync tells the device now; see: otc-sync folders")
+	default:
+		fmt.Println("The sync tells the device when it runs (the tray app, or: otc-sync service install).")
+	}
 
 	return nil
 }

@@ -46,6 +46,12 @@ type Folder struct {
 	ID     string `json:"id"`
 	Path   string `json:"path"`
 	OneWay bool   `json:"one_way,omitempty"`
+	// OutOfImages is a request not yet acknowledged by the device (issue
+	// #192): true to keep the folder out of Images, false to show it there
+	// again; nil when there is nothing to send. The engine clears it once
+	// the device has it, and never sends it again - the owner may change it
+	// later from the web or a phone (StoredFolder.outOfImages on the Mac).
+	OutOfImages *bool `json:"out_of_images,omitempty"`
 }
 
 // RemoteFolder is a device directory kept in two-way sync with a local one
@@ -54,6 +60,46 @@ type RemoteFolder struct {
 	ID         string `json:"id"`
 	RemotePath string `json:"remote_path"`
 	LocalPath  string `json:"local_path"`
+	// OutOfImages: as Folder's.
+	OutOfImages *bool `json:"out_of_images,omitempty"`
+}
+
+// SetOutOfImagesRequest records a request to keep folder id out of Images
+// (or show it again) for the engine to send, and says whether the folder
+// is there.
+func (c *Config) SetOutOfImagesRequest(id string, keepOut bool) bool {
+	for i := range c.Folders {
+		if c.Folders[i].ID == id {
+			c.Folders[i].OutOfImages = &keepOut
+			return true
+		}
+	}
+	for i := range c.RemoteFolders {
+		if c.RemoteFolders[i].ID == id {
+			c.RemoteFolders[i].OutOfImages = &keepOut
+			return true
+		}
+	}
+	return false
+}
+
+// ClearOutOfImagesRequest drops folder id's request once the device has
+// answered it - only when it is still the one that was sent (sent), not
+// one the tray or the command line made meanwhile. Says whether it did.
+func (c *Config) ClearOutOfImagesRequest(id string, sent bool) bool {
+	for i := range c.Folders {
+		if f := &c.Folders[i]; f.ID == id && f.OutOfImages != nil && *f.OutOfImages == sent {
+			f.OutOfImages = nil
+			return true
+		}
+	}
+	for i := range c.RemoteFolders {
+		if f := &c.RemoteFolders[i]; f.ID == id && f.OutOfImages != nil && *f.OutOfImages == sent {
+			f.OutOfImages = nil
+			return true
+		}
+	}
+	return false
 }
 
 // Config is config.json.
@@ -239,6 +285,13 @@ type FolderStatus struct {
 	Progress    float64 `json:"progress"`
 	CurrentFile string  `json:"current_file,omitempty"`
 	Error       string  `json:"error,omitempty"`
+	// Issue #192: how the folder stands with Images on the device -
+	// engine.ImagesState ("" while unknown: nothing is shown). OutOfImagesBy
+	// is the folder above it that keeps it out (by_parent), and
+	// OutOfImagesNote the device's refusal of the last request to show it.
+	OutOfImages     string `json:"out_of_images,omitempty"`
+	OutOfImagesBy   string `json:"out_of_images_by,omitempty"`
+	OutOfImagesNote string `json:"out_of_images_note,omitempty"`
 }
 
 // State is state.json.
@@ -263,6 +316,10 @@ type State struct {
 	RemoteFolders []FolderStatus `json:"remote_folders"`
 	PID           int            `json:"pid"`
 	Updated       time.Time      `json:"updated"`
+
+	// Issue #192: the device answered that it can't keep folders out of
+	// Images (a release before 108): the tray doesn't offer it when adding.
+	OutOfImagesUnsupported bool `json:"out_of_images_unsupported,omitempty"`
 }
 
 // UpdateAlert is the status's update_alert: Level is "major" or

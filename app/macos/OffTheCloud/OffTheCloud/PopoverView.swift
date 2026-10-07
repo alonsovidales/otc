@@ -25,6 +25,9 @@ struct PopoverView: View {
     // The three ways to add a folder, each with its explanation - inline,
     // for the same reason as the remote picker below.
     @State private var showAddChooser = false
+    // Issue #192: the chooser's "Keep out of Images", carried through the
+    // remote picker to the folder it adds.
+    @State private var addOutOfImages = false
     // Issue #184: the new-device wizard lives in its own window.
     @Environment(\.openWindow) private var openWindow
 
@@ -39,9 +42,10 @@ struct PopoverView: View {
         // sidesteps the whole problem.
         if showAddChooser {
             AddFolderChooser(
-                onBackup: { showAddChooser = false; sync.addBackupFolder() },
-                onSyncLocal: { showAddChooser = false; sync.addFolder() },
-                onSyncDevice: { showAddChooser = false; showRemotePicker = true },
+                outOfImagesSupported: sync.outOfImagesSupported,
+                onBackup: { keepOut in showAddChooser = false; sync.addBackupFolder(outOfImages: keepOut) },
+                onSyncLocal: { keepOut in showAddChooser = false; sync.addFolder(outOfImages: keepOut) },
+                onSyncDevice: { keepOut in showAddChooser = false; addOutOfImages = keepOut; showRemotePicker = true },
                 onCancel: { showAddChooser = false }
             )
             // The main panel's own margins and width, which the chooser
@@ -52,7 +56,7 @@ struct PopoverView: View {
             RemoteFolderPickerView(
                 onChoose: { remotePath in
                     showRemotePicker = false
-                    chooseLocalDestinationAndAdd(remotePath: remotePath)
+                    chooseLocalDestinationAndAdd(remotePath: remotePath, outOfImages: addOutOfImages)
                 },
                 onCancel: { showRemotePicker = false }
             )
@@ -128,14 +132,22 @@ struct PopoverView: View {
                         .padding(.top, 24)
                 } else {
                     ForEach(sync.folders) { f in
-                        FolderRow(folder: f, remove: { sync.removeFolder(f) })
+                        FolderRow(folder: f,
+                                  images: sync.outOfImagesState(for: f.id),
+                                  imagesNote: sync.outOfImagesNotes[f.id],
+                                  setOutOfImages: { sync.setOutOfImages(f.id, keepOut: $0) },
+                                  remove: { sync.removeFolder(f) })
                     }
                     // Issue #47: remote → local mirrors, shown alongside
                     // the (local → remote) upload folders above — same row
                     // style, a down-arrow instead of a plain folder icon is
                     // the only thing distinguishing direction.
                     ForEach(sync.remoteFolders) { f in
-                        RemoteFolderRow(folder: f, remove: { sync.removeRemoteFolder(f) })
+                        RemoteFolderRow(folder: f,
+                                        images: sync.outOfImagesState(for: f.id),
+                                        imagesNote: sync.outOfImagesNotes[f.id],
+                                        setOutOfImages: { sync.setOutOfImages(f.id, keepOut: $0) },
+                                        remove: { sync.removeRemoteFolder(f) })
                     }
                 }
             }
@@ -194,7 +206,7 @@ struct PopoverView: View {
     /// Same NSOpenPanel SyncModel.addFolder() uses for a local folder — the
     /// destination for the remote directory just picked, created if it
     /// doesn't already exist so a fresh empty folder is a one-click option.
-    private func chooseLocalDestinationAndAdd(remotePath: String) {
+    private func chooseLocalDestinationAndAdd(remotePath: String, outOfImages: Bool) {
         let panel = NSOpenPanel()
         panel.canCreateDirectories = true
         panel.canChooseDirectories = true
@@ -202,7 +214,7 @@ struct PopoverView: View {
         panel.prompt = "Choose"
         panel.message = "Choose where to download “\(remotePath)” and keep it in sync."
         if runFolderPanel(panel) == .OK, let url = panel.url {
-            sync.addRemoteFolder(remotePath: remotePath, localURL: url)
+            sync.addRemoteFolder(remotePath: remotePath, localURL: url, outOfImages: outOfImages)
         }
     }
 
@@ -220,34 +232,49 @@ struct PopoverView: View {
 // arrows) and "Backup" under the name.
 struct FolderRow: View {
     let folder: SyncModel.TrackedFolder
+    /// Issue #192: how it stands with Images, the device's refusal of its
+    /// last request to show it, and what confirming the eye button asks.
+    let images: OutOfImagesState
+    let imagesNote: String?
+    let setOutOfImages: (Bool) -> Void
     let remove: () -> Void
+    @State private var confirmImages = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "folder.fill")
-                .foregroundStyle(Color.accentColor)
-                .overlay(alignment: .bottomTrailing) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.orange)
-                        .background(Circle().fill(.white))
-                        .offset(x: 3, y: 3)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "folder.fill")
+                    .foregroundStyle(Color.accentColor)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                            .background(Circle().fill(.white))
+                            .offset(x: 3, y: 3)
+                    }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(folder.url.lastPathComponent)
+                        .lineLimit(1)
+                    Text("Backup · this Mac → device, upload only")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    OutOfImagesLine(state: images, note: imagesNote)
                 }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(folder.url.lastPathComponent)
-                    .lineLimit(1)
-                Text("Backup · this Mac → device, upload only")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                Spacer()
+                FolderStateView(state: folder.state, watchingLabel: "Backed up")
+                OutOfImagesButton(state: images) { confirmImages = true }
+                Button(role: .destructive) {
+                    remove()
+                } label: {
+                    Image(systemName: "minus.circle")
+                }.buttonStyle(.plain)
             }
-            Spacer()
-            FolderStateView(state: folder.state, watchingLabel: "Backed up")
-            Button(role: .destructive) {
-                remove()
-            } label: {
-                Image(systemName: "minus.circle")
-            }.buttonStyle(.plain)
+            if confirmImages {
+                OutOfImagesConfirmation(name: folder.url.lastPathComponent, keepOut: !images.isKeptOut,
+                                        onCancel: { confirmImages = false },
+                                        onConfirm: { keepOut in confirmImages = false; setOutOfImages(keepOut) })
+            }
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
@@ -261,39 +288,174 @@ struct FolderRow: View {
 // display for this direction too.
 struct RemoteFolderRow: View {
     let folder: SyncModel.RemoteFolder
+    /// Issue #192: as FolderRow's.
+    let images: OutOfImagesState
+    let imagesNote: String?
+    let setOutOfImages: (Bool) -> Void
     let remove: () -> Void
+    @State private var confirmImages = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "folder.fill")
-                .foregroundStyle(Color.accentColor)
-                .overlay(alignment: .bottomTrailing) {
-                    // Every folder is two-way.
-                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.blue)
-                        .background(Circle().fill(.white))
-                        .offset(x: 3, y: 3)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "folder.fill")
+                    .foregroundStyle(Color.accentColor)
+                    .overlay(alignment: .bottomTrailing) {
+                        // Every folder is two-way.
+                        Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.blue)
+                            .background(Circle().fill(.white))
+                            .offset(x: 3, y: 3)
+                    }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(folder.localURL.lastPathComponent)
+                        .lineLimit(1)
+                    Text(folder.remotePath)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                    OutOfImagesLine(state: images, note: imagesNote)
                 }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(folder.localURL.lastPathComponent)
-                    .lineLimit(1)
-                Text(folder.remotePath)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.head)
+                Spacer()
+                FolderStateView(state: folder.state, watchingLabel: "Synced")
+                OutOfImagesButton(state: images) { confirmImages = true }
+                Button(role: .destructive) {
+                    remove()
+                } label: {
+                    Image(systemName: "minus.circle")
+                }.buttonStyle(.plain)
             }
-            Spacer()
-            FolderStateView(state: folder.state, watchingLabel: "Synced")
-            Button(role: .destructive) {
-                remove()
-            } label: {
-                Image(systemName: "minus.circle")
-            }.buttonStyle(.plain)
+            if confirmImages {
+                OutOfImagesConfirmation(name: folder.localURL.lastPathComponent, keepOut: !images.isKeptOut,
+                                        onCancel: { confirmImages = false },
+                                        onConfirm: { keepOut in confirmImages = false; setOutOfImages(keepOut) })
+            }
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// Issue #192's words, the same on every client (otc-sync's tray/images.go,
+/// iOS and Android's OutOfImagesText). Buttons are Title Case here, as the
+/// Mac's other buttons; the checkbox is sentence case, as "Start at login".
+enum OutOfImagesText {
+    static let toggle = "Keep out of Images"
+    static let keep = "Keep Out of Images"
+    static let show = "Show in Images"
+    static let state = "Kept out of Images"
+    /// The add flow's: the folder may be on the device already (one synced
+    /// from it, or added again), and keeping it out deletes the tags and
+    /// faces found there (otc-sync's engine.OutOfImagesAddCaption).
+    static let addCaption = "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted."
+    static let addInfo = "Check it before choosing one of the options below: it applies to the folder you add. You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again."
+    static let keepMessage = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
+    static let showMessage = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
+    static let needsUpdate = "Your device needs an update to keep folders out of Images."
+    static func keepTitle(_ name: String) -> String { "Keep “\(name)” out of Images?" }
+    static func showTitle(_ name: String) -> String { "Show “\(name)” in Images?" }
+    static func byParent(_ parent: String) -> String { "Inside \(parent), which is kept out of Images" }
+}
+
+/// A folder row's line about Images (issue #192): kept out, a request on
+/// its way, a device that can't yet, or the device's refusal to show it.
+/// Nothing while it is shown or not known.
+struct OutOfImagesLine: View {
+    let state: OutOfImagesState
+    let note: String?
+
+    private var text: String? {
+        switch state {
+        case .keptOut, .keptOutBy: return OutOfImagesText.state
+        case .keeping: return "Keeping out of Images…"
+        case .showing: return "Showing in Images…"
+        case .unsupported: return OutOfImagesText.needsUpdate
+        case .shown, .unknown: return nil
+        }
+    }
+
+    var body: some View {
+        // The device's refusal only while a folder above still keeps it out.
+        if let note, case .keptOutBy = state {
+            Text(note)
+                .font(.caption2)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        } else if let text {
+            Text(text)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// The eye on a folder's row (issue #192): open when the folder is shown
+/// in Images, crossed out when kept out; a click asks first (the row's
+/// OutOfImagesConfirmation). Not there while the state isn't known, nor
+/// for a device that can't; disabled when a folder above keeps it out.
+struct OutOfImagesButton: View {
+    let state: OutOfImagesState
+    let action: () -> Void
+
+    var body: some View {
+        switch state {
+        case .unknown, .unsupported:
+            EmptyView()
+        default:
+            Button(action: action) {
+                Image(systemName: state.isKeptOut ? "eye.slash.fill" : "eye")
+                    .foregroundStyle(state.isKeptOut ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(isByParent)
+            .help(help)
+        }
+    }
+
+    private var isByParent: Bool {
+        if case .keptOutBy = state { return true }
+        return false
+    }
+
+    private var help: String {
+        switch state {
+        case .keptOutBy(let parent): return OutOfImagesText.byParent(parent)
+        case .keptOut, .keeping: return OutOfImagesText.state
+        default: return OutOfImagesText.keep
+        }
+    }
+}
+
+/// Asked inside the row, not as an .alert(): an alert takes key status from
+/// the MenuBarExtra(.window) popover, which then closes (as Settings'
+/// Disconnect confirmation). Keeping a folder out deletes the tags and
+/// faces found in it; showing it again may search it for faces.
+struct OutOfImagesConfirmation: View {
+    let name: String
+    let keepOut: Bool
+    let onCancel: () -> Void
+    let onConfirm: (Bool) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(keepOut ? OutOfImagesText.keepTitle(name) : OutOfImagesText.showTitle(name))
+                .font(.callout.bold())
+                .fixedSize(horizontal: false, vertical: true)
+            Text(keepOut ? OutOfImagesText.keepMessage : OutOfImagesText.showMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button("Cancel", action: onCancel)
+                Button(keepOut ? OutOfImagesText.keep : OutOfImagesText.show) { onConfirm(keepOut) }
+                    .buttonStyle(.borderedProminent)
+            }
+            .controlSize(.small)
+        }
     }
 }
 
@@ -598,11 +760,18 @@ struct DeviceAddressFields: View {
 /// plain words what it does - the old menu's two entries didn't, and
 /// every folder being two-way came as a surprise.
 struct AddFolderChooser: View {
-    let onBackup: () -> Void
-    let onSyncLocal: () -> Void
-    let onSyncDevice: () -> Void
+    /// Issue #192: whether the device can keep folders out of Images (nil
+    /// while not known: offered, and sent once it is connected).
+    let outOfImagesSupported: Bool?
+    // Each is told whether to keep the folder out of Images.
+    let onBackup: (Bool) -> Void
+    let onSyncLocal: (Bool) -> Void
+    let onSyncDevice: (Bool) -> Void
     let onCancel: () -> Void
     @State private var open: Int?
+    @State private var keepOut = false
+
+    private var canKeepOut: Bool { outOfImagesSupported != false }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -611,22 +780,63 @@ struct AddFolderChooser: View {
                 Spacer()
                 Button("Cancel", action: onCancel).buttonStyle(.borderless)
             }
+            // First: each option below acts on the first click, so a
+            // checkbox under them would be read too late.
+            outOfImagesOption
             option(0, icon: "arrow.up.circle.fill", tint: .orange,
                    title: "Back up a folder from this Mac",
                    subtitle: "One way: this Mac → device (upload only, no deletes)",
                    info: "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
-                   action: onBackup)
+                   action: { onBackup(keepOut && canKeepOut) })
             option(1, icon: "arrow.triangle.2.circlepath.circle.fill", tint: .blue,
                    title: "Sync a folder from this Mac",
                    subtitle: "Two ways: starts from this Mac",
                    info: "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes.",
-                   action: onSyncLocal)
+                   action: { onSyncLocal(keepOut && canKeepOut) })
             option(2, icon: "arrow.down.circle.fill", tint: .green,
                    title: "Sync a folder from the device",
                    subtitle: "Two ways: starts from the device",
                    info: "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer.",
-                   action: onSyncDevice)
+                   action: { onSyncDevice(keepOut && canKeepOut) })
         }
+    }
+
+    /// Issue #192: for whichever kind is picked below.
+    private var outOfImagesOption: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Toggle(OutOfImagesText.toggle, isOn: $keepOut)
+                        .toggleStyle(.checkbox)
+                        .disabled(!canKeepOut)
+                    // Outside the toggle, so a device that needs an update
+                    // says so in full contrast.
+                    Text(canKeepOut ? OutOfImagesText.addCaption : OutOfImagesText.needsUpdate)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, 20)
+                }
+                Spacer(minLength: 0)
+                Button {
+                    open = open == 3 ? nil : 3
+                } label: {
+                    Image(systemName: open == 3 ? "info.circle.fill" : "info.circle")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("What this does")
+            }
+            if open == 3 {
+                Text(OutOfImagesText.addInfo)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 20)
+            }
+        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func option(_ i: Int, icon: String, tint: Color, title: String, subtitle: String, info: String, action: @escaping () -> Void) -> some View {

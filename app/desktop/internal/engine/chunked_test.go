@@ -47,6 +47,16 @@ type fakeDevice struct {
 	refuseUploadOnly bool
 	// Uploads begun and not finished, now and at most.
 	open, maxOpen int
+	// Issue #192: the SetOutOfImages requests in order, how they are
+	// answered ("" ok, else that error_code - "unknown_payload" answers
+	// ListOutOfImages the same way), the folders kept out (with their
+	// slash), a hook run on each SetOutOfImages, and the order requests
+	// came in ("images", "list", "has").
+	imagesSet    []*pb.SetOutOfImages
+	imagesAnswer string
+	keptOut      []string
+	onSetImages  func()
+	events       []string
 }
 
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
@@ -59,6 +69,7 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 	case *pb.ReqEnvelope_ReqAuth:
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqHasFile:
+		d.events = append(d.events, "has")
 		if d.onHas != nil {
 			d.onHas()
 		}
@@ -90,7 +101,41 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		d.files[d.paths[id]] = d.pending[id].Bytes()
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
 	case *pb.ReqEnvelope_ReqListFiles:
+		d.events = append(d.events, "list")
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: d.list}}
+	case *pb.ReqEnvelope_ReqSetOutOfImages:
+		d.events = append(d.events, "images")
+		d.imagesSet = append(d.imagesSet, p.ReqSetOutOfImages)
+		if d.onSetImages != nil {
+			d.onSetImages()
+		}
+		switch d.imagesAnswer {
+		case "":
+			folder := strings.TrimSuffix(p.ReqSetOutOfImages.Path, "/") + "/"
+			kept := d.keptOut[:0:0]
+			for _, k := range d.keptOut {
+				if k != folder {
+					kept = append(kept, k)
+				}
+			}
+			if p.ReqSetOutOfImages.OutOfImages {
+				kept = append(kept, folder)
+			}
+			d.keptOut = kept
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		case "unknown_payload":
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "unknown_payload", "This device does not understand that request"
+		case "out_of_images_by_parent":
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "out_of_images_by_parent", "Trip is inside /Photos, which is kept out of Images - show /Photos in Images to show Trip"
+		default:
+			resp.Error, resp.ErrorMessage = true, "error updating the folder: "+d.imagesAnswer
+		}
+	case *pb.ReqEnvelope_ReqListOutOfImages:
+		if d.imagesAnswer == "unknown_payload" {
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "unknown_payload", "This device does not understand that request"
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespOutOfImagesFolders{RespOutOfImagesFolders: &pb.OutOfImagesFolders{Paths: append([]string(nil), d.keptOut...)}}
 	case *pb.ReqEnvelope_ReqSetUploadOnly:
 		d.uploadOnly++
 		if d.refuseUploadOnly {

@@ -2,6 +2,34 @@
 
 import Foundation
 
+/// Issue #192: how a synced folder stands with Images on the device
+/// (SyncPaths.outOfImagesState; otc-sync's engine.ImagesState).
+enum OutOfImagesState: Equatable {
+    /// Not known yet (the device hasn't listed its folders kept out, or
+    /// can't): the row shows nothing.
+    case unknown
+    case shown
+    /// Kept out by its own flag.
+    case keptOut
+    /// A folder above it is kept out, which covers it (its device path,
+    /// without the slash).
+    case keptOutBy(String)
+    /// A request not acknowledged yet: keep it out, or show it again.
+    case keeping
+    case showing
+    /// A request the device can't take: it needs an update, and the
+    /// request goes by itself once it has one.
+    case unsupported
+
+    /// Shown as kept out (or about to be).
+    var isKeptOut: Bool {
+        switch self {
+        case .keptOut, .keptOutBy, .keeping: return true
+        default: return false
+        }
+    }
+}
+
 /// Which paths a sync pass may act on. Free of SyncModel (and of anything
 /// else) so the rules can be tested on their own.
 ///
@@ -88,6 +116,44 @@ enum SyncPaths {
             }
         }
         return removed
+    }
+
+    /// Issue #192: how a synced folder stands with Images on the device.
+    /// `devicePath` is its device path with the trailing slash, `folders`
+    /// what ListOutOfImages answered (each with its slash; nil while
+    /// unknown), `pending` the request not yet acknowledged, `supported`
+    /// whether the device can (nil while unknown). Paths compare byte for
+    /// byte, as the device does (issue #172): Swift's == and hasPrefix
+    /// would take "é" and "e\u{301}" for the same, and /kim/ never covers
+    /// /kimono/ thanks to the slash. As otc-sync's engine.OutOfImagesState.
+    static func outOfImagesState(devicePath: String, folders: [String]?, pending: Bool?, supported: Bool?) -> OutOfImagesState {
+        switch (pending, supported) {
+        case (.some, false?): return .unsupported
+        case (nil, false?): return .unknown
+        case (true?, _): return .keeping
+        case (false?, _): return .showing
+        default: break
+        }
+        guard let folders else { return .unknown }
+        let path = Array(devicePath.utf8)
+        var own = false
+        var parent: [UInt8] = []
+        for folder in folders {
+            let f = Array(folder.utf8)
+            if f == path {
+                own = true
+            } else if path.starts(with: f), f.count > parent.count {
+                parent = f
+            }
+        }
+        if !parent.isEmpty {
+            // Above its own flag: showing it is refused until the folder
+            // above is shown.
+            var p = String(decoding: parent, as: UTF8.self)
+            if p.hasSuffix("/") { p.removeLast() }
+            return .keptOutBy(p)
+        }
+        return own ? .keptOut : .shown
     }
 
     private static func hasHiddenComponent(_ relative: String) -> Bool {

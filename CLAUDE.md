@@ -868,6 +868,39 @@ and port at `/` - https for a bridge name or a wss address, http for ws (`Settin
 `internal/browser`, http/https only: ShellExecute on Windows, xdg-open on Linux). Never the
 password or a token (the web app asks for the password itself), and never the home-network route,
 whose certificate a browser can't pin.
+**Keep out of Images (issue #192).** Adding a folder offers it: the Mac's `AddFolderChooser` has a
+"Keep out of Images" checkbox above the three kinds (with its (i); above, because each kind acts on
+the first click), the tray asks after the folder is chosen ("Keep Out of Images" / "Not Now" - the
+other answer sends nothing, so it must not say "Show in Images"), and the CLI takes
+`--keep-out-of-images` on `backup`, `add` and `add-remote`. The add flow's caption says that tags
+and faces already found are deleted (`engine.OutOfImagesAddCaption` / `OutOfImagesText.addCaption`):
+the folder may already be on the device. Later, per folder: the eye button on the Mac's row (an
+inline confirmation, not an alert), the "Kept Out of Images" checkbox in the tray's folder submenu,
+and `otc-sync images <id|path> keep-out|show`. Either only records a request with the folder
+(`StoredFolder`/`StoredRemoteFolder.outOfImages`, `config.Folder`/`RemoteFolder.OutOfImages`; nil =
+nothing to send, absent from older data). It is sent as `SetOutOfImages` for the folder's device
+path - at the start of its passes (before any transfer, never holding the pass up), at connect, and
+at once when made from the row, the tray or the CLI - until acknowledged, then cleared
+compare-and-clear (otc-sync in config.json first, retried like its reads, then in memory) and never
+sent again: unlike `markUploadOnly`, re-sending at every start would undo a change made since from
+the web or a phone. If config.json can't be written, the engine keeps the value in memory marked
+answered (`imagesAcked`): no pass or reload sends it, the clear is retried at the next pass and
+config.json reload, and only a different value (or a later request once the clear is written) goes.
+One request per folder at a time; a pass waits for one under way, and a change made while a request
+is under way goes right after it, even when that request failed (otc-sync releases the folder in the
+same lock hold as its last look at the request). `unknown_payload` (a device before release 108)
+keeps it pending and marks the device unable until the next connect: the Mac's checkbox is disabled
+with "Your device needs an update to keep folders out of Images.", the tray doesn't ask, and a
+pending folder says so. `out_of_images_by_parent` drops it and shows the device's message on the
+folder while a folder above still keeps it out (the next list that says otherwise drops the
+message); any other failure leaves it for the next pass. `otc-sync images <id> keep-out` on a folder
+kept out by a folder above says it already is (exit 0); `show` there is refused. What the device
+keeps out comes from `ListOutOfImages` at connect, after each ack and with the one-minute poll,
+forgotten when the device or password changes; a folder's state (`SyncPaths.outOfImagesState` /
+`engine.OutOfImagesState`: shown, kept out, kept out by a folder above - the control disabled -,
+keeping/showing while pending, unsupported, unknown = nothing shown) compares paths byte for byte.
+`engine.migrateFolders` carries the request. otc-sync's state.json has it per folder
+(`FolderStatus.OutOfImages`, `OutOfImagesBy`, `OutOfImagesNote`) and `otc-sync folders` prints it.
 
 **Setting up a new device from a computer (issue #184).** Both desktop apps have "Set Up a New
 Device…". They download `off-the-cloud-rpi-lite-arm64.img.xz` from the `image` release and trust it

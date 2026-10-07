@@ -46,8 +46,10 @@ func (e *Engine) migrateFolders(cfg *config.Config) {
 		if f.OneWay || have[f.ID] {
 			continue
 		}
+		// Its request to keep it out of Images, or show it, goes with it
+		// (the tray's "Sync a Folder from This Computer" adds a Folder).
 		cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{
-			ID: f.ID, RemotePath: e.remotePathFor(f.Path), LocalPath: f.Path,
+			ID: f.ID, RemotePath: e.remotePathFor(f.Path), LocalPath: f.Path, OutOfImages: f.OutOfImages,
 		})
 		log.Printf("folder %s is two-way now (%s)", f.Path, e.remotePathFor(f.Path))
 	}

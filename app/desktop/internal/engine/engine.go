@@ -159,6 +159,21 @@ type Engine struct {
 	onChange      func()
 	hostname      string
 	stopped       bool
+
+	// Issue #192 (out_of_images.go): the folders the device keeps out of
+	// Images (ListOutOfImages, each with its slash; nil until it answers)
+	// and whether it can (nil until known), both forgotten when the device
+	// or password changes (imagesGen counts those changes); a folder's
+	// request under way, the last error logged for it, the device's
+	// refusal of its last request to show it, and a request the device
+	// answered that config.json couldn't be cleared of yet (the value).
+	imagesFolders   []string
+	imagesSupported *bool
+	imagesGen       int
+	imagesBusy      map[string]chan struct{}
+	imagesErr       map[string]string
+	imagesNote      map[string]string
+	imagesAcked     map[string]bool
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -193,6 +208,10 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		folderBusy:    map[string]bool{},
 		uploadOnlyOK:  map[string]bool{},
 		uploadOnlyErr: map[string]string{},
+		imagesBusy:    map[string]chan struct{}{},
+		imagesErr:     map[string]string{},
+		imagesNote:    map[string]string{},
+		imagesAcked:   map[string]bool{},
 		hashCache:     map[string]map[string]hashEntry{},
 		hashDirty:     map[string]bool{},
 		hashLoaded:    map[string]bool{},
@@ -210,6 +229,9 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	e.ws.OnConnect = func() {
 		e.setStatus("Connected")
 		e.startRaidPolling()
+		// Issue #192: alongside the passes, which wait for a folder's
+		// request under way before they send anything.
+		go e.imagesAtConnect()
 		go e.startSync()
 	}
 	e.ws.OnDisconnect = func(err error) {
@@ -348,7 +370,13 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		// the reconnect (harmless on the same one).
 		e.uploadOnlyOK = map[string]bool{}
 		e.uploadOnlyErr = map[string]string{}
+		// What it keeps out of Images is asked again, too; requests still
+		// pending go to it.
+		e.forgetOutOfImagesLocked()
 	}
+	// Issue #192: a request the tray or the command line just made for a
+	// folder already synced goes now, not at the folder's next pass.
+	imagesChanged := e.changedOutOfImagesLocked(old, cfg)
 	if old.Domain != cfg.Domain {
 		// The old device's home-network endpoint goes with it (issue
 		// #190); under e.mu, as keepLocalEndpoint stores one.
@@ -361,7 +389,14 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 	if credsChanged {
 		e.ws.Disconnect()
 		e.applySettings()
-	} else if e.ws.IsConnected() {
+
+		return
+	}
+	if len(imagesChanged) > 0 {
+		// Offline too: a clear config.json still owes is only a write.
+		go e.applyPendingOutOfImages(imagesChanged...)
+	}
+	if e.ws.IsConnected() {
 		go e.startSync()
 	}
 }
@@ -375,6 +410,9 @@ func (e *Engine) dropFolderLocked(id string) {
 	delete(e.folderStates, id)
 	delete(e.uploadOnlyOK, id)
 	delete(e.uploadOnlyErr, id)
+	delete(e.imagesErr, id)
+	delete(e.imagesNote, id)
+	delete(e.imagesAcked, id)
 	// A running drainChanges ends at its next look at the queue.
 	delete(e.changeQueue, id)
 	delete(e.changeQueued, id)
@@ -400,6 +438,9 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 	}
 	e.dropSyncedLocked(id)
 	delete(e.remoteStates, id)
+	delete(e.imagesErr, id)
+	delete(e.imagesNote, id)
+	delete(e.imagesAcked, id)
 	e.dropHashCacheLocked(id)
 }
 
@@ -454,11 +495,16 @@ func (e *Engine) Snapshot() config.State {
 			st.UpdateAlert = &config.UpdateAlert{Level: a.GetLevel(), Version: a.GetVersion(), Summary: a.GetSummary()}
 		}
 	}
+	st.OutOfImagesUnsupported = e.imagesUnsupportedLocked()
 	for _, f := range e.cfg.Folders {
-		st.Folders = append(st.Folders, toStatus(f.ID, f.Path, "", e.folderStates[f.ID]))
+		fs := toStatus(f.ID, f.Path, "", e.folderStates[f.ID])
+		e.imagesStatusLocked(&fs)
+		st.Folders = append(st.Folders, fs)
 	}
 	for _, f := range e.cfg.RemoteFolders {
-		st.RemoteFolders = append(st.RemoteFolders, toStatus(f.ID, f.LocalPath, f.RemotePath, e.remoteStates[f.ID]))
+		fs := toStatus(f.ID, f.LocalPath, f.RemotePath, e.remoteStates[f.ID])
+		e.imagesStatusLocked(&fs)
+		st.RemoteFolders = append(st.RemoteFolders, fs)
 	}
 
 	return st
@@ -757,6 +803,15 @@ func (e *Engine) remoteReconcileLoop() {
 		if !ready || !e.ws.IsConnected() {
 			continue
 		}
+		// Issue #192: a folder kept out of Images, or shown again, from the
+		// web or a phone shows here within a minute. Not asked of a device
+		// that said it can't (it is asked again at the next connect).
+		e.mu.Lock()
+		askImages := !e.imagesUnsupportedLocked() && len(e.cfg.Folders)+len(e.cfg.RemoteFolders) > 0
+		e.mu.Unlock()
+		if askImages {
+			e.refreshOutOfImages()
+		}
 		for _, f := range folders {
 			e.reconcileRemoteFolder(f)
 		}
@@ -938,6 +993,10 @@ func (e *Engine) reconcile(f config.Folder) {
 		e.mu.Unlock()
 	}()
 	e.ensureUploadOnly(f)
+	// Issue #192: before anything is sent, so a new folder's photos never
+	// reach Images. Not waited on beyond its one request: an old or
+	// unreachable device doesn't stop the backup.
+	e.applyOutOfImages(f.ID)
 
 	remotePrefix := e.remotePathFor(f.Path) + "/"
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
@@ -1175,6 +1234,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 		return
 	}
+	// Issue #192: as reconcile - first, and never holding the pass up.
+	e.applyOutOfImages(f.ID)
 
 	remotePrefix := strings.TrimSuffix(f.RemotePath, "/") + "/"
 	resp, err := e.request(func(r *pb.ReqEnvelope) {

@@ -65,12 +65,20 @@ otc-sync            # the tray app; registers itself under ~/.config/autostart
 otc-sync settings --name cala --password-prompt   # or --address ws://192.168.1.10:8080/ws
 otc-sync add ~/Documents                          # mirror a folder up to the device
 otc-sync add-remote /Photos ~/Photos              # two-way sync with a device folder
+otc-sync backup --keep-out-of-images ~/Scans      # backed up, but kept out of Images
+otc-sync images <id> keep-out|show                # keep a synced folder out of Images, or show it again
 otc-sync ls /                                     # browse the device
 otc-sync open                                     # the device's web app in the browser (prints its address)
 otc-sync service install                          # run as a systemd user service, from boot
 otc-sync status                                   # what it is doing
 otc-sync folders | remove <id> | service uninstall | autostart on|off
 ```
+
+*Keeping a folder out of Images*: when you add a folder, the Mac app (a checkbox), the tray (a
+question) and the command line (`--keep-out-of-images`) can keep it out of Images - its photos and
+videos still go to the device and show in Files, but they aren't tagged, searched for faces or
+shown in Images. You can change it later from the folder's row on the Mac (the eye), its menu in
+the tray, or `otc-sync images`. A device that hasn't been updated yet does it once it is.
 
 Only one process syncs at a time: with the service installed, the tray app becomes a viewer of
 it, and every change made from the tray or the command line is picked up by the service at once.
