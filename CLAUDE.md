@@ -592,7 +592,11 @@ for the open collection, people and tags inside the field; no panel until someth
 matching things (5 tags), named people (the 5 with the most photos) and files and folders by path
 (`SearchFiles`, debounced, stale answers dropped), plus "Search documents for x" - every match (`SearchFiles`
 limit 50) listed in Files over the folder, which stays as it was; neither on a device answering `unknown_payload`.
-A picked folder or file opens in Files through `filesNav.ts` - a file as a click there would). The left menu
+A picked folder or file opens in Files through `filesNav.ts` - a file as a click there would), and at the right
+the account button (`AccountMenu.tsx`: picture, name and device address, Settings, Sign out through
+`net/signOut.ts`). Signed out, the bar holds a password field beside Sign In instead (`TopSignIn.tsx`, which
+calls `net/signIn.ts`; on a phone Sign In opens the field across the bar); `views/SignIn.tsx` is only a new
+device's setup, shown when GetPubKey says `is_new_device`. The left menu
 (`Sidebar.tsx`) lists Images, People, Collections, Files; Sharing: Social, Friends; Device: Alerts, Settings;
 storage at the foot. People - menu item, page, search, person filter - exists only while face recognition is
 on (`faceRecognition.ts`: asked after sign-in, set by Settings' switch, the last answer kept in
@@ -610,7 +614,7 @@ and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never 
 or long-press, numbered in post order) with a bar over the top bar, dialogs for posting and collections,
 and `DateScrubber.tsx` (a column of years with a mouse, a draggable handle on touch). `People` and
 `Collections` are pages of their own (`PeopleView`, `CollectionsView`). `web/src/net/` holds the WebSocket/proto
-client; `web/src/views/` are top-level routed pages (`SignIn`, `Social`); `web/src/components/` are the
+client; `web/src/views/` are top-level routed pages (`SignIn` - a new device's setup - and `Social`); `web/src/components/` are the
 feature widgets (files explorer, photo gallery, friendships, settings, status, profile, social feed —
 each with a co-located `.css`). Built output (`vite build`) is copied by `make web` into the device's
 own static dir and the iOS app's bundled web assets. The bridge does **not** get its own copy (issue
@@ -630,7 +634,11 @@ post re-renders. Infinite-scroll grids use `usePageRetry` (1 s doubling to 10 s;
 `reset()`). Files reads non-media with chunked `ReqReadFile` (`readAll`; a file replaced mid-read is
 read again) and uses `GetFile` only for what the device converts. `useWS`: `lastAuthRef`, the
 password replayed on reconnect, is set on an ok Ack (or when nothing answered and nothing verified
-is held) and cleared when the device refuses it; a typed password that met a lockout is not replayed;
+is held) and cleared when the device refuses it; a typed password that met a lockout is not replayed,
+and one typed on the page (`signInWithPassword`: `keepOnlyIfAccepted`) is never kept after no answer -
+the person presses Enter again; with `refuseNewDevice`, a device whose GetPubKey answer (the same one
+the password is encrypted with) says it is new gets nothing (`NewDevice`), so it never adopts a sign-in
+as its owner password and its setup shows instead;
 call `useWS.passwordChanged(newKey)` after a ChangeKey; the bridge's `device_unreachable` is not a
 refused sign-in (`authOwed`); only a tab that has signed in (`hadSession`) redeems the stored token
 on reconnect. Sign Out also clears `otc_files_path` and `otc_photo_search_tags`. `web/` has no test
