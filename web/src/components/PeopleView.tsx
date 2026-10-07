@@ -633,7 +633,6 @@ export default function PeopleView({ onOpenPhotos }: Props) {
 
       <header className="pv-head">
         <h1 ref={titleRef} className="pv-title" tabIndex={-1}>People</h1>
-        <p className="pv-sub">Faces found in your photos. Name someone to find them easily.</p>
       </header>
       {body}
 

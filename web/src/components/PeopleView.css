@@ -14,25 +14,17 @@
   padding: 24px 24px 64px;
 }
 
-.pv-head { margin: 0 0 24px; }
-/* Class rules on purpose: index.css sizes every h1, and another sheet
-   every h2. */
-.pv-title {
-  margin: 0;
-  font-size: 28px;
-  line-height: 36px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--mist);
+/* The menu already names the page: its heading is there for screen
+   readers (and as somewhere to put the focus), not shown. */
+.pv-head {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: 0; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-/* Focused only to land somewhere after the person in view was deleted. */
-.pv-title:focus { outline: none; }
-.pv-sub {
-  margin: 4px 0 0;
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--mist-dim);
-}
+.pv-title { margin: 0; font-size: inherit; }
 
 .pv-grid {
   --pv-face: 112px;
@@ -804,8 +796,6 @@
 
 @media (max-width: 599px) {
   .pv-root { padding: 16px 16px 48px; }
-  .pv-head { margin-bottom: 16px; }
-  .pv-title { font-size: 24px; line-height: 32px; }
   .pv-grid {
     --pv-face: 88px;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));

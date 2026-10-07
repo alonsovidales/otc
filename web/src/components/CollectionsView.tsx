@@ -100,7 +100,6 @@ export default function CollectionsView({ onOpenPhotos }: Props) {
     <div className="cv-root">
       <header className="cv-head">
         <h1 className="cv-title">Collections</h1>
-        <p className="cv-sub">Photos you put together. Share one as a gallery page.</p>
       </header>
       {body}
     </div>
