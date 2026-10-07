@@ -392,6 +392,42 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 	if err != nil {
 		return nil, err
 	}
+	annotateListing(files, folders, versions)
+
+	return files, nil
+}
+
+// SearchFiles is the top bar's search (SearchFiles in messages.proto): the
+// files and folders whose path contains query, best first (see
+// dao.SearchFiles), each filled in exactly as ListFiles fills it.
+func (mg *Manager) SearchFiles(query string, limit int32) ([]*pb.File, error) {
+	files, err := mg.dao.SearchFiles(query, int(limit))
+	if err != nil || len(files) == 0 {
+		return files, err
+	}
+	folders, err := mg.dao.GetUploadOnlyFolders()
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, f := range files {
+		if f.Mime != "inode/directory" {
+			paths = append(paths, f.Path)
+		}
+	}
+	versions, err := mg.dao.CountVersionsOf(paths)
+	if err != nil {
+		return nil, err
+	}
+	annotateListing(files, folders, versions)
+
+	return files, nil
+}
+
+// annotateListing fills in what a listing's entries carry besides their
+// rows: folders are the upload-only folders, versions how many older
+// versions each path keeps.
+func annotateListing(files []*pb.File, folders []string, versions map[string]int32) {
 	for _, f := range files {
 		f.UploadOnly = underUploadOnly(f.Path, f.Mime == "inode/directory", folders)
 		f.Versions = versions[f.Path]
@@ -406,8 +442,6 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 			f.Hash = ""
 		}
 	}
-
-	return files, nil
 }
 
 // alert (issue #64) is how background processing tells the owner about a

@@ -286,6 +286,18 @@ message GetThumbnails {
   repeated string paths = 1;
 }
 
+// The top bar's search: the files and folders whose path contains query
+// (case-insensitive), as ListFiles would list them, best matches first -
+// a name that starts with the text, then a name that contains it, then a
+// folder on the way; shorter paths first within each. At most limit (20
+// when unset, 50 at most). Case and accents don't count. A query longer
+// than any path could be (12 KB) finds nothing. Answers with ListOfFiles
+// (no token).
+message SearchFiles {
+  string query = 1;
+  int32 limit = 2;
+}
+
 // Settings > Logs: a piece of the device's own log (source "app") or of
 // the update log ("update"), from byte offset (-1: the last max_bytes), at
 // most max_bytes (256 KB at most). Answers with Logs. Primary instance
@@ -1939,6 +1951,8 @@ message ReqEnvelope {
     BridgeSendLogs req_bridge_send_logs = 132;
     // Issue #190: the home-network endpoint.
     GetLocalEndpoint req_get_local_endpoint = 133;
+    // The top bar's search by path. Answers with ListOfFiles.
+    SearchFiles req_search_files = 134;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

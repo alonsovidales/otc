@@ -681,6 +681,20 @@ export interface GetThumbnails {
 }
 
 /**
+ * The top bar's search: the files and folders whose path contains query
+ * (case-insensitive), as ListFiles would list them, best matches first -
+ * a name that starts with the text, then a name that contains it, then a
+ * folder on the way; shorter paths first within each. At most limit (20
+ * when unset, 50 at most). Case and accents don't count. A query longer
+ * than any path could be (12 KB) finds nothing. Answers with ListOfFiles
+ * (no token).
+ */
+export interface SearchFiles {
+  query: string;
+  limit: number;
+}
+
+/**
  * Settings > Logs: a piece of the device's own log (source "app") or of
  * the update log ("update"), from byte offset (-1: the last max_bytes), at
  * most max_bytes (256 KB at most). Answers with Logs. Primary instance
@@ -2629,6 +2643,9 @@ export interface ReqEnvelope {
     | //
     /** Issue #190: the home-network endpoint. */
     { $case: "reqGetLocalEndpoint"; reqGetLocalEndpoint: GetLocalEndpoint }
+    | //
+    /** The top bar's search by path. Answers with ListOfFiles. */
+    { $case: "reqSearchFiles"; reqSearchFiles: SearchFiles }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -5019,6 +5036,82 @@ export const GetThumbnails: MessageFns<GetThumbnails> = {
   fromPartial<I extends Exact<DeepPartial<GetThumbnails>, I>>(object: I): GetThumbnails {
     const message = createBaseGetThumbnails();
     message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseSearchFiles(): SearchFiles {
+  return { query: "", limit: 0 };
+}
+
+export const SearchFiles: MessageFns<SearchFiles> = {
+  encode(message: SearchFiles, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.query !== "") {
+      writer.uint32(10).string(message.query);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(16).int32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SearchFiles {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSearchFiles();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.query = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.limit = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SearchFiles {
+    return {
+      query: isSet(object.query) ? globalThis.String(object.query) : "",
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+    };
+  },
+
+  toJSON(message: SearchFiles): unknown {
+    const obj: any = {};
+    if (message.query !== "") {
+      obj.query = message.query;
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SearchFiles>, I>>(base?: I): SearchFiles {
+    return SearchFiles.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SearchFiles>, I>>(object: I): SearchFiles {
+    const message = createBaseSearchFiles();
+    message.query = object.query ?? "";
+    message.limit = object.limit ?? 0;
     return message;
   },
 };
@@ -19725,6 +19818,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetLocalEndpoint":
         GetLocalEndpoint.encode(message.payload.reqGetLocalEndpoint, writer.uint32(1066).fork()).join();
         break;
+      case "reqSearchFiles":
+        SearchFiles.encode(message.payload.reqSearchFiles, writer.uint32(1074).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -20907,6 +21003,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 134: {
+          if (tag !== 1074) {
+            break;
+          }
+
+          message.payload = { $case: "reqSearchFiles", reqSearchFiles: SearchFiles.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -21328,6 +21432,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqBridgeSendLogs", reqBridgeSendLogs: BridgeSendLogs.fromJSON(object.reqBridgeSendLogs) }
         : isSet(object.reqGetLocalEndpoint)
         ? { $case: "reqGetLocalEndpoint", reqGetLocalEndpoint: GetLocalEndpoint.fromJSON(object.reqGetLocalEndpoint) }
+        : isSet(object.reqSearchFiles)
+        ? { $case: "reqSearchFiles", reqSearchFiles: SearchFiles.fromJSON(object.reqSearchFiles) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -21596,6 +21702,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqBridgeSendLogs = BridgeSendLogs.toJSON(message.payload.reqBridgeSendLogs);
     } else if (message.payload?.$case === "reqGetLocalEndpoint") {
       obj.reqGetLocalEndpoint = GetLocalEndpoint.toJSON(message.payload.reqGetLocalEndpoint);
+    } else if (message.payload?.$case === "reqSearchFiles") {
+      obj.reqSearchFiles = SearchFiles.toJSON(message.payload.reqSearchFiles);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -22637,6 +22745,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqGetLocalEndpoint",
             reqGetLocalEndpoint: GetLocalEndpoint.fromPartial(object.payload.reqGetLocalEndpoint),
+          };
+        }
+        break;
+      }
+      case "reqSearchFiles": {
+        if (object.payload?.reqSearchFiles !== undefined && object.payload?.reqSearchFiles !== null) {
+          message.payload = {
+            $case: "reqSearchFiles",
+            reqSearchFiles: SearchFiles.fromPartial(object.payload.reqSearchFiles),
           };
         }
         break;

@@ -610,8 +610,26 @@ func (dao *Dao) GetFileVersion(path, hash string) (file *pb.File, err error) {
 // has (direct: right in it, not in sub-folders) - what a listing shows as
 // the versions badge.
 func (dao *Dao) CountFileVersions(prefix string, direct bool) (map[string]int32, error) {
-	counts := map[string]int32{}
 	cond, args := underPrefix("`path`", prefix, direct)
+	return dao.countVersions(cond, args)
+}
+
+// CountVersionsOf is CountFileVersions for these paths, wherever they are
+// (a search's results).
+func (dao *Dao) CountVersionsOf(paths []string) (map[string]int32, error) {
+	if len(paths) == 0 {
+		return map[string]int32{}, nil
+	}
+	args := make([]any, len(paths))
+	for i, p := range paths {
+		args[i] = p
+	}
+	return dao.countVersions("`path` in (?"+strings.Repeat(", ?", len(paths)-1)+")", args)
+}
+
+// countVersions is how many older versions each path matching cond has.
+func (dao *Dao) countVersions(cond string, args []any) (map[string]int32, error) {
+	counts := map[string]int32{}
 	rows, err := dao.db.Query("select `path`, count(*) from `file_versions` where "+cond+" group by `path`", args...)
 	if err != nil {
 		return nil, err
@@ -708,12 +726,11 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 		}
 		defer rowsDirs.Close()
 		for rowsDirs.Next() {
-			file := &pb.File{
-				Mime: "inode/directory",
-			}
-			if err := rowsDirs.Scan(&file.Path); err != nil {
+			var dir string
+			if err := rowsDirs.Scan(&dir); err != nil {
 				return nil, err
 			}
+			file := dirEntry(dir)
 			log.Debug("Slashes:", file.Path, strings.Count(file.Path, "/"), slashesInPath)
 			if strings.Count(file.Path, "/") != slashesInPath {
 				continue
@@ -741,15 +758,10 @@ func (dao *Dao) GetFilesByPath(path string, recursive bool, imagesOnly bool) (fi
 	defer rows.Close()
 
 	for rows.Next() {
-		file := new(pb.File)
-		var created, modified time.Time
-		var size int64
-		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size); err != nil {
+		file, err := scanFile(rows)
+		if err != nil {
 			return nil, err
 		}
-		file.Created = timestamppb.New(created)
-		file.Modified = timestamppb.New(modified)
-		SetFileSize(file, size)
 		files = append(files, file)
 	}
 	if err := rows.Err(); err != nil {

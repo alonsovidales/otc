@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ComponentType } from "react";
 import type { TabKey } from "./nav";
 import { AlertsIcon, ChevronIcon, CollectionsIcon, FilesIcon, FriendsIcon, ImagesIcon, PeopleIcon, SettingsIcon, SocialIcon, StorageIcon } from "./NavIcons";
 import { formatMB, pct, raidStateLabel, round, useDeviceStatus } from "./useDeviceStatus";
 import { usePhotoFilter } from "./photoFilter";
+import { useFaceRecognition } from "./faceRecognition";
 import { RaidState } from "../proto/messages";
 import type { Status } from "../proto/messages";
 import "./Sidebar.css";
@@ -29,7 +30,7 @@ type Item = { key: TabKey; label: string; Icon: ComponentType<{ size?: number }>
 type Section = { heading?: string; items: Item[] };
 
 // Grouped like a photo library: what is stored, what is shared, then the
-// device.
+// device. People only while face recognition is on (faceRecognition.ts).
 const SECTIONS: Section[] = [
   {
     items: [
@@ -75,6 +76,11 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
   const storage = summarize(status, err);
   const [details, setDetails] = useState(false);
   const tips = useSyncExternalStore(onHoverChange, canHover);
+  const faces = useFaceRecognition() === true;
+  const sections = useMemo(
+    () => (faces ? SECTIONS : SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => it.key !== "People") }))),
+    [faces],
+  );
 
   const dockRef = useRef<HTMLElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
@@ -169,6 +175,7 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
 
   const full = (onPick: (key: TabKey) => void) => (
     <FullMenu
+      sections={sections}
       current={current}
       unread={notificationCount}
       storage={storage}
@@ -185,6 +192,7 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
           {layout === "rail" ? (
             <div className="sb-inner sb-inner-rail">
               <RailMenu
+                sections={sections}
                 current={current}
                 unread={notificationCount}
                 storage={storage}
@@ -244,6 +252,7 @@ function summarize(status: Status | null, err: string | null): Storage {
 }
 
 type MenuProps = {
+  sections: Section[];
   current: TabKey;
   unread: number;
   storage: Storage;
@@ -251,13 +260,13 @@ type MenuProps = {
 };
 
 // The whole menu: pill rows with an icon and a label, under headings.
-function FullMenu({ current, unread, storage, details, onToggleDetails, onPick }: MenuProps & {
+function FullMenu({ sections, current, unread, storage, details, onToggleDetails, onPick }: MenuProps & {
   details: boolean;
   onToggleDetails: () => void;
 }) {
   return (
     <>
-      {SECTIONS.map((s) => (
+      {sections.map((s) => (
         <div key={s.heading ?? ""} className="sb-section" role={s.heading ? "group" : undefined} aria-label={s.heading}>
           {s.heading && <div className="sb-heading" aria-hidden="true">{s.heading}</div>}
           {s.items.map((it) => (
@@ -278,13 +287,13 @@ function FullMenu({ current, unread, storage, details, onToggleDetails, onPick }
 
 // The rail: the same items as columns (icon in a pill, label under it), a
 // hairline between the groups instead of headings, and storage as a gauge.
-function RailMenu({ current, unread, storage, tips, onPick, onStorage }: MenuProps & {
+function RailMenu({ sections, current, unread, storage, tips, onPick, onStorage }: MenuProps & {
   tips: boolean;
   onStorage: () => void;
 }) {
   return (
     <>
-      {SECTIONS.map((s, i) => (
+      {sections.map((s, i) => (
         <Fragment key={s.heading ?? ""}>
           {i > 0 && <div className="sb-sep" aria-hidden="true" />}
           <div className="sb-section" role={s.heading ? "group" : undefined} aria-label={s.heading}>

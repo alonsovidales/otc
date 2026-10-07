@@ -588,13 +588,19 @@ bridge's Web Push client reaches only public addresses, without redirects.
 
 React 19 + TypeScript + Vite, routed with `react-router-dom`. The signed-in shell is Google Photos-like
 (App.tsx, index.css). A fixed top bar holds the menu button, the logo and the search (`TopSearch.tsx`: chips
-for the open collection, people and tags inside the field; a panel of faces and tags, matches while
-typing). The left menu (`Sidebar.tsx`) lists Images, People, Collections, Files; Sharing: Social, Friends;
-Device: Alerts, Settings; storage at the foot. Three widths: ≥1024px it is whole or a rail of icons with
-labels (menu button, remembered in `otc_menu_open`); 600-1023px always the rail, the button lays the whole
-menu over the page; below that only the overlay. The window scrolls - nothing may give `main` (or another
-ancestor of the pages) an overflow, or `position: sticky` measures from it (release 103's 64px gap) - so
-sticky and fixed things offset by `--topbar-h`, and a page's own fixed bars use `left: var(--content-left)`.
+for the open collection, people and tags inside the field; no panel until something is typed, then the
+matching things (5 tags), named people (the 5 with the most photos) and files and folders by path
+(`SearchFiles`, debounced, stale answers dropped; no Files section on a device answering `unknown_payload`).
+A picked folder or file opens in Files through `filesNav.ts` - a file as a click there would). The left menu
+(`Sidebar.tsx`) lists Images, People, Collections, Files; Sharing: Social, Friends; Device: Alerts, Settings;
+storage at the foot. People - menu item, page, search, person filter - exists only while face recognition is
+on (`faceRecognition.ts`: asked after sign-in, set by Settings' switch, the last answer kept in
+`otc_face_recognition` so a reload doesn't flash it; unknown means hidden). Three widths: ≥1024px it is
+whole or a rail of icons with labels (menu button, remembered in `otc_menu_open`); 600-1023px always the
+rail, the button lays the whole menu over the page; below that only the overlay. The window scrolls -
+nothing may give `main` (or another ancestor of the pages) an overflow, or `position: sticky` measures from
+it (release 103's 64px gap) - so sticky and fixed things offset by `--topbar-h`, and a page's own fixed bars
+use `left: var(--content-left)`.
 Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol
 and code keep `ImageGroup`/`groupId`. What Images shows is `photoFilter.ts` (tags, people, open
 collection; a store the search, People and Collections pages and the grid share); the people, collection

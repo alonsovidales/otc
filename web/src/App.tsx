@@ -17,6 +17,7 @@ import TopSearch from "./components/TopSearch";
 import PeopleView from "./components/PeopleView";
 import CollectionsView from "./components/CollectionsView";
 import { showAll } from "./components/photoFilter";
+import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
@@ -112,6 +113,14 @@ function App() {
   // device stops answering; a drawer left open would come back open over
   // the page.
   useEffect(() => { if (!authenticated || deviceStatus) setDrawerOpen(false); }, [authenticated, deviceStatus]);
+
+  // People is there only while face recognition is on (faceRecognition.ts):
+  // the device is asked once signed in. People remembered as the last tab
+  // waits for the answer (or the one remembered from last time) and gives
+  // way to Images when it is off.
+  const faces = useFaceRecognition();
+  useEffect(() => (authenticated ? watchFaceRecognition() : undefined), [authenticated]);
+  useEffect(() => { if (faces === false && tab === "People") setTab("PhotoGallery"); }, [faces, tab]);
 
   let protoWs = 'ws://';
   if (window.location.protocol === 'https:') {
@@ -384,10 +393,11 @@ function App() {
             <img src={logo} className="tb-logo" alt="Off The Cloud" />
           </div>
         )}
-        {/* Search the photos from any section, like Google Photos: picking
-            a tag or a person shows Images. */}
+        {/* Search the photos and files from any section, like Google
+            Photos: picking a tag or a person shows Images, a folder or a
+            file Files. */}
         {authenticated
-          ? <TopSearch onShowPhotos={() => setTab("PhotoGallery")} onShowPeople={() => setTab("People")} />
+          ? <TopSearch onShowPhotos={() => setTab("PhotoGallery")} onShowFiles={() => setTab("AdminPannel")} />
           : <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. A phone shows
             only its "+". */}
@@ -457,7 +467,7 @@ function App() {
             as a bare "not authenticated" error instead of just waiting. */}
         {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : signedOutPlaceholder)}
         {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} /> : signedOutPlaceholder)}
-        {tab === "People" && (authenticated ? <PeopleView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
+        {tab === "People" && (authenticated ? faces && <PeopleView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
         {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
         {tab === "Settings" && (authenticated ? <SettingsForm /> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (

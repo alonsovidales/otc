@@ -11,6 +11,7 @@ import type {
   File as PbFile,
 } from "../proto/messages";
 import { loadFilesPath, saveFilesPath } from "../net/uiState";
+import { takeFilesRequest, useFilesRequest } from "./filesNav";
 import SharedGalleryShare from "./SharedGalleryShare";
 import FileTypeIcon from "./FileTypeIcon";
 import MediaViewer, { type ViewerItem } from "./MediaViewer";
@@ -173,6 +174,10 @@ export default function FilesExplorer({
   // wherever the user had actually navigated to.
   const [path, setPath] = useState(() => loadFilesPath() ?? initialPath);
   const [listing, setListing] = useState<PbFile[]>([]);
+  // The folder the last listing that came back was of, set with it (a new
+  // object each time, a failed one too): a photo the search asked to open
+  // waits for its own folder's listing.
+  const [listed, setListed] = useState<{ path: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Record<string, boolean>>({});
@@ -214,13 +219,28 @@ export default function FilesExplorer({
   useEffect(() => () => { if (uploadsTimer.current !== null) window.clearTimeout(uploadsTimer.current); }, []);
 
   // -------- load list (1, 3, 4) ----------
+  // Only the last listing asked for lands: another folder opened (or the
+  // search sending Files elsewhere) while one was on its way would
+  // otherwise be overwritten by the earlier folder's answer.
+  const listSeq = useRef(0);
+  // The folder being listed right now, if any.
+  const listingNow = useRef<string | null>(null);
+  // A photo or video the search picked, to open once its folder's listing
+  // is in (see the request below).
+  const mediaToOpen = useRef<{ dir: string; file: PbFile } | null>(null);
   const loadList = useCallback(async (p: string) => {
+    const seq = ++listSeq.current;
+    listingNow.current = p;
+    // Files went to another folder before the picked photo's came in: the
+    // photo is not opened, then or when that folder is shown again later.
+    if (mediaToOpen.current && mediaToOpen.current.dir !== p) mediaToOpen.current = null;
     setLoading(true); setError(null);
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         console.log('Listing path:', p);
         (e as any).payload = { $case: "reqListFiles", reqListFiles: { path: p } };
       });
+      if (seq !== listSeq.current) return;
       if (resp.payload?.$case === "respListOfFiles") {
         const lof: ListOfFiles = resp.payload.respListOfFiles;
         console.log('Files:', lof);
@@ -242,21 +262,31 @@ export default function FilesExplorer({
         const files = p === "/" ? lof.files : [up, ...lof.files];
 
         setListing(files);
+        setListed({ path: p });
         setSel({});
       } else if (resp.error) {
         setError(resp.errorMessage || "Failed to list path");
+        setListed({ path: p });
       } else {
         setError("Unexpected response");
+        setListed({ path: p });
       }
     } catch (e: any) {
+      if (seq !== listSeq.current) return;
       setError(e?.message ?? String(e));
+      setListed({ path: p });
     } finally {
-      setLoading(false);
+      if (seq === listSeq.current) {
+        listingNow.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => { void loadList(path); }, [path, loadList]);
   useEffect(() => { saveFilesPath(path); }, [path]);
+  const pathRef = useRef(path);
+  pathRef.current = path;
 
   // -------- drag & drop upload (2) ----------
   // Issue #86: each dropped file is tracked through its phases so the UI can
@@ -643,6 +673,44 @@ export default function FilesExplorer({
     const index = Math.max(0, media.findIndex(x => x.path === f.path));
     setMediaViewer({ items, index });
   };
+
+  // The top bar's search sent Files here (filesNav.ts): to a folder, and
+  // maybe to a file in it, opened as a click on it would. A document opens
+  // at once, still inside the pick's click or key press, so the tab it
+  // may open isn't blocked as a popup; a photo or video waits for its
+  // folder's listing, to page through the folder in the viewer.
+  const request = useFilesRequest();
+  const handledRequest = useRef<typeof request>(null);
+  const openEntryRef = useRef(openEntry);
+  openEntryRef.current = openEntry;
+  useEffect(() => {
+    if (!request || handledRequest.current === request) return;
+    handledRequest.current = request;
+    takeFilesRequest(request);
+    const dir = normPath(request.dir);
+    if (pathInputRef.current) pathInputRef.current.value = dir;
+    // Already in that folder: listed again, unless that is under way (a
+    // Files just opened for it), since the search may know newer files.
+    if (dir !== pathRef.current) setPath(dir);
+    else if (listingNow.current !== dir) void loadList(dir);
+    const f = request.file;
+    mediaToOpen.current = f && isMedia(f) ? { dir, file: f } : null;
+    if (f && !isMedia(f)) void openEntryRef.current(f);
+  }, [request, loadList]);
+  useEffect(() => {
+    const want = mediaToOpen.current;
+    if (!want || listed?.path !== want.dir) return;
+    mediaToOpen.current = null;
+    const full = (x: PbFile) => (x.path.includes("/") ? x.path : joinPath(want.dir, x.path));
+    const media = listing.filter(x => !isDir(x) && isMedia(x));
+    const index = media.findIndex(x => full(x) === want.file.path);
+    // Not in the listing (it failed, or the file went): the file alone.
+    const items: ViewerItem[] = index >= 0
+      ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined }))
+      : [{ path: want.file.path, mime: want.file.mime }];
+    setMediaViewer({ items, index: Math.max(0, index) });
+  }, [listed, listing]);
+
   // The thumbnails as they are now, not as they were when the viewer
   // opened: with tiles asking only near the screen, paging on reaches
   // items whose thumbnail lands after that. The grid used to have every

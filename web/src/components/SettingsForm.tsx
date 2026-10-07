@@ -12,6 +12,7 @@ import SharedLinksPanel from "./SharedLinksPanel";
 import TailscalePanel from "./TailscalePanel";
 import LogsPanel from "./LogsPanel";
 import BridgePanel from "./BridgePanel";
+import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -41,10 +42,11 @@ export default function SettingsForm() {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
 
-  // Face recognition / People search (issue #52) - on by default. Turning
+  // Face recognition / People search (issue #52) - off by default. Turning
   // it on only affects photos uploaded from that point on; it never scans
-  // whatever's already in the library.
-  const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(false);
+  // whatever's already in the library. Shared with the menu and the
+  // search (faceRecognition.ts), which show People only while it is on.
+  const faceRecognitionEnabled = useFaceRecognition() === true;
   const [imageTaggingEnabled, setImageTaggingEnabled] = useState(true);
   const [imageTaggingBusy, setImageTaggingBusy] = useState(false);
   const [faceRecognitionBusy, setFaceRecognitionBusy] = useState(false);
@@ -84,7 +86,7 @@ export default function SettingsForm() {
         (e as any).payload = { $case: "reqSetFaceRecognitionEnabled", reqSetFaceRecognitionEnabled: { enabled: next } };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setFaceRecognitionEnabled(next);
+        setFaceRecognition(next);
       } else {
         setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not update this setting." });
       }
@@ -230,7 +232,7 @@ export default function SettingsForm() {
 
         if (resp.payload?.$case === "respSettings") {
           const s: PbSettings = resp.payload.respSettings;
-          setFaceRecognitionEnabled(!!s.faceRecognitionEnabled);
+          setFaceRecognition(!!s.faceRecognitionEnabled);
           setImageTaggingEnabled(!!s.imageTaggingEnabled);
           const limitMb = s.socialStorageLimitMb || 5120;
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));

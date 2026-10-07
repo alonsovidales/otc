@@ -2423,6 +2423,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqSearchFiles:
+		// The top bar's search: files and folders by path, filled in as
+		// ListFiles fills them. The text is Debug only, like every
+		// search term.
+		log.Debug("Search files:", p.ReqSearchFiles.Query, p.ReqSearchFiles.Limit)
+		files, err := ch.mg.filesManager.SearchFiles(p.ReqSearchFiles.Query, p.ReqSearchFiles.Limit)
+		if err != nil {
+			log.Error("error trying to search files:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
+				RespListOfFiles: &pb.ListOfFiles{Files: files},
+			}
+		}
+
 	case *pb.ReqEnvelope_ReqGetThumbnails:
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{
 			RespListOfFiles: &pb.ListOfFiles{Files: ch.mg.filesManager.Thumbnails(ses, p.ReqGetThumbnails.Paths)},

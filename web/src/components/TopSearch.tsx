@@ -2,49 +2,60 @@
 //
 // The search in the top bar, as in Google Photos. The field holds what
 // Images is narrowed to - an open collection, people, tags - as chips.
-// While it is in use a panel under it offers people and things to pick:
-// with nothing typed, faces and some tags to browse; while typing, the
-// people and tags that match. The search itself is photoFilter's, shared
-// with the pages; picking something shows Images.
+// While something is typed a panel under it offers, in this order, the
+// things (tags) that match, the named people that match (while face
+// recognition is on) - or, when neither does, the word itself to search
+// the photos for - and the files and folders whose path matches
+// (SearchFiles, asked of the device as the typing pauses). Picking a tag
+// or a person adds it to photoFilter's search, shared with the pages, and
+// shows Images; picking a folder shows it in Files, and a file opens there
+// as a click on it would. Enter takes a file or a folder only when the
+// arrow keys or the mouse went to it. With nothing typed there is no panel.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Person } from "../proto/messages";
+import type { File as PbFile, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
+import { useWS } from "../net/useWS";
 import { personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
 import { addTag, clearSearch, leaveGroup, removeTag, togglePerson, usePhotoFilter } from "./photoFilter";
+import { useFaceRecognition } from "./faceRecognition";
+import { asFolder, parentFolder, showInFiles } from "./filesNav";
 import { CollectionsIcon } from "./NavIcons";
 import "./TopSearch.css";
 
 type Props = {
-  // A filter was picked from anywhere: show Images.
+  // A tag or a person was picked: show Images.
   onShowPhotos: () => void;
-  // "All people" in the suggestions: the People page.
-  onShowPeople: () => void;
+  // A folder or a file was picked (filesNav.showInFiles): show Files.
+  onShowFiles: () => void;
 };
 
 // [start, end) of the part of a label that matches what was typed.
 type Span = [number, number];
 
-// What the arrow keys and Enter go through in the panel, in the order
-// shown. "text" is the typed word itself, offered when nothing matches.
-type Option =
-  | { kind: "person"; key: string; person: Person; span?: Span }
-  | { kind: "allPeople"; key: string }
-  | { kind: "tag"; key: string; tag: string; span?: Span }
-  | { kind: "text"; key: string; text: string };
+type FileKind = "folder" | "photo" | "video" | "doc";
 
-// The faces grid: as many columns of at least FACE_MIN as fit, two rows
-// at most, the last place "All people".
-const FACE_MIN = 72;
-const FACE_GAP = 4;
-const BROWSE_TAGS = 16;
+// What the arrow keys and Enter go through in the panel, in the order
+// shown. "text" is the typed word itself, searched for as a tag: the row
+// before the files when no tag or person matches.
+type Option =
+  | { kind: "tag"; key: string; tag: string; span?: Span }
+  | { kind: "person"; key: string; person: Person; span?: Span }
+  | { kind: "text"; key: string; text: string }
+  | { kind: "file"; key: string; file: PbFile; type: FileKind; name: string; dir: string; nameSpan?: Span; dirSpan?: Span };
+
+const MATCH_TAGS = 5;
 const MATCH_PEOPLE = 5;
-const MATCH_TAGS = 12;
+const MATCH_FILES = 8;
+// The files are asked for once the typing pauses this long.
+const FILES_DELAY_MS = 150;
 // The highlight moved up past the first option: Enter then takes the
 // typed text as it is.
 const NONE = "";
 
 // Text compared without case or accents, so "jose" finds "José". `from`
 // maps each of its characters back to the original, to bold the match.
+// Each character goes to upper case and back, as the device's searchFold
+// does: "ς" and "Σ" both become "σ", so "ΟΔΟΣ" finds "Οδός".
 type Folded = { text: string; from: number[] };
 
 function fold(s: string): Folded {
@@ -52,12 +63,30 @@ function fold(s: string): Folded {
   const from: number[] = [];
   let at = 0;
   for (const ch of s) {
-    const f = ch.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    const f = ch.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().toLowerCase();
     for (let k = 0; k < f.length; k++) from.push(at);
     text += f;
     at += ch.length;
   }
   return { text, from };
+}
+
+// Where the folded query best matches a label: rank 0 at its start, 1 at
+// the start of a word in it, 2 inside a word; with the part of the label
+// it covers. null when it isn't there.
+function matchIn(label: string, f: Folded, q: string): { rank: number; span: Span } | null {
+  const { text, from } = f;
+  let rank = -1;
+  let at = -1;
+  for (let j = text.indexOf(q); j !== -1; j = text.indexOf(q, j + 1)) {
+    const r = j === 0 ? 0 : /[\p{L}\p{N}]/u.test(text[j - 1]) ? 2 : 1;
+    if (rank < 0 || r < rank) { rank = r; at = j; }
+    if (r < 2) break;
+  }
+  if (rank < 0) return null;
+  const last = from[at + q.length - 1];
+  const end = last + ((label.codePointAt(last) ?? 0) > 0xffff ? 2 : 1);
+  return { rank, span: [from[at], end] };
 }
 
 // The entries matching the folded query: those starting with it first,
@@ -66,32 +95,41 @@ function fold(s: string): Folded {
 function ranked<T extends { label: string; f: Folded }>(items: T[], q: string) {
   const hits: { item: T; rank: number; span: Span }[] = [];
   for (const item of items) {
-    const { text, from } = item.f;
-    let rank = -1;
-    let at = -1;
-    for (let j = text.indexOf(q); j !== -1; j = text.indexOf(q, j + 1)) {
-      const r = j === 0 ? 0 : /[\p{L}\p{N}]/u.test(text[j - 1]) ? 2 : 1;
-      if (rank < 0 || r < rank) { rank = r; at = j; }
-      if (r < 2) break;
-    }
-    if (rank < 0) continue;
-    const last = from[at + q.length - 1];
-    const end = last + ((item.label.codePointAt(last) ?? 0) > 0xffff ? 2 : 1);
-    hits.push({ item, rank, span: [from[at], end] });
+    const m = matchIn(item.label, item.f, q);
+    if (m) hits.push({ item, ...m });
   }
   return hits.sort((a, b) => a.rank - b.rank);
 }
+
+function fileKind(f: PbFile): FileKind {
+  const mime = f.mime || "";
+  if (mime === "inode/directory") return "folder";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("image/") || /\.(heic|heif)$/i.test(f.path)) return "photo";
+  return "doc";
+}
+const KIND_WORD: Record<FileKind, string> = { folder: "Folder", photo: "Photo", video: "Video", doc: "File" };
+
+// A found file's name, and the folder it is in as shown under it.
+function fileParts(path: string) {
+  const clean = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+  const name = clean.slice(clean.lastIndexOf("/") + 1) || clean;
+  const dir = parentFolder(clean);
+  return { name, dir: dir.length > 1 ? dir.slice(0, -1) : dir };
+}
+
+const photosLabel = (n: number) => `${n.toLocaleString()} ${n === 1 ? "photo" : "photos"}`;
 
 // New photos bring new tags and faces. The lists are fetched again when a
 // search ends, if the last time was a while ago: current for the next
 // one, and nothing moves under the pointer while picking.
 const REFRESH_MS = 5 * 60_000;
 let fetchedAt = Date.now();
-function refreshIfStale() {
+function refreshIfStale(faces: boolean) {
   if (Date.now() - fetchedAt < REFRESH_MS) return;
   fetchedAt = Date.now();
   void reloadTags().catch(() => {});
-  void reloadPeople().catch(() => {});
+  if (faces) void reloadPeople().catch(() => {});
 }
 
 const cls = (...names: (string | false)[]) => names.filter(Boolean).join(" ");
@@ -121,8 +159,13 @@ const TagIcon = () => (
 const FaceIcon = ({ size = 20 }: { size?: number }) => (
   <Icon size={size}><circle cx="12" cy="9.5" r="3.5" /><path d="M5.5 19.5c1.1-3.2 3.6-4.8 6.5-4.8s5.4 1.6 6.5 4.8" /></Icon>
 );
-const ArrowIcon = () => <Icon><path d="M5 12h14m-6-6 6 6-6 6" /></Icon>;
 const CheckIcon = ({ size = 12 }: { size?: number }) => <Icon size={size} stroke={3}><path d="m5 12.5 4.5 4.5L19 7.5" /></Icon>;
+const FILE_ICONS: Record<FileKind, React.ReactNode> = {
+  folder: <Icon><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" /></Icon>,
+  photo: <Icon><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><circle cx="9" cy="10" r="1.6" /><path d="m4 17 4.5-4.5 3.5 3.5 2.5-2.5L20 18" /></Icon>,
+  video: <Icon><rect x="3.5" y="5.5" width="17" height="13" rx="2.5" /><path d="m10.5 9.5 4 2.5-4 2.5Z" /></Icon>,
+  doc: <Icon><path d="M6.5 3.5h7l4 4v11a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" /><path d="M13.5 3.5v4h4M8.5 12.5h7M8.5 16h5" /></Icon>,
+};
 
 // A label with the part that matched in bold.
 function Marked({ text, span }: { text: string; span?: Span }) {
@@ -130,20 +173,23 @@ function Marked({ text, span }: { text: string; span?: Span }) {
   return <>{text.slice(0, span[0])}<mark className="ts-mark">{text.slice(span[0], span[1])}</mark>{text.slice(span[1])}</>;
 }
 
-export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
+export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const filter = usePhotoFilter();
   const people = usePeople();
   const tags = useTags();
+  const faces = useFaceRecognition() === true;
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   // Where the arrow keys or the mouse took the highlight: an option's key,
   // or NONE. null: the best match for what is typed, or nothing.
   const [moved, setMoved] = useState<string | null>(null);
-  // Faces per row in the panel, from its width.
-  const [cols, setCols] = useState(6);
   // The ends of the chips row that hide chips: 1 the left, 2 the right.
   const [fade, setFade] = useState(0);
+  // The files the device found for the last search it answered, with the
+  // text it was asked for (as typed, and folded). None once the field is
+  // emptied: a new search starts from nothing.
+  const [found, setFound] = useState<{ typed: string; q: string; files: PbFile[] } | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -160,6 +206,11 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   const windowBack = useRef(false);
   // A selection bar lies over the top bar.
   const [covered, setCovered] = useState(false);
+  // The last file search sent: an answer to an earlier one is dropped.
+  const fileSeq = useRef(0);
+  // The device doesn't know SearchFiles (older than this app): not asked
+  // again, and no Files section.
+  const noFileSearch = useRef(false);
 
   const id = useId();
   const listId = `${id}list`;
@@ -172,48 +223,100 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   const chipsAtEnd = useRef<boolean | null>(null);
 
   const byId = useMemo(() => new Map(people.items.map((p) => [p.id, p])), [people.items]);
-  // Named people first, then the unnamed ones, each in the device's order.
-  const ordered = useMemo(
-    () => [...people.items.filter((p) => p.name.trim()), ...people.items.filter((p) => !p.name.trim())],
-    [people.items],
-  );
   const named = useMemo(
-    () => ordered.filter((p) => p.name.trim()).map((p) => ({ person: p, label: p.name.trim(), f: fold(p.name.trim()) })),
-    [ordered],
+    () => people.items.filter((p) => p.name.trim()).map((p) => ({ person: p, label: p.name.trim(), f: fold(p.name.trim()) })),
+    [people.items],
   );
   const tagIndex = useMemo(() => tags.map((t) => ({ label: t, f: fold(t) })), [tags]);
 
   const typed = query.trim();
   const q = fold(typed).text;
+  // The panel shows only while something is typed.
+  const shown = open && q !== "";
+
+  // The files whose path holds what is typed, from the device. Emptying
+  // the field forgets the last answer, and one still on its way.
+  useEffect(() => {
+    if (!typed) {
+      fileSeq.current++;
+      setFound(null);
+      return;
+    }
+    if (noFileSearch.current) return;
+    const t = setTimeout(() => {
+      const seq = ++fileSeq.current;
+      const answer = (files: PbFile[]) => setFound({ typed, q: fold(typed).text, files });
+      useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqSearchFiles", reqSearchFiles: { query: typed, limit: MATCH_FILES } };
+      }).then((resp: RespEnvelope) => {
+        if (seq !== fileSeq.current) return;
+        if (resp.payload?.$case === "respListOfFiles") {
+          answer(resp.payload.respListOfFiles.files ?? []);
+          return;
+        }
+        if (resp.errorCode === "unknown_payload") noFileSearch.current = true;
+        answer([]);
+      }, () => {
+        if (seq === fileSeq.current) answer([]);
+      });
+    }, FILES_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [typed]);
+
+  // The device's answer for the text as it is now, as the device gave it.
+  // Until that comes, the answer for the text before stands in only while
+  // the typing goes on from it (what is typed now holds it), kept to what
+  // still matches - narrowing rather than emptying on every key. The
+  // answer for some other text is never shown, nor taken.
+  const fileHits = useMemo(() => {
+    if (!q || !found) return [];
+    const current = found.typed === typed;
+    if (!current && !q.includes(found.q)) return [];
+    const out: Extract<Option, { kind: "file" }>[] = [];
+    for (const file of found.files) {
+      if (!current && !fold(file.path).text.includes(q)) continue;
+      const { name, dir } = fileParts(file.path);
+      const nameSpan = matchIn(name, fold(name), q)?.span;
+      const dirSpan = nameSpan ? undefined : matchIn(dir, fold(dir), q)?.span;
+      out.push({ kind: "file", key: `f:${file.path}`, file, type: fileKind(file), name, dir, nameSpan, dirSpan });
+      if (out.length === MATCH_FILES) break;
+    }
+    return out;
+  }, [found, q, typed]);
 
   const { options, best } = useMemo(() => {
     const out: Option[] = [];
+    if (!q) return { options: out, best: null };
     // Tags already searched for are chips in the field, not suggestions.
     const inSearch = new Set(filter.tags.map((t) => fold(t).text));
     const free = tagIndex.filter((t) => !inSearch.has(t.f.text));
-    if (!q) {
-      if (people.loaded && ordered.length) {
-        for (const p of ordered.slice(0, cols * 2 - 1)) out.push({ kind: "person", key: `p:${p.id}`, person: p });
-        out.push({ kind: "allPeople", key: "all" });
-      }
-      for (const t of free.slice(0, BROWSE_TAGS)) out.push({ kind: "tag", key: `t:${t.label}`, tag: t.label });
-      return { options: out, best: null };
-    }
     // What Enter takes: an exact match, or else the first.
     let exact: string | null = null;
-    for (const h of ranked(named, q).slice(0, MATCH_PEOPLE)) {
-      const key = `p:${h.item.person.id}`;
-      out.push({ kind: "person", key, person: h.item.person, span: h.span });
-      if (!exact && h.item.f.text === q) exact = key;
-    }
     for (const h of ranked(free, q).slice(0, MATCH_TAGS)) {
       const key = `t:${h.item.label}`;
       out.push({ kind: "tag", key, tag: h.item.label, span: h.span });
       if (!exact && h.item.f.text === q) exact = key;
     }
+    // The people with the most photos among those whose name matches.
+    if (faces) {
+      const hits = ranked(named, q)
+        .sort((a, b) => b.item.person.faceCount - a.item.person.faceCount || a.rank - b.rank)
+        .slice(0, MATCH_PEOPLE);
+      for (const h of hits) {
+        const key = `p:${h.item.person.id}`;
+        out.push({ kind: "person", key, person: h.item.person, span: h.span });
+        if (!exact && h.item.f.text === q) exact = key;
+      }
+    }
+    // The word as typed, when nothing above matches it: what Enter takes
+    // then. Files and folders come after it and are never what Enter takes
+    // by itself - not after Escape hid them, nor because their answer
+    // came in before the key: only once the arrows or the mouse went there.
     if (!out.length && !inSearch.has(q)) out.push({ kind: "text", key: "text", text: typed });
-    return { options: out, best: exact ?? out[0]?.key ?? null };
-  }, [q, typed, filter.tags, people.loaded, ordered, named, tagIndex, cols]);
+    const first = out[0]?.key ?? null;
+    out.push(...fileHits);
+    return { options: out, best: exact ?? first };
+  }, [q, typed, filter.tags, faces, named, tagIndex, fileHits]);
 
   const activeKey = moved === null || (moved !== NONE && !options.some((o) => o.key === moved)) ? best : moved;
   const active = activeKey ? options.findIndex((o) => o.key === activeKey) : -1;
@@ -221,20 +324,20 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   const close = useCallback(() => {
     setOpen(false);
     setMoved(null);
-    refreshIfStale();
-  }, []);
+    refreshIfStale(faces);
+  }, [faces]);
 
-  // A press anywhere else ends the search. A finger's does only that: the
-  // click it becomes doesn't also open the photo under it, as the scrim
-  // sees to on a phone. A swipe never becomes a click and still scrolls,
-  // and the top bar's own buttons answer at once.
+  // A press anywhere else ends the search. A finger's does only that while
+  // the panel shows: the click it becomes doesn't also open the photo
+  // under it, as the scrim sees to on a phone. A swipe never becomes a
+  // click and still scrolls, and the top bar's own buttons answer at once.
   useEffect(() => {
     if (!open) return;
     const down = (e: PointerEvent) => {
       const at = e.target as Element;
       if (rootRef.current?.contains(at)) return;
       close();
-      if (e.pointerType === "mouse" || at.closest?.(".topbar")) return;
+      if (!shown || e.pointerType === "mouse" || at.closest?.(".topbar")) return;
       const eat = (c: MouseEvent) => {
         c.preventDefault();
         c.stopPropagation();
@@ -251,7 +354,7 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
     };
     document.addEventListener("pointerdown", down, true);
     return () => document.removeEventListener("pointerdown", down, true);
-  }, [open, close]);
+  }, [open, shown, close]);
 
   // The window's focus event comes just before the field's, in the same
   // task: the flag lasts until the next one.
@@ -332,16 +435,6 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
     };
   }, [updateFade]);
 
-  // As many columns of faces as the panel's width holds.
-  const facesRef = useCallback((el: HTMLDivElement | null) => {
-    if (!el) return;
-    const measure = () => setCols(Math.max(3, Math.floor((el.clientWidth + FACE_GAP) / (FACE_MIN + FACE_GAP))));
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   // Another word typed: its matches from the top.
   useLayoutEffect(() => {
     if (panelRef.current) panelRef.current.scrollTop = 0;
@@ -365,31 +458,22 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
     reveal(i);
   };
 
-  // Up and down go to the nearest option in the row above or below, so
-  // they work alike in the faces grid, the wrapped tag chips and a list.
-  const moveRow = (dir: 1 | -1) => {
-    const nodes = panelRef.current ? Array.from(panelRef.current.querySelectorAll<HTMLElement>("[data-i]")) : [];
-    const cells = nodes.map((el) => ({ i: Number(el.dataset.i), r: el.getBoundingClientRect() }));
-    const cur = cells.find((c) => c.i === active);
-    if (!cur) {
-      if (options.length) moveTo(dir > 0 ? 0 : options.length - 1);
+  // Down and up go through every section in turn. Up past the first
+  // option leaves the highlight off it, so Enter takes the text as typed.
+  const step = (dir: 1 | -1) => {
+    if (!options.length) return;
+    if (active < 0) {
+      moveTo(dir > 0 ? 0 : options.length - 1);
       return;
     }
-    const ahead = (c: { r: DOMRect }) => (c.r.top - cur.r.top) * dir;
-    const next = cells.filter((c) => ahead(c) > 4);
-    if (!next.length) {
-      if (dir < 0) setMoved(NONE);
-      return;
-    }
-    const row = Math.min(...next.map(ahead));
-    const x = cur.r.left + cur.r.width / 2;
-    const off = (c: { r: DOMRect }) => Math.abs(c.r.left + c.r.width / 2 - x);
-    moveTo(next.filter((c) => ahead(c) <= row + 4).reduce((a, c) => (off(c) < off(a) ? c : a)).i);
+    const next = active + dir;
+    if (next < 0) setMoved(NONE);
+    else if (next < options.length) moveTo(next);
   };
 
   // Done: the panel closes. After a click or a tap, or the Search key of a
   // keyboard on the screen, the field lets go of the focus too, which puts
-  // that keyboard away from the photos.
+  // that keyboard away from the page.
   const finish = (how: "key" | "pointer") => {
     close();
     if (how === "pointer" || onScreenKeyboard()) inputRef.current?.blur();
@@ -402,32 +486,23 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   };
 
   const pick = (o: Option, how: "key" | "pointer") => {
+    setQuery("");
+    finish(how);
     switch (o.kind) {
-      case "allPeople":
-        finish(how);
-        onShowPeople();
-        return;
       case "person":
-        // The panel stays open, to add more people.
         togglePerson(o.person.id);
-        if (query) {
-          setQuery("");
-          setMoved(null);
-        }
-        // The Search key of a keyboard on the screen: the focus goes to the
-        // panel, as with a tap on a face, and the keyboard goes down.
-        if (how === "key" && onScreenKeyboard()) {
-          if (panelRef.current) panelRef.current.focus({ preventScroll: true });
-          else inputRef.current?.blur();
-        }
         onShowPhotos();
         return;
       case "tag":
       case "text":
         addTag(o.kind === "tag" ? o.tag : knownSpelling(o.text));
-        setQuery("");
-        finish(how);
         onShowPhotos();
+        return;
+      case "file":
+        // A folder opens; a file opens in its folder, as a click there.
+        if (o.type === "folder") showInFiles(asFolder(o.file.path));
+        else showInFiles(parentFolder(o.file.path), o.file);
+        onShowFiles();
     }
   };
 
@@ -437,22 +512,14 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
       case "ArrowDown":
       case "ArrowUp":
         e.preventDefault();
-        if (open) moveRow(e.key === "ArrowDown" ? 1 : -1);
+        if (shown) step(e.key === "ArrowDown" ? 1 : -1);
         else setOpen(true);
-        break;
-      case "ArrowLeft":
-      case "ArrowRight":
-        // Sideways through the faces and tag chips when nothing is typed;
-        // otherwise the keys move the caret.
-        if (!open || q || active < 0) return;
-        e.preventDefault();
-        moveTo(Math.min(options.length - 1, Math.max(0, active + (e.key === "ArrowRight" ? 1 : -1))));
         break;
       case "Enter":
         e.preventDefault();
-        // Words typed are searched for whether or not Escape hid the panel.
-        if (!open && !typed) setOpen(true);
-        else if (active >= 0) pick(options[active], "key");
+        // Words typed are searched for whether or not Escape hid the panel
+        // (which forgets where the arrows went: a file is never taken then).
+        if (typed && active >= 0) pick(options[active], "key");
         else if (typed) pick({ kind: "text", key: "text", text: typed }, "key");
         else {
           finish("key");
@@ -460,8 +527,9 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
         }
         break;
       case "Escape":
-        if (open) close();
-        else inputRef.current?.blur();
+        // The panel goes; with none showing, the field lets go too.
+        close();
+        if (!shown) inputRef.current?.blur();
         break;
       case "Backspace":
         // The last chip goes: the last tag, then the last person. Not on
@@ -523,7 +591,7 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
     pressedWith.current = e.pointerType;
   };
   // A click in the panel leaves the focus in the field, to type on; a tap
-  // lets it go, so the keyboard stops covering the faces.
+  // lets it go, so the keyboard stops covering the suggestions.
   const onPanelMouseDown = (e: React.MouseEvent) => {
     if (pressedWith.current === "mouse") e.preventDefault();
   };
@@ -545,52 +613,51 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
     onClick: () => pick(o, "pointer"),
   });
 
-  // Nothing typed: faces in a grid and tags as chips. Typing: a list.
   const renderOption = (o: Option, i: number) => {
     const hl = i === active;
     switch (o.kind) {
-      case "person": {
-        const on = filter.personIds.includes(o.person.id);
-        const thumb = people.thumbs.get(o.person.id);
-        if (q) {
-          return (
-            <div key={o.key} {...optionProps(o, i)} aria-checked={on} className={cls("ts-row", on && "is-on", hl && "is-active")}>
-              <span className="ts-row-pic">{thumb ? <img src={thumb} alt="" draggable={false} /> : <FaceIcon size={18} />}</span>
-              <span className="ts-row-label"><Marked text={personLabel(o.person)} span={o.span} /></span>
-              {on && <span className="ts-row-tick"><CheckIcon size={18} /></span>}
-            </div>
-          );
-        }
-        return (
-          <div key={o.key} {...optionProps(o, i)} aria-checked={on} className={cls("ts-face", on && "is-on", hl && "is-active")}>
-            <span className="ts-face-pic">
-              {thumb ? <img src={thumb} alt="" draggable={false} /> : <FaceIcon size={24} />}
-              {on && <span className="ts-tick"><CheckIcon /></span>}
-            </span>
-            <span className={cls("ts-face-name", !o.person.name.trim() && "is-unnamed")}>{personLabel(o.person)}</span>
-          </div>
-        );
-      }
-      case "allPeople":
-        return (
-          <div key={o.key} {...optionProps(o, i)} className={cls("ts-face", "ts-face-all", hl && "is-active")}>
-            <span className="ts-face-pic"><ArrowIcon /></span>
-            <span className="ts-face-name">All people</span>
-          </div>
-        );
       case "tag":
-        if (!q) return <div key={o.key} {...optionProps(o, i)} className={cls("ts-tagchip", hl && "is-active")}>{o.tag}</div>;
         return (
           <div key={o.key} {...optionProps(o, i)} className={cls("ts-row", hl && "is-active")}>
             <span className="ts-row-icon"><TagIcon /></span>
             <span className="ts-row-label"><Marked text={o.tag} span={o.span} /></span>
           </div>
         );
+      case "person": {
+        const on = filter.personIds.includes(o.person.id);
+        const thumb = people.thumbs.get(o.person.id);
+        return (
+          <div key={o.key} {...optionProps(o, i)} aria-checked={on} className={cls("ts-row", "is-two", on && "is-on", hl && "is-active")}>
+            <span className="ts-row-pic">{thumb ? <img src={thumb} alt="" draggable={false} /> : <FaceIcon size={18} />}</span>
+            <span className="ts-row-text">
+              <span className="ts-row-label"><Marked text={personLabel(o.person)} span={o.span} /></span>
+              <span className="ts-row-sub">{photosLabel(o.person.faceCount)}</span>
+            </span>
+            {on && <span className="ts-row-tick"><CheckIcon size={18} /></span>}
+          </div>
+        );
+      }
       case "text":
         return (
           <div key={o.key} {...optionProps(o, i)} className={cls("ts-row", hl && "is-active")}>
             <span className="ts-row-icon"><SearchIcon /></span>
-            <span className="ts-row-label">Search for “<mark className="ts-mark">{o.text}</mark>”</span>
+            <span className="ts-row-label">Search photos for “<mark className="ts-mark">{o.text}</mark>”</span>
+          </div>
+        );
+      case "file":
+        return (
+          <div
+            key={o.key}
+            {...optionProps(o, i)}
+            aria-label={`${o.name}, ${KIND_WORD[o.type].toLowerCase()} in ${o.dir}`}
+            className={cls("ts-row", "is-two", hl && "is-active")}
+          >
+            <span className={`ts-row-icon ts-file is-${o.type}`}>{FILE_ICONS[o.type]}</span>
+            <span className="ts-row-text">
+              <span className="ts-row-label"><Marked text={o.name} span={o.nameSpan} /></span>
+              {/* Long folders lose their start, not the end nearest the file. */}
+              <span className="ts-row-sub ts-path"><bdi dir="ltr"><Marked text={o.dir} span={o.dirSpan} /></bdi></span>
+            </span>
           </div>
         );
     }
@@ -604,20 +671,14 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   );
 
   const numbered = options.map((o, i) => [o, i] as const);
-  const personOpts = numbered.filter(([o]) => o.kind === "person" || o.kind === "allPeople");
   const tagOpts = numbered.filter(([o]) => o.kind === "tag");
+  const personOpts = numbered.filter(([o]) => o.kind === "person");
+  const fileOpts = numbered.filter(([o]) => o.kind === "file");
   const textOpt = numbered.find(([o]) => o.kind === "text");
 
-  let hint: React.ReactNode = null;
-  if (!q && people.loaded && !ordered.length && !tags.length) {
-    hint = <>Type a word like <em>beach</em> or <em>dog</em>, or pick a person.</>;
-  } else if (q && !options.length) {
-    hint = <>“{typed}” is already in the search.</>;
-  }
-
-  const status = !open || !q || !options.length
+  const status = !shown || !options.length
     ? ""
-    : textOpt ? "No matches" : `${options.length} ${options.length === 1 ? "suggestion" : "suggestions"}`;
+    : textOpt && options.length === 1 ? "No matches" : `${options.length} ${options.length === 1 ? "suggestion" : "suggestions"}`;
   // The chips, read out with the field.
   const summary = [
     filter.group && `the collection ${filter.group.name}`,
@@ -626,10 +687,10 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   ].filter(Boolean).join(", ");
 
   return (
-    <div ref={rootRef} className={cls("ts-root", open && "is-open")} onBlur={onBlur} inert={covered}>
+    <div ref={rootRef} className={cls("ts-root", shown && "is-open")} onBlur={onBlur} inert={covered}>
       <div className="ts-field" onMouseDown={onFieldMouseDown}>
         <span className="ts-glass" aria-hidden="true"><SearchIcon /></span>
-        {open && (
+        {shown && (
           <button type="button" className="ts-back" aria-label="Close search" onMouseDown={keepFocus} onClick={dismiss}>
             <BackIcon />
           </button>
@@ -690,13 +751,13 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
           className="ts-input"
           type="text"
           role="combobox"
-          aria-label="Search your photos"
-          aria-expanded={open}
+          aria-label="Search photos and files"
+          aria-expanded={shown}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-activedescendant={open && active >= 0 ? optId(active) : undefined}
+          aria-activedescendant={shown && active >= 0 ? optId(active) : undefined}
           aria-describedby={summary ? `${id}now` : undefined}
-          placeholder={chipCount ? "" : "Search your photos"}
+          placeholder={chipCount ? "" : "Search photos and files"}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -717,7 +778,7 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
           </button>
         )}
       </div>
-      {open && (
+      {shown && (
         <>
           <div className="ts-scrim" aria-hidden="true" onClick={dismiss} />
           <div
@@ -729,26 +790,12 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
             onPointerMove={onPanelPointerMove}
           >
             <div role="listbox" id={listId} aria-label="Suggestions">
-              {!q && (!people.loaded || personOpts.length > 0) && section("people", "People",
-                <div role="presentation" ref={facesRef} className="ts-faces" style={{ "--ts-cols": cols } as React.CSSProperties}>
-                  {people.loaded
-                    ? personOpts.map(([o, i]) => renderOption(o, i))
-                    : Array.from({ length: cols }, (_, k) => (
-                      <div key={k} className="ts-face is-skel" aria-hidden="true">
-                        <span className="ts-face-pic" />
-                        <span className="ts-skel-line" />
-                      </div>
-                    ))}
-                </div>,
-              )}
-              {!q && tagOpts.length > 0 && section("things", "Things",
-                <div role="presentation" className="ts-tagchips">{tagOpts.map(([o, i]) => renderOption(o, i))}</div>,
-              )}
-              {q && personOpts.length > 0 && section("people", "People", personOpts.map(([o, i]) => renderOption(o, i)))}
-              {q && tagOpts.length > 0 && section("things", "Things", tagOpts.map(([o, i]) => renderOption(o, i)))}
-              {textOpt && renderOption(textOpt[0], textOpt[1])}
+              {tagOpts.length > 0 && section("things", "Things", tagOpts.map(([o, i]) => renderOption(o, i)))}
+              {personOpts.length > 0 && section("people", "People", personOpts.map(([o, i]) => renderOption(o, i)))}
+              {textOpt && <div role="presentation" className="ts-section">{renderOption(textOpt[0], textOpt[1])}</div>}
+              {fileOpts.length > 0 && section("files", "Files", fileOpts.map(([o, i]) => renderOption(o, i)))}
             </div>
-            {hint && <p className="ts-hint">{hint}</p>}
+            {!options.length && <p className="ts-hint">“{typed}” is already in the search.</p>}
           </div>
         </>
       )}

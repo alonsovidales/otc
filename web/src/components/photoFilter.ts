@@ -68,6 +68,12 @@ export function forgetPerson(id: string) {
   set({ ...state, personIds: state.personIds.filter((x) => x !== id) });
 }
 
+/** Face recognition turned off (faceRecognition.ts): nobody to search for. */
+export function clearPeople() {
+  if (!state.personIds.length) return;
+  set({ ...state, personIds: [] });
+}
+
 /** One person's photos, from the People page: a new search. */
 export function showPerson(id: string) {
   set({ tags: [], personIds: [id], group: null });

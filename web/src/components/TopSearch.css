@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 
 /* The search in the top bar (TopSearch.tsx): a field holding the search's
-   filters as chips and, while it is in use, a panel under it with people
-   and things to pick. It sits in the fixed bar (index.css .topbar, z-index
-   30), so the panel lies over the page; on a phone the panel takes the
-   window's width under the bar, over a dimmed page. */
+   filters as chips and, while something is typed, a panel under it with
+   the things, people and files that match. It sits in the fixed bar
+   (index.css .topbar, z-index 30), so the panel lies over the page; on a
+   phone the panel takes the window's width under the bar, over a dimmed
+   page. */
 
 .ts-root {
   position: relative;
@@ -213,98 +214,6 @@
   color: var(--mist-dim);
 }
 
-/* Faces: --ts-cols columns (TopSearch.tsx measures how many fit). */
-.ts-faces {
-  display: grid;
-  grid-template-columns: repeat(var(--ts-cols, 6), minmax(0, 1fr));
-  gap: 4px;
-}
-.ts-face {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  padding: 8px 4px 6px;
-  border-radius: 12px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: background-color .12s ease;
-}
-.ts-face-pic {
-  position: relative;
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--ink-3);
-  color: var(--mist-dim);
-  transition: box-shadow .12s ease;
-}
-.ts-face-pic img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-/* In the search: ringed in gold, with a check. */
-.ts-face.is-on .ts-face-pic { box-shadow: 0 0 0 2px var(--ink-2), 0 0 0 4px var(--gold); }
-.ts-tick {
-  position: absolute;
-  right: -4px;
-  bottom: -4px;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  box-sizing: border-box;
-  border: 2px solid var(--ink-2);
-  border-radius: 50%;
-  background: var(--gold);
-  color: var(--gold-ink);
-}
-.ts-face-name {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  line-height: 16px;
-}
-.ts-face-name.is-unnamed { color: var(--mist-dim); }
-.ts-face.is-on .ts-face-name { color: var(--gold); font-weight: 600; }
-.ts-face-all .ts-face-pic { background: rgba(234, 242, 239, .08); color: var(--mist); }
-
-/* People still loading. */
-.ts-face.is-skel { cursor: default; }
-.ts-face.is-skel .ts-face-pic,
-.ts-skel-line { animation: ts-pulse 1.4s ease-in-out infinite; }
-.ts-skel-line { width: 40px; height: 8px; margin: 4px 0; border-radius: 4px; background: var(--ink-3); }
-@keyframes ts-pulse { 50% { opacity: .45; } }
-
-/* Tags to browse, with nothing typed. */
-.ts-tagchips { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 12px 4px; }
-.ts-tagchip {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 0 14px;
-  border: 1px solid rgba(234, 242, 239, .18);
-  border-radius: 8px;
-  color: var(--mist);
-  font-size: 14px;
-  line-height: 20px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: background-color .12s ease, border-color .12s ease;
-}
-
 /* What matches the typed text, one per row. */
 .ts-row {
   display: flex;
@@ -343,15 +252,34 @@
   line-height: 20px;
 }
 .ts-row-tick { flex: none; display: inline-flex; color: var(--gold); }
+/* A person's photos, a file's folder: a second, dimmer line. */
+.ts-row.is-two { padding-top: 6px; padding-bottom: 6px; }
+.ts-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ts-row-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--mist-dim);
+}
+.ts-row-sub .ts-mark { color: var(--mist); }
+/* A long folder is cut at its start: the end, nearest the file, says
+   most. The path inside keeps its own order (a <bdi>). */
+.ts-path { direction: rtl; text-align: left; }
+/* Files: an icon on a rounded tile, the folders gold as in Files. */
+.ts-file { border-radius: 8px; background: rgba(234, 242, 239, .06); color: var(--mist); }
+.ts-file.is-folder { color: var(--gold); }
 .ts-mark { background: none; color: inherit; font-weight: 700; }
 
 /* The highlight (arrow keys, or the mouse over it), and a press. */
-.ts-face.is-active,
 .ts-row.is-active { background-color: rgba(234, 242, 239, .08); }
-.ts-tagchip.is-active { background-color: rgba(234, 242, 239, .08); border-color: rgba(234, 242, 239, .32); }
-.ts-face:not(.is-skel):active,
-.ts-row:active,
-.ts-tagchip:active { background-color: rgba(234, 242, 239, .14); }
+.ts-row:active { background-color: rgba(234, 242, 239, .14); }
 
 .ts-hint { margin: 10px 20px 8px; font-size: 14px; line-height: 20px; color: var(--mist-dim); }
 .ts-hint em { color: var(--mist); }
@@ -404,7 +332,6 @@
      or the row would scroll by the overhang. */
   .ts-chip-x { width: 40px; height: 32px; margin: 0 -4px 0 -8px; border-radius: 8px; }
   .ts-chip-x::after { content: ""; position: absolute; inset: -4px 0; }
-  .ts-tagchip { height: 40px; }
   .ts-row { min-height: 48px; }
 }
 
@@ -414,12 +341,7 @@
   .ts-back,
   .ts-clear,
   .ts-chip-x,
-  .ts-face,
-  .ts-face-pic,
-  .ts-tagchip,
   .ts-row { transition: none; }
   .ts-panel,
-  .ts-scrim,
-  .ts-face.is-skel .ts-face-pic,
-  .ts-skel-line { animation: none; }
+  .ts-scrim { animation: none; }
 }
