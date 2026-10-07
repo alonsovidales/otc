@@ -264,7 +264,46 @@
 .sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; max-height: 90dvh; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 .sv-close { position: absolute; top: 8px; right: 8px; border: 0; width: 34px; height: 34px; border-radius: 50%; color: var(--mist); background: var(--panel); cursor: pointer; }
 .sv-full-wrap { position: relative; cursor: pointer; }
-.sv-full { max-width: 90vw; max-height: 80vh; max-height: 80dvh; display: block; }
+/* As tall as before (80% of the screen) wherever the header fits above
+   that, and less only where it doesn't: the body is 90% at most, less its
+   padding and border (22px), the header (34px) and the gap (8px). */
+.sv-full { max-width: 90vw; max-height: min(80vh, calc(90vh - 64px)); max-height: min(80dvh, calc(90dvh - 64px)); display: block; }
+
+/* The photo and video pop-up: a header row (who posted it, Download,
+   Close) over the picture, like the library viewer's, rather than a Close
+   floated over the picture's corner - the picture covered it. */
+.sv-viewer-body { display: flex; flex-direction: column; gap: 8px; }
+/* The picture's own width, centred: a tall one on a short screen can be
+   narrower than the header (paging by its halves and the dots go by it). */
+.sv-viewer-body > .sv-full-wrap { align-self: center; }
+.sv-viewer-body:focus { outline: none; }
+/* Above the full-body "Loading…" a picture with no thumbnail shows. */
+.sv-modal-hdr { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; min-width: 0; height: 34px; }
+.sv-modal-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 2px; font-size: 14px; font-weight: 600; color: var(--mist); }
+.sv-modal-date { font-weight: 400; color: var(--mist-dim); }
+/* padding: 0, or the global button padding makes the circle an oval. */
+.sv-modal-hdr .sv-close { position: static; flex: none; padding: 0; display: grid; place-items: center; font-size: 15px; line-height: 1; }
+
+/* A post's own Download, at the end of its actions: the item on screen
+   (a feed video plays in place and never opens the pop-up). Its label
+   carries the progress; never narrower than "Download", so "Started"
+   doesn't shrink it. */
+.sv-dl {
+  margin-left: auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 8.4em; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+}
+.sv-dl.busy { cursor: progress; }
+.sv-dl-glyph { flex: none; width: 20px; height: 20px; display: inline-grid; place-items: center; }
+.sv-dl-glyph svg { display: block; }
+.sv-dl-text { font-variant-numeric: tabular-nums; }
+.sv-dl-pct { display: none; }
+/* On the narrowest phones "Downloading…" is wider than "Download": the
+   button would grow, wrap Share and make the row taller until it is done.
+   While it runs there it is its glyph alone (a spinner, then a tick), as
+   the viewers' pill is on a phone; its name and status still say it. */
+@media (max-width: 359px) {
+  .sv-dl.busy .sv-dl-text { display: none; }
+}
 .sv-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mist); }
 
 .sv-likers-body { width: 320px; max-width: 90vw; padding: 16px; }

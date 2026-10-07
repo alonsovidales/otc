@@ -937,8 +937,10 @@
 }
 .pg-modal-toast-close:hover { background: rgba(234, 242, 239, .08); color: var(--mist); filter: none; }
 /* The same note for a download that failed after its viewer was closed:
-   over the page, above everything (the viewer is z-index 50). */
-.pg-modal-toast.pg-modal-toast-page { position: fixed; z-index: 60; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+   over the page, above everything - the viewer (50) and every dialog the
+   app opens, Social's Likes (1000) up to the post composer (2000) and its
+   trimmer (2100), so its × can always be clicked. */
+.pg-modal-toast.pg-modal-toast-page { position: fixed; z-index: 2200; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 
 /* Issue #41: "More info" panel — camera/EXIF metadata + a location map.
    Issue #130: the button is a labelled pill in the header, not a glyph over

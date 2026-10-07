@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
-import { requestStreamURL } from "../net/media";
+import { requestStreamURL, canStream } from "../net/media";
 import NewPostPicker from "./NewPostPicker";
 import type {
   ReqEnvelope,
@@ -15,6 +15,8 @@ import type {
 import "./Social.css";
 import LowResBadge from "./LowResBadge";
 import Spinner from "./Spinner";
+import { startDownload, pubMediaKey, extensionForMime, leafName, useDownloadState, useDownloadFailure, useDownloadHost, useDownloadToldByHost } from "./mediaDownload";
+import { DownloadButton, DownloadNote } from "./DownloadButton";
 
 // When the post was published, shown in the feed. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
@@ -121,6 +123,79 @@ const revokeAll = (urls: Set<string>) => {
   urls.forEach(u => URL.revokeObjectURL(u));
   urls.clear();
 };
+
+// ---- Download ---------------------------------------------------------------
+// A post's photo or video is saved as the device keeps it for the post,
+// from the pop-up and from the post itself (a video plays in the feed and
+// never opens the pop-up). mediaDownload.ts does the saving: a video the
+// device streams goes straight from its media link to disk, anything else
+// comes down with GetPublicationMedia. The same for the owner's posts and
+// friends' (their media is copied to this device when it syncs them).
+
+// What the pop-up opens with: Tab moves between these inside it. A video's
+// controls are stops of their own that can't be focused from here, and
+// while one has focus the video is the active element.
+const cFocusable = "button, [href], input, video[controls], [tabindex]:not([tabindex='-1'])";
+
+// A file name without what file systems refuse (/ \ : * ? " < > |, control
+// characters) or a leading dot, its spaces collapsed.
+function cleanFileName(s: string): string {
+  return [...s].map(c => (c < " " || c === "\x7f" || '/\\:*?"<>|'.includes(c) ? " " : c)).join("")
+    .replace(/\s+/g, " ").trim().replace(/^\.+/, "").trim();
+}
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// A name the post's item carries itself (none do today), with its
+// extension; "" when it has none.
+function ownMediaName(f: PbFile | undefined): string {
+  const own = f?.path ? cleanFileName(leafName(f.path)) : "";
+  return own && own !== f?.hash && /\.[A-Za-z0-9]{1,5}$/.test(own) ? own : "";
+}
+
+// What a post's photo or video is saved as. A post's media has no name of
+// its own (the device keeps its hash and type), so it is named after the
+// post: "Ana 2026-10-07.jpg", or "Ana 2026-10-07 2.mp4" for the second of
+// several - a name the post does carry wins. The publisher's name is cut
+// by characters, not UTF-16 units, so an emoji isn't cut in half.
+function postMediaName(p: PbSocialPublication, index: number): string {
+  const f = p.files[index];
+  const own = ownMediaName(f);
+  if (own) return own;
+  const who = Array.from(cleanFileName(p.publisher?.name || "")).slice(0, 60).join("").trim()
+    || cleanFileName(p.publisher?.domain || "") || "Post";
+  const d = p.dateTime;
+  const date = d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : "";
+  const num = p.files.length > 1 ? String(index + 1) : "";
+  return [who, date, num].filter(Boolean).join(" ") + extensionForMime(f?.mime);
+}
+
+// Saves a post's item. cached: its bytes, when the pop-up already has
+// them whole (a full-size photo it is showing, or a video it fetched
+// whole because the device didn't stream it), so they aren't sent again
+// and no media link is asked for.
+function downloadPostMedia(p: PbSocialPublication, index: number, cached?: Blob | null) {
+  const f = p.files[index];
+  if (!f) return;
+  const pubUuid = p.uuid, hash = f.hash;
+  void startDownload({
+    key: pubMediaKey(pubUuid, hash),
+    name: postMediaName(p, index),
+    stream: !cached && canStream(f.mime) ? { pubUuid, hash } : null,
+    // A type that names no extension (application/octet-stream): the
+    // bytes tell it.
+    extFromBytes: !ownMediaName(f) && !extensionForMime(f.mime),
+    read: async (progress) => {
+      if (cached) return [cached];
+      // One answer, the whole file: no pieces to count.
+      progress(0, 0);
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqGetPublicationMedia", reqGetPublicationMedia: { pubUuid, hash } };
+      });
+      if (resp.payload?.$case !== "respFile" || resp.payload.respFile.content == null) return null;
+      return [resp.payload.respFile.content as BlobPart];
+    },
+  });
+}
 
 // Viewer steps closer together than this are a held arrow key: the
 // full-size fetch waits this long and is skipped if the viewer has moved
@@ -440,9 +515,13 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   const viewerBlobsRef = useRef<Set<string>>(new Set());
   // When the previous item was opened (see cRapidStepMs).
   const lastViewerStepRef = useRef(0);
+  // The full-size bytes of the item on screen, once they are in (a photo,
+  // or a clip too short to stream), so Download saves them without
+  // fetching them again. Let go with the item's blobs.
+  const viewerFullRef = useRef<{ key: string; blob: Blob } | null>(null);
   useEffect(() => {
     const blobs = viewerBlobsRef.current;
-    return () => { viewerGenRef.current += 1; revokeAll(blobs); };
+    return () => { viewerGenRef.current += 1; revokeAll(blobs); viewerFullRef.current = null; };
   }, []);
 
   const openViewer = useCallback(async (pub: PbSocialPublication, index: number) => {
@@ -450,6 +529,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     const current = () => gen === viewerGenRef.current;
     // The previous item's blobs leave the screen with this update.
     revokeAll(viewerBlobsRef.current);
+    viewerFullRef.current = null;
     setViewerPub(pub);
     setViewerIdx(index);
     setViewerOpen(true);
@@ -509,9 +589,11 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
         };
       });
       if (!current()) return;
-      if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
-        const full = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
-        if (full) viewerBlobsRef.current.add(full);
+      if (resp.payload?.$case === "respFile" && resp.payload.respFile.content?.length) {
+        const blob = new Blob([resp.payload.respFile.content as BlobPart], { type: resp.payload.respFile.mime || "application/octet-stream" });
+        const full = URL.createObjectURL(blob);
+        viewerBlobsRef.current.add(full);
+        viewerFullRef.current = { key: pubMediaKey(pub.uuid, f.hash), blob };
         if (isVideo) {
           setViewerVideoURL(full);
         } else {
@@ -527,6 +609,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   const closeViewer = useCallback(() => {
     viewerGenRef.current += 1;
     revokeAll(viewerBlobsRef.current);
+    viewerFullRef.current = null;
     setViewerOpen(false);
     setViewerLoading(false);
     setViewerURL(null);
@@ -548,17 +631,95 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     void openViewer(viewerPub, prev);
   }, [viewerPub, viewerIdx, openViewer]);
 
-  // keyboard when modal open
+  // Download, from the pop-up: the item on screen, saved from the bytes
+  // it already has when it has them. Its progress is mediaDownload's, by
+  // post and file, so the post's own button shows the same download.
+  const viewerFile = viewerPub?.files[viewerIdx];
+  const viewerKey = viewerPub && viewerFile ? pubMediaKey(viewerPub.uuid, viewerFile.hash) : "";
+  const viewerSave = useDownloadState(viewerKey);
+  const downloadFailed = useDownloadFailure();
+  // A failure's note shows in the pop-up while it is open, over the page
+  // otherwise (as the library viewer's does); and the item it shows has
+  // its download told here, not by its post behind.
+  useDownloadHost(viewerOpen, viewerKey);
+  const downloadViewerItem = useCallback(() => {
+    if (!viewerPub) return;
+    const key = pubMediaKey(viewerPub.uuid, viewerPub.files[viewerIdx]?.hash ?? "");
+    downloadPostMedia(viewerPub, viewerIdx, viewerFullRef.current?.key === key ? viewerFullRef.current.blob : null);
+  }, [viewerPub, viewerIdx]);
+
+  // The keyboard's focus moves into the pop-up, so Space or Enter can't
+  // press what is behind it, and goes back once it closes - after
+  // keyboard use only, as the library viewer does.
+  const viewerBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const el = document.activeElement;
+    const back = el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
+    if (!viewerBoxRef.current?.contains(el)) viewerBoxRef.current?.focus({ preventScroll: true });
+    return () => { if (back?.isConnected) back.focus({ preventScroll: true }); };
+  }, [viewerOpen]);
+
+  // The pop-up's Tab stops, in order (cFocusable), without the guard.
+  const viewerGuardRef = useRef<HTMLSpanElement>(null);
+  const viewerStops = useCallback(() => {
+    const box = viewerBoxRef.current;
+    if (!box) return [];
+    return [...box.querySelectorAll<HTMLElement>(cFocusable)].filter((el) => el.offsetParent !== null && el !== viewerGuardRef.current);
+  }, []);
+  // The guard, the pop-up's last stop: Tab on from a video's last control
+  // (which can't be told from its others) lands on it, and it hands focus
+  // round to the first stop - unless it is only where a Shift+Tab onto the
+  // video starts from (guardPassRef).
+  const guardPassRef = useRef(false);
+  const onViewerGuardFocus = useCallback(() => {
+    if (guardPassRef.current) { guardPassRef.current = false; return; }
+    viewerStops()[0]?.focus();
+  }, [viewerStops]);
+  // Whether the keyboard, not a pointer, moved focus last: arrow keys on a
+  // video reached with Tab are the video's own (they seek), not paging. A
+  // click on the video focuses it too, and arrows page from there as
+  // before.
+  const viewerKeysRef = useRef(false);
+
+  // keyboard when modal open: arrows page, Escape closes, Tab stays in it.
   useEffect(() => {
     if (!viewerOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") { e.preventDefault(); nextImg(); }
-      else if (e.key === "ArrowLeft") { e.preventDefault(); prevImg(); }
+      const box = viewerBoxRef.current;
+      const active = document.activeElement;
+      const inVideo = viewerKeysRef.current && active instanceof HTMLVideoElement && !!box?.contains(active);
+      if (e.key === "ArrowRight" && !inVideo) { e.preventDefault(); nextImg(); }
+      else if (e.key === "ArrowLeft" && !inVideo) { e.preventDefault(); prevImg(); }
       else if (e.key === "Escape") { e.preventDefault(); closeViewer(); }
+      if (!box) return;
+      // Space on the pop-up itself would scroll the feed behind it.
+      if (e.key === " " && e.target === box) e.preventDefault();
+      if (e.key !== "Tab") return;
+      viewerKeysRef.current = true;
+      const all = viewerStops();
+      if (!all.length) { e.preventDefault(); box.focus(); return; }
+      const first = all[0];
+      const last = all[all.length - 1];
+      // A video last: Tab from it is the browser's, through its controls
+      // and on to the guard; Shift+Tab onto it goes back from the guard,
+      // to its last control.
+      const guard = last instanceof HTMLVideoElement ? viewerGuardRef.current : null;
+      if (!box.contains(active)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && (active === first || active === box)) {
+        if (guard) { guardPassRef.current = true; guard.focus(); }
+        else { e.preventDefault(); last.focus(); }
+      }
+      else if (!e.shiftKey && active === last && !guard) { e.preventDefault(); first.focus(); }
     };
+    const onPointer = () => { viewerKeysRef.current = false; };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [viewerOpen, nextImg, prevImg, closeViewer]);
+    window.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [viewerOpen, nextImg, prevImg, closeViewer, viewerStops]);
 
   // basic swipe, shared by post images and the full-screen modal
   const useSwipe = () => {
@@ -666,8 +827,37 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       {/* Image modal */}
       {viewerOpen && (
         <div className="sv-modal" onClick={closeViewer}>
-          <div className="sv-modal-body" onClick={(e) => e.stopPropagation()}>
-            <button className="sv-close" onClick={closeViewer}>✕</button>
+          <div
+            ref={viewerBoxRef}
+            className="sv-modal-body sv-viewer-body"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${viewerIsVideo ? "Video" : "Photo"} by ${viewerPub?.publisher?.name || "User"}`
+              + ((viewerPub?.files.length ?? 0) > 1 ? `, ${viewerIdx + 1} of ${viewerPub!.files.length}` : "")}
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* A header row of its own, as the library viewer has (issue
+                #130): Close used to float over the picture's corner,
+                where the picture covered it. */}
+            <div className="sv-modal-hdr">
+              <span className="sv-modal-title">
+                {viewerPub?.publisher?.name || "User"}
+                {viewerPub?.dateTime && <span className="sv-modal-date"> · {formatPostDate(viewerPub.dateTime)}</span>}
+              </span>
+              {viewerPub && viewerFile && (
+                // The post's copy (a HEIC as the JPEG it was posted as, a
+                // long video as cut and shrunk for the post), not the
+                // library's original.
+                <DownloadButton
+                  save={viewerSave}
+                  onClick={downloadViewerItem}
+                  what={postMediaName(viewerPub, viewerIdx)}
+                  title={`Download this ${(viewerFile.mime || "").startsWith("video/") ? "video" : "photo"}`}
+                />
+              )}
+              <button type="button" className="sv-close" title="Close" aria-label="Close" onClick={closeViewer}>✕</button>
+            </div>
             {viewerIsVideo ? (
               <div className="sv-full-wrap">
                 {viewerVideoURL ? (
@@ -711,6 +901,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             ) : (
               <div className="sv-loading">Loading…</div>
             )}
+            <DownloadNote failed={downloadFailed} />
+            {/* Last of all: see onViewerGuardFocus. */}
+            <span ref={viewerGuardRef} className="pg-modal-sr" tabIndex={0} onFocus={onViewerGuardFocus} />
           </div>
         </div>
       )}
@@ -888,6 +1081,13 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
 
   const current = p.files[idx];
   const isVideo = (current.mime || "").startsWith("video/");
+  // Download, for the item on screen: a video plays right here and never
+  // opens the pop-up, so this is where it is saved from (photos too, as
+  // in the pop-up). Re-renders this post only when its own download moves.
+  const dlKey = pubMediaKey(p.uuid, current.hash);
+  const dlSave = useDownloadState(dlKey);
+  const dlToldByPopup = useDownloadToldByHost(dlKey);
+  const dlWhat = `${isVideo ? "video" : "photo"}${p.files.length > 1 ? ` ${idx + 1} of ${p.files.length}` : ""}`;
   // Unknown, the frame is the whole box (see .sv-frame).
   const currentAspect = ratios[idx] ?? (idx === 0 ? measuredAspect : null);
   // current.content is always a server-generated JPEG thumbnail (see
@@ -1180,6 +1380,16 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           {p.liked ? "❤️" : "🤍"}
         </button>
         <button className="sv-btn" onClick={() => alert("Share (not implemented)")}>↗︎ Share</button>
+        <DownloadButton
+          cls="sv-dl"
+          className="sv-btn"
+          save={dlSave}
+          onClick={() => downloadPostMedia(p, idx)}
+          what={postMediaName(p, idx)}
+          title={`Download this ${dlWhat}`}
+          label={`Download ${dlWhat}`}
+          announce={!dlToldByPopup}
+        />
       </div>
       {/* Issue #29: tap the count (separate from the heart toggle above) */}
       {p.likes > 0 && (
