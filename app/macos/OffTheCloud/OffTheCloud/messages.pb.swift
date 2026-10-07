@@ -896,6 +896,55 @@ public nonisolated struct Msg_FileVersions: Sendable {
   public init() {}
 }
 
+/// Issue #192: keep a folder out of Images, or show it there again. Photos
+/// and videos under a folder kept out still get thumbnails (Files shows
+/// them) but are never tagged or searched for faces, and Images - the photo
+/// search, its tags, People, collections - leaves them out; keeping one out
+/// deletes the tags and faces found in content no other path holds, and
+/// showing it again analyses that content in the background (tags, faces
+/// when face recognition is on). Answers with the generic Ack. Refused with
+/// error_code "out_of_images_by_parent" when out_of_images is false for a
+/// folder inside another one kept out (the message names it). Devices
+/// before release 108 answer "unknown_payload".
+public nonisolated struct Msg_SetOutOfImages: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var path: String = String()
+
+  public var outOfImages: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Issue #192: every folder kept out of Images, each with its trailing
+/// slash - what the computer apps show next to their folders. Answers with
+/// OutOfImagesFolders.
+public nonisolated struct Msg_ListOutOfImages: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_OutOfImagesFolders: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var paths: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public nonisolated struct Msg_ListFiles: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1111,6 +1160,14 @@ public nonisolated struct Msg_ListOfFiles: Sendable {
 
   public var token: String = String()
 
+  /// Issue #192, set by ListFiles and SearchFiles: the device can keep
+  /// folders out of Images (devices before release 108 leave it false, and
+  /// the explorers then show no control), and whether the listed folder
+  /// itself is kept out (the explorers' banner; ListFiles only).
+  public var outOfImagesSupported: Bool = false
+
+  public var folderOutOfImages: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1219,6 +1276,10 @@ public nonisolated struct Msg_File: Sendable {
   /// when it is non-zero and fall back to size. `size` keeps carrying the
   /// int64 wrapped to int32, as before, for apps that only know it.
   public var size64: Int64 = 0
+
+  /// Issue #192, filled by ListFiles and SearchFiles: this entry is, or is
+  /// inside, a folder kept out of Images (see SetOutOfImages).
+  public var outOfImages: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -5339,6 +5400,24 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqSearchFiles(newValue)}
   }
 
+  /// Issue #192: folders kept out of Images. SetOutOfImages answers with
+  /// the generic Ack, ListOutOfImages with resp_out_of_images_folders.
+  public var reqSetOutOfImages: Msg_SetOutOfImages {
+    get {
+      if case .reqSetOutOfImages(let v)? = payload {return v}
+      return Msg_SetOutOfImages()
+    }
+    set {payload = .reqSetOutOfImages(newValue)}
+  }
+
+  public var reqListOutOfImages: Msg_ListOutOfImages {
+    get {
+      if case .reqListOutOfImages(let v)? = payload {return v}
+      return Msg_ListOutOfImages()
+    }
+    set {payload = .reqListOutOfImages(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -5538,6 +5617,10 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqGetLocalEndpoint(Msg_GetLocalEndpoint)
     /// The top bar's search by path. Answers with ListOfFiles.
     case reqSearchFiles(Msg_SearchFiles)
+    /// Issue #192: folders kept out of Images. SetOutOfImages answers with
+    /// the generic Ack, ListOutOfImages with resp_out_of_images_folders.
+    case reqSetOutOfImages(Msg_SetOutOfImages)
+    case reqListOutOfImages(Msg_ListOutOfImages)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -5577,7 +5660,9 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
 
   /// Machine-readable reason when error is set, for the cases a client has
   /// to act on rather than just show: "upload_only" (issue #132: a delete
-  /// under an upload-only folder - a sync client must not retry it).
+  /// under an upload-only folder - a sync client must not retry it),
+  /// "out_of_images_by_parent" (issue #192: SetOutOfImages can't show a
+  /// folder inside another one kept out of Images; the message names it).
   public var errorCode: String {
     get {_storage._errorCode}
     set {_uniqueStorage()._errorCode = newValue}
@@ -6061,6 +6146,15 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respLocalEndpoint(newValue)}
   }
 
+  /// Issue #192.
+  public var respOutOfImagesFolders: Msg_OutOfImagesFolders {
+    get {
+      if case .respOutOfImagesFolders(let v)? = _storage._payload {return v}
+      return Msg_OutOfImagesFolders()
+    }
+    set {_uniqueStorage()._payload = .respOutOfImagesFolders(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Payload: Equatable, Sendable {
@@ -6138,6 +6232,8 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     case respLogs(Msg_Logs)
     /// Issue #190.
     case respLocalEndpoint(Msg_LocalEndpoint)
+    /// Issue #192.
+    case respOutOfImagesFolders(Msg_OutOfImagesFolders)
 
   }
 
@@ -7185,6 +7281,90 @@ nonisolated extension Msg_FileVersions: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
+nonisolated extension Msg_SetOutOfImages: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetOutOfImages"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}out_of_images\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.outOfImages) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if self.outOfImages != false {
+      try visitor.visitSingularBoolField(value: self.outOfImages, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetOutOfImages, rhs: Msg_SetOutOfImages) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.outOfImages != rhs.outOfImages {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_ListOutOfImages: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListOutOfImages"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ListOutOfImages, rhs: Msg_ListOutOfImages) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_OutOfImagesFolders: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OutOfImagesFolders"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}paths\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.paths) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.paths.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.paths, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_OutOfImagesFolders, rhs: Msg_OutOfImagesFolders) -> Bool {
+    if lhs.paths != rhs.paths {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListFiles"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}recursive\0")
@@ -7521,7 +7701,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListOfFiles"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0\u{3}out_of_images_supported\0\u{3}folder_out_of_images\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7531,6 +7711,8 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.files) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.token) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.outOfImagesSupported) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.folderOutOfImages) }()
       default: break
       }
     }
@@ -7543,12 +7725,20 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if !self.token.isEmpty {
       try visitor.visitSingularStringField(value: self.token, fieldNumber: 2)
     }
+    if self.outOfImagesSupported != false {
+      try visitor.visitSingularBoolField(value: self.outOfImagesSupported, fieldNumber: 3)
+    }
+    if self.folderOutOfImages != false {
+      try visitor.visitSingularBoolField(value: self.folderOutOfImages, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ListOfFiles, rhs: Msg_ListOfFiles) -> Bool {
     if lhs.files != rhs.files {return false}
     if lhs.token != rhs.token {return false}
+    if lhs.outOfImagesSupported != rhs.outOfImagesSupported {return false}
+    if lhs.folderOutOfImages != rhs.folderOutOfImages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7666,7 +7856,7 @@ nonisolated extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0\u{3}out_of_images\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7684,6 +7874,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       case 9: try { try decoder.decodeSingularBoolField(value: &self.uploadOnly) }()
       case 10: try { try decoder.decodeSingularInt32Field(value: &self.versions) }()
       case 11: try { try decoder.decodeSingularInt64Field(value: &self.size64) }()
+      case 12: try { try decoder.decodeSingularBoolField(value: &self.outOfImages) }()
       default: break
       }
     }
@@ -7724,6 +7915,9 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if self.size64 != 0 {
       try visitor.visitSingularInt64Field(value: self.size64, fieldNumber: 11)
     }
+    if self.outOfImages != false {
+      try visitor.visitSingularBoolField(value: self.outOfImages, fieldNumber: 12)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7738,6 +7932,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if lhs.uploadOnly != rhs.uploadOnly {return false}
     if lhs.versions != rhs.versions {return false}
     if lhs.size64 != rhs.size64 {return false}
+    if lhs.outOfImages != rhs.outOfImages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -13599,7 +13794,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -15194,6 +15389,32 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqSearchFiles(v)
         }
       }()
+      case 135: try {
+        var v: Msg_SetOutOfImages?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetOutOfImages(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetOutOfImages(v)
+        }
+      }()
+      case 136: try {
+        var v: Msg_ListOutOfImages?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqListOutOfImages(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqListOutOfImages(v)
+        }
+      }()
       default: break
       }
     }
@@ -15696,6 +15917,14 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqSearchFiles(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 134)
     }()
+    case .reqSetOutOfImages?: try {
+      guard case .reqSetOutOfImages(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 135)
+    }()
+    case .reqListOutOfImages?: try {
+      guard case .reqListOutOfImages(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 136)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -15711,7 +15940,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -16497,6 +16726,19 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
             _storage._payload = .respLocalEndpoint(v)
           }
         }()
+        case 67: try {
+          var v: Msg_OutOfImagesFolders?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respOutOfImagesFolders(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respOutOfImagesFolders(v)
+          }
+        }()
         default: break
         }
       }
@@ -16749,6 +16991,10 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       case .respLocalEndpoint?: try {
         guard case .respLocalEndpoint(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 66)
+      }()
+      case .respOutOfImagesFolders?: try {
+        guard case .respOutOfImagesFolders(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 67)
       }()
       case nil: break
       }

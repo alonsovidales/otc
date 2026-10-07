@@ -112,7 +112,7 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour})
 	var insertedDesc []byte
 	mock.ExpectExec("insert into `shared_links`").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), descCapture{&insertedDesc}, 3, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -249,7 +249,7 @@ func TestSharedGalleryLowRes(t *testing.T) {
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour})
 	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
 	link, err := mg.buildSharedGallery(ses, files, "small", time.Hour, "cala.off-the.cloud", true, &galleryJob{state: &pb.SharedGalleryJob{}})
 	if err != nil {
@@ -302,7 +302,7 @@ func TestSharedGalleryJobFinishesWhenTheCopyPanics(t *testing.T) {
 	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = \\?").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
 			AddRow(f.Hash, f.Mime, time.Now(), time.Now(), f.Path, f.Size))
-	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour})
 	// No session: reading the library blob panics, as a decoder would.
 	job, err := mg.StartSharedGallery(nil, &pb.SharedGallerySource{Paths: []string{f.Path}}, "", 1, "cala.off-the.cloud", false)
 	if err != nil {
@@ -331,7 +331,7 @@ func TestOpenSharedLinkRangeOnlyExpiresArchives(t *testing.T) {
 	storage, _ := galleryTestEnv(t)
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: 7 * 24 * time.Hour}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: 7 * 24 * time.Hour})
 
 	// A gallery shared for 30 days, 8 days ago: not an archive, so not found
 	// - and its folder stays.
@@ -398,7 +398,7 @@ func TestGetSharedLinkStoresMediaAndDeflatesTheRest(t *testing.T) {
 				AddRow(f.Hash, f.Mime, time.Now(), time.Now(), f.Path, f.Size))
 	}
 	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
-	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour})
 	link, err := mg.GetSharedLink(ses, paths, "cala.off-the.cloud")
 	if err != nil {
 		t.Fatal(err)
@@ -526,7 +526,7 @@ func TestSharedGalleryManifestIsCachedButStillChecked(t *testing.T) {
 	files := []*pb.File{libraryFile(t, ses, "cached.png", "image/png", pngBuf.Bytes())}
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour})
 	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
 	link, err := mg.buildSharedGallery(ses, files, "cache", time.Hour, "cala.off-the.cloud", false, &galleryJob{state: &pb.SharedGalleryJob{}})
 	if err != nil {

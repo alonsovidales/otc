@@ -80,7 +80,7 @@ func TestUploadOfProcessedContentIsNotProcessedAgain(t *testing.T) {
 			}
 		}
 		db, mock, _ := sqlmock.New()
-		mg := &Manager{dao: dao.NewWithDB(db)}
+		mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
 			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 		mock.ExpectExec("insert into `files`").WillReturnResult(sqlmock.NewResult(1, 1))
@@ -123,7 +123,7 @@ func TestOverrideKeepsThePathsVersions(t *testing.T) {
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = \\?").WithArgs(newHash).
 		WillReturnRows(sqlmock.NewRows(cols).AddRow(newHash, "text/plain", now, now, "/other/a.txt", 7))
 	mock.ExpectExec("insert into `files`").WillReturnError(&mysql.MySQLError{Number: 1062})
@@ -173,7 +173,7 @@ func TestLargeSizesReachTheRowAndBothFields(t *testing.T) {
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	mock.ExpectExec("insert into `files`").
 		WithArgs(hash, "video/mp4", sqlmock.AnyArg(), sqlmock.AnyArg(), "/v.mp4", size, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))

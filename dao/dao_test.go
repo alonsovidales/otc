@@ -28,7 +28,7 @@ func TestSearchMediaNoFiltersImagesOnly(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, nil, "", true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, nil, "", true, nil, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -48,7 +48,7 @@ func TestSearchMediaTagsOnlyOrdersByScore(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", []string{"dogs", "beach"}, nil, "", true, nil); err != nil {
+	if _, err := d.SearchMedia("", []string{"dogs", "beach"}, nil, "", true, nil, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -70,7 +70,7 @@ func TestSearchMediaMultiplePeopleRequiresAllOfThem(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, []string{"alice-id", "bob-id"}, "", true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, []string{"alice-id", "bob-id"}, "", true, nil, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -96,7 +96,7 @@ func TestSearchMediaCombinesTagsAndPerson(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", []string{"dogs"}, []string{"alice-id"}, "", true, nil); err != nil {
+	if _, err := d.SearchMedia("", []string{"dogs"}, []string{"alice-id"}, "", true, nil, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -119,7 +119,7 @@ func TestSearchMediaImagesOnlyIgnoredWhenFiltersApplied(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, "", true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, "", true, nil, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -143,7 +143,7 @@ func TestSearchMediaBeforeCutoffAddsWhereClause(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, nil, "", true, &before); err != nil {
+	if _, err := d.SearchMedia("", nil, nil, "", true, &before, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -171,7 +171,7 @@ func TestSearchMediaDateBucketsNoFilters(t *testing.T) {
 			AddRow("2022-05", 1))
 
 	d := NewWithDB(db)
-	buckets, err := d.SearchMediaDateBuckets(nil, nil, "", true)
+	buckets, err := d.SearchMediaDateBuckets(nil, nil, "", true, nil)
 	if err != nil {
 		t.Fatalf("SearchMediaDateBuckets: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestSearchMediaDateBucketsMultiplePeopleRequiresAllOfThem(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMediaDateBuckets(nil, []string{"alice-id", "bob-id"}, "", true); err != nil {
+	if _, err := d.SearchMediaDateBuckets(nil, []string{"alice-id", "bob-id"}, "", true, nil); err != nil {
 		t.Fatalf("SearchMediaDateBuckets: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -1208,7 +1208,7 @@ func TestSearchMediaGroupFilter(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, nil, "album-1", true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, nil, "album-1", true, nil, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -1233,7 +1233,7 @@ func TestSearchMediaCombinesPersonAndGroup(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
-	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, "album-1", true, nil); err != nil {
+	if _, err := d.SearchMedia("", nil, []string{"alice-id"}, "album-1", true, nil, nil); err != nil {
 		t.Fatalf("SearchMedia: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -1338,10 +1338,10 @@ func TestGetImageGroupReadsOneGroupAsTheListDoes(t *testing.T) {
 		WithArgs("g2").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g2", "Empty", 0, nil))
 
 	d := NewWithDB(db)
-	if gs, err := d.ListImageGroups(); err != nil || len(gs) != 1 || gs[0].CoverHash != "h1" {
+	if gs, err := d.ListImageGroups(nil); err != nil || len(gs) != 1 || gs[0].CoverHash != "h1" {
 		t.Fatalf("ListImageGroups: %v, %v", gs, err)
 	}
-	g, err := d.GetImageGroup("g2")
+	g, err := d.GetImageGroup("g2", nil)
 	if err != nil || g.ID != "g2" || g.Name != "Empty" || g.FileCount != 0 || g.CoverHash != "" {
 		t.Fatalf("GetImageGroup: %+v, %v", g, err)
 	}

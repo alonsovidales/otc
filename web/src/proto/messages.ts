@@ -665,6 +665,35 @@ export interface FileVersions {
   versions: File[];
 }
 
+/**
+ * Issue #192: keep a folder out of Images, or show it there again. Photos
+ * and videos under a folder kept out still get thumbnails (Files shows
+ * them) but are never tagged or searched for faces, and Images - the photo
+ * search, its tags, People, collections - leaves them out; keeping one out
+ * deletes the tags and faces found in content no other path holds, and
+ * showing it again analyses that content in the background (tags, faces
+ * when face recognition is on). Answers with the generic Ack. Refused with
+ * error_code "out_of_images_by_parent" when out_of_images is false for a
+ * folder inside another one kept out (the message names it). Devices
+ * before release 108 answer "unknown_payload".
+ */
+export interface SetOutOfImages {
+  path: string;
+  outOfImages: boolean;
+}
+
+/**
+ * Issue #192: every folder kept out of Images, each with its trailing
+ * slash - what the computer apps show next to their folders. Answers with
+ * OutOfImagesFolders.
+ */
+export interface ListOutOfImages {
+}
+
+export interface OutOfImagesFolders {
+  paths: string[];
+}
+
 export interface ListFiles {
   path: string;
   recursive: boolean;
@@ -811,6 +840,14 @@ export interface SearchPhotos {
 export interface ListOfFiles {
   files: File[];
   token: string;
+  /**
+   * Issue #192, set by ListFiles and SearchFiles: the device can keep
+   * folders out of Images (devices before release 108 leave it false, and
+   * the explorers then show no control), and whether the listed folder
+   * itself is kept out (the explorers' banner; ListFiles only).
+   */
+  outOfImagesSupported: boolean;
+  folderOutOfImages: boolean;
 }
 
 /**
@@ -862,6 +899,11 @@ export interface File {
    * int64 wrapped to int32, as before, for apps that only know it.
    */
   size64: bigint;
+  /**
+   * Issue #192, filled by ListFiles and SearchFiles: this entry is, or is
+   * inside, a folder kept out of Images (see SetOutOfImages).
+   */
+  outOfImages: boolean;
 }
 
 export interface Ack {
@@ -2647,6 +2689,13 @@ export interface ReqEnvelope {
     /** The top bar's search by path. Answers with ListOfFiles. */
     { $case: "reqSearchFiles"; reqSearchFiles: SearchFiles }
     | //
+    /**
+     * Issue #192: folders kept out of Images. SetOutOfImages answers with
+     * the generic Ack, ListOutOfImages with resp_out_of_images_folders.
+     */
+    { $case: "reqSetOutOfImages"; reqSetOutOfImages: SetOutOfImages }
+    | { $case: "reqListOutOfImages"; reqListOutOfImages: ListOutOfImages }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2672,7 +2721,9 @@ export interface RespEnvelope {
   /**
    * Machine-readable reason when error is set, for the cases a client has
    * to act on rather than just show: "upload_only" (issue #132: a delete
-   * under an upload-only folder - a sync client must not retry it).
+   * under an upload-only folder - a sync client must not retry it),
+   * "out_of_images_by_parent" (issue #192: SetOutOfImages can't show a
+   * folder inside another one kept out of Images; the message names it).
    */
   errorCode: string;
   payload?:
@@ -2769,6 +2820,9 @@ export interface RespEnvelope {
     | //
     /** Issue #190. */
     { $case: "respLocalEndpoint"; respLocalEndpoint: LocalEndpoint }
+    | //
+    /** Issue #192. */
+    { $case: "respOutOfImagesFolders"; respOutOfImagesFolders: OutOfImagesFolders }
     | undefined;
 }
 
@@ -4906,6 +4960,183 @@ export const FileVersions: MessageFns<FileVersions> = {
   },
 };
 
+function createBaseSetOutOfImages(): SetOutOfImages {
+  return { path: "", outOfImages: false };
+}
+
+export const SetOutOfImages: MessageFns<SetOutOfImages> = {
+  encode(message: SetOutOfImages, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.outOfImages !== false) {
+      writer.uint32(16).bool(message.outOfImages);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetOutOfImages {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetOutOfImages();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.outOfImages = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetOutOfImages {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      outOfImages: isSet(object.outOfImages) ? globalThis.Boolean(object.outOfImages) : false,
+    };
+  },
+
+  toJSON(message: SetOutOfImages): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.outOfImages !== false) {
+      obj.outOfImages = message.outOfImages;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetOutOfImages>, I>>(base?: I): SetOutOfImages {
+    return SetOutOfImages.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetOutOfImages>, I>>(object: I): SetOutOfImages {
+    const message = createBaseSetOutOfImages();
+    message.path = object.path ?? "";
+    message.outOfImages = object.outOfImages ?? false;
+    return message;
+  },
+};
+
+function createBaseListOutOfImages(): ListOutOfImages {
+  return {};
+}
+
+export const ListOutOfImages: MessageFns<ListOutOfImages> = {
+  encode(_: ListOutOfImages, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListOutOfImages {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListOutOfImages();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): ListOutOfImages {
+    return {};
+  },
+
+  toJSON(_: ListOutOfImages): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListOutOfImages>, I>>(base?: I): ListOutOfImages {
+    return ListOutOfImages.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListOutOfImages>, I>>(_: I): ListOutOfImages {
+    const message = createBaseListOutOfImages();
+    return message;
+  },
+};
+
+function createBaseOutOfImagesFolders(): OutOfImagesFolders {
+  return { paths: [] };
+}
+
+export const OutOfImagesFolders: MessageFns<OutOfImagesFolders> = {
+  encode(message: OutOfImagesFolders, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.paths) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OutOfImagesFolders {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseOutOfImagesFolders();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): OutOfImagesFolders {
+    return { paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [] };
+  },
+
+  toJSON(message: OutOfImagesFolders): unknown {
+    const obj: any = {};
+    if (message.paths?.length) {
+      obj.paths = message.paths;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<OutOfImagesFolders>, I>>(base?: I): OutOfImagesFolders {
+    return OutOfImagesFolders.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<OutOfImagesFolders>, I>>(object: I): OutOfImagesFolders {
+    const message = createBaseOutOfImagesFolders();
+    message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
 function createBaseListFiles(): ListFiles {
   return { path: "", recursive: false };
 }
@@ -5691,7 +5922,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
 };
 
 function createBaseListOfFiles(): ListOfFiles {
-  return { files: [], token: "" };
+  return { files: [], token: "", outOfImagesSupported: false, folderOutOfImages: false };
 }
 
 export const ListOfFiles: MessageFns<ListOfFiles> = {
@@ -5701,6 +5932,12 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     }
     if (message.token !== "") {
       writer.uint32(18).string(message.token);
+    }
+    if (message.outOfImagesSupported !== false) {
+      writer.uint32(24).bool(message.outOfImagesSupported);
+    }
+    if (message.folderOutOfImages !== false) {
+      writer.uint32(32).bool(message.folderOutOfImages);
     }
     return writer;
   },
@@ -5728,6 +5965,22 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
           message.token = reader.string();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.outOfImagesSupported = reader.bool();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.folderOutOfImages = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5741,6 +5994,10 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     return {
       files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => File.fromJSON(e)) : [],
       token: isSet(object.token) ? globalThis.String(object.token) : "",
+      outOfImagesSupported: isSet(object.outOfImagesSupported)
+        ? globalThis.Boolean(object.outOfImagesSupported)
+        : false,
+      folderOutOfImages: isSet(object.folderOutOfImages) ? globalThis.Boolean(object.folderOutOfImages) : false,
     };
   },
 
@@ -5752,6 +6009,12 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     if (message.token !== "") {
       obj.token = message.token;
     }
+    if (message.outOfImagesSupported !== false) {
+      obj.outOfImagesSupported = message.outOfImagesSupported;
+    }
+    if (message.folderOutOfImages !== false) {
+      obj.folderOutOfImages = message.folderOutOfImages;
+    }
     return obj;
   },
 
@@ -5762,6 +6025,8 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     const message = createBaseListOfFiles();
     message.files = object.files?.map((e) => File.fromPartial(e)) || [];
     message.token = object.token ?? "";
+    message.outOfImagesSupported = object.outOfImagesSupported ?? false;
+    message.folderOutOfImages = object.folderOutOfImages ?? false;
     return message;
   },
 };
@@ -6026,6 +6291,7 @@ function createBaseFile(): File {
     uploadOnly: false,
     versions: 0,
     size64: 0n,
+    outOfImages: false,
   };
 }
 
@@ -6063,6 +6329,9 @@ export const File: MessageFns<File> = {
         throw new globalThis.Error("value provided for field message.size64 of type int64 too large");
       }
       writer.uint32(88).int64(message.size64);
+    }
+    if (message.outOfImages !== false) {
+      writer.uint32(96).bool(message.outOfImages);
     }
     return writer;
   },
@@ -6154,6 +6423,14 @@ export const File: MessageFns<File> = {
           message.size64 = reader.int64() as bigint;
           continue;
         }
+        case 12: {
+          if (tag !== 96) {
+            break;
+          }
+
+          message.outOfImages = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6175,6 +6452,7 @@ export const File: MessageFns<File> = {
       uploadOnly: isSet(object.uploadOnly) ? globalThis.Boolean(object.uploadOnly) : false,
       versions: isSet(object.versions) ? globalThis.Number(object.versions) : 0,
       size64: isSet(object.size64) ? BigInt(object.size64) : 0n,
+      outOfImages: isSet(object.outOfImages) ? globalThis.Boolean(object.outOfImages) : false,
     };
   },
 
@@ -6210,6 +6488,9 @@ export const File: MessageFns<File> = {
     if (message.size64 !== 0n) {
       obj.size64 = message.size64.toString();
     }
+    if (message.outOfImages !== false) {
+      obj.outOfImages = message.outOfImages;
+    }
     return obj;
   },
 
@@ -6228,6 +6509,7 @@ export const File: MessageFns<File> = {
     message.uploadOnly = object.uploadOnly ?? false;
     message.versions = object.versions ?? 0;
     message.size64 = object.size64 ?? 0n;
+    message.outOfImages = object.outOfImages ?? false;
     return message;
   },
 };
@@ -19821,6 +20103,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSearchFiles":
         SearchFiles.encode(message.payload.reqSearchFiles, writer.uint32(1074).fork()).join();
         break;
+      case "reqSetOutOfImages":
+        SetOutOfImages.encode(message.payload.reqSetOutOfImages, writer.uint32(1082).fork()).join();
+        break;
+      case "reqListOutOfImages":
+        ListOutOfImages.encode(message.payload.reqListOutOfImages, writer.uint32(1090).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -21011,6 +21299,28 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqSearchFiles", reqSearchFiles: SearchFiles.decode(reader, reader.uint32()) };
           continue;
         }
+        case 135: {
+          if (tag !== 1082) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetOutOfImages",
+            reqSetOutOfImages: SetOutOfImages.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 136: {
+          if (tag !== 1090) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqListOutOfImages",
+            reqListOutOfImages: ListOutOfImages.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -21434,6 +21744,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqGetLocalEndpoint", reqGetLocalEndpoint: GetLocalEndpoint.fromJSON(object.reqGetLocalEndpoint) }
         : isSet(object.reqSearchFiles)
         ? { $case: "reqSearchFiles", reqSearchFiles: SearchFiles.fromJSON(object.reqSearchFiles) }
+        : isSet(object.reqSetOutOfImages)
+        ? { $case: "reqSetOutOfImages", reqSetOutOfImages: SetOutOfImages.fromJSON(object.reqSetOutOfImages) }
+        : isSet(object.reqListOutOfImages)
+        ? { $case: "reqListOutOfImages", reqListOutOfImages: ListOutOfImages.fromJSON(object.reqListOutOfImages) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -21704,6 +22018,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetLocalEndpoint = GetLocalEndpoint.toJSON(message.payload.reqGetLocalEndpoint);
     } else if (message.payload?.$case === "reqSearchFiles") {
       obj.reqSearchFiles = SearchFiles.toJSON(message.payload.reqSearchFiles);
+    } else if (message.payload?.$case === "reqSetOutOfImages") {
+      obj.reqSetOutOfImages = SetOutOfImages.toJSON(message.payload.reqSetOutOfImages);
+    } else if (message.payload?.$case === "reqListOutOfImages") {
+      obj.reqListOutOfImages = ListOutOfImages.toJSON(message.payload.reqListOutOfImages);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -22758,6 +23076,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqSetOutOfImages": {
+        if (object.payload?.reqSetOutOfImages !== undefined && object.payload?.reqSetOutOfImages !== null) {
+          message.payload = {
+            $case: "reqSetOutOfImages",
+            reqSetOutOfImages: SetOutOfImages.fromPartial(object.payload.reqSetOutOfImages),
+          };
+        }
+        break;
+      }
+      case "reqListOutOfImages": {
+        if (object.payload?.reqListOutOfImages !== undefined && object.payload?.reqListOutOfImages !== null) {
+          message.payload = {
+            $case: "reqListOutOfImages",
+            reqListOutOfImages: ListOutOfImages.fromPartial(object.payload.reqListOutOfImages),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -23007,6 +23343,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respLocalEndpoint":
         LocalEndpoint.encode(message.payload.respLocalEndpoint, writer.uint32(530).fork()).join();
+        break;
+      case "respOutOfImagesFolders":
+        OutOfImagesFolders.encode(message.payload.respOutOfImagesFolders, writer.uint32(538).fork()).join();
         break;
     }
     return writer;
@@ -23600,6 +23939,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 67: {
+          if (tag !== 538) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respOutOfImagesFolders",
+            respOutOfImagesFolders: OutOfImagesFolders.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -23765,6 +24115,11 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respLogs", respLogs: Logs.fromJSON(object.respLogs) }
         : isSet(object.respLocalEndpoint)
         ? { $case: "respLocalEndpoint", respLocalEndpoint: LocalEndpoint.fromJSON(object.respLocalEndpoint) }
+        : isSet(object.respOutOfImagesFolders)
+        ? {
+          $case: "respOutOfImagesFolders",
+          respOutOfImagesFolders: OutOfImagesFolders.fromJSON(object.respOutOfImagesFolders),
+        }
         : undefined,
     };
   },
@@ -23899,6 +24254,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respLogs = Logs.toJSON(message.payload.respLogs);
     } else if (message.payload?.$case === "respLocalEndpoint") {
       obj.respLocalEndpoint = LocalEndpoint.toJSON(message.payload.respLocalEndpoint);
+    } else if (message.payload?.$case === "respOutOfImagesFolders") {
+      obj.respOutOfImagesFolders = OutOfImagesFolders.toJSON(message.payload.respOutOfImagesFolders);
     }
     return obj;
   },
@@ -24398,6 +24755,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respLocalEndpoint",
             respLocalEndpoint: LocalEndpoint.fromPartial(object.payload.respLocalEndpoint),
+          };
+        }
+        break;
+      }
+      case "respOutOfImagesFolders": {
+        if (object.payload?.respOutOfImagesFolders !== undefined && object.payload?.respOutOfImagesFolders !== null) {
+          message.payload = {
+            $case: "respOutOfImagesFolders",
+            respOutOfImagesFolders: OutOfImagesFolders.fromPartial(object.payload.respOutOfImagesFolders),
           };
         }
         break;

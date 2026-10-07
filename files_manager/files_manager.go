@@ -122,6 +122,15 @@ type Manager struct {
 	// sizesBackfilled is set once every row's size is known to be right
 	// (size_backfill.go); until then budgetSize also checks the blob.
 	sizesBackfilled atomic.Bool
+	// Issue #192 (out_of_images.go): outOfImagesMu serialises deciding and
+	// recording what is kept out of Images - the analysis guard, flagging
+	// and unflagging, reconcileAnalysis - and every write of the flagged
+	// folders; outOfImagesCache holds those folders, nil until loaded. Only
+	// this process writes the table, so the cache is never stale. Lock
+	// order: a hash's lock, then outOfImagesMu, then faceRefsMu; never a
+	// hash's lock while holding outOfImagesMu.
+	outOfImagesMu    sync.Mutex
+	outOfImagesCache atomic.Pointer[[]string]
 
 	// reprocessing guards issue #73's full-library reprocess job - true
 	// only while a goroutine started by *this process* is actively working
@@ -147,6 +156,12 @@ type Manager struct {
 func (mg *Manager) waitForTagger() modelserver.Tagger {
 	<-mg.taggerReady
 	return mg.tagger
+}
+
+// NewWithDAO is a Manager over d with nothing started - no models, no
+// background jobs - for the tests of the packages that use one.
+func NewWithDAO(d *dao.Dao) *Manager {
+	return &Manager{dao: d, searchTokens: newSearchTokenCache(cSearchTokensMaxRows)}
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
@@ -273,6 +288,11 @@ func (mg *Manager) initRest() *Manager {
 	// the websocket and the API only after Init returns.
 	mg.sweepOrphanedStorage()
 	go mg.sweepOrphanFaces()
+	// Issue #192: the folders kept out of Images, read once; a failure is
+	// read again at first use.
+	if _, err := mg.OutOfImagesFolders(); err != nil {
+		log.Error("could not read the folders kept out of Images:", err)
+	}
 	// Issue #187: once, the sizes of 2 GiB or more stored wrapped.
 	go mg.backfillSizes()
 
@@ -388,11 +408,16 @@ func (mg *Manager) ListFiles(session *session.Session, path string, recursive bo
 	if err != nil {
 		return nil, err
 	}
+	// Issue #192: and which are kept out of Images.
+	outOfImages, err := mg.OutOfImagesFolders()
+	if err != nil {
+		return nil, err
+	}
 	versions, err := mg.dao.CountFileVersions(path, !recursive)
 	if err != nil {
 		return nil, err
 	}
-	annotateListing(files, folders, versions)
+	annotateListing(files, folders, outOfImages, versions)
 
 	return files, nil
 }
@@ -409,6 +434,10 @@ func (mg *Manager) SearchFiles(query string, limit int32) ([]*pb.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	outOfImages, err := mg.OutOfImagesFolders()
+	if err != nil {
+		return nil, err
+	}
 	var paths []string
 	for _, f := range files {
 		if f.Mime != "inode/directory" {
@@ -419,17 +448,20 @@ func (mg *Manager) SearchFiles(query string, limit int32) ([]*pb.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	annotateListing(files, folders, versions)
+	annotateListing(files, folders, outOfImages, versions)
 
 	return files, nil
 }
 
 // annotateListing fills in what a listing's entries carry besides their
-// rows: folders are the upload-only folders, versions how many older
-// versions each path keeps.
-func annotateListing(files []*pb.File, folders []string, versions map[string]int32) {
+// rows: uploadOnly are the upload-only folders, outOfImages the folders
+// kept out of Images (issue #192), versions how many older versions each
+// path keeps.
+func annotateListing(files []*pb.File, uploadOnly, outOfImages []string, versions map[string]int32) {
 	for _, f := range files {
-		f.UploadOnly = underUploadOnly(f.Path, f.Mime == "inode/directory", folders)
+		isDir := f.Mime == "inode/directory"
+		f.UploadOnly = underFolders(f.Path, isDir, uploadOnly)
+		f.OutOfImages = underFolders(f.Path, isDir, outOfImages)
 		f.Versions = versions[f.Path]
 		// Issue #141: a file whose content is missing (or empty) on the
 		// disk is listed with no hash, so a sync client that has the file
@@ -461,8 +493,9 @@ func (mg *Manager) alert(what string, path string, err error) {
 // (issue #132); the handler turns it into RespEnvelope.error_code.
 var ErrUploadOnly = errors.New("this folder is upload only: nothing in it can be deleted")
 
-// folderPath is a folder as upload_only_folders stores it: with its
-// trailing slash, so "/kim/" never also covers "/kimono/".
+// folderPath is a folder as upload_only_folders (and issue #192's
+// out_of_images_folders) stores it: with its trailing slash, so "/kim/"
+// never also covers "/kimono/".
 func folderPath(path string) string {
 	if !strings.HasSuffix(path, "/") {
 		return path + "/"
@@ -471,7 +504,10 @@ func folderPath(path string) string {
 	return path
 }
 
-func underUploadOnly(path string, isDir bool, folders []string) bool {
+// underFolders is whether path (a file, or a folder given with or without
+// its slash) is, or is inside, one of folders (each with its trailing
+// slash): an upload-only folder, a folder kept out of Images.
+func underFolders(path string, isDir bool, folders []string) bool {
 	p := path
 	if isDir {
 		p = folderPath(p)
@@ -493,7 +529,7 @@ func (mg *Manager) isUploadOnly(path string, isDir bool) (bool, error) {
 		return false, err
 	}
 
-	return underUploadOnly(path, isDir, folders), nil
+	return underFolders(path, isDir, folders), nil
 }
 
 // LockedByParentError is SetUploadOnly's refusal to clear a folder inside
@@ -526,16 +562,16 @@ func (mg *Manager) SetUploadOnly(path string, on bool) error {
 		if err != nil {
 			return err
 		}
-		if parent := nearestUploadOnlyAbove(folder, folders); parent != "" {
+		if parent := nearestFolderAbove(folder, folders); parent != "" {
 			return &LockedByParentError{Folder: folder, Parent: parent, OwnFlag: slices.Contains(folders, folder)}
 		}
 	}
 	return mg.dao.SetUploadOnlyFolder(folder, on)
 }
 
-// nearestUploadOnlyAbove is the innermost of folders strictly containing
+// nearestFolderAbove is the innermost of folders strictly containing
 // folder (both with their trailing slash), or "".
-func nearestUploadOnlyAbove(folder string, folders []string) string {
+func nearestFolderAbove(folder string, folders []string) string {
 	nearest := ""
 	for _, f := range folders {
 		if f != folder && strings.HasPrefix(folder, f) && len(f) > len(nearest) {
@@ -912,6 +948,10 @@ var maxImagesSearch = func() int { return int(cfg.GetInt("tagger", "max-images-s
 // stays behind the token, so the next page continues where it ended.
 func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
+	// Issue #192: read before the token or the folders kept out of
+	// Images, so a folder kept out meanwhile is left out of what is
+	// stored at the end.
+	gen := mg.searchTokens.generation()
 	tokenFound := false
 	// files is all[off:]: what the token (or the new search) has left.
 	var all []*pb.File
@@ -938,7 +978,13 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		}
 	}
 	if !tokenFound {
-		files, err = mg.dao.SearchMedia(path, tags, personIDs, groupID, !includeVideos, before)
+		// Issue #192: never what the owner keeps out of Images - and a
+		// search fails rather than show it when that can't be read.
+		var excluded []string
+		if excluded, err = mg.OutOfImagesFolders(); err != nil {
+			return nil, "", err
+		}
+		files, err = mg.dao.SearchMedia(path, tags, personIDs, groupID, !includeVideos, before, excluded)
 		// One tile per photo, not per path: the same picture synced from
 		// two places (a phone that got a new install id and sent its
 		// library again under a new folder, a copy in two folders on the
@@ -1005,7 +1051,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		// left at every page, because served rows used to carry their
 		// thumbnails; since #171 Content is only ever set on the page's
 		// clones, never on these rows, so keeping them costs only the rows.
-		mg.searchTokens.store(token, nextCursor(all, off, next), time.Now())
+		mg.searchTokens.store(token, nextCursor(all, off, next), time.Now(), gen)
 	} else {
 		log.Debug("End for token:", token)
 		token = "" // We reached the end
@@ -1018,16 +1064,26 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 // gallery's date scrubber - a thin passthrough, no thumbnails/encryption
 // involved since it's just counts, not files.
 func (mg *Manager) PhotoDateBuckets(tags []string, personIDs []string, groupID string, includeVideos bool) ([]dao.DateBucket, error) {
-	return mg.dao.SearchMediaDateBuckets(tags, personIDs, groupID, !includeVideos)
+	excluded, err := mg.OutOfImagesFolders()
+	if err != nil {
+		return nil, err
+	}
+	return mg.dao.SearchMediaDateBuckets(tags, personIDs, groupID, !includeVideos, excluded)
 }
 
 // ListImageGroups (issue #115) lists the albums with a cover picture each:
 // the dao picks a random member's hash, and this decrypts that member's
 // thumbnail with the session's key - the same GetThumbnail every search
 // result goes through, which only needs the hash. A group with no cover
-// (empty, or every member since deleted) just has no picture.
+// (empty, or every member since deleted) just has no picture. Members
+// only folders kept out of Images hold neither count nor make the cover
+// (issue #192), as the group's photos leave them out.
 func (mg *Manager) ListImageGroups(session *session.Session) ([]*pb.ImageGroup, error) {
-	groups, err := mg.dao.ListImageGroups()
+	excluded, err := mg.OutOfImagesFolders()
+	if err != nil {
+		return nil, err
+	}
+	groups, err := mg.dao.ListImageGroups(excluded)
 	if err != nil {
 		return nil, err
 	}
@@ -1041,7 +1097,11 @@ func (mg *Manager) ListImageGroups(session *session.Session) ([]*pb.ImageGroup, 
 // GetImageGroup is one group as ListImageGroups lists it, reading only its
 // own cover.
 func (mg *Manager) GetImageGroup(session *session.Session, id string) (*pb.ImageGroup, error) {
-	g, err := mg.dao.GetImageGroup(id)
+	excluded, err := mg.OutOfImagesFolders()
+	if err != nil {
+		return nil, err
+	}
+	g, err := mg.dao.GetImageGroup(id, excluded)
 	if err != nil {
 		return nil, err
 	}
@@ -1251,23 +1311,51 @@ func (mg *Manager) DelPath(session *session.Session, path string) error {
 	if err != nil {
 		return err
 	}
-	if underUploadOnly(path, true, folders) {
+	if underFolders(path, true, folders) {
 		return ErrUploadOnly
 	}
 	for _, entry := range entries {
-		if underUploadOnly(entry.Path, false, folders) {
+		if underFolders(entry.Path, false, folders) {
 			return ErrUploadOnly
 		}
 	}
+	// Issue #192: once every file is gone (or the delete stopped), what
+	// the deleted rows held is checked against the folders kept out of
+	// Images in one go, rather than per file.
+	var touched []string
+	defer func() { mg.reconcileAnalysis(session, touched) }()
 	for _, entry := range entries {
-		if err := mg.DelFile(session, entry.Path); err != nil {
+		hashes, err := mg.delFile(entry.Path)
+		touched = append(touched, hashes...)
+		if err != nil {
 			return err
 		}
+	}
+	// Issue #192: a deleted folder takes its flags with it - only once the
+	// whole delete worked - so it doesn't secretly keep a future folder of
+	// the same name out of Images. Not a deleted file's: "/a/b" can be a
+	// file row next to the folder "/a/b/" (resolvePaths took the file).
+	if len(entries) != 1 || entries[0].Path != path {
+		mg.clearOutOfImagesUnder(folderPath(path))
 	}
 	return nil
 }
 
-func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
+// DelFile deletes the file at path, with its kept versions and whatever
+// content nothing uses any more.
+func (mg *Manager) DelFile(session *session.Session, path string) error {
+	hashes, err := mg.delFile(path)
+	// Issue #192: content kept out of Images by now - its last path
+	// outside the folders kept out went ("move into" one) - loses its
+	// tags and faces. Never a flag: a sync app empties a folder file by
+	// file, and its flag must stay for the files coming back.
+	mg.reconcileAnalysis(session, hashes)
+	return err
+}
+
+// delFile is DelFile, returning the content hashes the deleted rows held
+// (none when nothing was deleted).
+func (mg *Manager) delFile(path string) (hashes []string, err error) {
 	// Issue #173: the deleted row's hash comes back from the delete's own
 	// transaction instead of a GetFileByPath beforehand - one query less
 	// per file (every file of a deleted folder comes through here), and
@@ -1275,8 +1363,9 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	// still fails with sql.ErrNoRows, as that GetFileByPath did.
 	hash, err := mg.dao.DelFileByPathHash(path)
 	if err != nil {
-		return
+		return nil, err
 	}
+	hashes = []string{hash}
 
 	// Files are deduplicated on disk by hash (more than one path can point
 	// at the same blob), so the blob and thumbnail can only be removed
@@ -1297,15 +1386,16 @@ func (mg *Manager) DelFile(session *session.Session, path string) (err error) {
 	// another path or version still uses them.
 	versionHashes, err := mg.dao.DelFileVersions(path)
 	if err != nil {
-		return err
+		return hashes, err
 	}
-	for _, h := range append([]string{hash}, versionHashes...) {
+	hashes = append(hashes, versionHashes...)
+	for _, h := range hashes {
 		if err := mg.removeBlobIfUnused(h); err != nil {
-			return err
+			return hashes, err
 		}
 	}
 
-	return nil
+	return hashes, nil
 }
 
 // UploadFile stores content under path. cloudID is the photo library's own
@@ -1369,6 +1459,10 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	// Content the device already had and processed needs none of it redone
 	// (see LinkFile): a photo the phone synced, dropped again in Files.
 	if known && mg.hasThumbnail(hash) {
+		// Issue #192: unless it was kept out of Images until now - every
+		// path of it in a folder kept out - and this path is outside them:
+		// a copy or move out is analysed now.
+		mg.reconcileAnalysis(session, []string{hash})
 		return file, nil
 	}
 
@@ -1481,6 +1575,9 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 				if err := mg.removeBlobIfUnused(oldHash); err != nil {
 					log.Error("could not remove overridden content", oldHash, ":", err)
 				}
+				// Issue #192: the old content may have lost its last path
+				// outside the folders kept out of Images.
+				mg.reconcileAnalysis(session, []string{oldHash})
 			}
 		default:
 			return nil, false, errors.New("Duplicated file")
@@ -1501,7 +1598,8 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 // same as it always did); targetPath is only used to derive the
 // "<hash>_thumbnail" sibling path.
 func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, targetPath string, content []byte) {
-	if mg.processMedia(session, file, targetPath, content, stageAll) {
+	// Issue #192: content kept out of Images gets its thumbnail only.
+	if mg.processMedia(session, file, targetPath, content, mg.guardAnalysis(file.Hash, stageAll)) {
 		mg.donePendingAnalysis(file.Hash)
 	}
 }
@@ -1530,11 +1628,20 @@ const (
 
 // processMedia is processMediaContent limited to stages. It reports false
 // when the file could not be decoded at all (already alerted), so the
-// fast lane doesn't queue an analysis bound to fail the same way.
+// fast lane doesn't queue an analysis bound to fail the same way. Its two
+// callers (processMediaContent, processStoredStages) take the analysis
+// out of stages first for content kept out of Images (guardAnalysis,
+// issue #192), before anything is read or decoded.
 func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetPath string, content []byte, stages mediaStages) bool {
 	// Issue #171: the file may be deleted while this runs - its content,
 	// thumbnail and tags were then written for a hash nothing uses.
 	defer mg.dropIfOrphaned(file.Hash)
+	if stages&stageAnalysis != 0 {
+		// Issue #192: a folder kept out of Images while this analysed its
+		// only paths - what was just written goes again. Runs first of the
+		// two deferred calls: after the tags and faces are written.
+		defer mg.reconcileAnalysis(nil, []string{file.Hash})
+	}
 	// We will try to create a thumbnail of images only
 	// A ".HEIC" that is really a JPEG (some apps export one under the
 	// original's name) is decoded as the JPEG it is.
@@ -1844,6 +1951,10 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 		return err
 	}
 	mg.dropFacesOfHash(hash)
+	// Issue #192: content that is gone keeps no row.
+	if err := mg.dao.DelSkippedAnalysis(hash); err != nil {
+		log.Error("could not forget the skipped analysis of deleted content", hash, ":", err)
+	}
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return err
@@ -1907,6 +2018,9 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 		log.Error("could not remove the tags of deleted content", hash, ":", err)
 	}
 	mg.dropFacesOfHash(hash)
+	if err := mg.dao.DelSkippedAnalysis(hash); err != nil {
+		log.Error("could not forget the skipped analysis of deleted content", hash, ":", err)
+	}
 	full := blobPath(hash)
 	os.Remove(full)
 	os.Remove(full + "_thumbnail")
@@ -1985,6 +2099,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 			if err := mg.withBlob(hash, func() error { return mg.dao.ReplaceFileKeepingVersion(file, cloudID) }); err != nil {
 				return nil, err
 			}
+			mg.reconcileAnalysis(session, []string{hash})
 
 			return file, nil
 		}
@@ -2006,7 +2121,16 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 				log.Error("could not remove overridden content", oldHash, ":", err)
 			}
 		}
+		// Issue #192: as below, and the old content may have lost its last
+		// path outside the folders kept out of Images.
+		mg.reconcileAnalysis(session, []string{hash, oldHash})
+
+		return file, nil
 	}
+
+	// Issue #192: a copy (or the new half of a move) out of a folder kept
+	// out of Images analyses content kept out until now.
+	mg.reconcileAnalysis(session, []string{hash})
 
 	return file, nil
 }

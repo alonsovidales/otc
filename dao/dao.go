@@ -2466,7 +2466,10 @@ func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 // groupID (issue #115) restricts to one image group's members - an inner
 // join on image_group_files, so it combines with tags/people the same way
 // they combine with each other (a photo has to satisfy all of them).
-func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time) (from, where, groupBy, having, orderBy, selectExtra string, args []any) {
+// excluded (issue #192) is the folders kept out of Images: rows under any
+// of them are left out, so content also held outside them is found - and
+// shown once - through that other path.
+func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (from, where, groupBy, having, orderBy, selectExtra string, args []any) {
 	from = "from `files` as `f`"
 	orderBy = " order by `f`.`created` desc"
 
@@ -2509,6 +2512,12 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 		// left-to-right order the ?s appear in the assembled query.
 		args = append(args, condArgs...)
 	}
+	// Issue #192: after the path condition, before `before` - the same
+	// left-to-right rule: its args follow the path's.
+	if cond, condArgs := outsideFolders("`f`.`path`", excluded); cond != "" {
+		whereParts = append(whereParts, cond)
+		args = append(args, condArgs...)
+	}
 	// Without a tag, person or album join there is nothing tying the rows
 	// to media, so say so here: the gallery must never be handed a text
 	// file (it has no thumbnail, and one such row used to blank the whole
@@ -2533,8 +2542,8 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 	return
 }
 
-func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time) (files []*pb.File, err error) {
-	from, where, groupBy, having, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before)
+func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (files []*pb.File, err error) {
+	from, where, groupBy, having, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded)
 
 	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
 		from + where + groupBy + having + orderBy
@@ -2583,8 +2592,8 @@ type DateBucket struct {
 // buckets are always reported newest-month-first regardless of chip state -
 // callers are expected to hide the scrubber entirely when tags are active,
 // per its own doc comment on the ReqPhotoDateBuckets proto message.
-func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, groupID string, imagesOnly bool) (buckets []DateBucket, err error) {
-	from, where, groupBy, having, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil)
+func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, groupID string, imagesOnly bool, excluded []string) (buckets []DateBucket, err error) {
+	from, where, groupBy, having, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil, excluded)
 
 	// groupBy/having (by `f`.`hash`, when personIDs are given) enforce the
 	// "matches every requested person on the SAME file" AND semantics -
@@ -2630,9 +2639,12 @@ type ImageGroup struct {
 // count and a random cover. Both are computed against `files` rather
 // than image_group_files alone, so a member whose last copy was deleted
 // is neither counted nor offered as a cover (see the table's comment in
-// db.sql for why there is no FK doing this for us).
-func (dao *Dao) ListImageGroups() (groups []*ImageGroup, err error) {
-	rows, err := dao.db.Query(cImageGroupSelect + " order by `g`.`created` desc")
+// db.sql for why there is no FK doing this for us). excluded (issue #192):
+// a member only folders kept out of Images hold is neither either - it
+// stays a member, and is back once shown in Images again.
+func (dao *Dao) ListImageGroups(excluded []string) (groups []*ImageGroup, err error) {
+	query, args := imageGroupSelect(excluded)
+	rows, err := dao.db.Query(query+" order by `g`.`created` desc", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -2650,18 +2662,28 @@ func (dao *Dao) ListImageGroups() (groups []*ImageGroup, err error) {
 	return groups, rows.Err()
 }
 
-// cImageGroupSelect is a group as ListImageGroups and GetImageGroup read
-// it: one query, so the two can't drift apart.
-const cImageGroupSelect = "select `g`.`id`, `g`.`name`," +
-	" (select count(distinct `m`.`hash`) from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`)," +
-	" (select `m`.`hash` from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id` order by rand() limit 1)" +
-	" from `image_groups` as `g`"
+// imageGroupSelect is a group as ListImageGroups and GetImageGroup read
+// it: one query, so the two can't drift apart. Members count, and are
+// offered as the cover, through files outside excluded (issue #192) -
+// the same condition in both subqueries, so its args come twice.
+func imageGroupSelect(excluded []string) (string, []any) {
+	outside, outsideArgs := outsideFolders("`f`.`path`", excluded)
+	if outside != "" {
+		outside = " and " + outside
+	}
+	query := "select `g`.`id`, `g`.`name`," +
+		" (select count(distinct `m`.`hash`) from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`" + outside + ")," +
+		" (select `m`.`hash` from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`" + outside + " order by rand() limit 1)" +
+		" from `image_groups` as `g`"
+	return query, append(append([]any{}, outsideArgs...), outsideArgs...)
+}
 
 // GetImageGroup is one group as ListImageGroups lists it.
-func (dao *Dao) GetImageGroup(id string) (*ImageGroup, error) {
+func (dao *Dao) GetImageGroup(id string, excluded []string) (*ImageGroup, error) {
 	g := new(ImageGroup)
 	var cover sql.NullString
-	if err := dao.db.QueryRow(cImageGroupSelect+" where `g`.`id` = ?", id).Scan(&g.ID, &g.Name, &g.FileCount, &cover); err != nil {
+	query, args := imageGroupSelect(excluded)
+	if err := dao.db.QueryRow(query+" where `g`.`id` = ?", append(args, id)...).Scan(&g.ID, &g.Name, &g.FileCount, &cover); err != nil {
 		return nil, err
 	}
 	g.CoverHash = cover.String

@@ -129,8 +129,8 @@ func TestCollectExpiredTokensRemovesOnlyExpiredEntries(t *testing.T) {
 	mg := &Manager{searchTokens: newSearchTokenCache(1000)}
 	now := time.Now()
 	rows := &searchCursor{all: []*pb.File{{Path: "/a"}}}
-	mg.searchTokens.store("fresh", rows, now)
-	mg.searchTokens.store("stale", rows, now.Add(-cToeknsTTL-time.Minute))
+	mg.searchTokens.store("fresh", rows, now, 0)
+	mg.searchTokens.store("stale", rows, now.Add(-cToeknsTTL-time.Minute), 0)
 
 	mg.collectExpiredTokens()
 
@@ -425,7 +425,7 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 		WithArgs(hash, hash).
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	if err := mg.DelFile(nil, "/photos/a.jpg"); err != nil {
 		t.Fatalf("DelFile returned an unexpected error: %v", err)
 	}
@@ -627,7 +627,7 @@ func TestResolvePathsExpandsADirectoryToTheFilesUnderIt(t *testing.T) {
 			AddRow("h1", "image/jpeg", time.Now(), time.Now(), "/kim/a.jpg", 1).
 			AddRow("h2", "image/jpeg", time.Now(), time.Now(), "/kim/sub/b.jpg", 2))
 
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	files, err := mg.resolvePaths([]string{"/kim"})
 	if err != nil {
 		t.Fatalf("resolvePaths: %v", err)
@@ -653,7 +653,7 @@ func TestResolvePathsRejectsUnknownPath(t *testing.T) {
 	mock.ExpectQuery("from `files` where `path` regexp \\?").WithArgs("^/nope/").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	if _, err := mg.resolvePaths([]string{"/nope"}); err == nil {
 		t.Error("expected an error for a path that is neither a file nor a directory")
 	}

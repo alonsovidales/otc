@@ -749,6 +749,19 @@ SQL
     ALTER TABLE social_publications_files MODIFY `size` BIGINT NOT NULL;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS sizes_backfilled TINYINT(1) NOT NULL DEFAULT 0;
 SQL
+    # Release 108 (issue #192): folders kept out of Images, and the content
+    # whose analysis that skipped (see db.sql).
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS out_of_images_folders (
+      `path` VARCHAR(768) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+      PRIMARY KEY (`path`)
+    ) ENGINE=InnoDB;
+    CREATE TABLE IF NOT EXISTS skipped_analysis (
+      `hash` VARCHAR(64) NOT NULL,
+      `skipped` DATETIME NOT NULL,
+      PRIMARY KEY (`hash`)
+    ) ENGINE=InnoDB;
+SQL
     # Issue #73: full-library reprocess, same idempotent-upgrade reasoning as
     # the face recognition block above.
     mysql "$db" <<'SQL'

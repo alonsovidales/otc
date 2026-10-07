@@ -67,6 +67,79 @@ func (dao *Dao) DelFacesByHash(hash string) (faces []DeletedFace, err error) {
 	return faces, nil
 }
 
+// DelFacesByHashes is DelFacesByHash for many contents at once, in one
+// transaction and cHashChunk hashes per statement (issue #192: a folder
+// kept out of Images loses the faces of everything only it holds). The
+// same rules: covers among them are cleared, unnamed people left with no
+// face go, named ones stay.
+func (dao *Dao) DelFacesByHashes(hashes []string) (faces []DeletedFace, err error) {
+	withFaces := map[string]bool{}
+	for _, chunk := range hashChunks(hashes) {
+		ph, args := inPlaceholders(chunk)
+		rows, err := dao.db.Query("select `id`, `person_id`, `hash` from `faces` where `hash` in ("+ph+")", args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var f DeletedFace
+			var h string
+			if err := rows.Scan(&f.ID, &f.PersonID, &h); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			faces = append(faces, f)
+			withFaces[h] = true
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(faces) == 0 {
+		return nil, nil
+	}
+	var people, affected []string
+	seen := map[string]bool{}
+	for _, f := range faces {
+		if !seen[f.PersonID] {
+			seen[f.PersonID] = true
+			people = append(people, f.PersonID)
+		}
+	}
+	for _, h := range hashes {
+		if withFaces[h] {
+			affected = append(affected, h)
+			delete(withFaces, h) // once, should hashes repeat one
+		}
+	}
+
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	for _, chunk := range hashChunks(affected) {
+		ph, args := inPlaceholders(chunk)
+		if _, err = tx.Exec("update `people` set `cover_face_id` = null where `cover_face_id` in (select `id` from `faces` where `hash` in ("+ph+"))", args...); err != nil {
+			return nil, fmt.Errorf("clearing covers: %w", err)
+		}
+		if _, err = tx.Exec("delete from `faces` where `hash` in ("+ph+")", args...); err != nil {
+			return nil, fmt.Errorf("deleting faces: %w", err)
+		}
+	}
+	for _, chunk := range hashChunks(people) {
+		ph, args := inPlaceholders(chunk)
+		if _, err = tx.Exec("delete from `people` where `id` in ("+ph+") and `name` = '' and not exists (select 1 from `faces` where `faces`.`person_id` = `people`.`id`)", args...); err != nil {
+			return nil, fmt.Errorf("deleting people left with no face: %w", err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return faces, nil
+}
+
 // hashFaces is the faces found in the content hash, with their people.
 func (dao *Dao) hashFaces(hash string) (faces []DeletedFace, err error) {
 	rows, err := dao.db.Query("select `id`, `person_id` from `faces` where `hash` = ?", hash)

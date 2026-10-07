@@ -213,6 +213,10 @@ type Manager struct {
 func (mg *Manager) startBackfillOnce(ses *session.Session) {
 	mg.backfillOnce.Do(func() {
 		go func() {
+			// Issue #192: what an interrupted keep-out or show-again left,
+			// first - it records in pending_analysis what goes back to
+			// the analysis, which the resume below then queues.
+			mg.filesManager.ReconcileOutOfImages(ses)
 			// What a restart interrupted goes back in the processing lanes
 			// first; the backfill leaves those files to them.
 			mg.filesManager.ResumePendingAnalysis(ses)
@@ -2397,6 +2401,32 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
+	// Issue #192: folders kept out of Images.
+	case *pb.ReqEnvelope_ReqSetOutOfImages:
+		log.Debug("Set out of Images:", p.ReqSetOutOfImages.Path, p.ReqSetOutOfImages.OutOfImages)
+		if err := ch.mg.filesManager.SetOutOfImages(ses, p.ReqSetOutOfImages.Path, p.ReqSetOutOfImages.OutOfImages); err != nil {
+			resp.Error = true
+			var byParent *filesmanager.OutOfImagesByParentError
+			if errors.As(err, &byParent) {
+				// As locked_by_parent: every client shows the message.
+				resp.ErrorCode = "out_of_images_by_parent"
+				resp.ErrorMessage = err.Error()
+			} else {
+				resp.ErrorMessage = fmt.Sprintf("error updating the folder: %s", err)
+			}
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqListOutOfImages:
+		folders, err := ch.mg.filesManager.OutOfImagesFolders()
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = fmt.Sprintf("error listing the folders kept out of Images: %s", err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespOutOfImagesFolders{RespOutOfImagesFolders: &pb.OutOfImagesFolders{Paths: folders}}
+		}
+
 	case *pb.ReqEnvelope_ReqListFileVersions:
 		versions, err := ch.mg.filesManager.FileVersions(p.ReqListFileVersions.Path)
 		if err != nil {
@@ -2409,6 +2439,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 	case *pb.ReqEnvelope_ReqListFiles:
 		log.Debug("List of file by path:", p.ReqListFiles.Path, p.ReqListFiles.Recursive)
 		files, err := ch.mg.filesManager.ListFiles(ses, p.ReqListFiles.Path, p.ReqListFiles.Recursive)
+		var folderOut bool
+		if err == nil {
+			// Issue #192: the explorers' banner. ListFiles has just read
+			// the folders, so this is from memory.
+			folderOut, err = ch.mg.filesManager.IsOutOfImages(p.ReqListFiles.Path, true)
+		}
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -2419,6 +2455,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
 				RespListOfFiles: &pb.ListOfFiles{
 					Files: files,
+					// Issue #192: older devices leave it false, and the
+					// explorers then show no control.
+					OutOfImagesSupported: true,
+					FolderOutOfImages:    folderOut,
 				},
 			}
 		}
@@ -2435,7 +2475,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
-				RespListOfFiles: &pb.ListOfFiles{Files: files},
+				RespListOfFiles: &pb.ListOfFiles{Files: files, OutOfImagesSupported: true},
 			}
 		}
 

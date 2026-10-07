@@ -3,6 +3,7 @@
 package filesmanager
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"runtime"
@@ -153,6 +154,11 @@ func (mg *Manager) enqueueMedia(ses *session.Session, file *pb.File, target stri
 // processStoredStages runs stages of processing on a file already on
 // disk. A video isn't read whole: ffmpeg streams what it needs.
 func (mg *Manager) processStoredStages(ses *session.Session, file *pb.File, target string, stages mediaStages) bool {
+	// Issue #192: decided before the file is read - an analysis job for
+	// content kept out of Images has nothing to do, and nothing failed.
+	if stages = mg.guardAnalysis(file.Hash, stages); stages == 0 {
+		return true
+	}
 	if strings.HasPrefix(file.Mime, "video/") && mg.videoSourceFn != nil {
 		return mg.processMedia(ses, file, target, nil, stages)
 	}
@@ -192,6 +198,40 @@ func (mg *Manager) analysisJob(j mediaJob) {
 	// Done even when it failed: a file that crashes the analysis must not
 	// be retried at every start.
 	mg.donePendingAnalysis(j.file.Hash)
+}
+
+// enqueueAnalysis queues the analysis of content that was kept out of
+// Images and no longer is (issue #192), already recorded in
+// pending_analysis (TakeSkippedAnalysis moved it there): the analysis
+// lane - or the fast lane, which goes on to it, when there is no thumbnail
+// yet. Content only kept versions hold isn't in Images: it isn't queued,
+// and the next start's ResumePendingAnalysis drops its row.
+func (mg *Manager) enqueueAnalysis(ses *session.Session, hash string) {
+	file, err := mg.dao.GetFileByHash(hash)
+	if err == sql.ErrNoRows {
+		return
+	}
+	if err != nil {
+		// Recorded as skipped again too: ResumePendingAnalysis drops a
+		// pending row whose file it can't read, but ReconcileOutOfImages,
+		// which runs first, moves this one back.
+		log.Error("could not queue the analysis of", hash, ":", err)
+		if err := mg.dao.AddSkippedAnalysis([]string{hash}); err != nil {
+			log.Error("could not record the analysis of", hash, "as still to do:", err)
+		}
+		return
+	}
+	if !isMedia(file) {
+		// Nothing to analyse: a lane would only fail to decode it.
+		mg.donePendingAnalysis(hash)
+		return
+	}
+	j := mediaJob{ses: ses, file: file, target: blobPath(hash)}
+	if mg.hasThumbnail(hash) {
+		mg.mediaLanes().analysis.push(j)
+	} else {
+		mg.mediaLanes().fast.push(j)
+	}
 }
 
 func (mg *Manager) donePendingAnalysis(hash string) {

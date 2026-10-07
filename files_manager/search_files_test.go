@@ -23,7 +23,7 @@ func TestSearchFilesFillsEntriesAsListFilesDoes(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	missingBlobs.set("h-gone", true)
 	defer missingBlobs.set("h-gone", false)
 	at := time.Date(2026, 10, 7, 9, 30, 0, 0, time.UTC)
@@ -102,7 +102,7 @@ func TestSearchFilesEmptyQueryAsksNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	if files, err := mg.SearchFiles(" \t", 0); err != nil || len(files) != 0 {
 		t.Errorf("got %v, %v", files, err)
 	}
@@ -118,7 +118,7 @@ func TestSearchFilesReturnsErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
 	boom := errors.New("boom")
 
 	mock.ExpectQuery("select `path` from `files`").WillReturnError(boom)

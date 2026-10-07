@@ -273,6 +273,30 @@ message FileVersions {
   repeated File versions = 1;
 }
 
+// Issue #192: keep a folder out of Images, or show it there again. Photos
+// and videos under a folder kept out still get thumbnails (Files shows
+// them) but are never tagged or searched for faces, and Images - the photo
+// search, its tags, People, collections - leaves them out; keeping one out
+// deletes the tags and faces found in content no other path holds, and
+// showing it again analyses that content in the background (tags, faces
+// when face recognition is on). Answers with the generic Ack. Refused with
+// error_code "out_of_images_by_parent" when out_of_images is false for a
+// folder inside another one kept out (the message names it). Devices
+// before release 108 answer "unknown_payload".
+message SetOutOfImages {
+  string path = 1;
+  bool out_of_images = 2;
+}
+
+// Issue #192: every folder kept out of Images, each with its trailing
+// slash - what the computer apps show next to their folders. Answers with
+// OutOfImagesFolders.
+message ListOutOfImages {}
+
+message OutOfImagesFolders {
+  repeated string paths = 1;
+}
+
 message ListFiles {
   string path = 1;
   bool recursive = 2;
@@ -391,6 +415,12 @@ message SearchPhotos {
 message ListOfFiles {
   repeated File files = 1;
   string token = 2;
+  // Issue #192, set by ListFiles and SearchFiles: the device can keep
+  // folders out of Images (devices before release 108 leave it false, and
+  // the explorers then show no control), and whether the listed folder
+  // itself is kept out (the explorers' banner; ListFiles only).
+  bool out_of_images_supported = 3;
+  bool folder_out_of_images = 4;
 }
 
 // Issue #77: per-month photo counts, used to size/position the gallery's
@@ -431,6 +461,9 @@ message File {
   // when it is non-zero and fall back to size. `size` keeps carrying the
   // int64 wrapped to int32, as before, for apps that only know it.
   int64 size64 = 11;
+  // Issue #192, filled by ListFiles and SearchFiles: this entry is, or is
+  // inside, a folder kept out of Images (see SetOutOfImages).
+  bool out_of_images = 12;
 }
 
 message Ack {
@@ -1953,6 +1986,10 @@ message ReqEnvelope {
     GetLocalEndpoint req_get_local_endpoint = 133;
     // The top bar's search by path. Answers with ListOfFiles.
     SearchFiles req_search_files = 134;
+    // Issue #192: folders kept out of Images. SetOutOfImages answers with
+    // the generic Ack, ListOutOfImages with resp_out_of_images_folders.
+    SetOutOfImages req_set_out_of_images = 135;
+    ListOutOfImages req_list_out_of_images = 136;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -1973,7 +2010,9 @@ message RespEnvelope {
   string error_message = 3;
   // Machine-readable reason when error is set, for the cases a client has
   // to act on rather than just show: "upload_only" (issue #132: a delete
-  // under an upload-only folder - a sync client must not retry it).
+  // under an upload-only folder - a sync client must not retry it),
+  // "out_of_images_by_parent" (issue #192: SetOutOfImages can't show a
+  // folder inside another one kept out of Images; the message names it).
   string error_code = 4;
   oneof payload {
     Status resp_status = 10;
@@ -2051,5 +2090,7 @@ message RespEnvelope {
     Logs resp_logs = 65;
     // Issue #190.
     LocalEndpoint resp_local_endpoint = 66;
+    // Issue #192.
+    OutOfImagesFolders resp_out_of_images_folders = 67;
   }
 }

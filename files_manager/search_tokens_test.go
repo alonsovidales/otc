@@ -27,9 +27,9 @@ func cursorOf(n int) *searchCursor {
 func TestSearchTokensEvictTheLeastRecentlyUsed(t *testing.T) {
 	c := newSearchTokenCache(10)
 	now := time.Now()
-	c.store("old", cursorOf(4), now)
-	c.store("mid", cursorOf(4), now.Add(time.Second))
-	c.store("new", cursorOf(4), now.Add(2*time.Second)) // 12 > 10: "old" goes
+	c.store("old", cursorOf(4), now, 0)
+	c.store("mid", cursorOf(4), now.Add(time.Second), 0)
+	c.store("new", cursorOf(4), now.Add(2*time.Second), 0) // 12 > 10: "old" goes
 	if _, ok := c.load("old"); ok {
 		t.Error("the least recently used token stayed")
 	}
@@ -42,13 +42,60 @@ func TestSearchTokensEvictTheLeastRecentlyUsed(t *testing.T) {
 		t.Errorf("%d rows counted, want 8", c.rows)
 	}
 	// Used again (a new page stored), "mid" is now the newest.
-	c.store("mid", cursorOf(3), now.Add(3*time.Second))
-	c.store("big", cursorOf(20), now.Add(4*time.Second))
+	c.store("mid", cursorOf(3), now.Add(3*time.Second), 0)
+	c.store("big", cursorOf(20), now.Add(4*time.Second), 0)
 	if _, ok := c.load("big"); !ok {
 		t.Error("the token just stored was evicted")
 	}
 	if len(c.by) != 1 || c.rows != 20 {
 		t.Errorf("%d tokens, %d rows left, want only the one just stored", len(c.by), c.rows)
+	}
+}
+
+func restPaths(cur *searchCursor) string {
+	var paths []string
+	for _, f := range cur.all[cur.off:] {
+		paths = append(paths, f.Path)
+	}
+	return strings.Join(paths, ",")
+}
+
+func cursorOfPaths(off int, paths ...string) *searchCursor {
+	c := &searchCursor{off: off}
+	for _, p := range paths {
+		c.all = append(c.all, &pb.File{Path: p})
+	}
+	return c
+}
+
+// Issue #192: a page stored by a search that started before a folder was
+// kept out has that folder's rows left out; after a clear, when what is
+// kept out isn't known, it isn't stored at all.
+func TestSearchTokenStoredAcrossAFlag(t *testing.T) {
+	c := newSearchTokenCache(100)
+	now := time.Now()
+	gen := c.generation()
+	c.keepOut([]string{"/Private/"})
+	c.store("t", cursorOfPaths(1, "/Phone/0.jpg", "/Private/a.jpg", "/Phone/b.jpg"), now, gen)
+	cur, ok := c.load("t")
+	if !ok || restPaths(cur) != "/Phone/b.jpg" {
+		t.Fatalf("stored across the flag: %v %q", ok, restPaths(cur))
+	}
+	if c.rows != 1 {
+		t.Errorf("%d rows counted, want 1", c.rows)
+	}
+	// From a search that started after it: as found.
+	fresh := cursorOfPaths(0, "/Phone/c.jpg")
+	c.store("u", fresh, now, c.generation())
+	if cur, _ := c.load("u"); cur != fresh {
+		t.Error("a page of the current generation was copied")
+	}
+
+	gen = c.generation()
+	c.clear()
+	c.store("t", cursorOfPaths(0, "/Phone/b.jpg"), now, gen)
+	if _, ok := c.load("t"); ok || c.rows != 0 {
+		t.Errorf("a page from before a clear was stored (%d rows)", c.rows)
 	}
 }
 
@@ -86,7 +133,7 @@ func TestImageSearchPagesThroughItsToken(t *testing.T) {
 		rows.AddRow(hash, "image/jpeg", time.Now(), time.Now(), fmt.Sprintf("/p/%d.jpg", i), 1)
 	}
 	mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
-	mg := &Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 
 	var got []string
 	token := ""
@@ -137,7 +184,7 @@ func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
 		}
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
 	}
-	mg := &Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)}
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 	search := func(token string, limit int32) ([]*pb.File, string) {
 		t.Helper()
 		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, limit)

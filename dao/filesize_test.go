@@ -69,7 +69,7 @@ func TestFileReadersCarryA3GiBSize(t *testing.T) {
 			return d.GetFilesByPath("/", true, false)
 		}},
 		{"SearchMedia", "from `files` as `f`", fileRow, func(d *Dao) ([]*pb.File, error) {
-			return d.SearchMedia("", nil, nil, "", false, nil)
+			return d.SearchMedia("", nil, nil, "", false, nil, nil)
 		}},
 		{"ListMediaForReprocess", "from `files`.*group by `hash`", fileRow, func(d *Dao) ([]*pb.File, error) {
 			return d.ListMediaForReprocess("", 10)

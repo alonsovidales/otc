@@ -236,8 +236,10 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 		mg.alert("could not be saved to disk", file.Path, err)
 		return nil, err
 	}
-	// As UploadFile: content already processed isn't processed again.
+	// As UploadFile: content already processed isn't processed again -
+	// unless it was kept out of Images until now (issue #192).
 	if known && mg.hasThumbnail(hash) {
+		mg.reconcileAnalysis(ses, []string{hash})
 		return file, nil
 	}
 

@@ -121,12 +121,24 @@ func (mg *Manager) sharedGallerySource(src *pb.SharedGallerySource) (files []*pb
 			all = append(all, f)
 		}
 	case src.GroupId != "":
-		if all, err = mg.dao.SearchMedia("", nil, nil, src.GroupId, false, nil); err != nil {
+		// Issue #192: what the collection shows - its members kept out of
+		// Images aren't.
+		excluded, err := mg.OutOfImagesFolders()
+		if err != nil {
+			return nil, 0, err
+		}
+		if all, err = mg.dao.SearchMedia("", nil, nil, src.GroupId, false, nil, excluded); err != nil {
 			return nil, 0, err
 		}
 	case src.Directory != "":
 		dir := strings.TrimSuffix(src.Directory, "/") + "/"
-		if all, err = mg.dao.SearchMedia(dir, nil, nil, "", false, nil); err != nil {
+		// Issue #192: folders kept out of Images below this one stay out;
+		// this one, kept out itself (or inside one), is shared on purpose.
+		flagged, err := mg.OutOfImagesFolders()
+		if err != nil {
+			return nil, 0, err
+		}
+		if all, err = mg.dao.SearchMedia(dir, nil, nil, "", false, nil, foldersNotCovering(dir, flagged)); err != nil {
 			return nil, 0, err
 		}
 		if listed, lErr := mg.dao.GetFilesByPath(dir, true, false); lErr == nil {

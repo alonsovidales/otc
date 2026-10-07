@@ -283,7 +283,7 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
   `file_tags`, `social_publications` + likes/comments, `social_friendship`, `settings`, `profile`,
   `shared_links`, `vault`, `events`, `people`, `faces`, `image_groups` + `image_group_files`,
-  `upload_only_folders` + `file_versions`, `notifications`). Business logic in other packages should go
+  `upload_only_folders` + `file_versions`, `out_of_images_folders` + `skipped_analysis`, `notifications`). Business logic in other packages should go
   through `dao`, not raw SQL. Issue #64: a device-side error the owner should know about (a
   photo that could not be processed, an upload that never reached the disk) goes into
   `notifications` as type `Error` through `dao.AddErrorNotification` - grouped, so an error
@@ -332,6 +332,32 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   still on): `LockedByParentError`, error code `locked_by_parent`, a message naming the nearest
   flagged folder above ("unlock /Photos to unlock it", or "first, then Trip" when the folder has
   its own flag too); every explorer shows an error reply's message.
+  Issue #192's folders kept out of Images (`out_of_images_folders`, the same path rules;
+  `files_manager/out_of_images.go`): content is kept out when a row of it (`files` or
+  `file_versions`) is under a flagged folder and none is outside them all. It still gets its
+  thumbnail (Files shows it) but never tags (place tags included) or faces: `guardAnalysis` takes
+  the analysis out at processMedia's two entry points, before anything is read, and records the
+  hash in `skipped_analysis`. Flagging (`SetOutOfImages`, synchronous) deletes the tags and faces of
+  what only that folder holds (`DelFacesByHashes`: unnamed people left with no face go, named ones
+  stay) and takes its rows out of every search token (`keepOut`; a page in flight is filtered when
+  it stores); showing it again moves the skipped content to `pending_analysis` in one transaction
+  (`TakeSkippedAnalysis`), then queues it (faces only if face recognition is on now - an explicit owner
+  action, not #178's retroactive sweep), and is refused under a flagged folder
+  (`OutOfImagesByParentError`, error code `out_of_images_by_parent`). `reconcileAnalysis` applies
+  the rule again after anything that changes which paths hold a hash (an upload or link of known
+  content, DelFile/DelPath, overrides, an analysis that ran while a flag was set);
+  `ReconcileOutOfImages` repairs an interrupted one at the first sign-in; DelPath of a folder clears
+  its flags (not a file's of the same name), DelFile never does (a sync app empties a folder file by file). Images - `SearchMedia`,
+  the date buckets, collections' count and cover (membership is kept), a collection's gallery; a
+  folder's gallery leaves out flagged folders below it, not the shared folder itself - takes the
+  folders as `excluded`, from memory (`OutOfImagesFolders`: only this process writes the table), and
+  fails rather than show kept-out photos when they can't be read; tags and People need no change,
+  the data is gone. `ListFiles`/`SearchFiles` mark `File.out_of_images` and set
+  `ListOfFiles.out_of_images_supported` (+ `folder_out_of_images` for a listing). Renaming a flagged
+  folder from a computer makes a new, unflagged path (known limitation). Known gap: content whose
+  only `files` row is kept out but which a kept version outside holds keeps its tags and faces
+  (#132), which the tag list and People show while Images never lists it. Release 108's script
+  creates both tables; a database without them reads as nothing kept out.
   **Storage format and chunked transfers** (security advisory on memory exhaustion, releases 40-42):
   every blob and thumbnail is encrypted in 1 MiB segments (`segcrypt`: header `OTS1` + a 7-byte
   nonce prefix, each segment AES-GCM with nonce prefix|index|last-flag and the header as AAD -
@@ -451,7 +477,7 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   probed first (`model_probe_linux.cpp`), so a bad or empty model leaves faces off instead of
   aborting. A hash's faces go with its last file or version (`dropFacesOfHash` ->
   `dao.DelFacesByHash`, which also deletes unnamed people left with no face); lock order is always
-  the hash lock, then `faceRefsMu`, and `processFaces` never takes a hash lock. Only the people who
+  the hash lock, then `outOfImagesMu` (issue #192), then `faceRefsMu`, and `processFaces` never takes a hash lock. Only the people who
   lost a reference are reloaded (`faceRefsStale`), the whole set only after a database error.
   Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
   (on by default, `SetImageTaggingEnabled`, read per file in the slow lane by
@@ -834,6 +860,14 @@ The files stay where they are. This is because folders kept across a change of d
 with, or delete on, the other device. The Mac wizard's "Sync this Mac with my device" asks the same
 when another device is set (`SetupWizardView.switchDevice`). "Set Up a New Device…" is the large
 button at the bottom of the Mac's Settings, and its own section above Quit in the tray.
+**Web app (issue #193).** Once a device is configured both offer "Open Web App": the Mac in the
+popover's header beside the gear, the tray as the last line of its top group, and `otc-sync open`
+(prints the address, and opens it where there is a display). It is the configured address's host
+and port at `/` - https for a bridge name or a wss address, http for ws (`SettingsStore.webAppURL`
+/ `config.WebURL`) - opened in the default browser (`NSWorkspace.open`; otc-sync's
+`internal/browser`, http/https only: ShellExecute on Windows, xdg-open on Linux). Never the
+password or a token (the web app asks for the password itself), and never the home-network route,
+whose certificate a browser can't pin.
 
 **Setting up a new device from a computer (issue #184).** Both desktop apps have "Set Up a New
 Device…". They download `off-the-cloud-rpi-lite-arm64.img.xz` from the `image` release and trust it

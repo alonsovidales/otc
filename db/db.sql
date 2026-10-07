@@ -74,6 +74,36 @@ create table file_versions
   key (`hash`)
 ) engine=InnoDB;
 
+-- Issue #192: folders kept out of Images. A path (always with its trailing
+-- slash) listed here, and everything under it, is left out of Images - the
+-- photo search, its date buckets, collections - and its photos and videos
+-- are never tagged or searched for faces; they still get thumbnails, which
+-- Files shows. Content that some path outside every such folder also holds
+-- is analysed and shown through that path. The owner flags a folder from
+-- Files (SetOutOfImages) or a computer's sync app, and can clear it the same
+-- way. A flag stays when the folder's files go one by one (a sync app sets
+-- it before the folder has any), and goes when the folder itself is deleted
+-- (DelPath).
+create table out_of_images_folders
+(
+  `path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, -- exact: issue #172
+
+  primary key (`path`)
+) engine=InnoDB;
+
+-- Issue #192: content whose tags and faces were never worked out, or were
+-- deleted, because every path holding it - files and kept versions - is in
+-- an out_of_images_folders folder. Only hashes. When a path outside them
+-- holds it again (a folder shown in Images again, a copy or move out, an
+-- upload elsewhere), it goes back to pending_analysis and the lanes.
+create table skipped_analysis
+(
+  `hash` varchar(64) not null,
+  `skipped` datetime not null,
+
+  primary key (`hash`)
+) engine=InnoDB;
+
 create table file_tags
 (
   `hash` varchar(64) not null,
