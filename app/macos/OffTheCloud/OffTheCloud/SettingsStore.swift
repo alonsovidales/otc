@@ -52,6 +52,30 @@ final class SettingsStore: ObservableObject {
         return name.isEmpty || name.contains(".") ? nil : name
     }
 
+    /// Issue #193: the device's web app - the same Off The Cloud interface,
+    /// in the browser - at the configured address: its host and port at
+    /// "/", https for a bridge host or a wss address, http for ws (a device
+    /// on the home network). Nothing else of the address is kept, so a user
+    /// or password typed into it never reaches the browser; nil when there
+    /// is no address. Mirrors otc-sync's config.WebURL.
+    static func webAppURL(fromDomain domain: String) -> URL? {
+        let d = domain.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A bare host as WSClient.configure reads it.
+        guard !d.isEmpty, var web = URLComponents(string: d.contains("://") ? d : "wss://\(d)/ws"),
+              web.host?.isEmpty == false else { return nil }
+        switch web.scheme?.lowercased() {
+        case "wss", "https": web.scheme = "https"
+        case "ws", "http": web.scheme = "http"
+        default: return nil
+        }
+        web.user = nil
+        web.password = nil
+        web.path = "/"
+        web.query = nil
+        web.fragment = nil
+        return web.url
+    }
+
     // Start at login, like a sync client is expected to (the Windows and
     // Linux clients register themselves too). On by default the first
     // time the app runs; the toggle in Settings turns it off.

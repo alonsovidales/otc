@@ -15,6 +15,7 @@
 //	otc-sync add-remote <remote> <dir>   keep a device folder and a local one in two-way sync
 //	otc-sync remove <id|path>      stop syncing a folder (nothing is deleted)
 //	otc-sync ls [remote path]      browse the device
+//	otc-sync open                  the device's web app in the browser
 //	otc-sync service install|uninstall|status   (Linux) run as a systemd user service
 //	otc-sync autostart on|off      start the tray app at login
 //
@@ -44,6 +45,7 @@ import (
 	"github.com/gofrs/flock"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/autostart"
+	"github.com/alonsovidales/otc/app/desktop/internal/browser"
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
 	"github.com/alonsovidales/otc/app/desktop/internal/flasher"
@@ -98,6 +100,8 @@ func main() {
 		err = cmdDisconnect(args)
 	case "ls":
 		err = cmdLs(args)
+	case "open":
+		err = cmdOpen()
 	case "service":
 		err = cmdService(args)
 	case "autostart":
@@ -225,6 +229,7 @@ func usage() {
   otc-sync disconnect [--yes]   forget the device: removes every folder (the files stay)
                                 and the device and password, before connecting elsewhere
   otc-sync ls [remote-path]     browse the device's folders
+  otc-sync open                 open the device's web app in the browser (prints its address)
   otc-sync service install|uninstall|status
                                 run the daemon as a systemd user service (Linux)
   otc-sync autostart on|off     start the tray app at login
@@ -955,6 +960,28 @@ func cmdLs(args []string) error {
 	}
 
 	return nil
+}
+
+// cmdOpen is the tray's "Open Web App" (issue #193). The address is printed
+// too, for a terminal with no desktop to open it on.
+func cmdOpen() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if cfg.Domain == "" {
+		return errors.New("no device is set yet - run: otc-sync settings --name <device> --password-prompt")
+	}
+	addr := config.WebURL(cfg.Domain)
+	if addr == "" {
+		return fmt.Errorf("%s has no web address to open", cfg.Domain)
+	}
+	fmt.Println(addr)
+	if !hasDisplay() {
+		return nil
+	}
+
+	return browser.Open(addr)
 }
 
 func cmdService(args []string) error {

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -348,6 +349,37 @@ func BridgeName(domain string) string {
 	}
 
 	return name
+}
+
+// WebURL is the device's web app (issue #193) - the same Off The Cloud
+// interface, in the browser - at the configured address: its host and
+// port at "/", https for a bridge host or a wss address, http for ws (a
+// device on the home network). Nothing else of the address is kept, so a
+// user or password typed into it never reaches the browser; "" when there
+// is no address. Mirrors SettingsStore.webAppURL(fromDomain:).
+func WebURL(domain string) string {
+	d := strings.TrimSpace(domain)
+	if d == "" {
+		return ""
+	}
+	if !strings.Contains(d, "://") {
+		d = "wss://" + d + "/ws" // as wsclient.Configure reads a bare host
+	}
+	u, err := url.Parse(d)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	var scheme string
+	switch strings.ToLower(u.Scheme) {
+	case "wss", "https":
+		scheme = "https"
+	case "ws", "http":
+		scheme = "http"
+	default:
+		return ""
+	}
+
+	return (&url.URL{Scheme: scheme, Host: u.Host, Path: "/"}).String()
 }
 
 // ---- the home-network endpoint (issue #190) ----------------------------

@@ -27,7 +27,8 @@ A menu-bar app that keeps folders on your computer in sync with the device - wat
 **The Windows and Linux clients**
 
 The same sync client for Windows and Linux, `otc-sync`: a tray icon with the same menu (status,
-the RAID's health as the icon's colour, your folders, add a local or a remote folder, settings),
+the RAID's health as the icon's colour, "Open Web App" for your device's web app in the browser,
+your folders, add a local or a remote folder, settings),
 plus a command line, and on Linux it can run as a service on a machine nobody logs into. It
 starts at login on its own, and updates itself: when a new version is out, the menu shows
 "⬆ Update otc-sync to …" and one click installs it (`otc-sync update` on the command line).
@@ -65,6 +66,7 @@ otc-sync settings --name cala --password-prompt   # or --address ws://192.168.1.
 otc-sync add ~/Documents                          # mirror a folder up to the device
 otc-sync add-remote /Photos ~/Photos              # two-way sync with a device folder
 otc-sync ls /                                     # browse the device
+otc-sync open                                     # the device's web app in the browser (prints its address)
 otc-sync service install                          # run as a systemd user service, from boot
 otc-sync status                                   # what it is doing
 otc-sync folders | remove <id> | service uninstall | autostart on|off

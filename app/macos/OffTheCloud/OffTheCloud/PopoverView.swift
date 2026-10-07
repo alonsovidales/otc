@@ -67,6 +67,18 @@ struct PopoverView: View {
                 Text("Off The Cloud — Sync")
                     .font(.headline)
                 Spacer()
+                // Issue #193: the device's own web app, in the browser -
+                // the address only; the web app asks for the password.
+                // otc-sync's tray has the same item at the top.
+                if settings.ready, let web = SettingsStore.webAppURL(fromDomain: settings.domain) {
+                    Button {
+                        NSWorkspace.shared.open(web)
+                    } label: {
+                        Label("Open Web App", systemImage: "globe")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open \(web.absoluteString) in your browser")
+                }
                 // Settings inline inside the popover
                 Button {
                     showSettings.toggle()

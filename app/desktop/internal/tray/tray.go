@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package tray is PopoverView.swift as a system tray menu: status, RAID
-// health, one row per folder, add local/remote folder, settings, start at
-// login, quit. Dialogs are the OS's own (a folder chooser, a text entry, a
-// list) rather than a window of ours, so the binary stays free of a GUI
-// toolkit and cross-compiles from anywhere.
+// health, the web app, one row per folder, add local/remote folder,
+// settings, start at login, quit. Dialogs are the OS's own (a folder
+// chooser, a text entry, a list) rather than a window of ours, so the
+// binary stays free of a GUI toolkit and cross-compiles from anywhere.
 package tray
 
 import (
@@ -21,6 +21,7 @@ import (
 	"fyne.io/systray"
 	"github.com/ncruces/zenity"
 
+	"github.com/alonsovidales/otc/app/desktop/internal/browser"
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
 	"github.com/alonsovidales/otc/app/desktop/internal/icons"
@@ -61,6 +62,7 @@ type ui struct {
 	cpu       *systray.MenuItem // the storage line's submenu: the device's
 	mem       *systray.MenuItem // load, shown when the pointer rests on it
 	update    *systray.MenuItem // issue #183: a major or critical device update
+	web       *systray.MenuItem // issue #193: the device's web app, in the browser
 	appUpdate *systray.MenuItem // a newer otc-sync (selfupdate)
 	setup     *systray.MenuItem // issue #184: the SD card wizard
 	empty     *systray.MenuItem
@@ -223,6 +225,10 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.update = systray.AddMenuItem("", "")
 	u.update.Disable()
 	u.update.Hide()
+	// Issue #193: at the top, like the Mac's button beside the gear; shown
+	// once a device is set (apply).
+	u.web = systray.AddMenuItem("Open Web App", "")
+	u.web.Hide()
 	systray.AddSeparator()
 	u.empty = systray.AddMenuItem("No folders yet — add one below.", "")
 	u.empty.Disable()
@@ -255,7 +261,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.stopLoop = stop
 	items := u.folders
 	addLocal, addRem, settings, autost, quit := u.addLocal, u.addRem, u.settings, u.autost, u.quit
-	addBackup, explain, appUpdate, setup := u.addBackup, u.explain, u.appUpdate, u.setup
+	addBackup, explain, appUpdate, setup, web := u.addBackup, u.explain, u.appUpdate, u.setup, u.web
 	go func() {
 		for {
 			select {
@@ -263,6 +269,8 @@ func (u *ui) build(folders []config.FolderStatus) {
 				return
 			case <-appUpdate.ClickedCh:
 				go u.installUpdate()
+			case <-web.ClickedCh:
+				go u.openWebApp()
 			case <-addBackup.ClickedCh:
 				go u.addBackup_()
 			case <-explain.ClickedCh:
@@ -333,7 +341,14 @@ func (u *ui) apply() {
 	// bridge - in the line that says it is.
 	line := engine.StatusLine(st, cfg.Domain)
 	u.setTitle(u.status, statusDot(st.Status)+" "+line)
-	u.setTitle(u.settings, settingsTitleFor(cfg, cfg.Domain != "" && u.c.Password() != ""))
+	configured := cfg.Domain != "" && u.c.Password() != ""
+	u.setTitle(u.settings, settingsTitleFor(cfg, configured))
+	if addr := config.WebURL(cfg.Domain); configured && addr != "" {
+		u.setTip(u.web, "Open "+addr+" in your browser")
+		u.setShown(u.web, true)
+	} else {
+		u.setShown(u.web, false)
+	}
 	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
 		u.setTitle(u.raid, storageTitle(st))
 		u.setTitle(u.cpu, fmt.Sprintf("CPU: %.0f%%", st.CPUPercent))
@@ -644,6 +659,20 @@ func (u *ui) disconnectDialog() {
 	}
 	Refresh()
 	u.settingsDialog()
+}
+
+// openWebApp is the Mac's "Open Web App": the device's own web app at its
+// configured address, in the default browser. Only the address goes - the
+// web app asks for the password itself.
+func (u *ui) openWebApp() {
+	addr := config.WebURL(u.c.Config().Domain)
+	if addr == "" {
+		return
+	}
+	if err := browser.Open(addr); err != nil {
+		_ = zenity.Error("The browser could not be opened:\n\n"+err.Error()+"\n\nThe web app is at "+addr,
+			zenity.Title("Off The Cloud"))
+	}
 }
 
 func (u *ui) toggleAutostart() {
