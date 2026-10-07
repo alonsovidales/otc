@@ -125,3 +125,85 @@
   .fb-path { flex-basis: 100%; }
   .fb-path-input { width: auto; max-width: none; flex: 1; min-width: 0; }
 }
+
+/* ---- A search's results (the top bar's "Search documents") ----
+   Over the folder, which stays as it was underneath, hidden: a header
+   with the way back, then the files and folders found as rows of the
+   list, each with its icon or thumbnail, its name (the match marked) and
+   its folder dimmed under it. A whole row opens what it shows. */
+.fb-results-head { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin: 0 0 12px; min-width: 0; }
+.fb-results-back {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 36px; box-sizing: border-box;
+  margin-left: -6px; padding: 0 12px 0 6px; border: 0; border-radius: 18px;
+  background: none; color: var(--mist-dim); font: inherit; font-size: 14px; font-weight: 500;
+  transition: background-color .12s ease, color .12s ease;
+}
+.fb-results-back svg { flex: none; }
+.fb-results-back:hover { background: rgba(234, 242, 239, .08); color: var(--mist); filter: none; }
+.fb-results-back-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-results-title { margin: 4px 0 0; max-width: 100%; font-size: 20px; line-height: 28px; font-weight: 600; color: var(--mist); overflow-wrap: anywhere; }
+.fb-results-title:focus { outline: none; }
+.fb-results-count { margin: 0; font-size: 13px; line-height: 18px; color: var(--mist-dim); }
+
+.fb-results-table .fb-head,
+.fb-results-table .fb-row { grid-template-columns: minmax(0, 1fr) 140px 220px; }
+.fb-results-list { list-style: none; margin: 0; padding: 0; }
+.fb-res-row { position: relative; min-height: 56px; transition: background-color .12s ease; }
+.fb-res-row:hover { background: rgba(234, 242, 239, .04); }
+.fb-res-row .c-name { gap: 12px; padding-top: 8px; padding-bottom: 8px; }
+.fb-res-row .c-size,
+.fb-res-row .c-modified { color: var(--mist-dim); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.fb-res-art { position: relative; flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 6px; overflow: hidden; }
+.fb-res-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.fb-res-art.is-folder { fill: var(--gold); }
+.fb-res-play { position: absolute; left: 2px; bottom: 2px; width: 14px; height: 14px; border-radius: 50%; background: rgba(0, 0, 0, .6); display: grid; place-items: center; }
+
+/* The name opens the row; its ::after spreads the press over all of it. */
+.fb-res-open {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 1px;
+  padding: 0; border: 0; border-radius: 0; background: none; color: var(--mist); text-align: left; font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.fb-res-open::after { content: ""; position: absolute; inset: 0; }
+/* Brought into view by the keyboard (Shift+Tab up the list) below the
+   fixed top bar, its whole row and focus ring showing, not behind it. */
+.fb-res-open { scroll-margin: calc(var(--topbar-h) + 16px) 0 16px; }
+.fb-res-open:hover { filter: none; }
+.fb-res-open:focus-visible { outline: none; }
+.fb-res-open:focus-visible::after { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 10px; }
+.fb-res-open:disabled { opacity: 1; }
+.fb-res-open:disabled .fb-res-name { opacity: .6; }
+.fb-res-row:has(.fb-res-open:disabled) { cursor: default; }
+.fb-res-row:has(.fb-res-open:active:not(:disabled)) { background: rgba(234, 242, 239, .08); }
+.fb-res-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; line-height: 20px; font-weight: 600; }
+/* A long folder is cut at its start: the end, nearest the file, says
+   most. The path inside keeps its own order (a <bdi>). */
+.fb-res-dir { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-size: 13px; line-height: 18px; font-weight: 400; color: var(--mist-dim); }
+.fb-mark { background: none; color: var(--gold); }
+
+.fb-results-note { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 18px 16px; color: var(--mist-dim); }
+.fb-results-note.is-error { color: var(--danger); }
+.fb-results-note .btn { padding: 6px 14px; font-weight: 600; }
+
+/* Read out, not shown. */
+.fb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The folder's contents take the focus back from the results. */
+.fb-contents:focus { outline: none; }
+/* Its rows and tiles too come into view below the top bar, not under it. */
+.fb-contents :is(.fb-row, .fb-tile) :is(button, input) { scroll-margin: calc(var(--topbar-h) + 12px) 0 12px; }
+
+@media (max-width: 800px) {
+  .fb-results-table .fb-head,
+  .fb-results-table .fb-row { grid-template-columns: minmax(0, 1fr) 84px; }
+  .fb-results-table .c-size { padding-left: 0; text-align: right; }
+}
+@media (pointer: coarse) {
+  .fb-results-back { min-height: 44px; }
+  .fb-res-row { min-height: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-results-back,
+  .fb-res-row { transition: none; }
+}

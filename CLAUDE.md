@@ -590,7 +590,8 @@ React 19 + TypeScript + Vite, routed with `react-router-dom`. The signed-in shel
 (App.tsx, index.css). A fixed top bar holds the menu button, the logo and the search (`TopSearch.tsx`: chips
 for the open collection, people and tags inside the field; no panel until something is typed, then the
 matching things (5 tags), named people (the 5 with the most photos) and files and folders by path
-(`SearchFiles`, debounced, stale answers dropped; no Files section on a device answering `unknown_payload`).
+(`SearchFiles`, debounced, stale answers dropped), plus "Search documents for x" - every match (`SearchFiles`
+limit 50) listed in Files over the folder, which stays as it was; neither on a device answering `unknown_payload`.
 A picked folder or file opens in Files through `filesNav.ts` - a file as a click there would). The left menu
 (`Sidebar.tsx`) lists Images, People, Collections, Files; Sharing: Social, Friends; Device: Alerts, Settings;
 storage at the foot. People - menu item, page, search, person filter - exists only while face recognition is

@@ -18,6 +18,7 @@ import PeopleView from "./components/PeopleView";
 import CollectionsView from "./components/CollectionsView";
 import { showAll } from "./components/photoFilter";
 import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
+import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
@@ -427,6 +428,8 @@ function App() {
             // Images in the menu is the whole library, as Photos is in
             // Google Photos: whatever was searched for is left.
             if (next === "PhotoGallery") showAll();
+            // Files in the menu is the folder, not the results of a search.
+            if (next === "AdminPannel") leaveFilesSearch();
             setTab(next);
           }}
           onCloseDrawer={() => setDrawerOpen(false)}

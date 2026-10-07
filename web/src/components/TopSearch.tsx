@@ -4,10 +4,13 @@
 // Images is narrowed to - an open collection, people, tags - as chips.
 // While something is typed a panel under it offers, in this order, the
 // things (tags) that match, the named people that match (while face
-// recognition is on) - or, when neither does, the word itself to search
-// the photos for - and the files and folders whose path matches
-// (SearchFiles, asked of the device as the typing pauses). Picking a tag
-// or a person adds it to photoFilter's search, shared with the pages, and
+// recognition is on), and the files and folders whose path matches
+// (SearchFiles, asked of the device as the typing pauses), with a row to
+// search the documents for the word: all the files and folders it finds
+// listed in Files (filesNav.searchInFiles). That row comes first, and is
+// what Enter takes, when no tag or person matches; otherwise it follows
+// the files. A device without SearchFiles has neither. Picking a tag or a
+// person adds it to photoFilter's search, shared with the pages, and
 // shows Images; picking a folder shows it in Files, and a file opens there
 // as a click on it would. Enter takes a file or a folder only when the
 // arrow keys or the mouse went to it. With nothing typed there is no panel.
@@ -18,7 +21,10 @@ import { useWS } from "../net/useWS";
 import { personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
 import { addTag, clearSearch, leaveGroup, removeTag, togglePerson, usePhotoFilter } from "./photoFilter";
 import { useFaceRecognition } from "./faceRecognition";
-import { asFolder, parentFolder, showInFiles } from "./filesNav";
+import {
+  asFolder, deviceCantSearchFiles, fold, foundParts, matchIn, parentFolder, searchInFiles, showInFiles, useNoFileSearch,
+  type Folded, type Span,
+} from "./filesNav";
 import { CollectionsIcon } from "./NavIcons";
 import "./TopSearch.css";
 
@@ -29,18 +35,16 @@ type Props = {
   onShowFiles: () => void;
 };
 
-// [start, end) of the part of a label that matches what was typed.
-type Span = [number, number];
-
 type FileKind = "folder" | "photo" | "video" | "doc";
 
 // What the arrow keys and Enter go through in the panel, in the order
-// shown. "text" is the typed word itself, searched for as a tag: the row
-// before the files when no tag or person matches.
+// shown. "docs" is the typed word itself, searched for in every file's
+// path: the row before the files when no tag or person matches, after
+// them otherwise.
 type Option =
   | { kind: "tag"; key: string; tag: string; span?: Span }
   | { kind: "person"; key: string; person: Person; span?: Span }
-  | { kind: "text"; key: string; text: string }
+  | { kind: "docs"; key: string; text: string }
   | { kind: "file"; key: string; file: PbFile; type: FileKind; name: string; dir: string; nameSpan?: Span; dirSpan?: Span };
 
 const MATCH_TAGS = 5;
@@ -51,43 +55,6 @@ const FILES_DELAY_MS = 150;
 // The highlight moved up past the first option: Enter then takes the
 // typed text as it is.
 const NONE = "";
-
-// Text compared without case or accents, so "jose" finds "José". `from`
-// maps each of its characters back to the original, to bold the match.
-// Each character goes to upper case and back, as the device's searchFold
-// does: "ς" and "Σ" both become "σ", so "ΟΔΟΣ" finds "Οδός".
-type Folded = { text: string; from: number[] };
-
-function fold(s: string): Folded {
-  let text = "";
-  const from: number[] = [];
-  let at = 0;
-  for (const ch of s) {
-    const f = ch.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().toLowerCase();
-    for (let k = 0; k < f.length; k++) from.push(at);
-    text += f;
-    at += ch.length;
-  }
-  return { text, from };
-}
-
-// Where the folded query best matches a label: rank 0 at its start, 1 at
-// the start of a word in it, 2 inside a word; with the part of the label
-// it covers. null when it isn't there.
-function matchIn(label: string, f: Folded, q: string): { rank: number; span: Span } | null {
-  const { text, from } = f;
-  let rank = -1;
-  let at = -1;
-  for (let j = text.indexOf(q); j !== -1; j = text.indexOf(q, j + 1)) {
-    const r = j === 0 ? 0 : /[\p{L}\p{N}]/u.test(text[j - 1]) ? 2 : 1;
-    if (rank < 0 || r < rank) { rank = r; at = j; }
-    if (r < 2) break;
-  }
-  if (rank < 0) return null;
-  const last = from[at + q.length - 1];
-  const end = last + ((label.codePointAt(last) ?? 0) > 0xffff ? 2 : 1);
-  return { rank, span: [from[at], end] };
-}
 
 // The entries matching the folded query: those starting with it first,
 // then those with a word starting with it, then any containing it; in
@@ -109,14 +76,6 @@ function fileKind(f: PbFile): FileKind {
   return "doc";
 }
 const KIND_WORD: Record<FileKind, string> = { folder: "Folder", photo: "Photo", video: "Video", doc: "File" };
-
-// A found file's name, and the folder it is in as shown under it.
-function fileParts(path: string) {
-  const clean = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
-  const name = clean.slice(clean.lastIndexOf("/") + 1) || clean;
-  const dir = parentFolder(clean);
-  return { name, dir: dir.length > 1 ? dir.slice(0, -1) : dir };
-}
 
 const photosLabel = (n: number) => `${n.toLocaleString()} ${n === 1 ? "photo" : "photos"}`;
 
@@ -151,6 +110,15 @@ function Icon({ size = 20, stroke = 1.6, children }: { size?: number; stroke?: n
   );
 }
 const SearchIcon = () => <Icon><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 5 5" /></Icon>;
+// A page with a magnifier over its corner: search the documents.
+const DocSearchIcon = () => (
+  <Icon>
+    <path d="M10.5 20.5h-4a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h7l4 4v3" />
+    <path d="M13.5 3.5v4h4M8 11h4M8 14.5h2" />
+    <circle cx="16" cy="16" r="3.2" />
+    <path d="m18.4 18.4 2.6 2.6" />
+  </Icon>
+);
 const BackIcon = () => <Icon><path d="M19 12H5m6-6-6 6 6 6" /></Icon>;
 const CloseIcon = ({ size = 20 }: { size?: number }) => <Icon size={size} stroke={1.8}><path d="m6.5 6.5 11 11m0-11-11 11" /></Icon>;
 const TagIcon = () => (
@@ -208,9 +176,10 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const [covered, setCovered] = useState(false);
   // The last file search sent: an answer to an earlier one is dropped.
   const fileSeq = useRef(0);
-  // The device doesn't know SearchFiles (older than this app): not asked
-  // again, and no Files section.
-  const noFileSearch = useRef(false);
+  // The device doesn't know SearchFiles (older than this app), as the
+  // panel or Files found out: not asked again, and no Files section nor a
+  // row to search the documents.
+  const noFileSearch = useNoFileSearch();
 
   const id = useId();
   const listId = `${id}list`;
@@ -242,26 +211,26 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
       setFound(null);
       return;
     }
-    if (noFileSearch.current) return;
+    if (noFileSearch) return;
     const t = setTimeout(() => {
       const seq = ++fileSeq.current;
       const answer = (files: PbFile[]) => setFound({ typed, q: fold(typed).text, files });
       useWS.request((e: Partial<ReqEnvelope>) => {
         e.payload = { $case: "reqSearchFiles", reqSearchFiles: { query: typed, limit: MATCH_FILES } };
       }).then((resp: RespEnvelope) => {
+        if (resp.errorCode === "unknown_payload") deviceCantSearchFiles();
         if (seq !== fileSeq.current) return;
         if (resp.payload?.$case === "respListOfFiles") {
           answer(resp.payload.respListOfFiles.files ?? []);
           return;
         }
-        if (resp.errorCode === "unknown_payload") noFileSearch.current = true;
         answer([]);
       }, () => {
         if (seq === fileSeq.current) answer([]);
       });
     }, FILES_DELAY_MS);
     return () => clearTimeout(t);
-  }, [typed]);
+  }, [typed, noFileSearch]);
 
   // The device's answer for the text as it is now, as the device gave it.
   // Until that comes, the answer for the text before stands in only while
@@ -275,10 +244,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
     const out: Extract<Option, { kind: "file" }>[] = [];
     for (const file of found.files) {
       if (!current && !fold(file.path).text.includes(q)) continue;
-      const { name, dir } = fileParts(file.path);
-      const nameSpan = matchIn(name, fold(name), q)?.span;
-      const dirSpan = nameSpan ? undefined : matchIn(dir, fold(dir), q)?.span;
-      out.push({ kind: "file", key: `f:${file.path}`, file, type: fileKind(file), name, dir, nameSpan, dirSpan });
+      out.push({ kind: "file", key: `f:${file.path}`, file, type: fileKind(file), ...foundParts(file.path, q) });
       if (out.length === MATCH_FILES) break;
     }
     return out;
@@ -308,15 +274,16 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         if (!exact && h.item.f.text === q) exact = key;
       }
     }
-    // The word as typed, when nothing above matches it: what Enter takes
-    // then. Files and folders come after it and are never what Enter takes
-    // by itself - not after Escape hid them, nor because their answer
-    // came in before the key: only once the arrows or the mouse went there.
-    if (!out.length && !inSearch.has(q)) out.push({ kind: "text", key: "text", text: typed });
-    const first = out[0]?.key ?? null;
-    out.push(...fileHits);
-    return { options: out, best: exact ?? first };
-  }, [q, typed, filter.tags, faces, named, tagIndex, fileHits]);
+    // The documents searched for the word as typed: first, and what Enter
+    // takes, when nothing above matches it; below the files otherwise.
+    // Files and folders are never what Enter takes by itself - not after
+    // Escape hid them, nor because their answer came in before the key:
+    // only once the arrows or the mouse went there.
+    const docs: Option[] = noFileSearch ? [] : [{ kind: "docs", key: "docs", text: typed }];
+    if (!out.length) out.push(...docs, ...fileHits);
+    else out.push(...fileHits, ...docs);
+    return { options: out, best: exact ?? out.find((o) => o.kind !== "file")?.key ?? null };
+  }, [q, typed, filter.tags, faces, named, tagIndex, fileHits, noFileSearch]);
 
   const activeKey = moved === null || (moved !== NONE && !options.some((o) => o.key === moved)) ? best : moved;
   const active = activeKey ? options.findIndex((o) => o.key === activeKey) : -1;
@@ -479,12 +446,6 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
     if (how === "pointer" || onScreenKeyboard()) inputRef.current?.blur();
   };
 
-  // A typed word the device knows, in its spelling ("Dog" is "dog").
-  const knownSpelling = (text: string) => {
-    const f = fold(text).text;
-    return tagIndex.find((t) => t.f.text === f)?.label ?? text;
-  };
-
   const pick = (o: Option, how: "key" | "pointer") => {
     setQuery("");
     finish(how);
@@ -494,9 +455,14 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         onShowPhotos();
         return;
       case "tag":
-      case "text":
-        addTag(o.kind === "tag" ? o.tag : knownSpelling(o.text));
+        addTag(o.tag);
         onShowPhotos();
+        return;
+      case "docs":
+        // Every file and folder found, listed in Files - still inside the
+        // click or the key, like a file opened from the panel.
+        searchInFiles(o.text);
+        onShowFiles();
         return;
       case "file":
         // A folder opens; a file opens in its folder, as a click there.
@@ -519,8 +485,12 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         e.preventDefault();
         // Words typed are searched for whether or not Escape hid the panel
         // (which forgets where the arrows went: a file is never taken then).
+        // Up past the first option, the documents are searched for them as
+        // typed. A device that can't do that leaves the panel showing that
+        // nothing matches.
         if (typed && active >= 0) pick(options[active], "key");
-        else if (typed) pick({ kind: "text", key: "text", text: typed }, "key");
+        else if (typed && !noFileSearch) pick({ kind: "docs", key: "docs", text: typed }, "key");
+        else if (typed) setOpen(true);
         else {
           finish("key");
           if (chipCount) onShowPhotos();
@@ -637,11 +607,11 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
           </div>
         );
       }
-      case "text":
+      case "docs":
         return (
           <div key={o.key} {...optionProps(o, i)} className={cls("ts-row", hl && "is-active")}>
-            <span className="ts-row-icon"><SearchIcon /></span>
-            <span className="ts-row-label">Search photos for “<mark className="ts-mark">{o.text}</mark>”</span>
+            <span className="ts-row-icon"><DocSearchIcon /></span>
+            <span className="ts-row-label">Search documents for “<mark className="ts-mark">{o.text}</mark>”</span>
           </div>
         );
       case "file":
@@ -674,11 +644,15 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const tagOpts = numbered.filter(([o]) => o.kind === "tag");
   const personOpts = numbered.filter(([o]) => o.kind === "person");
   const fileOpts = numbered.filter(([o]) => o.kind === "file");
-  const textOpt = numbered.find(([o]) => o.kind === "text");
+  const docsOpt = numbered.find(([o]) => o.kind === "docs");
+  // The row to search the documents: first when no tag or person matches.
+  const docsFirst = !tagOpts.length && !personOpts.length;
+  const docsRow = docsOpt && <div role="presentation" className="ts-section">{renderOption(docsOpt[0], docsOpt[1])}</div>;
 
-  const status = !shown || !options.length
-    ? ""
-    : textOpt && options.length === 1 ? "No matches" : `${options.length} ${options.length === 1 ? "suggestion" : "suggestions"}`;
+  // What matches, not counting the row to search the documents.
+  const matches = options.length - (docsOpt ? 1 : 0);
+  const status = !shown ? "" : !matches ? "No matches" : `${matches} ${matches === 1 ? "suggestion" : "suggestions"}`;
+  const alreadyIn = filter.tags.some((t) => fold(t).text === q);
   // The chips, read out with the field.
   const summary = [
     filter.group && `the collection ${filter.group.name}`,
@@ -792,10 +766,11 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
             <div role="listbox" id={listId} aria-label="Suggestions">
               {tagOpts.length > 0 && section("things", "Things", tagOpts.map(([o, i]) => renderOption(o, i)))}
               {personOpts.length > 0 && section("people", "People", personOpts.map(([o, i]) => renderOption(o, i)))}
-              {textOpt && <div role="presentation" className="ts-section">{renderOption(textOpt[0], textOpt[1])}</div>}
+              {docsFirst && docsRow}
               {fileOpts.length > 0 && section("files", "Files", fileOpts.map(([o, i]) => renderOption(o, i)))}
+              {!docsFirst && docsRow}
             </div>
-            {!options.length && <p className="ts-hint">“{typed}” is already in the search.</p>}
+            {!options.length && <p className="ts-hint">{alreadyIn ? <>“{typed}” is already in the search.</> : <>Nothing matches “{typed}”.</>}</p>}
           </div>
         </>
       )}

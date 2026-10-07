@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { uploadFile } from "../net/upload";
 import { fileSize } from "../net/fileSize";
@@ -11,7 +11,7 @@ import type {
   File as PbFile,
 } from "../proto/messages";
 import { loadFilesPath, saveFilesPath } from "../net/uiState";
-import { takeFilesRequest, useFilesRequest } from "./filesNav";
+import { deviceCantSearchFiles, fold, foundParts, takeFilesRequest, useFilesRequest, type Span } from "./filesNav";
 import SharedGalleryShare from "./SharedGalleryShare";
 import FileTypeIcon from "./FileTypeIcon";
 import MediaViewer, { type ViewerItem } from "./MediaViewer";
@@ -38,6 +38,22 @@ function loadViewMode(): ViewMode {
 }
 // The grid asks for thumbnails this many paths at a time.
 const cThumbBatch = 24;
+
+// The top bar's "Search documents" (filesNav.searchInFiles): every file and
+// folder whose path holds the text, as SearchFiles finds them - at most
+// this many, the most it answers - listed over the folder, which stays as
+// it was (path, list or grid, selection) for the way back.
+const cSearchLimit = 50;
+// An error says what went wrong, and whether trying again may help.
+type Results = { text: string; state: "loading" | "done" | "error"; files: PbFile[]; error?: string; retry?: boolean };
+// What a result is, read out with its name.
+const kindWord = (f: PbFile) => (isDir(f) ? "folder" : isVideo(f) ? "video" : isMedia(f) ? "photo" : "file");
+
+// A found name or folder with the part the text matched marked.
+function Marked({ text, span }: { text: string; span?: Span }) {
+  if (!span) return <>{text}</>;
+  return <>{text.slice(0, span[0])}<mark className="fb-mark">{text.slice(span[0], span[1])}</mark>{text.slice(span[1])}</>;
+}
 
 const fmtBytes = (n?: number) =>
   typeof n === "number"
@@ -298,6 +314,9 @@ export default function FilesExplorer({
     ev.preventDefault(); ev.stopPropagation(); setDragOver(false);
     const files = Array.from(ev.dataTransfer.files ?? []);
     if (!files.length) return;
+    // Over a search's results: back to the folder they go to, to see them
+    // arrive.
+    if (resultsRef.current) closeResults();
 
     // Seed the tracker with one row per dropped file up front, so the panel
     // appears immediately even before the first read/send finishes.
@@ -664,6 +683,19 @@ export default function FilesExplorer({
   // Photos and videos open in the Images section's own viewer
   // (MediaViewer), paging through this folder's photos and videos.
   const [mediaViewer, setMediaViewer] = useState<{ items: ViewerItem[]; index: number } | null>(null);
+  // What had the focus when the viewer opened (the row clicked): it has it
+  // again once the viewer closes, rather than the page.
+  const viewerOpener = useRef<HTMLElement | null>(null);
+  const showViewer = (v: { items: ViewerItem[]; index: number }) => {
+    viewerOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setMediaViewer(v);
+  };
+  const closeViewer = () => {
+    setMediaViewer(null);
+    const el = viewerOpener.current;
+    viewerOpener.current = null;
+    if (el?.isConnected) el.focus({ preventScroll: true });
+  };
   const openMedia = (f: PbFile) => {
     const media = listing.filter(x => !isDir(x) && isMedia(x));
     const items: ViewerItem[] = media.map(x => {
@@ -671,14 +703,133 @@ export default function FilesExplorer({
       return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined };
     });
     const index = Math.max(0, media.findIndex(x => x.path === f.path));
-    setMediaViewer({ items, index });
+    showViewer({ items, index });
+  };
+
+  // -------- the top bar's "Search documents" ----------
+  // The results show over the folder, which stays mounted but hidden, as
+  // it was. Only the last search asked for lands. Leaving them goes back
+  // to where the folder was scrolled to, and its contents take the focus.
+  const [results, setResults] = useState<Results | null>(null);
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
+  const searchSeq = useRef(0);
+  // Where the folder was scrolled to when the results opened over it.
+  const scrollBack = useRef(0);
+  // The focus goes to the results' header once they show, and back to
+  // the folder's contents (scrolled to y) once they go.
+  const focusResults = useRef(false);
+  const afterResults = useRef<{ y: number; focus: boolean } | null>(null);
+  const resultsHeadRef = useRef<HTMLHeadingElement>(null);
+  const folderViewRef = useRef<HTMLDivElement>(null);
+  const uid = useId();
+
+  const startSearch = useCallback((text: string) => {
+    const seq = ++searchSeq.current;
+    if (!resultsRef.current) scrollBack.current = window.scrollY;
+    afterResults.current = null;
+    focusResults.current = true;
+    setResults({ text, state: "loading", files: [] });
+    const fail = (error: string, retry = true) => {
+      if (seq === searchSeq.current) setResults({ text, state: "error", files: [], error, retry });
+    };
+    useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = { $case: "reqSearchFiles", reqSearchFiles: { query: text, limit: cSearchLimit } };
+    }).then((resp: RespEnvelope) => {
+      // The top bar stops offering the search on such a device.
+      if (resp.errorCode === "unknown_payload") deviceCantSearchFiles();
+      if (seq !== searchSeq.current) return;
+      if (resp.payload?.$case === "respListOfFiles") {
+        setResults({ text, state: "done", files: resp.payload.respListOfFiles.files ?? [] });
+      } else if (resp.errorCode === "unknown_payload") {
+        fail("This device can't search its files yet. Update it in Settings.", false);
+      } else {
+        fail(resp.errorMessage || "The device didn't answer the search.");
+      }
+    }, () => fail("The search didn't reach the device. Check the connection and try again."));
+  }, []);
+
+  // Back to the folder. `y`: where to scroll to - where it was, unless
+  // another folder is opened from the results. `focus`: the folder's
+  // contents take it, unless the way back was the menu, which keeps it.
+  const closeResults = useCallback((y?: number, focus = true) => {
+    if (!resultsRef.current) return;
+    searchSeq.current++;
+    focusResults.current = false;
+    afterResults.current = { y: y ?? scrollBack.current, focus };
+    setResults(null);
+  }, []);
+
+  useEffect(() => {
+    if (results && focusResults.current) {
+      focusResults.current = false;
+      window.scrollTo(0, 0);
+      resultsHeadRef.current?.focus({ preventScroll: true });
+    } else if (!results && afterResults.current) {
+      const { y, focus } = afterResults.current;
+      afterResults.current = null;
+      window.scrollTo(0, y);
+      if (focus) folderViewRef.current?.focus({ preventScroll: true });
+    }
+  }, [results]);
+
+  // The results' photos and videos by their thumbnails, asked for again
+  // if a listing of the folder underneath dropped the queue.
+  useEffect(() => {
+    if (results?.state !== "done") return;
+    const media = results.files.filter(f => !isDir(f) && isMedia(f)).map(f => f.path);
+    if (media.length) wantThumbs(media);
+  }, [results, loading, wantThumbs]);
+
+  // Escape goes back to the folder - unless something lies over the
+  // results (the viewer, a pop-up, the menu's drawer: theirs to close) or
+  // the key is the top bar's or a field's. Seen before anything else,
+  // while whatever it is still shows.
+  const overlayOpen = useRef(false);
+  overlayOpen.current = !!(mediaViewer || versionsOf || viewer || sharingFolder);
+  const inResults = results !== null;
+  useEffect(() => {
+    if (!inResults) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || overlayOpen.current) return;
+      if (document.querySelector(".sb-drawer.open")) return;
+      const t = e.target as Element | null;
+      if (t?.closest?.(".topbar, input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+      closeResults();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [inResults, closeResults]);
+
+  // A found folder opens in Files; a photo or video in the viewer, paging
+  // through the results' photos and videos; anything else as a click on it
+  // in its folder would (a tab opened inside this click, or a download).
+  const openFound = (f: PbFile) => {
+    if (isDir(f)) {
+      const dir = normPath(f.path);
+      closeResults(0);
+      if (pathInputRef.current) pathInputRef.current.value = dir;
+      if (dir !== pathRef.current) setPath(dir);
+      else if (listingNow.current !== dir) void loadList(dir);
+      return;
+    }
+    if (isMedia(f)) {
+      const media = (results?.files ?? []).filter(x => !isDir(x) && isMedia(x));
+      showViewer({
+        items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined })),
+        index: Math.max(0, media.findIndex(x => x.path === f.path)),
+      });
+      return;
+    }
+    void openEntry(f);
   };
 
   // The top bar's search sent Files here (filesNav.ts): to a folder, and
-  // maybe to a file in it, opened as a click on it would. A document opens
-  // at once, still inside the pick's click or key press, so the tab it
-  // may open isn't blocked as a popup; a photo or video waits for its
-  // folder's listing, to page through the folder in the viewer.
+  // maybe to a file in it, opened as a click on it would; or to the files
+  // and folders a text finds. A document opens at once, still inside the
+  // pick's click or key press, so the tab it may open isn't blocked as a
+  // popup; a photo or video waits for its folder's listing, to page
+  // through the folder in the viewer.
   const request = useFilesRequest();
   const handledRequest = useRef<typeof request>(null);
   const openEntryRef = useRef(openEntry);
@@ -687,6 +838,18 @@ export default function FilesExplorer({
     if (!request || handledRequest.current === request) return;
     handledRequest.current = request;
     takeFilesRequest(request);
+    if ("search" in request) {
+      if (request.search) startSearch(request.search);
+      return;
+    }
+    // Files picked in the menu (leaveFilesSearch, from App): back to the
+    // folder. The focus stays with the menu, or goes back to its button as
+    // the drawer closes.
+    if ("leave" in request) {
+      closeResults(undefined, false);
+      return;
+    }
+    closeResults(0);
     const dir = normPath(request.dir);
     if (pathInputRef.current) pathInputRef.current.value = dir;
     // Already in that folder: listed again, unless that is under way (a
@@ -696,7 +859,7 @@ export default function FilesExplorer({
     const f = request.file;
     mediaToOpen.current = f && isMedia(f) ? { dir, file: f } : null;
     if (f && !isMedia(f)) void openEntryRef.current(f);
-  }, [request, loadList]);
+  }, [request, loadList, startSearch, closeResults]);
   useEffect(() => {
     const want = mediaToOpen.current;
     if (!want || listed?.path !== want.dir) return;
@@ -708,6 +871,7 @@ export default function FilesExplorer({
     const items: ViewerItem[] = index >= 0
       ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined }))
       : [{ path: want.file.path, mime: want.file.mime }];
+    viewerOpener.current = null;
     setMediaViewer({ items, index: Math.max(0, index) });
   }, [listed, listing]);
 
@@ -725,6 +889,23 @@ export default function FilesExplorer({
     wantThumbs(mediaViewer.items.slice(Math.max(0, i - 2), i + 3).map(it => it.path));
   }, [mediaViewer, viewMode, wantThumbs]);
 
+  // The results as shown: name and folder, with the part that matched.
+  const found = useMemo(() => {
+    if (!results) return [];
+    const q = fold(results.text).text;
+    return results.files.map((f, k) => ({
+      k, file: f, isDir: isDir(f), media: !isDir(f) && isMedia(f), size: fileSize(f), ...foundParts(f.path, q),
+    }));
+  }, [results]);
+  // The folder the results go back to.
+  const folderLabel = path === "/" ? "Files" : leafName(path.endsWith("/") ? path.slice(0, -1) : path);
+  const resultsStatus = !results ? ""
+    : results.state === "loading" ? `Searching for ${results.text}`
+    : results.state === "error" ? results.error ?? ""
+    : found.length === 0 ? `No files match ${results.text}`
+    : found.length === cSearchLimit ? `Showing the first ${cSearchLimit} results`
+    : `${found.length} ${found.length === 1 ? "result" : "results"}`;
+
   const lockIcon = (locked: boolean) => (
     <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
       <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -741,6 +922,9 @@ export default function FilesExplorer({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
     >
+      {/* The folder's toolbar and contents stay as they are, hidden, while
+          a search's results show. */}
+      <div hidden={inResults}>
       <div className="fb-toolbar">
         <div className="fb-path">
           <span className="fb-label">Path:</span>
@@ -807,6 +991,90 @@ export default function FilesExplorer({
       </div>
 
       {error && <div className="fb-error">{error}</div>}
+      </div>
+
+      {results && (
+        <section className="fb-results" aria-labelledby={`${uid}rt`}>
+          <div className="fb-results-head">
+            <button type="button" className="fb-results-back" onClick={() => closeResults()}>
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19 12H5m6-6-6 6 6 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="fb-results-back-label">Back to {folderLabel}</span>
+            </button>
+            <h2 ref={resultsHeadRef} id={`${uid}rt`} className="fb-results-title" tabIndex={-1}>
+              Files matching “{results.text}”
+            </h2>
+            {/* Its line kept while searching, so the list doesn't move.
+                Read out by the live region below, not twice. */}
+            <p className="fb-results-count" aria-hidden="true">
+              {results.state === "done" && found.length > 0 &&
+                (found.length === cSearchLimit ? `Showing the first ${cSearchLimit} results` : `${found.length} ${found.length === 1 ? "result" : "results"}`)}
+            </p>
+          </div>
+          <span className="fb-sr" aria-live="polite">{resultsStatus}</span>
+          <div className="fb-table fb-results-table" aria-busy={results.state === "loading"}>
+            <div className="fb-head" aria-hidden="true">
+              <div className="c c-name">Name</div>
+              <div className="c c-size">Size</div>
+              <div className="c c-modified">Modified</div>
+            </div>
+            {results.state === "loading" && (
+              <div className="fb-results-note" aria-hidden="true"><Spinner /><span>Searching…</span></div>
+            )}
+            {results.state === "error" && (
+              <div className="fb-results-note is-error">
+                <span aria-hidden="true">{results.error}</span>
+                {results.retry && <button type="button" className="btn" onClick={() => startSearch(results.text)}>Try again</button>}
+              </div>
+            )}
+            {results.state === "done" && found.length === 0 && (
+              <div className="fb-results-note" aria-hidden="true">No files match “{results.text}”.</div>
+            )}
+            {found.length > 0 && (
+              <ul className="fb-body fb-results-list" aria-label={`Files matching ${results.text}`}>
+                {found.map(r => {
+                  const thumb = r.media ? thumbs[r.file.path] : undefined;
+                  const meta = r.isDir ? undefined : `${uid}m${r.k}`;
+                  const metaDate = r.file.modified ? `${uid}d${r.k}` : undefined;
+                  return (
+                    <li className="fb-row fb-res-row" key={r.file.path}>
+                      <div className="c c-name">
+                        <span className={`fb-res-art${r.isDir ? " is-folder" : ""}`} aria-hidden="true">
+                          {r.isDir
+                            ? <svg viewBox="0 0 64 52" width="26" height="22"><path d="M4 6a4 4 0 0 1 4-4h16l6 6h26a4 4 0 0 1 4 4v34a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" /></svg>
+                            : thumb
+                              ? <img src={thumb} alt="" />
+                              : <FileTypeIcon name={r.name} size={32} />}
+                          {thumb && isVideo(r.file) && (
+                            <span className="fb-res-play"><svg viewBox="0 0 24 24" width="9" height="9"><path d="M8 5v14l11-7z" fill="#fff" /></svg></span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          className="fb-res-open"
+                          onClick={() => openFound(r.file)}
+                          disabled={openingPath !== null}
+                          aria-label={`${r.name}, ${kindWord(r.file)} in ${r.dir}`}
+                          aria-describedby={[meta, metaDate].filter(Boolean).join(" ") || undefined}
+                        >
+                          <span className="fb-res-name">
+                            {openingPath === r.file.path ? <span className="fb-opening">Opening…</span> : <Marked text={r.name} span={r.nameSpan} />}
+                          </span>
+                          {/* Long folders lose their start, not the end nearest the file. */}
+                          <span className="fb-res-dir"><bdi dir="ltr"><Marked text={r.dir} span={r.dirSpan} /></bdi></span>
+                        </button>
+                      </div>
+                      <div className="c c-size" id={meta}>{r.isDir ? "—" : fmtBytes(r.size)}</div>
+                      <div className="c c-modified" id={metaDate}>{r.file.modified ? r.file.modified.toLocaleString() : "—"}</div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Issue #86: upload progress panel - shown while any dropped file is
           still reading/sending, or briefly after the batch settles. */}
@@ -842,6 +1110,7 @@ export default function FilesExplorer({
         </div>
       )}
 
+      <div ref={folderViewRef} className="fb-contents" hidden={inResults} tabIndex={-1} role="region" aria-label={`Contents of ${path}`}>
       {viewMode === "grid" ? (
         <div className="fb-grid" ref={gridRef}>
           {loading && <div className="fb-grid-note">Loading…</div>}
@@ -949,13 +1218,14 @@ export default function FilesExplorer({
       )}
 
       <div className="fb-tip">Tip: Drag files here to upload to <code>{path}</code>.</div>
+      </div>
 
       {mediaViewer && (
         <MediaViewer
           items={viewerItems}
           index={mediaViewer.index}
           onIndexChange={i => setMediaViewer(v => (v ? { ...v, index: i } : v))}
-          onClose={() => setMediaViewer(null)}
+          onClose={closeViewer}
         />
       )}
 
