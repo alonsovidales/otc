@@ -25,56 +25,67 @@ struct MainView: View {
     @State private var showConnectionProblem = false
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Every tab is wrapped in LazyTab - see its doc comment for why
-            // the ones not showing must not be built at launch.
-            TabView(selection: $selectedTab) {
-                // Issue #78 follow-up: notifications became a section of
-                // its own (was a header/toolbar bell+sheet) - leftmost tab,
-                // per the user's explicit ask ("in the ios app, it should
-                // be at the left").
-                LazyTab(tag: 0, selection: $selectedTab) {
-                    NotificationsListView(model: notifications)
-                }
-                .tabItem { Label("Alerts", systemImage: "bell.fill") }
-                .badge(notifications.unacknowledgedCount)
-                .tag(0)
-
-                LazyTab(tag: 1, selection: $selectedTab) {
-                    SocialFeedView()
-                }
-                .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
-                .tag(1)
-
-                // Issue #84: Friendships moved from here into a sheet
-                // presented by SocialFeedView's own toolbar (tag 2 left
-                // unused rather than renumbering everything after it -
-                // same convention as a removed proto field).
-                LazyTab(tag: 3, selection: $selectedTab) {
-                    FilesExplorerView(initialPath: "/")
-                }
-                .tabItem { Label("Files", systemImage: "folder") }
-                .tag(3)
-
-                LazyTab(tag: 4, selection: $selectedTab) {
-                    PhotoGalleryView(deviceID: secrets.deviceId, localPhotosFolder: nil)
-                }
-                .tabItem { Label("Images", systemImage: "photo.on.rectangle") }
-                .tag(4)
-
-                LazyTab(tag: 5, selection: $selectedTab) {
-                    SettingsView()
-                }
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(5)
-            }
-        }
         // Issue #183: a critical device update, over every tab until it
         // is installed. Update goes the same way as an update alert does.
-        .safeAreaInset(edge: .top, spacing: 0) {
+        // Above the tabs in the layout rather than a .safeAreaInset on
+        // them: the TabView doesn't hand that inset on to its navigation
+        // stacks, so the banner used to lie over the navigation bar and
+        // the top of each tab's content, covering the toolbar buttons and
+        // the header of a post opened from a notification, while the feed
+        // still measured its full height (and so let a vertical photo run
+        // under the tab bar - see SocialFeedView's feedViewportHeight).
+        // Here it takes its height from the tabs instead.
+        VStack(spacing: 0) {
             if let alert = updateAlert.critical {
                 CriticalUpdateBanner(alert: alert) {
                     notifications.pendingDeepLink = .updates
+                }
+                // Its red carries on up behind the status bar, which the
+                // navigation bar no longer reaches while it shows.
+                .background(Color.red.ignoresSafeArea(edges: .top))
+            }
+            ZStack(alignment: .bottom) {
+                // Every tab is wrapped in LazyTab - see its doc comment for why
+                // the ones not showing must not be built at launch.
+                TabView(selection: $selectedTab) {
+                    // Issue #78 follow-up: notifications became a section of
+                    // its own (was a header/toolbar bell+sheet) - leftmost tab,
+                    // per the user's explicit ask ("in the ios app, it should
+                    // be at the left").
+                    LazyTab(tag: 0, selection: $selectedTab) {
+                        NotificationsListView(model: notifications)
+                    }
+                    .tabItem { Label("Alerts", systemImage: "bell.fill") }
+                    .badge(notifications.unacknowledgedCount)
+                    .tag(0)
+
+                    LazyTab(tag: 1, selection: $selectedTab) {
+                        SocialFeedView()
+                    }
+                    .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
+                    .tag(1)
+
+                    // Issue #84: Friendships moved from here into a sheet
+                    // presented by SocialFeedView's own toolbar (tag 2 left
+                    // unused rather than renumbering everything after it -
+                    // same convention as a removed proto field).
+                    LazyTab(tag: 3, selection: $selectedTab) {
+                        FilesExplorerView(initialPath: "/")
+                    }
+                    .tabItem { Label("Files", systemImage: "folder") }
+                    .tag(3)
+
+                    LazyTab(tag: 4, selection: $selectedTab) {
+                        PhotoGalleryView(deviceID: secrets.deviceId, localPhotosFolder: nil)
+                    }
+                    .tabItem { Label("Images", systemImage: "photo.on.rectangle") }
+                    .tag(4)
+
+                    LazyTab(tag: 5, selection: $selectedTab) {
+                        SettingsView()
+                    }
+                    .tabItem { Label("Settings", systemImage: "gearshape") }
+                    .tag(5)
                 }
             }
         }

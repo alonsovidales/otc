@@ -471,6 +471,15 @@ struct SocialFeedView: View {
     // the web app's own header button), so it isn't reachable when there's
     // nothing to actually apply a friendship to yet.
     @State private var showingFriendships = false
+    /// The feed's visible height: the scroll view less the navigation and
+    /// tab bars and anything else on its safe area. Every post's media is
+    /// kept inside it (rule 1, see cFeedMaxAspect). nil until the first
+    /// layout has measured it - posts wait for it rather than drawing a
+    /// pass at a guessed size.
+    @State private var feedViewportHeight: CGFloat?
+    /// The measurement feedViewportHeight was last taken from, to tell the
+    /// keyboard coming up from the window really changing.
+    @State private var feedViewportBase: FeedViewportMeasure?
 
     // Issue #81: the nav bar had nothing on the leading side (no title, no
     // button), just the trailing "+" - reading as empty space instead of a
@@ -576,10 +585,11 @@ struct SocialFeedView: View {
                                 // up now.
                                 logoHeader
                                     .padding(.top, hSizeClass == .regular ? 0 : -44)
-                                ForEach(vm.boxedPosts, id: \.pub.uuid) { box in
+                                ForEach(feedViewportHeight == nil ? [] : vm.boxedPosts, id: \.pub.uuid) { box in
                                     let post = box.pub
                                     PostCard(
                                         box: box,
+                                        viewportHeight: feedViewportHeight ?? 0,
                                         isHighlighted: post.uuid == vm.highlightPub,
                                         highlightCommentUuid: post.uuid == vm.highlightPub ? vm.highlightComment : nil,
                                         onLikePub: { Task { await vm.likePublication(post.uuid) } },
@@ -604,6 +614,33 @@ struct SocialFeedView: View {
                             // edge to edge on a phone (see cFeedMaxWidth).
                             .frame(maxWidth: cFeedMaxWidth)
                             .frame(maxWidth: .infinity)
+                        }
+                        // Measures feedViewportHeight. The scroll view's
+                        // own frame is already the space between the bars
+                        // (its content scrolls on under them, but that is
+                        // drawn, not laid out) - measured on an iPhone 18
+                        // Pro: 675pt of 874, with the 116pt of status and
+                        // navigation bar and the 83pt tab bar outside it.
+                        // Not less proxy.safeAreaInsets: here those still
+                        // report the bars, which would count them twice.
+                        .onGeometryChange(for: FeedViewportMeasure.self) { proxy in
+                            FeedViewportMeasure(width: proxy.size.width, height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom)
+                        } action: { measure in
+                            // The very first pass reports an empty frame;
+                            // that is not a size.
+                            guard measure.height > 0 else { return }
+                            // The keyboard shrinks this frame as well -
+                            // the tab's whole content is resized, above
+                            // this view, so .ignoresSafeArea(.keyboard)
+                            // on a measuring view doesn't help, and the
+                            // keyboard notifications arrive after the
+                            // resize. Typing a comment must not shrink
+                            // every post's media under the finger, so the
+                            // height from before the keyboard stands
+                            // while it is up (see isKeyboard(after:)).
+                            if let base = feedViewportBase, measure.isKeyboard(after: base) { return }
+                            feedViewportBase = measure
+                            feedViewportHeight = measure.height
                         }
                         .refreshable { await vm.loadFeed() }
                         .onChange(of: vm.scrollTargetPub) { _, target in
@@ -766,40 +803,116 @@ private enum MediaSizeCache {
     }
 }
 
-/// Issue #112 follow-up: how much of the screen one post's media may take.
-/// A backstop for very wide windows (an iPad), where even the feed box
-/// below could otherwise fill the screen and push the caption, likes and
-/// comments out of view, leaving a post you can only scroll past.
-private let cMaxMediaHeightFraction: CGFloat = 0.8
-
 /// Issue #123: the widest the feed column gets. A phone is narrower than
 /// this so it changes nothing there; on an iPad it keeps a post the shape
 /// of a post (Instagram's web feed picks about the same figure) instead of
 /// stretching a portrait video to 820pt of mostly letterbox.
 private let cFeedMaxWidth: CGFloat = 600
 
-/// The width posts are actually laid out in - the screen's, capped at
-/// cFeedMaxWidth - for the media maths that used to assume the screen.
-private var feedWidth: CGFloat {
-    min(UIScreen.main.bounds.width, cFeedMaxWidth)
-}
-
-/// The feed's media box, in Instagram's terms: nothing taller than 4:5,
-/// nothing wider than 1.91:1, and whatever falls between keeps its own
-/// shape. Everything this library holds is 9:16 (0.5625), which is far
-/// taller than 4:5 - shown at its own ratio it takes the whole screen,
-/// which is what put the comments out of reach.
-private let cFeedMinAspect: CGFloat = 4.0 / 5.0
+/// How a post's media is framed (the owner, 2026-10-07: "the height of the
+/// photos should never be more than the height of the screen or the frame
+/// where they are represented, if not the user can't see the full media
+/// for vertical media"). The same three rules on the web, iOS and Android:
+///
+/// 1. The media box is never taller than the space it is shown in: the
+///    feed's visible height (the screen less the status, navigation and
+///    tab bars, and the critical update banner while it shows - MainView
+///    lays that out above the tabs, so it shortens this view rather than
+///    covering it) less the post's own header above the media and a
+///    small margin. So a post scrolled to sit right under the top bar -
+///    which is where opening one from a notification puts it - shows its
+///    whole media. It is measured, not assumed (see SocialFeedView's
+///    feedViewportHeight), so rotation, split screen and Stage Manager
+///    sizes recompute it.
+/// 2. Nothing is ever cropped: photos, video posters and the playing
+///    video are all shown whole (fit), letterboxed in black inside the
+///    full-width box, and a poster and its player are given the very same
+///    rect, so pressing play moves nothing (issue #112).
+/// 3. The box takes its shape from the post's first item, one ratio for
+///    the whole post, so swiping a carousel never resizes the card (issue
+///    #27), clamped only on the wide side, to 1.91:1.
+///
+/// There used to be a 4:5 floor on that ratio as well, Instagram's, from
+/// when a 9:16 item (most of this library) shown at its own ratio was
+/// taller than the screen and put the comments out of reach. Rule 1 now
+/// does that job, so a vertical photo or a 9:16 video gets all the height
+/// the screen can give it instead of being shrunk into a 4:5 box - which
+/// is also what replaced issue #112's follow-up cap of 80% of the screen
+/// height, an iPad-only backstop that did nothing for a phone.
 private let cFeedMaxAspect: CGFloat = 1.91
 
-/// A player that fills its box and crops the overflow, which is how
-/// Instagram shows a 9:16 clip in a 4:5 feed slot.
+/// The box's shape while the post's first item has no thumbnail to read
+/// one from (a missing or undecodable one). Rule 1 still caps it.
+private let cFeedFallbackAspect: CGFloat = 4.0 / 5.0
+
+/// Rule 1's margin: the gap left between the media's bottom edge and the
+/// bottom bar when the post's header sits right under the top bar.
+private let cMediaHeightMargin: CGFloat = 8
+
+/// The least height a media box is given whatever the window, so a
+/// window too short to hold even a header (an iPad's smallest Stage
+/// Manager size, say) can't collapse the box to nothing.
+private let cMinMediaHeight: CGFloat = 120
+
+/// One measurement of the feed's scroll view, for rule 1's visible height.
+private struct FeedViewportMeasure: Equatable, Sendable {
+    let width: CGFloat
+    let height: CGFloat
+    /// What covers the bottom of the frame: the tab bar and home
+    /// indicator, plus the keyboard when it is up.
+    let bottomInset: CGFloat
+
+    /// Whether this differs from `base` only by the keyboard: the same
+    /// width, the same distance from the frame's top to the bottom of the
+    /// screen, and more of it covered at the bottom. That is the keyboard
+    /// coming up, or being dragged down, not the window changing - a
+    /// rotation changes the width, and a banner or a taller navigation
+    /// bar moves the top.
+    func isKeyboard(after base: FeedViewportMeasure) -> Bool {
+        abs(width - base.width) < 0.5
+            && abs((height + bottomInset) - (base.height + base.bottomInset)) < 0.5
+            && bottomInset > base.bottomInset + 0.5
+    }
+}
+
+/// Sizes a post's media box: the whole width the feed column offers, and
+/// the height that width gives the box's ratio - but never more than
+/// `maxHeight` (rule 1 above). Whatever is inside is offered exactly that
+/// box.
 ///
-/// SwiftUI's own VideoPlayer can't do this: it has no videoGravity of its
-/// own and always letterboxes, so a 9:16 video in a 4:5 box would become
-/// a narrow strip between two black bars. This is the same
-/// AVPlayerViewController VideoPlayer wraps - transport controls and all
-/// - with the one property it doesn't expose set to fill.
+/// A Layout rather than `.aspectRatio(.fit).frame(maxHeight:)`: in a
+/// vertical scroll view nothing proposes a height, and a frame with only a
+/// maximum then lets an aspect-ratio child report its natural, taller
+/// size and spill out of the frame instead of shrinking into it. It also
+/// means the box needs no width worked out from the screen, which is
+/// wrong in split screen.
+private struct MediaBoxLayout: Layout {
+    let aspect: CGFloat
+    let maxHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        var width = proposal.width ?? .infinity
+        if !width.isFinite { width = maxHeight * aspect }
+
+        return CGSize(width: width, height: min(width / aspect, maxHeight))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for subview in subviews {
+            subview.place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center, proposal: ProposedViewSize(bounds.size))
+        }
+    }
+}
+
+/// The feed's video player: a plain AVPlayerLayer showing the whole frame
+/// (resizeAspect), letterboxed in black. It is given the same rect as the
+/// poster it replaces (see PostCard.videoContent), so the two line up.
+///
+/// It used to crop instead (resizeAspectFill), which is how Instagram
+/// shows a 9:16 clip in a 4:5 feed slot - and which cut the sides off
+/// every video in the feed. Nothing in the feed is cropped any more (rule
+/// 2 above).
+///
 /// A plain AVPlayerLayer, deliberately not AVPlayerViewController.
 ///
 /// The feed shows no transport controls, so the whole view controller was
@@ -817,12 +930,11 @@ private let cFeedMaxAspect: CGFloat = 1.91
 /// That is a preferences lookup and a log format, synchronously, inside a
 /// layout pass, every time a player layer's bounds change - once per
 /// player, per layout, and the feed autoplays. Setting videoGravity on a
-/// bare layer gets the identical cropping with none of it: nothing
+/// bare layer gets the identical picture with none of it: nothing
 /// observes videoBounds, so nothing recomputes videoRect during layout.
 ///
-/// SwiftUI's own VideoPlayer is not an option either - it wraps the same
-/// AVPlayerViewController and has no videoGravity, so a 9:16 clip in a 4:5
-/// box would letterbox into a narrow strip.
+/// SwiftUI's own VideoPlayer is not an option either, letterboxing or
+/// not: it wraps the same AVPlayerViewController, freeze and all.
 final class PlayerLayerView: UIView {
     override static var layerClass: AnyClass { AVPlayerLayer.self }
 
@@ -832,13 +944,13 @@ final class PlayerLayerView: UIView {
     }
 }
 
-private struct CroppingVideoPlayer: UIViewRepresentable {
+private struct FeedVideoPlayer: UIViewRepresentable {
     let player: AVPlayer
 
     func makeUIView(context: Context) -> PlayerLayerView {
         let view = PlayerLayerView()
         view.backgroundColor = .black
-        view.playerLayer.videoGravity = .resizeAspectFill
+        view.playerLayer.videoGravity = .resizeAspect
         view.playerLayer.player = player
 
         return view
@@ -858,6 +970,9 @@ private struct CroppingVideoPlayer: UIViewRepresentable {
 
 private struct PostCard: View {
     let box: PostBox
+    /// The feed's visible height, which rule 1 (see cFeedMaxAspect) keeps
+    /// this post's media inside - see SocialFeedView.feedViewportHeight.
+    let viewportHeight: CGFloat
 
     /// Computed, not stored: a stored protobuf value is precisely what
     /// sends AttributeGraph walking (see PostBox).
@@ -912,6 +1027,8 @@ private struct PostCard: View {
     /// Shows the replay button: this post's clip has run out.
     @State private var videoEnded = false
     @ObservedObject private var feedAudio = FeedAudio.shared
+    /// Read for headerHeight, which follows the text size.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     // Instagram-style, edge-to-edge feed (issue #12): no card background or
     // rounded frame around the whole post, and the image spans the full
@@ -919,18 +1036,31 @@ private struct PostCard: View {
     // into a fixed box — everything else (header, caption, actions,
     // comments) gets its own modest horizontal inset instead.
     private let sidePadding: CGFloat = 12
+    /// The card's vertical spacing, the header's top padding and the
+    /// avatar's size - named because headerHeight adds them up.
+    private let cardSpacing: CGFloat = 8
+    private let headerTopPadding: CGFloat = 10
+    private let avatarSize: CGFloat = 28
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: cardSpacing) {
             HStack(spacing: 8) {
-                avatarView(data: post.publisher.hasImage ? post.publisher.image : nil, size: 28)
+                avatarView(data: post.publisher.hasImage ? post.publisher.image : nil, size: avatarSize)
+                // One line each, truncated, at every text size: headerHeight
+                // counts exactly one name line and one date line, so a
+                // name wrapping to two (a long one, or any at the largest
+                // sizes) would push the media's bottom under the tab bar.
                 VStack(alignment: .leading, spacing: 1) {
                     Text(post.publisher.name.isEmpty ? "User" : post.publisher.name)
                         .font(.subheadline).bold()
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     if post.hasDateTime {
                         Text(formatPostDate(post.dateTime.date))
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
                 }
                 Spacer()
@@ -945,7 +1075,7 @@ private struct PostCard: View {
                 }
             }
             .padding(.horizontal, sidePadding)
-            .padding(.top, 10)
+            .padding(.top, headerTopPadding)
 
             if !post.files.isEmpty {
                 let file = post.files[min(currentImage, post.files.count - 1)]
@@ -964,8 +1094,8 @@ private struct PostCard: View {
                     // done nothing until it suddenly had). That is what a
                     // paging TabView does natively, so it replaces the
                     // hand-rolled DragGesture that used to sit below;
-                    // it needs a definite height, which is exactly the
-                    // one carouselHeight already computes for this case.
+                    // it needs a definite size, which is exactly the box
+                    // MediaBoxLayout gives every item of the post.
                     carouselContent(for: file)
                         // Issue #114: a video starts when you scroll onto
                         // it and stops when you leave, so the feed plays
@@ -980,16 +1110,28 @@ private struct PostCard: View {
                                 videoPlayer?.pause()
                             }
                         }
-                        .overlay(alignment: .topTrailing) {
+                        // The sound toggle sits on the video's own corner,
+                        // not the box's: a vertical clip is letterboxed
+                        // in a wider box (rule 2), and on the black bar
+                        // beside it the button would read as belonging
+                        // to nothing. Over the whole carousel rather than
+                        // inside each page, so the pages' tap zones (see
+                        // carouselContent) can't take its taps; the clear
+                        // frame it hangs from takes no touches itself.
+                        .overlay {
                             if file.mime.hasPrefix("video/") {
-                                Button { feedAudio.toggle() } label: {
-                                    Image(systemName: feedAudio.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(8)
-                                        .background(.black.opacity(0.45), in: Circle())
-                                }
-                                .padding(10)
+                                Color.clear
+                                    .aspectRatio(mediaAspect(for: file) ?? boxAspect, contentMode: .fit)
+                                    .overlay(alignment: .topTrailing) {
+                                        Button { feedAudio.toggle() } label: {
+                                            Image(systemName: feedAudio.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(.white)
+                                                .padding(8)
+                                                .background(.black.opacity(0.45), in: Circle())
+                                        }
+                                        .padding(10)
+                                    }
                             }
                         }
                         .contentShape(Rectangle())
@@ -1164,33 +1306,34 @@ private struct PostCard: View {
         }
     }
 
-    /// The actual post image, full width, at its own real aspect ratio — no
-    /// cropping, no fixed box. `.aspectRatio(contentMode: .fit)` computes
-    /// height from the proposed width itself, so unlike the `scaledToFill()`
-    /// this replaced, it can't report an oversized ideal size that pushes
-    /// the view wider than the screen. Issue #60: a video file renders as
-    /// its own poster-plus-play-button (see videoContent) instead.
+    /// The actual post image, full width, whole - never cropped (rule 2,
+    /// see cFeedMaxAspect). `.aspectRatio(contentMode: .fit)` computes its
+    /// size from the box it is offered, so unlike the `scaledToFill()` this
+    /// replaced, it can't report an oversized ideal size that pushes the
+    /// view wider than the screen. Issue #60: a video file renders as its
+    /// own poster-plus-play-button (see videoContent) instead.
     @ViewBuilder
     private func mediaContent(for file: Msg_File) -> some View {
         if file.mime.hasPrefix("video/") {
             videoContent(for: file)
         } else if let ui = MediaSizeCache.image(of: file) {
-            // .fit, never .fill: a photo is never cut. Its own ratio
-            // shapes the box (within the allowed range), so an ordinary
-            // landscape photo fills it exactly and only something taller
-            // than 4:5 gets letterboxed - cropping these is what broke
-            // horizontal photos, especially in a post whose first item is
-            // portrait and therefore sets a tall box.
-            feedBox(for: file) {
+            // .fit, never .fill: a photo is never cut. The first item's
+            // ratio shapes the box, so it fills it exactly unless it is
+            // wider than 1.91:1 or taller than the screen leaves room for;
+            // anything else in the post is letterboxed in that box.
+            // Cropping these is what broke horizontal photos, especially
+            // in a post whose first item is portrait and therefore sets a
+            // tall box.
+            feedBox {
                 Image(uiImage: ui).resizable().aspectRatio(contentMode: .fit)
             }
         } else {
-            Rectangle()
-                .fill(Color.secondary.opacity(0.08))
-                .frame(maxWidth: .infinity, minHeight: 200, maxHeight: carouselHeight ?? 320)
-                .overlay {
-                    Image(systemName: "photo").font(.largeTitle).foregroundColor(.secondary)
-                }
+            // The same box as everything else in the post, so a thumbnail
+            // that arrives later, or never, can't change the card's
+            // height.
+            feedBox(background: Color.secondary.opacity(0.08)) {
+                Image(systemName: "photo").font(.largeTitle).foregroundColor(.secondary)
+            }
         }
     }
 
@@ -1198,7 +1341,7 @@ private struct PostCard: View {
     /// video's thumbnail is a frame of that video (see UploadFile's
     /// background processing), so it carries exactly the aspect ratio the
     /// player will have - which is what lets the player be given the
-    /// poster's box before a single byte of video has been decoded.
+    /// poster's rect before a single byte of video has been decoded.
     private func mediaAspect(for file: Msg_File) -> CGFloat? {
         guard let size = MediaSizeCache.size(of: file) else { return nil }
 
@@ -1208,79 +1351,100 @@ private struct PostCard: View {
     /// One post's media area: a single item on its own, or a paging
     /// carousel that moves with the finger when there are several
     /// (issue #109).
+    ///
+    /// Issue #27: with more than one item in a post, the media area keeps
+    /// one size rather than resizing per item - swiping between mixed
+    /// aspect ratios used to make the whole card jump taller and shorter
+    /// on every image. It is the same box every item already draws into
+    /// (see feedBox), given to the TabView too, which needs a definite
+    /// size to page in.
     @ViewBuilder
     private func carouselContent(for current: Msg_File) -> some View {
-        if post.files.count > 1, let height = carouselHeight {
-            TabView(selection: $currentImage) {
-                ForEach(0..<post.files.count, id: \.self) { i in
-                    mediaContent(for: post.files[i])
-                        // Issue #20, kept: tapping the left or right
-                        // quarter pages through. Inside the page rather
-                        // than over the whole carousel, so the scroll
-                        // view still gets the drag.
-                        .overlay {
-                            HStack(spacing: 0) {
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { if currentImage > 0 { currentImage -= 1 } }
-                                    .frame(maxWidth: .infinity)
-                                Color.clear.frame(maxWidth: .infinity)
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { if currentImage < post.files.count - 1 { currentImage += 1 } }
-                                    .frame(maxWidth: .infinity)
+        if post.files.count > 1 {
+            MediaBoxLayout(aspect: boxAspect, maxHeight: maxMediaHeight) {
+                TabView(selection: $currentImage) {
+                    ForEach(0..<post.files.count, id: \.self) { i in
+                        mediaContent(for: post.files[i])
+                            // Issue #20, kept: tapping the left or right
+                            // quarter pages through. Inside the page rather
+                            // than over the whole carousel, so the scroll
+                            // view still gets the drag.
+                            .overlay {
+                                HStack(spacing: 0) {
+                                    Color.clear
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { if currentImage > 0 { currentImage -= 1 } }
+                                        .frame(maxWidth: .infinity)
+                                    Color.clear.frame(maxWidth: .infinity)
+                                    Color.clear
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { if currentImage < post.files.count - 1 { currentImage += 1 } }
+                                        .frame(maxWidth: .infinity)
+                                }
                             }
-                        }
-                        .tag(i)
+                            .tag(i)
+                    }
                 }
+                // The dots are drawn by this card itself, over the image -
+                // TabView's own index view would sit below it and duplicate
+                // them.
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            // The dots are drawn by this card itself, over the image -
-            // TabView's own index view would sit below it and duplicate
-            // them.
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: height)
         } else {
             mediaContent(for: current)
         }
     }
 
-    /// This file's shape as the feed will show it: its own aspect ratio,
-    /// clamped into the range the feed allows (see cFeedMinAspect). The
-    /// media fills that box and is cropped, rather than being letterboxed
-    /// inside it.
-    private func displayAspect(for file: Msg_File) -> CGFloat? {
-        guard let aspect = mediaAspect(for: file) else { return nil }
-
-        return min(max(aspect, cFeedMinAspect), cFeedMaxAspect)
+    /// One box for this post's media (rules 1 and 3, see cFeedMaxAspect):
+    /// full width, boxAspect's shape, no taller than maxMediaHeight. Every
+    /// item of the post, and a video's poster and player alike, draw into
+    /// it, so neither swiping nor pressing play can reshape the post
+    /// (issues #27 and #112). What goes inside is fitted, never cropped,
+    /// and centred on the letterbox colour.
+    private func feedBox<Content: View>(background: Color = .black, @ViewBuilder content: () -> Content) -> some View {
+        MediaBoxLayout(aspect: boxAspect, maxHeight: maxMediaHeight) {
+            ZStack {
+                background
+                content()
+            }
+        }
+        .clipped()
     }
 
-    /// One box for this post's media, sized by boxAspect. Poster and
-    /// player share it, so starting playback can't reshape the post
-    /// (issue #112). What goes inside decides whether it is cropped to
-    /// that box or letterboxed within it - see the call sites.
-    @ViewBuilder
-    private func feedBox<Content: View>(for file: Msg_File, @ViewBuilder content: @escaping () -> Content) -> some View {
-        Color.black
-            .aspectRatio(boxAspect(for: file), contentMode: .fit)
-            .frame(maxWidth: .infinity, maxHeight: maxMediaHeight)
-            .overlay { content() }
-            .clipped()
-    }
-
-    /// The shape of this post's media area: one ratio for the whole post,
+    /// The shape of this post's media box: one ratio for the whole post,
     /// taken from its first item as Instagram does, so swiping a carousel
-    /// can't resize the card.
-    private func boxAspect(for file: Msg_File) -> CGFloat {
-        let source = post.files.first ?? file
+    /// can't resize the card. Clamped on the wide side only (see
+    /// cFeedMaxAspect); a tall item is held back by maxMediaHeight
+    /// instead.
+    private var boxAspect: CGFloat {
+        guard let first = post.files.first, let aspect = mediaAspect(for: first) else { return cFeedFallbackAspect }
 
-        return displayAspect(for: source) ?? cFeedMinAspect
+        return min(aspect, cFeedMaxAspect)
     }
 
-    /// The tallest this post's media may be - see cMaxMediaHeightFraction.
-    /// Applied to the poster and the player alike, so capping one can't
-    /// reintroduce the mismatch issue #112 fixed.
+    /// How much of this card sits above its media: the header row (the
+    /// avatar beside the name and date lines - one line each, see the
+    /// header's lineLimit), its top padding and the card's spacing below
+    /// it. Worked out from the fonts at the current
+    /// text size rather than measured, so it is known before the card is
+    /// first laid out: a measured value would land a pass later and resize
+    /// cards that are already on screen, or above it, which is what makes
+    /// a feed jump.
+    private var headerHeight: CGFloat {
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        let name = UIFont.preferredFont(forTextStyle: .subheadline, compatibleWith: traits).lineHeight
+        let date = UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traits).lineHeight
+
+        return headerTopPadding + max(avatarSize, ceil(name + 1 + date)) + cardSpacing
+    }
+
+    /// The tallest this post's media may be (rule 1, see cFeedMaxAspect):
+    /// the feed's visible height less this card's header and a margin, so
+    /// with the header right under the top bar the whole media shows.
+    /// Applied to every item, the poster and the player alike, so capping
+    /// one can't reintroduce the mismatch issue #112 fixed.
     private var maxMediaHeight: CGFloat {
-        UIScreen.main.bounds.height * cMaxMediaHeightFraction
+        max(viewportHeight - headerHeight - cMediaHeightMargin, cMinMediaHeight)
     }
 
     /// Issue #60: a video post shows its thumbnail as a poster with a play
@@ -1294,9 +1458,14 @@ private struct PostCard: View {
             // Issue #112: the player takes the very same box the poster
             // just occupied, so pressing play can't reshape the post. It
             // used to fall back to a fixed 320pt-tall box that had
-            // nothing to do with the video's shape.
-            feedBox(for: file) {
-                CroppingVideoPlayer(player: player)
+            // nothing to do with the video's shape. Within the box it
+            // gets the poster's own rect too - the thumbnail's ratio,
+            // fitted - so the picture doesn't shift either; the layer
+            // fits the video inside that, so a thumbnail a pixel off the
+            // video's shape still crops nothing.
+            feedBox {
+                FeedVideoPlayer(player: player)
+                    .aspectRatio(mediaAspect(for: file) ?? boxAspect, contentMode: .fit)
             }
             // Replay, over the frame the clip stopped on. Without it a
             // finished video is a dead end: play() on a player sitting at
@@ -1346,16 +1515,16 @@ private struct PostCard: View {
         } else {
             ZStack {
                 if let ui = MediaSizeCache.image(of: file) {
-                    // .fill here, unlike a photo: this poster stands in
-                    // for a player that crops to the same box, so it has
-                    // to be framed identically.
-                    feedBox(for: file) {
-                        Image(uiImage: ui).resizable().aspectRatio(contentMode: .fill)
+                    // .fit, like a photo and like the player that takes
+                    // over from it: shown whole, in the same rect, so
+                    // pressing play neither crops nor moves anything. It
+                    // was .fill while the player cropped (to 4:5), which
+                    // cut the sides off every vertical video.
+                    feedBox {
+                        Image(uiImage: ui).resizable().aspectRatio(contentMode: .fit)
                     }
                 } else {
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.08))
-                        .frame(maxWidth: .infinity, minHeight: 200, maxHeight: carouselHeight ?? 320)
+                    feedBox(background: Color.secondary.opacity(0.08)) {}
                 }
                 if loadingVideo {
                     ProgressView().tint(.white)
@@ -1503,20 +1672,6 @@ private struct PostCard: View {
             let own = (path as NSString).pathExtension
             return own.isEmpty ? "mp4" : own.lowercased()
         }
-    }
-
-    /// Issue #27: with more than one item in a post, the media area keeps
-    /// one height rather than resizing per item - swiping between mixed
-    /// aspect ratios used to make the whole card jump taller and shorter
-    /// on every image. `nil` for a single-item post, which has nothing to
-    /// stay consistent with.
-    ///
-    /// It is the same box every item already draws into (see boxAspect),
-    /// just expressed as a height, because that is what a paging TabView
-    /// needs to be given.
-    private var carouselHeight: CGFloat? {
-        guard let first = post.files.first, post.files.count > 1 else { return nil }
-        return min(feedWidth / boxAspect(for: first), maxMediaHeight)
     }
 
 }

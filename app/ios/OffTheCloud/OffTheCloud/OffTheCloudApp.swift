@@ -58,7 +58,7 @@ struct OTCApp: App {
             // There used to be an AVPlayerViewController warm-up here as
             // well. It is gone because what it was amortising is gone: the
             // feed draws into a bare AVPlayerLayer now (see
-            // CroppingVideoPlayer), which has no view controller, no
+            // FeedVideoPlayer), which has no view controller, no
             // transport UI and no layout machinery to pay for up front.
         }
     }
