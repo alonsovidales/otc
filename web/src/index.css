@@ -4,6 +4,8 @@
   /* Neutral dark background (the app's original tone), not the teal-tinted
      --ink used on the public site - everything else here still matches it. */
   --ink: #242424;
+  --topbar-h: 64px;
+  --sidebar-w: 256px;
   --ink-2: #1a1a1a;
   --ink-3: #2e2e2e;
   --ember: #ff6b4a;
@@ -35,47 +37,67 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.header {
-  position: absolute;
-  top: 0px;
-  width: 100%;
-  border-bottom: 1px solid var(--line);
-  background: var(--ink-2);
+/* The top bar: the menu button, the logo, and the page's own action. Fixed,
+   with the left menu (Sidebar.css) under it and the page scrolling beside
+   it as before. */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--topbar-h);
+  box-sizing: border-box;
   display: flex;
   align-items: center;
+  gap: 8px;
+  padding: 0 16px 0 10px;
+  background: var(--ink);
+  border-bottom: 1px solid var(--line);
+  z-index: 30;
 }
+.tb-menu {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--mist);
+  cursor: pointer;
+}
+.tb-menu:hover { background: var(--panel); }
+.tb-menu:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.tb-logo { height: 38px; width: auto; display: block; margin-left: 4px; }
+.tb-fill { flex: 1; }
+.tb-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--ember);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ember);
+  font-weight: 600;
+  cursor: pointer;
+}
+.tb-action:hover { background: rgba(255, 107, 74, .12); }
+.tb-action span { font-size: 18px; line-height: 1; }
 
-.logo {
-  width: 200px;
-  margin-top: 10px;
-  margin-left: 10px;
+/* The page beside the menu: room for the bar above and, while the menu is
+   shown on a wide window, for the menu. */
+.app-body {
+  padding-top: var(--topbar-h);
+  transition: padding-left .2s ease;
 }
-
-/* The tabs and the usage bar under the logo's row. padding-right matches
-   the logo's footprint (200px + 10px margin) so both centre on the
-   header's full width - only while the logo is there and the screen is
-   wide enough for both: on a phone it used to push the page past the
-   screen's edge (the whole app zoomed out). */
-.header-nav {
-  flex: 1;
-  min-width: 0;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-right: 210px;
-}
-.header-nav.no-logo { padding-right: 0; }
-@media (max-width: 860px) {
-  .logo { width: 120px; }
-  .header-nav { padding-right: 0; }
-}
+.app-body.with-menu { padding-left: var(--sidebar-w); }
+@media (prefers-reduced-motion: reduce) { .app-body { transition: none; } }
 @media (max-width: 560px) {
-  .header > a:has(.logo) { display: none; }
-  .header-nav { padding: 6px 6px 4px; }
-  .top-tabs { gap: 5px; }
-  .top-tab { font-size: 13px; }
-  body main { margin-top: 64px; }
+  .tb-logo { height: 30px; }
+  .tb-action { padding: 0 12px; }
 }
 
 a {

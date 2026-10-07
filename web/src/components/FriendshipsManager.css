@@ -82,7 +82,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--mist); }
 .s-leaving { background: rgba(234,242,239,0.10); color: var(--mist-dim); } /* Issue #174 */
 
 .toast {
-  position: sticky; top: 10px; z-index: 10;
+  position: sticky; top: calc(var(--topbar-h) + 10px); z-index: 10;
   background: var(--ink-2); color: var(--mist); padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 8px; text-align: center;

@@ -1,5 +1,5 @@
 .pg-root { position: relative; }
-.pg-search { position: sticky; top: 0; z-index: 5; padding: 8px; border-bottom: 1px solid var(--line); background: var(--ink); }
+.pg-search { position: sticky; top: var(--topbar-h); z-index: 5; padding: 8px; border-bottom: 1px solid var(--line); background: var(--ink); }
 .pg-chipbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pg-chipbar input { flex: 1; min-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 16px; background: var(--ink-2); color: var(--mist); }
 .pg-search-btn { padding: 6px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--mist); border-radius: 6px; }
@@ -75,7 +75,7 @@
    target and the labels are just what's drawn inside it. */
 .pg-scrubber {
   position: fixed;
-  top: 84px;
+  top: calc(var(--topbar-h) + 12px);
   bottom: 12px;
   right: 0;
   width: 64px;

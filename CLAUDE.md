@@ -586,7 +586,11 @@ bridge's Web Push client reaches only public addresses, without redirects.
 
 ### Frontend (`web/`)
 
-React 19 + TypeScript + Vite, routed with `react-router-dom`. `web/src/net/` holds the WebSocket/proto
+React 19 + TypeScript + Vite, routed with `react-router-dom`. The signed-in shell is Google Photos-like: a fixed top bar
+(menu button, logo, the page's action) and a left menu (`Sidebar.tsx`: Images, Groups, Files; Social, Friends;
+Alerts, Settings; storage and mirror health at the foot, details on a click), hidden with the menu button
+(remembered, `otc_menu_open`) and an overlay below 900px; the page still scrolls the window, so sticky and
+fixed elements offset by `--topbar-h`. `web/src/net/` holds the WebSocket/proto
 client; `web/src/views/` are top-level routed pages (`SignIn`, `Social`); `web/src/components/` are the
 feature widgets (files explorer, photo gallery, friendships, settings, status, profile, social feed —
 each with a co-located `.css`). Built output (`vite build`) is copied by `make web` into the device's

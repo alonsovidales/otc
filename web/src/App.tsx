@@ -6,16 +6,15 @@ import './App.css'
 import { useWS } from "./net/useWS";
 import SignIn from "./views/SignIn";
 import FilesExplorer from "./components/FilesExplorer";
-import StatusWidget from "./components/StatusWidget";
 import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
 import SettingsForm from "./components/SettingsForm";
 import ProfileCard from "./components/ProfileCard";
 import FriendshipsManager from "./components/FriendshipsManager";
-import TopTabs from "./components/TopTabs";
-import type { TabKey } from "./components/TopTabs";
+import type { TabKey } from "./components/nav";
+import Sidebar from "./components/Sidebar";
+import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
-import "./components/StatusWidget.css";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
 import { getDeviceSetupInfo, loadPersistedToken } from "./net/pwCrypto";
@@ -60,6 +59,22 @@ function App() {
   // here because the button that toggles it sits in the shared header,
   // not inside the gallery.
   const [groupsOpen, setGroupsOpen] = useState(false);
+  // The left menu: shown or hidden with the top bar's button and
+  // remembered; on a narrow window it lies over the page, closed until
+  // asked for.
+  const narrow = useMediaQuery("(max-width: 900px)");
+  const [menuPref, setMenuPref] = useState<boolean>(() => {
+    try { return localStorage.getItem("otc_menu_open") !== "0"; } catch { return true; }
+  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const menuOpen = narrow ? drawerOpen : menuPref;
+  const toggleMenu = () => {
+    if (narrow) { setDrawerOpen((v) => !v); return; }
+    setMenuPref((v) => {
+      try { localStorage.setItem("otc_menu_open", v ? "0" : "1"); } catch { /* private mode */ }
+      return !v;
+    });
+  };
 
   // Issue #105: whether a session restore is actually in flight right now.
   // The authenticated-only views below used to show "Signing in…" purely
@@ -334,80 +349,39 @@ function App() {
 
   return (
     <>
-      <div className="header">
-        {!mobile &&
-          <a>
-             <img src={logo} className="logo" alt="Off The Cloud logo" />
-          </a>
-        }
-
-        {authenticated &&
-          // alignSelf: stretch overrides .header's own align-items:center
-          // just for this child, so it spans the header's full height
-          // (set by the logo) instead of shrinking to its own content -
-          // that's what lets justifyContent:space-between push the usage
-          // bar all the way down to the header's own bottom edge instead
-          // of floating centered partway down it.
-          <div className={`header-nav${mobile ? " no-logo" : ""}`}>
-            {/* paddingRight (on this whole column, so it covers the nav row
-                AND the status bar below it the same way) matches the
-                logo's own footprint (200px width + 10px left margin) on
-                this row's *other* side, so both center on the header's
-                full width - the same reference the timeline below centers
-                itself in - rather than only on the leftover space after
-                the logo, which used to land them visibly off-center from
-                the feed underneath. */}
-            <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <TopTabs
-                  value={tab}
-                  onChange={setTab}
-                  notificationCount={notificationCount}
-                  beforeNotifications={tab === "PhotoGallery" && (
-                    // Issue #115: image groups - a book, right of the tabs and
-                    // left of the bell, only while looking at Images.
-                    <button
-                      className={`top-tab${groupsOpen ? " is-active" : ""}`}
-                      onClick={() => setGroupsOpen(v => !v)}
-                      aria-label="Groups"
-                      aria-pressed={groupsOpen}
-                      title="Groups"
-                    >
-                      <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5Z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
-                        <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5A2.5 2.5 0 0 1 4 20.5Z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
-                        <path d="M8 7h7M8 10.5h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                  )}
-                />
-                {/* Issue #84: Friendships is no longer its own top-level
-                    tab - reached from here instead, left of "+", only
-                    while actually looking at the feed they both act on. */}
-                {tab === "Social" && (
-                  <button className="top-tab" onClick={() => setTab("Friends")} aria-label="Friends">
-                    <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                      <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                      <circle cx="17" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                      <path d="M15.5 14.2c2.4.3 4 2 4 4.8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                )}
-                {tab === "Social" && openComposer && (
-                  <button className="top-new-post-btn" onClick={() => openComposer()} aria-label="New post">+</button>
-                )}
-              </div>
-            </div>
-            <StatusWidget />
-          </div>
-        }
+      <header className="topbar">
+        {authenticated && (
+          <button className="tb-menu" onClick={toggleMenu} aria-label={menuOpen ? "Hide menu" : "Show menu"} aria-expanded={menuOpen}>
+            <MenuIcon size={24} />
+          </button>
+        )}
+        {!mobile && <img src={logo} className="tb-logo" alt="Off The Cloud" />}
+        <div className="tb-fill" />
+        {/* The page's own action: a new post, on the feed. */}
+        {authenticated && tab === "Social" && openComposer && (
+          <button className="tb-action" onClick={() => openComposer()}>
+            <span aria-hidden="true">+</span> New post
+          </button>
+        )}
         {!authenticated &&
           <button className="top_sign_in" onClick={() => setTab("SignIn")}>
             Sign In
           </button>
         }
-      </div>
+      </header>
+      {authenticated && (
+        <Sidebar
+          tab={tab}
+          groupsOpen={groupsOpen}
+          notificationCount={notificationCount}
+          overlay={narrow}
+          open={menuOpen}
+          onSelect={(next) => { if (next === "PhotoGallery") setGroupsOpen(false); setTab(next); }}
+          onGroups={() => { setGroupsOpen(true); setTab("PhotoGallery"); }}
+          onClose={() => setDrawerOpen(false)}
+        />
+      )}
+      <div className={`app-body${authenticated && menuOpen && !narrow ? " with-menu" : ""}`}>
       {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
       <main>
         {/* Issue #84: "Profile" is only ever the anonymous-visitor landing
@@ -453,8 +427,21 @@ function App() {
           />
         ) : signedOutPlaceholder)}
       </main>
+      </div>
     </>
   )
+}
+
+// A media query's current answer, kept up to date.
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatches(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return matches;
 }
 
 export default App

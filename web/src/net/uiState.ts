@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { TabKey } from "../components/TopTabs";
+import type { TabKey } from "../components/nav";
 
 // Issue #53: a reload used to always drop the user back on the default tab
 // (Profile, or Social right after sign-in) regardless of what they were
