@@ -15,7 +15,7 @@ import type { TabKey } from "./components/nav";
 import Sidebar from "./components/Sidebar";
 import TopSearch from "./components/TopSearch";
 import PeopleView from "./components/PeopleView";
-import GroupsView from "./components/GroupsView";
+import CollectionsView from "./components/CollectionsView";
 import { showAll } from "./components/photoFilter";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
@@ -146,7 +146,7 @@ function App() {
   // whether that was found out on reload or mid-session. The public
   // profile is what an unregistered visitor gets, and it is what an
   // expired session should get too.
-  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Groups", "Settings", "Notifications", "Friends", "Social"];
+  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Collections", "Settings", "Notifications", "Friends", "Social"];
   const cLandingTab: TabKey = "Profile";
 
   // Sends the viewer somewhere usable when a session couldn't be restored,
@@ -433,9 +433,9 @@ function App() {
             request before the auto-auth from #46 had resolved, surfacing
             as a bare "not authenticated" error instead of just waiting. */}
         {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : signedOutPlaceholder)}
-        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowGroups={() => setTab("Groups")} /> : signedOutPlaceholder)}
+        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} /> : signedOutPlaceholder)}
         {tab === "People" && (authenticated ? <PeopleView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
-        {tab === "Groups" && (authenticated ? <GroupsView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
+        {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
         {tab === "Settings" && (authenticated ? <SettingsForm /> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (
           <NotificationsPage

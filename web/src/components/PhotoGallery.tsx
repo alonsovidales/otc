@@ -52,8 +52,8 @@ const fileKey = (f: MsgFile, idx?: number) =>
 // Issue #115: the groups list is opened from the shared header's book
 // button (App.tsx), so its open/closed state is owned there and handed in.
 type PhotoGalleryProps = {
-  // An open group's "back" link: the Groups page.
-  onShowGroups: () => void;
+  // An open collection's "back" link: the Collections page.
+  onShowCollections: () => void;
   groupsOpen?: boolean;
   setGroupsOpen?: (open: boolean) => void;
 };

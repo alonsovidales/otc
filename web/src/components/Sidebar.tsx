@@ -28,7 +28,7 @@ type Item = { key: TabKey; label: string; icon: React.ReactNode };
 // device. Names as in the iOS and Android apps.
 const LIBRARY: Item[] = [
   { key: "PhotoGallery", label: "Images", icon: <ImagesIcon /> },
-  { key: "Groups", label: "Groups", icon: <GroupsIcon /> },
+  { key: "Collections", label: "Collections", icon: <GroupsIcon /> },
   { key: "AdminPannel", label: "Files", icon: <FilesIcon /> },
 ];
 const PEOPLE: Item[] = [

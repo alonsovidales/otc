@@ -4,11 +4,12 @@ import { useSyncExternalStore } from "react";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 
 // What the Images grid shows: the whole library, or the photos with every
-// tag and every person here (AND, see dao.SearchMedia), inside one group
-// when one is open. The top bar's search edits it; the People and Groups
-// pages open Images on a person or a group through it. Tags are kept
-// across a reload (issue #53); people and the open group are not, as
-// before.
+// tag and every person here (AND, see dao.SearchMedia), inside one
+// collection when one is open. The top bar's search edits it; the People
+// and Collections pages open Images on a person or a collection through
+// it. Tags are kept across a reload (issue #53); people and the open
+// collection are not, as before. A collection is an image group in the
+// protocol (ImageGroup, groupId), so the code here says group.
 
 export type OpenGroup = { id: string; name: string; fileCount: number };
 
@@ -72,7 +73,7 @@ export function showPerson(id: string) {
   set({ tags: [], personIds: [id], group: null });
 }
 
-/** A group's photos, from the Groups page: a new search. */
+/** A collection's photos, from the Collections page: a new search. */
 export function openGroup(g: OpenGroup) {
   set({ tags: [], personIds: [], group: g });
 }
