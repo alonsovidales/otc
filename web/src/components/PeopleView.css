@@ -324,6 +324,13 @@
   animation: pv-menu-in .12s ease-out;
 }
 .pv-menu.up { transform-origin: bottom right; }
+/* Under the menu and over everything else: takes the tap that closes it. */
+.pv-menu-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  -webkit-tap-highlight-color: transparent;
+}
 .pv-menu-item {
   display: flex;
   align-items: center;

@@ -18,7 +18,8 @@
 }
 
 /* A label is centred on where its year (or month) starts. With a mouse it
-   ends clear of the marker (4px in, 10px wide, 4px gap). */
+   hangs just below that instead, so all of its text is over its own year,
+   and it ends clear of the marker (4px in, 10px wide, 4px gap). */
 .ds-labels {
   position: absolute;
   inset: 0;
@@ -37,6 +38,7 @@
   white-space: nowrap;
 }
 .ds-label.is-month { font-weight: 400; }
+.ds-fine .ds-label { transform: translateY(var(--y)); }
 
 /* The month under the pointer or the drag, beside the track. Gold while
    scrubbing: that is where the photos will go. */

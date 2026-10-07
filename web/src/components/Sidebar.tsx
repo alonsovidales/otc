@@ -154,7 +154,15 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
       nav.scrollTop = nav.scrollHeight;
       nav.querySelector<HTMLElement>(".sb-storage-head")?.focus({ preventScroll: true });
     } else if (opened) {
+      // The drawer keeps its scroll while closed (the gauge leaves it at
+      // the storage): it opens at the top, the open section in view. Only
+      // the drawer scrolls, never the page under it.
       const target = nav.querySelector<HTMLElement>('[aria-current="page"]') ?? nav.querySelector<HTMLElement>("button");
+      nav.scrollTop = 0;
+      if (target) {
+        const below = target.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom;
+        if (below > 0) nav.scrollTop = below;
+      }
       target?.focus({ preventScroll: true });
     }
   }, [drawerOpen, layout]);

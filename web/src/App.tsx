@@ -65,6 +65,9 @@ function App() {
   // the whole menu over the page; a phone shows only that.
   const wide = useMediaQuery("(min-width: 1024px)");
   const narrow = useMediaQuery("(max-width: 599px)");
+  // Tooltips only where there is a pointer to hover with: a tap would leave
+  // one standing over what it opened.
+  const canHover = useMediaQuery("(hover: hover)");
   const [menuPref, setMenuPref] = useState<boolean>(() => {
     try { return localStorage.getItem("otc_menu_open") !== "0"; } catch { return true; }
   });
@@ -101,6 +104,11 @@ function App() {
   // tree) via deviceStatus's little store.
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | null>(getDeviceStatus());
   useEffect(() => subscribeDeviceStatus(setDeviceStatus), []);
+
+  // The menu goes with the rest of the app when the session ends or the
+  // device stops answering; a drawer left open would come back open over
+  // the page.
+  useEffect(() => { if (!authenticated || deviceStatus) setDrawerOpen(false); }, [authenticated, deviceStatus]);
 
   let protoWs = 'ws://';
   if (window.location.protocol === 'https:') {
@@ -378,9 +386,15 @@ function App() {
         {authenticated
           ? <TopSearch onShowPhotos={() => setTab("PhotoGallery")} onShowPeople={() => setTab("People")} />
           : <div className="tb-fill" />}
-        {/* The page's own action: a new post, on the feed. */}
+        {/* The page's own action: a new post, on the feed. A phone shows
+            only its "+". */}
         {authenticated && tab === "Social" && openComposer && (
-          <button className="tb-action" onClick={() => openComposer()}>
+          <button
+            className="tb-action"
+            onClick={() => openComposer()}
+            aria-label="New post"
+            data-tip={narrow && canHover ? "New post" : undefined}
+          >
             <span aria-hidden="true">+</span><span className="tb-action-label"> New post</span>
           </button>
         )}

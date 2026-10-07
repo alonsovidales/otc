@@ -1,5 +1,7 @@
 /* Issue #183: the critical-update banner (UpdateBanner.tsx). */
-.ub-banner { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--danger-bg); border-bottom: 1px solid rgba(255,138,117,.4); color: var(--mist); font-size: 14px; }
+/* Above the date scrubber's column (z-index 6), which would take clicks on
+   the Update button; below the top bar (30). */
+.ub-banner { position: relative; z-index: 7; display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--danger-bg); border-bottom: 1px solid rgba(255,138,117,.4); color: var(--mist); font-size: 14px; }
 .ub-icon { color: var(--danger); font-size: 18px; flex: none; }
 .ub-text { flex: 1; min-width: 0; }
 .ub-text strong { color: var(--danger); }

@@ -51,7 +51,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
@@ -69,9 +69,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.PlainTooltip
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -184,14 +188,17 @@ fun PhotoGalleryView(deviceId: String) {
                     keyboardActions = KeyboardActions(onSearch = { acceptQuery() }), modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = { acceptQuery() }) { Text("Search") }
-                IconButton(onClick = { scope.launch { vm.loadGroups() }; showGroups = true }) { Icon(Icons.Default.Collections, "Collections") }
+                // The only way into collections; the tooltip names the icon for sighted users too.
+                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text("Collections") } }, state = rememberTooltipState()) {
+                    IconButton(onClick = { scope.launch { vm.loadGroups() }; showGroups = true }) { Icon(Icons.Default.CollectionsBookmark, "Collections") }
+                }
             }
             st.activeGroup?.let { g ->
                 Row(
                     Modifier.padding(horizontal = 8.dp).background(Color(0x26FF9800), CircleShape).padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.Collections, null, Modifier.size(14.dp))
+                    Icon(Icons.Default.CollectionsBookmark, null, Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(g.name, Modifier.clickable { renameGroupName = g.name })
                     Text(" · ${g.fileCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -303,7 +310,7 @@ fun PhotoGalleryView(deviceId: String) {
                             with(LocalDensity.current) { 44.dp.roundToPx() },
                         ) { g.coverThumbnail.toByteArray() }
                         if (cover != null) Image(cover.asImageBitmap(), null, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
-                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Collections, null) }
+                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(Icons.Default.CollectionsBookmark, null) }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(g.name)

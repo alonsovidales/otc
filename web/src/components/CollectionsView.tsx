@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ImageGroup } from "../proto/messages";
 import { reloadGroups, useGroups } from "./libraryStore";
+import type { Reload } from "./libraryStore";
 import { CollectionsIcon } from "./NavIcons";
 import { openGroup, showAll } from "./photoFilter";
 import "./CollectionsView.css";
@@ -110,18 +111,20 @@ export default function CollectionsView({ onOpenPhotos }: Props) {
 // photos are added elsewhere), and what the store already holds shows
 // meanwhile. When nothing is loaded yet the store's own hook is listing it
 // already, and asking again would list it twice - with a second, different
-// set of random covers swapping in. A listing that failed, or a first one
+// set of random covers swapping in - so the page waits on that listing,
+// and its failure shows at once. A listing that failed, or a first one
 // that is slow, gets a "Try again".
-function useFreshList(loaded: boolean, reload: () => Promise<void>) {
+function useFreshList(loaded: boolean, reload: Reload) {
   const [asked, setAsked] = useState<"no" | "running" | "done">("no");
   const [slow, setSlow] = useState(false);
-  const retry = useCallback(() => {
+  const wait = useCallback((listing: () => Promise<void>) => {
     setAsked("running");
     setSlow(false);
-    reload().catch(() => {}).finally(() => setAsked("done"));
-  }, [reload]);
+    listing().catch(() => {}).finally(() => setAsked("done"));
+  }, []);
+  const retry = useCallback(() => wait(reload), [wait, reload]);
   const loadedAtMount = useRef(loaded);
-  useEffect(() => { if (loadedAtMount.current) retry(); }, [retry]);
+  useEffect(() => { wait(loadedAtMount.current ? reload : reload.join); }, [wait, reload]);
   useEffect(() => {
     if (loaded || asked === "done") return;
     const t = window.setTimeout(() => setSlow(true), cSlowMs);

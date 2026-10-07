@@ -27,8 +27,8 @@ type Props = {
 };
 
 const cFineQuery = "(hover: hover) and (pointer: fine)";
-// A finger has to move the handle this far before it scrubs: a touch that
-// stays put is a tap, and a tap on the handle does nothing.
+// A finger has to move this far before it scrubs: a touch that stays put is
+// a tap, and a tap on the handle (or the column) does nothing.
 const cEngagePx = 6;
 // How long the handle stays after the page stops scrolling.
 const cIdleMs = 1500;
@@ -39,8 +39,9 @@ const cLabelGapTouch = 20;
 // Month names (on a timeline of a year or two) keep further apart than
 // years, so they read as landmarks rather than a list.
 const cMonthGapExtra = 16;
-// The track's ends are inset so nothing is cut in half there: a label (and
-// the focus ring) with a mouse, the handle (64px tall) with a finger.
+// The track's ends are inset so nothing is cut in half there: the focus ring
+// and the labels (which hang below where their year starts) with a mouse,
+// the handle (64px tall) with a finger.
 const cInsetFine = 12;
 const cInsetTouch = 32;
 // Half the mouse bubble's height (DateScrubber.css), to keep it on the track.
@@ -49,14 +50,26 @@ const cMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 
 // A bucket and where its photos fall in the timeline (0 = the newest).
 type Span = { month: string; start: number; end: number; index: number };
-type Label = { key: string; text: string; y: number; year: boolean };
-// The scrub on screen: `y` is its place on the track. `on` turns false when
-// it ends, so the touch bubble can fade out still showing its month.
-type Scrub = { y: number; index: number; on: boolean };
+// `index`: the span it stands for, which a press on its text picks.
+type Label = { key: string; text: string; y: number; year: boolean; index: number };
+// A place on the track and the span there.
+type Spot = { y: number; index: number };
+// The scrub on screen. `on` turns false when it ends, so the touch bubble
+// can fade out still showing its month.
+type Scrub = Spot & { on: boolean };
 // What the event handlers share between events; state lags a render behind.
 // `keys`: a scrub made with keys was going on when the pointer came down,
-// and a touch that never moves gives it back.
-type PointerGesture = { by: "pointer"; pointerId: number; startY: number; startCenter: number; engaged: boolean; keys: boolean };
+// and a touch that never moves gives it back. `focused`: the slider had the
+// focus before the press, so it keeps it after.
+type PointerGesture = {
+  by: "pointer";
+  pointerId: number;
+  startY: number;
+  startCenter: number;
+  engaged: boolean;
+  keys: boolean;
+  focused: boolean;
+};
 type Gesture = PointerGesture | { by: "keys" };
 
 // The main pointer can change (a tablet gains a mouse), so it is watched.
@@ -131,20 +144,25 @@ function yearAway(spans: Span[], from: number, dir: 1 | -1): number {
   return 0;
 }
 
-// A label where each year starts. Where they crowd, the year with more
-// photos keeps its label: the stretch of track is mostly that year's. On a
-// timeline of a year or two, month names fill in where they fit, or the
+// A label where each year starts. The newest year always keeps its label,
+// where the marker starts out. Elsewhere, where they crowd, the year with
+// more photos keeps its label: the stretch of track is mostly that year's.
+// On a timeline of a year or two, month names fill in where they fit, or the
 // track would be one label and a lot of nothing.
 function layoutLabels(spans: Span[], total: number, height: number, inset: number, gap: number): Label[] {
   const travel = height - 2 * inset;
   if (travel <= 0 || total <= 0) return [];
-  const yOf = (s: Span) => inset + (s.start / total) * travel;
-  const years = new Map<string, { first: Span; count: number }>();
+  const yAt = (at: number) => inset + (at / total) * travel;
+  const years = new Map<string, { first: Span; count: number; end: number }>();
   for (const s of spans) {
     const year = s.month.slice(0, 4);
     const seen = years.get(year);
-    if (seen) seen.count += s.end - s.start;
-    else years.set(year, { first: s, count: s.end - s.start });
+    if (seen) {
+      seen.count += s.end - s.start;
+      seen.end = s.end;
+    } else {
+      years.set(year, { first: s, count: s.end - s.start, end: s.end });
+    }
   }
   const placed: Label[] = [];
   // Heaviest first; the sort is stable, so the newer wins a tie.
@@ -154,23 +172,48 @@ function layoutLabels(spans: Span[], total: number, height: number, inset: numbe
       if (placed.every((p) => Math.abs(p.y - label.y) >= room)) placed.push(label);
     }
   };
-  const yearCandidates: { label: Label; weight: number }[] = [];
-  for (const [year, { first, count }] of years) {
+  // Newest first, as the timeline comes.
+  const yearCandidates: { label: Label; weight: number; endY: number }[] = [];
+  for (const [year, { first, count, end }] of years) {
     if (!(Number(year) > 0) || count === 0) continue;
-    yearCandidates.push({ label: { key: `y${year}`, text: year, y: yOf(first), year: true }, weight: count });
+    const label = { key: `y${year}`, text: year, y: yAt(first.start), year: true, index: first.index };
+    yearCandidates.push({ label, weight: count, endY: yAt(end) });
   }
-  place(yearCandidates, gap);
+  const [newest, ...rest] = yearCandidates;
+  if (newest) {
+    placed.push(newest.label);
+    // A new year with few photos yet doesn't take the last one's label: a
+    // year it crowds moves down out of the way, while that is still over
+    // that year.
+    for (const c of rest) {
+      if (c.label.y - newest.label.y < gap && newest.label.y + gap < c.endY) c.label.y = newest.label.y + gap;
+    }
+  }
+  place(rest, gap);
   if (years.size <= 2) {
     const monthCandidates: { label: Label; weight: number }[] = [];
     for (const s of spans) {
       const name = monthName(s.month);
-      // A year's first month is where the year's own label is.
-      if (!name || s.end === s.start || years.get(s.month.slice(0, 4))?.first === s) continue;
-      monthCandidates.push({ label: { key: `m${s.month}`, text: name, y: yOf(s), year: false }, weight: s.end - s.start });
+      const year = s.month.slice(0, 4);
+      // A year's first month is where the year's own label is, and the
+      // months of a year without a label would read as another year's.
+      if (!name || s.end === s.start || years.get(year)?.first === s) continue;
+      if (!placed.some((p) => p.key === `y${year}`)) continue;
+      const label = { key: `m${s.month}`, text: name, y: yAt(s.start), year: false, index: s.index };
+      monthCandidates.push({ label, weight: s.end - s.start });
     }
     place(monthCandidates, gap + cMonthGapExtra);
   }
   return placed.sort((a, b) => a.y - b.y);
+}
+
+// A press keeps the slider's focus only if it had it before: after a click
+// on the column, arrows and PageDown scroll the page again (Tab still
+// reaches the slider).
+function dropFocus(root: HTMLElement | null, g: Gesture | null) {
+  if (g?.by !== "pointer" || g.focused) return;
+  const el = document.activeElement;
+  if (el instanceof HTMLElement && root?.contains(el)) el.blur();
 }
 
 // Places an element on the track (DateScrubber.css reads --y), on whole
@@ -203,7 +246,7 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
   );
 
   const [scrub, setScrub] = useState<Scrub | null>(null);
-  const [hoverY, setHoverY] = useState<number | null>(null);
+  const [hover, setHover] = useState<Spot | null>(null);
   // After a jump: its month, until the gallery reports another month than the
   // one it reported when the jump was made (`from`). The gallery may not
   // report anything new until the page scrolls, and the marker or handle
@@ -240,11 +283,20 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
 
   // Another search brings another timeline, and a mouse plugged in or out
   // swaps the column for the handle: a scrub begun on the old one means
-  // nothing now, and the gallery is told if it was showing its preview.
+  // nothing now, and the gallery is told if it was showing its preview. It
+  // ends in the commit that shows the new one, before another pointer event
+  // can carry it on, and whatever such an event had set is cleared too.
   const timeline = useMemo(() => buckets.map((b) => `${b.month}:${b.count}`).join(), [buckets]);
   const basis = `${fine ? "fine" : "touch"} ${timeline}`;
-  useEffect(() => () => {
+  useLayoutEffect(() => () => {
+    const g = gesture.current;
     gesture.current = null;
+    // Once the commit is done: React gives the focus back to whatever had it
+    // before its DOM changes.
+    queueMicrotask(() => dropFocus(trackRef.current, g));
+    setScrub(null);
+    setHover(null);
+    setHolding(false);
     if (previewed.current >= 0) {
       previewed.current = -1;
       onPreviewRef.current(null);
@@ -254,7 +306,7 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
   if (shownBasis !== basis) {
     setShownBasis(basis);
     setScrub(null);
-    setHoverY(null);
+    setHover(null);
     setJumped(null);
     setHolding(false);
   }
@@ -267,6 +319,7 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
   const clampY = (y: number) => Math.min(inset + travel, Math.max(inset, y));
   const yOf = (s: Span) => inset + (s.start / total) * travel;
   const spanAtY = (y: number) => spanAt(spans, ((clampY(y) - inset) / travel) * total);
+  const spotOf = (s: Span): Spot => ({ y: yOf(s), index: s.index });
   const here = jumped ? jumped.month : currentMonth;
   const hereSpan = here == null ? null : spanOfMonth(spans, here);
   const active = scrub && scrub.on && scrub.index < n ? scrub : null;
@@ -275,23 +328,39 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
 
   const trackY = (clientY: number) => clientY - (trackRef.current?.getBoundingClientRect().top ?? 0);
 
-  // Puts the scrub on `s` and tells the gallery when its month changes.
-  const show = (s: Span, y: number) => {
-    setScrub({ y, index: s.index, on: true });
-    if (previewed.current !== s.index) {
-      previewed.current = s.index;
-      onPreview(buckets[s.index]);
+  // Where a pointer on the column points: the month at its height or, on a
+  // label's text, the month the label stands for. A label hangs below where
+  // its year starts, over the year's first months, and a click on "2022"
+  // should open the newest of them, not whichever is under the pointer.
+  const spotAt = (e: React.PointerEvent): Spot => {
+    for (const el of trackRef.current?.querySelectorAll<HTMLElement>(".ds-label") ?? []) {
+      const r = el.getBoundingClientRect();
+      const s = spans[Number(el.dataset.span)];
+      if (s && e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) return spotOf(s);
+    }
+    const y = clampY(trackY(e.clientY));
+    return { y, index: spanAtY(y).index };
+  };
+
+  // Puts the scrub there and tells the gallery when its month changes.
+  const show = ({ y, index }: Spot) => {
+    setScrub({ y, index, on: true });
+    if (previewed.current !== index) {
+      previewed.current = index;
+      onPreview(buckets[index]);
     }
   };
   const scrubTo = (y: number) => {
     const to = clampY(y);
-    show(spanAtY(to), to);
+    show({ y: to, index: spanAtY(to).index });
   };
 
   // Ends the scrub: the photos jump to its month, or the gallery goes back
   // to what it showed before it.
   const finish = (jump: boolean) => {
+    const g = gesture.current;
     gesture.current = null;
+    dropFocus(trackRef.current, g);
     setHolding(false);
     setScrub((s) => (s ? { ...s, on: false } : s));
     const index = previewed.current;
@@ -311,29 +380,69 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
     return g && g.by === "pointer" && g.pointerId === e.pointerId ? g : null;
   };
 
+  const press = (e: React.PointerEvent<HTMLDivElement>, startCenter: number, engaged: boolean): PointerGesture => {
+    const keys = gesture.current?.by === "keys";
+    const focused = document.activeElement === e.currentTarget;
+    return { by: "pointer", pointerId: e.pointerId, startY: e.clientY, startCenter, engaged, keys, focused };
+  };
+  // A finger has to move before it scrubs; true once it has.
+  const engage = (g: PointerGesture, e: React.PointerEvent) => {
+    if (!g.engaged) {
+      if (Math.abs(e.clientY - g.startY) < cEngagePx) return false;
+      g.engaged = true;
+      setJumped(null);
+    }
+    return true;
+  };
+  // A touch that never moved: nothing happens, and a scrub made with keys
+  // carries on.
+  const letGo = (g: PointerGesture) => {
+    gesture.current = g.keys ? { by: "keys" } : null;
+    dropFocus(trackRef.current, g);
+    setHolding(false);
+  };
+  const end = (g: PointerGesture, jump: boolean) => {
+    if (g.engaged) finish(jump);
+    else letGo(g);
+  };
+  // The press focuses the slider while it drags, so Escape can put things
+  // back. A tap's mouse events come after it has ended: no focus for those.
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (gesture.current?.by !== "pointer") e.preventDefault();
+  };
+
   // Mouse: the whole column; a press shows its month at once, as a click
-  // anywhere on a scrollbar's track does.
+  // anywhere on a scrollbar's track does. A finger (a touchscreen laptop's)
+  // has to move first, as on the handle: one brushing the column while it
+  // flicks the page does nothing.
   const onColumnDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary || e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    gesture.current = { by: "pointer", pointerId: e.pointerId, startY: e.clientY, startCenter: 0, engaged: true, keys: false };
+    const mouse = e.pointerType === "mouse";
+    gesture.current = press(e, 0, mouse);
+    if (!mouse) return;
     setJumped(null);
-    scrubTo(trackY(e.clientY));
+    show(spotAt(e));
   };
   const onColumnMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const y = trackY(e.clientY);
-    if (ours(e)) scrubTo(y);
-    else if (e.pointerType !== "touch") setHoverY(Math.round(clampY(y)));
+    const g = ours(e);
+    if (g) {
+      if (engage(g, e)) show(spotAt(e));
+    } else if (e.pointerType !== "touch") {
+      setHover(spotAt(e));
+    }
   };
   const onColumnUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!ours(e)) return;
+    const g = ours(e);
+    if (!g) return;
     // The hover line comes back where the button was let go, not where the
     // press started.
-    if (e.pointerType !== "touch") setHoverY(Math.round(clampY(trackY(e.clientY))));
-    finish(true);
+    if (e.pointerType !== "touch") setHover(spotAt(e));
+    end(g, true);
   };
   const onColumnCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (ours(e)) finish(false);
+    const g = ours(e);
+    if (g) end(g, false);
   };
 
   // Touch: the handle moves with the finger by as much as the finger moves,
@@ -343,41 +452,24 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
     if (!e.isPrimary || e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect();
-    const startCenter = trackY(r.top + r.height / 2);
-    const keys = gesture.current?.by === "keys";
-    gesture.current = { by: "pointer", pointerId: e.pointerId, startY: e.clientY, startCenter, engaged: false, keys };
+    gesture.current = press(e, trackY(r.top + r.height / 2), false);
     setHolding(true);
   };
   const onHandleMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const g = ours(e);
-    if (!g) return;
-    const dy = e.clientY - g.startY;
-    if (!g.engaged) {
-      if (Math.abs(dy) < cEngagePx) return;
-      g.engaged = true;
-      setJumped(null);
-    }
-    scrubTo(g.startCenter + dy);
-  };
-  // A touch that never moved: nothing happens, and a scrub made with keys
-  // carries on.
-  const letGo = (g: PointerGesture) => {
-    gesture.current = g.keys ? { by: "keys" } : null;
-    setHolding(false);
+    if (g && engage(g, e)) scrubTo(g.startCenter + e.clientY - g.startY);
   };
   const onHandleUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const g = ours(e);
     if (!g) return;
     wake.current();
-    if (g.engaged) finish(true);
-    else letGo(g);
+    end(g, true);
   };
   const onHandleCancel = (e: React.PointerEvent<HTMLDivElement>) => {
     const g = ours(e);
     if (!g) return;
     wake.current();
-    if (g.engaged) finish(false);
-    else letGo(g);
+    end(g, false);
   };
 
   // Keys: arrows step a month (Up is newer), PageUp/PageDown a year,
@@ -419,7 +511,7 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
       const s = spans[Math.max(0, Math.min(n - 1, to))];
       gesture.current = { by: "keys" };
       setJumped(null);
-      show(s, yOf(s));
+      show(spotOf(s));
     }
     // Handled here: no page scroll, and Escape doesn't also clear the
     // gallery's selection.
@@ -453,13 +545,14 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
   };
 
   const labelNodes = labels.map((l) => (
-    <span key={l.key} className={l.year ? "ds-label" : "ds-label is-month"} style={at(l.y)}>
+    <span key={l.key} className={l.year ? "ds-label" : "ds-label is-month"} style={at(l.y)} data-span={l.index}>
       {l.text}
     </span>
   ));
 
   if (fine) {
-    const lineY = active ? active.y : hoverY;
+    // The render that drops a hover from the last timeline still sees it.
+    const spot = active ?? (hover && hover.index < n ? hover : null);
     return (
       <div
         ref={trackRef}
@@ -470,19 +563,20 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
         onPointerUp={onColumnUp}
         onPointerCancel={onColumnCancel}
         onLostPointerCapture={onColumnCancel}
-        onPointerLeave={() => setHoverY(null)}
+        onPointerLeave={() => setHover(null)}
+        onMouseDown={onMouseDown}
       >
         <div className="ds-labels" aria-hidden="true">{labelNodes}</div>
         {!active && hereSpan && <div className="ds-marker" style={at(yOf(hereSpan))} aria-hidden="true" />}
-        {lineY != null && (
+        {spot && (
           <>
-            <div className="ds-line" style={at(lineY)} aria-hidden="true" />
+            <div className="ds-line" style={at(spot.y)} aria-hidden="true" />
             <div
               className="ds-bubble"
-              style={at(Math.min(height - cBubbleHalfFine, Math.max(cBubbleHalfFine, lineY)))}
+              style={at(Math.min(height - cBubbleHalfFine, Math.max(cBubbleHalfFine, spot.y)))}
               aria-hidden="true"
             >
-              {monthLabel(spans[active ? active.index : spanAtY(lineY).index].month)}
+              {monthLabel(spans[spot.index].month)}
             </div>
           </>
         )}
@@ -513,6 +607,7 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
         onPointerUp={onHandleUp}
         onPointerCancel={onHandleCancel}
         onLostPointerCapture={onHandleCancel}
+        onMouseDown={onMouseDown}
         onContextMenu={(e) => e.preventDefault()}
       >
         <span className="ds-pill">

@@ -96,6 +96,13 @@ function refreshIfStale() {
 
 const cls = (...names: (string | false)[]) => names.filter(Boolean).join(" ");
 
+// Fingers, as in TopSearch.css: the keyboard is on the screen, and stays
+// up over the photos for as long as the field has the focus.
+const onScreenKeyboard = () => window.matchMedia("(pointer: coarse)").matches;
+
+// The selection bars of Images and People, laid over the top bar.
+const COVERS = ".pg-selbar, .pv-pickbar";
+
 // Outline icons drawn like NavIcons': 24px box, stroke in currentColor.
 function Icon({ size = 20, stroke = 1.6, children }: { size?: number; stroke?: number; children: React.ReactNode }) {
   return (
@@ -148,6 +155,11 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   // The focus handed back to the field after a chip's × was pressed with
   // the keyboard: no reason to open the panel.
   const quietFocus = useRef(false);
+  // The window coming back gives the field that kept the focus a focus
+  // event of its own: no reason to open the panel over the page either.
+  const windowBack = useRef(false);
+  // A selection bar lies over the top bar.
+  const [covered, setCovered] = useState(false);
 
   const id = useId();
   const listId = `${id}list`;
@@ -212,15 +224,67 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
     refreshIfStale();
   }, []);
 
-  // A press anywhere else ends the search.
+  // A press anywhere else ends the search. A finger's does only that: the
+  // click it becomes doesn't also open the photo under it, as the scrim
+  // sees to on a phone. A swipe never becomes a click and still scrolls,
+  // and the top bar's own buttons answer at once.
   useEffect(() => {
     if (!open) return;
     const down = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) close();
+      const at = e.target as Element;
+      if (rootRef.current?.contains(at)) return;
+      close();
+      if (e.pointerType === "mouse" || at.closest?.(".topbar")) return;
+      const eat = (c: MouseEvent) => {
+        c.preventDefault();
+        c.stopPropagation();
+        disarm();
+      };
+      const disarm = () => {
+        document.removeEventListener("click", eat, true);
+        document.removeEventListener("pointerdown", disarm, true);
+        document.removeEventListener("pointercancel", disarm, true);
+      };
+      document.addEventListener("click", eat, true);
+      document.addEventListener("pointerdown", disarm, true);
+      document.addEventListener("pointercancel", disarm, true);
     };
     document.addEventListener("pointerdown", down, true);
     return () => document.removeEventListener("pointerdown", down, true);
   }, [open, close]);
+
+  // The window's focus event comes just before the field's, in the same
+  // task: the flag lasts until the next one.
+  useEffect(() => {
+    const back = () => {
+      if (document.activeElement !== inputRef.current) return;
+      windowBack.current = true;
+      setTimeout(() => { windowBack.current = false; });
+    };
+    window.addEventListener("focus", back);
+    return () => window.removeEventListener("focus", back);
+  }, []);
+
+  // While a selection bar covers the top bar, the search under it is
+  // closed and out of the keyboard's reach too: nothing changes behind a
+  // selection.
+  useEffect(() => {
+    let was = false;
+    const check = () => {
+      const now = document.querySelector(COVERS) !== null;
+      if (now === was) return;
+      was = now;
+      setCovered(now);
+      if (!now) return;
+      close();
+      const el = document.activeElement;
+      if (el instanceof HTMLElement && rootRef.current?.contains(el)) el.blur();
+    };
+    const mo = new MutationObserver(check);
+    mo.observe(document.body, { childList: true, subtree: true });
+    check();
+    return () => mo.disconnect();
+  }, [close]);
 
   // Which ends of the chips row hide chips, to fade them out.
   const updateFade = useCallback(() => {
@@ -323,11 +387,12 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
     moveTo(next.filter((c) => ahead(c) <= row + 4).reduce((a, c) => (off(c) < off(a) ? c : a)).i);
   };
 
-  // Done: the panel closes. After a click or a tap the field lets go of
-  // the focus too, which puts a phone's keyboard away from the photos.
+  // Done: the panel closes. After a click or a tap, or the Search key of a
+  // keyboard on the screen, the field lets go of the focus too, which puts
+  // that keyboard away from the photos.
   const finish = (how: "key" | "pointer") => {
     close();
-    if (how === "pointer") inputRef.current?.blur();
+    if (how === "pointer" || onScreenKeyboard()) inputRef.current?.blur();
   };
 
   // A typed word the device knows, in its spelling ("Dog" is "dog").
@@ -348,6 +413,12 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
         if (query) {
           setQuery("");
           setMoved(null);
+        }
+        // The Search key of a keyboard on the screen: the focus goes to the
+        // panel, as with a tap on a face, and the keyboard goes down.
+        if (how === "key" && onScreenKeyboard()) {
+          if (panelRef.current) panelRef.current.focus({ preventScroll: true });
+          else inputRef.current?.blur();
         }
         onShowPhotos();
         return;
@@ -379,7 +450,8 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
         break;
       case "Enter":
         e.preventDefault();
-        if (!open) setOpen(true);
+        // Words typed are searched for whether or not Escape hid the panel.
+        if (!open && !typed) setOpen(true);
         else if (active >= 0) pick(options[active], "key");
         else if (typed) pick({ kind: "text", key: "text", text: typed }, "key");
         else {
@@ -554,7 +626,7 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
   ].filter(Boolean).join(", ");
 
   return (
-    <div ref={rootRef} className={cls("ts-root", open && "is-open")} onBlur={onBlur}>
+    <div ref={rootRef} className={cls("ts-root", open && "is-open")} onBlur={onBlur} inert={covered}>
       <div className="ts-field" onMouseDown={onFieldMouseDown}>
         <span className="ts-glass" aria-hidden="true"><SearchIcon /></span>
         {open && (
@@ -631,7 +703,7 @@ export default function TopSearch({ onShowPhotos, onShowPeople }: Props) {
             setMoved(null);
             setOpen(true);
           }}
-          onFocus={() => { if (!quietFocus.current) setOpen(true); }}
+          onFocus={() => { if (!quietFocus.current && !windowBack.current) setOpen(true); }}
           onKeyDown={onKeyDown}
           autoComplete="off"
           autoCorrect="off"

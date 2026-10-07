@@ -1,7 +1,13 @@
 .sf-wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .sf-section { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-.sf-row { display: grid; grid-template-columns: 180px 1fr; gap: 10px; align-items: center; margin-bottom: 10px; }
+/* The field's column may shrink below its input's natural width: a row
+   wider than a phone widens the whole page, top bar and all. */
+.sf-row { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 10px; }
 .sf-row:last-child { margin-bottom: 0; }
+/* A phone has no room for the label beside the field: it goes above. */
+@media (max-width: 479px) {
+  .sf-row { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
+}
 .sf-input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; background: var(--ink-2); color: var(--mist); }
 .sf-value { color: var(--mist-dim); }
 .sf-btn { margin-top: 8px; padding: 10px 12px; border: 0; border-radius: 8px; background: var(--ember); color: var(--ember-ink); font-weight: 600; cursor: pointer; }
@@ -17,7 +23,7 @@
 .sf-note.success { color: var(--success); font-size: 13px; }
 .sf-hint { margin: -4px 0 10px; font-size: 13px; color: var(--mist-dim); }
 .sf-secret-row { display: flex; gap: 8px; }
-.sf-secret-row .sf-input { flex: 1; font-family: ui-monospace, monospace; }
+.sf-secret-row .sf-input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; }
 .sf-secret-input { font-family: ui-monospace, monospace; width: 100%; box-sizing: border-box; }
 
 .sf-status { padding: 10px 12px; border-radius: 8px; }

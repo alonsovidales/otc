@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { useWS } from "../net/useWS";
 import type { Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { reloadPeople, renamePersonLocally, usePeople } from "./libraryStore";
+import type { Reload } from "./libraryStore";
 import { forgetPerson, showPerson } from "./photoFilter";
 import Spinner from "./Spinner";
 import "./PeopleView.css";
@@ -32,6 +33,8 @@ const cSkeletonFaces = 14;
 // How long the first listing may take before the page offers to ask again.
 const cSlowMs = 10_000;
 const cToastMs = 3200;
+// How long after a confirmation opens a press on it is ignored.
+const cArmMs = 450;
 // people.name is a varchar(150).
 const cMaxName = 100;
 
@@ -189,24 +192,27 @@ export default function PeopleView({ onOpenPhotos }: Props) {
   const merge = async (source: Person, target: Person) => {
     setBusy(true);
     setConfirmError(null);
+    const kept = tidy(target.name) || tidy(source.name);
     try {
+      // The merged person keeps the target's name, so a name only the
+      // source has moves over first: once the source is merged away it
+      // would be lost. Should the merge then fail, two people share it,
+      // which can be put right.
+      if (!tidy(target.name) && kept) {
+        if (!(await ack({ $case: "reqRenamePerson", reqRenamePerson: { id: target.id, name: kept } }))) {
+          setConfirmError("They couldn't be merged. Try again.");
+          return;
+        }
+        renamePersonLocally(target.id, kept);
+      }
       if (!(await ack({ $case: "reqMergePeople", reqMergePeople: { targetId: target.id, sourceIds: [source.id] } }))) {
         setConfirmError("They couldn't be merged. Try again.");
         return;
       }
       afterRemoval(source.id);
       setMergeFromId(null);
-      const kept = tidy(target.name) || tidy(source.name);
       say(kept ? `Merged into ${kept}` : "Merged");
-      void (async () => {
-        // The merged person keeps the target's name, so a name only the
-        // source had would be lost: it moves over.
-        if (!tidy(target.name) && kept) {
-          const ok = await ack({ $case: "reqRenamePerson", reqRenamePerson: { id: target.id, name: kept } }).catch(() => false);
-          if (ok) renamePersonLocally(target.id, kept);
-        }
-        await reloadPeople().catch(() => {});
-      })();
+      void reloadPeople().catch(() => {});
     } catch {
       setConfirmError("Your device didn't answer. Try again.");
     } finally {
@@ -540,23 +546,17 @@ function PersonMenu({ id, anchor, list, named, canMerge, onRename, onMerge, onDe
     ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
   }, [pos]);
 
-  // A press anywhere else, a scroll or a resize closes it. The button's
-  // own press is left to the button, which toggles it.
+  // A tap anywhere else only closes it: the catcher under the menu takes
+  // that tap, so it never also opens the face or the name field under it.
+  // A scroll or a resize closes it too.
   useEffect(() => {
-    const down = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (ref.current?.contains(t) || anchor.contains(t)) return;
-      onClose();
-    };
-    document.addEventListener("pointerdown", down, true);
     window.addEventListener("scroll", onClose, true);
     window.addEventListener("resize", onClose);
     return () => {
-      document.removeEventListener("pointerdown", down, true);
       window.removeEventListener("scroll", onClose, true);
       window.removeEventListener("resize", onClose);
     };
-  }, [anchor, onClose]);
+  }, [onClose]);
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
@@ -581,27 +581,36 @@ function PersonMenu({ id, anchor, list, named, canMerge, onRename, onMerge, onDe
   };
 
   return createPortal(
-    <div
-      ref={ref}
-      id={id}
-      role="menu"
-      aria-label="Person options"
-      className={`pv-menu${pos?.up ? " up" : ""}`}
-      style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
-      onKeyDown={onKeyDown}
-    >
-      <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item" onClick={onRename}>
-        <PencilIcon />{named ? "Rename" : "Add a name"}
-      </button>
-      {canMerge && (
-        <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item" onClick={onMerge}>
-          <MergeIcon />Merge with…
+    <>
+      {/* A right or middle press brings no click: it closes on the press. */}
+      <div
+        className="pv-menu-catcher"
+        aria-hidden="true"
+        onClick={onClose}
+        onPointerDown={(e) => { if (e.button !== 0) onClose(); }}
+      />
+      <div
+        ref={ref}
+        id={id}
+        role="menu"
+        aria-label="Person options"
+        className={`pv-menu${pos?.up ? " up" : ""}`}
+        style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
+        onKeyDown={onKeyDown}
+      >
+        <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item" onClick={onRename}>
+          <PencilIcon />{named ? "Rename" : "Add a name"}
         </button>
-      )}
-      <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item danger" onClick={onDelete}>
-        <TrashIcon />Delete
-      </button>
-    </div>,
+        {canMerge && (
+          <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item" onClick={onMerge}>
+            <MergeIcon />Merge with…
+          </button>
+        )}
+        <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item danger" onClick={onDelete}>
+          <TrashIcon />Delete
+        </button>
+      </div>
+    </>,
     document.body,
   );
 }
@@ -683,11 +692,18 @@ function ConfirmDialog({ art, title, text, action, busy, error, onCancel, onConf
   // A press that began inside the card and ended on the backdrop (a text
   // selection dragged out) is no click on the backdrop.
   const downOnBackdrop = useRef(false);
+  // The second press of the double-click or double-tap that opened it can
+  // land on a button or the backdrop, so a press that begins in its first
+  // moments answers nothing, however long it is held; the keyboard always
+  // does.
+  const shownAt = useRef(0);
+  const pressTooSoon = useRef(false);
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (!d.open) d.showModal();
+    shownAt.current = performance.now();
     cancelRef.current?.focus();
     return () => {
       if (d.open) d.close();
@@ -713,7 +729,12 @@ function ConfirmDialog({ art, title, text, action, busy, error, onCancel, onConf
         if (busy && d?.isConnected) d.showModal();
         else onCancel();
       }}
-      onPointerDown={(e) => { downOnBackdrop.current = e.target === e.currentTarget; }}
+      onPointerDown={(e) => {
+        pressTooSoon.current = performance.now() - shownAt.current < cArmMs;
+        downOnBackdrop.current = !pressTooSoon.current && e.target === e.currentTarget;
+      }}
+      // A keyboard's click has no press behind it (detail 0).
+      onClickCapture={(e) => { if (pressTooSoon.current && e.detail !== 0) e.stopPropagation(); }}
       onClick={(e) => { if (downOnBackdrop.current && e.target === e.currentTarget) dismiss(); }}
     >
       <div className="pv-dialog-card">
@@ -753,18 +774,20 @@ function Avatar({ src, className }: { src: string | undefined; className: string
 // The list is asked for again on every visit (new faces are found as
 // photos arrive), and what the store already holds shows meanwhile. When
 // nothing is loaded yet the store's own hook is listing it already, and
-// asking again would list it twice. A listing that failed, or a first one
-// that is slow, gets a "Try again".
-function useFreshList(loaded: boolean, reload: () => Promise<void>) {
+// asking again would list it twice, so the page waits on that listing and
+// its failure shows at once. A listing that failed, or a first one that is
+// slow, gets a "Try again".
+function useFreshList(loaded: boolean, reload: Reload) {
   const [asked, setAsked] = useState<"no" | "running" | "done">("no");
   const [slow, setSlow] = useState(false);
-  const retry = useCallback(() => {
+  const wait = useCallback((listing: () => Promise<void>) => {
     setAsked("running");
     setSlow(false);
-    reload().catch(() => {}).finally(() => setAsked("done"));
-  }, [reload]);
+    listing().catch(() => {}).finally(() => setAsked("done"));
+  }, []);
+  const retry = useCallback(() => wait(reload), [wait, reload]);
   const loadedAtMount = useRef(loaded);
-  useEffect(() => { if (loadedAtMount.current) retry(); }, [retry]);
+  useEffect(() => { wait(loadedAtMount.current ? reload : reload.join); }, [wait, reload]);
   useEffect(() => {
     if (loaded || asked === "done") return;
     const t = window.setTimeout(() => setSlow(true), cSlowMs);

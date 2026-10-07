@@ -46,21 +46,33 @@ function revoke(thumbs: Map<string, string>) {
   thumbs.forEach((u) => URL.revokeObjectURL(u));
 }
 
+/** Lists again; join() waits on the listing already out, or starts one. */
+export type Reload = (() => Promise<void>) & { join: () => Promise<void> };
+
 // One request at a time per list; a reload asked for meanwhile waits for
-// it and then runs, so it sees what the first one may have missed.
-function serial(run: () => Promise<void>) {
+// it and then runs, so it sees what the first one may have missed - also
+// when the first one failed, and then only the last one's outcome counts.
+function serial(run: () => Promise<void>): Reload {
   let current: Promise<void> | null = null;
   let again = false;
   const go = (): Promise<void> => {
     if (current) { again = true; return current; }
     current = (async () => {
       try {
-        do { again = false; await run(); } while (again);
+        for (;;) {
+          again = false;
+          try {
+            await run();
+          } catch (e) {
+            if (!again) throw e;
+          }
+          if (!again) return;
+        }
       } finally { current = null; }
     })();
     return current;
   };
-  return go;
+  return Object.assign(go, { join: () => current ?? go() });
 }
 
 export const reloadPeople = serial(async () => {
@@ -102,22 +114,57 @@ const getPeople = () => people;
 const getGroups = () => groups;
 const getTags = () => tags;
 
-// Each hook loads its list the first time anything shows it.
+const cRetryFirstMs = 1000;
+const cRetryMaxMs = 10_000;
+
+// A hook's effect for one list: it lists at once when nothing is loaded,
+// and a list that has never loaded (a socket dropped right after sign-in,
+// an error reply) is asked for again while anything still shows it - 1 s,
+// doubling to 10 s, as usePageRetry does for the grids. The top bar's
+// search shows people and tags for the whole session, so without this one
+// failure left it empty until the next refresh.
+function watch(reload: Reload, loaded: () => boolean) {
+  let showing = 0;
+  let fails = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const settle = () => {
+    if (loaded()) { fails = 0; return; }
+    if (showing === 0 || timer !== undefined) return;
+    timer = setTimeout(() => { timer = undefined; load(); }, Math.min(cRetryFirstMs * 2 ** fails++, cRetryMaxMs));
+  };
+  // A listing already out answers for this one too.
+  const load = () => { if (!loaded()) reload.join().then(settle, settle); };
+  return () => {
+    showing++;
+    load();
+    return () => {
+      if (--showing > 0 || timer === undefined) return;
+      clearTimeout(timer);
+      timer = undefined;
+      fails = 0;
+    };
+  };
+}
+
+const watchPeople = watch(reloadPeople, () => people.loaded);
+const watchGroups = watch(reloadGroups, () => groups.loaded);
+const watchTags = watch(reloadTags, () => tagsLoaded);
+
 export function usePeople() {
   const v = useSyncExternalStore(subscribe, getPeople);
-  useEffect(() => { if (!people.loaded) void reloadPeople().catch(() => {}); }, []);
+  useEffect(() => watchPeople(), []);
   return v;
 }
 
 export function useGroups() {
   const v = useSyncExternalStore(subscribe, getGroups);
-  useEffect(() => { if (!groups.loaded) void reloadGroups().catch(() => {}); }, []);
+  useEffect(() => watchGroups(), []);
   return v;
 }
 
 export function useTags() {
   const v = useSyncExternalStore(subscribe, getTags);
-  useEffect(() => { if (!tagsLoaded) void reloadTags().catch(() => {}); }, []);
+  useEffect(() => watchTags(), []);
   return v;
 }
 

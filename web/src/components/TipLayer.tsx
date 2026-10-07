@@ -48,7 +48,12 @@ export default function TipLayer() {
       else if (!el && current) hide();
     };
     const out = (e: MouseEvent) => { if (!e.relatedTarget) hide(); };
-    const focus = (e: FocusEvent) => { const el = tipAt(e.target); if (el) show(el); };
+    // Keyboard focus only: focus a page hands back after a tap (a cancelled
+    // dialog) isn't :focus-visible, and its tip would stand over the page.
+    const focus = (e: FocusEvent) => {
+      const el = tipAt(e.target);
+      if (el && e.target instanceof Element && e.target.matches(":focus-visible")) show(el);
+    };
     document.addEventListener("mouseover", over);
     document.addEventListener("mouseout", out);
     document.addEventListener("focusin", focus);
