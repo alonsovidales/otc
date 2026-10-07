@@ -16,30 +16,72 @@
 .sv-fstatus { font-size: 12px; color: var(--mist-dim); }
 .sv-factions { display: flex; gap: 6px; }
 
-.sv-feed { margin: auto; display: flex; flex-direction: column; gap: 16px; }
+.sv-feed {
+  margin: auto; display: flex; flex-direction: column; gap: 16px;
+  /* The room a post's media may take is the window less everything that
+     sits above it when the post's header is just under the top bar: the
+     bar, the header (a fixed height, so this is exact), the card's top
+     border and a small margin below (8px). The margin also covers the gap
+     above the first post (App.css's main.main-gap, 24px or 16px), so the
+     first post's media is whole on screen without scrolling at all. */
+  --sv-post-hdr-h: 70px;
+  --sv-media-room: calc(var(--topbar-h) + var(--sv-post-hdr-h) + 1px + 32px);
+}
+@media (max-width: 599px) {
+  .sv-feed { --sv-media-room: calc(var(--topbar-h) + var(--sv-post-hdr-h) + 1px + 24px); }
+}
+/* ...unless something else sits above the feed at load: the critical
+   update banner (UpdateBanner, in the page's flow above main), which
+   wraps to two or three lines on a phone. Social.tsx keeps the feed's
+   top, measured from the top of the page, in --sv-feed-top, and the
+   first post's room is never less than that plus its header, border and
+   the same 8px. Without the banner the two are equal; the rest of the
+   feed keeps --sv-media-room alone (.sv-media takes the larger). */
+.sv-feed > .sv-post:first-child {
+  --sv-first-room: calc(var(--sv-feed-top, 0px) + var(--sv-post-hdr-h) + 1px + 8px);
+}
 .sv-loading-more { text-align: center; color: var(--mist-dim); padding: 12px 0; }
-.sv-post { width: 100%; max-width: 700px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); margin: auto; transition: border-color 0.4s ease, box-shadow 0.4s ease; }
+/* border-box: 100% wide plus its border was 2px wider than a phone's
+   screen. scroll-margin: a post opened from a notification is scrolled to
+   its header just under the top bar, where its media fits whole. */
+.sv-post { box-sizing: border-box; scroll-margin-top: calc(var(--topbar-h) + 8px); width: 100%; max-width: 700px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); margin: auto; transition: border-color 0.4s ease, box-shadow 0.4s ease; }
 /* Issue #78: the brief "here's what you tapped" flash after opening a
    post/comment from a notification - fades back out via the transition
    above/below once Social.tsx clears the highlight state. */
 .sv-highlight { border-color: var(--gold) !important; box-shadow: 0 0 0 2px var(--gold); }
 .sv-comment.sv-highlight { border-radius: 6px; padding: 2px 4px; transition: background-color 0.4s ease; background: rgba(255, 200, 87, 0.15); }
-.sv-post-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+/* A fixed height (--sv-post-hdr-h), which the media's height cap counts
+   on: the avatar is a 50px square and a long name is cut, not wrapped. */
+.sv-post-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 12px; height: var(--sv-post-hdr-h); box-sizing: border-box; }
+.sv-post-hdr .sv-img-avatar { flex: none; height: 50px; object-fit: cover; }
+.sv-post-hdr .sv-avatar { flex: none; }
 .sv-avatar { width: 28px; height: 28px; display: grid; place-items: center; background: var(--ink-2); border-radius: 50%; }
-.sv-pub-meta { flex: 1; display: flex; flex-direction: column; }
-.sv-publisher { font-weight: 600; color: var(--mist); }
+.sv-pub-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sv-publisher { font-weight: 600; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sv-post-date { font-size: 12px; color: var(--mist-dim); }
 .sv-post-delete { margin-left: auto; border: 0; background: none; color: var(--mist-dim); cursor: pointer; font-size: 15px; opacity: 0.7; }
 .sv-post-delete:hover { opacity: 1; }
 
 /* The box's shape is set per post from its own media (see Social.tsx's
-   boxAspect) - a landscape photo gets a landscape box. It is only ever
-   clamped into Instagram's range, so nothing taller than 4:5 can push
-   the caption and comments off screen. The 4/5 here is just the fallback
-   for the instant before the first thumbnail has been measured. */
+   boxAspect) - a landscape photo gets a landscape box, a 9:16 video a
+   9:16 one. Its height is capped at the room the window has for it
+   (--sv-media-room, set on .sv-feed): when the post's header is just
+   under the top bar, the whole of the media is on screen. Anything taller
+   than that room - a 9:16 video or photo on most screens, a 1:3 photo on
+   all of them - keeps the full width and shows whole, with bars at the
+   sides. svh, the height with a phone's address bar showing: dvh would
+   follow the bar as it slides away, resizing every capped post under the
+   reader's finger while they scroll. The 4/5 is only the fallback for a
+   thumbnail whose shape couldn't be read from its bytes, until it is
+   decoded; 160px is a floor for a window too short to hold anything.
+   The svh cap is the @supports rule below, not a second max-height line
+   here: a declaration holding var() always survives parsing, so a
+   browser without svh would only find it invalid when computing it -
+   and be left with no max-height at all, not with the 100vh one. */
 .sv-media {
   position: relative; background: var(--ink-2); display: grid; place-items: center;
-  aspect-ratio: 4 / 5; max-height: 80vh; overflow: hidden;
+  aspect-ratio: 4 / 5; overflow: hidden;
+  max-height: max(160px, calc(100vh - max(var(--sv-media-room), var(--sv-first-room, 0px))));
   /* width: 100% is load-bearing. Without a definite width the browser
      honours aspect-ratio by *shrinking the box* once max-height clamps
      it - measured at 609px inside a 702px card, left-aligned, leaving a
@@ -47,17 +89,14 @@
      max-height clamp the height instead and the card stays full width.
      margin-inline is belt and braces for anywhere it still can't. */
   width: 100%; margin-inline: auto;
+  /* A size container, so .sv-frame and the player can work out where
+     the current item is drawn (cqw/cqh). Its size never depends on its
+     content anyway: width, aspect-ratio and max-height set it. */
+  container-type: size;
 }
-/* Issue #112: the poster and the player that replaces it are sized by
-   one rule, not two. They had separate caps (500px and 75vh), so
-   pressing play on a tall video grew the card.
-   
-   The box follows Instagram's feed geometry: nothing taller than 4:5.
-   This library's videos are 9:16, which at full width is taller than the
-   screen and pushes the caption and comments out of view - so the media
-   fills a 4:5 box and the overflow is cropped, exactly as it is on the
-   phone. aspect-ratio sizes the box before any image or video metadata
-   has loaded, so the card never jumps. */
+@supports (height: 1svh) {
+  .sv-media { max-height: max(160px, calc(100svh - max(var(--sv-media-room), var(--sv-first-room, 0px)))); }
+}
 /* Issue #109: every image in the post, side by side, so a drag shows the
    next one arriving. The box clips it to one at a time.
    
@@ -74,26 +113,49 @@
 }
 .sv-slide { flex: 0 0 100%; height: 100%; }
 
-/* contain, not cover: a photo is never cut. The box already took its
-   shape from the photo, so an ordinary landscape or portrait one fills
-   it exactly; only something outside Instagram's range (a 9:16 photo)
-   is letterboxed rather than trimmed. Cropping these is what broke every
-   horizontal photo in the feed. */
+/* contain, not cover: nothing is ever cut - not a photo, not a video.
+   The box took its shape from the post's first item, so that one fills
+   it exactly unless the height cap letterboxed it; any other item of a
+   carousel shows whole inside the same box. Cropping is what once broke
+   every horizontal photo in the feed, and then every vertical video. */
 .sv-media img {
   width: 100%; height: 100%;
   object-fit: contain; background: var(--ink-2); display: block;
 }
 
-/* A video is the exception, and the reason the box exists: these are
-   9:16, which shown whole takes the entire screen. It fills the 4:5 box
-   and the overflow is cropped, exactly as Instagram does - and as the
-   poster standing in for it does, so the two are framed identically. */
-.sv-media .sv-inline-video {
-  position: absolute; inset: 0;
+/* Where the current item is actually drawn: the largest rectangle of its
+   shape (--sv-r, width/height, set by Social.tsx) that fits in the box,
+   centred - the same rectangle object-fit: contain draws the poster in.
+   The player is sized to it rather than to the box (issues #107/#112:
+   pressing play must not move anything), so its own controls lie on the picture
+   and not across the bars beside a tall video; .sv-frame carries the
+   overlay controls that belong on the picture's corner. Without --sv-r
+   (a thumbnail whose shape is unknown) the two fallbacks make both fill
+   the box, as they used to.
+   The cq sizing is behind @supports for the same reason as svh above:
+   with var() in it a browser without cqw/cqh would not fall back to an
+   earlier line, and the player - a replaced element with no valid size -
+   would be drawn at its natural size (1080x1920) and cropped. There it
+   fills the box instead, which with object-fit: contain still puts the
+   picture exactly where the poster was; only the overlay controls sit
+   on the box's corner rather than the picture's. */
+.sv-media .sv-inline-video,
+.sv-frame {
+  position: absolute; inset: 0; margin: auto;
   width: 100%; height: 100%;
-  object-fit: cover; background: #000; display: block;
 }
-.sv-media .sv-slide.is-video { object-fit: cover; }
+@supports (width: 1cqw) and (height: 1cqh) {
+  .sv-media .sv-inline-video,
+  .sv-frame {
+    width: min(100%, 100cqh * var(--sv-r, 1000));
+    height: min(100%, 100cqw / var(--sv-r, 0.001));
+  }
+}
+.sv-media .sv-inline-video {
+  object-fit: contain; background: transparent; display: block;
+}
+.sv-frame { pointer-events: none; }
+.sv-frame > * { pointer-events: auto; }
 
 /* Issue #114: sound toggle, top right of the video - the one control
    that has to sit above the player's own chrome. */
@@ -196,25 +258,19 @@
    App.tsx) rather than floating over the feed. */
 
 .sv-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 1000; }
-.sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+/* The viewer's frame is the screen: dvh where supported, so a phone's
+   address bar can't push a tall photo's bottom off it (nothing scrolls
+   under the open viewer, so the bar doesn't move). */
+.sv-modal-body { position: relative; max-width: 95vw; max-height: 90vh; max-height: 90dvh; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 .sv-close { position: absolute; top: 8px; right: 8px; border: 0; width: 34px; height: 34px; border-radius: 50%; color: var(--mist); background: var(--panel); cursor: pointer; }
 .sv-full-wrap { position: relative; cursor: pointer; }
-.sv-full { max-width: 90vw; max-height: 80vh; display: block; }
+.sv-full { max-width: 90vw; max-height: 80vh; max-height: 80dvh; display: block; }
 .sv-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mist); }
 
 .sv-likers-body { width: 320px; max-width: 90vw; padding: 16px; }
 .sv-likers-title { margin: 0 0 12px; color: var(--mist); font-size: 1rem; }
 .sv-likers-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
 .sv-likers-list li { display: flex; align-items: center; gap: 10px; color: var(--mist); }
-
-/* Issue #107: a video playing inline in the feed occupies exactly the
-   space its poster did, so starting playback never shifts the timeline
-   under the reader's thumb. */
-/* Sizing lives in the shared rule above (issue #112) - this only carries
-   what's specific to a player. */
-.sv-inline-video {
-  background: #000;
-}
 
 /* Issue #79: the empty timeline. */
 .sv-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 72px 24px 40px; text-align: center; color: var(--mist); }

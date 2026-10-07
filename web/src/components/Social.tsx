@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL } from "../net/media";
 import NewPostPicker from "./NewPostPicker";
@@ -59,8 +59,6 @@ function PostDate({ d }: { d: Date }) {
   return <div className="sv-post-date">{formatPostDate(d)}</div>;
 }
 
-// Instagram's feed range: nothing wider than 1.91:1, nothing taller than
-// 4:5. A post's media keeps its own shape between those two.
 // Issue #114: whether feed videos are muted, shared by every post - once
 // someone unmutes, the next video they scroll to stays unmuted rather
 // than making them tap again on every post. Module-level and read
@@ -80,8 +78,39 @@ function useFeedMuted(): [boolean, (muted: boolean) => void] {
   return [muted, setFeedMuted];
 }
 
-const cFeedMinAspect = 4 / 5;
+// A post's media box takes the shape of its first item, made no wider
+// than Instagram's 1.91:1 so a panorama doesn't shrink to a strip. There
+// is no lower bound any more: the box's height is capped by the room the
+// window has for it (Social.css's --sv-media-room), so a tall photo or a
+// 9:16 video gets the whole width it can have while still fitting on
+// screen. The old 4:5 floor made a 9:16 video on a phone 70% of the
+// width, with wide bars, to keep the caption on screen.
 const cFeedMaxAspect = 1.91;
+
+// Width / height of a JPEG, read from its frame header - no decoding, so
+// the box has its final shape on the very first render and never jumps
+// once an image has loaded. Thumbnails are the device's own JPEGs (Go's
+// encoder, orientation already applied, no EXIF), so the frame header is
+// the picture's shape. null when the bytes aren't a JPEG it can read.
+function jpegAspect(bytes?: Uint8Array): number | null {
+  if (!bytes || bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let i = 2;
+  while (i + 8 < bytes.length) {
+    if (bytes[i] !== 0xff) return null;
+    const marker = bytes[i + 1];
+    if (marker === 0xff) { i += 1; continue; } // fill byte
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) { i += 2; continue; } // no length
+    if (marker === 0xd9 || marker === 0xda) return null; // image data before any frame header
+    // Start of frame: every SOFn but DHT (c4), JPG (c8) and DAC (cc).
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      const h = (bytes[i + 5] << 8) | bytes[i + 6];
+      const w = (bytes[i + 7] << 8) | bytes[i + 8];
+      return w > 0 && h > 0 ? w / h : null;
+    }
+    i += 2 + ((bytes[i + 2] << 8) | bytes[i + 3]);
+  }
+  return null;
+}
 
 function bytesToURL(bytes?: Uint8Array, mime = "application/octet-stream") {
   if (!bytes || bytes.length === 0) return null;
@@ -208,7 +237,11 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       // single rAF after an awaited setFeed isn't reliably post-paint.
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (cancelled) return;
-        document.getElementById(`post-${openPubUuid}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Its header just under the top bar (.sv-post's scroll-margin),
+        // which is where its media is sized to fit whole. Centred, a
+        // post taller than the window had the top of its photo under
+        // the bar.
+        document.getElementById(`post-${openPubUuid}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
         setHighlightPub(openPubUuid);
         if (openCommentUuid) {
           setHighlightComment(openCommentUuid);
@@ -551,6 +584,29 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     if (x < rect.width / 2) onLeft(); else onRight();
   };
 
+  // The feed's top, from the top of the page (Social.css's --sv-feed-top):
+  // what the first post's media leaves room for, so it is whole on screen
+  // at load even with the critical-update banner above the page. Read again
+  // whenever anything the feed sits in changes size - the banner coming or
+  // going, or wrapping differently at a new width, resizes .app-body. A
+  // frame later, not in the observer's callback: the new value resizes the
+  // first post and with it every element observed here, which inside the
+  // callback would be a ResizeObserver loop.
+  const feedElRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = feedElRef.current;
+    if (!el) return;
+    let last = "", raf = 0;
+    const measure = () => {
+      const top = `${el.getBoundingClientRect().top + window.scrollY}px`;
+      if (top !== last) el.style.setProperty("--sv-feed-top", (last = top));
+    };
+    measure();
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measure); });
+    for (let a = el.parentElement; a; a = a.parentElement) ro.observe(a);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+
   // Every callback here is stable, so this is too - see Post.
   const postActions = useMemo<PostActions>(() => ({
     loadMoreIfNeeded, likePublication, likeComment, addComment, deletePublication,
@@ -563,7 +619,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   return (
     <div className="sv-wrap">
       {/* Right: feed */}
-      <div className="sv-feed">
+      <div className="sv-feed" ref={feedElRef}>
         {/* Issue #79: an empty timeline invites the first post instead of
             being blank. Only for the owner - a visitor with nothing to see
             gets nothing to do about it either. */}
@@ -746,39 +802,44 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
   const goLeft = () => setIdx(i => (i - 1 + p.files.length) % p.files.length);
   const goRight = () => setIdx(i => (i + 1) % p.files.length);
 
-  // Issue #112: every post's media now sits in one fixed 4:5 box (see
-  // .sv-media), so there is nothing per-post left to measure. This used
-  // to load every image in a carousel just to find the tallest and pin
-  // the card to it - work that is now done by a single CSS rule, and
-  // which applies to single-media posts too rather than only carousels.
-
-  // Issue #112 fix-up: the box takes this post's own shape, clamped to
-  // the range Instagram allows (nothing wider than 1.91:1, nothing
-  // taller than 4:5). Hardcoding 4:5 for every post cropped every
-  // landscape photo in the feed into a tall portrait slot.
+  // Issue #112 fix-up: the box takes this post's own shape (no wider
+  // than 1.91:1, see cFeedMaxAspect) - hardcoding 4:5 for every post
+  // cropped every landscape photo in the feed into a tall portrait slot.
+  // One ratio for the whole post, the first item's, so swiping a
+  // carousel can't resize the card. How tall it may get is CSS's job
+  // (.sv-media's max-height: never taller than the window has room for).
   //
-  // Measured from the first thumbnail, which is a local blob and
-  // therefore decodes immediately; one ratio for the whole post so
-  // swiping a carousel can't resize the card.
-  const [boxAspect, setBoxAspect] = useState<number | null>(null);
+  // Every item's own shape is read from its thumbnail's bytes up front,
+  // so the box is right from the first render. The current item's shape
+  // also places the controls drawn over it (.sv-frame) and sizes the
+  // player exactly where its poster was.
+  const ratios = useMemo(
+    () => p.files.map(f => jpegAspect(f.content as unknown as Uint8Array)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [p.uuid]
+  );
+  // Only for a first thumbnail the header couldn't be read from: measured
+  // by decoding it (a local blob, so quickly), 4:5 until then.
+  const [measuredAspect, setMeasuredAspect] = useState<number | null>(null);
+  const firstUnreadable = p.files.length > 0 && ratios[0] == null;
   useEffect(() => {
-    const first = p.files[0];
-    if (!first) return;
-    const url = bytesToURL(first.content as unknown as Uint8Array, "image/jpeg");
+    if (!firstUnreadable) return;
+    const url = bytesToURL(p.files[0].content as unknown as Uint8Array, "image/jpeg");
     if (!url) return;
     let cancelled = false;
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
       if (cancelled || !img.naturalWidth || !img.naturalHeight) return;
-      const ratio = img.naturalWidth / img.naturalHeight;
-      setBoxAspect(Math.min(Math.max(ratio, cFeedMinAspect), cFeedMaxAspect));
+      setMeasuredAspect(img.naturalWidth / img.naturalHeight);
     };
     img.onerror = () => URL.revokeObjectURL(url);
     img.src = url;
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.uuid]);
+  }, [p.uuid, firstUnreadable]);
+  const firstAspect = ratios[0] ?? measuredAspect;
+  const boxAspect = firstAspect ? Math.min(firstAspect, cFeedMaxAspect) : null;
 
   // Issue #109: a swipe moves the images with the finger and snaps when
   // it ends, instead of swapping only once the finger lifted - which
@@ -827,6 +888,8 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
 
   const current = p.files[idx];
   const isVideo = (current.mime || "").startsWith("video/");
+  // Unknown, the frame is the whole box (see .sv-frame).
+  const currentAspect = ratios[idx] ?? (idx === 0 ? measuredAspect : null);
   // current.content is always a server-generated JPEG thumbnail (see
   // files_manager.GetThumbnail), for a video file same as a photo -
   // never pass the file's own mime here, or a video post's Blob gets
@@ -985,12 +1048,16 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
         )}
       </header>
 
-      {/* Issue #112: the box's shape comes from CSS now (a 4:5 feed
-          slot), so there is no per-post height to set here - which is
-          also what keeps the poster and the player identical. */}
+      {/* The box's shape is the post's (boxAspect); its height cap and
+          the frame of the current item (--sv-r) are Social.css's. The
+          poster and the player are both sized from that one ratio,
+          which is what keeps them identical (issue #112). */}
       <div className="sv-media"
            ref={mediaRef}
-           style={boxAspect ? { aspectRatio: String(boxAspect) } : undefined}
+           style={{
+             ...(boxAspect ? { aspectRatio: String(boxAspect) } : {}),
+             ...(currentAspect ? { "--sv-r": String(currentAspect) } : {}),
+           } as React.CSSProperties}
            onTouchStart={onStripTouchStart}
            onTouchMove={onStripTouchMove}
            onTouchEnd={onStripTouchEnd}>
@@ -1025,7 +1092,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             {p.files.map((f, i) => (
               <img
                 key={`${f.hash}-${i}`}
-                className={`sv-slide${(f.mime || "").startsWith("video/") ? " is-video" : ""}`}
+                className="sv-slide"
                 src={stripURLs[i] || lowURL}
                 alt={f.path}
                 onClick={(e) => {
@@ -1071,16 +1138,21 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           </button>
         )}
         {isVideo && (
-          <button
-            className="sv-mute"
-            onClick={(e) => {
-              e.stopPropagation();
-              setMuted(!muted);
-            }}
-            aria-label={muted ? "Unmute video" : "Mute video"}
-          >
-            {muted ? "🔇" : "🔊"}
-          </button>
+          // The speaker sits on the picture's corner, not out in the
+          // bars beside a tall video: .sv-frame is the rectangle the
+          // current item is actually drawn in.
+          <div className="sv-frame">
+            <button
+              className="sv-mute"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMuted(!muted);
+              }}
+              aria-label={muted ? "Unmute video" : "Mute video"}
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
+          </div>
         )}
         {/* Issue #68: the iOS app already shows a dot per image (current
             one solid, the rest dimmed) over a multi-image post - the web
