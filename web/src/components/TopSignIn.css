@@ -1,0 +1,183 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The password field and Sign In at the right end of the top bar while
+   nobody is signed in (TopSignIn.tsx). The bar (index.css .topbar) is a
+   stacking context at z-index 30, so a refusal's note under the field lies
+   over the page. On a phone (.compact) the field is folded into the button
+   until it is pressed, then takes the bar. */
+
+.tsi {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tsi.compact.is-open { flex: 1; }
+.tsi.compact:not(.is-open) .tsi-field { display: none; }
+
+/* ---- The field: its label inside, lowered into it while it is empty ---- */
+
+.tsi-field {
+  position: relative;
+  /* A width of its own: its input lies over it, so it has no content to
+     be sized by. */
+  flex: 0 1 auto;
+  width: 260px;
+  min-width: 0;
+  height: 44px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--ink-3);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.tsi.compact .tsi-field { flex: 1 1 0; width: auto; }
+.tsi-field:hover { border-color: rgba(234, 242, 239, .24); }
+.tsi-field:focus-within { border-color: var(--mist-dim); background: var(--ink-2); }
+.tsi-field.is-invalid { border-color: var(--danger); }
+
+.tsi-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  /* Under the raised label. 16px: a phone zooms into anything smaller. */
+  padding: 16px 12px 2px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--mist);
+  font: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  outline: none;
+}
+/* A filled-in password keeps the field's colours, not the browser's. */
+.tsi-input:-webkit-autofill {
+  -webkit-text-fill-color: var(--mist);
+  -webkit-box-shadow: 0 0 0 40px var(--ink-2) inset;
+  caret-color: var(--mist);
+}
+
+.tsi-label {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  max-width: calc(100% - 26px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  color: var(--mist-dim);
+  font-size: 15px;
+  line-height: 20px;
+  pointer-events: none;
+  transition: top .12s ease, font-size .12s ease, transform .12s ease;
+}
+.tsi-input:focus + .tsi-label,
+.tsi-input:not(:placeholder-shown) + .tsi-label {
+  top: 4px;
+  transform: none;
+  font-size: 11px;
+  line-height: 14px;
+}
+/* Apart from the rule above: a browser that doesn't know the selector
+   drops the whole list it is in. */
+.tsi-input:-webkit-autofill + .tsi-label { top: 4px; transform: none; font-size: 11px; line-height: 14px; }
+.tsi-input:focus + .tsi-label { color: var(--mist); }
+.tsi-field.is-invalid .tsi-label { color: var(--danger); }
+@media (prefers-reduced-motion: reduce) {
+  .tsi-label { transition: none; }
+}
+
+/* ---- Sign In, and the way back on a phone ---- */
+
+.tsi-submit {
+  position: relative;
+  flex: none;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+/* Checking: the label keeps its room under the spinner, and stays the
+   button's name for a screen reader (visibility would take it away). */
+.tsi-submit.is-busy .tsi-submit-label { opacity: 0; }
+.tsi-submit-spin {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+.tsi-submit[aria-disabled="true"] { cursor: progress; filter: none; }
+
+.tsi-close {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin-left: -6px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--mist);
+  -webkit-tap-highlight-color: transparent;
+}
+.tsi-close:hover { filter: none; background: var(--panel); }
+.tsi-close:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+
+/* ---- What went wrong, under the field ---- */
+
+.tsi-note {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 138, 117, .45);
+  border-radius: 8px;
+  background: var(--ink-2);
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  animation: tsi-note-in .14s ease-out;
+}
+/* Pointing up at the field. */
+.tsi-note::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 20px;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border: solid rgba(255, 138, 117, .45);
+  border-width: 1px 0 0 1px;
+  background: var(--ink-2);
+  transform: rotate(45deg);
+}
+/* On a phone the field starts past the back button. */
+.tsi.compact .tsi-note::before { left: 60px; }
+@keyframes tsi-note-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .tsi-note { animation: none; }
+}
+
+.tsi-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

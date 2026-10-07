@@ -1,6 +1,8 @@
-.sign_in_menu {
-  margin: auto;
-  display: flex;
-  flex-direction: column;
-  place-items: center;
+/* A new device's setup (SignIn.tsx): one card in the middle, as wide as a
+   phone leaves room for. */
+.setup-section {
+  width: 420px;
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
+  margin: 0 auto;
 }

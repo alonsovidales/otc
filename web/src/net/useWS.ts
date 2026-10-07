@@ -2,13 +2,38 @@
 
 import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { encryptForConnection, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
+import { encryptWithPubKey, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
 import { isDeviceStatusCode } from "./deviceStatus";
 
 // The device refused a password and refuses any more from this address
 // for a while (issue #117). Unlike a sign-in nobody answered, that is a
 // verdict, so a typed password that met it is not kept (see sendAuth).
 class LockedOut extends Error {}
+
+// What sendAuth throws, having sent nothing, for a password that is not
+// to go to a new device (refuseNewDevice): one with no owner password yet
+// takes the first password it is sent as its own (issue #39), so a sign-in
+// typed on the page would skip its setup.
+export class NewDevice extends Error {
+  readonly isPrimary: boolean;
+  constructor(isPrimary: boolean) {
+    super("This device isn't set up yet.");
+    this.isPrimary = isPrimary;
+  }
+}
+
+export interface SendAuthOptions {
+  // Not for a new device: the device's answer to the GetPubKey this
+  // password is encrypted with says whether it is new, and if so sendAuth
+  // throws NewDevice instead of sending it.
+  refuseNewDevice?: boolean;
+  // Typed by someone who is there to try again (the page's sign-in and
+  // setup): kept for request()'s replay only once the device has accepted
+  // it, never after no answer. Replayed later it would sign in, or count a
+  // failed attempt, behind their back - or, on a new device, become its
+  // password - and it would go ahead of the next one they type.
+  keepOnlyIfAccepted?: boolean;
+}
 
 // The bridge's own reply when it could not hand a request to the device
 // (no live connection to it, or the account is switched off - see
@@ -196,10 +221,20 @@ export function UseWS() {
   };
 
   // The password is remembered for request()'s reconnect replay once the
-  // device has accepted it, or when no answer came at all: one the device
-  // refused (a typo, or a password that is no longer the current one) is
-  // never replayed.
-  const sendAuth = (key: string): Promise<boolean> => {
+  // device has accepted it, or when no answer came at all (unless
+  // keepOnlyIfAccepted): one the device refused (a typo, or a password that
+  // is no longer the current one) is never replayed.
+  const sendAuth = (key: string, opts: SendAuthOptions = {}): Promise<boolean> => {
+    // A sign-in already under way (a reconnect's replay, the container's
+    // launch) answers for its own credential, not one just typed: that
+    // waits for it, and is sent itself unless the other one signed in -
+    // a refusal then would end the session it just made.
+    if (authPromise && opts.keepOnlyIfAccepted) {
+      return authPromise.then(
+        (ok) => (ok ? Promise.reject(new Error("Signed in meanwhile.")) : sendAuth(key, opts)),
+        () => sendAuth(key, opts),
+      );
+    }
     if (authPromise) return authPromise;
 
     authPromise = (async () => {
@@ -209,7 +244,15 @@ export function UseWS() {
           await connect();
         }
 
-        const encryptedKey = await encryptForConnection(rawRequest, key);
+        const keyResp: RespEnvelope = await rawRequest(e => {
+          e.payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
+        });
+        // The same answer the password is encrypted with, so nothing can
+        // come between this check and the password going out.
+        if (opts.refuseNewDevice && keyResp.payload?.$case === "respPubKey" && keyResp.payload.respPubKey.isNewDevice) {
+          throw new NewDevice(keyResp.payload.respPubKey.isPrimary);
+        }
+        const encryptedKey = encryptWithPubKey(keyResp, key);
         const resp: RespEnvelope = await rawRequest(e => {
           (e as any).payload = { $case: "reqAuth", reqAuth: { key: encryptedKey, create: true } };
         });
@@ -256,6 +299,8 @@ export function UseWS() {
 
         return false;
       } catch (e) {
+        // A new device answered; nothing was sent.
+        if (e instanceof NewDevice) throw e;
         // No answer about the password (the socket dropped, or the bridge
         // answered for the device): it is tried again on the next
         // reconnect, or the next request if the socket is still open, as
@@ -269,10 +314,11 @@ export function UseWS() {
         // lockout ends, then count once more. The person retypes it
         // anyway. The container's own password is still kept, so a launch
         // during someone else's lockout heals once it ends; one that did
-        // work is never dropped here.
+        // work is never dropped here. Nor is one typed on the page with
+        // keepOnlyIfAccepted kept at all: the person tries again.
         const containerKey = key === window.__OTC_CONFIG?.password;
         if (!(e instanceof LockedOut)) authOwed = wsClient.connected;
-        if (lastAuthRef === '' && (!(e instanceof LockedOut) || containerKey)) lastAuthRef = key;
+        if (lastAuthRef === '' && !opts.keepOnlyIfAccepted && (!(e instanceof LockedOut) || containerKey)) lastAuthRef = key;
         throw e;
       } finally {
         authPromise = null;

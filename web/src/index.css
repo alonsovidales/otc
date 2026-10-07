@@ -81,6 +81,7 @@
 }
 .tb-logo { height: 38px; width: auto; display: block; margin-left: 4px; }
 .tb-fill { flex: 1; }
+/* Signed out, the password field and Sign In end the bar (TopSignIn.css). */
 .tb-action {
   display: inline-flex;
   align-items: center;
@@ -96,6 +97,19 @@
 }
 .tb-action:hover { background: rgba(255, 107, 74, .12); }
 .tb-action span { font-size: 18px; line-height: 1; }
+
+/* A page waiting for its session (a reload restoring it): the spinner in
+   the middle of the page, not a line in its corner. */
+.page-wait {
+  min-height: calc(70vh - var(--topbar-h));
+  display: grid;
+  place-items: center;
+  padding: 0 16px;
+  color: var(--mist-dim);
+  font-size: 15px;
+  text-align: center;
+}
+.page-wait p { margin: 0; }
 
 /* The page beside the menu: room for the bar above and for the menu, whole
    or as a rail. --content-left is that room, for a page's own fixed bars. */
@@ -197,10 +211,4 @@ button:disabled {
 button:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
-}
-
-.top_sign_in {
-  margin-left: auto;
-  height: 40px;
-  margin-right: 20px;
 }

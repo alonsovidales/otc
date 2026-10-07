@@ -1,34 +1,40 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useState } from 'react'
+// A new device's first-run setup (issue #39): the owner's name and
+// password, then its disks and its WiFi. App shows it, as the SignIn tab,
+// only while the device says it is new; everyone else signs in from the
+// top bar (components/TopSignIn.tsx), and both send the password through
+// the same signInWithPassword - this one with setUp, the top bar's never
+// to a new device.
+
+import { useState } from 'react'
 
 import './SignIn.css'
 import { useWS } from "../net/useWS";
-import { getDeviceSetupInfo } from "../net/pwCrypto";
+import { signInWithPassword } from "../net/signIn";
 import type { StorageDevice, WifiNetwork } from "../proto/messages";
 
-type Step = "checking" | "login" | "credentials" | "storage" | "wifi";
+type Step = "credentials" | "storage" | "wifi";
 
 function formatSize(bytes: bigint): string {
   const gb = Number(bytes) / (1000 * 1000 * 1000);
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(Number(bytes) / (1000 * 1000)).toFixed(0)} MB`;
 }
 
-function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>; onDone: () => void }) {
+function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void }) {
   // Issue #39: a device with no owner secret yet is treated as fresh out
   // of the box — instead of a plain password box (which would just
   // silently adopt whatever's typed as the permanent password with no
   // owner name or storage set up at all), walk through a short setup
   // instead: owner name + password, then how to use any attached disks.
-  const [step, setStep] = useState<Step>("checking");
+  //
   // Issue #85: an additional user's instance (issue #82) shares the
   // primary's physical machine, so its storage and WiFi are already set up
   // and are not this user's to change - their setup is just a name and a
-  // password. Defaults to true so a device that somehow can't answer gets
-  // the full wizard rather than silently skipping real setup steps.
-  const [isPrimary, setIsPrimary] = useState(true);
+  // password (`isPrimary` false; true when the device couldn't say, so it
+  // gets the full wizard rather than silently skipping real setup steps).
+  const [step, setStep] = useState<Step>("credentials");
 
-  const [key, setKey] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [setupPassword, setSetupPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,61 +49,6 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
   const [chosenSsid, setChosenSsid] = useState("");
   const [wifiPassword, setWifiPassword] = useState("");
   const [wifiNote, setWifiNote] = useState("");
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const info = await getDeviceSetupInfo(useWS.request);
-        setIsPrimary(info.isPrimary);
-        setStep(info.isNewDevice ? "credentials" : "login");
-      } catch (e) {
-        console.error("Could not check device state:", e);
-        // Fall back to the normal sign-in form rather than ever blocking
-        // an existing owner from logging in over an uncertain check.
-        setStep("login");
-      }
-    })();
-  }, []);
-
-  if (step === "checking") {
-    return null;
-  }
-
-  if (step === "login") {
-    return (
-      <section className="sf-section" style={{ width: 400, margin: "auto" }}>
-        <form onSubmit={async (e) => {
-          e.preventDefault();
-          setError("");
-          try {
-            if (await onAuth(key)) onDone();
-            else setError("Incorrect password.");
-          } catch (err: any) {
-            // Issue #93: a disabled account's own auth attempt throws
-            // here (see encryptForConnection - the bridge answers its
-            // reqGetPubKey with a RespAck error instead of a real key)
-            // rather than resolving false like a plain wrong password
-            // does above - this used to just vanish as an unhandled
-            // rejection, leaving the form looking like it had done
-            // nothing at all.
-            setError(err?.message || "Could not sign in.");
-          }
-        }}>
-          <div className="sf-row">
-          <h3>Password</h3>
-            {/* Focused as soon as the form appears: pressing Sign In and
-                then having to click into the one field on the page was a
-                wasted click every single time. */}
-            <input id="sf-old" className="sf-input" type="password" autoFocus onChange={(e)=>setKey(e.target.value)} />
-          </div>
-          <button className="sf-btn">
-            Log In
-          </button>
-          {error && <p className="sf-note error">{error}</p>}
-        </form>
-      </section>
-    )
-  }
 
   const submitCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,9 +66,11 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
 
     setSubmitting(true);
     try {
-      const ok = await onAuth(setupPassword);
-      if (!ok) {
-        setError("Could not set up the device — please try again.");
+      // The device takes the first password it is sent as its own: the
+      // one sign-in allowed to reach a new device.
+      const result = await signInWithPassword(setupPassword, { setUp: true });
+      if (!result.ok) {
+        setError(result.reason === "wrong" ? "Could not set up the device — please try again." : result.message);
         return;
       }
 
@@ -222,7 +175,7 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
 
   if (step === "wifi") {
     return (
-      <section className="sf-section setup-section" style={{ width: 420, margin: "auto" }}>
+      <section className="sf-section setup-section">
         <h3>WiFi</h3>
         <p className="sf-hint">
           If you're set up over this device's own temporary "Off The Cloud" network, pick your
@@ -268,7 +221,7 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
 
   if (step === "storage") {
     return (
-      <section className="sf-section setup-section" style={{ width: 420, margin: "auto" }}>
+      <section className="sf-section setup-section">
         <h3>Storage</h3>
         <p className="sf-hint">
           {devices.length === 0
@@ -296,7 +249,7 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
   }
 
   return (
-    <section className="sf-section setup-section" style={{ width: 420, margin: "auto" }}>
+    <section className="sf-section setup-section">
       <h3>Welcome to Off The Cloud</h3>
       {/* Issue #85: an additional user isn't setting up a device - the
           machine is already running, someone else set it up, and saying
@@ -323,6 +276,7 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
           <input
             className="sf-input"
             type="password"
+            autoComplete="new-password"
             value={setupPassword}
             onChange={(e) => setSetupPassword(e.target.value)}
           />
@@ -332,6 +286,7 @@ function SignIn({ onAuth, onDone }: { onAuth: (key: string) => Promise<boolean>;
           <input
             className="sf-input"
             type="password"
+            autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />

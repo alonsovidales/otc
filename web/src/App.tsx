@@ -23,7 +23,7 @@ import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
-import { getDeviceSetupInfo, loadPersistedToken } from "./net/pwCrypto";
+import { getDeviceSetupInfo, loadPersistedToken, type DeviceSetupInfo } from "./net/pwCrypto";
 import { promptForPushIfNeverAsked } from "./net/webPush";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
@@ -33,11 +33,31 @@ import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
 import SharedGalleryView from "./components/SharedGalleryView";
 import AccountMenu from "./components/AccountMenu";
+import TopSignIn, { type Interrupted } from "./components/TopSignIn";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
 // The pages that lay out their own top (their headers' spacing, sticky bars).
 const cOwnTopTabs: TabKey[] = ["PhotoGallery", "People", "Collections"];
+// Where a signed-out visitor lands (see landIfSignedOut).
+const cLandingTab: TabKey = "Profile";
+
+// Issue #38/#39: whether the device is new (no owner password yet), asked
+// once per load - again only while the device hasn't said (null: it
+// couldn't be reached, or the bridge answered for it).
+let setupCheck: Promise<DeviceSetupInfo | null> | null = null;
+function checkDeviceSetup(): Promise<DeviceSetupInfo | null> {
+  setupCheck ??= getDeviceSetupInfo(useWS.request)
+    .catch((e) => {
+      console.error("Could not check device state:", e);
+      return null;
+    })
+    .then((info) => {
+      if (!info) setupCheck = null;
+      return info;
+    });
+  return setupCheck;
+}
 
 function App() {
   const cfg = window.__OTC_CONFIG!;
@@ -107,6 +127,15 @@ function App() {
   // explanation. Starts true only when there's actually a token to redeem.
   const [restoringSession, setRestoringSession] = useState(() => !cfg && !!loadPersistedToken());
 
+  // A new device's setup is up (the SignIn tab), from the device saying it
+  // is new to setup's last step - the storage and WiFi steps come after its
+  // password is set. See showSetup below.
+  const [setupShown, setSetupShown] = useState(false);
+  // A sign-in the unreachable screen cut off (TopSignIn): its password goes
+  // back in the field when the device answers again, never sent by itself.
+  const [signInInterrupted, setSignInInterrupted] = useState<Interrupted | null>(null);
+  useEffect(() => { if (authenticated) setSignInInterrupted(null); }, [authenticated]);
+
   // Issue #56: the bridge's verdict on whether this device is reachable at
   // all, reported from ws.ts's socket callbacks (outside the component
   // tree) via deviceStatus's little store.
@@ -148,9 +177,15 @@ function App() {
   // useWS's own message listener. Land the viewer somewhere usable rather
   // than leaving them on a view that will now never load its data. Skips
   // the very first render, when nobody was signed in to begin with.
+  // A setup past its password (its storage and WiFi steps) has nothing
+  // left to do once its session is gone: the top bar signs in again.
   const wasAuthenticated = useRef(false);
   useEffect(() => {
-    if (wasAuthenticated.current && !authenticated) landIfSignedOut();
+    if (wasAuthenticated.current && !authenticated) {
+      setSetupShown(false);
+      setTab((current) => (current === "SignIn" ? cLandingTab : current));
+      landIfSignedOut();
+    }
     wasAuthenticated.current = authenticated;
   }, [authenticated]);
 
@@ -163,10 +198,10 @@ function App() {
   }, [tab]);
 
   // Issue #105: the tabs that have nothing to show without a session. The
-  // rest (Profile, Social, SignIn) render something meaningful signed out,
-  // which is exactly why Profile is where a failed restore lands - it's
-  // this device's public face, reachable with no session at all, and it
-  // carries the Sign In button to try again from.
+  // rest (Profile, Social, SignIn - a new device's setup) render something
+  // meaningful signed out, which is exactly why Profile is where a failed
+  // restore lands - it's this device's public face, reachable with no
+  // session at all, under the top bar's password field to sign in again.
   // Issue #118: Social is in this list too. Its feed is an authenticated
   // request for a browser (only a friend's *device* reads it anonymously),
   // so signed out it rendered an empty timeline - a blank page with a
@@ -175,7 +210,6 @@ function App() {
   // profile is what an unregistered visitor gets, and it is what an
   // expired session should get too.
   const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Collections", "Settings", "Notifications", "Friends", "Social"];
-  const cLandingTab: TabKey = "Profile";
 
   // Sends the viewer somewhere usable when a session couldn't be restored,
   // rather than leaving them on a view that can only ever say "Signing in…".
@@ -199,17 +233,59 @@ function App() {
   };
 
   // Issue #38/#39: a device with no owner secret yet lands straight on
-  // setup — nobody should have to know to go click "Sign In" first just
-  // to see that a brand-new device needs configuring.
+  // setup (the SignIn tab) — nobody should have to know to go click
+  // "Sign In" first just to see that a brand-new device needs configuring.
+  // Setup is all that tab is: anyone else signs in from the top bar, so a
+  // device that isn't new moves off it (a reload during setup, or a tab
+  // remembered from before). Asked again once the device answers after
+  // the unreachable screen, when the first check met it. Whatever this
+  // knows, the top bar's field never sends a password to a new device (it
+  // would take it as its own, with no owner name or storage set up): the
+  // device's own answer to that sign-in brings the setup up (showSetup).
+  const [setupInfo, setSetupInfo] = useState<DeviceSetupInfo | null>(null);
   useEffect(() => {
-    (async () => {
-      try {
-        if ((await getDeviceSetupInfo(useWS.request)).isNewDevice) setTab("SignIn");
-      } catch (e) {
-        console.error("Could not check device state:", e);
-      }
-    })();
-  }, []);
+    if (setupInfo || deviceStatus) return;
+    let live = true;
+    void checkDeviceSetup().then((info) => {
+      if (!live || !info) return;
+      setSetupInfo(info);
+      setSetupShown(info.isNewDevice);
+      setTab((current) => (info.isNewDevice ? "SignIn" : current === "SignIn" ? cLandingTab : current));
+    });
+    return () => { live = false; };
+  }, [setupInfo, deviceStatus]);
+  const showSetup = (isPrimary: boolean) => {
+    setSetupInfo({ isNewDevice: true, isPrimary });
+    setSetupShown(true);
+    setSignInInterrupted(null);
+    setTab("SignIn");
+  };
+  const finishSetup = () => {
+    setSetupShown(false);
+    setSetupInfo((info) => info && { ...info, isNewDevice: false });
+    handleSignedIn();
+  };
+
+  // Signed out, the top bar has the password field and Sign In - not while
+  // a stored session is being restored, nor over a new device's setup,
+  // whose password is chosen there. On a phone the field is folded into
+  // its Sign In button until pressed, then takes the bar, the logo's room
+  // included.
+  const showSignIn = !authenticated && !restoringSession && !(setupShown && tab === "SignIn");
+  const [signInOpen, setSignInOpen] = useState(false);
+  useEffect(() => { if (authenticated) setSignInOpen(false); }, [authenticated]);
+  const signInFieldOut = showSignIn && narrow && signInOpen;
+
+  // A sign-in that didn't come from the top bar's field (handleSignedIn):
+  // a session restored or a password replayed while the page showed the
+  // public profile, or its setup tab with no setup up. Neither has anything
+  // for someone signed in - Profile renders nothing then - so the page
+  // lands on the feed as after any sign-in. Setup's own sign-in stays for
+  // its storage and WiFi steps.
+  useEffect(() => {
+    if (!authenticated) return;
+    setTab((current) => (current === "Profile" || (current === "SignIn" && !setupShown) ? "Social" : current));
+  }, [authenticated, setupShown]);
 
   if (mobile) {
     useEffect(() => {
@@ -245,8 +321,9 @@ function App() {
           // which jumps to Social), this is a reload — `tab` was already
           // initialized from the last-open view, and clobbering that back
           // to Social on every reload is exactly the bug this issue is
-          // about. Only step in if the restored tab is "SignIn" itself,
-          // which isn't a sensible place to land now that this succeeded.
+          // about. Only step in if the restored tab is "SignIn" itself (a
+          // reload during setup), which isn't a sensible place to land now
+          // that this succeeded.
           if (ok && tab === "SignIn") setTab("Social");
           // Issue #105: an expired or already-spent token is the ordinary
           // end of a session, not an error state to sit in.
@@ -372,9 +449,13 @@ function App() {
   // is about to be moved to the landing tab anyway (landIfSignedOut),
   // making this the briefest of intermediate states rather than a
   // dead end.
-  const signedOutPlaceholder = restoringSession
-    ? <p>Signing in…</p>
-    : <p className="sf-hint">Your session has ended — sign in again to continue.</p>;
+  const signedOutPlaceholder = (
+    <div className="page-wait">
+      {restoringSession
+        ? <Spinner label="Signing in…" />
+        : <p>Your session has ended — sign in again to continue.</p>}
+    </div>
+  );
 
   // Issue #56: nothing behind this is usable while the device is
   // unreachable - every view's data comes from it - so this stands in
@@ -392,7 +473,7 @@ function App() {
             <MenuIcon size={24} />
           </button>
         )}
-        {!mobile && (
+        {!mobile && !signInFieldOut && (
           <div className={`tb-brand${authenticated ? " signed-in" : ""}`}>
             <img src={logo} className="tb-logo" alt="Off The Cloud" />
           </div>
@@ -402,7 +483,7 @@ function App() {
             file Files. */}
         {authenticated
           ? <TopSearch onShowPhotos={() => setTab("PhotoGallery")} onShowFiles={() => setTab("AdminPannel")} />
-          : <div className="tb-fill" />}
+          : !signInFieldOut && <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. Below 700px
             only its "+" shows (index.css), named by a tooltip. */}
         {authenticated && tab === "Social" && openComposer && (
@@ -422,11 +503,18 @@ function App() {
         {authenticated && (
           <AccountMenu onOpenSettings={() => setTab("Settings")} refreshKey={tab === "Settings"} tip={canHover} />
         )}
-        {!authenticated &&
-          <button className="top_sign_in" onClick={() => setTab("SignIn")}>
-            Sign In
-          </button>
-        }
+        {showSignIn && (
+          <TopSignIn
+            deviceHost={deviceHost(endpoint)}
+            compact={narrow}
+            open={signInOpen}
+            onOpenChange={setSignInOpen}
+            onNewDevice={showSetup}
+            onSignedIn={handleSignedIn}
+            interrupted={signInInterrupted}
+            onInterrupted={setSignInInterrupted}
+          />
+        )}
       </header>
       {authenticated && (
         <Sidebar
@@ -466,10 +554,7 @@ function App() {
             onRegisterOpenComposer={(open) => setOpenComposer(() => open)}
           />
         )}
-        {tab === "SignIn" && <SignIn
-          onAuth={async (key) => await useWS.sendAuth(key)}
-          onDone={handleSignedIn}
-        />}
+        {tab === "SignIn" && setupShown && <SignIn isPrimary={setupInfo?.isPrimary ?? true} onDone={finishSetup} />}
         {/* Issue #53 follow-up: these three are authenticated-only views
             with no meaningful signed-out state (unlike Profile/Social
             above) — they used to mount unconditionally regardless of
@@ -499,6 +584,16 @@ function App() {
       </div>
     </>
   )
+}
+
+// The device's address (the endpoint's host): what a password manager files
+// its password under.
+function deviceHost(endpoint: string): string {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return window.location.host;
+  }
 }
 
 // A media query's current answer, kept up to date.

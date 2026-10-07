@@ -107,24 +107,29 @@ export interface DeviceSetupInfo {
   isPrimary: boolean;
 }
 
+// This connection's GetPubKey answer: the device's key for this socket,
+// with its setup flags (below) riding along.
+function requestPubKey(request: Requester): Promise<RespEnvelope> {
+  return request((e) => {
+    (e as any).payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
+  });
+}
+
 /**
  * Issue #39: every client calls GetPubKey before Auth anyway, and the
  * server rides along the flags below on that same response — so this is a
  * free way to tell a fresh device apart from a normal login, and a child
  * instance apart from the primary, before anyone is authenticated (which
  * is exactly when the setup wizard has to decide what to show).
+ *
+ * null when the answer isn't the device's key: the bridge answering for a
+ * device it can't reach, say. That says nothing about the device, and
+ * taking it for "not new" would let a new device take a sign-in's password
+ * as its own.
  */
-export async function getDeviceSetupInfo(request: Requester): Promise<DeviceSetupInfo> {
-  const resp = await request((e) => {
-    (e as any).payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
-  });
-
-  if (resp.payload?.$case !== "respPubKey") {
-    // Assume the safest shape: a normal sign-in on a primary, i.e. never
-    // silently skip setup steps over a response we couldn't read.
-    return { isNewDevice: false, isPrimary: true };
-  }
-
+export async function getDeviceSetupInfo(request: Requester): Promise<DeviceSetupInfo | null> {
+  const resp = await requestPubKey(request);
+  if (resp.payload?.$case !== "respPubKey") return null;
   return {
     isNewDevice: resp.payload.respPubKey.isNewDevice,
     isPrimary: resp.payload.respPubKey.isPrimary,
@@ -133,10 +138,15 @@ export async function getDeviceSetupInfo(request: Requester): Promise<DeviceSetu
 
 /** Fetches this connection's public key and RSA-OAEP(SHA-256) encrypts `plaintext` with it. */
 export async function encryptForConnection(request: Requester, plaintext: string): Promise<Uint8Array> {
-  const resp = await request((e) => {
-    (e as any).payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
-  });
+  return encryptWithPubKey(await requestPubKey(request), plaintext);
+}
 
+/**
+ * The same with a GetPubKey answer already in hand, for a caller that looks
+ * at the answer's flags first (useWS.sendAuth). Throws when the answer
+ * isn't a key.
+ */
+export function encryptWithPubKey(resp: RespEnvelope, plaintext: string): Uint8Array {
   if (resp.payload?.$case !== "respPubKey") {
     const msg = resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : undefined;
     throw new Error(msg || "Unable to fetch the connection's public key");
