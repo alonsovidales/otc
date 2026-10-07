@@ -9,7 +9,7 @@
 // them. A collection is an image group in the protocol (ImageGroup,
 // groupId), so the code says group where it talks to the device.
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref, SyntheticEvent } from "react";
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { useWS } from "../net/useWS";
 import type { DeepPartial, File as MsgFile, ImageGroup, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
@@ -87,6 +87,11 @@ const monthParts = (key: string) => {
 const monthTitle = (key: string) => {
   const { year, name } = monthParts(key);
   return `${name} ${year}`;
+};
+/** "Mar 2024" */
+const monthShort = (key: string) => {
+  const { year, name } = monthParts(key);
+  return `${name.slice(0, 3)} ${year}`;
 };
 
 /** The months the photos span, from date buckets (newest first): "Mar 2024",
@@ -323,6 +328,9 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const [dateBuckets, setDateBuckets] = useState<ScrubBucket[]>([]);
   // Whether any reply has come yet: until then the scrubber may still come.
   const [bucketsLoaded, setBucketsLoaded] = useState(false);
+  // The same counts by month, only while they are this search's own: the
+  // month at the end of the grid is laid out at the size it will have.
+  const [monthCounts, setMonthCounts] = useState<Map<string, number> | null>(null);
   const bucketsRef = useRef<ScrubBucket[]>([]);
   useEffect(() => { bucketsRef.current = dateBuckets; }, [dateBuckets]);
   const bucketGenRef = useRef(0);
@@ -337,7 +345,9 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       // The old list stays until the new one is in, so the scrubber (and
       // the room the grid keeps for it) doesn't blink on a filter change.
       if (gen === bucketGenRef.current && resp.payload?.$case === "respPhotoDateBuckets") {
-        setDateBuckets(resp.payload.respPhotoDateBuckets.buckets ?? []);
+        const buckets = resp.payload.respPhotoDateBuckets.buckets ?? [];
+        setDateBuckets(buckets);
+        setMonthCounts(new Map(buckets.map((b) => [b.month, b.count])));
         setBucketsLoaded(true);
       }
     } catch {
@@ -417,9 +427,10 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       frame = 0;
       const kids = gridRef.current?.children;
       if (!kids || kids.length === 0) return;
-      // The first tile or month title still below the top bar. Rows run in
-      // document order, so their bottoms only grow: a binary search finds
-      // it in a dozen reads, however long the grid.
+      // The first month still below the top bar. Months run in document
+      // order, and the ones sharing a row (each a single row of tiles) end
+      // level, so their bottoms only grow: a binary search finds it in a
+      // dozen reads, however long the grid.
       let lo = 0;
       let hi = kids.length - 1;
       while (lo < hi) {
@@ -441,6 +452,34 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     };
   }, [dateOrdered, items]);
 
+  // -------- one tile size for every month -------------------------------------
+  // Months short of a row sit side by side, so the tile size is the page's,
+  // not each month's: as many columns as fit at the smallest size the CSS
+  // allows (--pg-tile-min, or --pg-cols-fixed on a phone), sharing the width
+  // exactly, so a full row still reaches both edges. Set as --pg-tile, which
+  // every month's grid is laid out from (.pg-sec) - a resize renders nothing.
+  // Measured on a ruler as wide as the grid's content and never taller: the
+  // grid's own height changes with the size it is given.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const rulerRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const ruler = rulerRef.current;
+    if (!root || !ruler) return;
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[entries.length - 1].contentRect.width;
+      if (width <= 0) return;
+      const css = getComputedStyle(ruler);
+      const gap = parseFloat(css.getPropertyValue("--pg-gap")) || 0;
+      const fixed = parseInt(css.getPropertyValue("--pg-cols-fixed"), 10);
+      const min = parseFloat(css.getPropertyValue("--pg-tile-min")) || 150;
+      const cols = fixed > 0 ? fixed : Math.max(1, Math.floor((width + gap) / (min + gap)));
+      root.style.setProperty("--pg-tile", `${(width - (cols - 1) * gap) / cols}px`);
+    });
+    ro.observe(ruler);
+    return () => ro.disconnect();
+  }, []);
+
   // -------- a new search whenever the filter changes ------------------------
   // Tags, people and the open collection, and only those: renaming the open
   // collection (updateOpenGroup) keeps its id and the photos on screen.
@@ -459,6 +498,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     // A scrub in progress was measured against the previous filter's months.
     scrubbingRef.current = false;
     setPlaceholderCount(null);
+    setMonthCounts(null);
     void loadDateBuckets();
     window.scrollTo(0, 0);
   }, [tags, personIds, groupId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -813,8 +853,10 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   useEffect(() => { if (!selecting) setShareOpen(false); }, [selecting]);
 
   // -------- render ------------------------------------------------------------
+  // In date order, a section per month: its title over its own tiles (a
+  // photo without a date stays with the month before it). By relevance,
+  // one section without a title.
   const gridChildren = useMemo(() => {
-    const out: ReactNode[] = [];
     const keys = new Set<string>();
     // A restarted search can send a photo twice: React keys stay unique.
     const unique = (k: string) => {
@@ -823,27 +865,39 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       keys.add(key);
       return key;
     };
-    let month: string | null = null;
+    const runs: { month: string | null; start: number; end: number }[] = [];
     items.forEach((f, i) => {
-      const m = monthOf(f.created);
-      if (dateOrdered && m && m !== month) {
-        out.push(<h2 key={unique(`month-${m}`)} className="pg-month" data-month={m}>{monthTitle(m)}</h2>);
-      }
-      if (m) month = m;
-      out.push(
+      const m = dateOrdered ? monthOf(f.created) : null;
+      const run = runs[runs.length - 1];
+      if (run && (!m || m === run.month)) run.end = i + 1;
+      else runs.push({ month: m, start: i, end: i + 1 });
+    });
+    return runs.map(({ month, start, end }, r) => {
+      const tiles = items.slice(start, end).map((f, k) => (
         <Tile
           key={unique(`${f.path}#${f.hash}`)}
           file={f}
-          index={i}
-          month={month ?? ""}
+          index={start + k}
           thumb={thumbFor(f)}
           selNo={selNo.get(f.path) ?? 0}
           selecting={selecting}
         />
+      ));
+      if (!dateOrdered) return <div key="all" className="pg-sec" style={sectionStyle(tiles.length)}>{tiles}</div>;
+      // The last month may have more photos on the way: it takes the room
+      // they will need now, so the next page fills it in instead of moving
+      // it off a row it shared.
+      const room = r === runs.length - 1 && !endReached && month
+        ? Math.max(tiles.length, monthCounts?.get(month) ?? 0)
+        : tiles.length;
+      return (
+        <section key={unique(`month-${month ?? ""}`)} className="pg-sec" data-month={month ?? undefined} style={sectionStyle(room)}>
+          <MonthTitle month={month} oneTile={room === 1} />
+          {tiles}
+        </section>
       );
     });
-    return out;
-  }, [items, dateOrdered, thumbFor, selNo, selecting]);
+  }, [items, dateOrdered, endReached, monthCounts, thumbFor, selNo, selecting]);
 
   const bucketTotal = dateBuckets.reduce((sum, b) => sum + b.count, 0);
   const showScrubber = dateOrdered && dateBuckets.length > 0;
@@ -855,14 +909,18 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   if (previewing) {
     body = (
       <div className="pg-grid" ref={gridRef} aria-busy="true" aria-label="Loading photos">
-        {Array.from({ length: placeholderCount }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
+        <div className="pg-sec" style={sectionStyle(placeholderCount)}>
+          {Array.from({ length: placeholderCount }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
+        </div>
       </div>
     );
   } else if (firstLoad) {
     body = (
       <div className="pg-grid" aria-busy="true" aria-label="Loading photos">
-        {dateOrdered && <div className="pg-month pg-month-skel"><span /></div>}
-        {Array.from({ length: cSkeletonTiles }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
+        <div className="pg-sec" style={sectionStyle(cSkeletonTiles)}>
+          {dateOrdered && <div className="pg-month pg-month-skel"><span /></div>}
+          {Array.from({ length: cSkeletonTiles }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
+        </div>
       </div>
     );
   } else if (items.length === 0 && pageError) {
@@ -913,7 +971,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const rootClass = `pg-root${keepScrubberRoom ? " with-scrubber" : ""}${selecting ? " selecting" : ""}`;
 
   return (
-    <div className={rootClass}>
+    <div className={rootClass} ref={rootRef}>
       {group && (
         <CollectionHeader
           group={group}
@@ -934,6 +992,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
         <PersonHeader personIds={personIds} total={dateBuckets.length ? bucketTotal : null} />
       )}
 
+      {/* What the tile size is measured on (see rulerRef). */}
+      <div className="pg-ruler" ref={rulerRef} aria-hidden="true" />
       {body}
 
       {/* The end of the grid: the next page loads when this nears the
@@ -1045,8 +1105,6 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
 type TileProps = {
   file: MsgFile;
   index: number;
-  // "2024-03", for the scrubber's "you are here".
-  month: string;
   thumb: string;
   // The place in the selection, from 1; 0 when not selected.
   selNo: number;
@@ -1059,12 +1117,12 @@ const markLoaded = (e: SyntheticEvent<HTMLImageElement>) => { e.currentTarget.da
 
 // Plain markup: the grid's own handlers deal with clicks and presses (see
 // onGridClick), so a tile only renders again when what it shows changes.
-const Tile = memo(function Tile({ file, index, month, thumb, selNo, selecting }: TileProps) {
+const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TileProps) {
   const video = isVideoFile(file);
   const selected = selNo > 0;
   const when = file.created && !Number.isNaN(file.created.getTime()) ? cDayFormat.format(file.created) : "";
   return (
-    <div className={`pg-tile${selected ? " selected" : ""}`} data-idx={index} data-month={month || undefined}>
+    <div className={`pg-tile${selected ? " selected" : ""}`} data-idx={index}>
       <button
         type="button"
         className="pg-tile-open"
@@ -1082,6 +1140,25 @@ const Tile = memo(function Tile({ file, index, month, thumb, selNo, selecting }:
         <span className="pg-tile-circle">{selected ? selNo : <CheckIcon size={16} />}</span>
       </button>
     </div>
+  );
+});
+
+// How many tiles a section has room for: its width, up to a whole row, is
+// made from it (.pg-sec).
+const sectionStyle = (tiles: number) => ({ "--pg-n": tiles }) as CSSProperties;
+
+// A month's title, one line. A month one tile wide has both names, and the
+// CSS shows "Sep 2026" where "September 2026" doesn't fit (.pg-month.fit).
+// Photos without a date at the top of the list get an empty line, so the
+// tiles of months beside them stay level.
+const MonthTitle = memo(function MonthTitle({ month, oneTile }: { month: string | null; oneTile: boolean }) {
+  if (!month) return <div className="pg-month" aria-hidden="true" />;
+  if (!oneTile) return <h2 className="pg-month">{monthTitle(month)}</h2>;
+  return (
+    <h2 className="pg-month fit">
+      <span className="pg-month-long">{monthTitle(month)}</span>
+      <span className="pg-month-short" aria-hidden="true">{monthShort(month)}</span>
+    </h2>
   );
 });
 

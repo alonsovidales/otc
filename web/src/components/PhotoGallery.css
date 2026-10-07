@@ -7,9 +7,15 @@
    (--topbar-h) and, beside the menu, from --content-left. */
 
 .pg-root {
-  /* Room around and between the tiles. */
+  /* Room around and between the tiles, and between months side by side:
+     more than between tiles, so each month reads as a group. */
   --pg-pad: 16px;
   --pg-gap: 4px;
+  --pg-sec-gap: 16px;
+  /* The smallest a tile may be. PhotoGallery.tsx fits as many columns as
+     that allows and sets --pg-tile, the size of every tile on the page. */
+  --pg-tile-min: 150px;
+  --pg-tile: var(--pg-tile-min);
   /* Hover and press fills, from the text colour like --panel. */
   --pg-hover: rgba(234, 242, 239, 0.08);
   --pg-press: rgba(234, 242, 239, 0.14);
@@ -17,8 +23,14 @@
   position: relative;
   min-height: calc(100vh - var(--topbar-h));
 }
+@media (max-width: 1023px) {
+  .pg-root { --pg-tile-min: 120px; --pg-sec-gap: 12px; }
+}
+/* A phone: three across, whatever its width. Months sit as close as tiles
+   do, so a one- and a two-photo month share a row of three; their titles
+   keep them apart. */
 @media (max-width: 599px) {
-  .pg-root { --pg-pad: 8px; --pg-gap: 2px; }
+  .pg-root { --pg-pad: 8px; --pg-gap: 2px; --pg-sec-gap: 2px; --pg-cols-fixed: 3; }
 }
 
 /* index.css draws every button as an ember pill: these start from nothing. */
@@ -95,42 +107,68 @@
 
 /* ---- the grid -------------------------------------------------------------- */
 
+/* The months, side by side while they fit, each as wide as its own tiles:
+   a month of a row or more takes the whole width. The row gap and a
+   title's top margin keep the room above a title the page always had. */
 .pg-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--pg-gap);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px var(--pg-sec-gap);
   padding: 12px var(--pg-pad) 0;
   /* Brought up under the top bar, not behind it (the scrubber, a jump). */
   scroll-margin-top: var(--topbar-h);
 }
-@media (max-width: 1023px) {
-  .pg-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-}
+/* As wide as the grid's content, and no taller: what the tile size is
+   measured on. */
+.pg-ruler { height: 0; padding: 0 var(--pg-pad); }
 @media (max-width: 599px) {
-  .pg-grid { padding-top: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pg-grid { padding-top: 8px; row-gap: 14px; }
 }
 /* With a mouse the date scrubber is a 56px column along the window's right
    edge (DateScrubber.css): the page keeps out from under it. On a touch
    screen it is a handle over the photos instead, and needs no room. */
 @media (hover: hover) and (pointer: fine) {
   .pg-root.with-scrubber .pg-grid,
+  .pg-root.with-scrubber .pg-ruler,
   .pg-root.with-scrubber .pg-head { padding-right: 56px; }
 }
 
-/* A month's title, across the whole row, before its first photo. */
+/* A month: its title over its own grid, as many tiles across as it has, up
+   to a row. auto-fill makes that many columns of --pg-tile (half a pixel
+   less, so rounding never costs one), and 1fr shares out what rounding
+   left over, so a full row ends exactly at the edge. */
+.pg-sec {
+  flex: none;
+  width: min(100%, calc(var(--pg-n) * (var(--pg-tile) + var(--pg-gap)) - var(--pg-gap)));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--pg-tile) - .5px), 1fr));
+  gap: var(--pg-gap);
+}
+
+/* A month's title. One line, the same height in every month, so months
+   side by side keep their tiles level. */
 .pg-month {
   grid-column: 1 / -1;
-  margin: 0;
-  padding: 20px 0 4px;
+  height: 20px;
+  margin: 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 15px;
   font-weight: 600;
   line-height: 20px;
   color: var(--mist);
 }
-.pg-grid > .pg-month:first-child { padding-top: 4px; }
+/* One tile wide: the full name comes after an empty item, so when it
+   doesn't fit it wraps onto a second line, out of sight, and uncovers the
+   short name under it. */
+.pg-month.fit { position: relative; display: flex; flex-wrap: wrap; }
+.pg-month.fit::before { content: ""; height: 20px; }
+.pg-month-long { position: relative; z-index: 1; background: var(--ink); }
+.pg-month-short { position: absolute; top: 0; left: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 599px) {
-  .pg-month { padding: 16px 4px 2px; font-size: 14px; }
-  .pg-grid > .pg-month:first-child { padding-top: 4px; }
+  .pg-month { margin: 4px 4px 2px; font-size: 14px; }
 }
 
 .pg-tile {
