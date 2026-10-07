@@ -115,6 +115,15 @@
   .tb-action-label { display: none; }
 }
 
+/* The window's scrollbar keeps its room whether it shows or not. Where
+   scrollbars take room (a mouse on Windows or Linux, a Mac set to show
+   them), Images - whose tiles are sized from the page's width - could be
+   just short of needing one, and flipped between the two every frame. */
+html { scrollbar-gutter: stable; }
+@supports not (scrollbar-gutter: stable) {
+  html { overflow-y: scroll; }
+}
+
 a {
   font-weight: 500;
   color: var(--ember);

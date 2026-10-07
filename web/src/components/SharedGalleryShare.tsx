@@ -5,7 +5,7 @@
 // takes), lets the owner name it and pick how long it lasts, then follows
 // the copy and shows the link - the only time it is ever shown, since the
 // device keeps no copy of it.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, SharedGallerySource, SharedGalleryPreview, SharedGalleryJob } from "../proto/messages";
 import Spinner from "./Spinner";
@@ -31,6 +31,8 @@ const EXPIRY = [
   { hours: 720, label: "30 days" },
 ];
 
+const FOCUSABLE = "button, [href], input, [tabindex]:not([tabindex='-1'])";
+
 export default function SharedGalleryShare({ source, onClose }: { source: Partial<SharedGallerySource>; onClose: () => void }) {
   const src: SharedGallerySource = { paths: [], groupId: "", directory: "", ...source };
   const [preview, setPreview] = useState<SharedGalleryPreview | null>(null);
@@ -40,8 +42,27 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
   const [job, setJob] = useState<SharedGalleryJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // The request that starts the copy is on its way.
+  const [starting, setStarting] = useState(false);
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const linkRef = useRef<HTMLInputElement>(null);
+  // A press that starts in the dialog (selecting the link) and ends on the
+  // dimmed page is not a click on the page.
+  const downOnBackdrop = useRef(false);
+  // What had the keyboard's focus gets it back on close; after a click or a
+  // tap it stays where it falls.
+  const [returnFocus] = useState(() => {
+    const el = document.activeElement;
+    return el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
+  });
+  useEffect(() => {
+    const box = dialogRef.current;
+    if (box && !box.contains(document.activeElement)) box.focus();
+    return () => { if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true }); };
+  }, [returnFocus]);
 
   useEffect(() => {
     (async () => {
@@ -62,7 +83,9 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
   }, []);
 
   const start = async () => {
+    if (starting) return;
     setError(null);
+    setStarting(true);
     let resp: RespEnvelope;
     try {
       resp = await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -71,9 +94,11 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
     } catch {
       // Not retried: the device may have started the copy before the
       // socket dropped, and a second one would take the space again.
-      if (alive.current) setError("Could not start sharing.");
+      if (alive.current) { setError("Could not start sharing."); setStarting(false); }
       return;
     }
+    if (!alive.current) return;
+    setStarting(false);
     if (resp.payload?.$case !== "respSharedGalleryJob") {
       setError(resp.errorMessage || "Could not start sharing.");
       return;
@@ -119,10 +144,59 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
   const busy = !!job && !job.finished;
   const done = !!job?.finished && !job.error;
   const pct = job && Number(job.bytesTotal) > 0 ? (100 * Number(job.bytesDone)) / Number(job.bytesTotal) : 0;
+  // Once a copy is under way only Done or Close end the dialog: a stray
+  // click or Escape would lose the link, which is shown this once. Before
+  // it, and after an error, there is nothing to lose.
+  const dismissable = !starting && (!job || error != null);
+
+  // The link, selected, ready to copy.
+  useLayoutEffect(() => { if (done) linkRef.current?.focus(); }, [done]);
+
+  // The document's keys, so they work wherever the focus fell (the Share
+  // button goes away once pressed): Escape, and Tab kept in the dialog.
+  const dismissRef = useRef(dismissable);
+  const onCloseRef = useRef(onClose);
+  useLayoutEffect(() => {
+    dismissRef.current = dismissable;
+    onCloseRef.current = onClose;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const box = dialogRef.current;
+      if (!box) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dismissRef.current) onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const all = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)]
+        .filter(el => !(el as HTMLButtonElement).disabled && el.offsetParent !== null);
+      const active = document.activeElement;
+      if (!all.length) { e.preventDefault(); box.focus(); return; }
+      const first = all[0];
+      const last = all[all.length - 1];
+      if (!box.contains(active)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && (active === first || active === box)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
-    <div className="sgs-backdrop" onClick={busy ? undefined : onClose}>
-      <div className="sgs-dialog" role="dialog" aria-label="Share as a gallery" onClick={e => e.stopPropagation()}>
+    <div
+      className="sgs-backdrop"
+      onPointerDown={e => { downOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={e => {
+        // Not a double click's second either, when its first opened this.
+        const fromBackdrop = downOnBackdrop.current && e.target === e.currentTarget && e.detail < 2;
+        downOnBackdrop.current = false;
+        if (fromBackdrop && dismissable) onClose();
+      }}
+    >
+      <div ref={dialogRef} className="sgs-dialog" role="dialog" aria-modal="true" aria-label="Share as a gallery" tabIndex={-1}>
         <h3>Share as a gallery</h3>
         {!preview && !error && <Spinner label="Looking at what to share…" />}
         {preview && !job && (
@@ -148,7 +222,7 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
             </div>
             <div className="sgs-buttons">
               <button className="btn" onClick={onClose}>Cancel</button>
-              <button className="btn primary" disabled={preview.files === 0 || (lowRes && preview.files === preview.videos)} onClick={() => void start()}>Share</button>
+              <button className="btn primary" disabled={starting || preview.files === 0 || (lowRes && preview.files === preview.videos)} onClick={() => void start()}>Share</button>
             </div>
           </>
         )}
@@ -162,7 +236,7 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
           <>
             <p>Your gallery is ready. This is the only time the link is shown: copy it now - the device keeps no copy of it, so it can't be shown again.</p>
             <div className="sgs-link">
-              <input className="sgs-input" readOnly value={job.link} onFocus={e => e.currentTarget.select()} aria-label="Gallery link" />
+              <input ref={linkRef} className="sgs-input" readOnly value={job.link} onFocus={e => e.currentTarget.select()} aria-label="Gallery link" />
               <button className="btn primary" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</button>
             </div>
             <div className="sgs-buttons">

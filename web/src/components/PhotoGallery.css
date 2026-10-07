@@ -348,7 +348,7 @@
   color: var(--mist-dim);
 }
 .pg-empty-title { margin: 0; font-size: 20px; font-weight: 600; line-height: 28px; color: var(--mist); }
-.pg-empty-text { margin: 0; max-width: 360px; font-size: 14px; line-height: 20px; color: var(--mist-dim); }
+.pg-empty-text { margin: 0; max-width: 360px; font-size: 14px; line-height: 20px; color: var(--mist-dim); overflow-wrap: anywhere; }
 .pg-empty .pg-btn { margin-top: 16px; }
 
 /* ---- a collection's or a person's header ----------------------------------- */
@@ -420,7 +420,18 @@
   font: inherit;
   outline: none;
 }
-.pg-sub { margin: 2px 0 0; font-size: 14px; line-height: 20px; color: var(--mist-dim); font-variant-numeric: tabular-nums; }
+/* One line, whatever comes into it later (the span): the header keeps its
+   height and the grid under it stays put. */
+.pg-sub {
+  margin: 2px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mist-dim);
+  font-variant-numeric: tabular-nums;
+}
 .pg-title-skel {
   width: 160px;
   height: 22px;
@@ -600,7 +611,8 @@
 .pg-dlg.wide { width: min(560px, 100%); }
 .pg-dlg:focus { outline: none; }
 .pg-dlg-title { margin: 0; font-size: 20px; font-weight: 600; line-height: 28px; }
-.pg-dlg-text { margin: 4px 0 0; font-size: 14px; line-height: 20px; color: var(--mist-dim); }
+/* These name collections, which can be one long word. */
+.pg-dlg-text { margin: 4px 0 0; font-size: 14px; line-height: 20px; color: var(--mist-dim); overflow-wrap: anywhere; }
 .pg-dlg-error {
   margin: 0;
   padding: 10px 12px;
@@ -609,6 +621,7 @@
   color: var(--danger);
   font-size: 14px;
   line-height: 20px;
+  overflow-wrap: anywhere;
 }
 .pg-dlg-detail { display: block; margin-top: 4px; font-size: 12px; line-height: 16px; color: var(--mist-dim); overflow-wrap: anywhere; }
 .pg-dlg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
@@ -817,7 +830,7 @@
 .pg-toast.has-action { padding-right: 8px; }
 .pg-toast.error { border-color: rgba(255, 138, 117, .45); }
 .pg-toast.error::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
-.pg-toast-text { padding: 10px 0; }
+.pg-toast-text { padding: 10px 0; overflow-wrap: anywhere; }
 .pg-toast .spinner-wrap { flex: none; color: var(--mist-dim); }
 .pg-toast-action {
   flex: none;
@@ -832,6 +845,7 @@
 .pg-toast-action:hover { background: var(--pg-hover); }
 .pg-toast-action:active { background: var(--pg-press); }
 .pg-toast-action:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+.pg-toast-close { width: 36px; height: 36px; margin-left: -8px; color: var(--mist-dim); }
 
 /* ---- motion -------------------------------------------------------------------- */
 
@@ -865,6 +879,8 @@
   background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px;
   display: flex; flex-direction: column; overflow: hidden;
 }
+/* It holds the keyboard's focus while open: no ring round the whole box. */
+.pg-modal-inner:focus { outline: none; }
 .pg-modal-hdr { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; border-bottom: 1px solid var(--line); flex: none; }
 .pg-modal-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--mist-dim); }
 .pg-close { border: 0; background: transparent; color: var(--mist); font-size: 24px; line-height: 1; padding: 2px 8px; cursor: pointer; }
@@ -892,9 +908,15 @@
 .pg-info-label { color: var(--mist-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 .pg-info-map { width: 100%; height: 180px; border: 0; border-radius: 8px; margin-top: 4px; }
 /* Issue #130: the arrows live inside the box now (they used to hang 46px
-   outside it, off-screen on a phone); swiping still pages too. */
+   outside it, off-screen on a phone); swiping still pages too. They come
+   after the picture in the page (MediaViewer.tsx), so they are drawn over
+   it, and under the Info panel. */
 .pg-nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(0,0,0,0.45); color: var(--mist); font-size: 28px; line-height: 1; padding: 8px 12px; border-radius: 999px; cursor: pointer; }
 .pg-nav.left { left: 10px; } .pg-nav.right { right: 10px; }
+/* Beside the panel, where there is room for both. */
+@media (min-width: 700px) {
+  .pg-modal-inner:has(.pg-info-panel) .pg-nav.right { right: 330px; }
+}
 .pg-modal-imgwrap { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; touch-action: none; background: var(--ink); }
 .pg-modal-imgwrap img { width: 100%; height: calc(94vh - 45px); object-fit: contain; background: var(--ink); }
 

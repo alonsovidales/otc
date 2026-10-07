@@ -18,6 +18,8 @@ const cVideoStallMs = 30000;
 // swipes: the full-size fetch waits this long and is skipped if the viewer
 // has moved on by then.
 const cRapidStepMs = 250;
+// What Tab moves between inside the viewer.
+const cFocusable = "button, [href], input, video[controls], iframe, [tabindex]:not([tabindex='-1'])";
 
 /** One item: its path and mime, and its thumbnail (JPEG) if there is one. */
 export type ViewerItem = { path: string; mime?: string; content?: Uint8Array | number[] | null; thumbURL?: string };
@@ -52,6 +54,17 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   // Whether the full-size fetch is still going (for the Low res badge).
   const [hiLoading, setHiLoading] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // The keyboard's focus moves into the viewer, so Space or Enter can't
+  // press what is behind it (the photo it was opened from), and goes back
+  // there when it closes - after keyboard use only, as dialogs do.
+  useEffect(() => {
+    const el = document.activeElement;
+    const back = el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
+    if (!boxRef.current?.contains(el)) boxRef.current?.focus({ preventScroll: true });
+    return () => { if (back?.isConnected) back.focus({ preventScroll: true }); };
+  }, []);
 
   // Which item the viewer is on: every change of item (and closing) moves
   // it on, and a full-size image, stream URL or info that arrives for an
@@ -146,12 +159,25 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   }, [item]);
   const closeInfo = useCallback(() => { setInfoOpen(false); setInfoData(null); }, []);
 
-  // Keyboard: Escape closes, arrows page.
+  // Keyboard: Escape closes, arrows page, Tab stays in the viewer.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight" && index < items.length - 1) onIndexChange(index + 1);
       if (e.key === "ArrowLeft" && index > 0) onIndexChange(index - 1);
+      const box = boxRef.current;
+      if (!box) return;
+      // Space on the viewer itself would scroll the page behind it.
+      if (e.key === " " && e.target === box) e.preventDefault();
+      if (e.key !== "Tab") return;
+      const all = [...box.querySelectorAll<HTMLElement>(cFocusable)].filter((el) => el.offsetParent !== null);
+      const active = document.activeElement;
+      if (!all.length) { e.preventDefault(); box.focus(); return; }
+      const first = all[0];
+      const last = all[all.length - 1];
+      if (!box.contains(active)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && (active === first || active === box)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -193,9 +219,18 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   };
 
   if (!item) return null;
+  const name = items[index].path.split("/").pop();
   return (
     <div className="pg-modal" onClick={onClose}>
-      <div className="pg-modal-inner" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={boxRef}
+        className="pg-modal-inner"
+        role="dialog"
+        aria-modal="true"
+        aria-label={name}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Issue #130: a header row of its own, like the mobile
             viewers, rather than two glyphs floated over the picture's
             top-right corner - those vanished against a bright sky and,
@@ -207,11 +242,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
           <button className={"pg-info-btn" + (infoOpen ? " on" : "")} title="More info" onClick={infoOpen ? closeInfo : openInfo}>
             <span className="pg-info-glyph">i</span> Info
           </button>
-          <span className="pg-modal-title">{items[index].path.split("/").pop()}</span>
+          <span className="pg-modal-title">{name}</span>
           <button className="pg-close" title="Close" onClick={onClose}>×</button>
         </div>
-        {index > 0 && <button className="pg-nav left" onClick={() => onIndexChange(index - 1)}>‹</button>}
-        {index < items.length - 1 && <button className="pg-nav right" onClick={() => onIndexChange(index + 1)}>›</button>}
         <div
           className="pg-modal-imgwrap"
           onTouchStart={onModalTouchStart}
@@ -315,6 +348,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
             );
           })()}
         </div>
+        {/* After the picture, which would paint over them, and before the
+            Info panel, which covers them. */}
+        {index > 0 && <button className="pg-nav left" onClick={() => onIndexChange(index - 1)} aria-label="Previous">‹</button>}
+        {index < items.length - 1 && <button className="pg-nav right" onClick={() => onIndexChange(index + 1)} aria-label="Next">›</button>}
 
         {infoOpen && (
           <div className="pg-info-panel" onClick={(e) => e.stopPropagation()}>

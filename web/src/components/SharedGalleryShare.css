@@ -1,6 +1,8 @@
 /* Issue #180: the "Share as a gallery" dialog. */
 .sgs-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; z-index: 60; padding: 16px; }
 .sgs-dialog { width: min(480px, 100%); background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 10px; color: var(--mist); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+/* It takes the focus when it opens: no ring round the whole card. */
+.sgs-dialog:focus { outline: none; }
 .sgs-dialog h3 { margin: 0 0 4px; font-size: 1.15rem; }
 .sgs-dialog p { margin: 0; line-height: 1.45; }
 .sgs-count { font-variant-numeric: tabular-nums; }

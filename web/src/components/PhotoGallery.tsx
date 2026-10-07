@@ -39,6 +39,8 @@ const cLongPressMs = 450;
 const cPressSlopPx = 8;
 // Grey tiles shown while the first page is on its way.
 const cSkeletonTiles = 24;
+// No date buckets (yet), one array for every render.
+const cNoBuckets: ScrubBucket[] = [];
 
 // Issue #106: a search result's `content` is always a server-generated
 // JPEG thumbnail (files_manager.GetThumbnail), for a video exactly as for a
@@ -57,6 +59,19 @@ const thumbOf = (f: MsgFile) => {
 // in a page that a restarted search sent again.
 const fileKey = (f: MsgFile, idx: number) =>
   `${f.path || ""}#${f.hash || ""}#${f.mime || ""}#${fileSize(f)}#${idx}`;
+
+// Whether a page that went on with a jump's search (by its token) came from
+// a search the device started again: one that no longer holds the token
+// (unused for five minutes, or a restart) searches again without the
+// jump's cutoff, from the newest photo. A held token comes back as it was
+// sent; the last page of either has none, and then the photos tell -
+// newer than the cutoff, or already on the screen.
+function lostCutoff(files: MsgFile[], token: string, sent: string, cutoff: Date, shown: Map<string, MsgFile>): boolean {
+  if (token) return token !== sent;
+  if (files.some((f) => f.created != null && f.created.getTime() > cutoff.getTime())) return true;
+  const paths = new Set([...shown.values()].map((f) => f.path));
+  return files.some((f) => paths.has(f.path));
+}
 
 // ---- requests --------------------------------------------------------------
 
@@ -95,14 +110,16 @@ const monthShort = (key: string) => {
 };
 
 /** The months the photos span, from date buckets (newest first): "Mar 2024",
- *  "Mar – Oct 2024" or "Mar 2024 – Oct 2026". */
-function spanLabel(buckets: ScrubBucket[]): string {
+ *  "Mar – Oct 2024" or "Mar 2024 – Oct 2026" ("2024 – 2026" in `years`,
+ *  which fits a narrow header's line). */
+function spanLabel(buckets: ScrubBucket[], years = false): string {
   if (!buckets.length) return "";
   const from = monthParts(buckets[buckets.length - 1].month);
   const to = monthParts(buckets[0].month);
   const short = (p: { name: string }) => p.name.slice(0, 3);
   if (from.year === to.year && from.name === to.name) return `${short(to)} ${to.year}`;
   if (from.year === to.year) return `${short(from)} – ${short(to)} ${to.year}`;
+  if (years) return `${from.year} – ${to.year}`;
   return `${short(from)} ${from.year} – ${short(to)} ${to.year}`;
 }
 
@@ -172,6 +189,42 @@ const PlayGlyph = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5L7 4.5Z" fill="currentColor" /></svg>
 );
 
+// ---- clicks and tabs -----------------------------------------------------------
+
+// A double click (or a double tap) on something its first click takes away
+// sends the second click to whatever was under it: a photo, the menu
+// button, a collection's Delete. For a moment after such a click, a second
+// click (detail 2 or more) goes nowhere. Single clicks and the keyboard's
+// (detail 0) are left alone.
+function swallowSecondClick(ms = 500) {
+  const until = performance.now() + ms;
+  const onClick = (e: MouseEvent) => {
+    if (e.detail < 2 || performance.now() > until) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  window.addEventListener("click", onClick, true);
+  window.setTimeout(() => window.removeEventListener("click", onClick, true), ms);
+}
+
+// A tab for a ZIP still being made, opened at the click: a browser refuses
+// one opened more than a few seconds after it, and making the archive can
+// take longer. It goes to the link once there is one.
+function openWaitingTab(): Window | null {
+  const tab = window.open("", "_blank");
+  if (!tab) return null;
+  tab.opener = null;
+  try {
+    tab.document.title = "Preparing the ZIP…";
+    tab.document.body.style.cssText =
+      "margin:0;min-height:100vh;display:grid;place-items:center;background:#242424;color:#eaf2ef;font:16px system-ui,sans-serif";
+    tab.document.body.textContent = "Preparing the ZIP… It downloads from here once it's ready.";
+  } catch {
+    // A blank tab still does the job.
+  }
+  return tab;
+}
+
 // ---- small hooks -------------------------------------------------------------
 
 // A media query's current answer, kept up to date.
@@ -210,6 +263,9 @@ type Toast = {
   // Stays until replaced (work in progress), with a spinner.
   busy?: boolean;
   action?: { label: string; run: () => void };
+  // Stays until used or dismissed: its action is the only way to what it
+  // offers.
+  stay?: boolean;
 };
 
 export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
@@ -219,7 +275,6 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const dateOrdered = isDateOrdered(filter);
   // Below this the selection bar shows icons only, each with a tooltip.
   const compact = useMedia("(max-width: 899px)");
-  const phone = useMedia("(max-width: 599px)");
 
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
@@ -264,7 +319,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       };
       setLoading(true);
       try {
-        const resp = await ask({
+        const have = mapRef.current.size;
+        const page = (tok: string, cutoff: Date | undefined) => ask({
           $case: "reqSearchPhotos",
           reqSearchPhotos: {
             tags,
@@ -273,22 +329,36 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
             groupId,
             // Issue #106: videos belong in Images too.
             includeVideos: true,
-            token: sendToken,
+            token: tok,
             // Without a token this starts a search (a filter, a jump, or
             // the retry of a first page): a small page, see
             // cFirstPagePhotos. With one, 0: the device's own size.
-            limit: sendToken ? 0 : cFirstPagePhotos,
+            limit: tok ? 0 : cFirstPagePhotos,
             // Lets the device resume where this grid is if it no longer
             // holds the token (see SearchPhotos.have), instead of starting
             // over with photos already on screen.
-            have: mapRef.current.size,
-            // Issue #77: the date scrubber's jump - only on the request
-            // that starts the search; the token carries the place after.
-            before: sendToken ? undefined : (before ?? beforeRef.current),
+            have,
+            // Issue #77: the date scrubber's jump.
+            before: cutoff,
           },
         });
+        // The cutoff goes only on the request that starts the search; the
+        // token carries the place after.
+        let resp = await page(sendToken, sendToken ? undefined : (before ?? beforeRef.current));
         // A newer search took over while this one was in flight.
         if (myGen !== searchGenRef.current) return;
+        // After a jump, a page from a search the device started again
+        // (lostCutoff) is from the wrong end of the library. Asked once
+        // more with the cutoff, the device runs the jump's search, skipping
+        // the `have` photos the grid holds, whatever the token.
+        const cutoff = beforeRef.current;
+        if (sendToken && cutoff && resp.payload?.$case === "respListOfFiles") {
+          const lof = resp.payload.respListOfFiles;
+          if (lostCutoff(lof.files ?? [], lof.token, sendToken, cutoff, mapRef.current)) {
+            resp = await page(sendToken, cutoff);
+            if (myGen !== searchGenRef.current) return;
+          }
+        }
         if (resp.payload?.$case !== "respListOfFiles") { failed(); return; }
 
         const lof = resp.payload.respListOfFiles;
@@ -322,38 +392,56 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   );
 
   // -------- date buckets and the scrubber (issue #77) -------------------------
-  // Photo counts per month, for the scrubber's track and for how many grey
-  // tiles stand in for a month that hasn't loaded. Only meaningful in date
-  // order: a tag search is sorted by relevance (isDateOrdered).
-  const [dateBuckets, setDateBuckets] = useState<ScrubBucket[]>([]);
-  // Whether any reply has come yet: until then the scrubber may still come.
-  const [bucketsLoaded, setBucketsLoaded] = useState(false);
-  // The same counts by month, only while they are this search's own: the
-  // month at the end of the grid is laid out at the size it will have.
-  const [monthCounts, setMonthCounts] = useState<Map<string, number> | null>(null);
+  // Photo counts per month, for the scrubber's track, the headers' count and
+  // span, and how many grey tiles stand in for a month that hasn't loaded.
+  // Only meaningful in date order: a tag search is sorted by relevance
+  // (isDateOrdered). Kept with what they count - the people and the open
+  // collection; tags never change them - and shown only for that: after a
+  // filter change the previous list is still here until the new one comes,
+  // and it isn't this filter's.
+  const [buckets, setBuckets] = useState<{ key: string; list: ScrubBucket[] } | null>(null);
+  const bucketKey = dateOrdered ? `${personIds.join(",")}|${groupId}` : null;
+  const bucketsFresh = buckets != null && buckets.key === bucketKey;
+  const dateBuckets = bucketsFresh ? buckets.list : cNoBuckets;
+  // The month at the end of the grid is laid out at the size it will have.
+  const monthCounts = useMemo(
+    () => (bucketsFresh ? new Map(dateBuckets.map((b) => [b.month, b.count])) : null),
+    [bucketsFresh, dateBuckets]
+  );
   const bucketsRef = useRef<ScrubBucket[]>([]);
   useEffect(() => { bucketsRef.current = dateBuckets; }, [dateBuckets]);
   const bucketGenRef = useRef(0);
+  // A load that failed is asked again like a page is (usePageRetry).
+  const { tick: bucketRetryTick, failed: bucketsLater, reset: resetBucketRetry } = usePageRetry();
   const loadDateBuckets = useCallback(async () => {
     const gen = ++bucketGenRef.current;
-    if (!dateOrdered) { setDateBuckets([]); return; }
+    if (bucketKey == null) { setBuckets(null); return; }
     try {
       const resp = await ask({
         $case: "reqPhotoDateBuckets",
         reqPhotoDateBuckets: { tags: [], personIds, groupId, includeVideos: true },
       });
-      // The old list stays until the new one is in, so the scrubber (and
-      // the room the grid keeps for it) doesn't blink on a filter change.
-      if (gen === bucketGenRef.current && resp.payload?.$case === "respPhotoDateBuckets") {
-        const buckets = resp.payload.respPhotoDateBuckets.buckets ?? [];
-        setDateBuckets(buckets);
-        setMonthCounts(new Map(buckets.map((b) => [b.month, b.count])));
-        setBucketsLoaded(true);
+      if (gen !== bucketGenRef.current) return;
+      if (resp.payload?.$case === "respPhotoDateBuckets") {
+        setBuckets({ key: bucketKey, list: resp.payload.respPhotoDateBuckets.buckets ?? [] });
+        resetBucketRetry();
+        return;
+      }
+      // A device without them: no scrubber, and nothing to ask again.
+      if (resp.errorCode === "unknown_payload") {
+        setBuckets({ key: bucketKey, list: [] });
+        return;
       }
     } catch {
-      // No scrubber this time; the photos themselves still load.
+      if (gen !== bucketGenRef.current) return;
     }
-  }, [dateOrdered, personIds, groupId]);
+    bucketsLater();
+  }, [bucketKey, personIds, groupId, resetBucketRetry, bucketsLater]);
+  const loadBucketsRef = useRef(loadDateBuckets);
+  useLayoutEffect(() => { loadBucketsRef.current = loadDateBuckets; });
+  useEffect(() => {
+    if (bucketRetryTick) void loadBucketsRef.current();
+  }, [bucketRetryTick]);
 
   // Grey tiles in place of the grid while the scrubber is dragged and until
   // the jump it ends with has its photos, so releasing it doesn't flash
@@ -361,8 +449,29 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const [placeholderCount, setPlaceholderCount] = useState<number | null>(null);
   // Their month's title, so the photos land where the grey tiles were.
   const [placeholderMonth, setPlaceholderMonth] = useState<string | null>(null);
+  const previewing = placeholderCount != null;
   const scrubbingRef = useRef(false);
-  const jumpsInFlightRef = useRef(0);
+  // The search a jump on its way started (0 when none) and the grey tiles
+  // it stands behind: a scrub cancelled meanwhile goes back to them, while
+  // that is still the current search - one a filter change overtook holds
+  // nothing up.
+  const jumpGenRef = useRef(0);
+  const jumpTilesRef = useRef<{ count: number; month: string } | null>(null);
+  // Where the page was when a scrub began, under which filter: its first
+  // preview scrolls to the top, and a scrub cancelled without a jump goes
+  // back there (restoreRef, once the photos are back).
+  const filterKey = `${tags.join("\n")}|${personIds.join(",")}|${groupId}`;
+  const filterKeyRef = useRef(filterKey);
+  useLayoutEffect(() => { filterKeyRef.current = filterKey; });
+  const scrubFromRef = useRef<{ y: number; filter: string } | null>(null);
+  const restoreRef = useRef<{ y: number; filter: string } | null>(null);
+
+  // The first photo below the top bar and where it was after the user's
+  // last scroll, to keep it there when the width changes (see the tile
+  // size below); restoredYRef is where that put the page.
+  const topTileRef = useRef<{ idx: number; top: number; y: number } | null>(null);
+  const restoredYRef = useRef<number | null>(null);
+  const measureRef = useRef(() => {});
 
   // The scrubber's jump: a fresh search like a filter change, anchored at
   // the last instant of `month`, so it starts at that month's newest photo
@@ -374,6 +483,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     const before = new Date(y, m, 0, 23, 59, 59, 999);
     searchGenRef.current += 1;
     const myGen = searchGenRef.current;
+    jumpGenRef.current = myGen;
     beforeRef.current = before;
     resetRetry();
     setItems([]);
@@ -382,10 +492,14 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     setEndReached(false);
     setPageError(false);
     anchorRef.current = null;
+    topTileRef.current = null;
     try {
       await fetchPage("", true, before);
     } finally {
-      if (myGen === searchGenRef.current) setPlaceholderCount(null);
+      if (jumpGenRef.current === myGen) jumpGenRef.current = 0;
+      // A scrub begun meanwhile keeps its own grey tiles: its jump, or its
+      // cancel, clears them.
+      if (myGen === searchGenRef.current && !scrubbingRef.current) setPlaceholderCount(null);
     }
   }, [fetchPage, resetRetry]);
   const jumpRef = useRef(jumpToDate);
@@ -395,12 +509,22 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const onScrubPreview = useCallback((bucket: ScrubBucket | null) => {
     if (!bucket) {
       scrubbingRef.current = false;
-      // A release that jumps keeps its tiles until the photos are in.
-      if (!jumpsInFlightRef.current) setPlaceholderCount(null);
+      const from = scrubFromRef.current;
+      scrubFromRef.current = null;
+      // A jump of this search on its way: its grey tiles, as they were.
+      const jumpTiles = jumpTilesRef.current;
+      if (jumpGenRef.current !== 0 && jumpGenRef.current === searchGenRef.current && jumpTiles) {
+        setPlaceholderCount(jumpTiles.count);
+        setPlaceholderMonth(jumpTiles.month);
+        return;
+      }
+      setPlaceholderCount(null);
+      restoreRef.current = from;
       return;
     }
     if (!scrubbingRef.current) {
       scrubbingRef.current = true;
+      scrubFromRef.current = { y: window.scrollY, filter: filterKeyRef.current };
       // Out of the way at once, as Google Photos' own does: the grid's top
       // comes up under the bar while the finger is still moving.
       gridRef.current?.scrollIntoView({ block: "start" });
@@ -414,27 +538,35 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const onScrubJump = useCallback((month: string) => {
     if (!scrubbingRef.current) gridRef.current?.scrollIntoView({ block: "start" });
     scrubbingRef.current = false;
+    scrubFromRef.current = null;
     const bucket = bucketsRef.current.find((b) => b.month === month);
-    setPlaceholderCount(Math.min(bucket?.count ?? cFirstPagePhotos, cMaxPlaceholders));
+    const count = Math.min(bucket?.count ?? cFirstPagePhotos, cMaxPlaceholders);
+    jumpTilesRef.current = { count, month };
+    setPlaceholderCount(count);
     setPlaceholderMonth(month);
-    jumpsInFlightRef.current += 1;
-    void jumpRef.current(month).finally(() => { jumpsInFlightRef.current -= 1; });
+    void jumpRef.current(month);
   }, []);
 
-  // The month at the top of the screen, for the scrubber's "you are here".
+  // A cancelled scrub: back where it began, once the photos are.
+  useLayoutEffect(() => {
+    const from = restoreRef.current;
+    if (previewing || !from) return;
+    restoreRef.current = null;
+    if (from.filter !== filterKey) return;
+    window.scrollTo(0, from.y);
+    measureRef.current();
+  }, [previewing, filterKey]);
+
+  // The month at the top of the screen, for the scrubber's "you are here",
+  // and the first photo there (topTileRef).
   const [currentMonth, setCurrentMonth] = useState<string | null>(null);
   useEffect(() => {
-    if (!dateOrdered) return;
     const barHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 64;
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const kids = gridRef.current?.children;
-      if (!kids || kids.length === 0) return;
-      // The first month still below the top bar. Months run in document
-      // order, and the ones sharing a row (each a single row of tiles) end
-      // level, so their bottoms only grow: a binary search finds it in a
-      // dozen reads, however long the grid.
+    // The first of `kids` still below the top bar. Months run in document
+    // order, and the ones sharing a row (each a single row of tiles) end
+    // level, so their bottoms only grow, as a month's rows do: a binary
+    // search finds it in a dozen reads, however long the grid.
+    const firstBelowBar = (kids: HTMLCollection) => {
       let lo = 0;
       let hi = kids.length - 1;
       while (lo < hi) {
@@ -442,16 +574,34 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
         if (kids[mid].getBoundingClientRect().bottom > barHeight) hi = mid;
         else lo = mid + 1;
       }
-      const month = (kids[lo] as HTMLElement).dataset.month;
-      if (month) setCurrentMonth(month);
+      return kids[lo] as HTMLElement;
     };
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const kids = gridRef.current?.children;
+      if (!kids || kids.length === 0) return;
+      const sec = firstBelowBar(kids);
+      const month = sec.dataset.month;
+      if (dateOrdered && month) setCurrentMonth(month);
+      // Not the scroll that kept the photos in place: its layout may be
+      // half way through the menu's transition.
+      if (window.scrollY === restoredYRef.current) return;
+      restoredYRef.current = null;
+      if (!sec.children.length) return;
+      // Past the month's title, if that is what is there.
+      const at = firstBelowBar(sec.children);
+      const tile = at.dataset.idx != null ? at : at.nextElementSibling;
+      if (tile instanceof HTMLElement && tile.dataset.idx != null) {
+        topTileRef.current = { idx: Number(tile.dataset.idx), top: tile.getBoundingClientRect().top, y: window.scrollY };
+      }
+    };
+    measureRef.current = measure;
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure); };
     measure();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
   }, [dateOrdered, items]);
@@ -479,6 +629,20 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       const min = parseFloat(css.getPropertyValue("--pg-tile-min")) || 150;
       const cols = fixed > 0 ? fixed : Math.max(1, Math.floor((width + gap) / (min + gap)));
       root.style.setProperty("--pg-tile", `${(width - (cols - 1) * gap) / cols}px`);
+      // Every row moves when the tiles change size (the menu switched, the
+      // window resized, a phone turned), and the browser's own scroll
+      // anchoring stands aside when a width changes: the photo that was
+      // first below the bar goes back where it was, before this is painted.
+      const top = topTileRef.current;
+      const tile = top && top.y > 0 ? gridRef.current?.querySelector<HTMLElement>(`.pg-tile[data-idx="${top.idx}"]`) : null;
+      if (top && tile) {
+        const d = tile.getBoundingClientRect().top - top.top;
+        if (Math.abs(d) > 0.5) {
+          window.scrollBy(0, d);
+          restoredYRef.current = window.scrollY;
+        }
+      }
+      measureRef.current();
     });
     ro.observe(ruler);
     return () => ro.disconnect();
@@ -498,11 +662,13 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     setEndReached(false);
     setPageError(false);
     anchorRef.current = null;
+    topTileRef.current = null;
     void fetchPage("", true);
     // A scrub in progress was measured against the previous filter's months.
     scrubbingRef.current = false;
+    scrubFromRef.current = null;
     setPlaceholderCount(null);
-    setMonthCounts(null);
+    resetBucketRetry();
     void loadDateBuckets();
     window.scrollTo(0, 0);
   }, [tags, personIds, groupId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -510,7 +676,6 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // -------- infinite scroll: one page at a time ------------------------------
   // Not under the scrubber's grey tiles: those stand in for another month,
   // and a page now would be of the photos being left.
-  const previewing = placeholderCount != null;
   useEffect(() => {
     const node = footRef.current;
     if (!node) return;
@@ -552,7 +717,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       const el = gridRef.current?.querySelector<HTMLElement>(`.pg-tile[data-idx="${i}"] .pg-tile-open`);
       if (!el) return;
       el.focus({ preventScroll: true });
-      el.scrollIntoView({ block: "nearest" });
+      // The tile, whose scroll margin keeps it clear of the top bar.
+      el.closest(".pg-tile")?.scrollIntoView({ block: "nearest" });
     });
   }, []);
   // The viewer shows the grid's own thumbnail while the full size loads.
@@ -685,8 +851,13 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     const idx = tileIndexOf(e.target);
     if (idx == null) return;
     const onCircle = (e.target as Element).closest(".pg-tile-check") != null;
-    if (onCircle || selecting) toggleAt(idx, e.shiftKey);
-    else openAt(idx);
+    if (onCircle || selecting) {
+      toggleAt(idx, e.shiftKey);
+      return;
+    }
+    // A double click's second click would land on the viewer's arrows.
+    swallowSecondClick();
+    openAt(idx);
   };
 
   // -------- toasts ------------------------------------------------------------
@@ -699,7 +870,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   }, []);
   const dismissToast = useCallback((id: number) => setToast((cur) => (cur?.id === id ? null : cur)), []);
   useEffect(() => {
-    if (!toast || toast.busy) return;
+    if (!toast || toast.busy || toast.stay) return;
     const t = window.setTimeout(() => dismissToast(toast.id), toast.action ? 6000 : toast.error ? 5000 : 3000);
     return () => window.clearTimeout(t);
   }, [toast, dismissToast]);
@@ -729,22 +900,31 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
 
   const makeLink = async (kind: "link" | "zip") => {
     if (preparing || !sel.length) return;
+    swallowSecondClick();
     const paths = sel.map((f) => f.path);
     closeShare(false);
     setPreparing(kind);
     const busyId = showToast({ text: kind === "zip" ? "Preparing the ZIP…" : "Preparing the link…", busy: true });
+    // The link's own page downloads the archive, in a tab opened now.
+    const tab = kind === "zip" ? openWaitingTab() : null;
     try {
       const resp = await ask({ $case: "reqShareFilesLink", reqShareFilesLink: { paths } });
       const link = resp.payload?.$case === "respShareLink" ? resp.payload.respShareLink.link : "";
       if (!link) {
+        tab?.close();
         showToast({ text: kind === "zip" ? "Couldn't make the ZIP. Try again." : "Couldn't make the link. Try again.", error: true });
         return;
       }
       if (kind === "zip") {
-        // The link's own page downloads the archive. A popup blocker may
-        // refuse a tab opened this long after the click: then a button does.
-        if (window.open(link, "_blank")) dismissToast(busyId);
-        else showToast({ text: "Your ZIP is ready", action: { label: "Download", run: () => { window.open(link, "_blank"); } } });
+        if (tab && !tab.closed) {
+          tab.location.href = link;
+          dismissToast(busyId);
+        } else if (window.open(link, "_blank")) {
+          dismissToast(busyId);
+        } else {
+          // Popups refused, or the tab closed meanwhile: a button opens it.
+          showToast({ text: "Your ZIP is ready", stay: true, action: { label: "Download", run: () => { window.open(link, "_blank"); } } });
+        }
         return;
       }
       try {
@@ -755,10 +935,19 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
         setDialog({ kind: "link", link });
       }
     } catch {
+      tab?.close();
       showToast({ text: "Couldn't reach your device. Try again.", error: true });
     } finally {
       setPreparing(null);
     }
+  };
+
+  // The focus goes back to the Share button when the menu was used with
+  // the keyboard: its item goes away, and the dialog gives it back there.
+  const shareAsGallery = () => {
+    const el = document.activeElement;
+    closeShare(el instanceof HTMLElement && el.matches(":focus-visible"));
+    setSharing({ paths: sel.map((f) => f.path) });
   };
 
   // Issue #45: delete every selected photo and video, one request each.
@@ -855,6 +1044,15 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
 
   // The share menu belongs to the selection bar.
   useEffect(() => { if (!selecting) setShareOpen(false); }, [selecting]);
+
+  // The selection bar lies over the top bar: what is under it is out of
+  // reach of the keyboard too (TopSearch closes its own search).
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>(".topbar");
+    if (!selecting || !bar) return;
+    bar.inert = true;
+    return () => { bar.inert = false; };
+  }, [selecting]);
 
   // -------- render ------------------------------------------------------------
   // In date order, a section per month: its title over its own tiles (a
@@ -972,51 +1170,22 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // The room for the scrubber is kept from the start of a date-ordered
   // search, so its arrival doesn't reflow the grid - and dropped once the
   // device says there are no months to show at all.
-  const keepScrubberRoom = dateOrdered && (!bucketsLoaded || dateBuckets.length > 0);
+  const keepScrubberRoom = dateOrdered && (!bucketsFresh || dateBuckets.length > 0);
   const rootClass = `pg-root${keepScrubberRoom ? " with-scrubber" : ""}${selecting ? " selecting" : ""}`;
 
   return (
     <div className={rootClass} ref={rootRef}>
-      {group && (
-        <CollectionHeader
-          group={group}
-          span={dateOrdered ? spanLabel(dateBuckets) : ""}
-          compact={phone}
-          onBack={() => {
-            // Leaving it, not just looking away: the search in the top bar
-            // is the whole library again.
-            leaveGroup();
-            onShowCollections();
-          }}
-          onShare={() => setSharing({ groupId: group.id })}
-          onDelete={() => setDialog({ kind: "deleteCollection" })}
-          onError={toastError}
-        />
-      )}
-      {!group && personIds.length > 0 && tags.length === 0 && (
-        <PersonHeader personIds={personIds} total={dateBuckets.length ? bucketTotal : null} />
-      )}
-
-      {/* What the tile size is measured on (see rulerRef). */}
-      <div className="pg-ruler" ref={rulerRef} aria-hidden="true" />
-      {body}
-
-      {/* The end of the grid: the next page loads when this nears the
-          screen. Always the same node, which the observer above watches. */}
-      <div className="pg-foot" ref={footRef}>
-        {items.length > 0 && !previewing && (loading
-          ? <Spinner />
-          : pageError && (
-            <span className="pg-foot-error">
-              Couldn't load more photos.
-              <button type="button" className="pg-btn quiet small" onClick={retryNow}>Try again</button>
-            </span>
-          ))}
-      </div>
-
+      {/* First, though it is drawn over the top bar: Tab reaches it before
+          the photos, as it would the top bar it covers. */}
       {selecting && (
         <div className="pg-selbar" role="toolbar" aria-label="Selected photos">
-          <button type="button" className="pg-icon-btn" onClick={clearSel} aria-label="Clear selection" data-tip="Clear selection">
+          <button
+            type="button"
+            className="pg-icon-btn"
+            onClick={() => { swallowSecondClick(); clearSel(); }}
+            aria-label="Clear selection"
+            data-tip="Clear selection"
+          >
             <CloseIcon />
           </button>
           <span className="pg-selbar-count" aria-live="polite">{cNumber.format(sel.length)} selected</span>
@@ -1035,7 +1204,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
               />
               {shareOpen && (
                 <ShareMenu
-                  onGallery={() => { closeShare(false); setSharing({ paths: sel.map((f) => f.path) }); }}
+                  onGallery={shareAsGallery}
                   onCopyLink={() => void makeLink("link")}
                   onZip={() => void makeLink("zip")}
                   onClose={closeShare}
@@ -1046,6 +1215,46 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           </div>
         </div>
       )}
+
+      {group && (
+        <CollectionHeader
+          group={group}
+          // Below 900px, as in the selection bar, the actions are icons and
+          // the span is years only: the name and its line keep the room.
+          span={bucketsFresh ? spanLabel(dateBuckets, compact) : ""}
+          compact={compact}
+          onBack={() => {
+            swallowSecondClick();
+            // Leaving it, not just looking away: the search in the top bar
+            // is the whole library again.
+            leaveGroup();
+            onShowCollections();
+          }}
+          onShare={() => setSharing({ groupId: group.id })}
+          onDelete={() => setDialog({ kind: "deleteCollection" })}
+          onError={toastError}
+        />
+      )}
+      {!group && personIds.length > 0 && tags.length === 0 && (
+        <PersonHeader personIds={personIds} total={bucketsFresh ? bucketTotal : null} />
+      )}
+
+      {/* What the tile size is measured on (see rulerRef). */}
+      <div className="pg-ruler" ref={rulerRef} aria-hidden="true" />
+      {body}
+
+      {/* The end of the grid: the next page loads when this nears the
+          screen. Always the same node, which the observer above watches. */}
+      <div className="pg-foot" ref={footRef}>
+        {items.length > 0 && !previewing && (loading
+          ? <Spinner />
+          : pageError && (
+            <span className="pg-foot-error">
+              Couldn't load more photos.
+              <button type="button" className="pg-btn quiet small" onClick={retryNow}>Try again</button>
+            </span>
+          ))}
+      </div>
 
       {dialog?.kind === "post" && (
         <PostDialog files={sel} thumbFor={selThumbFor} onMove={moveSel} onRemove={unselect} onCancel={closeDialog} onPosted={onPosted} />
@@ -1083,8 +1292,17 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
             {toast.busy && <Spinner />}
             <span className="pg-toast-text">{toast.text}</span>
             {toast.action && (
-              <button type="button" className="pg-toast-action" onClick={() => { toast.action?.run(); dismissToast(toast.id); }}>
+              <button
+                type="button"
+                className="pg-toast-action"
+                onClick={() => { swallowSecondClick(); toast.action?.run(); dismissToast(toast.id); }}
+              >
                 {toast.action.label}
+              </button>
+            )}
+            {toast.stay && (
+              <button type="button" className="pg-icon-btn pg-toast-close" onClick={() => dismissToast(toast.id)} aria-label="Dismiss">
+                <CloseIcon size={18} />
               </button>
             )}
           </div>
@@ -1173,7 +1391,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
   group: OpenGroup;
   // The months its photos span, when known.
   span: string;
-  // A phone: the actions are icons.
+  // Below 900px the actions are icons.
   compact: boolean;
   onBack: () => void;
   onShare: () => void;
@@ -1406,8 +1624,9 @@ function ShareMenu({ onGallery, onCopyLink, onZip, onClose }: {
   return (
     <>
       {/* Catches the tap that closes the menu, so it doesn't also pick or
-          open the photo under it. Below the bar's own buttons. */}
-      <div className="pg-menu-catcher" aria-hidden="true" onClick={() => onClose(false)} />
+          open the photo under it (nor a double tap's second). Below the
+          bar's own buttons. */}
+      <div className="pg-menu-catcher" aria-hidden="true" onClick={() => { swallowSecondClick(); onClose(false); }} />
       <div ref={ref} className="pg-menu" role="menu" aria-label="Share" onKeyDown={onKeyDown}>
         <button type="button" role="menuitem" className="pg-menu-item" onClick={onGallery}>
           <GalleryPageIcon size={22} />
@@ -1430,9 +1649,25 @@ function ShareMenu({ onGallery, onCopyLink, onZip, onClose }: {
 
 const cFocusable = "button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])";
 
+// Tab and Shift+Tab within `box`: from its last control to its first and
+// back, and into it from wherever the focus fell (a control that was
+// removed, or disabled while busy, leaves it on the page).
+function keepTabInside(box: HTMLElement, e: KeyboardEvent) {
+  const all = [...box.querySelectorAll<HTMLElement>(cFocusable)]
+    .filter((el) => !(el as HTMLButtonElement).disabled && el.offsetParent !== null);
+  if (!all.length) { e.preventDefault(); box.focus(); return; }
+  const first = all[0];
+  const last = all[all.length - 1];
+  const active = document.activeElement;
+  if (!box.contains(active)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+  else if (e.shiftKey && (active === first || active === box)) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+}
+
 // A small card over the dimmed page. Focus moves into it (to the element
 // marked data-autofocus, else the card) and back when it closes; Tab stays
 // inside; Escape or a click on the dimmed page cancels - except while busy.
+// The keys are the document's, so they work wherever the focus fell.
 function Modal({ labelledBy, busy = false, wide = false, onClose, children }: {
   labelledBy: string;
   busy?: boolean;
@@ -1444,6 +1679,12 @@ function Modal({ labelledBy, busy = false, wide = false, onClose, children }: {
   // A press that starts inside the card (selecting text in a field) and
   // ends outside it is not a click on the page.
   const downOnBackdropRef = useRef(false);
+  const busyRef = useRef(busy);
+  const onCloseRef = useRef(onClose);
+  useLayoutEffect(() => {
+    busyRef.current = busy;
+    onCloseRef.current = onClose;
+  });
 
   // What had the keyboard's focus before the dialog gets it back on close.
   // Read on the first render, before a field inside can take it
@@ -1460,33 +1701,36 @@ function Modal({ labelledBy, busy = false, wide = false, onClose, children }: {
     }
     return () => { if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true }); };
   }, [returnFocus]);
+  // Busy no more (an error to read): the focus its disabled buttons lost.
+  useEffect(() => {
+    if (!busy && document.activeElement === document.body) cardRef.current?.focus();
+  }, [busy]);
 
-  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!busy) onClose();
-      return;
-    }
-    const card = cardRef.current;
-    if (e.key !== "Tab" || !card) return;
-    const all = [...card.querySelectorAll<HTMLElement>(cFocusable)]
-      .filter((el) => !(el as HTMLButtonElement).disabled && el.offsetParent !== null);
-    if (!all.length) { e.preventDefault(); return; }
-    const first = all[0];
-    const last = all[all.length - 1];
-    const active = document.activeElement;
-    if (e.shiftKey && (active === first || active === card)) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const card = cardRef.current;
+      if (!card) return;
+      if (e.key === "Escape") {
+        // A field's own Escape (the new collection's name) is not this.
+        if (e.defaultPrevented) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!busyRef.current) onCloseRef.current();
+      } else if (e.key === "Tab") {
+        keepTabInside(card, e);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div
       className="pg-dlg-backdrop"
-      onKeyDown={onKeyDown}
       onPointerDown={(e) => { downOnBackdropRef.current = e.target === e.currentTarget; }}
       onClick={(e) => {
-        const fromBackdrop = downOnBackdropRef.current && e.target === e.currentTarget;
+        // Nor is a double click's second, when the first opened the dialog.
+        const fromBackdrop = downOnBackdropRef.current && e.target === e.currentTarget && e.detail < 2;
         downOnBackdropRef.current = false;
         if (fromBackdrop && !busy) onClose();
       }}
@@ -1549,6 +1793,7 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
   onPosted: () => void;
 }) {
   const titleId = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const captionId = useId();
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1556,6 +1801,9 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
   const stripRef = useRef<HTMLOListElement>(null);
   // A moved photo keeps the focus on its arrow, wherever it went.
   const [focusAfterMove, setFocusAfterMove] = useState<{ path: string; dir: -1 | 1 } | null>(null);
+  // A removed one hands it to its neighbour's remove button ("" when none
+  // is left: to the dialog).
+  const [focusAfterRemove, setFocusAfterRemove] = useState<string | null>(null);
   // A phone's keyboard would cover the photos: the caption waits for a tap there.
   const typeAtOnce = useMedia("(hover: hover) and (pointer: fine)");
 
@@ -1568,6 +1816,14 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
     item?.scrollIntoView({ block: "nearest", inline: "nearest" });
     setFocusAfterMove(null);
   }, [focusAfterMove]);
+  useLayoutEffect(() => {
+    if (focusAfterRemove == null) return;
+    const btn = focusAfterRemove
+      ? stripRef.current?.querySelector<HTMLElement>(`[data-path="${CSS.escape(focusAfterRemove)}"] .pg-strip-remove`)
+      : null;
+    (btn ?? titleRef.current?.closest<HTMLElement>("[role=dialog]"))?.focus();
+    setFocusAfterRemove(null);
+  }, [focusAfterRemove]);
 
   const publish = async () => {
     if (!files.length || busy) return;
@@ -1591,7 +1847,7 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
 
   return (
     <Modal labelledBy={titleId} busy={busy} wide onClose={onCancel}>
-      <h2 id={titleId} className="pg-dlg-title">New post</h2>
+      <h2 id={titleId} ref={titleRef} className="pg-dlg-title">New post</h2>
       {files.length ? (
         <ol className="pg-strip" ref={stripRef} aria-label="Photos in the post, in order">
           {files.map((f, i) => {
@@ -1604,7 +1860,17 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
                   <span className="pg-strip-no" aria-hidden="true">{i + 1}</span>
                   {isVideoFile(f) && <span className="pg-strip-video"><PlayGlyph /></span>}
                 </div>
-                <button type="button" className="pg-strip-remove" onClick={() => onRemove(f.path)} aria-label={`Remove ${what}`} data-tip="Remove" disabled={busy}>
+                <button
+                  type="button"
+                  className="pg-strip-remove"
+                  onClick={() => {
+                    setFocusAfterRemove(files[i + 1]?.path ?? files[i - 1]?.path ?? "");
+                    onRemove(f.path);
+                  }}
+                  aria-label={`Remove ${what}`}
+                  data-tip="Remove"
+                  disabled={busy}
+                >
                   <CloseIcon size={16} />
                 </button>
                 <div className="pg-strip-moves">
@@ -1694,6 +1960,15 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
   const paths = files.map((f) => f.path);
   // With nothing to add to, naming a new one is the only thing to do.
   const showForm = creating || (groups.loaded && list.length === 0);
+  // Escape in the name goes back to the list, and the focus to "New
+  // collection…" (the field it was in is gone).
+  const newRef = useRef<HTMLButtonElement>(null);
+  const backToListRef = useRef(false);
+  useLayoutEffect(() => {
+    if (creating || !backToListRef.current) return;
+    backToListRef.current = false;
+    newRef.current?.focus();
+  }, [creating]);
 
   const add = async (g: ImageGroup) => {
     setBusy(g.id);
@@ -1754,7 +2029,12 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
               onKeyDown={(e) => {
                 // Escape leaves the name, not the whole dialog - when
                 // there is a list to go back to.
-                if (e.key === "Escape" && list.length > 0) { e.preventDefault(); e.stopPropagation(); setCreating(false); }
+                if (e.key === "Escape" && list.length > 0) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  backToListRef.current = true;
+                  setCreating(false);
+                }
               }}
             />
             <button type="submit" className="pg-btn primary" disabled={!name.trim() || busy != null} aria-busy={busy === "new"}>
@@ -1763,7 +2043,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
           </div>
         </form>
       ) : (
-        <button type="button" className="pg-pick pg-pick-new" onClick={() => setCreating(true)} disabled={busy != null} data-autofocus>
+        <button type="button" ref={newRef} className="pg-pick pg-pick-new" onClick={() => setCreating(true)} disabled={busy != null} data-autofocus>
           <span className="pg-pick-cover"><PlusIcon size={22} /></span>
           <span className="pg-pick-text"><span className="pg-pick-name">New collection…</span></span>
         </button>
