@@ -662,7 +662,9 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
 
   return (
     <div ref={rootRef} className={cls("ts-root", shown && "is-open")} onBlur={onBlur} inert={covered}>
-      <div className="ts-field" onMouseDown={onFieldMouseDown}>
+      {/* has-query: text left in the field, which the phone's rest rules
+          (TopSearch.css) must not hide. */}
+      <div className={cls("ts-field", query !== "" && "has-query")} onMouseDown={onFieldMouseDown}>
         <span className="ts-glass" aria-hidden="true"><SearchIcon /></span>
         {shown && (
           <button type="button" className="ts-back" aria-label="Close search" onMouseDown={keepFocus} onClick={dismiss}>

@@ -120,6 +120,9 @@ export default function ProfileCard({ authenticated }: Props) {
 
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         setSuccess("Profile saved.");
+        // The top bar's account button (AccountMenu.tsx) shows the new
+        // name or picture at once.
+        window.dispatchEvent(new Event("otc-profile-changed"));
       } else if (resp.payload?.$case === "respAck") {
         setError(resp.payload.respAck.errorMsg || "Save failed.");
       } else {

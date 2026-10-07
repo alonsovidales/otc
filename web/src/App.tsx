@@ -32,6 +32,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
 import SharedGalleryView from "./components/SharedGalleryView";
+import AccountMenu from "./components/AccountMenu";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -73,6 +74,8 @@ function App() {
   // Tooltips only where there is a pointer to hover with: a tap would leave
   // one standing over what it opened.
   const canHover = useMediaQuery("(hover: hover)");
+  // The top bar's page action shows only its "+" (index.css).
+  const actionIconOnly = useMediaQuery("(max-width: 699px)");
   const [menuPref, setMenuPref] = useState<boolean>(() => {
     try { return localStorage.getItem("otc_menu_open") !== "0"; } catch { return true; }
   });
@@ -400,17 +403,24 @@ function App() {
         {authenticated
           ? <TopSearch onShowPhotos={() => setTab("PhotoGallery")} onShowFiles={() => setTab("AdminPannel")} />
           : <div className="tb-fill" />}
-        {/* The page's own action: a new post, on the feed. A phone shows
-            only its "+". */}
+        {/* The page's own action: a new post, on the feed. Below 700px
+            only its "+" shows (index.css), named by a tooltip. */}
         {authenticated && tab === "Social" && openComposer && (
           <button
             className="tb-action"
             onClick={() => openComposer()}
             aria-label="New post"
-            data-tip={narrow && canHover ? "New post" : undefined}
+            data-tip={actionIconOnly && canHover ? "New post" : undefined}
           >
             <span aria-hidden="true">+</span><span className="tb-action-label"> New post</span>
           </button>
+        )}
+        {/* The account, at the right end as in Google Photos: the
+            profile's picture, opening a menu with Settings and Sign out.
+            Fetched again as Settings, where the profile is edited, opens
+            and closes. */}
+        {authenticated && (
+          <AccountMenu onOpenSettings={() => setTab("Settings")} refreshKey={tab === "Settings"} tip={canHover} />
         )}
         {!authenticated &&
           <button className="top_sign_in" onClick={() => setTab("SignIn")}>

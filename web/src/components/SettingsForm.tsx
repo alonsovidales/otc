@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWS } from "../net/useWS";
-import { encryptForConnection, clearPersistedToken } from "../net/pwCrypto";
-import { clearPrivateUiState } from "../net/uiState";
-import { pushSupported, isPushSubscribed, enablePush, disablePush, unregisterPushOnSignOut } from "../net/webPush";
+import { encryptForConnection } from "../net/pwCrypto";
+import { signOut } from "../net/signOut";
+import { pushSupported, isPushSubscribed, enablePush, disablePush } from "../net/webPush";
 import UsersPanel from "./UsersPanel";
 import ProfileCard from "./ProfileCard";
 import UpdatePanel from "./UpdatePanel";
@@ -37,6 +37,9 @@ export default function SettingsForm() {
   const [newKey, setNewKey] = useState("");
   const [confirmKey, setConfirmKey] = useState("");
   const [savingKey, setSavingKey] = useState(false);
+
+  // Session
+  const [signingOut, setSigningOut] = useState(false);
 
   // Push notifications (issue #43)
   const [pushSubscribed, setPushSubscribed] = useState(false);
@@ -519,35 +522,21 @@ export default function SettingsForm() {
           This browser stays signed in across reloads. Sign out if you're on a shared or public
           computer.
         </p>
+        {/* The same as the account menu's Sign out (net/signOut.ts):
+            the device forgets this browser's push subscription and
+            tokens, then the page reloads signed out. aria-disabled
+            rather than disabled while it runs, so the focus stays on the
+            button and a screen reader hears its new label. */}
         <button
           className="sf-btn"
-          onClick={async () => {
-            // Issue #101: tell the device to drop every token descending
-            // from this login first, so a copy of one sitting in another
-            // tab's storage stops working right now rather than whenever
-            // its TTL happens to run out. Best-effort — clearing this
-            // browser's own storage and reloading happens either way.
-            // Issue #131: and forget this browser's push subscription,
-            // so the device stops pushing to a browser no longer signed
-            // in. Before the tokens go, since it needs the session.
-            try {
-              await unregisterPushOnSignOut();
-            } catch (err) {
-              console.error("Could not unregister push on sign out:", err);
-            }
-            try {
-              await useWS.request((e: Partial<ReqEnvelope>) => {
-                (e as any).payload = { $case: "reqRevokeSessionToken", reqRevokeSessionToken: {} };
-              });
-            } catch (err) {
-              console.error("Could not revoke session tokens on sign out:", err);
-            }
-            clearPersistedToken();
-            clearPrivateUiState();
-            window.location.reload();
+          aria-disabled={signingOut || undefined}
+          onClick={() => {
+            if (signingOut) return;
+            setSigningOut(true);
+            void signOut();
           }}
         >
-          Sign Out
+          {signingOut ? "Signing out…" : "Sign Out"}
         </button>
       </section>
     </div>

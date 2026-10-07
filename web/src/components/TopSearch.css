@@ -319,6 +319,12 @@
   }
   .ts-back { display: grid; }
   .ts-root.is-open .ts-glass { display: none; }
+  /* At rest, with nothing typed, the chips take the room typing needs,
+     the clear button's too, beside the account button (index.css). A tap
+     anywhere on the field types into it and brings both back. Text left
+     in the field keeps both. */
+  .ts-field:not(:focus-within):not(.has-query) .ts-chips:not(:empty) ~ .ts-input { min-width: 0; padding: 0; }
+  .ts-field:not(:focus-within):not(.has-query) .ts-chips:not(:empty) ~ .ts-clear { display: none; }
 }
 @keyframes ts-fade { from { opacity: 0; } }
 

@@ -1,0 +1,166 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The account button and its menu (AccountMenu.tsx), at the right end of
+   the top bar (index.css .topbar, a stacking context at z-index 30). Above
+   the rest of the bar, so the catcher under the open menu covers the bar's
+   other buttons as well as the page. */
+
+.tb-account {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  display: flex;
+}
+
+/* A 40px round target around a 32px picture. index.css gives every button
+   an ember fill, padding and a brighter hover. */
+.am-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--mist);
+  cursor: pointer;
+  transition: background-color .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.am-btn:hover { filter: none; background-color: rgba(234, 242, 239, .08); }
+.am-btn[aria-expanded="true"] { background-color: rgba(234, 242, 239, .12); }
+.am-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+
+/* The picture, the name's initial or a person. */
+.am-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.am-avatar.big { width: 40px; height: 40px; }
+.am-avatar.is-glyph { background: var(--ink-3); color: var(--mist-dim); box-shadow: inset 0 0 0 1px var(--line); }
+.am-avatar.is-initial {
+  background: rgba(255, 107, 74, .22);
+  color: var(--ember);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+}
+.am-avatar.big.is-initial { font-size: 19px; }
+
+/* Under the menu and over everything else: takes the press that closes it.
+   Behind the button and the menu (a negative z-index inside .tb-account's
+   stacking context), in front of the rest of the bar and the page. */
+.am-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The menu: under the button, its right edge on the button's, kept inside
+   the window (the bar's own padding is the 16px either side). */
+.am-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  box-sizing: border-box;
+  width: 288px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - var(--topbar-h) - 16px);
+  max-height: calc(100dvh - var(--topbar-h) - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--ink-2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+  color: var(--mist);
+  transform-origin: top right;
+  animation: am-in .12s ease-out;
+}
+@keyframes am-in { from { opacity: 0; transform: translateY(-4px) scale(.97); } }
+
+/* Whose device this is: the profile's name over this device's address. */
+.am-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 12px;
+}
+.am-who {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.am-name,
+.am-host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.am-name { font-size: 15px; font-weight: 600; line-height: 20px; }
+.am-host { font-size: 13px; line-height: 18px; color: var(--mist-dim); }
+
+.am-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -4px;
+  padding: 4px 4px 0;
+  border-top: 1px solid var(--line);
+}
+.am-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--mist);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.am-item svg { flex: none; color: var(--mist-dim); }
+.am-item:hover { filter: none; background-color: rgba(234, 242, 239, .08); }
+.am-item:focus-visible { outline: 2px solid var(--ember); outline-offset: -2px; background-color: rgba(234, 242, 239, .08); }
+.am-item:active { background-color: rgba(234, 242, 239, .12); }
+.am-item[aria-disabled="true"] { cursor: default; }
+.am-item[aria-disabled="true"]:not(.is-busy) { color: var(--mist-dim); }
+.am-item[aria-disabled="true"]:hover,
+.am-item[aria-disabled="true"]:active { background-color: transparent; }
+/* Signing out: the ring where the icon was, the same width. */
+.am-item .spinner-wrap { flex: none; }
+.am-item .spinner { width: 18px; height: 18px; margin: 0 2px; color: var(--mist-dim); }
+
+/* Fingers: taller rows. */
+@media (pointer: coarse) {
+  .am-item { height: 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .am-btn,
+  .am-item { transition: none; }
+  .am-pop { animation: none; }
+}

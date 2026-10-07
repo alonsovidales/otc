@@ -12,6 +12,8 @@
 .sf-value { color: var(--mist-dim); }
 .sf-btn { margin-top: 8px; padding: 10px 12px; border: 0; border-radius: 8px; background: var(--ember); color: var(--ember-ink); font-weight: 600; cursor: pointer; }
 .sf-btn:disabled { opacity: .6; cursor: default; }
+/* Unavailable but focusable (Sign Out while it runs): looks the same. */
+.sf-btn[aria-disabled="true"] { opacity: .6; cursor: default; filter: none; }
 .sf-btn.small { margin-top: 0; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
 .sf-btn-row { display: flex; gap: 8px; align-items: center; }
 .sf-btn-row .sf-btn { margin-top: 0; }

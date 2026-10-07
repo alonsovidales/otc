@@ -38,9 +38,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* The top bar: the menu button, the logo, the search (TopSearch.css) and
-   the page's own action. Fixed, with the left menu (Sidebar.css) under it
-   and the page scrolling the window beside it. */
+/* The top bar: the menu button, the logo, the search (TopSearch.css), the
+   page's own action and the account button (AccountMenu.css). Fixed, with
+   the left menu (Sidebar.css) under it and the page scrolling the window
+   beside it. */
 .topbar {
   position: fixed;
   top: 0;
@@ -107,12 +108,25 @@
 .app-body.menu-full { --content-left: var(--sidebar-w); }
 .app-body.menu-rail { --content-left: var(--rail-w); }
 @media (prefers-reduced-motion: reduce) { .app-body.menu-slides { transition: none; } }
+/* Up to a small tablet the page's action is its "+" alone: the search,
+   beside the account button too, needs the room more than the label. */
+@media (max-width: 699px) {
+  .tb-action { min-width: 40px; height: 40px; padding: 0 12px; justify-content: center; }
+  .tb-action-label { display: none; }
+}
 /* A phone: the search needs the room more than the logo does. */
 @media (max-width: 599px) {
   .tb-brand.signed-in { display: none; }
   .tb-logo { height: 30px; }
-  .tb-action { min-width: 40px; height: 40px; padding: 0 12px; justify-content: center; }
-  .tb-action-label { display: none; }
+  /* The search in use takes the account button's room as well. Folded
+     away rather than gone, so Tab from the field still reaches it (and
+     brings it back). */
+  .ts-root:focus-within ~ .tb-account {
+    width: 0;
+    margin-left: -8px;
+    overflow: hidden;
+    opacity: 0;
+  }
 }
 
 /* The window's scrollbar keeps its room whether it shows or not. Where
