@@ -359,6 +359,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // the jump it ends with has its photos, so releasing it doesn't flash
   // whatever was on screen before.
   const [placeholderCount, setPlaceholderCount] = useState<number | null>(null);
+  // Their month's title, so the photos land where the grey tiles were.
+  const [placeholderMonth, setPlaceholderMonth] = useState<string | null>(null);
   const scrubbingRef = useRef(false);
   const jumpsInFlightRef = useRef(0);
 
@@ -406,6 +408,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     // No request here: the count comes from the buckets already loaded, so
     // dragging across years costs nothing but renders.
     setPlaceholderCount(Math.min(bucket.count, cMaxPlaceholders));
+    setPlaceholderMonth(bucket.month);
   }, []);
 
   const onScrubJump = useCallback((month: string) => {
@@ -413,6 +416,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     scrubbingRef.current = false;
     const bucket = bucketsRef.current.find((b) => b.month === month);
     setPlaceholderCount(Math.min(bucket?.count ?? cFirstPagePhotos, cMaxPlaceholders));
+    setPlaceholderMonth(month);
     jumpsInFlightRef.current += 1;
     void jumpRef.current(month).finally(() => { jumpsInFlightRef.current -= 1; });
   }, []);
@@ -910,6 +914,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     body = (
       <div className="pg-grid" ref={gridRef} aria-busy="true" aria-label="Loading photos">
         <div className="pg-sec" style={sectionStyle(placeholderCount)}>
+          <MonthTitle month={placeholderMonth} oneTile={placeholderCount === 1} />
           {Array.from({ length: placeholderCount }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
         </div>
       </div>

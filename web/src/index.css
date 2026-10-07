@@ -102,11 +102,11 @@
   --content-left: 0px;
   padding-top: var(--topbar-h);
   padding-left: var(--content-left);
-  transition: padding-left .2s ease;
 }
+.app-body.menu-slides { transition: padding-left .2s ease; }
 .app-body.menu-full { --content-left: var(--sidebar-w); }
 .app-body.menu-rail { --content-left: var(--rail-w); }
-@media (prefers-reduced-motion: reduce) { .app-body { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .app-body.menu-slides { transition: none; } }
 /* A phone: the search needs the room more than the logo does. */
 @media (max-width: 599px) {
   .tb-brand.signed-in { display: none; }

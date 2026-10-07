@@ -70,8 +70,12 @@ function App() {
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const menuLayout: "full" | "rail" | "none" = wide ? (menuPref ? "full" : "rail") : narrow ? "none" : "rail";
+  // The page slides beside the menu only when someone switches it, not when
+  // the menu first appears after signing in.
+  const [menuSlides, setMenuSlides] = useState(false);
   const setMenuExpanded = (expanded: boolean) => {
     try { localStorage.setItem("otc_menu_open", expanded ? "1" : "0"); } catch { /* private mode */ }
+    setMenuSlides(true);
     setMenuPref(expanded);
   };
   const toggleMenu = () => {
@@ -402,7 +406,7 @@ function App() {
           onExpand={() => (wide ? setMenuExpanded(true) : setDrawerOpen(true))}
         />
       )}
-      <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}`}>
+      <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}${menuSlides ? " menu-slides" : ""}`}>
       {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
       <main>
         {/* Issue #84: "Profile" is only ever the anonymous-visitor landing
