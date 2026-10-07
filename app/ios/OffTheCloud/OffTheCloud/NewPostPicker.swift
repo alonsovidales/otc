@@ -799,7 +799,18 @@ struct NewPostPickerView: View {
 
 /// The phone source's tile thumbnails, from PhotoKit.
 enum PhoneThumb {
+    /// The copy on this phone first. Only when there is none at tile size
+    /// - with "Optimize iPhone Storage" an older photo keeps just a tiny
+    /// preview here, and a high-quality request that may not use the
+    /// network answers nothing, which left most of the phone source's
+    /// tiles empty - a tile-sized copy from iCloud: a few tens of KB,
+    /// never the full original issue #58 kept off the network.
     static func request(_ asset: PHAsset) async -> UIImage? {
+        if let local = await fetch(asset, network: false) { return local }
+        return await fetch(asset, network: true)
+    }
+
+    private static func fetch(_ asset: PHAsset, network: Bool) async -> UIImage? {
         let imgOpts = PHImageRequestOptions()
         // .fastFormat was the actual cause of "the thumbnails suck" -
         // it's documented to return whatever the *fastest* available
@@ -812,12 +823,9 @@ enum PhoneThumb {
         // would violate withCheckedContinuation's single-resume
         // contract below).
         imgOpts.deliveryMode = .highQualityFormat
-        // Thumbnails only, never triggers the iCloud full-original
-        // download issue #58 dug into - isNetworkAccessAllowed=false
-        // uses whatever's already cached locally (a proper preview, not
-        // just the tiny fast-format icon) even for an "Optimize Storage"
-        // library, regardless of deliveryMode.
-        imgOpts.isNetworkAccessAllowed = false
+        // A targetSize-sized image either way: from what is cached here,
+        // or (network) the matching size from iCloud - never the original.
+        imgOpts.isNetworkAccessAllowed = network
         imgOpts.isSynchronous = false
         imgOpts.resizeMode = .exact
 
