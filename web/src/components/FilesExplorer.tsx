@@ -15,6 +15,7 @@ import { deviceCantSearchFiles, fold, foundParts, takeFilesRequest, useFilesRequ
 import SharedGalleryShare from "./SharedGalleryShare";
 import FileTypeIcon from "./FileTypeIcon";
 import MediaViewer, { type ViewerItem } from "./MediaViewer";
+import { reloadAfterImagesChanged } from "./libraryStore";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 
@@ -48,6 +49,56 @@ const cSearchLimit = 50;
 type Results = { text: string; state: "loading" | "done" | "error"; files: PbFile[]; error?: string; retry?: boolean };
 // What a result is, read out with its name.
 const kindWord = (f: PbFile) => (isDir(f) ? "folder" : isVideo(f) ? "video" : isMedia(f) ? "photo" : "file");
+
+// Issue #192: a folder kept out of Images - its photos and videos are
+// never tagged or searched for faces and Images leaves them out, while
+// Files still shows them. The same words as the other apps (the iOS and
+// Android OutOfImagesText).
+const noImgHere = "photos and videos here aren't tagged, searched for faces or shown in Images.";
+const NoImg = {
+  show: "Show in Images",
+  state: "Kept out of Images",
+  stateInline: "kept out of Images",
+  // The switch's name, the same pressed or not (aria-pressed says which):
+  // "Keep Backups out of Images, pressed".
+  keepNamed: (name: string) => `Keep ${name} out of Images`,
+  keepTitle: (name: string) => `Keep “${name}” out of Images?`,
+  keepMessage: "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+  showTitle: (name: string) => `Show “${name}” in Images?`,
+  showMessage: "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+  banner: `Kept out of Images - ${noImgHere}`,
+  // In a folder only kept out because a folder above it is: which one,
+  // and the banner's button shows that one (the only Show that works).
+  bannerByParent: (parent: string) => `Inside ${parent}, which is kept out of Images - ${noImgHere}`,
+  showNamed: (name: string) => `Show “${name}” in Images`,
+  byParentTip: (parent: string) => `Inside ${parent}, which is kept out of Images`,
+  tipOn: "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images.",
+  tipOff: "Keep out of Images: photos and videos here won't be tagged, searched for faces or shown in Images",
+  // Read out once a change is done.
+  keptSaid: (name: string) => `${name} kept out of Images`,
+  shownSaid: (name: string) => `${name} shown in Images`,
+};
+
+// A picture (frame, hills, sun) struck through, drawn like the lock: a
+// gap is masked out of the picture along the stroke so it reads at 14px.
+function NoImgIcon({ size = 14 }: { size?: number }) {
+  const mask = `fb-noimg-${useId().replace(/[^\w-]/g, "")}`;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <mask id={mask} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+        <rect width="24" height="24" fill="#fff" stroke="none" />
+        <path d="M3 3 21 21" stroke="#000" strokeWidth="5.5" />
+      </mask>
+      <g mask={`url(#${mask})`}>
+        <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+        <path d="m3.5 17 5.5-5.5 4 4 2.5-2.5 5 5" />
+        <circle cx="15.5" cy="9" r="1.5" />
+      </g>
+      <path d="M3 3 21 21" />
+    </svg>
+  );
+}
 
 // A found name or folder with the part the text matched marked.
 function Marked({ text, span }: { text: string; span?: Span }) {
@@ -204,6 +255,28 @@ export default function FilesExplorer({
   const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; mime: string; versions: PbFile[] } | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(false);
 
+  // Issue #192: what the last listing said about keeping folders out of
+  // Images - whether the device can (devices before release 108 leave it
+  // false: no control, marker or banner then) and whether the folder it
+  // listed is kept out, itself or by a folder above it - with that folder,
+  // so the banner never shows over another folder's failed listing.
+  // `cover`, for a folder kept out: the outermost kept-out folder at or
+  // above it (with its slash), from ListOutOfImages - the one whose Show
+  // the device takes, as no folder above it covers it. Undefined while
+  // asked, null when that failed.
+  type NoImgState = { path: string; supported: boolean; folderOut: boolean; cover?: string | null };
+  const [noImg, setNoImg] = useState<NoImgState>({ path: "", supported: false, folderOut: false });
+  // The folder whose change is on its way: every other change waits.
+  const [noImgBusy, setNoImgBusy] = useState<string | null>(null);
+  const noImgBusyRef = useRef<string | null>(null);
+  // What a screen reader hears once a change is done.
+  const [noImgSaid, setNoImgSaid] = useState("");
+  // Where the focus goes back to once the folder is listed again after a
+  // change: that folder's switch, or the banner's button - or the
+  // folder's contents when it is gone. The tick runs the effect below.
+  const noImgRefocus = useRef<{ path: string; banner: boolean } | null>(null);
+  const [noImgRefocusTick, setNoImgRefocusTick] = useState(0);
+
   // Image viewer
   const [viewer, setViewer] = useState<{ name: string; url: string } | null>(null);
 
@@ -280,7 +353,27 @@ export default function FilesExplorer({
 
         setListing(files);
         setListed({ path: p });
+        const folderOut = !!lof.outOfImagesSupported && !!lof.folderOutOfImages;
+        setNoImg({ path: p, supported: !!lof.outOfImagesSupported, folderOut, cover: folderOut ? undefined : null });
         setSel({});
+        // Issue #192: in a folder kept out, which folder keeps it out - for
+        // the banner's Show and the subfolders' tips. Asked after the
+        // listing shows, so a slow answer never holds it up.
+        if (folderOut) {
+          const key = p.endsWith("/") ? p : p + "/";
+          const coverIs = (cover: string | null) => {
+            if (seq === listSeq.current) setNoImg((n) => (n.path === p ? { ...n, cover } : n));
+          };
+          useWS.request((e: Partial<ReqEnvelope>) => {
+            e.payload = { $case: "reqListOutOfImages", reqListOutOfImages: {} };
+          }).then((r: RespEnvelope) => {
+            const kept = r.payload?.$case === "respOutOfImagesFolders" ? r.payload.respOutOfImagesFolders.paths : [];
+            // The outermost: nothing above it keeps it out, so its Show is
+            // taken (one inside it would be refused).
+            const above = kept.filter((f) => f.endsWith("/") && key.startsWith(f));
+            coverIs(above.length ? above.reduce((a, b) => (b.length < a.length ? b : a)) : null);
+          }, () => coverIs(null));
+        }
       } else if (resp.error) {
         setError(resp.errorMessage || "Failed to list path");
         setListed({ path: p });
@@ -504,6 +597,72 @@ export default function FilesExplorer({
     await loadList(path);
   };
 
+  // Issue #192: keep a folder (its full path) out of Images, or show it
+  // there again (`out`: whether it is kept out now; `from`: the folder's
+  // switch or the banner's button). Asked first either way: keeping it
+  // out deletes the tags and faces found in its photos, and showing it
+  // again searches them for faces when that is on. Only offered where the
+  // device takes it - a folder inside another one kept out has no switch,
+  // and the banner shows the outermost one - but should the device still
+  // refuse (another app changed it meanwhile: error_code
+  // "out_of_images_by_parent"), its message says why. Then the folder is
+  // listed again, and the tags, people and collections too, for the next
+  // visit to Images. Every other change waits until this one is done, and
+  // the focus comes back to where it was.
+  const toggleOutOfImages = async (full: string, out: boolean, from: "row" | "banner") => {
+    if (noImgBusyRef.current) return;
+    const name = leafName(full.replace(/\/+$/, ""));
+    const ask = out ? `${NoImg.showTitle(name)}\n\n${NoImg.showMessage}` : `${NoImg.keepTitle(name)}\n\n${NoImg.keepMessage}`;
+    if (!window.confirm(ask)) return;
+    const listedAt = pathRef.current;
+    const opener = document.activeElement;
+    noImgBusyRef.current = full;
+    setNoImgBusy(full);
+    setNoImgSaid("");
+    try {
+      try {
+        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+          e.payload = { $case: "reqSetOutOfImages", reqSetOutOfImages: { path: full, outOfImages: !out } };
+        });
+        const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : null;
+        if (resp.error || !ack?.ok) alert(resp.errorMessage || ack?.errorMsg || "Could not update the folder.");
+        else {
+          reloadAfterImagesChanged();
+          setNoImgSaid(out ? NoImg.shownSaid(name) : NoImg.keptSaid(name));
+        }
+      } catch {
+        alert("Could not update the folder.");
+      }
+      // Unless it moved on meanwhile (another folder, a field), the focus
+      // goes back once the rows are there again: the listing replaces them.
+      const active = document.activeElement;
+      const refocus = pathRef.current === listedAt && (active === opener || !active || active === document.body);
+      await loadList(pathRef.current);
+      if (refocus && pathRef.current === listedAt) {
+        noImgRefocus.current = { path: full, banner: from === "banner" };
+        setNoImgRefocusTick((t) => t + 1);
+      }
+    } finally {
+      noImgBusyRef.current = null;
+      setNoImgBusy(null);
+    }
+  };
+  useEffect(() => {
+    const want = noImgRefocus.current;
+    if (!want || loading) return;
+    // The banner's button comes once ListOutOfImages has answered.
+    if (want.banner && noImg.folderOut && noImg.cover === undefined) return;
+    noImgRefocus.current = null;
+    const view = folderViewRef.current;
+    const target = want.banner
+      ? document.querySelector<HTMLElement>(".fb-noimg-banner-show")
+      : view?.querySelector<HTMLElement>(`button.fb-noimg[data-noimg="${CSS.escape(want.path)}"]`);
+    // The banner went with the change: the folder's contents instead, as
+    // when a search's results close.
+    if (target) target.focus();
+    else view?.focus({ preventScroll: true });
+  }, [noImgRefocusTick, loading, noImg]);
+
   // Issue #132: the versions badge - list a file's older versions.
   const openVersions = async (f: PbFile) => {
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
@@ -592,6 +751,7 @@ export default function FilesExplorer({
     created: f.created,
     modified: f.modified,
     uploadOnly: !!f.uploadOnly,
+    outOfImages: !!f.outOfImages,
     versions: f.versions ?? 0,
     file: f,
   })), [listing]);
@@ -907,6 +1067,50 @@ export default function FilesExplorer({
     : found.length === cSearchLimit ? `Showing the first ${cSearchLimit} results`
     : `${found.length} ${found.length === 1 ? "result" : "results"}`;
 
+  // Issue #192: the folder's switch for Images, beside its lock. Its name
+  // stays the same and aria-pressed says whether the folder is kept out
+  // ("Keep Backups out of Images, pressed"); the tip says what a click
+  // does. While a change is on its way every switch waits, and says so.
+  const noImgShown = noImg.supported && noImg.path === path;
+  // In a folder kept out, every subfolder is kept out by it (or a folder
+  // above it), and the device would refuse its Show: a marker naming that
+  // folder then, not a switch - the banner has the way back.
+  const noImgCover = noImg.folderOut ? (noImg.cover ?? normPath(path)).replace(/\/+$/, "") : "";
+  const noImgButton = (r: { name: string; file: PbFile; outOfImages: boolean }, tile = false) => {
+    const tileClass = tile ? " fb-tile-noimg" : "";
+    if (noImg.folderOut) {
+      const tip = NoImg.byParentTip(noImgCover);
+      return (
+        <span className={`fb-noimg${tileClass} on static`} data-tip={tip} role="img" aria-label={tip}>
+          <NoImgIcon />
+        </span>
+      );
+    }
+    const full = fullPathOf(r.file);
+    return (
+      <button
+        type="button"
+        className={`fb-noimg${tileClass}${r.outOfImages ? " on" : ""}`}
+        onClick={() => void toggleOutOfImages(full, r.outOfImages, "row")}
+        data-tip={r.outOfImages ? NoImg.tipOn : NoImg.tipOff}
+        data-noimg={full}
+        aria-label={NoImg.keepNamed(r.name)}
+        aria-pressed={r.outOfImages}
+        aria-disabled={noImgBusy !== null || undefined}
+      >
+        <NoImgIcon />
+      </button>
+    );
+  };
+  // The banner's button: the listed folder when it is kept out itself,
+  // else the outermost folder keeping it out (the one Show the device
+  // takes) - not known until ListOutOfImages answers (no button until
+  // then); when that failed, the listed folder, whose refusal says which.
+  const listedKey = normPath(path);
+  const noImgShow = noImg.cover === undefined ? null : (noImg.cover ?? listedKey);
+  const noImgShowByParent = noImgShow !== null && noImgShow !== listedKey;
+  const noImgShowPath = noImgShow?.replace(/\/+$/, "") ?? "";
+
   const lockIcon = (locked: boolean) => (
     <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
       <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -992,6 +1196,25 @@ export default function FilesExplorer({
       </div>
 
       {error && <div className="fb-error">{error}</div>}
+      {/* Issue #192: in a folder kept out of Images (or inside one), what
+          that means for its photos, and the way back. Its files carry no
+          marker of their own: this says it for all of them. */}
+      {noImgShown && noImg.folderOut && (
+        <div className="fb-noimg-banner" role="note">
+          <span className="fb-noimg-banner-note">
+            <span className="fb-noimg-banner-icon"><NoImgIcon size={16} /></span>
+            <span>{noImgShowByParent ? NoImg.bannerByParent(noImgShowPath) : NoImg.banner}</span>
+          </span>
+          {noImgShow !== null && (
+            <button type="button" className="fb-noimg-banner-show" onClick={() => void toggleOutOfImages(noImgShowPath, true, "banner")}
+              aria-disabled={noImgBusy !== null || undefined}>
+              {noImgShowByParent ? NoImg.showNamed(leafName(noImgShowPath)) : NoImg.show}
+            </button>
+          )}
+        </div>
+      )}
+      {/* Issue #192: a change for Images, once done. */}
+      <span className="fb-sr" role="status" aria-live="polite">{noImgSaid}</span>
       </div>
 
       {results && (
@@ -1056,11 +1279,20 @@ export default function FilesExplorer({
                           className="fb-res-open"
                           onClick={() => openFound(r.file)}
                           disabled={openingPath !== null}
-                          aria-label={`${r.name}, ${kindWord(r.file)} in ${r.dir}`}
+                          aria-label={`${r.name}, ${kindWord(r.file)} in ${r.dir}${r.file.outOfImages ? `, ${NoImg.stateInline}` : ""}`}
                           aria-describedby={[meta, metaDate].filter(Boolean).join(" ") || undefined}
                         >
-                          <span className="fb-res-name">
-                            {openingPath === r.file.path ? <span className="fb-opening">Opening…</span> : <Marked text={r.name} span={r.nameSpan} />}
+                          <span className="fb-res-nameline">
+                            <span className="fb-res-name">
+                              {openingPath === r.file.path ? <span className="fb-opening">Opening…</span> : <Marked text={r.name} span={r.nameSpan} />}
+                            </span>
+                            {/* Issue #192: a folder kept out of Images, or
+                                anything inside one. Only a marker here: the
+                                switch is on the folder's row in its own
+                                listing. Read out with the row's name above. */}
+                            {r.file.outOfImages && (
+                              <span className="fb-res-noimg" data-tip={NoImg.state}><NoImgIcon /></span>
+                            )}
                           </span>
                           {/* Long folders lose their start, not the end nearest the file. */}
                           <span className="fb-res-dir"><bdi dir="ltr"><Marked text={r.dir} span={r.dirSpan} /></bdi></span>
@@ -1136,6 +1368,8 @@ export default function FilesExplorer({
                 {r.name !== ".." && (
                   <input className="fb-tile-check" type="checkbox" checked={!!sel[r.k]} onChange={() => toggleOne(r.file)} aria-label={`Select ${r.name}`} />
                 )}
+                {/* Issue #192: left of the lock, which keeps its corner. */}
+                {r.name !== ".." && r.isDir && noImgShown && noImgButton(r, true)}
                 {r.name !== ".." && r.isDir && (
                   <button className={`fb-lock fb-tile-lock${r.uploadOnly ? " on" : ""}`} onClick={() => void toggleUploadOnly(r.file)}
                     data-tip={r.uploadOnly ? "Upload only. Click to clear." : "Make upload only"}
@@ -1194,6 +1428,7 @@ export default function FilesExplorer({
                     {lockIcon(r.uploadOnly)}
                   </button>
                 )}
+                {r.name !== ".." && r.isDir && noImgShown && noImgButton(r)}
                 {!r.isDir && r.uploadOnly && (
                   <span className="fb-lock on static" data-tip="In an upload-only folder: cannot be deleted" role="img" aria-label="In an upload-only folder: cannot be deleted">{lockIcon(true)}</span>
                 )}

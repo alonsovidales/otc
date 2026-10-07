@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
 import type { ImageGroup, Person, RespEnvelope, TagsList } from "../proto/messages";
+import { forgetPerson, getPhotoFilter } from "./photoFilter";
 
 // The library's people, groups and tags, each loaded once and shared by
 // the top bar's search, the People and Groups pages and the Images grid.
@@ -109,6 +110,23 @@ export const reloadTags = serial(async () => {
   tagsLoaded = true;
   emit();
 });
+
+/** Issue #192: a folder kept out of Images, or shown there again, changes
+ *  what these lists hold - its photos' tags go (or come back as they are
+ *  worked out again), an unnamed person left with no face goes, and the
+ *  collections' counts and covers change - so all three are listed again
+ *  (Images itself searches afresh each time it opens). A person the photo
+ *  filter still names who has gone stops being a filter, as after
+ *  deleting them in People. */
+export function reloadAfterImagesChanged() {
+  void reloadTags().catch(() => {});
+  void reloadGroups().catch(() => {});
+  void reloadPeople().then(() => {
+    if (!people.loaded) return;
+    const ids = new Set(people.items.map((p) => p.id));
+    for (const id of getPhotoFilter().personIds) if (!ids.has(id)) forgetPerson(id);
+  }, () => {});
+}
 
 const getPeople = () => people;
 const getGroups = () => groups;
