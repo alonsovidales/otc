@@ -4,11 +4,11 @@
 // it opens photos and videos from Files too, its own component, so both
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
-// Info panel (issue #41). The apps do the same with ImageModal.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+// Info panel (issue #41), Download. The apps do the same with ImageModal.
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
-import type { RespEnvelope, FileExifInfo } from "../proto/messages";
+import type { ReqEnvelope, RespEnvelope, FileExifInfo } from "../proto/messages";
 import "./PhotoGallery.css";
 import LowResBadge from "./LowResBadge";
 
@@ -30,6 +30,221 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   const u8 = content instanceof Uint8Array ? content : new Uint8Array(content);
   return URL.createObjectURL(new Blob([u8 as BlobPart], { type: mime }));
 };
+
+// ---- Download ---------------------------------------------------------------
+// The Download button saves the original file - never the thumbnail on
+// screen nor the JPEG a HEIC is shown as - under its own name.
+//
+// A video the device streams (ReqGetMediaURL answers a URL: the big ones)
+// is saved by the browser straight from that URL, so it goes to disk as it
+// arrives and never sits in this page's memory. The URL is on the page's
+// own origin (the device at home, its subdomain through the bridge), which
+// is what makes the link's download attribute count; ?download=1 has the
+// device also answer it as an attachment named after the file - devices
+// before that, and the bridge, ignore it, and the attribute does it alone.
+// A new link per click: the one the player got may be near its hour.
+//
+// Everything else - photos, and clips too short for the device to stream -
+// is read in 4 MB pieces (ReadFile) and saved from a blob typed
+// application/octet-stream: saved, never rendered (Files' security
+// advisory: no HTML or SVG shown in the app's origin).
+
+// How long the button stays busy once the browser has the download, so a
+// double click doesn't start a second one.
+const cSaveHoldMs = 2000;
+// How long a blob handed to the browser is kept (FileSaver.js's figure):
+// Safari on iOS reads it only once its sheet is answered.
+const cBlobKeepMs = 40000;
+const cReadPiece = 4 << 20;
+// How long a failed download's note stays up.
+const cSaveErrorMs = 8000;
+
+type Saving = { phase: "start" } | { phase: "read"; done: number; total: number } | { phase: "handed" };
+
+const leafName = (path: string) => path.split("/").pop() || "download";
+
+// The downloads under way, by path, and the note of the last one that
+// failed. Here rather than in a viewer: closing one unmounts it while its
+// downloads go on, so a viewer opened again on the same file shows how far
+// its download got and refuses a second, and a failure is told wherever
+// the user is - in the viewer if one is open, over the page if not (page:
+// until a viewer opens and shows it).
+type Downloads = {
+  saving: Readonly<Record<string, Saving>>;
+  failed: { path: string; seq: number; page: boolean } | null;
+};
+let downloads: Downloads = { saving: {}, failed: null };
+// How many viewers are on screen (none: a failure's note goes over the page).
+let viewersOpen = 0;
+const dlListeners = new Set<() => void>();
+const subscribeDownloads = (l: () => void) => {
+  dlListeners.add(l);
+  return () => { dlListeners.delete(l); };
+};
+const getDownloads = () => downloads;
+function setDownloads(next: Downloads) {
+  downloads = next;
+  syncPageNote();
+  dlListeners.forEach((l) => l());
+}
+function showSaving(path: string, s: Saving | null) {
+  const saving = { ...downloads.saving };
+  if (s) saving[path] = s; else delete saving[path];
+  setDownloads({ ...downloads, saving });
+}
+let failSeq = 0;
+function showFailed(path: string | null) {
+  if (!path) { setDownloads({ ...downloads, failed: null }); return; }
+  const seq = ++failSeq;
+  setDownloads({ ...downloads, failed: { path, seq, page: viewersOpen === 0 } });
+  setTimeout(() => { if (downloads.failed?.seq === seq) showFailed(null); }, cSaveErrorMs);
+}
+const failedText = (path: string) => `Couldn't download ${leafName(path)}. Check the connection to your device and try again.`;
+
+// The note over the page, while no viewer is open to show it: the viewer's
+// own note, outside React (nothing of this file is mounted then).
+let pageNote: HTMLElement | null = null;
+function syncPageNote() {
+  const f = viewersOpen === 0 && downloads.failed?.page ? downloads.failed : null;
+  if (pageNote && pageNote.dataset.seq === String(f?.seq)) return;
+  pageNote?.remove();
+  pageNote = null;
+  if (!f) return;
+  const note = document.createElement("div");
+  note.className = "pg-modal-toast pg-modal-toast-page";
+  note.setAttribute("role", "alert");
+  note.dataset.seq = String(f.seq);
+  const text = document.createElement("span");
+  text.textContent = failedText(f.path);
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "pg-modal-toast-close";
+  close.setAttribute("aria-label", "Dismiss");
+  close.textContent = "×";
+  close.addEventListener("click", () => showFailed(null));
+  note.append(text, close);
+  document.body.appendChild(note);
+  pageNote = note;
+}
+
+// A /media/<token> URL made absolute as net/media.ts does: against the
+// page, or the device a native app's copy of this page talks to.
+function absoluteMediaURL(url: string): URL {
+  let base = location.href;
+  const endpoint = window.__OTC_CONFIG?.endpoint;
+  if (endpoint) {
+    try {
+      const u = new URL(endpoint);
+      u.protocol = u.protocol === "wss:" ? "https:" : "http:";
+      base = u.origin;
+    } catch { /* the page's own */ }
+  }
+  return new URL(url, base);
+}
+
+// Hands href to the browser to save as name.
+function saveAs(href: string, name: string) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = name;
+  // The download attribute counts on the page's own origin only; another
+  // origin's file would be opened instead - in a tab of its own, never
+  // over the app.
+  if (new URL(href, location.href).origin !== location.origin) {
+    a.target = "_blank";
+    a.rel = "noopener";
+  }
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// The original bytes in pieces of at most 4 MB, as Files' readAll reads
+// them, telling progress how far it got. Each piece looks the path up
+// again, so a file replaced while it is read starts over once, for the
+// new content. Null when the device stopped answering.
+async function readOriginal(path: string, progress: (done: number, total: number) => void): Promise<Uint8Array[] | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const parts: Uint8Array[] = [];
+    let content = "";
+    let offset = 0;
+    let total = -1;
+    let changed = false;
+    while (total < 0 || offset < total) {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqReadFile", reqReadFile: { path, hash: "", offset: BigInt(offset), length: cReadPiece } };
+      });
+      if (resp.payload?.$case !== "respFileChunk") return null;
+      const chunk = resp.payload.respFileChunk;
+      if (total >= 0 && (chunk.hash !== content || Number(chunk.size) !== total)) { changed = true; break; }
+      content = chunk.hash;
+      total = Number(chunk.size);
+      if (chunk.data.length === 0 && offset < total) return null;
+      parts.push(chunk.data);
+      offset += chunk.data.length;
+      progress(offset, total);
+    }
+    if (!changed) return parts;
+  }
+  return null;
+}
+
+// Saves the item's original file. One at a time per path: the store says
+// so before anything is awaited, so a double click, or a click in a viewer
+// opened again while the first goes on, doesn't start a second.
+async function startDownload(it: ViewerItem) {
+  const path = it.path;
+  if (downloads.saving[path]) return;
+  const name = leafName(path);
+  if (downloads.failed?.path === path) showFailed(null);
+  showSaving(path, { phase: "start" });
+  let handed = false;
+  try {
+    let url = "";
+    if (canStream(it.mime)) {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqGetMediaUrl", reqGetMediaUrl: { path, pubUuid: "", hash: "" } };
+      });
+      if (resp.payload?.$case === "respMediaUrl") url = resp.payload.respMediaUrl.url;
+      // A failure here is a failure: falling back would read a long
+      // video whole into memory. Only a device too old to stream at all
+      // reads it in pieces.
+      else if (resp.errorCode !== "unknown_payload") throw new Error(resp.errorMessage);
+    }
+    if (url) {
+      const link = absoluteMediaURL(url);
+      link.searchParams.set("download", "1");
+      saveAs(link.href, name);
+    } else {
+      const parts = await readOriginal(path, (done, total) => showSaving(path, { phase: "read", done, total }));
+      if (!parts) throw new Error("no answer");
+      const blob = URL.createObjectURL(new Blob(parts as BlobPart[], { type: "application/octet-stream" }));
+      saveAs(blob, name);
+      setTimeout(() => URL.revokeObjectURL(blob), cBlobKeepMs);
+    }
+    handed = true;
+  } catch {
+    // the note below
+  }
+  if (handed) {
+    showSaving(path, { phase: "handed" });
+    setTimeout(() => showSaving(path, null), cSaveHoldMs);
+  } else {
+    showSaving(path, null);
+    showFailed(path);
+  }
+}
+
+const DownloadGlyph = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+    <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const DoneGlyph = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+    <path d="M5 12.5 9.5 17 19 7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   items: ViewerItem[];
@@ -159,6 +374,21 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   }, [item]);
   const closeInfo = useCallback(() => { setInfoOpen(false); setInfoData(null); }, []);
 
+  // Download (see the top of the file), in the module's store: by path, so
+  // the button shows the item on screen, and kept when the viewer closes.
+  const { saving, failed: saveError } = useSyncExternalStore(subscribeDownloads, getDownloads);
+  useEffect(() => {
+    viewersOpen += 1;
+    // A note over the page moves in here, and stays with the viewers.
+    if (downloads.failed?.page) setDownloads({ ...downloads, failed: { ...downloads.failed, page: false } });
+    else syncPageNote();
+    return () => { viewersOpen -= 1; syncPageNote(); };
+  }, []);
+  const download = useCallback(() => {
+    const it = items[index];
+    if (it) void startDownload(it);
+  }, [items, index]);
+
   // Keyboard: Escape closes, arrows page, Tab stays in the viewer.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -220,6 +450,12 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
 
   if (!item) return null;
   const name = items[index].path.split("/").pop();
+  const save = saving[item.path];
+  const savePct = save?.phase === "read" && save.total > 0 ? Math.floor((save.done / save.total) * 100) : null;
+  const saveLabel = !save ? "Download"
+    : save.phase === "start" ? "Preparing…"
+    : save.phase === "read" ? `Downloading ${savePct ?? 0}%`
+    : "Started";
   return (
     <div className="pg-modal" onClick={onClose}>
       <div
@@ -243,6 +479,25 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
             <span className="pg-info-glyph">i</span> Info
           </button>
           <span className="pg-modal-title">{name}</span>
+          {/* The original file, under its own name. Busy rather than
+              disabled while it starts, so the keyboard's focus stays. */}
+          <button
+            type="button"
+            className={"pg-modal-dl" + (save ? " busy" : "")}
+            title={save ? saveLabel : "Download the original"}
+            aria-label={saveLabel}
+            aria-disabled={save ? true : undefined}
+            onClick={download}
+          >
+            <span className="pg-modal-dl-glyph">
+              {!save ? <DownloadGlyph /> : save.phase === "handed" ? <DoneGlyph /> : <span className="pg-modal-dl-spin" />}
+            </span>
+            <span className="pg-modal-dl-text">{saveLabel}</span>
+            {savePct != null && <span className="pg-modal-dl-pct" aria-hidden="true">{savePct}%</span>}
+          </button>
+          <span className="pg-modal-sr" role="status">
+            {save ? (save.phase === "handed" ? `${name}: download started` : `Downloading ${name}`) : ""}
+          </span>
           <button className="pg-close" title="Close" onClick={onClose}>×</button>
         </div>
         <div
@@ -426,6 +681,13 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {saveError && (
+          <div className="pg-modal-toast" role="alert" key={saveError.seq}>
+            <span>{failedText(saveError.path)}</span>
+            <button type="button" className="pg-modal-toast-close" aria-label="Dismiss" onClick={() => showFailed(null)}>×</button>
           </div>
         )}
       </div>

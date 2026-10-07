@@ -884,6 +884,61 @@
 .pg-modal-hdr { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; border-bottom: 1px solid var(--line); flex: none; }
 .pg-modal-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--mist-dim); }
 .pg-close { border: 0; background: transparent; color: var(--mist); font-size: 24px; line-height: 1; padding: 2px 8px; cursor: pointer; }
+/* Download: a pill like Info's, icon and label; on a phone the icon alone,
+   named by its aria-label and tooltip, and its progress as a percentage. */
+.pg-modal-dl {
+  flex: none; margin: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px 4px 7px;
+  background: var(--panel); color: var(--mist);
+  font: inherit; font-size: 13px; font-weight: 600; line-height: 18px; white-space: nowrap;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  /* Never narrower than "Download", so a shorter state doesn't shift it. */
+  min-width: 8.6em; justify-content: center;
+}
+/* Hover only where there is one: a tap would leave it lit on a touch screen. */
+@media (hover: hover) {
+  .pg-modal-dl:hover { background: var(--ember); color: var(--ember-ink); border-color: transparent; }
+}
+.pg-modal-dl:hover { filter: none; }
+.pg-modal-dl.busy, .pg-modal-dl.busy:hover { background: var(--panel); color: var(--mist); border-color: var(--line); cursor: progress; }
+.pg-modal-dl-glyph { flex: none; width: 20px; height: 20px; display: inline-grid; place-items: center; }
+.pg-modal-dl-glyph svg { display: block; }
+.pg-modal-dl-spin { box-sizing: border-box; width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: pg-modal-spin .7s linear infinite; }
+@keyframes pg-modal-spin { to { transform: rotate(360deg); } }
+@keyframes pg-modal-pulse { 50% { opacity: .35; } }
+.pg-modal-dl-text, .pg-modal-dl-pct { font-variant-numeric: tabular-nums; }
+.pg-modal-dl-pct { display: none; }
+@media (max-width: 599px) {
+  .pg-modal-dl { min-width: 0; padding: 4px 7px; }
+  .pg-modal-dl-text { display: none; }
+  .pg-modal-dl-pct { display: inline; margin-left: -2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-modal-dl-spin { animation: pg-modal-pulse 1.4s ease-in-out infinite; border-top-color: currentColor; }
+}
+/* What screen readers hear of a download; nothing on screen. */
+.pg-modal-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* A download that failed: a note over the picture, above a video's own
+   controls, until dismissed or a few seconds pass. */
+.pg-modal-toast {
+  position: absolute; z-index: 3; left: 50%; bottom: 64px; transform: translateX(-50%);
+  box-sizing: border-box; width: max-content; max-width: calc(100% - 32px);
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 6px 6px 14px; border-radius: 8px;
+  background: var(--ink-3); color: var(--mist); border: 1px solid rgba(255, 138, 117, .45);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+  font-size: 14px; line-height: 20px; overflow-wrap: anywhere;
+}
+.pg-modal-toast::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.pg-modal-toast-close {
+  flex: none; margin: 0; padding: 0; width: 32px; height: 32px; border: 0; border-radius: 50%;
+  background: none; color: var(--mist-dim); font-size: 20px; line-height: 1; cursor: pointer;
+}
+.pg-modal-toast-close:hover { background: rgba(234, 242, 239, .08); color: var(--mist); filter: none; }
+/* The same note for a download that failed after its viewer was closed:
+   over the page, above everything (the viewer is z-index 50). */
+.pg-modal-toast.pg-modal-toast-page { position: fixed; z-index: 60; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 
 /* Issue #41: "More info" panel — camera/EXIF metadata + a location map.
    Issue #130: the button is a labelled pill in the header, not a glyph over

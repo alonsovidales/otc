@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/blobstore"
 	"io"
+	"mime"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -58,6 +60,10 @@ func IsStreamable(mime string) bool {
 type Stream struct {
 	Size int64
 	Mime string
+	// Name is the file's own name, the last element of the resource's
+	// path - what a download of it is saved as. Empty for a resource with
+	// no path (a post's media is addressed by its hash alone).
+	Name string
 	rs   io.ReadSeeker
 	// closer is non-nil only when the bytes are being read straight off
 	// disk (publication media), which is the case that holds an fd.
@@ -115,7 +121,7 @@ func (sv *Server) Open(token string) (*Stream, error) {
 				size = info.Size()
 			}
 		}
-		return &Stream{Size: size, Mime: res.Mime, rs: f, closer: f}, nil
+		return &Stream{Size: size, Mime: res.Mime, Name: baseName(res.Path), rs: f, closer: f}, nil
 	}
 
 	// A library file: opened in its segmented encryption, so a range
@@ -128,21 +134,63 @@ func (sv *Server) Open(token string) (*Stream, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening stored file: %w", err)
 	}
-	return &Stream{Size: blob.Size(), Mime: res.Mime, rs: io.NewSectionReader(blob, 0, blob.Size()), closer: blob}, nil
+	return &Stream{Size: blob.Size(), Mime: res.Mime, Name: baseName(res.Path), rs: io.NewSectionReader(blob, 0, blob.Size()), closer: blob}, nil
+}
+
+// baseName is a path's last element, or "" when there is none.
+func baseName(p string) string {
+	if p == "" {
+		return ""
+	}
+	name := path.Base(p)
+	if name == "/" || name == "." {
+		return ""
+	}
+	return name
+}
+
+// ServedType is the Content-Type to serve a resource stored with this mime
+// under, and whether a browser may show it in place: video, audio and the
+// raster image types, none of which can run script. Anything else -
+// including a value that isn't exactly one well-formed type, which a
+// browser may read differently from this check ("video/mp4,text/html"
+// passes IsStreamable, and Chrome renders it as a page) - is
+// application/octet-stream, bytes to save.
+//
+// Both ways a token's bytes leave the device go through it: /media here,
+// and ReqGetMediaRange, whose type the bridge copies into its response on
+// the device's own subdomain - the app's origin.
+func ServedType(stored string) (ctype string, inline bool) {
+	mt, _, err := mime.ParseMediaType(stored)
+	if err != nil {
+		return "application/octet-stream", false
+	}
+	switch {
+	case strings.HasPrefix(mt, "video/"), strings.HasPrefix(mt, "audio/"):
+		return stored, true
+	}
+	switch mt {
+	case "image/jpeg", "image/png", "image/gif", "image/webp", "image/avif", "image/bmp",
+		"image/heic", "image/heif", "image/tiff":
+		return stored, true
+	}
+	return "application/octet-stream", false
 }
 
 // Range reads up to length bytes from offset, clamped to MaxRangeBytes
 // and to the end of the file. It returns what it read plus the total
-// size, which is what a client needs to build a Content-Range header.
-func (sv *Server) Range(token string, offset, length int64) (content []byte, total int64, mime string, err error) {
+// size, which is what a client needs to build a Content-Range header, and
+// the type to serve it as (ServedType: never the stored mime raw).
+func (sv *Server) Range(token string, offset, length int64) (content []byte, total int64, ctype string, err error) {
 	stream, err := sv.Open(token)
 	if err != nil {
 		return nil, 0, "", err
 	}
 	defer stream.Close()
+	ctype, _ = ServedType(stream.Mime)
 
 	if offset < 0 || offset > stream.Size {
-		return nil, stream.Size, stream.Mime, fmt.Errorf("offset %d outside the file", offset)
+		return nil, stream.Size, ctype, fmt.Errorf("offset %d outside the file", offset)
 	}
 	if length <= 0 || length > MaxRangeBytes {
 		length = MaxRangeBytes
@@ -152,7 +200,7 @@ func (sv *Server) Range(token string, offset, length int64) (content []byte, tot
 	}
 
 	if _, err := stream.ReadSeeker().Seek(offset, io.SeekStart); err != nil {
-		return nil, stream.Size, stream.Mime, fmt.Errorf("seeking to %d: %w", offset, err)
+		return nil, stream.Size, ctype, fmt.Errorf("seeking to %d: %w", offset, err)
 	}
 	buf := make([]byte, length)
 	// ReadFull, not Read: a single Read on a file is free to return
@@ -160,8 +208,8 @@ func (sv *Server) Range(token string, offset, length int64) (content []byte, tot
 	// the client believes it received.
 	n, err := io.ReadFull(stream.ReadSeeker(), buf)
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-		return nil, stream.Size, stream.Mime, fmt.Errorf("reading %d bytes at %d: %w", length, offset, err)
+		return nil, stream.Size, ctype, fmt.Errorf("reading %d bytes at %d: %w", length, offset, err)
 	}
 
-	return buf[:n], stream.Size, stream.Mime, nil
+	return buf[:n], stream.Size, ctype, nil
 }

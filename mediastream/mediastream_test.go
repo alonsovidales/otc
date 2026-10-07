@@ -268,3 +268,71 @@ func TestIssueSharedReusesWithinTheWindow(t *testing.T) {
 		t.Fatal("a revoked or expired token must never be handed out again")
 	}
 }
+
+// A stream carries its file's own name, what a download is saved as; a
+// post's media, addressed by hash alone, has none.
+func TestStreamIsNamedAfterItsPath(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(fmt.Sprintf("%s/%s", dir, "h"), []byte("x"), 0o600); err != nil {
+		t.Fatalf("writing fixture: %v", err)
+	}
+	sv := NewServer(NewStore(), t.TempDir(), dir)
+	for path, want := range map[string]string{
+		"/Videos/Cumpleaños Leo.mov": "Cumpleaños Leo.mov",
+		"clip.mp4":                   "clip.mp4",
+		"":                           "",
+		"/":                          "",
+	} {
+		token, _, _ := sv.Store().Issue(Resource{Kind: KindPublicationMedia, Path: path, Hash: "h", Mime: "video/mp4"})
+		stream, err := sv.Open(token)
+		if err != nil {
+			t.Fatalf("Open: %v", err)
+		}
+		if stream.Name != want {
+			t.Errorf("path %q: Name %q, want %q", path, stream.Name, want)
+		}
+		stream.Close()
+	}
+}
+
+// Only media is ever served as itself, by /media and by ReqGetMediaRange
+// alike (the bridge copies the latter into its Content-Type, on the app's
+// own origin): anything else, and anything that isn't exactly one
+// well-formed type, is bytes to save.
+func TestServedTypeIsOnlyEverMedia(t *testing.T) {
+	for _, m := range []string{"video/mp4", "video/webm", "audio/mpeg", "image/jpeg", "image/heic", "video/mp4; codecs=\"avc1.42E01E\""} {
+		if ct, inline := ServedType(m); !inline || ct != m {
+			t.Errorf("ServedType(%q) = %q, %v", m, ct, inline)
+		}
+	}
+	for _, m := range []string{"text/html", "image/svg+xml", "application/xhtml+xml", "", "video/mp4,text/html", "video/mp4;,text/html", "video/mp4; x=\"", "text/plain"} {
+		if ct, inline := ServedType(m); inline || ct != "application/octet-stream" {
+			t.Errorf("ServedType(%q) = %q, %v", m, ct, inline)
+		}
+	}
+}
+
+// A range answers the served type, not the stored one: a token minted for
+// "video/mp4,text/html" (IsStreamable lets it through) must not reach the
+// bridge as a type Chrome renders as a page.
+func TestRangeAnswersTheServedType(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(fmt.Sprintf("%s/%s", dir, "h"), []byte("<script>x</script>"), 0o600); err != nil {
+		t.Fatalf("writing fixture: %v", err)
+	}
+	sv := NewServer(NewStore(), t.TempDir(), dir)
+	for stored, want := range map[string]string{
+		"video/mp4,text/html": "application/octet-stream",
+		"video/mp4":           "video/mp4",
+	} {
+		token, _, _ := sv.Store().Issue(Resource{Kind: KindPublicationMedia, Hash: "h", Mime: stored})
+		_, _, ctype, err := sv.Range(token, 0, 4)
+		if err != nil || ctype != want {
+			t.Errorf("Range of %q: type %q, %v; want %q", stored, ctype, err, want)
+		}
+		// Also when the range itself fails.
+		if _, _, ctype, err := sv.Range(token, 1000, 4); err == nil || ctype != want {
+			t.Errorf("Range of %q past the end: type %q, %v; want %q and an error", stored, ctype, err, want)
+		}
+	}
+}
