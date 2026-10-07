@@ -2,9 +2,14 @@
 
 /* The People page: a title, then the faces as circles with the name and
    the photo count under them. Every tile is the same height whatever its
-   state (named, "Add a name", the name field), so naming someone moves
-   nothing but that person. */
+   state (named, "Add a name", the name field, picked), so naming or
+   picking someone moves nothing but that person. Picking several looks
+   and works as on Images (PhotoGallery.css): a circle on the face's
+   corner, a bar over the top bar. */
 .pv-root {
+  /* Hover and press fills, from the text colour like --panel. */
+  --pv-hover: rgba(234, 242, 239, .08);
+  --pv-press: rgba(234, 242, 239, .14);
   box-sizing: border-box;
   padding: 24px 24px 64px;
 }
@@ -46,6 +51,11 @@
   align-items: center;
   text-align: center;
   animation: pv-in .2s ease-out both;
+  /* A long press picks the face: it must not also select the name's text
+     or bring up the picture's own menu (iOS). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 .pv-face-wrap {
   position: relative;
@@ -79,6 +89,7 @@
   object-fit: cover;
   border-radius: 50%;
   transition: filter .15s ease;
+  -webkit-touch-callout: none;
 }
 .pv-face-ph {
   display: grid;
@@ -91,14 +102,75 @@
 @media (hover: hover) {
   .pv-face:hover img { filter: brightness(1.12); }
   .pv-face:hover { box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px rgba(234, 242, 239, .22); }
-  /* Picking whom to merge into: the face under the pointer is the choice. */
-  .pv-root.picking .pv-person:not(.is-source) .pv-face:hover {
-    box-shadow: 0 0 0 2px var(--ink), 0 0 0 5px var(--ember);
-  }
 }
 .pv-face:active { transform: scale(.97); }
-.pv-person.is-source .pv-face,
-.pv-person.is-source .pv-face:hover { box-shadow: 0 0 0 3px var(--ink), 0 0 0 6px var(--gold); }
+
+/* The selection circle, on the face's top-left corner as "more" is on the
+   other: 44px to hit, 26px to see. Shown on hover with a mouse, and on
+   every face once anything is picked. */
+.pv-check {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.pv-check:hover { filter: none; }
+.pv-check:focus-visible { outline: none; opacity: 1; }
+.pv-check-circle {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(234, 242, 239, .92);
+  background: rgba(0, 0, 0, .35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .45);
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease, transform .1s ease;
+}
+.pv-check:hover .pv-check-circle { color: var(--mist); background: rgba(0, 0, 0, .55); }
+.pv-check:active .pv-check-circle { transform: scale(.9); }
+.pv-check:focus-visible .pv-check-circle { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (hover: hover) {
+  .pv-person:hover .pv-check { opacity: 1; }
+}
+.pv-root.selecting .pv-check { opacity: 1; }
+/* A touch screen has no hover to show the circle by: a tap goes to the
+   face, which picks the person once anything is picked (a long press
+   picks the first). */
+@media (hover: none) {
+  .pv-check { pointer-events: none; }
+}
+
+/* Picked: a gold ring around a face that steps back a little, and the
+   circle filled. */
+.pv-person.selected .pv-face,
+.pv-person.selected .pv-face:hover {
+  transform: scale(.9);
+  box-shadow: 0 0 0 3px var(--ink), 0 0 0 6px var(--gold);
+}
+.pv-person.selected .pv-check { opacity: 1; }
+.pv-person.selected .pv-check-circle,
+.pv-person.selected .pv-check:hover .pv-check-circle {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+.pv-person.selected .pv-name { color: var(--gold); }
 
 /* "More": a small round button on the face's corner, shown on hover with
    a mouse and always on a touch screen. Its hit area is 44px. */
@@ -155,10 +227,11 @@
   line-height: 20px;
   font-weight: 600;
   color: var(--mist);
-  transition: opacity .15s ease;
+  transition: opacity .15s ease, color .15s ease;
 }
 .pv-name.pending { opacity: .55; }
-.pv-name.pv-unnamed { font-weight: 400; font-style: italic; color: var(--mist-dim); }
+.pv-unnamed { font-weight: 400; font-style: italic; color: var(--mist-dim); }
+.pv-person.selected .pv-name.pv-unnamed { color: var(--mist-dim); }
 .pv-addname {
   position: relative;
   max-width: 100%;
@@ -201,6 +274,9 @@
   text-align: center;
   outline: none;
   box-shadow: 0 0 0 3px rgba(255, 107, 74, .18);
+  /* The tile's user-select: none would keep Safari from typing in it. */
+  -webkit-user-select: text;
+  user-select: text;
 }
 .pv-name-input::placeholder { color: var(--mist-dim); font-style: italic; }
 .pv-count {
@@ -229,8 +305,9 @@
 .pv-skeleton > li:nth-child(3n + 2) .pv-label .pv-bar { width: 52px; }
 .pv-skeleton > li:nth-child(3n) .pv-label .pv-bar { width: 76px; }
 
-/* Picking whom to merge into: a bar over the top bar, like a selection's. */
-.pv-pickbar {
+/* ---- the selection bar, over the top bar (as Images' .pg-selbar) -------- */
+
+.pv-selbar {
   position: fixed;
   top: 0;
   left: 0;
@@ -240,27 +317,92 @@
   height: var(--topbar-h);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 16px;
+  gap: 8px;
+  /* The close button sits where the menu button is. */
+  padding: 0 16px 0 10px;
   background: var(--ink-2);
+  color: var(--mist);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, .4);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, .4);
   animation: pv-drop .18s ease-out;
 }
-.pv-pickbar-text {
-  flex: 1;
+.pv-selbar-text {
   min-width: 0;
-  margin: 0;
-  font-size: 15px;
-  line-height: 20px;
-  color: var(--mist);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.pv-selbar-count {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.pv-selbar-hint {
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--mist-dim);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
 }
-.pv-pickbar-text strong { font-weight: 600; color: var(--gold); }
+.pv-selbar-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; flex: none; }
+
+/* index.css draws every button as an ember pill: these start from nothing. */
+.pv-icon-btn,
+.pv-bar-btn {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mist);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pv-icon-btn:hover,
+.pv-bar-btn:hover { filter: none; }
+.pv-icon-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  transition: background-color .15s ease;
+}
+.pv-icon-btn:hover { background: var(--pv-hover); }
+.pv-icon-btn:active { background: var(--pv-press); }
+.pv-icon-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+.pv-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color .15s ease, opacity .15s ease;
+}
+.pv-bar-btn svg { flex: none; }
+.pv-bar-btn:hover:not([aria-disabled="true"]) { background: var(--pv-hover); }
+.pv-bar-btn:active:not([aria-disabled="true"]) { background: var(--pv-press); }
+.pv-bar-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+/* Merge with one face picked: there, dimmed, saying why on hover. */
+.pv-bar-btn[aria-disabled="true"] { opacity: .45; cursor: default; }
+.pv-bar-btn.danger { color: var(--danger); }
+.pv-bar-btn.danger:hover:not([aria-disabled="true"]) { background: var(--danger-bg); }
+@media (max-width: 899px) {
+  .pv-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pv-bar-label { display: none; }
+}
 
 .pv-avatar {
   display: inline-grid;
@@ -272,14 +414,16 @@
   color: var(--mist-dim);
 }
 .pv-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.pv-avatar-sm { width: 32px; height: 32px; }
+.pv-avatar-md { width: 52px; height: 52px; }
 .pv-avatar-lg { width: 64px; height: 64px; }
+.pv-avatar-keep { width: 64px; height: 64px; }
 
 /* Buttons: pills, 40px high. */
 .pv-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   flex: none;
   min-width: 88px;
   height: 40px;
@@ -293,7 +437,7 @@
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color .15s ease, filter .15s ease, transform .1s ease;
+  transition: background-color .15s ease, filter .15s ease, transform .1s ease, opacity .15s ease;
 }
 .pv-btn:active:not([aria-disabled="true"]) { transform: scale(.97); }
 .pv-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
@@ -301,10 +445,11 @@
 .pv-btn-quiet { background: transparent; border-color: var(--line); color: var(--mist); }
 .pv-btn-quiet:hover { filter: none; background: rgba(234, 242, 239, .06); }
 .pv-btn-quiet[aria-disabled="true"]:hover { background: transparent; }
-.pv-btn-primary { background: var(--ember); color: var(--ember-ink); }
+.pv-btn-primary { min-width: 104px; background: var(--ember); color: var(--ember-ink); }
 .pv-btn-primary:hover { filter: brightness(1.08); }
 .pv-btn-danger { min-width: 104px; background: var(--danger); color: var(--ink); }
 .pv-btn-danger:hover { filter: brightness(1.06); }
+.pv-btn .spinner-wrap { display: inline-flex; align-items: center; gap: 8px; }
 
 /* The "more" menu: lives in <body>, positioned by PeopleView.tsx. */
 .pv-menu {
@@ -364,6 +509,7 @@
   width: min(400px, calc(100vw - 32px));
   max-width: none;
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   margin: auto;
   padding: 0;
   border: 1px solid var(--line);
@@ -373,35 +519,31 @@
   box-shadow: 0 24px 64px rgba(0, 0, 0, .55);
   overflow: auto;
 }
+.pv-dialog.wide { width: min(480px, calc(100vw - 32px)); }
 .pv-dialog[open] { animation: pv-pop .18s cubic-bezier(.2, .8, .2, 1); }
 .pv-dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .pv-dialog[open]::backdrop { animation: pv-fade .18s ease-out; }
+/* The question scrolls in its body when the window is too short for it;
+   the buttons stay under it. The card is as tall as the dialog may be,
+   less its border. PeopleView.tsx sets the dialog's top margin: centred
+   when it opens, then kept as what it holds grows or shrinks. */
 .pv-dialog-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 24px;
+  max-height: calc(100vh - 34px);
+  max-height: calc(100dvh - 34px);
 }
-.pv-dialog-card > .pv-avatar,
-.pv-dialog-faces { align-self: center; margin-bottom: 8px; }
-.pv-dialog-faces { display: flex; align-items: flex-start; gap: 8px; }
-.pv-dialog-person {
+.pv-dialog-body {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 8px;
-  width: 96px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 24px 0;
 }
-.pv-dialog-person > span:last-child {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--mist-dim);
-}
-.pv-dialog-arrow { display: grid; place-items: center; height: 64px; color: var(--mist-dim); }
+.pv-dialog-body > .pv-avatar,
+.pv-stack { align-self: center; margin-bottom: 8px; }
 .pv-dialog-title {
   margin: 0;
   font-size: 18px;
@@ -410,13 +552,15 @@
   color: var(--mist);
   overflow-wrap: anywhere;
 }
-.pv-dialog-text {
+.pv-dialog-text,
+.pv-dialog-note {
   margin: 0;
   font-size: 14px;
   line-height: 20px;
   color: var(--mist-dim);
   overflow-wrap: anywhere;
 }
+.pv-dialog-note strong { font-weight: 600; color: var(--mist); }
 .pv-dialog-error {
   margin: 4px 0 0;
   padding: 8px 12px;
@@ -426,13 +570,150 @@
   font-size: 13px;
   line-height: 20px;
 }
+/* 24px from the question, its top border included: drawn when more of
+   the question is below. */
 .pv-dialog-actions {
+  flex: none;
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  padding: 23px 24px 24px;
+  border-top: 1px solid transparent;
+  transition: border-color .15s ease;
 }
+.pv-dialog-card.more-below .pv-dialog-actions { border-top-color: var(--line); }
+
+/* Several faces to delete: a few overlapping, and how many more. */
+.pv-stack { display: flex; }
+.pv-stack > .pv-avatar { box-shadow: 0 0 0 3px var(--ink-2); }
+.pv-stack > .pv-avatar + .pv-avatar { margin-left: -14px; }
+.pv-stack-more {
+  background: var(--ink-3);
+  color: var(--mist);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The merge's faces, one to keep: a radio group. Scrolls on its own when
+   many are merged at once, so the question and its buttons stay. When the
+   dialog is as tall as the window allows it gives up height first, down
+   to about a row (it is the one part of the body that shrinks), so the
+   note and the name field under it still show; below that the body
+   scrolls. */
+.pv-keep {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 4px;
+  min-height: 120px;
+  max-height: min(300px, 40vh);
+  max-height: min(300px, 40dvh);
+  overflow-y: auto;
+  margin: 8px -8px 0;
+  padding: 4px;
+  overscroll-behavior: contain;
+}
+/* More faces behind an edge: it fades out. */
+.pv-keep.more-below {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+}
+.pv-keep.more-above {
+  -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to top, #000 calc(100% - 40px), transparent);
+}
+.pv-keep.more-above.more-below {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+}
+.pv-keep-opt {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 10px 4px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--mist);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.pv-keep-opt:hover { filter: none; background: var(--pv-hover, rgba(234, 242, 239, .08)); }
+/* While the merge runs the choice is fixed. */
+.pv-keep[aria-disabled="true"] .pv-keep-opt { cursor: default; }
+.pv-keep[aria-disabled="true"] .pv-keep-opt:hover { background: none; }
+.pv-keep-opt:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.pv-keep-face { position: relative; display: block; margin-bottom: 12px; }
+.pv-keep-face .pv-avatar { transition: box-shadow .15s ease, opacity .15s ease; }
+.pv-keep-opt.chosen .pv-avatar { box-shadow: 0 0 0 3px var(--ink-2), 0 0 0 5px var(--gold); }
+/* The others go into the one kept. */
+.pv-keep:has(.chosen) .pv-keep-opt:not(.chosen) .pv-avatar { opacity: .6; }
+.pv-keep-badge {
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  padding: 0 7px 0 5px;
+  border-radius: 9px;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: .02em;
+  box-shadow: 0 0 0 2px var(--ink-2);
+  white-space: nowrap;
+}
+.pv-keep-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.pv-keep-name.pv-unnamed { font-weight: 400; }
+.pv-keep-count {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mist-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The merged person's name, when it would have none. */
+.pv-field { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.pv-field label { font-size: 13px; line-height: 18px; font-weight: 600; color: var(--mist); }
+.pv-field label span { font-weight: 400; color: var(--mist-dim); }
+.pv-field input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--mist);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.pv-field input::placeholder { color: var(--mist-dim); }
+.pv-field input:focus { border-color: var(--ember); box-shadow: 0 0 0 3px rgba(255, 107, 74, .18); }
+/* Read-only while the merge runs. */
+.pv-field input:read-only { color: var(--mist-dim); }
 
 /* Nothing to show (no faces yet, or the device didn't answer). */
 .pv-state {
@@ -475,7 +756,7 @@
   position: fixed;
   left: var(--content-left, 0px);
   right: 0;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   z-index: 45;
   display: flex;
   justify-content: center;
@@ -483,6 +764,9 @@
   pointer-events: none;
 }
 .pv-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   max-width: 480px;
   padding: 12px 16px;
   border-radius: 8px;
@@ -492,6 +776,14 @@
   line-height: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
   animation: pv-rise .2s ease-out;
+}
+.pv-toast.error::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d9482b;
 }
 
 @keyframes pv-in { from { opacity: 0; } }
@@ -505,7 +797,9 @@
 /* A finger needs bigger rows, and a 16px field keeps iOS from zooming in. */
 @media (pointer: coarse) {
   .pv-menu-item { height: 48px; }
-  .pv-name-input { font-size: 16px; }
+  .pv-name-input,
+  .pv-field input { font-size: 16px; }
+  .pv-field input { height: 44px; }
 }
 
 @media (max-width: 599px) {
@@ -520,16 +814,24 @@
   /* Lighter on a small face; the hit area stays 44px. */
   .pv-more { width: 28px; height: 28px; top: -2px; right: -2px; }
   .pv-more::before { inset: -8px; }
-  .pv-pickbar { gap: 8px; padding: 0 8px 0 12px; }
-  .pv-pickbar-text { font-size: 14px; }
-  .pv-pickbar .pv-btn { min-width: 0; padding: 0 16px; }
+  .pv-check { top: -10px; left: -10px; }
+  .pv-check-circle { width: 24px; height: 24px; }
+  .pv-selbar { gap: 4px; padding: 0 4px; }
+  .pv-selbar-count { font-size: 16px; line-height: 20px; }
+  .pv-selbar-hint { font-size: 12px; line-height: 15px; }
+  .pv-selbar-actions { gap: 0; }
+  .pv-dialog-body { padding: 20px 20px 0; }
+  .pv-dialog-actions { padding: 23px 20px 20px; }
+  .pv-keep { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
+  .pv-avatar-keep { width: 56px; height: 56px; }
   .pv-state { margin-top: 32px; }
-  .pv-toast-host { bottom: 16px; }
+  .pv-toast-host { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pv-person, .pv-face, .pv-face img, .pv-more, .pv-name, .pv-addname, .pv-btn,
-  .pv-pickbar, .pv-menu, .pv-menu-item, .pv-dialog[open], .pv-dialog[open]::backdrop,
-  .pv-toast, .pv-bar, .pv-skeleton .pv-face-wrap { transition: none; animation: none; }
-  .pv-face:active, .pv-more:active, .pv-btn:active:not([aria-disabled="true"]) { transform: none; }
+  .pv-person, .pv-face, .pv-face img, .pv-check, .pv-check-circle, .pv-more, .pv-name, .pv-addname, .pv-btn,
+  .pv-selbar, .pv-icon-btn, .pv-bar-btn, .pv-menu, .pv-menu-item, .pv-dialog[open], .pv-dialog[open]::backdrop, .pv-dialog-actions,
+  .pv-keep-opt, .pv-keep-face .pv-avatar, .pv-toast, .pv-bar, .pv-skeleton .pv-face-wrap { transition: none; animation: none; }
+  .pv-face:active, .pv-more:active, .pv-check:active .pv-check-circle,
+  .pv-btn:active:not([aria-disabled="true"]) { transform: none; }
 }
